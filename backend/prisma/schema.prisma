@@ -1,0 +1,309 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id              String           @id @default(uuid())
+  name            String
+  address         String
+  city            String
+  latitude        Decimal          @db.Decimal(10, 7)
+  longitude       Decimal          @db.Decimal(10, 7)
+  isHub           Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  users           User[]
+  branchMenuItems BranchMenuItem[]
+  deliveryZones   DeliveryZone[]
+  shifts          Shift[]
+  shiftAssignments ShiftAssignment[]
+  orders          Order[]
+  prepTickets     PrepTicket[]
+
+  @@map("organizations")
+}
+
+model User {
+  id                 String            @id @default(uuid())
+  organizationId     String?           @map("organization_id")
+  name               String
+  email              String            @unique
+  phone              String?
+  passwordHash       String            @map("password_hash")
+  fcmToken           String?           @map("fcm_token")
+  role               UserRole
+  isActive           Boolean           @default(true) @map("is_active")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  deletedAt          DateTime?         @map("deleted_at")
+  organization       Organization?     @relation(fields: [organizationId], references: [id])
+  ordersCreated      Order[]           @relation("OrderCreatedBy")
+  shiftAssignments   ShiftAssignment[]
+  clockRecords       ClockRecord[]
+  prepTicketsClaimed PrepTicket[]      @relation("PrepTicketClaimedBy")
+  refreshTokens      RefreshToken[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model MenuCategory {
+  id           String     @id @default(uuid())
+  name         String     @unique
+  prepStation  PrepStation
+  displayOrder Int        @default(0) @map("display_order")
+  isActive     Boolean    @default(true) @map("is_active")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  menuItems    MenuItem[]
+
+  @@index([prepStation])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id              String           @id @default(uuid())
+  categoryId      String           @map("category_id")
+  name            String
+  description     String?
+  price           Decimal          @db.Decimal(10, 2)
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  category        MenuCategory     @relation(fields: [categoryId], references: [id])
+  branchOverrides BranchMenuItem[]
+  orderItems      OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("menu_items")
+}
+
+model BranchMenuItem {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  menuItemId     String       @map("menu_item_id")
+  isAvailable    Boolean      @default(true) @map("is_available")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  updatedBy      String       @map("updated_by")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  menuItem       MenuItem     @relation(fields: [menuItemId], references: [id])
+
+  @@unique([organizationId, menuItemId])
+  @@index([organizationId])
+  @@index([menuItemId])
+  @@map("branch_menu_items")
+}
+
+model DeliveryZone {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  name           String
+  fee            Decimal      @db.Decimal(10, 2)
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  orders         Order[]
+
+  @@index([organizationId])
+  @@map("delivery_zones")
+}
+
+model Shift {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  name           String
+  startTime      String            @map("start_time")
+  endTime        String            @map("end_time")
+  isActive       Boolean           @default(true) @map("is_active")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  assignments    ShiftAssignment[]
+
+  @@index([organizationId])
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  shiftId        String       @map("shift_id")
+  userId         String       @map("user_id")
+  date           DateTime     @db.Date
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  shift          Shift        @relation(fields: [shiftId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  clockRecord    ClockRecord?
+
+  @@unique([userId, date, shiftId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([date])
+  @@map("shift_assignments")
+}
+
+model ClockRecord {
+  id                String          @id @default(uuid())
+  organizationId    String          @map("organization_id")
+  shiftAssignmentId String          @unique @map("shift_assignment_id")
+  userId            String          @map("user_id")
+  clockInAt         DateTime?       @map("clock_in_at")
+  clockOutAt        DateTime?       @map("clock_out_at")
+  clockInMethod     ClockMethod     @map("clock_in_method")
+  clockOutMethod    ClockMethod?    @map("clock_out_method")
+  overrideById      String?         @map("override_by_id")
+  overrideNote      String?         @map("override_note")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  shiftAssignment   ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  user              User            @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([clockInAt])
+  @@map("clock_records")
+}
+
+model Order {
+  id            String         @id @default(uuid())
+  organizationId String        @map("organization_id")
+  dailyNumber   Int            @map("daily_number")
+  orderDate     DateTime       @db.Date @map("order_date")
+  type          OrderType
+  status        OrderStatus    @default(PENDING)
+  tableNumber   String?        @map("table_number")
+  notes         String?
+  subtotal      Decimal        @db.Decimal(10, 2)
+  deliveryFee   Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
+  total         Decimal        @db.Decimal(10, 2)
+  paymentMethod PaymentMethod? @map("payment_method")
+  paidAt        DateTime?      @map("paid_at")
+  deliveryZoneId String?       @map("delivery_zone_id")
+  createdById   String         @map("created_by_id")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  closedAt      DateTime?      @map("closed_at")
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  deliveryZone  DeliveryZone?  @relation(fields: [deliveryZoneId], references: [id])
+  createdBy     User           @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  items         OrderItem[]
+  prepTickets   PrepTicket[]
+
+  @@unique([organizationId, dailyNumber, orderDate])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, orderDate])
+  @@index([createdById])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  menuItemId String   @map("menu_item_id")
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2) @map("unit_price")
+  subtotal   Decimal  @db.Decimal(10, 2)
+  notes      String?
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
+}
+
+model PrepTicket {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  orderId        String           @map("order_id")
+  station        PrepStation
+  status         PrepTicketStatus @default(PENDING)
+  claimedById    String?          @map("claimed_by_id")
+  claimedAt      DateTime?        @map("claimed_at")
+  readyAt        DateTime?        @map("ready_at")
+  items          Json
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  order          Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  claimedBy      User?            @relation("PrepTicketClaimedBy", fields: [claimedById], references: [id])
+
+  @@unique([orderId, station])
+  @@index([organizationId])
+  @@index([organizationId, station, status])
+  @@index([claimedById])
+  @@map("prep_tickets")
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  DIRECTOR
+  MANAGER
+  WAITER
+  CHEF
+  BARISTA
+  KITCHEN_DISPLAY
+  BARISTA_DISPLAY
+}
+
+enum PrepStation {
+  KITCHEN
+  BARISTA
+}
+
+enum OrderType {
+  DINE_IN
+  TAKE_AWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+  CLOSED
+  CANCELLED
+}
+
+enum PrepTicketStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+}
+
+enum PaymentMethod {
+  MPESA
+  CASH
+  CARD
+}
+
+enum ClockMethod {
+  GPS
+  OVERRIDE
+}

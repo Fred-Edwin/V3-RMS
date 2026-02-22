@@ -1,0 +1,74 @@
+'use client'
+
+import Image from 'next/image'
+import { Plus, ImageOff } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { IconButton } from './IconButton'
+import { PriceDisplay } from './PriceDisplay'
+
+interface MenuItemCardProps {
+  name: string
+  description?: string
+  price: number
+  isAvailable: boolean
+  imageUrl?: string
+  onAdd?: () => void
+  className?: string
+}
+
+export function MenuItemCard({ name, description, price, isAvailable, imageUrl, onAdd, className }: MenuItemCardProps) {
+  return (
+    <div
+      className={cn(
+        'relative bg-white border border-stone-200 shadow-sm rounded-md overflow-hidden',
+        !isAvailable && 'opacity-50',
+        className
+      )}
+    >
+      {/* Image area */}
+      <div className="relative h-40 bg-parchment">
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <ImageOff size={32} className="text-stone-300" />
+          </div>
+        )}
+        {!isAvailable && (
+          <span className="absolute top-2 right-2 bg-stone-900/70 text-crema text-label-sm px-2 py-0.5 rounded-full">
+            Unavailable
+          </span>
+        )}
+      </div>
+
+      {/* Content area */}
+      <div className="p-4 pb-12">
+        <h3 className="text-heading-sm font-semibold text-stone-900 leading-snug">{name}</h3>
+        {description && (
+          <p className="text-body-sm text-stone-500 mt-1 line-clamp-2">{description}</p>
+        )}
+        <div className="mt-2">
+          <PriceDisplay amount={price} />
+        </div>
+      </div>
+
+      {isAvailable && onAdd && (
+        <div className="absolute bottom-3 right-3">
+          <IconButton
+            icon={<Plus size={18} />}
+            label="Add item"
+            variant="primary"
+            size="md"
+            onClick={onAdd}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
