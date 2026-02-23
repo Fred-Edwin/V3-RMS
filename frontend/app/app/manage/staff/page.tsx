@@ -9,6 +9,7 @@ type ManagerCreatableRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA' | 'KI
 
 export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const hydrateSession = useAuthStore((state) => state.hydrateSession);
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,8 +23,15 @@ export default function Page(): JSX.Element {
     temporaryPassword: '',
   });
 
+  useEffect(() => {
+    if (!accessToken) {
+      void hydrateSession();
+    }
+  }, [accessToken, hydrateSession]);
+
   const loadStaff = useCallback(async (): Promise<void> => {
     if (!accessToken) {
+      setError('Session not ready. Please wait or sign in again.');
       return;
     }
 
@@ -46,32 +54,39 @@ export default function Page(): JSX.Element {
   const handleCreate = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!accessToken) {
+      setError('Session expired. Please sign in again.');
       return;
     }
 
-    await staffService.createStaff(
-      {
-        name: form.name,
-        email: form.email,
-        phone: form.phone || undefined,
-        role: form.role,
-        temporaryPassword: form.temporaryPassword,
-      },
-      accessToken,
-    );
+    setError(null);
+    try {
+      await staffService.createStaff(
+        {
+          name: form.name,
+          email: form.email,
+          phone: form.phone || undefined,
+          role: form.role,
+          temporaryPassword: form.temporaryPassword,
+        },
+        accessToken,
+      );
 
-    setForm({
-      name: '',
-      email: '',
-      phone: '',
-      role: 'WAITER',
-      temporaryPassword: '',
-    });
-    await loadStaff();
+      setForm({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'WAITER',
+        temporaryPassword: '',
+      });
+      await loadStaff();
+    } catch {
+      setError('Failed to create staff account.');
+    }
   };
 
   const handleEdit = async (item: StaffDto): Promise<void> => {
     if (!accessToken) {
+      setError('Session expired. Please sign in again.');
       return;
     }
 
@@ -81,12 +96,18 @@ export default function Page(): JSX.Element {
     }
 
     const phone = window.prompt('Phone', item.phone ?? '');
-    await staffService.updateStaff(item.id, { name, phone: phone ?? undefined }, accessToken);
-    await loadStaff();
+    setError(null);
+    try {
+      await staffService.updateStaff(item.id, { name, phone: phone ?? undefined }, accessToken);
+      await loadStaff();
+    } catch {
+      setError('Failed to update staff details.');
+    }
   };
 
   const handleToggleActive = async (item: StaffDto): Promise<void> => {
     if (!accessToken) {
+      setError('Session expired. Please sign in again.');
       return;
     }
 
@@ -94,13 +115,18 @@ export default function Page(): JSX.Element {
       return;
     }
 
-    if (item.isActive) {
-      await staffService.deactivateStaff(item.id, accessToken);
-    } else {
-      await staffService.reactivateStaff(item.id, accessToken);
-    }
+    setError(null);
+    try {
+      if (item.isActive) {
+        await staffService.deactivateStaff(item.id, accessToken);
+      } else {
+        await staffService.reactivateStaff(item.id, accessToken);
+      }
 
-    await loadStaff();
+      await loadStaff();
+    } catch {
+      setError('Failed to update staff status.');
+    }
   };
 
   return (

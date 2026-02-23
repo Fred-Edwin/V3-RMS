@@ -1,45 +1,122 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { BookOpen, Building2, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
+import {
+  Button,
+  ConfirmDialog,
+  FormField,
+  Input,
+  Modal,
+  PageHeader,
+  PageLayout,
+  Select,
+  SidebarLayout,
+  SidebarNav,
+  StatCard,
+  Table,
+  type TableColumn,
+} from '@/components/ui';
+import { useToast } from '@/hooks/useToast';
+import { ApiError } from '@/types/api';
 
 type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER'>;
 
+type BranchRow = Record<string, unknown> & {
+  id: string;
+  name: string;
+  city: string;
+  isHub: boolean;
+  isActive: boolean;
+  branch: BranchDto;
+};
+
+type UserRow = Record<string, unknown> & {
+  id: string;
+  name: string;
+  email: string;
+  role: StaffDto['role'];
+  organizationName: string | null;
+  isActive: boolean;
+  user: StaffDto;
+};
+
+interface BranchFormState {
+  name: string;
+  address: string;
+  city: string;
+  latitude: string;
+  longitude: string;
+}
+
+interface UserFormState {
+  name: string;
+  email: string;
+  phone: string;
+  role: AdminUserRole;
+  organizationId: string;
+  temporaryPassword: string;
+}
+
+const initialBranchForm: BranchFormState = {
+  name: '',
+  address: '',
+  city: '',
+  latitude: '',
+  longitude: '',
+};
+
+const initialUserForm: UserFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  role: 'MANAGER',
+  organizationId: '',
+  temporaryPassword: '',
+};
+
+const statusPillClass = {
+  active: 'border border-[#86EFAC] bg-[#EDFAF1] text-[#1A6B3C]',
+  inactive: 'border border-[#D4D4D8] bg-[#F4F4F5] text-[#71717A]',
+} as const;
+
 export default function Page(): JSX.Element {
+  const router = useRouter();
+  const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const hydrateSession = useAuthStore((state) => state.hydrateSession);
 
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [users, setUsers] = useState<StaffDto[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [branchForm, setBranchForm] = useState({
-    name: '',
-    address: '',
-    city: '',
-    latitude: '',
-    longitude: '',
-  });
+  const [branchForm, setBranchForm] = useState<BranchFormState>(initialBranchForm);
+  const [editBranchForm, setEditBranchForm] = useState<BranchFormState>(initialBranchForm);
+  const [userForm, setUserForm] = useState<UserFormState>(initialUserForm);
 
-  const [userForm, setUserForm] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    role: 'MANAGER' as AdminUserRole,
-    organizationId: '',
-    temporaryPassword: '',
-  });
+  const [editBranchModalOpen, setEditBranchModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<BranchDto | null>(null);
+  const [hubTarget, setHubTarget] = useState<BranchDto | null>(null);
+  const [toggleUserTarget, setToggleUserTarget] = useState<StaffDto | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) {
+      void hydrateSession();
+    }
+  }, [accessToken, hydrateSession]);
 
   const loadData = useCallback(async (): Promise<void> => {
     if (!accessToken) {
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
     try {
       const [branchData, managers, directors] = await Promise.all([
         branchService.listBranches(accessToken),
@@ -48,16 +125,48 @@ export default function Page(): JSX.Element {
       ]);
       setBranches(branchData);
       setUsers([...directors, ...managers]);
-    } catch {
-      setError('Failed to load admin data.');
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
+      toast({
+        variant: 'error',
+        title: 'Load failed',
+        message,
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, toast]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const branchRows = useMemo<BranchRow[]>(
+    () =>
+      branches.map((branch) => ({
+        id: branch.id,
+        name: branch.name,
+        city: branch.city,
+        isHub: branch.isHub,
+        isActive: branch.isActive,
+        branch,
+      })),
+    [branches],
+  );
+
+  const userRows = useMemo<UserRow[]>(
+    () =>
+      users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        organizationName: user.organizationName ?? null,
+        isActive: user.isActive,
+        user,
+      })),
+    [users],
+  );
 
   const handleCreateBranch = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -65,51 +174,134 @@ export default function Page(): JSX.Element {
       return;
     }
 
-    await branchService.createBranch(
-      {
-        name: branchForm.name,
-        address: branchForm.address,
-        city: branchForm.city,
-        latitude: Number(branchForm.latitude),
-        longitude: Number(branchForm.longitude),
-      },
-      accessToken,
-    );
+    const latitude = Number.parseFloat(branchForm.latitude);
+    const longitude = Number.parseFloat(branchForm.longitude);
 
-    setBranchForm({
-      name: '',
-      address: '',
-      city: '',
-      latitude: '',
-      longitude: '',
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      toast({
+        variant: 'warning',
+        title: 'Invalid coordinates',
+        message: 'Latitude and longitude must be valid numbers.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await branchService.createBranch(
+        {
+          name: branchForm.name.trim(),
+          address: branchForm.address.trim(),
+          city: branchForm.city.trim(),
+          latitude,
+          longitude,
+        },
+        accessToken,
+      );
+      setBranchForm(initialBranchForm);
+      toast({
+        variant: 'success',
+        title: 'Branch created',
+      });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to create branch.';
+      toast({
+        variant: 'error',
+        title: 'Create failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditBranchModal = (branch: BranchDto): void => {
+    setEditingBranch(branch);
+    setEditBranchForm({
+      name: branch.name,
+      address: branch.address,
+      city: branch.city,
+      latitude: String(branch.latitude),
+      longitude: String(branch.longitude),
     });
-    await loadData();
+    setEditBranchModalOpen(true);
   };
 
-  const handleSetHub = async (branchId: string): Promise<void> => {
-    if (!accessToken) {
-      return;
-    }
-    if (!window.confirm('Set this branch as hub?')) {
+  const handleUpdateBranch = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !editingBranch) {
       return;
     }
 
-    await branchService.setHub(branchId, accessToken);
-    await loadData();
+    const latitude = Number.parseFloat(editBranchForm.latitude);
+    const longitude = Number.parseFloat(editBranchForm.longitude);
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      toast({
+        variant: 'warning',
+        title: 'Invalid coordinates',
+        message: 'Latitude and longitude must be valid numbers.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await branchService.updateBranch(
+        editingBranch.id,
+        {
+          name: editBranchForm.name.trim(),
+          address: editBranchForm.address.trim(),
+          city: editBranchForm.city.trim(),
+          latitude,
+          longitude,
+        },
+        accessToken,
+      );
+      setEditBranchModalOpen(false);
+      setEditingBranch(null);
+      toast({
+        variant: 'success',
+        title: 'Branch updated',
+      });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to update branch.';
+      toast({
+        variant: 'error',
+        title: 'Update failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditBranch = async (branch: BranchDto): Promise<void> => {
-    if (!accessToken) {
+  const handleConfirmSetHub = async (): Promise<void> => {
+    if (!accessToken || !hubTarget) {
       return;
     }
 
-    const name = window.prompt('Branch name', branch.name);
-    if (!name) {
-      return;
+    setIsSubmitting(true);
+    try {
+      await branchService.setHub(hubTarget.id, accessToken);
+      setHubTarget(null);
+      toast({
+        variant: 'success',
+        title: 'Hub branch updated',
+      });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to set hub branch.';
+      toast({
+        variant: 'error',
+        title: 'Hub update failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    await branchService.updateBranch(branch.id, { name }, accessToken);
-    await loadData();
   };
 
   const handleCreateUser = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -118,206 +310,417 @@ export default function Page(): JSX.Element {
       return;
     }
 
-    await staffService.createStaff(
-      {
-        name: userForm.name,
-        email: userForm.email,
-        phone: userForm.phone || undefined,
-        role: userForm.role,
-        organizationId: userForm.role === 'MANAGER' ? userForm.organizationId : undefined,
-        temporaryPassword: userForm.temporaryPassword,
-      },
-      accessToken,
-    );
-
-    setUserForm({
-      name: '',
-      email: '',
-      phone: '',
-      role: 'MANAGER',
-      organizationId: '',
-      temporaryPassword: '',
-    });
-    await loadData();
-  };
-
-  const handleToggleUser = async (staff: StaffDto): Promise<void> => {
-    if (!accessToken) {
+    if (userForm.role === 'MANAGER' && !userForm.organizationId) {
+      toast({
+        variant: 'warning',
+        title: 'Branch required',
+        message: 'Select a branch before creating a manager.',
+      });
       return;
     }
 
-    if (!window.confirm(`${staff.isActive ? 'Deactivate' : 'Reactivate'} ${staff.name}?`)) {
+    setIsSubmitting(true);
+    try {
+      await staffService.createStaff(
+        {
+          name: userForm.name.trim(),
+          email: userForm.email.trim(),
+          phone: userForm.phone.trim() || undefined,
+          role: userForm.role,
+          organizationId: userForm.role === 'MANAGER' ? userForm.organizationId : undefined,
+          temporaryPassword: userForm.temporaryPassword,
+        },
+        accessToken,
+      );
+      setUserForm(initialUserForm);
+      toast({
+        variant: 'success',
+        title: 'Account created',
+      });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to create account.';
+      toast({
+        variant: 'error',
+        title: 'Create failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmToggleUser = async (): Promise<void> => {
+    if (!accessToken || !toggleUserTarget) {
       return;
     }
 
-    if (staff.isActive) {
-      await staffService.deactivateStaff(staff.id, accessToken);
-    } else {
-      await staffService.reactivateStaff(staff.id, accessToken);
+    setIsSubmitting(true);
+    try {
+      if (toggleUserTarget.isActive) {
+        await staffService.deactivateStaff(toggleUserTarget.id, accessToken);
+      } else {
+        await staffService.reactivateStaff(toggleUserTarget.id, accessToken);
+      }
+      setToggleUserTarget(null);
+      toast({
+        variant: 'success',
+        title: 'Account status updated',
+      });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to update account status.';
+      toast({
+        variant: 'error',
+        title: 'Status update failed',
+        message,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    await loadData();
   };
+
+  const branchColumns: Array<TableColumn<BranchRow>> = [
+    {
+      key: 'name',
+      label: 'Branch',
+      render: (_value, row) => (
+        <div>
+          <p className="text-body-sm text-stone-900">{row.branch.name}</p>
+          <p className="text-caption text-stone-500">{row.branch.address}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'city',
+      label: 'City',
+    },
+    {
+      key: 'isHub',
+      label: 'Hub',
+      render: (_value, row) => (row.branch.isHub ? 'Hub' : 'No'),
+    },
+    {
+      key: 'isActive',
+      label: 'Status',
+      render: (_value, row) => (
+        <span
+          className={`inline-flex rounded-full px-3 py-1 text-label-sm font-medium ${
+            row.branch.isActive ? statusPillClass.active : statusPillClass.inactive
+          }`}
+        >
+          {row.branch.isActive ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_value, row) => (
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="ghost" onClick={() => openEditBranchModal(row.branch)}>
+            Edit
+          </Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => setHubTarget(row.branch)}>
+            Set Hub
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const userColumns: Array<TableColumn<UserRow>> = [
+    {
+      key: 'name',
+      label: 'Name',
+    },
+    {
+      key: 'email',
+      label: 'Email',
+    },
+    {
+      key: 'role',
+      label: 'Role',
+    },
+    {
+      key: 'organizationName',
+      label: 'Branch',
+      render: (_value, row) => row.user.organizationName ?? 'System',
+    },
+    {
+      key: 'isActive',
+      label: 'Status',
+      render: (_value, row) => (
+        <span
+          className={`inline-flex rounded-full px-3 py-1 text-label-sm font-medium ${
+            row.user.isActive ? statusPillClass.active : statusPillClass.inactive
+          }`}
+        >
+          {row.user.isActive ? 'Active' : 'Inactive'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_value, row) => (
+        <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
+          {row.user.isActive ? 'Deactivate' : 'Reactivate'}
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-stone-100 p-6 md:p-8">
-      <section className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-stone-900">System Admin</h1>
-          <p className="mt-2 text-sm text-stone-600">Manage branches and leadership accounts.</p>
-          {loading ? <p className="mt-3 text-sm text-stone-500">Loading...</p> : null}
-          {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
-        </header>
+    <SidebarLayout
+      sidebar={
+        <SidebarNav
+          activeHref="/app/admin"
+          sections={[
+            {
+              label: 'System Admin',
+              items: [
+                { label: 'Dashboard', href: '/app/admin', icon: LayoutDashboard },
+                { label: 'Menu', href: '/app/admin/menu', icon: BookOpen },
+              ],
+            },
+          ]}
+        />
+      }
+    >
+      <PageLayout>
+        <PageHeader
+          title="System Admin Dashboard"
+          subtitle="Manage branches, leadership accounts, and system configuration."
+          action={
+            <Button type="button" variant="secondary" onClick={() => router.push('/app/admin/menu')}>
+              Go to Menu Management
+            </Button>
+          }
+        />
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <article className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-stone-900">Branches</h2>
-            <ul className="mt-4 space-y-3 text-sm text-stone-700">
-              {branches.map((branch) => (
-                <li key={branch.id} className="rounded-md border border-stone-200 p-3">
-                  <p className="font-medium">
-                    {branch.name} {branch.isHub ? '(Hub)' : ''}
-                  </p>
-                  <p>{branch.city}</p>
-                  <p className="text-stone-500">{branch.isActive ? 'Active' : 'Inactive'}</p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleEditBranch(branch)}
-                      className="rounded border border-stone-300 px-2 py-1 text-xs"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleSetHub(branch.id)}
-                      className="rounded border border-stone-300 px-2 py-1 text-xs"
-                    >
-                      Set Hub
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <form className="mt-6 space-y-3" onSubmit={handleCreateBranch}>
-              <h3 className="text-sm font-semibold text-stone-800">Create Branch</h3>
-              <input
-                placeholder="Name"
-                value={branchForm.name}
-                onChange={(event) => setBranchForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="Address"
-                value={branchForm.address}
-                onChange={(event) => setBranchForm((prev) => ({ ...prev, address: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="City"
-                value={branchForm.city}
-                onChange={(event) => setBranchForm((prev) => ({ ...prev, city: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  placeholder="Latitude"
-                  value={branchForm.latitude}
-                  onChange={(event) => setBranchForm((prev) => ({ ...prev, latitude: event.target.value }))}
-                  className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-                />
-                <input
-                  placeholder="Longitude"
-                  value={branchForm.longitude}
-                  onChange={(event) => setBranchForm((prev) => ({ ...prev, longitude: event.target.value }))}
-                  className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <button className="rounded bg-stone-900 px-3 py-2 text-sm text-white" type="submit">
-                Create Branch
-              </button>
-            </form>
-          </article>
-
-          <article className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-stone-900">Director and Manager Accounts</h2>
-            <ul className="mt-4 space-y-3 text-sm text-stone-700">
-              {users.map((staff) => (
-                <li key={staff.id} className="rounded-md border border-stone-200 p-3">
-                  <p className="font-medium">{staff.name}</p>
-                  <p>{staff.email}</p>
-                  <p>
-                    {staff.role} {staff.organizationName ? `- ${staff.organizationName}` : ''}
-                  </p>
-                  <p className="text-stone-500">{staff.isActive ? 'Active' : 'Inactive'}</p>
-                  <button
-                    type="button"
-                    onClick={() => void handleToggleUser(staff)}
-                    className="mt-2 rounded border border-stone-300 px-2 py-1 text-xs"
-                  >
-                    {staff.isActive ? 'Deactivate' : 'Reactivate'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            <form className="mt-6 space-y-3" onSubmit={handleCreateUser}>
-              <h3 className="text-sm font-semibold text-stone-800">Create Director / Manager</h3>
-              <input
-                placeholder="Name"
-                value={userForm.name}
-                onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="Email"
-                value={userForm.email}
-                onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="Phone"
-                value={userForm.phone}
-                onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              />
-              <select
-                value={userForm.role}
-                onChange={(event) => setUserForm((prev) => ({ ...prev, role: event.target.value as AdminUserRole }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-              >
-                <option value="MANAGER">MANAGER</option>
-                <option value="DIRECTOR">DIRECTOR</option>
-              </select>
-              {userForm.role === 'MANAGER' ? (
-                <select
-                  value={userForm.organizationId}
-                  onChange={(event) => setUserForm((prev) => ({ ...prev, organizationId: event.target.value }))}
-                  className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((branch) => (
-                    <option value={branch.id} key={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              <input
-                placeholder="Temporary Password"
-                value={userForm.temporaryPassword}
-                onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
-                className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-                type="password"
-              />
-              <button className="rounded bg-stone-900 px-3 py-2 text-sm text-white" type="submit">
-                Create Account
-              </button>
-            </form>
-          </article>
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatCard
+            value={branches.length}
+            label="Branches"
+            icon={<Building2 size={18} />}
+            caption="Total registered branches"
+          />
+          <StatCard
+            value={users.filter((user) => user.role === 'MANAGER').length}
+            label="Managers"
+            icon={<Users size={18} />}
+            caption="Active and inactive manager accounts"
+          />
+          <StatCard
+            value={users.filter((user) => user.role === 'DIRECTOR').length}
+            label="Directors"
+            icon={<ShieldCheck size={18} />}
+            caption="System-wide leadership accounts"
+          />
         </div>
-      </section>
-    </main>
+
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
+          <section className="space-y-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="text-heading-md font-semibold text-stone-900">Branches</h2>
+            <Table<BranchRow> columns={branchColumns} data={branchRows} keyField="id" />
+
+            <form className="space-y-4 border-t border-stone-200 pt-4" onSubmit={(event) => void handleCreateBranch(event)}>
+              <h3 className="text-heading-sm font-semibold text-stone-900">Create Branch</h3>
+              <FormField label="Name" htmlFor="branch-name" required>
+                <Input
+                  id="branch-name"
+                  value={branchForm.name}
+                  onChange={(event) => setBranchForm((prev) => ({ ...prev, name: event.target.value }))}
+                />
+              </FormField>
+              <FormField label="Address" htmlFor="branch-address" required>
+                <Input
+                  id="branch-address"
+                  value={branchForm.address}
+                  onChange={(event) => setBranchForm((prev) => ({ ...prev, address: event.target.value }))}
+                />
+              </FormField>
+              <FormField label="City" htmlFor="branch-city" required>
+                <Input
+                  id="branch-city"
+                  value={branchForm.city}
+                  onChange={(event) => setBranchForm((prev) => ({ ...prev, city: event.target.value }))}
+                />
+              </FormField>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField label="Latitude" htmlFor="branch-latitude" required>
+                  <Input
+                    id="branch-latitude"
+                    value={branchForm.latitude}
+                    onChange={(event) => setBranchForm((prev) => ({ ...prev, latitude: event.target.value }))}
+                  />
+                </FormField>
+                <FormField label="Longitude" htmlFor="branch-longitude" required>
+                  <Input
+                    id="branch-longitude"
+                    value={branchForm.longitude}
+                    onChange={(event) => setBranchForm((prev) => ({ ...prev, longitude: event.target.value }))}
+                  />
+                </FormField>
+              </div>
+              <Button type="submit" isLoading={isSubmitting}>
+                Create Branch
+              </Button>
+            </form>
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+            <h2 className="text-heading-md font-semibold text-stone-900">Leadership Accounts</h2>
+            <Table<UserRow> columns={userColumns} data={userRows} keyField="id" />
+
+            <form className="space-y-4 border-t border-stone-200 pt-4" onSubmit={(event) => void handleCreateUser(event)}>
+              <h3 className="text-heading-sm font-semibold text-stone-900">Create Director / Manager</h3>
+              <FormField label="Name" htmlFor="user-name" required>
+                <Input
+                  id="user-name"
+                  value={userForm.name}
+                  onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
+                />
+              </FormField>
+              <FormField label="Email" htmlFor="user-email" required>
+                <Input
+                  id="user-email"
+                  type="email"
+                  value={userForm.email}
+                  onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
+                />
+              </FormField>
+              <FormField label="Phone" htmlFor="user-phone">
+                <Input
+                  id="user-phone"
+                  value={userForm.phone}
+                  onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
+                />
+              </FormField>
+              <FormField label="Role" htmlFor="user-role" required>
+                <Select
+                  id="user-role"
+                  value={userForm.role}
+                  onChange={(event) =>
+                    setUserForm((prev) => ({
+                      ...prev,
+                      role: event.target.value as AdminUserRole,
+                    }))
+                  }
+                  options={[
+                    { value: 'MANAGER', label: 'MANAGER' },
+                    { value: 'DIRECTOR', label: 'DIRECTOR' },
+                  ]}
+                />
+              </FormField>
+              {userForm.role === 'MANAGER' ? (
+                <FormField label="Branch" htmlFor="user-branch" required>
+                  <Select
+                    id="user-branch"
+                    placeholder="Select branch"
+                    value={userForm.organizationId}
+                    onChange={(event) => setUserForm((prev) => ({ ...prev, organizationId: event.target.value }))}
+                    options={branches.map((branch) => ({
+                      value: branch.id,
+                      label: branch.name,
+                    }))}
+                  />
+                </FormField>
+              ) : null}
+              <FormField label="Temporary Password" htmlFor="user-password" required>
+                <Input
+                  id="user-password"
+                  type="password"
+                  value={userForm.temporaryPassword}
+                  onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
+                />
+              </FormField>
+              <Button type="submit" isLoading={isSubmitting}>
+                Create Account
+              </Button>
+            </form>
+          </section>
+        </div>
+
+        {isLoading ? <p className="mt-6 text-body-sm text-stone-500">Loading latest data...</p> : null}
+      </PageLayout>
+
+      <Modal
+        isOpen={editBranchModalOpen}
+        onClose={() => setEditBranchModalOpen(false)}
+        title="Edit Branch"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setEditBranchModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-branch-form" isLoading={isSubmitting}>
+              Save Changes
+            </Button>
+          </div>
+        }
+      >
+        <form id="edit-branch-form" className="space-y-4" onSubmit={(event) => void handleUpdateBranch(event)}>
+          <FormField label="Name" htmlFor="edit-branch-name" required>
+            <Input
+              id="edit-branch-name"
+              value={editBranchForm.name}
+              onChange={(event) => setEditBranchForm((prev) => ({ ...prev, name: event.target.value }))}
+            />
+          </FormField>
+          <FormField label="Address" htmlFor="edit-branch-address" required>
+            <Input
+              id="edit-branch-address"
+              value={editBranchForm.address}
+              onChange={(event) => setEditBranchForm((prev) => ({ ...prev, address: event.target.value }))}
+            />
+          </FormField>
+          <FormField label="City" htmlFor="edit-branch-city" required>
+            <Input
+              id="edit-branch-city"
+              value={editBranchForm.city}
+              onChange={(event) => setEditBranchForm((prev) => ({ ...prev, city: event.target.value }))}
+            />
+          </FormField>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Latitude" htmlFor="edit-branch-latitude" required>
+              <Input
+                id="edit-branch-latitude"
+                value={editBranchForm.latitude}
+                onChange={(event) => setEditBranchForm((prev) => ({ ...prev, latitude: event.target.value }))}
+              />
+            </FormField>
+            <FormField label="Longitude" htmlFor="edit-branch-longitude" required>
+              <Input
+                id="edit-branch-longitude"
+                value={editBranchForm.longitude}
+                onChange={(event) => setEditBranchForm((prev) => ({ ...prev, longitude: event.target.value }))}
+              />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!hubTarget}
+        onClose={() => setHubTarget(null)}
+        onConfirm={() => void handleConfirmSetHub()}
+        title="Set hub branch?"
+        description={`Set "${hubTarget?.name ?? ''}" as the system hub branch.`}
+        confirmLabel="Set Hub"
+        isLoading={isSubmitting}
+      />
+
+      <ConfirmDialog
+        isOpen={!!toggleUserTarget}
+        onClose={() => setToggleUserTarget(null)}
+        onConfirm={() => void handleConfirmToggleUser()}
+        title={toggleUserTarget?.isActive ? 'Deactivate account?' : 'Reactivate account?'}
+        description={`Update account status for "${toggleUserTarget?.name ?? ''}".`}
+        confirmLabel={toggleUserTarget?.isActive ? 'Deactivate' : 'Reactivate'}
+        isLoading={isSubmitting}
+      />
+    </SidebarLayout>
   );
 }

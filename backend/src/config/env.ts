@@ -18,6 +18,7 @@ const envSchema = z.object({
   SYSTEM_ADMIN_EMAIL: z.string().email().optional(),
   SYSTEM_ADMIN_PASSWORD: z.string().min(8).optional(),
   LOG_LEVEL: z.string().default('info'),
+  LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 });
 
 export const env = envSchema.parse(process.env);

@@ -20,6 +20,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/DESIGN_SYSTEM.md`    | Building any UI component or page              |
 | `docs/BUILD_ORDER.md`      | Understanding what phase is being built        |
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
+| `docs/context`             | Getting context for the previous phases        |
 
 ## Non-Negotiables (Read These Now)
 
@@ -36,6 +37,14 @@ Before implementing anything, read the document(s) specific sections/lines relev
 11. Always use pnpm to build the project.
 12. Always use pnpm to run the project.
 13. Use Windows PowerShell commands.
+
+## Frontend Hook Stability Rules (Read Before Editing Pages/Hooks)
+
+1. Hooks that return action functions used in `useEffect`/`useCallback` dependencies must return stable references (use selectors + `useCallback` when needed).
+2. Do not silence dependency warnings by default. Prefer making dependencies stable instead of removing them.
+3. Data-loading effects must not depend on unstable inline functions, or they can trigger repeated refetch loops and UI flicker.
+4. For Zustand, prefer selecting specific actions (`useStore((s) => s.action)`) instead of destructuring the whole store object.
+5. If you intentionally omit a dependency, add an inline comment explaining why it is safe.
 
 ## Project Structure
 
@@ -70,6 +79,6 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 0 — Project Foundation
+Phase: 2 — Menu Management
 Status: In Progress
-Context file: docs/context/PHASE_0_CONTEXT.md
+Context file: docs/context/PHASE_2_CONTEXT.md

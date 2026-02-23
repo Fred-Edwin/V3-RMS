@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useToastStore, type ToastVariant } from '@/store/toastStore'
 
 interface ToastOptions {
@@ -14,16 +15,17 @@ const dismissDelays: Record<ToastVariant, number | null> = {
 }
 
 export function useToast() {
-  const { addToast, removeToast } = useToastStore()
+  const addToast = useToastStore((state) => state.addToast)
+  const removeToast = useToastStore((state) => state.removeToast)
 
-  function toast(options: ToastOptions) {
+  const toast = useCallback((options: ToastOptions): string => {
     const id = addToast(options)
     const delay = dismissDelays[options.variant]
     if (delay !== null) {
       setTimeout(() => removeToast(id), delay)
     }
     return id
-  }
+  }, [addToast, removeToast])
 
   return { toast }
 }

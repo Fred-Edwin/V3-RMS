@@ -20,6 +20,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/DESIGN_SYSTEM.md`    | Building any UI component or page              |
 | `docs/BUILD_ORDER.md`      | Understanding what phase is being built        |
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
+| `docs/context`             | Getting context for the previous phases        |
 
 ## Non-Negotiables (Read These Now)
 
@@ -70,6 +71,6 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 0 — Project Foundation
+Phase: 2 — Menu Management
 Status: In Progress
-Context file: docs/context/PHASE_0_CONTEXT.md
+Context file: docs/context/PHASE_2_CONTEXT.md

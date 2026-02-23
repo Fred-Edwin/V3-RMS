@@ -10,6 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   setAuth: (input: { user: AuthUser; accessToken: string }) => void;
   refreshAccessToken: () => Promise<void>;
+  hydrateSession: () => Promise<void>;
   logout: () => Promise<void>;
   clearAuth: () => void;
 }
@@ -68,6 +69,33 @@ const scheduleRefresh = (token: string): void => {
   }, delay);
 };
 
+const decodeTokenClaims = (token: string): { role: AuthUser['role']; organizationId: string | null } | null => {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  try {
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded)) as {
+      role?: AuthUser['role'];
+      organizationId?: string | null;
+    };
+
+    if (!payload.role) {
+      return null;
+    }
+
+    return {
+      role: payload.role,
+      organizationId: payload.organizationId ?? null,
+    };
+  } catch {
+    return null;
+  }
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   accessToken: null,
@@ -86,22 +114,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   refreshAccessToken: async () => {
-    const { user } = useAuthStore.getState();
-    if (!user) {
-      return;
-    }
-
     try {
       const { accessToken } = await authService.refreshToken();
+      const claims = decodeTokenClaims(accessToken);
       setAccessTokenCookie(accessToken);
       scheduleRefresh(accessToken);
-      set({
+      set((state) => ({
         accessToken,
         isAuthenticated: true,
-      });
+        role: claims?.role ?? state.role,
+        organizationId: claims?.organizationId ?? state.organizationId,
+      }));
     } catch {
       useAuthStore.getState().clearAuth();
     }
+  },
+  hydrateSession: async () => {
+    const { accessToken } = useAuthStore.getState();
+    if (accessToken) {
+      return;
+    }
+
+    await useAuthStore.getState().refreshAccessToken();
   },
   logout: async () => {
     const { accessToken } = useAuthStore.getState();
