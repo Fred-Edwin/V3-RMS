@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Cormorant_Garamond, DM_Sans } from 'next/font/google';
 import './globals.css';
+import { SessionBootstrap } from '@/components/app/SessionBootstrap';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 
@@ -29,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${cormorantGaramond.variable} ${dmSans.variable}`}>
       <body className={`${cormorantGaramond.variable} ${dmSans.variable} font-sans`}>
+        <SessionBootstrap />
         <OfflineBanner />
         {children}
         <ToastContainer />

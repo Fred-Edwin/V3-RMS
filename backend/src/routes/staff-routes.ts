@@ -17,7 +17,7 @@ staffRoutes.get(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
   staffController.list,
 );
 staffRoutes.get(

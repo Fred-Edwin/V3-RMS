@@ -23,6 +23,13 @@ export type MenuCategoryWithOverridesRecord = Prisma.MenuCategoryGetPayload<{
   };
 }>;
 
+export type MenuItemWithCategoryRecord = Prisma.MenuItemGetPayload<{
+  include: {
+    category: true;
+    branchOverrides: true;
+  };
+}>;
+
 export const menuRepository = {
   findAllCategories: async (): Promise<Array<CategoryWithItemsRecord & { itemCount: number }>> => {
     const categories = await prisma.menuCategory.findMany({
@@ -223,6 +230,31 @@ export const menuRepository = {
       update: {
         isAvailable,
         updatedBy,
+      },
+    });
+  },
+
+  findItemsWithCategoriesByIds: async (
+    ids: string[],
+    organizationId: string,
+  ): Promise<MenuItemWithCategoryRecord[]> => {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return prisma.menuItem.findMany({
+      where: {
+        id: { in: ids },
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        category: true,
+        branchOverrides: {
+          where: {
+            organizationId,
+          },
+        },
       },
     });
   },

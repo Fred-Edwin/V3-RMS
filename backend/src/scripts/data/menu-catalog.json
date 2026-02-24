@@ -1,0 +1,194 @@
+{
+  "Espresso (BARISTA)": [
+    { "item": "Espresso (Single)", "price_kes": 150 },
+    { "item": "Espresso (Double)", "price_kes": 200 },
+    { "item": "Americano (Single)", "price_kes": 150 },
+    { "item": "Americano (Double)", "price_kes": 200 },
+    { "item": "Latte (Single)", "price_kes": 200 },
+    { "item": "Latte (Double)", "price_kes": 250 },
+    { "item": "Oreo Latte (Single)", "price_kes": 250 },
+    { "item": "Oreo Latte (Double)", "price_kes": 300 },
+    { "item": "Cappuccino (Single)", "price_kes": 200 },
+    { "item": "Cappuccino (Double)", "price_kes": 250 },
+    { "item": "Mocha Latte (Single)", "price_kes": 200 },
+    { "item": "Mocha Latte (Double)", "price_kes": 250 },
+    { "item": "Latte Macchiato (Single)", "price_kes": 200 },
+    { "item": "Latte Macchiato (Double)", "price_kes": 250 },
+    { "item": "Oreo Macchiato (Single)", "price_kes": 250 },
+    { "item": "Oreo Macchiato (Double)", "price_kes": 300 },
+    { "item": "Malindi Macchiato (Single)", "price_kes": 200 },
+    { "item": "Malindi Macchiato (Double)", "price_kes": 250 },
+    { "item": "Mochaccino (Single)", "price_kes": 380 },
+    { "item": "Wendo House Coffee (Single)", "price_kes": 150 },
+    { "item": "Wendo House Coffee (Double)", "price_kes": 200 }
+  ],
+  "Coffee Syrups (ADD-ONS)": [
+    { "item": "Vanilla Syrup", "price_kes": 100 },
+    { "item": "Caramel Syrup", "price_kes": 100 },
+    { "item": "Hazelnut Syrup", "price_kes": 100 },
+    { "item": "Peppermint Syrup", "price_kes": 100 }
+  ],
+  "Milkshakes (BARISTA)": [
+    { "item": "Vanilla Milkshake", "price_kes": 400 },
+    { "item": "Chocolate Milkshake", "price_kes": 400 },
+    { "item": "Strawberry Milkshake", "price_kes": 400 },
+    { "item": "Minty Milkshake", "price_kes": 400 },
+    { "item": "Pi\\u00f1ade Milkshake", "price_kes": 400 },
+    { "item": "Espresso Milkshake", "price_kes": 400 },
+    { "item": "Mocha Milkshake", "price_kes": 400 },
+    { "item": "Banana Milkshake", "price_kes": 400 },
+    { "item": "Cookie Milkshake", "price_kes": 450 },
+    { "item": "Oreo Milkshake", "price_kes": 450 },
+    { "item": "Blueberry Milkshake", "price_kes": 450 },
+    { "item": "Pistachio Milkshake", "price_kes": 450 },
+    { "item": "Peanut Butter Milkshake", "price_kes": 450 }
+  ],
+  "Iced Drinks (BARISTA)": [
+    { "item": "Iced Tea", "price_kes": 200 },
+    { "item": "Iced Latte", "price_kes": 250 },
+    { "item": "Iced Mocha", "price_kes": 250 },
+    { "item": "Iced Dawa", "price_kes": 250 },
+    { "item": "Iced Flavored Tea", "price_kes": 300 }
+  ],
+  "Non-Coffee (KITCHEN)": [
+    { "item": "African Tea (Small)", "price_kes": 100 },
+    { "item": "African Tea (Large)", "price_kes": 180 },
+    { "item": "Masala Tea (Small)", "price_kes": 120 },
+    { "item": "Masala Tea (Large)", "price_kes": 200 },
+    { "item": "Cardamom Tea (Small)", "price_kes": 120 },
+    { "item": "Cardamom Tea (Large)", "price_kes": 200 },
+    { "item": "Lemon Tea (Small)", "price_kes": 120 },
+    { "item": "Lemon Tea (Large)", "price_kes": 200 },
+    { "item": "Malindi Chai Latte (Small)", "price_kes": 200 },
+    { "item": "Malindi Chai Latte (Large)", "price_kes": 250 },
+    { "item": "Hot Chocolate (Small)", "price_kes": 200 },
+    { "item": "Hot Chocolate (Large)", "price_kes": 250 },
+    { "item": "Hot Lemon Ginger (Large)", "price_kes": 250 },
+    { "item": "Hibiscus Dawa (Large)", "price_kes": 250 },
+    { "item": "Passion Dawa (Large)", "price_kes": 300 }
+  ],
+  "Fresh Juices (BARISTA)": [
+    { "item": "Passionate Passion", "price_kes": 250 },
+    { "item": "King Pineapple", "price_kes": 250 },
+    { "item": "Pulpy Mango", "price_kes": 250 },
+    { "item": "Sunny Citrus", "price_kes": 250 },
+    { "item": "Strawberry Passion Hibiscus", "price_kes": 300 },
+    { "item": "Lemonade", "price_kes": 300 },
+    { "item": "Refreshing Lemonade", "price_kes": 250 },
+    { "item": "Gooseberry Lemonade", "price_kes": 250 },
+    { "item": "Fruity Tropical", "price_kes": 250 },
+    { "item": "Minty Pi\\u00f1ade", "price_kes": 250 }
+  ],
+  "Herbal Tea (BARISTA)": [
+    { "item": "Hibiscus Tea", "price_kes": 200 },
+    { "item": "Blackcurrant Tea", "price_kes": 200 },
+    { "item": "Raspberry Tea", "price_kes": 200 },
+    { "item": "Moringa Tea", "price_kes": 200 },
+    { "item": "Green Tea", "price_kes": 200 }
+  ],
+  "Uji Pawa (BARISTA)": [{ "item": "Uji Trio Mix", "price_kes": 200 }],
+  "Breakfast Combos (KITCHEN)": [
+    { "item": "Full Wendo Breakfast", "price_kes": 1050 },
+    { "item": "Cucu's Delight", "price_kes": 450 },
+    { "item": "Pwani Delight", "price_kes": 350 }
+  ],
+  "Pancakes (KITCHEN)": [
+    { "item": "Fluffy Pancakes", "price_kes": 180 },
+    { "item": "Crepes", "price_kes": 180 },
+    { "item": "Banana Pancakes", "price_kes": 250 }
+  ],
+  "Eggs (KITCHEN)": [
+    { "item": "Fried Eggs (Sunny Side Up)", "price_kes": 200 },
+    { "item": "Boiled Eggs", "price_kes": 200 },
+    { "item": "Scrambled Eggs", "price_kes": 200 },
+    { "item": "Poached Eggs", "price_kes": 250 },
+    { "item": "Spanish Omelette", "price_kes": 250 },
+    { "item": "Plain Omelette", "price_kes": 200 }
+  ],
+  "Omelette Add-Ons (KITCHEN)": [
+    { "item": "Bacon", "price_kes": 100 },
+    { "item": "Sausage", "price_kes": 100 },
+    { "item": "Cheese", "price_kes": 100 }
+  ],
+  "Salad Add-Ons (KITCHEN)": [
+    { "item": "Chicken", "price_kes": 150 },
+    { "item": "Bacon", "price_kes": 150 },
+    { "item": "Cheese", "price_kes": 150 },
+    { "item": "Boiled Egg", "price_kes": 150 }
+  ],
+  "Bits & Bites (KITCHEN)": [
+    { "item": "Samosa (Single)", "price_kes": 100 },
+    { "item": "Sausage (Single)", "price_kes": 100 },
+    { "item": "Samosa (Pair)", "price_kes": 200 },
+    { "item": "Sausage (Pair)", "price_kes": 200 },
+    { "item": "Sausage with Few Chips", "price_kes": 200 },
+    { "item": "Samosa with Few Chips", "price_kes": 200 },
+    { "item": "Samosa & Sausage with Few Chips", "price_kes": 350 },
+    { "item": "Two Samosas with Few Chips", "price_kes": 350 },
+    { "item": "Two Sausages with Few Chips", "price_kes": 350 },
+    { "item": "Beef Pie", "price_kes": 200 },
+    { "item": "Chicken Pie", "price_kes": 250 },
+    { "item": "Bacon", "price_kes": 500 },
+    { "item": "French Fries", "price_kes": 250 },
+    { "item": "Chips Masala", "price_kes": 300 },
+    { "item": "Bhajia", "price_kes": 350 },
+    { "item": "Lyonnaise", "price_kes": 350 }
+  ],
+  "Wraps (KITCHEN)": [
+    { "item": "Vegetable Wrap", "price_kes": 400 },
+    { "item": "Tikka Chicken Wrap", "price_kes": 500 },
+    { "item": "Smoked Pork Wrap", "price_kes": 550 },
+    { "item": "Beef Wrap", "price_kes": 550 }
+  ],
+  "Pastas (KITCHEN)": [
+    { "item": "Mushroom Pasta", "price_kes": 550 },
+    { "item": "Carbonara Pasta", "price_kes": 600 },
+    { "item": "Chicken Pasta", "price_kes": 700 },
+    { "item": "Bolognese Pasta", "price_kes": 600 },
+    { "item": "Tuna Pasta", "price_kes": 600 },
+    { "item": "Alfredo Pasta", "price_kes": 600 },
+    { "item": "Mediterranean Pasta", "price_kes": 600 }
+  ],
+  "Curry Dishes (KITCHEN)": [
+    { "item": "Daal Makhani", "price_kes": 600 },
+    { "item": "Peas and Potato Curry", "price_kes": 600 },
+    { "item": "Mutton Rogan Josh", "price_kes": 800 },
+    { "item": "Paneer and Peas Curry", "price_kes": 800 },
+    { "item": "Chicken Curry", "price_kes": 800 },
+    { "item": "Egg Curry", "price_kes": 800 },
+    { "item": "Beef Curry", "price_kes": 800 },
+    { "item": "Fish Curry", "price_kes": 800 }
+  ],
+  "Oriental Dishes (KITCHEN)": [
+    { "item": "Sizzling Pork Teriyaki", "price_kes": 800 },
+    { "item": "Sizzling Chicken Teriyaki", "price_kes": 800 },
+    { "item": "Kung Pao Chicken", "price_kes": 850 },
+    { "item": "Sizzling Beef Teriyaki", "price_kes": 900 }
+  ],
+  "Pizza (KITCHEN)": [
+    { "item": "Margherita", "price_kes": 800 },
+    { "item": "Efunghi", "price_kes": 900 },
+    { "item": "Hawaiian", "price_kes": 900 },
+    { "item": "BBQ Chicken", "price_kes": 1000 },
+    { "item": "Boerewors", "price_kes": 900 },
+    { "item": "Chicken and Bacon", "price_kes": 1200 },
+    { "item": "Meat Deluxe", "price_kes": 1500 },
+    { "item": "Sausage and Bacon", "price_kes": 1300 },
+    { "item": "Prosciutto", "price_kes": 900 }
+  ],
+  "Murima / Lake Dishes (KITCHEN)": [
+    { "item": "Mushenye", "price_kes": 700 },
+    { "item": "Kimanishi", "price_kes": 1000 },
+    { "item": "Wet-Fried Tilapia Fish", "price_kes": 1200 }
+  ],
+  "Accompaniments (KITCHEN)": [
+    { "item": "Ugali (Brown / White)", "price_kes": 0 },
+    { "item": "Rice", "price_kes": 0 },
+    { "item": "Fries", "price_kes": 0 },
+    { "item": "Mashed Potatoes", "price_kes": 0 },
+    { "item": "Lyonnaise", "price_kes": 0 },
+    { "item": "Sauteed Plantain", "price_kes": 0 },
+    { "item": "Naan Bread", "price_kes": 0 },
+    { "item": "Potato Wedges", "price_kes": 0 }
+  ]
+}

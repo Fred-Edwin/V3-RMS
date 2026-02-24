@@ -104,9 +104,10 @@ A phase is considered **complete** when every item in the phase checklist is sat
 | 1.5 | Design System & Component Library | Complete component library — used by all subsequent UI phases | Phase 1 |
 | 2 | Menu Management | Full menu CRUD, branch availability | Phase 1.5 |
 | 3 | Order Management | Complete order lifecycle. Waiter, Chef, Barista dashboards and order history | Phase 2 |
-| 4 | Delivery Zones | Delivery zone config, delivery order flow end-to-end | Phase 3 |
+| 3.5 | Navigation & Shell Polish | Fully wired navigation, logout, layout shells, FCM web push, premium design polish across all roles | Phase 3 |
+| 4 | Delivery Zones | Delivery zone config, delivery order flow end-to-end | Phase 3.5 |
 | 5 | Staff Management | Shift scheduling, geofencing clock-in/out, staff shifts page | Phase 1.5 |
-| 6 | Reporting & Dashboards | Manager and Director dashboards, personal performance pages, exports | Phase 3, Phase 5 |
+| 6 | Reporting & Dashboards | Manager and Director dashboards, personal performance pages, exports | Phase 3.5, Phase 5 |
 
 ---
 
@@ -585,7 +586,7 @@ No API tests. Verification is visual — all components reviewed in the /dev/com
 
 ## 9. Phase 3 — Order Management
 
-**Goal:** The complete order lifecycle works end-to-end. A waiter creates an order. It appears on KDS/BDS in real time. A chef claims and marks it ready. The waiter records payment. Order closes. Every operational role has a Dashboard, a display interface, and an Order History page.
+**Goal:** The complete order lifecycle works end-to-end. A waiter creates an order. It appears on KDS/BDS in real time. A chef and/or barista claims and marks it ready. The waiter records payment. Order closes. Every operational role has a Dashboard, a display interface, and an Order History page.
 
 This is the most complex phase. It delivers the primary value of the platform.
 
@@ -753,7 +754,132 @@ This is the most complex phase. It delivers the primary value of the platform.
 
 ---
 
-## 10. Phase 4 — Delivery Zones
+## 10. Phase 3.5 — Navigation, Shell Polish & FCM Web Push
+
+**Goal:** Every role has a fully wired, cohesive authenticated experience. Navigation is connected. Logout works from every screen. Layout shells wrap every page. The system feels like a single premium product — not a collection of disconnected screens. FCM web push is fully wired for background push notifications to waiters.
+
+This is a frontend-only phase with one backend task (FCM token registration). No new business features. No new API endpoints beyond what already exists.
+
+After this phase: a waiter, chef, manager, or director can log in and move through their entire interface without friction. The system is demonstrable to stakeholders end-to-end.
+
+---
+
+### Navigation Wiring — All Roles
+
+- [ ] Wire `BottomNav` for WAITER with tabs: Dashboard (`LayoutDashboard`), New Order (`ShoppingCart`), Orders (`ClipboardList`), History (`Clock`), Profile (`UserCircle`) — correct routes, active state from `usePathname()`
+- [ ] Wire `BottomNav` for CHEF with tabs: Dashboard (`LayoutDashboard`), Kitchen (`ChefHat`), History (`Clock`), Profile (`UserCircle`)
+- [ ] Wire `BottomNav` for BARISTA with tabs: Dashboard (`LayoutDashboard`), Barista (`Coffee`), History (`Clock`), Profile (`UserCircle`)
+- [ ] Wire `SidebarNav` for MANAGER with sections and items:
+  - Operations: Dashboard (`LayoutDashboard`), Orders (`ShoppingCart`)
+  - Manage: Staff (`Users`), Menu (`UtensilsCrossed`), Shifts (`Calendar`), Delivery Zones (`Bike`)
+  - Reports (`BarChart2`)
+  - Account: Profile (`UserCircle`), Logout
+- [ ] Wire `SidebarNav` for DIRECTOR with sections and items:
+  - Overview: Dashboard (`LayoutDashboard`)
+  - Reports (`BarChart2`)
+  - Account: Profile (`UserCircle`), Logout
+- [ ] Wire `SidebarNav` for SYSTEM_ADMIN with sections and items:
+  - Admin: Branches & Users (`Settings2`), Menu (`UtensilsCrossed`)
+  - Account: Profile (`UserCircle`), Logout
+- [ ] Active nav item derived from `usePathname()` — exact match for leaf routes, prefix match for nested routes (e.g. `/app/orders/new` activates the Orders tab)
+
+---
+
+### Logout
+
+- [ ] Logout action calls `POST /auth/logout`, clears `useAuthStore`, clears socket connection, redirects to `/login`
+- [ ] Logout is accessible from the sidebar bottom (Manager/Director/Admin) and from the Profile page (all mobile roles)
+- [ ] Logout triggers a `ConfirmDialog` — "Are you sure you want to log out?" — before executing
+- [ ] On logout, any active socket listeners are removed and the socket is disconnected
+
+---
+
+### Layout Shell Wiring — Every Page
+
+- [ ] Wrap all WAITER, CHEF, BARISTA pages in `MobileLayout` with the correct role-specific `BottomNav`
+- [ ] Wrap all MANAGER, DIRECTOR pages in `SidebarLayout` with the correct role-specific `SidebarNav`
+- [ ] Wrap SYSTEM_ADMIN pages in `SidebarLayout`
+- [ ] KDS (`/app/kitchen`) and BDS (`/app/barista`) remain in `FullscreenLayout` — no nav
+- [ ] Confirm `OfflineBanner` appears above all layout shells (not inside them) — sticks to viewport top regardless of scroll position
+- [ ] Confirm `ToastContainer` is rendered once at the root layout level — not per-page
+
+---
+
+### FCM Web Push — Full Implementation
+
+- [ ] Install `firebase` client SDK in `frontend/` with `pnpm add firebase`
+- [ ] Add to `frontend/.env.local`: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
+- [ ] Create `frontend/lib/firebase.ts` — initializes Firebase app (singleton pattern with `getApps()` guard), exports `getFirebaseMessaging()` async function that checks `isSupported()` before returning the messaging instance
+- [ ] Create `frontend/public/firebase-messaging-sw.js` — service worker using compat SDK (`importScripts` from CDN), initializes Firebase with the public config, registers `onBackgroundMessage` handler that calls `self.registration.showNotification` with title, body, and `data: { orderId }` payload; clicking the notification navigates to `/app/orders`
+- [ ] Create `frontend/hooks/useFcmToken.ts` — on mount (WAITER, CHEF, BARISTA roles only): requests `Notification.requestPermission()`, if granted calls `getToken(messaging, { vapidKey })`, checks `localStorage` for existing token to avoid re-registration, if token is new or changed calls `POST /auth/register-device` with the token; all failures are caught and logged silently — never shown to the user
+- [ ] Call `useFcmToken()` inside the authenticated root layout — runs once per session after login
+- [ ] Update `backend/src/services/fcm-service.ts` — change from stub to full implementation: looks up `fcmToken` via `authRepository.findFcmToken`, sends via `firebaseMessaging.send` with `webpush` config including `VAPID_KEY` from env, `notification` title/body, `fcmOptions.link: '/app/orders'`; catches all errors silently
+- [ ] Add `VAPID_KEY` to `backend/src/config/env.ts` Zod schema (string, optional — graceful no-op when absent)
+
+---
+
+### Design System Polish — Premium Quality Pass
+
+The following checks must be applied to every screen built in Phases 1 through 3. Reference `DESIGN_SYSTEM.md` for exact values.
+
+#### Colour & Background
+- [ ] Confirm body background is `bg-crema` (`#F5F0E8`) on every page — never plain white
+- [ ] Confirm no pure `#FFFFFF` backgrounds on page-level containers (cards may use white — that is correct)
+- [ ] Confirm no pure `#000000` or `#111111` text anywhere — all text uses Stone palette
+- [ ] Confirm Espresso (`#2C1810`) is used only on primary buttons, active nav states, and key interactive elements — not as decorative colour or large area fill
+- [ ] Confirm Amber (`#C4862A`) appears at most twice per screen — never as a dominant colour
+
+#### Typography
+- [ ] Confirm Cormorant Garamond (`font-display`) is used only for display text and top-level page greetings — not on buttons, labels, nav items, or body copy
+- [ ] Confirm DM Sans (`font-sans`) is used for all operational text — buttons, labels, nav, forms, tables, body
+- [ ] Confirm every page has exactly one `text-heading-xl` element — no page has two; no page skips directly from display to heading-sm
+- [ ] Confirm no font weight below 400 is used in any UI context
+
+#### Spacing & Layout
+- [ ] Confirm mobile pages have `px-4` (16px) horizontal padding on content
+- [ ] Confirm desktop pages have `px-8` (32px) horizontal padding on content
+- [ ] Confirm main content area has `max-w-[1280px] mx-auto` on desktop
+- [ ] Confirm all form fields have label above input — no floating labels, no placeholder-only fields
+
+#### Shadows & Elevation
+- [ ] Confirm shadows use only the warm Espresso-tinted shadow tokens (`shadow-sm`, `shadow-md`, `shadow-lg`, `shadow-xl`) — no Tailwind default shadows
+- [ ] Confirm cards inside modals have no shadow (shadows do not stack)
+- [ ] Confirm hover states on interactive cards increase elevation by one level (`shadow-sm` → `shadow-md`, `shadow-md` → `shadow-lg`)
+
+#### Focus & Accessibility
+- [ ] Confirm all interactive elements have a visible focus ring using the Amber focus ring (`shadow-focus`, `0 0 0 3px rgba(196, 134, 42, 0.35)`) — never blue
+- [ ] Confirm all touch targets are minimum 44px × 44px on mobile
+- [ ] Confirm `prefers-reduced-motion` media query disables all animations and transitions globally (already in `globals.css` from Phase 1.5 — verify it is present)
+
+#### Components
+- [ ] Confirm all `Button` components use `radius-md` (8px) — no fully rounded primary buttons
+- [ ] Confirm all status badges use `radius-full` pill shape
+- [ ] Confirm all modals use `radius-lg` (12px) on desktop; `radius-xl` (16px) on mobile
+- [ ] Confirm all input fields use `radius-sm` (4px) and `bg-parchment` background
+- [ ] Confirm `EmptyState` components use Wendo voice copy (e.g. "No orders yet today" not "No records found") — reference DESIGN_SYSTEM.md Section 2 brand voice table
+- [ ] Confirm loading states use `SkeletonBlock`/`SkeletonCard` for content areas — not a full-page spinner
+
+#### Page Structure
+- [ ] Confirm every page uses `PageHeader` component with `text-heading-xl` title and optional subtitle in `text-body-sm text-stone-500`
+- [ ] Confirm `PageHeader` has `border-b border-stone-200 mb-6` separator below it
+- [ ] Confirm page transitions use `animate-fade-up` on the main content container — consistent across all route changes
+
+---
+
+### Phase 3.5 Verification
+
+- [ ] Log in as each role (WAITER, CHEF, BARISTA, MANAGER, DIRECTOR, SYSTEM_ADMIN) and navigate every tab/link — no broken routes, no missing active states
+- [ ] Logout from sidebar (desktop) and from Profile page (mobile) — both work, both show confirm dialog
+- [ ] Lock the phone while a WAITER has an active order in-progress — when the chef marks ready, a push notification appears on the lock screen
+- [ ] Tap the push notification — Chrome opens to `/app/orders`
+- [ ] Disconnect WiFi — `OfflineBanner` appears on all pages; reconnect — banner disappears
+- [ ] Open the app on a 375px mobile viewport and a 1280px desktop viewport — confirm layouts are correct for both
+- [ ] Check every page for Espresso-tinted shadows — open DevTools and confirm no default Tailwind shadow is in use
+- [ ] Tab through an entire form with keyboard only — amber focus ring visible on every interactive element
+
+---
+
+## 11. Phase 4 — Delivery Zones
 
 **Goal:** Branch managers configure delivery zones and fees. The full delivery order flow works end-to-end — zone selection, automatic fee calculation, pre-payment confirmation before prep, and handoff to Grubba.
 
@@ -1032,13 +1158,15 @@ Phase 0 — Project Foundation
                     |       |
                     |       +-- Phase 3 — Order Management
                     |               |
-                    |               +-- Phase 4 — Delivery Zones
+                    |               +-- Phase 3.5 — Navigation, Shell Polish & FCM Web Push
+                    |                       |
+                    |                       +-- Phase 4 — Delivery Zones
                     |
                     +-- Phase 5 — Staff Management
-                            |   (can run parallel with Phases 3 and 4)
+                            |   (can run parallel with Phases 4 and 3.5)
                             |
                         Phase 6 — Reporting & Dashboards
-                            (also depends on Phase 3 order data)
+                            (also depends on Phase 3.5)
 ```
 
 ### Page Inventory by Phase
@@ -1062,6 +1190,7 @@ Phase 0 — Project Foundation
 | Barista Display | /app/barista | BARISTA, BDS | 3 |
 | Barista Dashboard | /app/dashboard | BARISTA | 3 |
 | Barista Order History | /app/history | BARISTA | 3 |
+| All Phase 1–3 screens polished | — | All | 3.5 |
 | Delivery Zones | /app/manage/delivery-zones | MGR | 4 |
 | Shift Management | /app/manage/shifts | MGR | 5 |
 | Staff Shifts | /app/shifts | WAITER, CHEF, BARISTA | 5 |
@@ -1073,7 +1202,7 @@ Phase 0 — Project Foundation
 | Manager Reports | /app/manage/reports | MGR | 6 |
 | Director Dashboard | /app/director | DIR | 6 |
 
-Note: Phase 5 can be built in parallel with Phases 3 and 4 if two developers are available — it only depends on Phase 1.5. Phase 6 must always be last.
+Note: Phase 5 can be built in parallel with Phases 3.5 and 4 if two developers are available — it only depends on Phase 1.5. Phase 6 must always be last.
 
 ---
 

@@ -83,4 +83,13 @@ export const authRepository = {
       data: { fcmToken },
     });
   },
+
+  findFcmToken: async (userId: string): Promise<string | null> => {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { fcmToken: true },
+    });
+
+    return user?.fcmToken ?? null;
+  },
 };

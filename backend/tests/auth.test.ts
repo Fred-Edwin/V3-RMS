@@ -50,6 +50,14 @@ describe('Auth routes', () => {
     vi.spyOn(authService, 'refresh').mockResolvedValue({
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
+      user: {
+        id: 'user-1',
+        name: 'Manager User',
+        email: 'manager@wendo.co.ke',
+        role: 'MANAGER',
+        organizationId: 'org-1',
+        organizationName: 'Wendo Kingz',
+      },
     });
 
     const response = await request(app)
@@ -58,6 +66,7 @@ describe('Auth routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data.accessToken).toBe('new-access-token');
+    expect(response.body.data.user.id).toBe('user-1');
   });
 
   it('POST /api/v1/auth/refresh returns 401 for missing cookie', async () => {

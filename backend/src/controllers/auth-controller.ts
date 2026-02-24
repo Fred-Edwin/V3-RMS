@@ -84,6 +84,7 @@ export const authController = {
         success: true,
         data: {
           accessToken: result.accessToken,
+          user: result.user,
         },
       });
   },

@@ -21,8 +21,18 @@ interface StaffFilters {
   organizationId?: string;
   role?: UserRole;
   isActive?: boolean;
+  onShift?: boolean;
   allowedRoles?: UserRole[];
 }
+
+const getTodayRange = (): { startOfDay: Date; endOfDay: Date } => {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+
+  return { startOfDay, endOfDay };
+};
 
 export const staffRepository = {
   findByEmail: async (email: string) => {
@@ -35,12 +45,35 @@ export const staffRepository = {
     });
   },
 
-  findMany: async ({ organizationId, role, isActive, allowedRoles }: StaffFilters) => {
+  findMany: async ({ organizationId, role, isActive, onShift, allowedRoles }: StaffFilters) => {
+    const { startOfDay, endOfDay } = getTodayRange();
+
     return prisma.user.findMany({
       where: {
         organizationId,
         role: role ?? (allowedRoles ? { in: allowedRoles } : undefined),
         isActive,
+        ...(onShift
+          ? {
+              shiftAssignments: {
+                some: {
+                  ...(organizationId ? { organizationId } : {}),
+                  date: {
+                    gte: startOfDay,
+                    lt: endOfDay,
+                  },
+                  clockRecord: {
+                    is: {
+                      clockInAt: {
+                        not: null,
+                      },
+                      clockOutAt: null,
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
       },
       select: staffSelect,
       orderBy: { createdAt: 'desc' },
@@ -97,6 +130,47 @@ export const staffRepository = {
       },
       data: {
         isActive,
+      },
+    });
+  },
+
+  findByIdOnShift: async (
+    id: string,
+    organizationId: string,
+    allowedRoles: UserRole[],
+  ) => {
+    const { startOfDay, endOfDay } = getTodayRange();
+
+    return prisma.user.findFirst({
+      where: {
+        id,
+        organizationId,
+        role: {
+          in: allowedRoles,
+        },
+        isActive: true,
+        shiftAssignments: {
+          some: {
+            organizationId,
+            date: {
+              gte: startOfDay,
+              lt: endOfDay,
+            },
+            clockRecord: {
+              is: {
+                clockInAt: {
+                  not: null,
+                },
+                clockOutAt: null,
+              },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
       },
     });
   },

@@ -142,7 +142,7 @@ The system has six distinct roles, each with scoped access and a primary interfa
 **Interface:** Shared Android tablet (KDS) + personal mobile-first web app.  
 **Responsibilities:**
 - Views incoming food orders on the Kitchen Display System (KDS) or personal phone
-- Claims orders by selecting their name from the on-shift staff dropdown
+- Claims orders by selecting their name from the on-shift staff dropdown or directly from their phone
 - Marks orders as Ready when preparation is complete
 - Receives notifications for new incoming orders
 
@@ -155,7 +155,7 @@ The system has six distinct roles, each with scoped access and a primary interfa
 **Interface:** Shared Android tablet (BDS) + personal mobile-first web app.  
 **Responsibilities:**
 - Views incoming drink orders on the Barista Display System (BDS) or personal phone
-- Claims orders by selecting their name from the on-shift staff dropdown
+- Claims orders by selecting their name from the on-shift staff dropdown or directly from their phone
 - Marks orders as Ready when preparation is complete
 - Receives notifications for new incoming orders
 

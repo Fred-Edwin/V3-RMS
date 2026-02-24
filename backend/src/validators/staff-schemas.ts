@@ -18,6 +18,15 @@ export const updateStaffSchema = z.object({
 export const listStaffQuerySchema = z.object({
   organizationId: z.string().uuid().optional(),
   role: z.nativeEnum(UserRole).optional(),
+  onShift: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => {
+      if (value === undefined) {
+        return undefined;
+      }
+      return value === 'true';
+    }),
   isActive: z
     .enum(['true', 'false'])
     .optional()

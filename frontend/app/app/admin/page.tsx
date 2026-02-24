@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Building2, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
+import { Building2, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -16,8 +16,6 @@ import {
   PageHeader,
   PageLayout,
   Select,
-  SidebarLayout,
-  SidebarNav,
   StatCard,
   Table,
   type TableColumn,
@@ -472,22 +470,7 @@ export default function Page(): JSX.Element {
   ];
 
   return (
-    <SidebarLayout
-      sidebar={
-        <SidebarNav
-          activeHref="/app/admin"
-          sections={[
-            {
-              label: 'System Admin',
-              items: [
-                { label: 'Dashboard', href: '/app/admin', icon: LayoutDashboard },
-                { label: 'Menu', href: '/app/admin/menu', icon: BookOpen },
-              ],
-            },
-          ]}
-        />
-      }
-    >
+    <>
       <PageLayout>
         <PageHeader
           title="System Admin Dashboard"
@@ -721,6 +704,6 @@ export default function Page(): JSX.Element {
         confirmLabel={toggleUserTarget?.isActive ? 'Deactivate' : 'Reactivate'}
         isLoading={isSubmitting}
       />
-    </SidebarLayout>
+    </>
   );
 }

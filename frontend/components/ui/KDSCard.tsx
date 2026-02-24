@@ -22,6 +22,8 @@ interface KDSCardProps {
   startTime: string | Date
   status: TicketStatus
   actionLabel: string
+  isActionLoading?: boolean
+  loadingMessage?: string
   onAction: () => void
   className?: string
 }
@@ -59,6 +61,8 @@ export function KDSCard({
   startTime,
   status,
   actionLabel,
+  isActionLoading = false,
+  loadingMessage = 'Updating ticket...',
   onAction,
   className,
 }: KDSCardProps) {
@@ -117,10 +121,14 @@ export function KDSCard({
         variant="primary"
         size="lg"
         onClick={onAction}
+        isLoading={isActionLoading}
         className="w-full mt-4"
       >
         {actionLabel}
       </Button>
+      {isActionLoading && (
+        <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+      )}
     </div>
   )
 }

@@ -269,6 +269,16 @@ Three primary stores:
 
 Stores are updated both from API responses (initial load) and WebSocket events (real-time updates). This keeps the UI always in sync with the server.
 
+### Hook Stability and Effect Safety
+
+To prevent refetch loops, UI flicker, and request storms:
+
+- Custom hooks that return functions used by `useEffect` or `useCallback` dependencies must return stable references.
+- Zustand usage should select specific actions (`useStore((s) => s.action)`) instead of destructuring the full store object.
+- Data-loading effects should depend on stable callbacks only.
+- Do not remove dependencies from hook arrays to silence lint warnings unless the omission is explicitly documented and proven safe.
+- Shared hooks used across multiple pages (for example, notifications/toast helpers) must stabilize returned callbacks in the hook implementation.
+
 ### Real-Time Client (Socket.io)
 
 A single socket connection is established on login and torn down on logout. The client joins a branch-specific room immediately after connecting.

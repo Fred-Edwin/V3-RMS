@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Button, Input, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -130,16 +131,18 @@ export default function Page(): JSX.Element {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 p-6 md:p-8">
-      <section className="mx-auto max-w-4xl space-y-6">
-        <header className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-stone-900">Branch Staff Management</h1>
-          <p className="mt-2 text-sm text-stone-600">Create and maintain staff accounts for your branch.</p>
+    <PageLayout className="animate-fade-up space-y-6">
+        <PageHeader
+          title="Branch Staff Management"
+          subtitle="Create and maintain staff accounts for your branch."
+        />
+        <section className="mx-auto max-w-4xl space-y-6">
+        <header className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
           {loading ? <p className="mt-3 text-sm text-stone-500">Loading...</p> : null}
           {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
         </header>
 
-        <article className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
+        <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-stone-900">Current Staff</h2>
           <ul className="mt-4 space-y-3 text-sm text-stone-700">
             {staff.map((item) => (
@@ -170,51 +173,47 @@ export default function Page(): JSX.Element {
           </ul>
         </article>
 
-        <article className="rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
+        <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-stone-900">Create Staff Account</h2>
           <form className="mt-4 space-y-3" onSubmit={handleCreate}>
-            <input
+            <Input
               placeholder="Name"
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
             />
-            <input
+            <Input
               placeholder="Email"
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-              className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
             />
-            <input
+            <Input
               placeholder="Phone"
               value={form.phone}
               onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-              className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
             />
-            <select
+            <Select
               value={form.role}
               onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value as ManagerCreatableRole }))}
-              className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
-            >
-              <option value="WAITER">WAITER</option>
-              <option value="CHEF">CHEF</option>
-              <option value="BARISTA">BARISTA</option>
-              <option value="KITCHEN_DISPLAY">KITCHEN_DISPLAY</option>
-              <option value="BARISTA_DISPLAY">BARISTA_DISPLAY</option>
-            </select>
-            <input
+              options={[
+                { value: 'WAITER', label: 'WAITER' },
+                { value: 'CHEF', label: 'CHEF' },
+                { value: 'BARISTA', label: 'BARISTA' },
+                { value: 'KITCHEN_DISPLAY', label: 'KITCHEN_DISPLAY' },
+                { value: 'BARISTA_DISPLAY', label: 'BARISTA_DISPLAY' },
+              ]}
+            />
+            <Input
               type="password"
               placeholder="Temporary Password"
               value={form.temporaryPassword}
               onChange={(event) => setForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
-              className="w-full rounded border border-stone-300 px-3 py-2 text-sm"
             />
-            <button type="submit" className="rounded bg-stone-900 px-3 py-2 text-sm text-white">
+            <Button type="submit">
               Create Staff
-            </button>
+            </Button>
           </form>
         </article>
       </section>
-    </main>
+    </PageLayout>
   );
 }

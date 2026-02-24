@@ -1,0 +1,75 @@
+import { useEffect, useMemo, useState } from 'react';
+import { orderService } from '@/services/orderService';
+import { useAuthStore } from '@/store/authStore';
+import type { OrderStatus, OrderSummary, PaginationMeta } from '@/types/order';
+
+interface OrderHistoryFilters {
+  status?: OrderStatus;
+  startDate?: string;
+  endDate?: string;
+  page: number;
+}
+
+export function useOrderHistory(filters: OrderHistoryFilters) {
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    total: 0,
+    page: filters.page,
+    perPage: 20,
+    totalPages: 1,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    let mounted = true;
+    setIsLoading(true);
+    setError(null);
+
+    orderService
+      .getMany(
+        {
+          status: filters.status,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          page: filters.page,
+          perPage: 20,
+        },
+        accessToken,
+      )
+      .then((result) => {
+        if (!mounted) {
+          return;
+        }
+        setOrders(result.orders);
+        setPagination(result.pagination);
+      })
+      .catch((historyError) => {
+        if (!mounted) {
+          return;
+        }
+        setError(historyError instanceof Error ? historyError.message : 'Failed to load order history');
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [accessToken, filters.endDate, filters.page, filters.startDate, filters.status]);
+
+  const totalValue = useMemo(
+    () => orders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
+    [orders],
+  );
+
+  return { orders, pagination, isLoading, error, totalValue };
+}

@@ -17,6 +17,7 @@ export interface ListStaffFilters {
   organizationId?: string;
   role?: AppRole;
   isActive?: boolean;
+  onShift?: boolean;
 }
 
 export interface CreateStaffInput {
@@ -47,6 +48,9 @@ const toQueryString = (filters?: ListStaffFilters): string => {
   }
   if (filters.isActive !== undefined) {
     params.set('isActive', String(filters.isActive));
+  }
+  if (filters.onShift !== undefined) {
+    params.set('onShift', String(filters.onShift));
   }
 
   const query = params.toString();

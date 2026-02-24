@@ -1,11 +1,23 @@
-export default function Page(): JSX.Element {
-  return (
-    <main className="min-h-screen p-6 md:p-8">
-      <section className="mx-auto max-w-3xl rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-        <p className="text-label-sm uppercase tracking-wide text-stone-500">Phase 0 Placeholder</p>
-        <h1 className="mt-2 font-sans text-heading-lg text-espresso">Barista</h1>
-        <p className="mt-2 text-body-md text-stone-700">Route: <code>/app/barista</code></p>
-      </section>
-    </main>
-  );
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { DisplayBoard } from '@/components/kitchen/DisplayBoard';
+import { useAuthStore } from '@/store/authStore';
+
+export default function BaristaPage(): JSX.Element | null {
+  const router = useRouter();
+  const role = useAuthStore((state) => state.role);
+
+  useEffect(() => {
+    if (role && role !== 'BARISTA' && role !== 'BARISTA_DISPLAY') {
+      router.replace('/app/dashboard');
+    }
+  }, [role, router]);
+
+  if (!role || (role !== 'BARISTA' && role !== 'BARISTA_DISPLAY')) {
+    return null;
+  }
+
+  return <DisplayBoard station="BARISTA" />;
 }

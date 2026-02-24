@@ -27,16 +27,25 @@ interface StaffFiltersInput {
   organizationId?: string;
   role?: UserRole;
   isActive?: boolean;
+  onShift?: boolean;
 }
 
 export const staffService = {
   listStaff: async (actor: Actor, filters: StaffFiltersInput = {}) => {
-    const organizationId = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : filters.organizationId;
+    const shouldUseActorOrganization =
+      actor.role === 'MANAGER' || branchStaffRoles.includes(actor.role);
+    const organizationId = shouldUseActorOrganization
+      ? actor.organizationId ?? undefined
+      : filters.organizationId;
+
+    const allowedRoles = shouldUseActorOrganization ? branchStaffRoles : undefined;
+
     const results = await staffRepository.findMany({
       organizationId,
       role: filters.role,
       isActive: filters.isActive,
-      allowedRoles: actor.role === 'MANAGER' ? branchStaffRoles : undefined,
+      onShift: filters.onShift,
+      allowedRoles,
     });
 
     return results.map((item) => ({

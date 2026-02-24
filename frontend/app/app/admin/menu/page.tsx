@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { BookOpen, LayoutDashboard, Plus, Search, UtensilsCrossed } from 'lucide-react';
+import { Plus, Search, UtensilsCrossed } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -13,8 +13,6 @@ import {
   PageLayout,
   PriceDisplay,
   Select,
-  SidebarLayout,
-  SidebarNav,
   Table,
   Textarea,
   type TableColumn,
@@ -87,7 +85,6 @@ const prepStationBadgeClass: Record<PrepStation, string> = {
 
 export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const role = useAuthStore((state) => state.role);
   const { toast } = useToast();
 
   const [categories, setCategories] = useState<MenuCategorySummary[]>([]);
@@ -449,22 +446,7 @@ export default function Page(): JSX.Element {
   };
 
   return (
-    <SidebarLayout
-      sidebar={
-        <SidebarNav
-          activeHref="/app/admin/menu"
-          sections={[
-            {
-              label: role === 'DIRECTOR' ? 'Director' : 'System Admin',
-              items: [
-                { label: 'Dashboard', href: role === 'DIRECTOR' ? '/app/director' : '/app/admin', icon: LayoutDashboard },
-                { label: 'Menu', href: '/app/admin/menu', icon: BookOpen },
-              ],
-            },
-          ]}
-        />
-      }
-    >
+    <>
       <PageLayout>
         <PageHeader
           title="Menu Management"
@@ -792,6 +774,6 @@ export default function Page(): JSX.Element {
         cancelLabel="Cancel"
         isLoading={isSubmitting}
       />
-    </SidebarLayout>
+    </>
   );
 }

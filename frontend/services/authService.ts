@@ -20,7 +20,7 @@ export const authService = {
     await apiClient.post('/auth/logout', {}, accessToken);
   },
 
-  refreshToken: (): Promise<{ accessToken: string }> => {
+  refreshToken: (): Promise<{ accessToken: string; user: AuthUser }> => {
     return apiClient.post('/auth/refresh', {});
   },
 

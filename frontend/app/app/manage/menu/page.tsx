@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   EmptyState,
+  Input,
   MenuItemCard,
-  MobileLayout,
   PageHeader,
   PageLayout,
+  Select,
   Toggle,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -14,7 +15,7 @@ import { menuService } from '@/services/menuService';
 import { useAuthStore } from '@/store/authStore';
 import type { MenuCategoryWithAvailability } from '@/types/menu';
 import { ApiError } from '@/types/api';
-import { UtensilsCrossed } from 'lucide-react';
+import { Search, UtensilsCrossed } from 'lucide-react';
 
 const updateMenuItemAvailability = (
   categories: MenuCategoryWithAvailability[],
@@ -48,8 +49,48 @@ export default function Page(): JSX.Element {
   const [categories, setCategories] = useState<MenuCategoryWithAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingItemIds, setPendingItemIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [prepStationFilter, setPrepStationFilter] = useState<'ALL' | 'KITCHEN' | 'BARISTA'>('ALL');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'ALL' | 'AVAILABLE' | 'UNAVAILABLE'>('ALL');
 
   const categoryCount = useMemo(() => categories.length, [categories]);
+  const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm]);
+
+  const filteredCategories = useMemo(() => {
+    return categories.flatMap((category) => {
+      if (prepStationFilter !== 'ALL' && category.prepStation !== prepStationFilter) {
+        return [];
+      }
+
+      const visibleItems = category.items.filter((item) => {
+        const matchesSearch =
+          normalizedSearchTerm.length === 0 ||
+          item.name.toLowerCase().includes(normalizedSearchTerm) ||
+          (item.description?.toLowerCase().includes(normalizedSearchTerm) ?? false);
+
+        const matchesAvailability =
+          availabilityFilter === 'ALL' ||
+          (availabilityFilter === 'AVAILABLE' && item.isAvailable) ||
+          (availabilityFilter === 'UNAVAILABLE' && !item.isAvailable);
+
+        return matchesSearch && matchesAvailability;
+      });
+
+      if (visibleItems.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          ...category,
+          items: visibleItems,
+        },
+      ];
+    });
+  }, [availabilityFilter, categories, normalizedSearchTerm, prepStationFilter]);
+
+  const hasActiveFilters =
+    normalizedSearchTerm.length > 0 || prepStationFilter !== 'ALL' || availabilityFilter !== 'ALL';
 
   const loadMenu = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -109,25 +150,72 @@ export default function Page(): JSX.Element {
   };
 
   return (
-    <MobileLayout>
       <PageLayout className="max-w-5xl">
         <PageHeader
           title="Branch Menu Availability"
           subtitle={`Manage item availability across ${categoryCount} categories.`}
         />
 
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_220px_220px_auto] lg:items-end">
+            <Input
+              id="branch-menu-search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search menu items"
+              leftIcon={<Search size={16} />}
+            />
+            <Select
+              id="branch-menu-prep-station-filter"
+              value={prepStationFilter}
+              onChange={(event) => setPrepStationFilter(event.target.value as 'ALL' | 'KITCHEN' | 'BARISTA')}
+              options={[
+                { value: 'ALL', label: 'All stations' },
+                { value: 'KITCHEN', label: 'KITCHEN' },
+                { value: 'BARISTA', label: 'BARISTA' },
+              ]}
+            />
+            <Select
+              id="branch-menu-availability-filter"
+              value={availabilityFilter}
+              onChange={(event) => setAvailabilityFilter(event.target.value as 'ALL' | 'AVAILABLE' | 'UNAVAILABLE')}
+              options={[
+                { value: 'ALL', label: 'All statuses' },
+                { value: 'AVAILABLE', label: 'Available' },
+                { value: 'UNAVAILABLE', label: 'Unavailable' },
+              ]}
+            />
+            <button
+              type="button"
+              className="h-10 rounded-md border border-stone-200 px-3 text-label-md font-medium text-stone-700 disabled:opacity-50"
+              onClick={() => {
+                setSearchTerm('');
+                setPrepStationFilter('ALL');
+                setAvailabilityFilter('ALL');
+              }}
+              disabled={!hasActiveFilters}
+            >
+              Clear Filters
+            </button>
+          </div>
+        </section>
+
         {isLoading ? <p className="text-body-md text-stone-500">Loading menu...</p> : null}
 
-        {!isLoading && categories.length === 0 ? (
+        {!isLoading && filteredCategories.length === 0 ? (
           <EmptyState
             icon={<UtensilsCrossed size={28} />}
-            heading="No menu items available"
-            body="The master menu has no active items yet."
+            heading={hasActiveFilters ? 'No items match your filters' : 'No menu items available'}
+            body={
+              hasActiveFilters
+                ? 'Try adjusting your search or filter selection.'
+                : 'The master menu has no active items yet.'
+            }
           />
         ) : null}
 
         <div className="space-y-8">
-          {categories.map((category) => (
+          {filteredCategories.map((category) => (
             <section key={category.id} className="space-y-3">
               <div>
                 <h2 className="text-heading-md font-semibold text-stone-900">{category.name}</h2>
@@ -167,6 +255,5 @@ export default function Page(): JSX.Element {
           ))}
         </div>
       </PageLayout>
-    </MobileLayout>
   );
 }

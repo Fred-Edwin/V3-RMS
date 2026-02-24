@@ -17,6 +17,9 @@ const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).default(12),
   SYSTEM_ADMIN_EMAIL: z.string().email().optional(),
   SYSTEM_ADMIN_PASSWORD: z.string().min(8).optional(),
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1),
+  VAPID_KEY: z.string().optional().default(''),
+  SKIP_SHIFT_VALIDATION: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   LOG_LEVEL: z.string().default('info'),
   LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 });

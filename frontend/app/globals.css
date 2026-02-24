@@ -18,3 +18,19 @@ body {
   color: #1c1917;
   font-family: var(--font-sans);
 }
+
+@keyframes cart-nudge {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-cart-nudge {
+  animation: cart-nudge 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}

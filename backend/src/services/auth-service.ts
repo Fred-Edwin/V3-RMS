@@ -124,6 +124,14 @@ export const authService = {
     return {
       accessToken,
       refreshToken: newRefreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        organizationId: user.organizationId,
+        organizationName: user.organization?.name ?? null,
+      },
     };
   },
 

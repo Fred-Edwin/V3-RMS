@@ -79,6 +79,6 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 2 — Menu Management
-Status: In Progress
-Context file: docs/context/PHASE_2_CONTEXT.md
+Phase: 3 — Order Management
+Status: Complete
+Context file: docs/context/PHASE_3_CONTEXT.md

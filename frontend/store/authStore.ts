@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AuthUser } from '@/types/auth';
 import { authService } from '@/services/authService';
+import { ApiError } from '@/types/api';
 
 interface AuthState {
   user: AuthUser | null;
@@ -115,18 +116,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   refreshAccessToken: async () => {
     try {
-      const { accessToken } = await authService.refreshToken();
+      const { accessToken, user } = await authService.refreshToken();
       const claims = decodeTokenClaims(accessToken);
       setAccessTokenCookie(accessToken);
       scheduleRefresh(accessToken);
-      set((state) => ({
+      set({
+        user,
         accessToken,
         isAuthenticated: true,
-        role: claims?.role ?? state.role,
-        organizationId: claims?.organizationId ?? state.organizationId,
-      }));
-    } catch {
-      useAuthStore.getState().clearAuth();
+        role: claims?.role ?? user.role,
+        organizationId: claims?.organizationId ?? user.organizationId,
+      });
+    } catch (error) {
+      if (error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)) {
+        useAuthStore.getState().clearAuth();
+      }
     }
   },
   hydrateSession: async () => {
