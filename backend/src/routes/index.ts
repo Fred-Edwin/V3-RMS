@@ -7,6 +7,9 @@ import menuRoutes from './menu-routes';
 import orderRoutes from './order-routes';
 import prepTicketRoutes from './prep-ticket-routes';
 import deliveryZoneRoutes from './delivery-zone-routes';
+import shiftRoutes from './shift-routes';
+import shiftAssignmentRoutes from './shift-assignment-routes';
+import clockRoutes from './clock-routes';
 
 const apiRouter = Router();
 
@@ -18,5 +21,8 @@ apiRouter.use(menuRoutes);
 apiRouter.use(orderRoutes);
 apiRouter.use(prepTicketRoutes);
 apiRouter.use(deliveryZoneRoutes);
+apiRouter.use(shiftRoutes);
+apiRouter.use(shiftAssignmentRoutes);
+apiRouter.use(clockRoutes);
 
 export default apiRouter;

@@ -79,6 +79,6 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 3 — Order Management
+Phase: 5
 Status: Complete
-Context file: docs/context/PHASE_3_CONTEXT.md
+Context file: docs/context/PHASE_5_CONTEXT.md

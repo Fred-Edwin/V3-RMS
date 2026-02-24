@@ -8,6 +8,12 @@ interface OrderReadyPushPayload {
   dailyNumber: number;
 }
 
+interface ShiftReminderPushPayload {
+  shiftName: string;
+  startTime: string;
+  date: string;
+}
+
 export const fcmService = {
   sendOrderReadyPush: async (waiterId: string, payload: OrderReadyPushPayload): Promise<void> => {
     try {
@@ -45,6 +51,46 @@ export const fcmService = {
       });
     } catch (error) {
       logger.warn({ error, waiterId, orderId: payload.orderId }, 'Failed to send order ready FCM push');
+    }
+  },
+
+  sendShiftReminderPush: async (userId: string, payload: ShiftReminderPushPayload): Promise<void> => {
+    try {
+      if (!firebaseMessaging) {
+        return;
+      }
+
+      if (!env.VAPID_KEY) {
+        return;
+      }
+
+      const fcmToken = await authRepository.findFcmToken(userId);
+      if (!fcmToken) {
+        return;
+      }
+
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: {
+            Urgency: 'normal',
+          },
+          notification: {
+            title: 'Shift Reminder',
+            body: `You have a ${payload.shiftName} shift tomorrow at ${payload.startTime}`,
+            icon: '/favicon.ico',
+          },
+          fcmOptions: {
+            link: '/app/shifts',
+          },
+        },
+        data: {
+          shiftDate: payload.date,
+          shiftName: payload.shiftName,
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, userId, payload }, 'Failed to send shift reminder FCM push');
     }
   },
 };

@@ -4,16 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
+import { ClockWidget } from '@/components/shifts/ClockWidget';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
 import { orderService } from '@/services/orderService';
 import { prepTicketService } from '@/services/prepTicketService';
+import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { ApiError } from '@/types/api';
 import type { OrderDetail, OrderSummary, PaymentMethod } from '@/types/order';
+import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
 
 export default function DashboardPage(): JSX.Element {
   const router = useRouter();
@@ -37,6 +40,7 @@ export default function DashboardPage(): JSX.Element {
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
   const [ticketsCompletedToday, setTicketsCompletedToday] = useState(0);
   const [avgPrepMinutesToday, setAvgPrepMinutesToday] = useState(0);
+  const [todayShiftAssignment, setTodayShiftAssignment] = useState<ShiftAssignment | null>(null);
 
   const myInProgressTickets = useMemo(
     () => inProgressTickets.filter((ticket) => ticket.claimedBy?.id === user?.id),
@@ -140,6 +144,45 @@ export default function DashboardPage(): JSX.Element {
     void loadPrepDashboardData();
   }, [loadPrepDashboardData]);
 
+  const loadTodayShiftAssignment = useCallback(async () => {
+    if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) {
+      return;
+    }
+
+    try {
+      const todayDate = new Date().toISOString().slice(0, 10);
+      const assignments = await shiftService.listAssignments(
+        {
+          startDate: todayDate,
+          endDate: todayDate,
+        },
+        accessToken,
+      );
+      setTodayShiftAssignment(assignments[0] ?? null);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to load today shift.';
+      toast({
+        variant: 'warning',
+        title: message,
+      });
+    }
+  }, [accessToken, role, toast]);
+
+  useEffect(() => {
+    void loadTodayShiftAssignment();
+  }, [loadTodayShiftAssignment]);
+
+  const handleClockUpdated = useCallback((record: ShiftAssignmentClockRecord) => {
+    setTodayShiftAssignment((current) =>
+      current
+        ? {
+            ...current,
+            clockRecord: record,
+          }
+        : current,
+    );
+  }, []);
+
   const handleOpenOrder = async (orderId: string) => {
     if (!accessToken) {
       return;
@@ -214,6 +257,8 @@ export default function DashboardPage(): JSX.Element {
           <StatCard label="Total Value Today" value={`KES ${todayTotalValue.toFixed(2)}`} />
         </div>
 
+        <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />
+
         <ActiveOrdersSummary orders={activeOrders} />
 
         <section>
@@ -261,6 +306,8 @@ export default function DashboardPage(): JSX.Element {
           <StatCard label="Tickets Completed Today" value={String(ticketsCompletedToday)} />
           <StatCard label="Avg Prep Time Today" value={`${avgPrepMinutesToday} min`} />
         </div>
+
+        <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />
 
         <section>
           <h2 className="mb-3 text-heading-sm font-semibold text-stone-900">My Active Orders</h2>

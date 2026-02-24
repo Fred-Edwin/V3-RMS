@@ -1,4 +1,4 @@
-# API Contract
+﻿# API Contract
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
 **Version:** 1.0  
 **Status:** Draft  
@@ -1096,7 +1096,12 @@ Reactivates a previously deactivated staff account.
 
 ### GET `/shifts`
 **Access:** 🔑 MGR, DIR  
-Returns shift definitions for the branch.
+Returns shift definitions for a branch. Managers read their own branch. Directors must specify the branch using `organizationId`.
+
+**Query Params:**
+```
+organizationId  (optional, DIR only; required for DIR) — target branch id
+```
 
 **Response `200`:**
 ```json
@@ -1177,16 +1182,42 @@ Updates a shift definition.
 
 ---
 
+### DELETE `/shifts/:id`
+**Access:** 🔑 MGR  
+Soft-deletes a shift definition. Deletion is blocked if future assignments exist for the shift.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "message": "Shift deleted successfully"
+}
+```
+
+**Error `409`:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot delete shift with future assignments"
+  }
+}
+```
+
+---
+
 ### GET `/shift-assignments`
-**Access:** 🔑 MGR, ALL (staff see their own only)  
-Returns shift assignments. Managers see all assignments for their branch. Staff see only their own.
+**Access:** 🔑 MGR, DIR, ALL (staff see their own only)  
+Returns shift assignments. Managers read all assignments for their own branch. Directors must specify `organizationId`. Staff always see only their own assignments.
 
 **Query Params:**
 ```
 startDate   (required) — YYYY-MM-DD
 endDate     (required) — YYYY-MM-DD
-userId      (optional, MGR only) — filter by staff member
+userId      (optional, MGR/DIR only) — filter by staff member
 shiftId     (optional) — filter by shift
+organizationId  (optional, DIR only; required for DIR) — target branch id
 ```
 
 **Response `200`:**

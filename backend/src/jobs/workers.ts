@@ -1,10 +1,34 @@
 import { Worker } from 'bullmq';
-import { bullMqConnection } from '../config/queues';
+import { bullMqConnection, notificationQueue } from '../config/queues';
+import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
+import { fcmService } from '../services/fcm-service';
 import { logger } from '../utils/logger';
 
 export const notificationWorker = new Worker(
   'notifications',
   async (job) => {
+    if (job.name === 'shift.reminder.schedule') {
+      const queuedCount = await enqueueTomorrowShiftReminderDispatchJobs(notificationQueue);
+      logger.info({ jobId: job.id, queuedCount }, 'Shift reminder schedule executed');
+      return;
+    }
+
+    if (job.name === 'shift.reminder.dispatch') {
+      const data = job.data as {
+        userId: string;
+        shiftName: string;
+        startTime: string;
+        date: string;
+      };
+
+      await fcmService.sendShiftReminderPush(data.userId, {
+        shiftName: data.shiftName,
+        startTime: data.startTime,
+        date: data.date,
+      });
+      return;
+    }
+
     logger.info({ jobId: job.id, name: job.name }, 'Notification job placeholder received');
   },
   {
@@ -28,6 +52,9 @@ export const startWorkers = (): void => {
   if (process.env.START_BULLMQ_WORKERS === 'true') {
     notificationWorker.run();
     reportWorker.run();
+    void ensureShiftReminderSchedule(notificationQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register shift reminder schedule');
+    });
     logger.info('BullMQ workers started');
   }
 };
