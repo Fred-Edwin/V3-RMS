@@ -6,6 +6,7 @@ import staffRoutes from './staff-routes';
 import menuRoutes from './menu-routes';
 import orderRoutes from './order-routes';
 import prepTicketRoutes from './prep-ticket-routes';
+import deliveryZoneRoutes from './delivery-zone-routes';
 
 const apiRouter = Router();
 
@@ -16,5 +17,6 @@ apiRouter.use(staffRoutes);
 apiRouter.use(menuRoutes);
 apiRouter.use(orderRoutes);
 apiRouter.use(prepTicketRoutes);
+apiRouter.use(deliveryZoneRoutes);
 
 export default apiRouter;

@@ -72,6 +72,20 @@ const sampleOrder = {
   ],
 };
 
+const sampleDeliveryOrder = {
+  ...sampleOrder,
+  type: 'DELIVERY' as const,
+  status: 'READY' as const,
+  tableNumber: null,
+  deliveryFee: '200.00',
+  total: '900.00',
+  deliveryZone: {
+    id: '99999999-9999-4999-8999-999999999999',
+    name: 'Kiganjo',
+    fee: '200.00',
+  },
+};
+
 describe('Order routes', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -119,6 +133,53 @@ describe('Order routes', () => {
     expect(response.status).toBe(403);
   });
 
+  it('POST /api/v1/orders (delivery) returns total including zone fee', async () => {
+    vi.spyOn(orderService, 'create').mockResolvedValue(sampleDeliveryOrder);
+
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${waiterToken}`)
+      .send({
+        type: 'DELIVERY',
+        deliveryZoneId: '99999999-9999-4999-8999-999999999999',
+        items: [{ menuItemId: '66666666-6666-4666-8666-666666666666', quantity: 2, notes: null }],
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.subtotal).toBe('700.00');
+    expect(response.body.data.deliveryFee).toBe('200.00');
+    expect(response.body.data.total).toBe('900.00');
+  });
+
+  it('POST /api/v1/orders (delivery) returns 400 when deliveryZoneId is missing', async () => {
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${waiterToken}`)
+      .send({
+        type: 'DELIVERY',
+        items: [{ menuItemId: '66666666-6666-4666-8666-666666666666', quantity: 2, notes: null }],
+      });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('POST /api/v1/orders (delivery) returns 400 for deliveryZoneId from another branch', async () => {
+    vi.spyOn(orderService, 'create').mockRejectedValue(
+      new ValidationError('deliveryZoneId is invalid for this branch'),
+    );
+
+    const response = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${waiterToken}`)
+      .send({
+        type: 'DELIVERY',
+        deliveryZoneId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        items: [{ menuItemId: '66666666-6666-4666-8666-666666666666', quantity: 1, notes: null }],
+      });
+
+    expect(response.status).toBe(400);
+  });
+
   it('PATCH /api/v1/orders/:id/items returns 409 when preparation has started', async () => {
     vi.spyOn(orderService, 'updateItems').mockRejectedValue(
       new ConflictError('Order cannot be modified. Preparation has already started at all stations.'),
@@ -145,6 +206,38 @@ describe('Order routes', () => {
       .send({ paymentMethod: 'MPESA' });
 
     expect(response.status).toBe(409);
+  });
+
+  it('PATCH /api/v1/orders/:id/payment (delivery) returns 400 for CASH', async () => {
+    vi.spyOn(orderService, 'recordPayment').mockRejectedValue(
+      new ValidationError('Delivery orders only accept MPESA payment'),
+    );
+
+    const response = await request(app)
+      .patch(`/api/v1/orders/${orderId}/payment`)
+      .set('Authorization', `Bearer ${waiterToken}`)
+      .send({ paymentMethod: 'CASH' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('PATCH /api/v1/orders/:id/payment (delivery) succeeds for MPESA', async () => {
+    vi.spyOn(orderService, 'recordPayment').mockResolvedValue({
+      ...sampleDeliveryOrder,
+      status: 'CLOSED',
+      paymentMethod: 'MPESA',
+      paidAt: new Date('2026-02-24T12:00:00.000Z'),
+      closedAt: new Date('2026-02-24T12:00:00.000Z'),
+    });
+
+    const response = await request(app)
+      .patch(`/api/v1/orders/${orderId}/payment`)
+      .set('Authorization', `Bearer ${waiterToken}`)
+      .send({ paymentMethod: 'MPESA' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.paymentMethod).toBe('MPESA');
+    expect(response.body.data.status).toBe('CLOSED');
   });
 
   it('PATCH /api/v1/orders/:id/cancel cancels a pending order', async () => {

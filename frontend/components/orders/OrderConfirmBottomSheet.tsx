@@ -14,6 +14,8 @@ interface OrderConfirmBottomSheetProps {
   tableNumber: string;
   notes: string;
   cart: CartItem[];
+  deliveryZoneName?: string;
+  deliveryFee?: number;
 }
 
 const typeLabels: Record<OrderType, string> = {
@@ -31,8 +33,11 @@ export function OrderConfirmBottomSheet({
   tableNumber,
   notes,
   cart,
+  deliveryZoneName,
+  deliveryFee = 0,
 }: OrderConfirmBottomSheetProps) {
-  const total = selectCartTotal(cart);
+  const subtotal = selectCartTotal(cart);
+  const total = subtotal + (orderType === 'DELIVERY' ? deliveryFee : 0);
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Confirm Order">
@@ -44,6 +49,12 @@ export function OrderConfirmBottomSheet({
             <>
               <p className="mt-2 text-label-sm text-stone-500">Table</p>
               <p className="text-body-md text-stone-900">{tableNumber}</p>
+            </>
+          )}
+          {orderType === 'DELIVERY' && deliveryZoneName && (
+            <>
+              <p className="mt-2 text-label-sm text-stone-500">Delivery Zone</p>
+              <p className="text-body-md text-stone-900">{deliveryZoneName}</p>
             </>
           )}
           {notes && (
@@ -66,12 +77,24 @@ export function OrderConfirmBottomSheet({
         </div>
 
         <div className="flex items-center justify-between border-t border-stone-200 pt-3">
-          <span className="text-body-md font-semibold text-stone-900">Total</span>
+          <span className="text-body-md text-stone-700">Subtotal</span>
+          <PriceDisplay amount={subtotal} />
+        </div>
+
+        {orderType === 'DELIVERY' && (
+          <div className="flex items-center justify-between">
+            <span className="text-body-md text-stone-700">Delivery Fee</span>
+            <PriceDisplay amount={deliveryFee} />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between border-t border-stone-200 pt-3">
+          <span className="text-body-md font-semibold text-stone-900">Grand Total</span>
           <PriceDisplay amount={total} />
         </div>
 
         <Button className="w-full" isLoading={isSubmitting} onClick={onConfirm}>
-          Place Order
+          Confirm Order
         </Button>
       </div>
     </BottomSheet>

@@ -90,19 +90,31 @@ export function OrderDetailBottomSheet({
 
         {order.status === 'READY' && (
           <div className="space-y-3">
-            <Select
-              label="Payment method"
-              options={paymentOptions}
-              value={paymentMethod}
-              onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-            />
-            <Button
-              className="w-full"
-              isLoading={isPaymentSubmitting}
-              onClick={() => onPayment(order.id, paymentMethod)}
-            >
-              Confirm Payment
-            </Button>
+            {order.type === 'DELIVERY' ? (
+              <Button
+                className="w-full"
+                isLoading={isPaymentSubmitting}
+                onClick={() => onPayment(order.id, 'MPESA')}
+              >
+                Hand to Grubba
+              </Button>
+            ) : (
+              <>
+                <Select
+                  label="Payment method"
+                  options={paymentOptions}
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                />
+                <Button
+                  className="w-full"
+                  isLoading={isPaymentSubmitting}
+                  onClick={() => onPayment(order.id, paymentMethod)}
+                >
+                  Confirm Payment
+                </Button>
+              </>
+            )}
             {isPaymentSubmitting && (
               <p className="text-center text-caption text-stone-500">
                 Please wait while we close the order.

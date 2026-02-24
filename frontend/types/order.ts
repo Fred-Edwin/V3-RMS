@@ -42,10 +42,16 @@ export interface OrderItemDetail {
   notes: string | null;
 }
 
+export interface DeliveryZoneSummary {
+  id: string;
+  name: string;
+  fee: string;
+}
+
 export interface OrderDetail extends OrderSummary {
   items: OrderItemDetail[];
   closedAt: string | null;
-  deliveryZone: { id: string; name: string; fee: string } | null;
+  deliveryZone: DeliveryZoneSummary | null;
 }
 
 export interface CreateOrderItem {

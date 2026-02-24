@@ -5,14 +5,27 @@ import { useRouter } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { CartBottomSheet } from '@/components/orders/CartBottomSheet';
 import { OrderConfirmBottomSheet } from '@/components/orders/OrderConfirmBottomSheet';
-import { Button, IconButton, Input, MenuItemCard, PageHeader, PageLayout, Textarea } from '@/components/ui';
+import {
+  BottomSheet,
+  Button,
+  IconButton,
+  Input,
+  MenuItemCard,
+  PageHeader,
+  PageLayout,
+  PriceDisplay,
+  Select,
+  Textarea,
+} from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { menuService } from '@/services/menuService';
+import { deliveryZoneService, type DeliveryZone } from '@/services/deliveryZoneService';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
-import { useOrderStore } from '@/store/orderStore';
+import { selectCartTotal, useOrderStore } from '@/store/orderStore';
 import type { CreateOrderDto, OrderType } from '@/types/order';
 import type { MenuCategoryWithAvailability } from '@/types/menu';
+import { ApiError } from '@/types/api';
 
 export default function NewOrderPage(): JSX.Element {
   const router = useRouter();
@@ -24,11 +37,14 @@ export default function NewOrderPage(): JSX.Element {
 
   const [categories, setCategories] = useState<MenuCategoryWithAvailability[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isPaymentGateOpen, setIsPaymentGateOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [tableNumber, setTableNumber] = useState('');
+  const [selectedZoneId, setSelectedZoneId] = useState('');
   const [notes, setNotes] = useState('');
   const [cartIconAnimation, setCartIconAnimation] = useState(false);
 
@@ -44,20 +60,59 @@ export default function NewOrderPage(): JSX.Element {
         setSelectedCategoryId(menu.categories[0]?.id ?? null);
       })
       .catch((error) => {
+        const message = error instanceof ApiError ? error.message : 'Try again later';
         toast({
           variant: 'error',
           title: 'Failed to load menu',
-          message: error instanceof Error ? error.message : 'Try again later',
+          message,
         });
       });
   }, [accessToken, toast]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
+    }
+
+    deliveryZoneService
+      .listZones(accessToken)
+      .then((response) => {
+        setZones(response);
+      })
+      .catch((error) => {
+        const message = error instanceof ApiError ? error.message : 'Try again later';
+        toast({
+          variant: 'error',
+          title: 'Failed to load delivery zones',
+          message,
+        });
+      });
+  }, [accessToken, toast]);
+
+  useEffect(() => {
+    if (orderType !== 'DELIVERY' && selectedZoneId) {
+      setSelectedZoneId('');
+    }
+  }, [orderType, selectedZoneId]);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId) ?? categories[0],
     [categories, selectedCategoryId],
   );
 
-  const canSubmit = cart.length > 0 && (orderType !== 'DINE_IN' || tableNumber.trim().length > 0);
+  const selectedZone = useMemo(
+    () => zones.find((zone) => zone.id === selectedZoneId) ?? null,
+    [selectedZoneId, zones],
+  );
+
+  const subtotal = selectCartTotal(cart);
+  const deliveryFee = orderType === 'DELIVERY' && selectedZone ? Number.parseFloat(selectedZone.fee) : 0;
+  const total = subtotal + deliveryFee;
+
+  const canSubmit =
+    cart.length > 0 &&
+    (orderType !== 'DINE_IN' || tableNumber.trim().length > 0) &&
+    (orderType !== 'DELIVERY' || selectedZoneId.length > 0);
 
   const handleAddToCart = (item: { id: string; name: string; price: string }) => {
     addToCart({
@@ -76,27 +131,32 @@ export default function NewOrderPage(): JSX.Element {
       return;
     }
 
+    const sharedItems = cart.map((item) => ({
+      menuItemId: item.menuItemId,
+      quantity: item.quantity,
+      notes: item.notes,
+    }));
+
     const dto: CreateOrderDto =
       orderType === 'DINE_IN'
         ? {
             type: 'DINE_IN',
             tableNumber: tableNumber.trim(),
             notes: notes.trim() || undefined,
-            items: cart.map((item) => ({
-              menuItemId: item.menuItemId,
-              quantity: item.quantity,
-              notes: item.notes,
-            })),
+            items: sharedItems,
           }
-        : {
-            type: 'TAKE_AWAY',
-            notes: notes.trim() || undefined,
-            items: cart.map((item) => ({
-              menuItemId: item.menuItemId,
-              quantity: item.quantity,
-              notes: item.notes,
-            })),
-          };
+        : orderType === 'DELIVERY'
+          ? {
+              type: 'DELIVERY',
+              deliveryZoneId: selectedZoneId,
+              notes: notes.trim() || undefined,
+              items: sharedItems,
+            }
+          : {
+              type: 'TAKE_AWAY',
+              notes: notes.trim() || undefined,
+              items: sharedItems,
+            };
 
     setIsSubmitting(true);
     try {
@@ -116,7 +176,18 @@ export default function NewOrderPage(): JSX.Element {
     } finally {
       setIsSubmitting(false);
       setIsConfirmOpen(false);
+      setIsPaymentGateOpen(false);
     }
+  };
+
+  const handleConfirmFromSummary = () => {
+    if (orderType !== 'DELIVERY') {
+      void handleConfirmOrder();
+      return;
+    }
+
+    setIsConfirmOpen(false);
+    setIsPaymentGateOpen(true);
   };
 
   return (
@@ -169,7 +240,7 @@ export default function NewOrderPage(): JSX.Element {
       </div>
 
       <div className="rounded-md border border-stone-200 bg-white p-4">
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           <Button
             variant={orderType === 'DINE_IN' ? 'primary' : 'secondary'}
             size="sm"
@@ -184,6 +255,13 @@ export default function NewOrderPage(): JSX.Element {
           >
             Take-Away
           </Button>
+          <Button
+            variant={orderType === 'DELIVERY' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setOrderType('DELIVERY')}
+          >
+            Delivery
+          </Button>
         </div>
 
         {orderType === 'DINE_IN' && (
@@ -195,6 +273,36 @@ export default function NewOrderPage(): JSX.Element {
           />
         )}
 
+        {orderType === 'DELIVERY' && (
+          <div className="space-y-3">
+            <Select
+              label="Delivery Zone"
+              value={selectedZoneId}
+              onChange={(event) => setSelectedZoneId(event.target.value)}
+              placeholder="Select delivery zone"
+              options={zones.map((zone) => ({
+                value: zone.id,
+                label: `${zone.name} - KES ${Number.parseFloat(zone.fee).toFixed(2)}`,
+              }))}
+            />
+
+            <div className="rounded-md border border-stone-200 p-3">
+              <div className="flex items-center justify-between text-body-sm text-stone-600">
+                <span>Subtotal</span>
+                <PriceDisplay amount={subtotal} />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-body-sm text-stone-600">
+                <span>Delivery Fee</span>
+                <PriceDisplay amount={deliveryFee} />
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-2">
+                <span className="text-body-md font-semibold text-stone-900">Total</span>
+                <PriceDisplay amount={total} />
+              </div>
+            </div>
+          </div>
+        )}
+
         <Textarea
           label="Order Notes"
           className="mt-3"
@@ -204,25 +312,60 @@ export default function NewOrderPage(): JSX.Element {
         />
 
         <Button className="mt-4 w-full" disabled={!canSubmit} onClick={() => setIsConfirmOpen(true)}>
-          Place Order
+          {orderType === 'DELIVERY' ? 'Confirm Payment and Submit' : 'Place Order'}
         </Button>
       </div>
 
-      <CartBottomSheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onSubmit={() => {
-        setIsCartOpen(false);
-        setIsConfirmOpen(true);
-      }} />
+      <CartBottomSheet
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        onSubmit={() => {
+          setIsCartOpen(false);
+          setIsConfirmOpen(true);
+        }}
+      />
 
       <OrderConfirmBottomSheet
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
-        onConfirm={() => void handleConfirmOrder()}
+        onConfirm={handleConfirmFromSummary}
         isSubmitting={isSubmitting}
         orderType={orderType}
         tableNumber={tableNumber}
         notes={notes}
         cart={cart}
+        deliveryZoneName={selectedZone?.name}
+        deliveryFee={deliveryFee}
       />
+
+      <BottomSheet
+        isOpen={isPaymentGateOpen}
+        onClose={() => {
+          if (!isSubmitting) {
+            setIsPaymentGateOpen(false);
+          }
+        }}
+        title="Confirm Payment"
+      >
+        <div className="space-y-4">
+          <p className="text-body-md text-stone-700">
+            Confirm the customer has paid KES {total.toFixed(2)} via Mpesa before sending to kitchen.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              className="flex-1"
+              variant="secondary"
+              onClick={() => setIsPaymentGateOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button className="flex-1" isLoading={isSubmitting} onClick={() => void handleConfirmOrder()}>
+              Confirm Payment &amp; Submit
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </PageLayout>
   );
 }

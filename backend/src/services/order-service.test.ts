@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod, Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
@@ -154,6 +154,24 @@ const getCreateDtoCall = (): CreateOrderWithTicketsDto => {
   return call[0];
 };
 
+const buildDeliveryReadyOrderRecord = (): FullOrderPrismaRecord => {
+  const base = buildCreatedOrderRecord();
+  return {
+    ...base,
+    type: OrderType.DELIVERY,
+    status: OrderStatus.READY,
+    tableNumber: null,
+    deliveryFee: new Prisma.Decimal('200.00'),
+    total: new Prisma.Decimal('900.00'),
+    deliveryZoneId: '99999999-9999-4999-8999-999999999999',
+    deliveryZone: {
+      id: '99999999-9999-4999-8999-999999999999',
+      name: 'Kiganjo',
+      fee: new Prisma.Decimal('200.00'),
+    },
+  } as FullOrderPrismaRecord;
+};
+
 describe('orderService.create', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -236,5 +254,53 @@ describe('orderService.create', () => {
 
     expect(kitchenTicket?.items.map((item) => item.name)).toEqual(['Burger']);
     expect(baristaTicket?.items.map((item) => item.name)).toEqual(['Latte']);
+  });
+});
+
+describe('orderService.recordPayment', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('rejects non-MPESA payment for delivery orders', async () => {
+    vi.mocked(orderRepository.findById).mockResolvedValue(buildDeliveryReadyOrderRecord());
+
+    await expect(
+      orderService.recordPayment(
+        '33333333-3333-4333-8333-333333333333',
+        { paymentMethod: PaymentMethod.CASH },
+        waiterActor,
+      ),
+    ).rejects.toThrow('Delivery orders only accept MPESA payment');
+
+    expect(orderRepository.recordPayment).not.toHaveBeenCalled();
+  });
+
+  it('records MPESA payment for delivery orders', async () => {
+    const readyOrder = buildDeliveryReadyOrderRecord();
+    const closedOrder = {
+      ...readyOrder,
+      status: OrderStatus.CLOSED,
+      paymentMethod: PaymentMethod.MPESA,
+      paidAt: new Date('2026-02-24T12:10:00.000Z'),
+      closedAt: new Date('2026-02-24T12:10:00.000Z'),
+    } as FullOrderPrismaRecord;
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(readyOrder);
+    vi.mocked(orderRepository.recordPayment).mockResolvedValue(closedOrder);
+
+    const result = await orderService.recordPayment(
+      '33333333-3333-4333-8333-333333333333',
+      { paymentMethod: PaymentMethod.MPESA },
+      waiterActor,
+    );
+
+    expect(orderRepository.recordPayment).toHaveBeenCalledWith(
+      '33333333-3333-4333-8333-333333333333',
+      organizationId,
+      PaymentMethod.MPESA,
+    );
+    expect(result.status).toBe('CLOSED');
+    expect(result.paymentMethod).toBe('MPESA');
   });
 });

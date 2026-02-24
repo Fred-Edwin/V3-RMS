@@ -56,7 +56,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       label: 'Operations',
       items: [
         { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
-        { label: 'Orders', href: '/app/manage/dashboard', icon: ShoppingCart },
+        { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
       ],
     },
     {
