@@ -3,7 +3,9 @@ import type { NotificationEventType } from './types';
 const soundPathByEvent: Partial<Record<NotificationEventType, string>> = {
   'order:new': '/sounds/new-order.mp3',
   'order:claimed': '/sounds/claimed.mp3',
+  'order:ready': '/sounds/claimed.mp3',
   'order:all_ready': '/sounds/all-ready.mp3',
+  'order:paid': '/sounds/all-ready.mp3',
 };
 
 const audioCache = new Map<string, HTMLAudioElement>();

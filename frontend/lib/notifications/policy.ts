@@ -49,7 +49,9 @@ export const resolveNotificationPolicy = (
         channels: ['toast'],
         toast: {
           variant: 'info',
-          title: `Order claimed`,
+          title: event.payload.dailyNumber != null
+            ? `Order #${event.payload.dailyNumber} claimed`
+            : 'Order claimed',
           message: event.payload.claimedByName
             ? `${event.payload.claimedByName} started preparation.`
             : 'Preparation has started.',
@@ -60,6 +62,40 @@ export const resolveNotificationPolicy = (
     }
 
     return null;
+  }
+
+  if (event.type === 'order:ready') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    return {
+      channels: ['toast'],
+      toast: {
+        variant: 'info',
+        title: `Station ready — Order #${event.payload.dailyNumber}`,
+        message: event.payload.station === 'KITCHEN' ? 'Kitchen done, awaiting barista.' : 'Barista done, awaiting kitchen.',
+      },
+      dedupeKey: `${event.type}:${event.payload.ticketId}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
+  if (event.type === 'order:paid') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    return {
+      channels: ['sound', 'toast'],
+      toast: {
+        variant: 'success',
+        title: `Payment confirmed — Order #${event.payload.dailyNumber}`,
+        message: 'Order is closed.',
+      },
+      dedupeKey: `${event.type}:${event.payload.orderId}`,
+      dedupeWindowMs: 5000,
+    };
   }
 
   if (event.type === 'order:all_ready') {

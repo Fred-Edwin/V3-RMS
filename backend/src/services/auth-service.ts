@@ -108,7 +108,11 @@ export const authService = {
 
     const newRefreshToken = signRefreshToken({ userId: payload.userId });
     const newRefreshTokenHash = hashToken(newRefreshToken);
-    await authRepository.deleteRefreshToken(oldTokenHash);
+    const deleted = await authRepository.deleteRefreshToken(oldTokenHash);
+    if (deleted.count === 0) {
+      throw new UnauthorizedError('Refresh token already used');
+    }
+
     await authRepository.saveRefreshToken({
       userId: payload.userId,
       tokenHash: newRefreshTokenHash,

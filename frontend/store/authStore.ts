@@ -17,6 +17,7 @@ interface AuthState {
 }
 
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshInFlight: Promise<void> | null = null;
 
 const setAccessTokenCookie = (token: string | null): void => {
   if (typeof document === 'undefined') {
@@ -115,23 +116,33 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   refreshAccessToken: async () => {
-    try {
-      const { accessToken, user } = await authService.refreshToken();
-      const claims = decodeTokenClaims(accessToken);
-      setAccessTokenCookie(accessToken);
-      scheduleRefresh(accessToken);
-      set({
-        user,
-        accessToken,
-        isAuthenticated: true,
-        role: claims?.role ?? user.role,
-        organizationId: claims?.organizationId ?? user.organizationId,
-      });
-    } catch (error) {
-      if (error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)) {
-        useAuthStore.getState().clearAuth();
-      }
+    if (refreshInFlight) {
+      return refreshInFlight;
     }
+
+    refreshInFlight = (async () => {
+      try {
+        const { accessToken, user } = await authService.refreshToken();
+        const claims = decodeTokenClaims(accessToken);
+        setAccessTokenCookie(accessToken);
+        scheduleRefresh(accessToken);
+        set({
+          user,
+          accessToken,
+          isAuthenticated: true,
+          role: claims?.role ?? user.role,
+          organizationId: claims?.organizationId ?? user.organizationId,
+        });
+      } catch (error) {
+        if (error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)) {
+          useAuthStore.getState().clearAuth();
+        }
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+
+    return refreshInFlight;
   },
   hydrateSession: async () => {
     const { accessToken } = useAuthStore.getState();

@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq';
-import { bullMqConnection, notificationQueue } from '../config/queues';
+import { bullMqConnection, notificationQueue, reportQueue } from '../config/queues';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
+import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { fcmService } from '../services/fcm-service';
 import { logger } from '../utils/logger';
 
@@ -40,6 +41,12 @@ export const notificationWorker = new Worker(
 export const reportWorker = new Worker(
   'reports',
   async (job) => {
+    if (job.name === 'daily-report.schedule') {
+      const completedCount = await precomputeDailyReports();
+      logger.info({ jobId: job.id, completedCount }, 'Daily report schedule executed');
+      return;
+    }
+
     logger.info({ jobId: job.id, name: job.name }, 'Report job placeholder received');
   },
   {
@@ -54,6 +61,9 @@ export const startWorkers = (): void => {
     reportWorker.run();
     void ensureShiftReminderSchedule(notificationQueue).catch((error) => {
       logger.error({ error }, 'Failed to register shift reminder schedule');
+    });
+    void ensureDailyReportSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register daily report schedule');
     });
     logger.info('BullMQ workers started');
   }

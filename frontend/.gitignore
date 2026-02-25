@@ -36,3 +36,6 @@ yarn-error.log*
 next-env.d.ts
 
 .env
+
+# Generated at build time from public/firebase-messaging-sw.template.js
+/public/firebase-messaging-sw.js

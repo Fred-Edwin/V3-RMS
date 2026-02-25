@@ -1,7 +1,7 @@
 import type { AppRole } from '@/types/auth';
 import type { PrepStation } from '@/types/order';
 
-export type NotificationEventType = 'order:new' | 'order:claimed' | 'order:all_ready';
+export type NotificationEventType = 'order:new' | 'order:claimed' | 'order:ready' | 'order:all_ready' | 'order:paid';
 
 export type NotificationChannel = 'sound' | 'toast' | 'push';
 
@@ -18,7 +18,17 @@ export interface NotificationEventPayloadMap {
     claimedByName?: string;
     dailyNumber?: number;
   };
+  'order:ready': {
+    orderId: string;
+    ticketId: string;
+    station: PrepStation;
+    dailyNumber: number;
+  };
   'order:all_ready': {
+    orderId: string;
+    dailyNumber: number;
+  };
+  'order:paid': {
     orderId: string;
     dailyNumber: number;
   };

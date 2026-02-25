@@ -14,7 +14,7 @@ import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from './useToast';
-import type { PrepTicketDetail } from '@/types/order';
+import type { PrepTicketDetail, PrepStation } from '@/types/order';
 
 const joinRoleRooms = (
   role: ReturnType<typeof useAuthStore.getState>['role'],
@@ -62,11 +62,25 @@ export const useNotifications = (): void => {
     }
 
     connectSocket(accessToken);
-    joinRoleRooms(role, organizationId, userId);
 
     const socket = getSocket();
     if (!socket) {
       return;
+    }
+
+    // BUG 6 fix: defer room joins until after the socket has connected and the
+    // server-side auth middleware has validated the token. Emitting join events
+    // before the handshake completes can result in them being silently dropped.
+    const handleConnect = () => {
+      joinRoleRooms(role, organizationId, userId);
+    };
+
+    socket.on('connect', handleConnect);
+
+    // If the socket is already connected (e.g. effect re-runs after hot-reload),
+    // join rooms immediately so we don't wait for the next connect event.
+    if (socket.connected) {
+      joinRoleRooms(role, organizationId, userId);
     }
 
     const handleOrderNew = (payload: PrepTicketDetail) => {
@@ -85,10 +99,13 @@ export const useNotifications = (): void => {
       );
     };
 
+    // BUG 7 fix: forward dailyNumber from the updated payload so the waiter
+    // toast can display the correct order number.
     const handleOrderClaimed = (payload: {
       orderId: string;
       ticketId: string;
-      station: PrepTicketDetail['station'];
+      station: PrepStation;
+      dailyNumber: number;
       claimedBy: { id: string; name: string };
     }) => {
       dispatchNotificationEvent(
@@ -100,8 +117,27 @@ export const useNotifications = (): void => {
             orderId: payload.orderId,
             ticketId: payload.ticketId,
             station: payload.station,
+            dailyNumber: payload.dailyNumber,
             claimedByName: payload.claimedBy.name,
           },
+        },
+        { role, toast },
+      );
+    };
+
+    // BUG 1 fix: handle order:ready (individual station marked ready).
+    const handleOrderReady = (payload: {
+      orderId: string;
+      ticketId: string;
+      station: PrepStation;
+      dailyNumber: number;
+    }) => {
+      dispatchNotificationEvent(
+        {
+          type: 'order:ready',
+          source: 'socket',
+          occurredAt: Date.now(),
+          payload,
         },
         { role, toast },
       );
@@ -119,18 +155,36 @@ export const useNotifications = (): void => {
       );
     };
 
+    // BUG 3 fix: handle order:paid emitted by backend after payment is recorded.
+    const handleOrderPaid = (payload: { orderId: string; dailyNumber: number }) => {
+      dispatchNotificationEvent(
+        {
+          type: 'order:paid',
+          source: 'socket',
+          occurredAt: Date.now(),
+          payload,
+        },
+        { role, toast },
+      );
+    };
+
     socket.on('order:new', handleOrderNew);
     socket.on('order:claimed', handleOrderClaimed);
+    socket.on('order:ready', handleOrderReady);
     socket.on('order:all_ready', handleOrderAllReady);
+    socket.on('order:paid', handleOrderPaid);
 
     const offReconnect = onReconnect(() => {
       joinRoleRooms(role, organizationId, userId);
     });
 
     return () => {
+      socket.off('connect', handleConnect);
       socket.off('order:new', handleOrderNew);
       socket.off('order:claimed', handleOrderClaimed);
+      socket.off('order:ready', handleOrderReady);
       socket.off('order:all_ready', handleOrderAllReady);
+      socket.off('order:paid', handleOrderPaid);
       offReconnect();
     };
   }, [accessToken, organizationId, pathname, role, toast, userId]);

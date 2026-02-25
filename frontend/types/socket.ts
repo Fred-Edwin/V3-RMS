@@ -12,6 +12,7 @@ export interface ServerToClientEvents {
     orderId: string;
     ticketId: string;
     station: PrepStation;
+    dailyNumber: number;
     claimedBy: { id: string; name: string };
   }) => void;
   'order:ready': (payload: {
@@ -21,6 +22,7 @@ export interface ServerToClientEvents {
     dailyNumber: number;
   }) => void;
   'order:all_ready': (payload: { orderId: string; dailyNumber: number }) => void;
+  'order:paid': (payload: { orderId: string; dailyNumber: number }) => void;
   'order:modified': (payload: PrepTicketDetail) => void;
   'order:cancelled': (payload: { orderId: string }) => void;
 }

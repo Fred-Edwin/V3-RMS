@@ -25,6 +25,13 @@ describe('jwt utils', () => {
     expect(payload.userId).toBe('user-2');
   });
 
+  it('generates unique refresh tokens for the same payload in quick succession', () => {
+    const first = signRefreshToken({ userId: 'user-2' });
+    const second = signRefreshToken({ userId: 'user-2' });
+
+    expect(first).not.toBe(second);
+  });
+
   it('throws UnauthorizedError for tampered access token', () => {
     const token = signAccessToken({
       userId: 'user-1',

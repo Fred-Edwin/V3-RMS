@@ -1,0 +1,75 @@
+﻿import type { Request, Response } from 'express';
+import { UnauthorizedError } from '../utils/errors';
+import { reportService } from '../services/report-service';
+import {
+  BranchOverviewQuerySchema,
+  DailySummaryQuerySchema,
+  ExportQuerySchema,
+  MyPerformanceQuerySchema,
+  StaffPerformanceQuerySchema,
+} from '../validators/report-schemas';
+
+const requireActor = (req: Request) => {
+  if (!req.user) {
+    throw new UnauthorizedError('Authentication required');
+  }
+
+  return req.user;
+};
+
+export const reportController = {
+  getDailySummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = DailySummaryQuerySchema.parse(req.query);
+    const summary = await reportService.getDailySummary(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  },
+
+  getStaffPerformance: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = StaffPerformanceQuerySchema.parse(req.query);
+    const report = await reportService.getStaffPerformance(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getBranchOverview: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = BranchOverviewQuerySchema.parse(req.query);
+    const report = await reportService.getBranchOverview(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getMyPerformance: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = MyPerformanceQuerySchema.parse(req.query);
+    const report = await reportService.getMyPerformance(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  exportReport: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ExportQuerySchema.parse(req.query);
+    const result = await reportService.exportReport(actor, query);
+
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.status(200).send(result.buffer);
+  },
+};
+

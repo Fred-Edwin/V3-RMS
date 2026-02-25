@@ -79,6 +79,6 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 5
+Phase: 6
 Status: Complete
-Context file: docs/context/PHASE_5_CONTEXT.md
+Context file: docs/context/PHASE_6_CONTEXT.md

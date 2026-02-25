@@ -4,6 +4,17 @@ import type { NotificationDispatchContext, NotificationEvent } from './types';
 
 const dedupeWindowByKey = new Map<string, number>();
 
+// BUG 9 fix: prune entries older than this threshold to prevent unbounded growth.
+const DEDUPE_PRUNE_THRESHOLD_MS = 30_000;
+
+const pruneStaleDedupe = (now: number): void => {
+  Array.from(dedupeWindowByKey.entries()).forEach(([key, ts]) => {
+    if (now - ts > DEDUPE_PRUNE_THRESHOLD_MS) {
+      dedupeWindowByKey.delete(key);
+    }
+  });
+};
+
 const shouldDispatch = (dedupeKey: string, dedupeWindowMs: number, now: number): boolean => {
   const lastTimestamp = dedupeWindowByKey.get(dedupeKey);
   if (typeof lastTimestamp === 'number' && now - lastTimestamp < dedupeWindowMs) {
@@ -11,6 +22,7 @@ const shouldDispatch = (dedupeKey: string, dedupeWindowMs: number, now: number):
   }
 
   dedupeWindowByKey.set(dedupeKey, now);
+  pruneStaleDedupe(now);
   return true;
 };
 

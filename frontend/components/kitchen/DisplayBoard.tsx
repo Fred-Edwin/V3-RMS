@@ -90,17 +90,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (env.notificationsV2) {
-      return;
-    }
-
-    const audio = new Audio('/sounds/new-order.mp3');
-    if (pendingTickets.length > 0) {
-      audio.play().catch(() => {});
-    }
-  }, [pendingTickets.length]);
-
   const handleClaim = async (claimedById: string) => {
     if (!accessToken || !selectedTicket) {
       return;

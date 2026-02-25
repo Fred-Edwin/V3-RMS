@@ -41,6 +41,7 @@ vi.mock('../sockets/socket-service', () => ({
     emitOrderClaimed: vi.fn(),
     emitOrderReady: vi.fn(),
     emitOrderAllReady: vi.fn(),
+    emitOrderPaid: vi.fn(),
     emitOrderModified: vi.fn(),
     emitOrderCancelled: vi.fn(),
   },

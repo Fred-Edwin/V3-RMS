@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { UnauthorizedError } from './errors';
@@ -22,6 +23,7 @@ export const signAccessToken = (payload: AccessTokenPayload): string => {
 export const signRefreshToken = (payload: RefreshTokenPayload): string => {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+    jwtid: crypto.randomUUID(),
   });
 };
 

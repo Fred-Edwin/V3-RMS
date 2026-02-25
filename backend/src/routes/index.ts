@@ -10,6 +10,7 @@ import deliveryZoneRoutes from './delivery-zone-routes';
 import shiftRoutes from './shift-routes';
 import shiftAssignmentRoutes from './shift-assignment-routes';
 import clockRoutes from './clock-routes';
+import reportRoutes from './report-routes';
 
 const apiRouter = Router();
 
@@ -24,5 +25,6 @@ apiRouter.use(deliveryZoneRoutes);
 apiRouter.use(shiftRoutes);
 apiRouter.use(shiftAssignmentRoutes);
 apiRouter.use(clockRoutes);
+apiRouter.use(reportRoutes);
 
 export default apiRouter;

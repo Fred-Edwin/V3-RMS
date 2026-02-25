@@ -6,6 +6,7 @@ export interface OrderClaimedPayload {
   orderId: string;
   ticketId: string;
   station: PrepStation;
+  dailyNumber: number;
   claimedBy: {
     id: string;
     name: string;
@@ -20,6 +21,11 @@ export interface OrderReadyPayload {
 }
 
 export interface OrderAllReadyPayload {
+  orderId: string;
+  dailyNumber: number;
+}
+
+export interface OrderPaidPayload {
   orderId: string;
   dailyNumber: number;
 }
@@ -59,6 +65,11 @@ export const socketService = {
   emitOrderAllReady: (waiterId: string, payload: OrderAllReadyPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:all_ready', payload);
+  },
+
+  emitOrderPaid: (waiterId: string, payload: OrderPaidPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:paid', payload);
   },
 
   emitOrderModified: (organizationId: string, tickets: PrepTicketRecord[]): void => {

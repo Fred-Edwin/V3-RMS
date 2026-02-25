@@ -206,6 +206,7 @@ export const prepTicketService = {
       orderId: ticket.orderId,
       ticketId: claimedTicket.id,
       station: claimedTicket.station,
+      dailyNumber: ticket.order.dailyNumber,
       claimedBy: {
         id: data.claimedById,
         name: claimedByName,

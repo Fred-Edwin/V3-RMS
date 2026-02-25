@@ -438,7 +438,12 @@ export const orderService = {
       throw new NotFoundError('Order not found');
     }
 
-    return serializeOrder(updated);
+    const serialized = serializeOrder(updated);
+    socketService.emitOrderPaid(actor.id, {
+      orderId: serialized.id,
+      dailyNumber: serialized.dailyNumber,
+    });
+    return serialized;
   },
 
   cancel: async (orderId: string, actor: Actor): Promise<OrderRecord> => {
