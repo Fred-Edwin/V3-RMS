@@ -1,10 +1,20 @@
 import { z } from 'zod';
 
+const cookieDomainSchema = z
+  .string()
+  .trim()
+  .optional()
+  .refine(
+    (value) => !value || /^[A-Za-z0-9.-]+$/.test(value),
+    'COOKIE_DOMAIN must be a bare domain (for example: v3-rms.vercel.app or .wendorms.co.ke)',
+  );
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   API_PREFIX: z.string().default('/api/v1'),
   FRONTEND_ORIGIN: z.string().min(1).default('http://localhost:3000'),
+  COOKIE_DOMAIN: cookieDomainSchema,
   DATABASE_URL: z.string().min(1).default('postgresql://postgres:password@localhost:5432/wendo_rms'),
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   REDIS_TOKEN: z.string().optional(),

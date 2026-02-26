@@ -6,19 +6,24 @@ import { UnauthorizedError } from '../utils/errors';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const ACCESS_COOKIE_NAME = 'accessToken';
+const isProduction = env.NODE_ENV === 'production';
+const cookieSameSite: 'none' | 'lax' = isProduction ? 'none' : 'lax';
+const cookieDomain = env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {};
 
 const refreshCookieOptions = {
   httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  secure: isProduction,
+  sameSite: cookieSameSite,
   path: '/',
+  ...cookieDomain,
 };
 
 const accessCookieOptions = {
   httpOnly: false,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  secure: isProduction,
+  sameSite: cookieSameSite,
   path: '/',
+  ...cookieDomain,
 };
 
 const parseCookieValue = (cookieHeader: string | undefined, key: string): string | null => {

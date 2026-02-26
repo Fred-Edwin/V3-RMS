@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { AuthUser } from '@/types/auth';
 import { authService } from '@/services/authService';
 import { ApiError } from '@/types/api';
+import { env } from '@/lib/env';
 
 interface AuthState {
   user: AuthUser | null;
@@ -24,12 +25,16 @@ const setAccessTokenCookie = (token: string | null): void => {
     return;
   }
 
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const securePart = isHttps ? '; secure' : '';
+  const domainPart = env.cookieDomain ? `; domain=${env.cookieDomain}` : '';
+
   if (!token) {
-    document.cookie = 'accessToken=; path=/; max-age=0; samesite=strict';
+    document.cookie = `accessToken=; path=/; max-age=0; samesite=lax${securePart}${domainPart}`;
     return;
   }
 
-  document.cookie = `accessToken=${encodeURIComponent(token)}; path=/; max-age=900; samesite=strict`;
+  document.cookie = `accessToken=${encodeURIComponent(token)}; path=/; max-age=900; samesite=lax${securePart}${domainPart}`;
 };
 
 const decodeTokenExp = (token: string): number | null => {
