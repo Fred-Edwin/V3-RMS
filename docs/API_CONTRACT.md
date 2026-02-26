@@ -240,6 +240,7 @@ categoryId  (optional) — filter by category
             "id": "uuid",
             "name": "Cappuccino",
             "description": "Rich espresso with steamed milk foam",
+            "imageUrl": "https://res.cloudinary.com/...",
             "price": "350.00",
             "isAvailable": true
           },
@@ -247,6 +248,7 @@ categoryId  (optional) — filter by category
             "id": "uuid",
             "name": "Flat White",
             "description": "Double shot with velvety microfoam",
+            "imageUrl": null,
             "price": "380.00",
             "isAvailable": true
           }
@@ -262,6 +264,7 @@ categoryId  (optional) — filter by category
             "id": "uuid",
             "name": "Chicken Burger",
             "description": "Grilled chicken with house sauce",
+            "imageUrl": "https://res.cloudinary.com/...",
             "price": "850.00",
             "isAvailable": false
           }
@@ -380,8 +383,34 @@ Soft-deletes a menu category. Fails if category has active menu items.
 
 ---
 
+### POST `/menu/items/upload-image`
+**Access:** 🔑 SA, DIR
+Uploads an image to Cloudinary and returns the CDN URL. Call this **before** creating or updating an item, then pass the returned `imageUrl` in the create/update body.
+
+**Request:** `multipart/form-data`
+```
+field: image  (file — JPEG, PNG, or WebP, max 5 MB)
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "imageUrl": "https://res.cloudinary.com/your-cloud/image/upload/f_auto,q_auto/wendo/menu/abc123.webp"
+  }
+}
+```
+
+**Notes:**
+- Images are stored under the `wendo/menu` folder in Cloudinary
+- Cloudinary applies `fetch_format: auto, quality: auto` — WebP is served to browsers that support it
+- The returned URL is a permanent CDN link; pass it as `imageUrl` in subsequent create/update item calls
+
+---
+
 ### POST `/menu/items`
-**Access:** 🔑 SA, DIR  
+**Access:** 🔑 SA, DIR
 Creates a new menu item.
 
 **Request Body:**
@@ -390,9 +419,11 @@ Creates a new menu item.
   "categoryId": "uuid",
   "name": "Iced Latte",
   "description": "Chilled espresso with cold milk",
+  "imageUrl": "https://res.cloudinary.com/...",
   "price": "400.00"
 }
 ```
+> `imageUrl` is optional. Omit it if no image has been uploaded yet.
 
 **Response `201`:**
 ```json
@@ -403,6 +434,7 @@ Creates a new menu item.
     "categoryId": "uuid",
     "name": "Iced Latte",
     "description": "Chilled espresso with cold milk",
+    "imageUrl": "https://res.cloudinary.com/...",
     "price": "400.00",
     "isActive": true
   },
@@ -413,7 +445,7 @@ Creates a new menu item.
 ---
 
 ### PATCH `/menu/items/:id`
-**Access:** 🔑 SA, DIR  
+**Access:** 🔑 SA, DIR
 Updates a menu item's details at the master level.
 
 **Request Body:** (all fields optional)
@@ -421,16 +453,18 @@ Updates a menu item's details at the master level.
 {
   "name": "Iced Latte",
   "description": "Updated description",
+  "imageUrl": "https://res.cloudinary.com/...",
   "price": "420.00",
   "isActive": true
 }
 ```
+> Pass `imageUrl: null` (or omit) to leave the existing image unchanged. To remove an image, pass `"imageUrl": ""`.
 
 **Response `200`:**
 ```json
 {
   "success": true,
-  "data": { "id": "uuid", "name": "Iced Latte", "price": "420.00", "isActive": true },
+  "data": { "id": "uuid", "name": "Iced Latte", "imageUrl": "https://res.cloudinary.com/...", "price": "420.00", "isActive": true },
   "message": "Menu item updated successfully"
 }
 ```
@@ -1726,6 +1760,71 @@ endDate     (required) — YYYY-MM-DD
         "averagePrepTimeMinutes": { "KITCHEN": 15, "BARISTA": 7 }
       }
     ]
+  }
+}
+```
+
+---
+
+### GET `/reports/branch-trends`
+**Access:** 🔑 MGR, DIR  
+Returns daily trend points for a single branch. Managers are scoped to their branch. Directors must pass `organizationId`.
+
+**Query Params:**
+```
+startDate       (required) — YYYY-MM-DD
+endDate         (required) — YYYY-MM-DD
+organizationId  (optional, DIR only; required for DIR) — target branch id
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "period": { "startDate": "2026-02-01", "endDate": "2026-02-28" },
+    "organizationId": "uuid",
+    "organizationName": "Wendo Kingz",
+    "points": [
+      {
+        "date": "2026-02-01",
+        "orders": 42,
+        "revenue": "48500.00",
+        "avgPrepKitchen": 13,
+        "avgPrepBarista": 6,
+        "avgPrepCombined": 10
+      }
+    ]
+  }
+}
+```
+
+---
+
+### GET `/reports/director-trends`
+**Access:** 🔑 DIR  
+Returns cross-branch trend analytics for directors.
+
+**Query Params:**
+```
+startDate   (required) — YYYY-MM-DD
+endDate     (required) — YYYY-MM-DD
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "period": { "startDate": "2026-02-01", "endDate": "2026-02-28" },
+    "aggregateSeries": [
+      { "date": "2026-02-01", "totalRevenue": "89000.00", "totalOrders": 77 }
+    ],
+    "branchRevenueSeries": [{ "id": "uuid", "name": "Wendo Kingz", "points": [{ "date": "2026-02-01", "value": 48500 }] }],
+    "branchOrdersSeries": [{ "id": "uuid", "name": "Wendo Kingz", "points": [{ "date": "2026-02-01", "value": 42 }] }],
+    "branchContributionSeries": [{ "id": "uuid", "name": "Wendo Kingz", "points": [{ "date": "2026-02-01", "value": 54.49 }] }],
+    "itemFamilySeries": [{ "id": "Beverages", "name": "Beverages", "points": [{ "date": "2026-02-01", "value": 26100 }] }],
+    "branches": [{ "id": "uuid", "name": "Wendo Kingz" }]
   }
 }
 ```

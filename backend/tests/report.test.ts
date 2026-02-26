@@ -188,6 +188,63 @@ describe('Report routes', () => {
     expect(directorResponse.body.data.totalOrders).toBe(210);
   });
 
+  it('GET /api/v1/reports/branch-trends enforces director organizationId and allows manager scope', async () => {
+    vi.spyOn(reportService, 'getBranchTrends').mockImplementation(async (actor, query) => {
+      if (actor.role === 'DIRECTOR' && !query.organizationId) {
+        throw new ValidationError('organizationId query param is required for directors');
+      }
+
+      return {
+        period: {
+          startDate: '2026-02-01',
+          endDate: '2026-02-24',
+        },
+        organizationId: '22222222-2222-4222-8222-222222222222',
+        organizationName: 'Wendo Kingz',
+        points: [],
+      };
+    });
+
+    const managerResponse = await request(app)
+      .get('/api/v1/reports/branch-trends?startDate=2026-02-01&endDate=2026-02-24')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(managerResponse.status).toBe(200);
+
+    const directorMissingOrg = await request(app)
+      .get('/api/v1/reports/branch-trends?startDate=2026-02-01&endDate=2026-02-24')
+      .set('Authorization', `Bearer ${directorToken}`);
+
+    expect(directorMissingOrg.status).toBe(400);
+  });
+
+  it('GET /api/v1/reports/director-trends returns 403 for manager and 200 for director', async () => {
+    vi.spyOn(reportService, 'getDirectorTrends').mockResolvedValue({
+      period: {
+        startDate: '2026-02-01',
+        endDate: '2026-02-24',
+      },
+      aggregateSeries: [],
+      branchRevenueSeries: [],
+      branchOrdersSeries: [],
+      branchContributionSeries: [],
+      itemFamilySeries: [],
+      branches: [],
+    });
+
+    const managerResponse = await request(app)
+      .get('/api/v1/reports/director-trends?startDate=2026-02-01&endDate=2026-02-24')
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(managerResponse.status).toBe(403);
+
+    const directorResponse = await request(app)
+      .get('/api/v1/reports/director-trends?startDate=2026-02-01&endDate=2026-02-24')
+      .set('Authorization', `Bearer ${directorToken}`);
+
+    expect(directorResponse.status).toBe(200);
+  });
+
   it('GET /api/v1/reports/export returns csv attachment', async () => {
     vi.spyOn(reportService, 'exportReport').mockResolvedValue({
       buffer: Buffer.from('name,orders\nJames,10', 'utf-8'),

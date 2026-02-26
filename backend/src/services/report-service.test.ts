@@ -18,6 +18,8 @@ vi.mock('../repositories/report-repository', () => ({
     getDailySummaryByDate: vi.fn(),
     getStaffPerformance: vi.fn(),
     getBranchOverview: vi.fn(),
+    getBranchTrends: vi.fn(),
+    getDirectorTrends: vi.fn(),
     getMyPerformance: vi.fn(),
     listActiveOrganizations: vi.fn(),
   },
@@ -159,6 +161,24 @@ describe('reportService', () => {
   it('blocks manager branch-overview access in service layer', async () => {
     await expect(
       reportService.getBranchOverview(managerActor, {
+        startDate: '2026-02-01',
+        endDate: '2026-02-24',
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('requires organizationId for director branch-trends access', async () => {
+    await expect(
+      reportService.getBranchTrends(directorActor, {
+        startDate: '2026-02-01',
+        endDate: '2026-02-24',
+      }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('blocks manager director-trends access in service layer', async () => {
+    await expect(
+      reportService.getDirectorTrends(managerActor, {
         startDate: '2026-02-01',
         endDate: '2026-02-24',
       }),

@@ -10,7 +10,8 @@ import {
   updateCategorySchema,
   updateItemSchema,
 } from '../validators/menu-schemas';
-import { UnauthorizedError } from '../utils/errors';
+import { UnauthorizedError, ValidationError } from '../utils/errors';
+import { uploadImageBuffer } from '../utils/cloudinary';
 
 const requireActor = (req: Request) => {
   if (!req.user) {
@@ -104,6 +105,21 @@ export const menuController = {
     res.status(200).json({
       success: true,
       message: 'Menu item deleted successfully',
+    });
+  },
+
+  uploadItemImage: async (req: Request, res: Response): Promise<void> => {
+    requireActor(req);
+
+    if (!req.file) {
+      throw new ValidationError('No image file provided');
+    }
+
+    const imageUrl = await uploadImageBuffer(req.file.buffer, 'wendo/menu');
+
+    res.status(200).json({
+      success: true,
+      data: { imageUrl },
     });
   },
 

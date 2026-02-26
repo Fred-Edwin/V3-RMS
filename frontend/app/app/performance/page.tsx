@@ -109,6 +109,7 @@ export default function PerformancePage(): JSX.Element {
     return report.ordersOverTime.map((point) => ({
       label: formatDay(point.date),
       value: point.count,
+      date: point.date,
     }));
   }, [isWaiterReport, report]);
 
@@ -120,6 +121,7 @@ export default function PerformancePage(): JSX.Element {
     return report.ordersOverTime.map((point) => ({
       label: formatDay(point.date),
       value: point.count,
+      date: point.date,
     }));
   }, [report]);
 
@@ -203,9 +205,11 @@ export default function PerformancePage(): JSX.Element {
 
           <LineTrendChart
             title="Orders Over Time"
-            subtitle="Daily order volume for the selected period"
+            subtitle="Daily order volume for your selected period"
             data={waiterTrendData}
             valueFormatter={(value) => String(Math.round(value))}
+            tooltipUnit="Orders"
+            summaryLabel="Total Orders"
           />
 
           <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
@@ -239,9 +243,11 @@ export default function PerformancePage(): JSX.Element {
 
           <LineTrendChart
             title="Orders Over Time"
-            subtitle="Daily completed tickets in the selected period"
+            subtitle="Daily completed ticket volume for your selected period"
             data={prepOrdersTrendData}
             valueFormatter={(value) => String(Math.round(value))}
+            tooltipUnit="Completed Tickets"
+            summaryLabel="Total Completed"
           />
         </>
       )}

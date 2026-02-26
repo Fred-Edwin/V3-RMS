@@ -217,6 +217,7 @@ model MenuItem {
   categoryId  String      @map("category_id")
   name        String
   description String?
+  imageUrl    String?     @map("image_url")    -- Cloudinary CDN URL (optional)
   price       Decimal     @db.Decimal(10, 2)   -- always KES, universal pricing
   isActive    Boolean     @default(true)       @map("is_active")  -- master-level active/inactive
   createdAt   DateTime    @default(now())      @map("created_at")
@@ -238,6 +239,7 @@ model MenuItem {
 - `price` is universal — the same price applies at all branches.
 - `isActive` at this level means the item exists on the master menu. A branch-level override (`BranchMenuItem`) handles per-branch availability separately.
 - `deletedAt` — items are soft-deleted so historical orders that reference them remain intact and reportable.
+- `imageUrl` — optional Cloudinary secure URL. Uploaded via `POST /menu/items/upload-image`; stored and served via Cloudinary CDN with auto-format and quality optimization. Items without an image render an `ImageOff` placeholder in the UI.
 
 ---
 

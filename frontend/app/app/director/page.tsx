@@ -15,13 +15,13 @@ import {
   Table,
   type TableColumn,
 } from '@/components/ui';
-import { ComparisonBars } from '@/components/dashboard/PremiumChart';
+import { ComparisonBars, LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchOverview, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
+import type { BranchOverview, DirectorTrendsReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
 
 const toYmd = (value: Date): string => {
   const year = value.getFullYear();
@@ -68,6 +68,11 @@ const getMonthStart = (value: Date): Date => {
   return new Date(value.getFullYear(), value.getMonth(), 1);
 };
 
+const formatDay = (dateString: string): string => {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
 type BranchReportRow = Record<string, unknown> & BranchOverview['branches'][number];
 
 type StaffReportRow = Record<string, unknown> & StaffPerformanceRow & { branchName: string };
@@ -90,6 +95,8 @@ export default function DirectorDashboardPage(): JSX.Element {
   const [branchOverviewReport, setBranchOverviewReport] = useState<BranchOverview | null>(null);
   const [isLoadingBranchReport, setIsLoadingBranchReport] = useState(false);
   const [isExportingBranchReport, setIsExportingBranchReport] = useState(false);
+  const [directorTrends, setDirectorTrends] = useState<DirectorTrendsReport | null>(null);
+  const [isLoadingDirectorTrends, setIsLoadingDirectorTrends] = useState(false);
 
   const [staffStartDate, setStaffStartDate] = useState<string>(() => toYmd(getMonthStart(new Date())));
   const [staffEndDate, setStaffEndDate] = useState<string>(() => toYmd(new Date()));
@@ -226,6 +233,31 @@ export default function DirectorDashboardPage(): JSX.Element {
     }
   }, [accessToken, staffBranchId, staffEndDate, staffRole, staffStartDate, toast]);
 
+  const runDirectorTrends = useCallback(async (): Promise<void> => {
+    if (!accessToken) {
+      return;
+    }
+
+    setIsLoadingDirectorTrends(true);
+    try {
+      const data = await reportService.getDirectorTrends(accessToken, {
+        startDate: branchStartDate,
+        endDate: branchEndDate,
+      });
+      setDirectorTrends(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load trend analytics report.';
+      toast({
+        variant: 'error',
+        title: 'Trend analytics failed',
+        message,
+      });
+      setDirectorTrends(null);
+    } finally {
+      setIsLoadingDirectorTrends(false);
+    }
+  }, [accessToken, branchEndDate, branchStartDate, toast]);
+
   const exportBranchReport = useCallback(
     async (format: 'csv' | 'pdf'): Promise<void> => {
       if (!accessToken) {
@@ -304,6 +336,10 @@ export default function DirectorDashboardPage(): JSX.Element {
   }, [runBranchReport]);
 
   useEffect(() => {
+    void runDirectorTrends();
+  }, [runDirectorTrends]);
+
+  useEffect(() => {
     if (staffBranchId) {
       void runStaffReport();
     }
@@ -354,6 +390,82 @@ export default function DirectorDashboardPage(): JSX.Element {
       branchName: staffReport.organizationName,
     }));
   }, [staffReport]);
+
+  const totalRevenueTrendData = useMemo(() => {
+    return (
+      directorTrends?.aggregateSeries.map((point) => ({
+        label: formatDay(point.date),
+        value: Number.parseFloat(point.totalRevenue) || 0,
+        date: point.date,
+      })) ?? []
+    );
+  }, [directorTrends]);
+
+  const totalOrdersTrendData = useMemo(() => {
+    return (
+      directorTrends?.aggregateSeries.map((point) => ({
+        label: formatDay(point.date),
+        value: point.totalOrders,
+        date: point.date,
+      })) ?? []
+    );
+  }, [directorTrends]);
+
+  const branchRevenueSeries = useMemo(() => {
+    return (
+      directorTrends?.branchRevenueSeries.map((series) => ({
+        id: series.id,
+        label: series.name,
+        data: series.points.map((point) => ({
+          label: formatDay(point.date),
+          value: point.value,
+          date: point.date,
+        })),
+      })) ?? []
+    );
+  }, [directorTrends]);
+
+  const branchOrdersSeries = useMemo(() => {
+    return (
+      directorTrends?.branchOrdersSeries.map((series) => ({
+        id: series.id,
+        label: series.name,
+        data: series.points.map((point) => ({
+          label: formatDay(point.date),
+          value: point.value,
+          date: point.date,
+        })),
+      })) ?? []
+    );
+  }, [directorTrends]);
+
+  const branchContributionSeries = useMemo(() => {
+    return (
+      directorTrends?.branchContributionSeries.map((series) => ({
+        id: series.id,
+        label: series.name,
+        data: series.points.map((point) => ({
+          label: formatDay(point.date),
+          value: point.value,
+          date: point.date,
+        })),
+      })) ?? []
+    );
+  }, [directorTrends]);
+
+  const itemFamilySeries = useMemo(() => {
+    return (
+      directorTrends?.itemFamilySeries.map((series) => ({
+        id: series.id,
+        label: series.name,
+        data: series.points.map((point) => ({
+          label: formatDay(point.date),
+          value: point.value,
+          date: point.date,
+        })),
+      })) ?? []
+    );
+  }, [directorTrends]);
 
   const branchColumns: Array<TableColumn<BranchReportRow>> = [
     { key: 'name', label: 'Branch' },
@@ -475,6 +587,76 @@ export default function DirectorDashboardPage(): JSX.Element {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h3 className="text-heading-sm font-semibold text-stone-900">Trend Analytics</h3>
+          <p className="mt-1 text-body-sm text-stone-500">
+            Revenue, volume, contribution share, and category drivers over time.
+          </p>
+        </div>
+
+        {isLoadingDirectorTrends ? (
+          <SkeletonTable rows={8} columns={6} />
+        ) : !directorTrends ? (
+          <EmptyState
+            icon={<TrendingUp size={22} />}
+            heading="No trend analytics"
+            body="Try another date range or run the report again."
+          />
+        ) : (
+          <div className="grid gap-4">
+            <LineTrendChart
+              title="Total Revenue Trend"
+              subtitle="Daily total revenue across all active branches."
+              data={totalRevenueTrendData}
+              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
+              tooltipUnit="Revenue"
+              summaryLabel="Total Revenue"
+            />
+            <LineTrendChart
+              title="Total Orders Trend"
+              subtitle="Daily closed order volume across all active branches."
+              data={totalOrdersTrendData}
+              valueFormatter={(value) => String(Math.round(value))}
+              tooltipUnit="Orders"
+              summaryLabel="Total Orders"
+            />
+            <MultiLineTrendChart
+              title="Branch Revenue Trend"
+              subtitle="Revenue trajectory by branch."
+              series={branchRevenueSeries}
+              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
+              tooltipUnit="Revenue"
+              summaryLabel="Primary Branch Revenue"
+            />
+            <MultiLineTrendChart
+              title="Branch Orders Trend"
+              subtitle="Order volume trajectory by branch."
+              series={branchOrdersSeries}
+              valueFormatter={(value) => String(Math.round(value))}
+              tooltipUnit="Orders"
+              summaryLabel="Primary Branch Orders"
+            />
+            <MultiLineTrendChart
+              title="Branch Contribution Trend"
+              subtitle="Branch share of total revenue by day."
+              series={branchContributionSeries}
+              valueFormatter={(value) => `${value.toFixed(2)}%`}
+              tooltipUnit="Share"
+              summaryLabel="Primary Branch Share"
+            />
+            <MultiLineTrendChart
+              title="Top Item Family Trend"
+              subtitle="Top 5 category revenue trends across branches."
+              series={itemFamilySeries}
+              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
+              tooltipUnit="Revenue"
+              summaryLabel="Primary Family Revenue"
+            />
           </div>
         )}
       </section>

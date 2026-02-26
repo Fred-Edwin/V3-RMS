@@ -16,12 +16,16 @@ This file is updated as tasks are completed. It is the agent's source of truth a
   - `DailySummaryQuerySchema`
   - `StaffPerformanceQuerySchema`
   - `BranchOverviewQuerySchema`
+  - `BranchTrendsQuerySchema`
+  - `DirectorTrendsQuerySchema`
   - `MyPerformanceQuerySchema`
   - `ExportQuerySchema`
 - [x] Added report repository `backend/src/repositories/report-repository.ts` with:
   - daily summary aggregation
   - staff performance aggregation
   - branch overview aggregation
+  - branch trends aggregation
+  - director trend analytics aggregation
   - personal performance aggregation
   - active branch listing for report jobs
 - [x] Added report service `backend/src/services/report-service.ts`:
@@ -40,6 +44,8 @@ This file is updated as tasks are completed. It is the agent's source of truth a
   - `GET /api/v1/reports/daily-summary`
   - `GET /api/v1/reports/staff-performance`
   - `GET /api/v1/reports/branch-overview`
+  - `GET /api/v1/reports/branch-trends`
+  - `GET /api/v1/reports/director-trends`
   - `GET /api/v1/reports/my-performance`
   - `GET /api/v1/reports/export`
 
@@ -77,10 +83,12 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 
 ## Decisions Made
 - Director must provide `organizationId` for branch-scoped report endpoints (`daily-summary`, `staff-performance`).
+- Director must provide `organizationId` for `branch-trends`; manager branch context remains JWT-scoped.
 - Export API uses `startDate` + `endDate` for all report types; `daily_summary` enforces same-day range.
 - Manager report reads always resolve `organizationId` from JWT branch context.
 - Daily summary cache is read-through for today and computed on demand for non-today dates.
 - Charts are implemented with custom premium-styled CSS components (no charting library dependency).
+- Director trend analytics include branch contribution share (%) and top item family (menu category) revenue trends.
 
 ---
 

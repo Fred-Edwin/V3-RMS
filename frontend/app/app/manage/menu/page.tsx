@@ -233,6 +233,7 @@ export default function Page(): JSX.Element {
                         description={item.description ?? undefined}
                         price={Number.isNaN(parsedPrice) ? 0 : parsedPrice}
                         isAvailable={item.isAvailable}
+                        imageUrl={item.imageUrl ?? undefined}
                       />
                       <div className="mt-3 flex items-center justify-between">
                         <Toggle

@@ -11,3 +11,6 @@ process.env['FIREBASE_SERVICE_ACCOUNT_JSON'] =
   '{"projectId":"test-project","clientEmail":"firebase-adminsdk@test.iam.gserviceaccount.com","privateKey":"-----BEGIN PRIVATE KEY-----\\\\nTEST\\\\n-----END PRIVATE KEY-----\\\\n"}';
 process.env['VAPID_KEY'] = process.env['VAPID_KEY'] ?? 'test-vapid-key';
 process.env['SKIP_SHIFT_VALIDATION'] = process.env['SKIP_SHIFT_VALIDATION'] ?? 'false';
+process.env['CLOUDINARY_CLOUD_NAME'] = process.env['CLOUDINARY_CLOUD_NAME'] ?? 'test-cloud';
+process.env['CLOUDINARY_API_KEY'] = process.env['CLOUDINARY_API_KEY'] ?? 'test-api-key';
+process.env['CLOUDINARY_API_SECRET'] = process.env['CLOUDINARY_API_SECRET'] ?? 'test-api-secret';

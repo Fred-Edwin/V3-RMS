@@ -129,6 +129,42 @@ This file captures what was implemented for Phase 3 (Order Management), key deci
 - Web push implementation requires both backend `VAPID_KEY` and frontend `NEXT_PUBLIC_FIREBASE_VAPID_KEY`; both are now wired in code.
 - Delivery order type is supported in contracts and backend validation; expanded delivery lifecycle and external dispatch integrations should be completed in Phase 4.
 - Current socket room/event naming should be reused by any Phase 4 notification features to preserve compatibility.
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` must be set in the Render backend env before deploying to production.
+
+---
+
+## Phase 3 Enhancement — Menu Item Images (Cloudinary)
+
+### Status
+- [x] Complete
+
+### What was implemented
+- Added `imageUrl String? @map("image_url")` to `MenuItem` in Prisma schema
+- Migration: `20260226040712_add_image_url_to_menu_items`
+- New backend packages: `cloudinary`, `multer`, `@types/multer`
+- `backend/src/utils/cloudinary.ts` — upload utility (`uploadImageBuffer`) using `upload_stream` with `fetch_format: auto, quality: auto` transformations
+- `POST /api/v1/menu/items/upload-image` — multipart upload endpoint (SA + DIRECTOR only); multer parses to memory buffer, Cloudinary returns a CDN-optimized secure URL
+- `imageUrl` added as optional field to create/update item validators, repository, and all create/update item API endpoints
+- `backend/tests/setup.ts` — test-only Cloudinary env vars added to prevent env schema crash
+- Frontend `MenuItemWithAvailability`, `MenuManagementItem`, `CreateItemInput`, `UpdateItemInput` — all include `imageUrl`
+- `menuService.uploadItemImage(file, token)` — raw `fetch` + `FormData` (bypasses `apiClient` which hardcodes `Content-Type: application/json`)
+- Admin menu page — file picker inside create/edit item modal; uploads on file selection, shows live 80×80 preview; "Remove" button clears URL
+- Manager availability page — `imageUrl` forwarded to `MenuItemCard`; items without images show `ImageOff` placeholder (unchanged UX)
+- `frontend/next.config.mjs` — `res.cloudinary.com` added to `images.remotePatterns`
+
+### New env vars required (backend)
+```
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+### Key decisions
+- Upload is decoupled from item save: image uploads on file selection → URL stored in form state → persisted on Create/Save
+- 5 MB file size limit; accepted types: `image/jpeg`, `image/png`, `image/webp`
+- Upload route registered **before** `POST /menu/items` to prevent Express matching the literal `upload-image` as an `:id` param
+- Cloudinary `fetch_format: auto, quality: auto` ensures WebP is served optimally via CDN without manual conversion
+- Existing items with no image are unaffected — `imageUrl` is nullable and the `ImageOff` placeholder renders automatically
 
 ---
 

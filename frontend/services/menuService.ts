@@ -1,4 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
+import { env } from '@/lib/env';
+import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 import type {
   BranchMenuItemAvailability,
   CreateCategoryInput,
@@ -72,5 +74,25 @@ export const menuService = {
   ): Promise<BranchMenuItemAvailability> => {
     const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
     return apiClient.patch(`/menu/items/${id}/availability${query}`, { isAvailable }, accessToken);
+  },
+
+  uploadItemImage: async (file: File, accessToken: string): Promise<{ imageUrl: string }> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${env.apiUrl}/menu/items/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    });
+    const payload = (await response.json()) as ApiResponseEnvelope<{ imageUrl: string }>;
+    if (!response.ok) {
+      throw new ApiError(
+        payload.error?.message ?? 'Image upload failed',
+        response.status,
+        payload.error?.code ?? 'UPLOAD_ERROR',
+      );
+    }
+    return payload.data as { imageUrl: string };
   },
 };

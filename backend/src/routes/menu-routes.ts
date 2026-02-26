@@ -1,8 +1,22 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { menuController } from '../controllers/menu-controller';
 import { authenticate } from '../middleware/authenticate';
 import { branchScope } from '../middleware/branch-scope';
 import { requireRole } from '../middleware/rbac';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
+    }
+  },
+});
 
 const menuRoutes = Router();
 
@@ -53,6 +67,15 @@ menuRoutes.delete(
   branchScope,
   requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
   menuController.deleteCategory,
+);
+
+menuRoutes.post(
+  '/menu/items/upload-image',
+  authenticate,
+  branchScope,
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
+  upload.single('image'),
+  menuController.uploadItemImage,
 );
 
 menuRoutes.post(

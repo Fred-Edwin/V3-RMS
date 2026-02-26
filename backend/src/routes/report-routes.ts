@@ -30,6 +30,21 @@ reportRoutes.get(
 );
 
 reportRoutes.get(
+  '/reports/branch-trends',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'DIRECTOR'),
+  reportController.getBranchTrends,
+);
+
+reportRoutes.get(
+  '/reports/director-trends',
+  authenticate,
+  requireRole('DIRECTOR'),
+  reportController.getDirectorTrends,
+);
+
+reportRoutes.get(
   '/reports/my-performance',
   authenticate,
   branchScope,

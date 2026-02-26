@@ -40,6 +40,7 @@ export const createItemSchema = z.object({
   categoryId: z.string().uuid(),
   name: z.string().min(1),
   description: z.string().max(1000).optional(),
+  imageUrl: z.string().url().optional(),
   price: priceSchema,
 });
 
@@ -48,6 +49,7 @@ export const updateItemSchema = createItemSchema
     categoryId: true,
     name: true,
     description: true,
+    imageUrl: true,
     price: true,
   })
   .partial()

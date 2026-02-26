@@ -128,6 +128,7 @@ export const menuRepository = {
         categoryId: data.categoryId,
         name: data.name,
         description: data.description,
+        imageUrl: data.imageUrl,
         price: data.price,
       },
     });
@@ -143,6 +144,7 @@ export const menuRepository = {
         categoryId: data.categoryId,
         name: data.name,
         description: data.description,
+        imageUrl: data.imageUrl,
         price: data.price,
         isActive: data.isActive,
       },

@@ -25,6 +25,12 @@ export const StaffPerformanceQuerySchema = dateRangeSchema.extend({
 
 export const BranchOverviewQuerySchema = dateRangeSchema;
 
+export const BranchTrendsQuerySchema = dateRangeSchema.extend({
+  organizationId: z.string().uuid().optional(),
+});
+
+export const DirectorTrendsQuerySchema = dateRangeSchema;
+
 export const MyPerformanceQuerySchema = dateRangeSchema;
 
 export const ExportQuerySchema = dateRangeSchema
@@ -41,6 +47,8 @@ export const ExportQuerySchema = dateRangeSchema
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;
 export type BranchOverviewQueryInput = z.infer<typeof BranchOverviewQuerySchema>;
+export type BranchTrendsQueryInput = z.infer<typeof BranchTrendsQuerySchema>;
+export type DirectorTrendsQueryInput = z.infer<typeof DirectorTrendsQuerySchema>;
 export type MyPerformanceQueryInput = z.infer<typeof MyPerformanceQuerySchema>;
 export type ExportQueryInput = z.infer<typeof ExportQuerySchema>;
 

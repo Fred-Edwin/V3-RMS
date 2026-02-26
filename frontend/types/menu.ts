@@ -5,6 +5,7 @@ export interface MenuItemWithAvailability {
   name: string;
   description: string | null;
   price: string;
+  imageUrl: string | null;
   isAvailable: boolean;
 }
 
@@ -26,6 +27,7 @@ export interface MenuManagementItem {
   name: string;
   description: string | null;
   price: string;
+  imageUrl: string | null;
   isActive: boolean;
 }
 
@@ -56,6 +58,7 @@ export interface CreateItemInput {
   categoryId: string;
   name: string;
   description?: string;
+  imageUrl?: string;
   price: string | number;
 }
 
@@ -63,6 +66,7 @@ export interface UpdateItemInput {
   categoryId?: string;
   name?: string;
   description?: string;
+  imageUrl?: string;
   price?: string | number;
   isActive?: boolean;
 }

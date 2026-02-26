@@ -3,9 +3,12 @@ import { prisma } from '../config/database';
 import { computeActualHours, computeAveragePrepMinutes, computeScheduledHours } from '../utils/report-utils';
 import { formatDateOnly } from '../utils/date-only';
 import type {
+  BranchTrendsReport,
   BranchOverviewReport,
   DailySummaryReport,
+  DirectorTrendsReport,
   MyPerformanceReport,
+  NamedSeries,
   PrepMyPerformanceReport,
   StaffPerformanceReport,
   StaffPerformanceRow,
@@ -57,6 +60,18 @@ const buildDateRangeKeys = (startDate: Date, endDate: Date): string[] => {
   }
 
   return keys;
+};
+
+const toNumber = (value: Prisma.Decimal | null | undefined): number => {
+  return Number.parseFloat((value ?? new Prisma.Decimal(0)).toFixed(2));
+};
+
+const toPercent = (numerator: Prisma.Decimal, denominator: Prisma.Decimal): number => {
+  if (denominator.equals(0)) {
+    return 0;
+  }
+
+  return Number.parseFloat(numerator.div(denominator).mul(100).toFixed(2));
 };
 
 export const reportRepository = {
@@ -597,6 +612,327 @@ export const reportRepository = {
       totalRevenue: totalRevenueDecimal.toFixed(2),
       totalOrders,
       branches: branchResults.map((result) => result.branch),
+    };
+  },
+
+  getBranchTrends: async (
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<BranchTrendsReport> => {
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+    const dateKeys = buildDateRangeKeys(startDate, endDate);
+
+    const [organization, orders, prepRows] = await Promise.all([
+      prisma.organization.findFirst({
+        where: {
+          id: organizationId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: {
+            gte: start,
+            lt: endExclusive,
+          },
+        },
+        select: {
+          orderDate: true,
+          total: true,
+        },
+      }),
+      prisma.prepTicket.findMany({
+        where: {
+          organizationId,
+          status: 'READY',
+          claimedAt: {
+            not: null,
+          },
+          readyAt: {
+            not: null,
+          },
+          order: {
+            organizationId,
+            orderDate: {
+              gte: start,
+              lt: endExclusive,
+            },
+          },
+        },
+        select: {
+          station: true,
+          claimedAt: true,
+          readyAt: true,
+          order: {
+            select: {
+              orderDate: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const orderCountByDate = new Map<string, number>();
+    const revenueByDate = new Map<string, Prisma.Decimal>();
+
+    for (const order of orders) {
+      const dateKey = formatDateOnly(order.orderDate);
+      orderCountByDate.set(dateKey, (orderCountByDate.get(dateKey) ?? 0) + 1);
+      revenueByDate.set(dateKey, (revenueByDate.get(dateKey) ?? new Prisma.Decimal(0)).add(order.total));
+    }
+
+    const kitchenTicketsByDate = new Map<string, Array<{ claimedAt: Date | null; readyAt: Date | null }>>();
+    const baristaTicketsByDate = new Map<string, Array<{ claimedAt: Date | null; readyAt: Date | null }>>();
+    const allTicketsByDate = new Map<string, Array<{ claimedAt: Date | null; readyAt: Date | null }>>();
+
+    for (const row of prepRows) {
+      const dateKey = formatDateOnly(row.order.orderDate);
+      const ticket = {
+        claimedAt: row.claimedAt,
+        readyAt: row.readyAt,
+      };
+
+      const allCurrent = allTicketsByDate.get(dateKey) ?? [];
+      allCurrent.push(ticket);
+      allTicketsByDate.set(dateKey, allCurrent);
+
+      if (row.station === PrepStation.KITCHEN) {
+        const kitchenCurrent = kitchenTicketsByDate.get(dateKey) ?? [];
+        kitchenCurrent.push(ticket);
+        kitchenTicketsByDate.set(dateKey, kitchenCurrent);
+      } else {
+        const baristaCurrent = baristaTicketsByDate.get(dateKey) ?? [];
+        baristaCurrent.push(ticket);
+        baristaTicketsByDate.set(dateKey, baristaCurrent);
+      }
+    }
+
+    return {
+      period: {
+        startDate: formatDateOnly(startDate),
+        endDate: formatDateOnly(endDate),
+      },
+      organizationId,
+      organizationName: organization?.name ?? 'Unknown Branch',
+      points: dateKeys.map((date) => ({
+        date,
+        orders: orderCountByDate.get(date) ?? 0,
+        revenue: toCurrencyString(revenueByDate.get(date)),
+        avgPrepKitchen: computeAveragePrepMinutes(kitchenTicketsByDate.get(date) ?? []),
+        avgPrepBarista: computeAveragePrepMinutes(baristaTicketsByDate.get(date) ?? []),
+        avgPrepCombined: computeAveragePrepMinutes(allTicketsByDate.get(date) ?? []),
+      })),
+    };
+  },
+
+  getDirectorTrends: async (startDate: Date, endDate: Date): Promise<DirectorTrendsReport> => {
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+    const dateKeys = buildDateRangeKeys(startDate, endDate);
+
+    const organizations = await prisma.organization.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    const organizationIds = organizations.map((organization) => organization.id);
+    if (organizationIds.length === 0) {
+      return {
+        period: {
+          startDate: formatDateOnly(startDate),
+          endDate: formatDateOnly(endDate),
+        },
+        aggregateSeries: dateKeys.map((date) => ({
+          date,
+          totalRevenue: '0.00',
+          totalOrders: 0,
+        })),
+        branchRevenueSeries: [],
+        branchOrdersSeries: [],
+        branchContributionSeries: [],
+        itemFamilySeries: [],
+        branches: [],
+      };
+    }
+
+    const [orders, categoryRows] = await Promise.all([
+      prisma.order.findMany({
+        where: {
+          organizationId: {
+            in: organizationIds,
+          },
+          status: OrderStatus.CLOSED,
+          orderDate: {
+            gte: start,
+            lt: endExclusive,
+          },
+        },
+        select: {
+          organizationId: true,
+          orderDate: true,
+          total: true,
+        },
+      }),
+      prisma.orderItem.findMany({
+        where: {
+          order: {
+            organizationId: {
+              in: organizationIds,
+            },
+            status: OrderStatus.CLOSED,
+            orderDate: {
+              gte: start,
+              lt: endExclusive,
+            },
+          },
+        },
+        select: {
+          subtotal: true,
+          order: {
+            select: {
+              orderDate: true,
+            },
+          },
+          menuItem: {
+            select: {
+              category: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const dailyRevenue = new Map<string, Prisma.Decimal>();
+    const dailyOrders = new Map<string, number>();
+    const branchRevenue = new Map<string, Map<string, Prisma.Decimal>>();
+    const branchOrders = new Map<string, Map<string, number>>();
+
+    for (const organization of organizations) {
+      branchRevenue.set(organization.id, new Map<string, Prisma.Decimal>());
+      branchOrders.set(organization.id, new Map<string, number>());
+    }
+
+    for (const order of orders) {
+      const dateKey = formatDateOnly(order.orderDate);
+
+      dailyOrders.set(dateKey, (dailyOrders.get(dateKey) ?? 0) + 1);
+      dailyRevenue.set(dateKey, (dailyRevenue.get(dateKey) ?? new Prisma.Decimal(0)).add(order.total));
+
+      const revenueMap = branchRevenue.get(order.organizationId) ?? new Map<string, Prisma.Decimal>();
+      revenueMap.set(dateKey, (revenueMap.get(dateKey) ?? new Prisma.Decimal(0)).add(order.total));
+      branchRevenue.set(order.organizationId, revenueMap);
+
+      const orderMap = branchOrders.get(order.organizationId) ?? new Map<string, number>();
+      orderMap.set(dateKey, (orderMap.get(dateKey) ?? 0) + 1);
+      branchOrders.set(order.organizationId, orderMap);
+    }
+
+    const categoryTotals = new Map<string, Prisma.Decimal>();
+    const categoryByDate = new Map<string, Map<string, Prisma.Decimal>>();
+
+    for (const row of categoryRows) {
+      const categoryName = row.menuItem.category.name;
+      const dateKey = formatDateOnly(row.order.orderDate);
+
+      categoryTotals.set(categoryName, (categoryTotals.get(categoryName) ?? new Prisma.Decimal(0)).add(row.subtotal));
+
+      const byDate = categoryByDate.get(categoryName) ?? new Map<string, Prisma.Decimal>();
+      byDate.set(dateKey, (byDate.get(dateKey) ?? new Prisma.Decimal(0)).add(row.subtotal));
+      categoryByDate.set(categoryName, byDate);
+    }
+
+    const branchRevenueSeries: NamedSeries[] = organizations.map((organization) => {
+      const byDate = branchRevenue.get(organization.id) ?? new Map<string, Prisma.Decimal>();
+      return {
+        id: organization.id,
+        name: organization.name,
+        points: dateKeys.map((date) => ({
+          date,
+          value: toNumber(byDate.get(date)),
+        })),
+      };
+    });
+
+    const branchOrdersSeries: NamedSeries[] = organizations.map((organization) => {
+      const byDate = branchOrders.get(organization.id) ?? new Map<string, number>();
+      return {
+        id: organization.id,
+        name: organization.name,
+        points: dateKeys.map((date) => ({
+          date,
+          value: byDate.get(date) ?? 0,
+        })),
+      };
+    });
+
+    const topFamilies = [...categoryTotals.entries()]
+      .sort((left, right) => {
+        if (left[1].equals(right[1])) {
+          return 0;
+        }
+
+        return left[1].lessThan(right[1]) ? 1 : -1;
+      })
+      .slice(0, 5);
+
+    return {
+      period: {
+        startDate: formatDateOnly(startDate),
+        endDate: formatDateOnly(endDate),
+      },
+      aggregateSeries: dateKeys.map((date) => ({
+        date,
+        totalRevenue: toCurrencyString(dailyRevenue.get(date)),
+        totalOrders: dailyOrders.get(date) ?? 0,
+      })),
+      branchRevenueSeries,
+      branchOrdersSeries,
+      branchContributionSeries: organizations.map((organization) => {
+        const revenueByDate = branchRevenue.get(organization.id) ?? new Map<string, Prisma.Decimal>();
+        return {
+          id: organization.id,
+          name: organization.name,
+          points: dateKeys.map((date) => ({
+            date,
+            value: toPercent(
+              revenueByDate.get(date) ?? new Prisma.Decimal(0),
+              dailyRevenue.get(date) ?? new Prisma.Decimal(0),
+            ),
+          })),
+        };
+      }),
+      itemFamilySeries: topFamilies.map(([categoryName]) => {
+        const byDate = categoryByDate.get(categoryName) ?? new Map<string, Prisma.Decimal>();
+        return {
+          id: categoryName,
+          name: categoryName,
+          points: dateKeys.map((date) => ({
+            date,
+            value: toNumber(byDate.get(date)),
+          })),
+        };
+      }),
+      branches: organizations.map((organization) => ({
+        id: organization.id,
+        name: organization.name,
+      })),
     };
   },
 

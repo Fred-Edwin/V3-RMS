@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Plus, Search, UtensilsCrossed } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import Image from 'next/image';
+import { ImageOff, Plus, Search, UtensilsCrossed } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -59,6 +60,7 @@ interface ItemFormState {
   categoryId: string;
   name: string;
   description: string;
+  imageUrl: string;
   price: string;
   isActive: boolean;
 }
@@ -74,6 +76,7 @@ const initialItemForm: ItemFormState = {
   categoryId: '',
   name: '',
   description: '',
+  imageUrl: '',
   price: '',
   isActive: true,
 };
@@ -100,6 +103,8 @@ export default function Page(): JSX.Element {
   const [itemModalMode, setItemModalMode] = useState<'create' | 'edit'>('create');
   const [editingItem, setEditingItem] = useState<MenuManagementItem | null>(null);
   const [itemForm, setItemForm] = useState<ItemFormState>(initialItemForm);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [prepStationFilter, setPrepStationFilter] = useState<'ALL' | PrepStation>('ALL');
@@ -132,6 +137,29 @@ export default function Page(): JSX.Element {
   useEffect(() => {
     void loadCategories();
   }, [loadCategories]);
+
+  const handleImageFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+      const file = event.target.files?.[0];
+      if (!file || !accessToken) {
+        return;
+      }
+      setIsUploadingImage(true);
+      try {
+        const { imageUrl } = await menuService.uploadItemImage(file, accessToken);
+        setItemForm((prev) => ({ ...prev, imageUrl }));
+      } catch (error) {
+        const message = error instanceof ApiError ? error.message : 'Image upload failed.';
+        toast({ variant: 'error', title: 'Upload failed', message });
+      } finally {
+        setIsUploadingImage(false);
+        if (imageInputRef.current) {
+          imageInputRef.current.value = '';
+        }
+      }
+    },
+    [accessToken, toast],
+  );
 
   const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm]);
 
@@ -387,6 +415,7 @@ export default function Page(): JSX.Element {
           categoryId: itemForm.categoryId,
           name: trimmedName,
           description: trimmedDescription || undefined,
+          imageUrl: itemForm.imageUrl || undefined,
           price: parsedPrice.toFixed(2),
         };
         await menuService.createItem(payload, accessToken);
@@ -395,6 +424,7 @@ export default function Page(): JSX.Element {
           categoryId: itemForm.categoryId,
           name: trimmedName,
           description: trimmedDescription || undefined,
+          imageUrl: itemForm.imageUrl || undefined,
           price: parsedPrice.toFixed(2),
           isActive: itemForm.isActive,
         };
@@ -591,6 +621,7 @@ export default function Page(): JSX.Element {
                                           categoryId: item.categoryId,
                                           name: item.name,
                                           description: item.description ?? '',
+                                          imageUrl: item.imageUrl ?? '',
                                           price: item.price,
                                           isActive: item.isActive,
                                         });
@@ -729,6 +760,53 @@ export default function Page(): JSX.Element {
               onChange={(event) => setItemForm((prev) => ({ ...prev, description: event.target.value }))}
               placeholder="Optional description"
             />
+          </FormField>
+          <FormField label="Image" htmlFor="item-image">
+            <div className="flex items-center gap-4">
+              <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-50">
+                {itemForm.imageUrl ? (
+                  <Image src={itemForm.imageUrl} alt="Item preview" fill className="object-cover" sizes="80px" />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <ImageOff size={24} className="text-stone-300" />
+                  </div>
+                )}
+                {isUploadingImage && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                    <span className="text-label-sm text-stone-500">Uploading…</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={isUploadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {itemForm.imageUrl ? 'Change Image' : 'Upload Image'}
+                </Button>
+                {itemForm.imageUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setItemForm((prev) => ({ ...prev, imageUrl: '' }))}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+                <input
+                  ref={imageInputRef}
+                  id="item-image"
+                  type="file"
+                  accept=".webp,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(event) => void handleImageFileChange(event)}
+                />
+              </div>
+            </div>
           </FormField>
           <FormField label="Price (KES)" htmlFor="item-price" required>
             <Input

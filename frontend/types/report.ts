@@ -74,6 +74,58 @@ export interface BranchOverview {
   branches: BranchOverviewRow[];
 }
 
+export interface BranchTrendPoint {
+  date: string;
+  orders: number;
+  revenue: string;
+  avgPrepKitchen: number;
+  avgPrepBarista: number;
+  avgPrepCombined: number;
+}
+
+export interface BranchTrendsReport {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  organizationId: string;
+  organizationName: string;
+  points: BranchTrendPoint[];
+}
+
+export interface SeriesPoint {
+  date: string;
+  value: number;
+}
+
+export interface NamedSeries {
+  id: string;
+  name: string;
+  points: SeriesPoint[];
+}
+
+export interface DirectorAggregateTrendPoint {
+  date: string;
+  totalRevenue: string;
+  totalOrders: number;
+}
+
+export interface DirectorTrendsReport {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  aggregateSeries: DirectorAggregateTrendPoint[];
+  branchRevenueSeries: NamedSeries[];
+  branchOrdersSeries: NamedSeries[];
+  branchContributionSeries: NamedSeries[];
+  itemFamilySeries: NamedSeries[];
+  branches: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
 export interface WaiterPerformance {
   role: 'WAITER';
   period: {
@@ -120,6 +172,17 @@ export interface StaffPerformanceQuery {
 }
 
 export interface BranchOverviewQuery {
+  startDate: string;
+  endDate: string;
+}
+
+export interface BranchTrendsQuery {
+  startDate: string;
+  endDate: string;
+  organizationId?: string;
+}
+
+export interface DirectorTrendsQuery {
   startDate: string;
   endDate: string;
 }

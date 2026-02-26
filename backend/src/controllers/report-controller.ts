@@ -2,8 +2,10 @@
 import { UnauthorizedError } from '../utils/errors';
 import { reportService } from '../services/report-service';
 import {
+  BranchTrendsQuerySchema,
   BranchOverviewQuerySchema,
   DailySummaryQuerySchema,
+  DirectorTrendsQuerySchema,
   ExportQuerySchema,
   MyPerformanceQuerySchema,
   StaffPerformanceQuerySchema,
@@ -44,6 +46,28 @@ export const reportController = {
     const actor = requireActor(req);
     const query = BranchOverviewQuerySchema.parse(req.query);
     const report = await reportService.getBranchOverview(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getBranchTrends: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = BranchTrendsQuerySchema.parse(req.query);
+    const report = await reportService.getBranchTrends(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getDirectorTrends: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = DirectorTrendsQuerySchema.parse(req.query);
+    const report = await reportService.getDirectorTrends(actor, query);
 
     res.status(200).json({
       success: true,

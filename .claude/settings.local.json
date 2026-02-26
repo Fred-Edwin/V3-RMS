@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm build:*)",
+      "Bash(pnpm test)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(ls:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(xargs basename:*)",
+      "Bash(pnpm --dir backend add cloudinary multer)",
+      "Bash(pnpm --dir backend add -D @types/multer)",
+      "Bash(pnpm --dir backend exec prisma migrate dev --name add_image_url_to_menu_items)",
+      "Bash(pnpm --dir backend build)",
+      "Bash(pnpm --dir backend test)",
+      "Bash(pnpm --dir frontend typecheck)",
+      "Bash(pnpm --dir frontend build)",
+      "WebFetch(domain:cloudinary.com)",
+      "Bash(pnpm --dir:*)",
+      "Bash(node -e \":*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({''scripts'':d.get\\(''scripts'',{}\\), ''dependencies'': list\\(d.get\\(''dependencies'',{}\\).keys\\(\\)\\)}, indent=2\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({''scripts'':d.get\\(''scripts'',{}\\)}, indent=2\\)\\)\")"
+    ]
+  }
+}

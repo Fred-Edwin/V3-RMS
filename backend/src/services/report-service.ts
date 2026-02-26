@@ -5,15 +5,19 @@ import { ForbiddenError, ValidationError } from '../utils/errors';
 import { formatDateOnly, parseDateOnly } from '../utils/date-only';
 import { toCsv, toPdf } from '../utils/report-formatters';
 import type {
+  BranchTrendsReport,
   BranchOverviewReport,
   DailySummaryReport,
+  DirectorTrendsReport,
   MyPerformanceReport,
   ReportType,
   StaffPerformanceReport,
 } from '../types/report.types';
 import type {
+  BranchTrendsQueryInput,
   BranchOverviewQueryInput,
   DailySummaryQueryInput,
+  DirectorTrendsQueryInput,
   ExportQueryInput,
   MyPerformanceQueryInput,
   StaffPerformanceQueryInput,
@@ -200,6 +204,27 @@ export const reportService = {
 
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
     return reportRepository.getBranchOverview(start, end);
+  },
+
+  getBranchTrends: async (
+    actor: Actor,
+    query: BranchTrendsQueryInput,
+  ): Promise<BranchTrendsReport> => {
+    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const { start, end } = ensureValidRange(query.startDate, query.endDate);
+    return reportRepository.getBranchTrends(organizationId, start, end);
+  },
+
+  getDirectorTrends: async (
+    actor: Actor,
+    query: DirectorTrendsQueryInput,
+  ): Promise<DirectorTrendsReport> => {
+    if (actor.role !== 'DIRECTOR') {
+      throw new ForbiddenError('Only directors can access trend analytics reports');
+    }
+
+    const { start, end } = ensureValidRange(query.startDate, query.endDate);
+    return reportRepository.getDirectorTrends(start, end);
   },
 
   getMyPerformance: async (

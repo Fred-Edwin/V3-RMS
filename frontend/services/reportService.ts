@@ -2,9 +2,13 @@
 import { env } from '@/lib/env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 import type {
+  BranchTrendsQuery,
+  BranchTrendsReport,
   BranchOverview,
   BranchOverviewQuery,
   DailySummary,
+  DirectorTrendsQuery,
+  DirectorTrendsReport,
   ExportReportQuery,
   MyPerformance,
   MyPerformanceQuery,
@@ -73,6 +77,27 @@ export const reportService = {
   getBranchOverview: (accessToken: string, query: BranchOverviewQuery): Promise<BranchOverview> => {
     return apiClient.get<BranchOverview>(
       `/reports/branch-overview${toQueryString({
+        startDate: query.startDate,
+        endDate: query.endDate,
+      })}`,
+      accessToken,
+    );
+  },
+
+  getBranchTrends: (accessToken: string, query: BranchTrendsQuery): Promise<BranchTrendsReport> => {
+    return apiClient.get<BranchTrendsReport>(
+      `/reports/branch-trends${toQueryString({
+        startDate: query.startDate,
+        endDate: query.endDate,
+        organizationId: query.organizationId,
+      })}`,
+      accessToken,
+    );
+  },
+
+  getDirectorTrends: (accessToken: string, query: DirectorTrendsQuery): Promise<DirectorTrendsReport> => {
+    return apiClient.get<DirectorTrendsReport>(
+      `/reports/director-trends${toQueryString({
         startDate: query.startDate,
         endDate: query.endDate,
       })}`,

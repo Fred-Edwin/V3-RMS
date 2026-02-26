@@ -14,11 +14,12 @@ import {
   Table,
   type TableColumn,
 } from '@/components/ui';
+import { LineTrendChart } from '@/components/dashboard/PremiumChart';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
+import type { BranchTrendsReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
 
 const toYmd = (value: Date): string => {
   const year = value.getFullYear();
@@ -29,6 +30,11 @@ const toYmd = (value: Date): string => {
 
 const getMonthStart = (value: Date): Date => {
   return new Date(value.getFullYear(), value.getMonth(), 1);
+};
+
+const formatDay = (dateString: string): string => {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
 type StaffRow = Record<string, unknown> & StaffPerformanceRow;
@@ -43,6 +49,7 @@ export default function ManagerReportsPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [report, setReport] = useState<StaffPerformancePeriod | null>(null);
+  const [branchTrends, setBranchTrends] = useState<BranchTrendsReport | null>(null);
 
   const runReport = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -51,12 +58,19 @@ export default function ManagerReportsPage(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const data = await reportService.getStaffPerformance(accessToken, {
-        startDate,
-        endDate,
-        role: role === 'ALL' ? undefined : (role as 'WAITER' | 'CHEF' | 'BARISTA'),
-      });
-      setReport(data);
+      const [staffData, trendData] = await Promise.all([
+        reportService.getStaffPerformance(accessToken, {
+          startDate,
+          endDate,
+          role: role === 'ALL' ? undefined : (role as 'WAITER' | 'CHEF' | 'BARISTA'),
+        }),
+        reportService.getBranchTrends(accessToken, {
+          startDate,
+          endDate,
+        }),
+      ]);
+      setReport(staffData);
+      setBranchTrends(trendData);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load staff performance report.';
       toast({
@@ -65,6 +79,7 @@ export default function ManagerReportsPage(): JSX.Element {
         message,
       });
       setReport(null);
+      setBranchTrends(null);
     } finally {
       setIsLoading(false);
     }
@@ -105,6 +120,36 @@ export default function ManagerReportsPage(): JSX.Element {
   const rows = useMemo<StaffRow[]>(() => {
     return report?.staff.map((staff) => ({ ...staff })) ?? [];
   }, [report]);
+
+  const ordersTrendData = useMemo(() => {
+    return (
+      branchTrends?.points.map((point) => ({
+        label: formatDay(point.date),
+        value: point.orders,
+        date: point.date,
+      })) ?? []
+    );
+  }, [branchTrends]);
+
+  const revenueTrendData = useMemo(() => {
+    return (
+      branchTrends?.points.map((point) => ({
+        label: formatDay(point.date),
+        value: Number.parseFloat(point.revenue) || 0,
+        date: point.date,
+      })) ?? []
+    );
+  }, [branchTrends]);
+
+  const prepTrendData = useMemo(() => {
+    return (
+      branchTrends?.points.map((point) => ({
+        label: formatDay(point.date),
+        value: point.avgPrepCombined,
+        date: point.date,
+      })) ?? []
+    );
+  }, [branchTrends]);
 
   const columns: Array<TableColumn<StaffRow>> = useMemo(
     () => [
@@ -178,6 +223,55 @@ export default function ManagerReportsPage(): JSX.Element {
             Run Report
           </Button>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+        <div>
+          <h3 className="text-heading-sm font-semibold text-stone-900">Operational Trends</h3>
+          <p className="mt-1 text-body-sm text-stone-500">
+            Trend analytics for orders, revenue, and prep velocity.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="mt-4">
+            <SkeletonTable rows={4} columns={4} />
+          </div>
+        ) : !branchTrends ? (
+          <EmptyState
+            icon={<Users size={24} />}
+            heading="No trend data"
+            body="Run the report to load operational trend charts."
+            className="mt-4"
+          />
+        ) : (
+          <div className="mt-4 grid gap-4">
+            <LineTrendChart
+              title="Total Orders Trend"
+              subtitle="Daily closed orders across the selected period."
+              data={ordersTrendData}
+              valueFormatter={(value) => String(Math.round(value))}
+              tooltipUnit="Orders"
+              summaryLabel="Total Orders"
+            />
+            <LineTrendChart
+              title="Total Revenue Trend"
+              subtitle="Daily closed revenue for the selected period."
+              data={revenueTrendData}
+              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
+              tooltipUnit="Revenue"
+              summaryLabel="Total Revenue"
+            />
+            <LineTrendChart
+              title="Average Prep Trend"
+              subtitle="Daily average prep time (kitchen + barista)."
+              data={prepTrendData}
+              valueFormatter={(value) => `${Math.round(value)} min`}
+              tooltipUnit="Prep Min"
+              summaryLabel="Avg Prep"
+            />
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
