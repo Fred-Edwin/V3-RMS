@@ -62,6 +62,7 @@ export default function DashboardPage(): JSX.Element {
       const result = await orderService.getMany(
         {
           date: todayDate,
+          view: 'summary',
           page,
           perPage,
         },

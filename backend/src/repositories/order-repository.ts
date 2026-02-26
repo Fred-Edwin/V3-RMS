@@ -1,5 +1,4 @@
 import { OrderStatus, type PaymentMethod, Prisma, type PrepStation } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { prisma } from '../config/database';
 import type { CreateOrderWithTicketsDto, CreateOrderItemWithPriceDto, PrepTicketItemSnapshot } from '../types/order.types';
 
@@ -47,8 +46,34 @@ const orderInclude = {
   },
 } as const;
 
+const orderSummaryInclude = {
+  prepTickets: {
+    include: {
+      claimedBy: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
+
 export type FullOrderPrismaRecord = Prisma.OrderGetPayload<{
   include: typeof orderInclude;
+}>;
+
+export type SummaryOrderPrismaRecord = Prisma.OrderGetPayload<{
+  include: typeof orderSummaryInclude;
 }>;
 
 interface OrderFilters {
@@ -72,81 +97,89 @@ const toOrderItemCreateManyData = (items: CreateOrderItemWithPriceDto[]): Prisma
   }));
 };
 
-const createOrderWithRetries = async (
-  data: CreateOrderWithTicketsDto,
-  retries = 5,
-): Promise<FullOrderPrismaRecord> => {
-  for (let attempt = 0; attempt < retries; attempt += 1) {
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const todayCount = await tx.order.count({
-          where: {
-            organizationId: data.organizationId,
-            orderDate: data.orderDate,
+const buildWhere = (organizationId: string, filters: OrderFilters): Prisma.OrderWhereInput => {
+  return {
+    organizationId,
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.type ? { type: filters.type } : {}),
+    ...(filters.createdById ? { createdById: filters.createdById } : {}),
+    ...(filters.orderDate ? { orderDate: filters.orderDate } : {}),
+    ...(filters.orderDateGte || filters.orderDateLte
+      ? {
+          orderDate: {
+            ...(filters.orderDateGte ? { gte: filters.orderDateGte } : {}),
+            ...(filters.orderDateLte ? { lte: filters.orderDateLte } : {}),
           },
-        });
-
-        const dailyNumber = todayCount + 1;
-
-        const order = await tx.order.create({
-          data: {
-            organizationId: data.organizationId,
-            dailyNumber,
-            orderDate: data.orderDate,
-            type: data.type,
-            status: data.status,
-            tableNumber: data.tableNumber,
-            notes: data.notes,
-            subtotal: data.subtotal,
-            deliveryFee: data.deliveryFee,
-            total: data.total,
-            deliveryZoneId: data.deliveryZoneId,
-            createdById: data.createdById,
-            items: {
-              createMany: {
-                data: toOrderItemCreateManyData(data.items),
-              },
-            },
-          },
-        });
-
-        await tx.prepTicket.createMany({
-          data: data.prepTickets.map((ticket) => ({
-            organizationId: ticket.organizationId,
-            orderId: order.id,
-            station: ticket.station,
-            status: ticket.status,
-            items: ticket.items as unknown as Prisma.InputJsonValue,
-          })),
-        });
-
-        return tx.order.findFirstOrThrow({
-          where: {
-            id: order.id,
-            organizationId: data.organizationId,
-          },
-          include: orderInclude,
-        });
-      });
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002' &&
-        attempt < retries - 1
-      ) {
-        continue;
-      }
-
-      throw error;
-    }
-  }
-
-  throw new Error('Unable to create order after retries');
+        }
+      : {}),
+  };
 };
 
 export const orderRepository = {
   createWithItemsAndTickets: async (data: CreateOrderWithTicketsDto): Promise<FullOrderPrismaRecord> => {
-    return createOrderWithRetries(data);
+    return prisma.$transaction(async (tx) => {
+      const counter = await tx.orderCounter.upsert({
+        where: {
+          organizationId_orderDate: {
+            organizationId: data.organizationId,
+            orderDate: data.orderDate,
+          },
+        },
+        create: {
+          organizationId: data.organizationId,
+          orderDate: data.orderDate,
+          lastNumber: 1,
+        },
+        update: {
+          lastNumber: {
+            increment: 1,
+          },
+        },
+        select: {
+          lastNumber: true,
+        },
+      });
+
+      const order = await tx.order.create({
+        data: {
+          organizationId: data.organizationId,
+          dailyNumber: counter.lastNumber,
+          orderDate: data.orderDate,
+          type: data.type,
+          status: data.status,
+          tableNumber: data.tableNumber,
+          notes: data.notes,
+          subtotal: data.subtotal,
+          deliveryFee: data.deliveryFee,
+          total: data.total,
+          deliveryZoneId: data.deliveryZoneId,
+          createdById: data.createdById,
+          items: {
+            createMany: {
+              data: toOrderItemCreateManyData(data.items),
+            },
+          },
+        },
+      });
+
+      await tx.prepTicket.createMany({
+        data: data.prepTickets.map((ticket) => ({
+          organizationId: ticket.organizationId,
+          orderId: order.id,
+          station: ticket.station,
+          status: ticket.status,
+          items: ticket.items as unknown as Prisma.InputJsonValue,
+        })),
+      });
+
+      return tx.order.findFirstOrThrow({
+        where: {
+          id: order.id,
+          organizationId: data.organizationId,
+        },
+        include: orderInclude,
+      });
+    });
   },
 
   findById: async (id: string, organizationId: string): Promise<FullOrderPrismaRecord | null> => {
@@ -163,27 +196,38 @@ export const orderRepository = {
     organizationId: string,
     filters: OrderFilters,
   ): Promise<{ orders: FullOrderPrismaRecord[]; total: number }> => {
-    const where: Prisma.OrderWhereInput = {
-      organizationId,
-      ...(filters.status ? { status: filters.status } : {}),
-      ...(filters.type ? { type: filters.type } : {}),
-      ...(filters.createdById ? { createdById: filters.createdById } : {}),
-      ...(filters.orderDate ? { orderDate: filters.orderDate } : {}),
-      ...(filters.orderDateGte || filters.orderDateLte
-        ? {
-            orderDate: {
-              ...(filters.orderDateGte ? { gte: filters.orderDateGte } : {}),
-              ...(filters.orderDateLte ? { lte: filters.orderDateLte } : {}),
-            },
-          }
-        : {}),
-    };
+    const where = buildWhere(organizationId, filters);
 
     const [total, orders] = await prisma.$transaction([
       prisma.order.count({ where }),
       prisma.order.findMany({
         where,
         include: orderInclude,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (filters.page - 1) * filters.perPage,
+        take: filters.perPage,
+      }),
+    ]);
+
+    return {
+      total,
+      orders,
+    };
+  },
+
+  findManySummary: async (
+    organizationId: string,
+    filters: OrderFilters,
+  ): Promise<{ orders: SummaryOrderPrismaRecord[]; total: number }> => {
+    const where = buildWhere(organizationId, filters);
+
+    const [total, orders] = await prisma.$transaction([
+      prisma.order.count({ where }),
+      prisma.order.findMany({
+        where,
+        include: orderSummaryInclude,
         orderBy: {
           createdAt: 'desc',
         },
@@ -207,6 +251,21 @@ export const orderRepository = {
         },
       },
       include: orderInclude,
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  },
+
+  findActiveSummary: async (organizationId: string): Promise<SummaryOrderPrismaRecord[]> => {
+    return prisma.order.findMany({
+      where: {
+        organizationId,
+        status: {
+          notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
+        },
+      },
+      include: orderSummaryInclude,
       orderBy: {
         createdAt: 'asc',
       },

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { orderService } from '../services/order-service';
 import {
+  ActiveOrderQuerySchema,
   CancelOrderSchema,
   CreateOrderSchema,
   OrderQuerySchema,
@@ -50,7 +51,8 @@ export const orderController = {
 
   getActiveOrders: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const orders = await orderService.getActive(actor);
+    const query = ActiveOrderQuerySchema.parse(req.query);
+    const orders = await orderService.getActive(actor, query);
 
     res.status(200).json({
       success: true,

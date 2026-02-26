@@ -40,6 +40,39 @@ export interface PrepTicketRecord {
   updatedAt: Date;
 }
 
+export interface PrepTicketSummaryRecord {
+  id: string;
+  station: PrepStation;
+  status: PrepTicketStatus;
+  claimedBy: {
+    id: string;
+    name: string;
+  } | null;
+  claimedAt: Date | null;
+  readyAt: Date | null;
+}
+
+export interface OrderSummaryRecord {
+  id: string;
+  dailyNumber: number;
+  orderDate: string;
+  type: OrderType;
+  status: OrderStatus;
+  tableNumber: string | null;
+  notes: string | null;
+  subtotal: string;
+  deliveryFee: string;
+  total: string;
+  paymentMethod: PaymentMethod | null;
+  paidAt: Date | null;
+  createdAt: Date;
+  createdBy: {
+    id: string;
+    name: string;
+  };
+  prepTickets: PrepTicketSummaryRecord[];
+}
+
 export interface OrderRecord {
   id: string;
   organizationId: string;

@@ -30,6 +30,12 @@ interface OrderStore {
 export const selectCartTotal = (cart: CartItem[]): number =>
   cart.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
+export const selectCartCount = (cart: CartItem[]): number =>
+  cart.reduce((sum, item) => sum + item.quantity, 0);
+
+export const selectCartQuantityByItem = (cart: CartItem[], menuItemId: string): number =>
+  cart.find((item) => item.menuItemId === menuItemId)?.quantity ?? 0;
+
 export const useOrderStore = create<OrderStore>((set) => ({
   activeOrders: [],
   cart: [],

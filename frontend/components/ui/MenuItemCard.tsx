@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Plus, ImageOff } from 'lucide-react'
+import { Check, Plus, ImageOff } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { IconButton } from './IconButton'
 import { PriceDisplay } from './PriceDisplay'
@@ -12,15 +12,28 @@ interface MenuItemCardProps {
   price: number
   isAvailable: boolean
   imageUrl?: string
+  quantity?: number
+  isRecentlyAdded?: boolean
   onAdd?: () => void
   className?: string
 }
 
-export function MenuItemCard({ name, description, price, isAvailable, imageUrl, onAdd, className }: MenuItemCardProps) {
+export function MenuItemCard({
+  name,
+  description,
+  price,
+  isAvailable,
+  imageUrl,
+  quantity = 0,
+  isRecentlyAdded = false,
+  onAdd,
+  className,
+}: MenuItemCardProps) {
   return (
     <div
       className={cn(
-        'relative bg-white border border-stone-200 shadow-sm rounded-md overflow-hidden',
+        'relative bg-white border border-stone-200 shadow-sm rounded-md overflow-hidden transition-shadow duration-fast',
+        isRecentlyAdded && 'border-amber shadow-md',
         !isAvailable && 'opacity-50',
         className
       )}
@@ -43,6 +56,17 @@ export function MenuItemCard({ name, description, price, isAvailable, imageUrl, 
         {!isAvailable && (
           <span className="absolute top-2 right-2 bg-stone-900/70 text-crema text-label-sm px-2 py-0.5 rounded-full">
             Unavailable
+          </span>
+        )}
+        {quantity > 0 && (
+          <span className="absolute left-2 top-2 inline-flex min-w-6 items-center justify-center rounded-full bg-espresso px-1.5 py-0.5 text-caption text-crema">
+            {quantity}
+          </span>
+        )}
+        {isRecentlyAdded && (
+          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-crema/95 px-2 py-1 text-caption text-espresso shadow-sm">
+            <Check size={12} />
+            Added
           </span>
         )}
       </div>

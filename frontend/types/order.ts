@@ -3,6 +3,7 @@ export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANC
 export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD';
 export type PrepStation = 'KITCHEN' | 'BARISTA';
 export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY';
+export type OrderListView = 'full' | 'summary';
 
 export interface PrepTicketSummary {
   id: string;

@@ -56,15 +56,22 @@ export const ClaimPrepTicketSchema = z.object({
   claimedById: z.string().uuid(),
 });
 
+export const orderListViewSchema = z.enum(['full', 'summary']);
+
 export const OrderQuerySchema = z.object({
   status: z.nativeEnum(OrderStatus).optional(),
   type: z.nativeEnum(OrderType).optional(),
   date: isoDateSchema.optional(),
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
+  view: orderListViewSchema.default('full'),
   branchId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ActiveOrderQuerySchema = z.object({
+  view: orderListViewSchema.default('full'),
 });
 
 export const PrepTicketQuerySchema = z.object({
@@ -81,4 +88,5 @@ export type RecordPaymentInput = z.infer<typeof RecordPaymentSchema>;
 export type CancelOrderInput = z.infer<typeof CancelOrderSchema>;
 export type ClaimPrepTicketInput = z.infer<typeof ClaimPrepTicketSchema>;
 export type OrderQueryInput = z.infer<typeof OrderQuerySchema>;
+export type ActiveOrderQueryInput = z.infer<typeof ActiveOrderQuerySchema>;
 export type PrepTicketQueryInput = z.infer<typeof PrepTicketQuerySchema>;

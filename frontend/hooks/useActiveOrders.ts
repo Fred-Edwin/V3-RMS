@@ -27,7 +27,7 @@ export function useActiveOrders() {
     setLoading(true);
     setError(null);
     try {
-      const orders = await orderService.getActive(accessToken);
+      const orders = await orderService.getActive(accessToken, 'summary');
       setActiveOrders(orders);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load active orders';

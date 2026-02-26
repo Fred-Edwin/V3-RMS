@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import type {
   CreateOrderDto,
   OrderDetail,
+  OrderListView,
   OrderStatus,
   OrderSummary,
   OrderType,
@@ -16,6 +17,7 @@ interface GetOrdersParams {
   date?: string;
   startDate?: string;
   endDate?: string;
+  view?: OrderListView;
   page?: number;
   perPage?: number;
 }
@@ -28,6 +30,7 @@ const toQueryString = (params: GetOrdersParams): string => {
   if (params.date) query.set('date', params.date);
   if (params.startDate) query.set('startDate', params.startDate);
   if (params.endDate) query.set('endDate', params.endDate);
+  if (params.view) query.set('view', params.view);
   if (params.page) query.set('page', String(params.page));
   if (params.perPage) query.set('perPage', String(params.perPage));
 
@@ -60,8 +63,9 @@ export const orderService = {
     };
   },
 
-  getActive: (accessToken: string): Promise<OrderSummary[]> => {
-    return apiClient.get<OrderSummary[]>('/orders/active', accessToken);
+  getActive: (accessToken: string, view: OrderListView = 'full'): Promise<OrderSummary[]> => {
+    const query = view === 'summary' ? '?view=summary' : '';
+    return apiClient.get<OrderSummary[]>(`/orders/active${query}`, accessToken);
   },
 
   getById: (id: string, accessToken: string): Promise<OrderDetail> => {

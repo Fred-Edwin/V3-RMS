@@ -2,16 +2,28 @@ import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, P
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
 import { menuRepository, type MenuItemWithCategoryRecord } from '../repositories/menu-repository';
-import { orderRepository, type FullOrderPrismaRecord } from '../repositories/order-repository';
+import {
+  orderRepository,
+  type FullOrderPrismaRecord,
+  type SummaryOrderPrismaRecord,
+} from '../repositories/order-repository';
 import { socketService } from '../sockets/socket-service';
-import type { OrderRecord, PrepTicketItemSnapshot, PrepTicketRecord } from '../types/order.types';
+import type {
+  OrderRecord,
+  OrderSummaryRecord,
+  PrepTicketItemSnapshot,
+  PrepTicketRecord,
+  PrepTicketSummaryRecord,
+} from '../types/order.types';
 import {
   buildPrepTicketItemsSnapshot,
   calculateOrderTotals,
   deriveStationsFromItems,
 } from '../utils/order-utils';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { logger } from '../utils/logger';
 import type {
+  ActiveOrderQueryInput,
   CreateOrderInput,
   OrderQueryInput,
   RecordPaymentInput,
@@ -28,7 +40,7 @@ interface PaginationMeta {
 }
 
 interface OrderListResult {
-  orders: OrderRecord[];
+  orders: Array<OrderRecord | OrderSummaryRecord>;
   pagination: PaginationMeta;
 }
 
@@ -136,6 +148,19 @@ const serializePrepTicket = (
   };
 };
 
+const serializePrepTicketSummary = (
+  ticket: SummaryOrderPrismaRecord['prepTickets'][number],
+): PrepTicketSummaryRecord => {
+  return {
+    id: ticket.id,
+    station: ticket.station,
+    status: ticket.status,
+    claimedBy: ticket.claimedBy ? { id: ticket.claimedBy.id, name: ticket.claimedBy.name } : null,
+    claimedAt: ticket.claimedAt,
+    readyAt: ticket.readyAt,
+  };
+};
+
 const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
   return {
     id: order.id,
@@ -175,6 +200,29 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
       notes: item.notes,
     })),
     prepTickets: order.prepTickets.map(serializePrepTicket),
+  };
+};
+
+const serializeOrderSummary = (order: SummaryOrderPrismaRecord): OrderSummaryRecord => {
+  return {
+    id: order.id,
+    dailyNumber: order.dailyNumber,
+    orderDate: formatDateOnly(order.orderDate),
+    type: order.type,
+    status: order.status,
+    tableNumber: order.tableNumber,
+    notes: order.notes,
+    subtotal: order.subtotal.toString(),
+    deliveryFee: order.deliveryFee.toString(),
+    total: order.total.toString(),
+    paymentMethod: order.paymentMethod,
+    paidAt: order.paidAt,
+    createdAt: order.createdAt,
+    createdBy: {
+      id: order.createdBy.id,
+      name: order.createdBy.name,
+    },
+    prepTickets: order.prepTickets.map(serializePrepTicketSummary),
   };
 };
 
@@ -246,15 +294,20 @@ const serializeTicketsForSocket = (order: OrderRecord): PrepTicketRecord[] => or
 
 export const orderService = {
   create: async (data: CreateOrderInput, actor: Actor): Promise<OrderRecord> => {
+    const startedAt = Date.now();
     const organizationId = resolveOrganizationId(actor);
+    const resolvedItemsStart = Date.now();
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
+    const resolveItemsMs = Date.now() - resolvedItemsStart;
 
+    const deliveryFeeLookupStart = Date.now();
     const deliveryFee =
       data.type === OrderType.DELIVERY
         ? (
             await deliveryZoneRepository.findActiveByIdAndOrganization(data.deliveryZoneId, organizationId)
           )?.fee
         : new Prisma.Decimal(0);
+    const resolveDeliveryZoneMs = Date.now() - deliveryFeeLookupStart;
 
     if (data.type === OrderType.DELIVERY && !deliveryFee) {
       throw new ValidationError('deliveryZoneId is invalid for this branch');
@@ -264,6 +317,7 @@ export const orderService = {
     const stations = deriveStationsFromItems(resolvedItems);
     const ticketSnapshots = buildTicketSnapshotsByStation(resolvedItems, stations);
 
+    const createOrderStart = Date.now();
     const created = await orderRepository.createWithItemsAndTickets({
       organizationId,
       orderDate: normalizeOrderDate(new Date()),
@@ -290,9 +344,33 @@ export const orderService = {
         items: ticketSnapshots[station] ?? [],
       })),
     });
+    const createOrderMs = Date.now() - createOrderStart;
 
+    const serializeStart = Date.now();
     const serialized = serializeOrder(created);
+    const serializeMs = Date.now() - serializeStart;
+
+    const socketEmitStart = Date.now();
     socketService.emitNewOrder(organizationId, serializeTicketsForSocket(serialized));
+    const emitSocketMs = Date.now() - socketEmitStart;
+
+    logger.debug(
+      {
+        actorId: actor.id,
+        organizationId,
+        orderType: data.type,
+        itemCount: data.items.length,
+        timingsMs: {
+          resolveItems: resolveItemsMs,
+          resolveDeliveryZone: resolveDeliveryZoneMs,
+          createOrder: createOrderMs,
+          serialize: serializeMs,
+          socketEmit: emitSocketMs,
+          total: Date.now() - startedAt,
+        },
+      },
+      'Order creation performance metrics',
+    );
     return serialized;
   },
 
@@ -304,7 +382,7 @@ export const orderService = {
     const orderDateGte = query.startDate ? parseDateOnly(query.startDate) : undefined;
     const orderDateLte = query.endDate ? parseDateOnly(query.endDate) : undefined;
 
-    const result = await orderRepository.findMany(organizationId, {
+    const filters = {
       status: query.status,
       type: query.type,
       orderDate,
@@ -313,8 +391,22 @@ export const orderService = {
       createdById,
       page: query.page,
       perPage: query.perPage,
-    });
+    };
 
+    if (query.view === 'summary') {
+      const result = await orderRepository.findManySummary(organizationId, filters);
+      return {
+        orders: result.orders.map(serializeOrderSummary),
+        pagination: {
+          total: result.total,
+          page: query.page,
+          perPage: query.perPage,
+          totalPages: Math.max(1, Math.ceil(result.total / query.perPage)),
+        },
+      };
+    }
+
+    const result = await orderRepository.findMany(organizationId, filters);
     return {
       orders: result.orders.map(serializeOrder),
       pagination: {
@@ -326,8 +418,16 @@ export const orderService = {
     };
   },
 
-  getActive: async (actor: Actor): Promise<OrderRecord[]> => {
+  getActive: async (
+    actor: Actor,
+    query: ActiveOrderQueryInput = { view: 'full' },
+  ): Promise<Array<OrderRecord | OrderSummaryRecord>> => {
     const organizationId = resolveOrganizationId(actor);
+    if (query.view === 'summary') {
+      const orders = await orderRepository.findActiveSummary(organizationId);
+      return orders.map(serializeOrderSummary);
+    }
+
     const orders = await orderRepository.findActive(organizationId);
     return orders.map(serializeOrder);
   },

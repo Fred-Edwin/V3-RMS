@@ -526,6 +526,7 @@ Returns orders for the authenticated user's branch.
 status      (optional) — PENDING | IN_PROGRESS | READY | CLOSED | CANCELLED
 type        (optional) — DINE_IN | TAKE_AWAY | DELIVERY
 date        (optional) — YYYY-MM-DD (defaults to today)
+view        (optional) — full | summary (summary omits heavy nested detail for list UIs)
 page        (optional) — default 1
 perPage     (optional) — default 20, max 100
 ```
@@ -585,6 +586,11 @@ perPage     (optional) — default 20, max 100
 ### GET `/orders/active`
 **Access:** 🔑 WAITER, MGR  
 Returns all non-closed orders for the branch. Optimised for the live order feed on the waiter app and manager dashboard.
+
+**Query Params:**
+```
+view        (optional) — full | summary (summary omits heavy nested detail for list UIs)
+```
 
 **Response `200`:**
 ```json

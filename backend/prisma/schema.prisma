@@ -24,9 +24,24 @@ model Organization {
   shifts          Shift[]
   shiftAssignments ShiftAssignment[]
   orders          Order[]
+  orderCounters   OrderCounter[]
   prepTickets     PrepTicket[]
 
   @@map("organizations")
+}
+
+model OrderCounter {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  orderDate      DateTime     @db.Date @map("order_date")
+  lastNumber     Int          @default(0) @map("last_number")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, orderDate])
+  @@index([organizationId])
+  @@map("order_counters")
 }
 
 model User {
