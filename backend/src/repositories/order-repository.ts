@@ -87,6 +87,91 @@ interface OrderFilters {
   perPage: number;
 }
 
+const counterWhere = (organizationId: string, orderDate: Date) => ({
+  organizationId_orderDate: {
+    organizationId,
+    orderDate,
+  },
+});
+
+const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKnownRequestError => {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+};
+
+const getMaxDailyNumber = async (
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  orderDate: Date,
+): Promise<number> => {
+  const aggregate = await tx.order.aggregate({
+    where: {
+      organizationId,
+      orderDate,
+    },
+    _max: {
+      dailyNumber: true,
+    },
+  });
+
+  return aggregate._max.dailyNumber ?? 0;
+};
+
+const ensureOrderCounterInitialized = async (
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  orderDate: Date,
+): Promise<void> => {
+  const existing = await tx.orderCounter.findUnique({
+    where: counterWhere(organizationId, orderDate),
+    select: {
+      id: true,
+    },
+  });
+
+  if (existing) {
+    return;
+  }
+
+  const maxDailyNumber = await getMaxDailyNumber(tx, organizationId, orderDate);
+
+  try {
+    await tx.orderCounter.create({
+      data: {
+        organizationId,
+        orderDate,
+        lastNumber: maxDailyNumber,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return;
+    }
+    throw error;
+  }
+};
+
+const allocateNextDailyNumber = async (
+  tx: Prisma.TransactionClient,
+  organizationId: string,
+  orderDate: Date,
+): Promise<number> => {
+  await ensureOrderCounterInitialized(tx, organizationId, orderDate);
+
+  const counter = await tx.orderCounter.update({
+    where: counterWhere(organizationId, orderDate),
+    data: {
+      lastNumber: {
+        increment: 1,
+      },
+    },
+    select: {
+      lastNumber: true,
+    },
+  });
+
+  return counter.lastNumber;
+};
+
 const toOrderItemCreateManyData = (items: CreateOrderItemWithPriceDto[]): Prisma.OrderItemCreateManyOrderInput[] => {
   return items.map((item) => ({
     menuItemId: item.menuItemId,
@@ -118,49 +203,48 @@ const buildWhere = (organizationId: string, filters: OrderFilters): Prisma.Order
 export const orderRepository = {
   createWithItemsAndTickets: async (data: CreateOrderWithTicketsDto): Promise<FullOrderPrismaRecord> => {
     return prisma.$transaction(async (tx) => {
-      const counter = await tx.orderCounter.upsert({
-        where: {
-          organizationId_orderDate: {
-            organizationId: data.organizationId,
-            orderDate: data.orderDate,
-          },
-        },
-        create: {
-          organizationId: data.organizationId,
-          orderDate: data.orderDate,
-          lastNumber: 1,
-        },
-        update: {
-          lastNumber: {
-            increment: 1,
-          },
-        },
-        select: {
-          lastNumber: true,
-        },
-      });
+      let order: { id: string } | null = null;
 
-      const order = await tx.order.create({
-        data: {
-          organizationId: data.organizationId,
-          dailyNumber: counter.lastNumber,
-          orderDate: data.orderDate,
-          type: data.type,
-          status: data.status,
-          tableNumber: data.tableNumber,
-          notes: data.notes,
-          subtotal: data.subtotal,
-          deliveryFee: data.deliveryFee,
-          total: data.total,
-          deliveryZoneId: data.deliveryZoneId,
-          createdById: data.createdById,
-          items: {
-            createMany: {
-              data: toOrderItemCreateManyData(data.items),
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const dailyNumber = await allocateNextDailyNumber(tx, data.organizationId, data.orderDate);
+
+        try {
+          order = await tx.order.create({
+            data: {
+              organizationId: data.organizationId,
+              dailyNumber,
+              orderDate: data.orderDate,
+              type: data.type,
+              status: data.status,
+              tableNumber: data.tableNumber,
+              notes: data.notes,
+              subtotal: data.subtotal,
+              deliveryFee: data.deliveryFee,
+              total: data.total,
+              deliveryZoneId: data.deliveryZoneId,
+              createdById: data.createdById,
+              items: {
+                createMany: {
+                  data: toOrderItemCreateManyData(data.items),
+                },
+              },
             },
-          },
-        },
-      });
+            select: {
+              id: true,
+            },
+          });
+          break;
+        } catch (error) {
+          if (isUniqueConstraintError(error) && attempt < 2) {
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      if (!order) {
+        throw new Error('Failed to allocate a unique daily order number');
+      }
 
       await tx.prepTicket.createMany({
         data: data.prepTickets.map((ticket) => ({
