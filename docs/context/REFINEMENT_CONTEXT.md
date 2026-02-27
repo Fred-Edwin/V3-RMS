@@ -171,17 +171,33 @@ Full redesign from prototype to premium:
 - **Chart titles:** shortened ("Total Orders Trend" → "Total Orders", etc.) for tighter mobile headers
 - **Staff Performance section:** `items-center` → `items-start` in header flex to prevent vertical stretch issues
 
-### LineTrendChart / MultiLineTrendChart (Mobile Optimization)
+### LineTrendChart / MultiLineTrendChart (Mobile Optimization — Final)
 **File:** `frontend/components/dashboard/PremiumChart.tsx`
 
-- **Chart height:** reduced `220/240px` → `180/200px` — charts are denser, less wasted whitespace on mobile
-- **Y-axis ticks:** `5` → `4` — less clutter on smaller charts
-- **paddingY:** `20` → `16` — tighter vertical padding
-- **minWidth formula:** adaptive — `7d` range uses `max(320, points * 44)` (fits on phone without scroll), longer ranges use `max(500, points * 32)` (still readable with scroll)
-- **Chart header layout:** changed from `flex-wrap justify-between` → `flex-col sm:flex-row` — stacks cleanly on mobile, side-by-side on sm+
-- **Summary label:** `text-heading-md` → `text-heading-sm`, `text-stone-600` → `text-stone-500` — steps back slightly
-- **Range toggle:** `w-full` removed from inner flex (was stretching on mobile)
-- **Series legend pills:** `gap-3` → `gap-2` for tighter wrap
+- **ResizeObserver-based responsive SVGs:** replaced all `minWidth` + `overflow-x-auto` + `viewBox` approaches with a `useContainerWidth` hook that measures the actual container pixel width on mount and on every resize. SVG renders at exactly `width={containerWidth}` with no `viewBox` — pixel-exact to container at all breakpoints.
+  ```tsx
+  function useContainerWidth(fallback = 320): [React.RefObject<HTMLDivElement>, number] {
+    const ref = useRef<HTMLDivElement>(null);
+    const [width, setWidth] = useState(fallback);
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) setWidth(Math.floor(entry.contentRect.width));
+      });
+      observer.observe(el);
+      setWidth(Math.floor(el.getBoundingClientRect().width));
+      return () => observer.disconnect();
+    }, []);
+    return [ref, width];
+  }
+  ```
+- **SVG wrapper:** `<div ref={containerRef} className="mt-4">` — no `overflow-x-auto`, no `minWidth` style
+- **Chart height:** unified to `180px` for both `LineTrendChart` and `MultiLineTrendChart`
+- **paddingX:** `44` → `52` — more room for y-axis labels on narrow mobile containers
+- **paddingY:** `20` → `16`
+- **Revenue formatter:** `toFixed(2)` → abbreviated `KES Xk` format (`value >= 1000 ? \`${(value/1000).toFixed(0)}k\` : value.toFixed(0)`) to prevent y-axis label overflow
 
 ### Manager Menu Page
 **File:** `frontend/app/app/manage/menu/page.tsx`
@@ -207,6 +223,31 @@ Full redesign from prototype to premium:
 - **Past cell:** `"Past"` text → `"—"` em-dash, `text-stone-300`
 - **+ Assign button:** replaced `<Button variant="ghost">` with a plain `<button>` styled as caption link — lighter footprint in empty cells
 - **Override action select:** `CLOCK_IN`/`CLOCK_OUT` → `"Clock In"`/`"Clock Out"` (human-readable)
+
+### Director Dashboard
+**File:** `frontend/app/app/director/page.tsx`
+
+- **Page title:** `font-display text-display-lg font-semibold text-espresso` via `titleClassName` prop
+- **Overview Panel stat cards:** `grid-cols-2` → `grid-cols-1` — Total Revenue and Total Orders stack vertically
+- **Overview filters:** `grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-2` — 2-col on all sizes, full-width on mobile
+- **Zero-orders banner:** `rounded-xl border border-amber/30 bg-amber/8` with `Globe` icon
+- **Branch Performance filters:** `grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-[1fr_1fr_auto_auto]` — stacks to 2-col on mobile
+- **Staff Performance filters:** `grid grid-cols-2 gap-2 md:grid-cols-4`
+- **Trend Analytics:** 6 charts in 3 rows of `lg:grid-cols-2` pairs:
+  - Row 1: Total Revenue (KES Xk format) + Total Orders
+  - Row 2: Revenue by Branch (KES Xk) + Orders by Branch
+  - Row 3: Branch Contribution Share (X.X%) + Top Item Family Trends (KES Xk)
+- **Section headings:** `text-heading-md font-semibold`, subtitle `mt-0.5 text-body-sm text-stone-500`
+- **Section cards:** `rounded-xl p-4 sm:p-5`
+
+### Performance Page
+**File:** `frontend/app/app/performance/page.tsx`
+
+- **Page title:** `font-display text-display-lg font-semibold text-espresso`
+- **Filter card:** `grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-3 sm:p-5`
+- **Stat grids:** `grid grid-cols-2 gap-3 xl:grid-cols-4`
+- **Top 5 Items:** `divide-y divide-stone-100` rows with espresso-background rank badge circles (`bg-espresso text-crema text-[10px] font-bold`)
+- **Role-not-matching fallback:** `rounded-xl p-4 sm:p-5` wrapping `EmptyState`
 
 ### Delivery Zones Page
 **File:** `frontend/app/app/manage/delivery-zones\page.tsx`
