@@ -20,21 +20,28 @@ export function StatCard({
   labelClassName,
 }: StatCardProps) {
   return (
-    <div className={cn('relative bg-white border border-stone-200 shadow-sm rounded-lg p-6', className)}>
-      {icon && (
-        <span className="absolute top-4 right-4 text-stone-400">
-          {icon}
-        </span>
-      )}
-      <p className={cn('text-display-lg font-display font-medium text-stone-900', valueClassName)}>
-        {value}
-      </p>
-      <p className={cn('mt-1 text-label-sm font-sans font-semibold uppercase tracking-wider text-stone-500', labelClassName)}>
-        {label}
-      </p>
-      {caption && (
-        <p className="text-caption text-stone-500 mt-2">{caption}</p>
-      )}
+    <div className={cn('relative overflow-hidden rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+      {/* Top row: label left, icon right */}
+      <div className="flex items-center justify-between gap-2">
+        <p className={cn('text-label-sm font-semibold uppercase tracking-wider text-stone-400', labelClassName)}>
+          {label}
+        </p>
+        {icon && (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-400">
+            {icon}
+          </span>
+        )}
+      </div>
+
+      {/* Value + caption */}
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <p className={cn('font-display text-display-md font-semibold leading-none text-espresso', valueClassName)}>
+          {value}
+        </p>
+        {caption && (
+          <p className="shrink-0 text-caption text-stone-400">{caption}</p>
+        )}
+      </div>
     </div>
   )
 }

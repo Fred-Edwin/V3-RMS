@@ -129,7 +129,7 @@ export default function PerformancePage(): JSX.Element {
     return (
       <PageLayout>
         <PageHeader title="Performance" subtitle="This page is available to operational staff." />
-        <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
           <EmptyState
             icon={<BarChart2 size={24} />}
             heading="No performance view for this role"
@@ -145,9 +145,10 @@ export default function PerformancePage(): JSX.Element {
       <PageHeader
         title="Performance"
         subtitle="Personal metrics for your selected period."
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
       />
 
-      <section className="grid gap-4 rounded-xl border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-[220px_1fr_1fr]">
+      <section className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-3 sm:p-5">
         <Select
           label="Range"
           value={preset}
@@ -183,11 +184,11 @@ export default function PerformancePage(): JSX.Element {
       </section>
 
       {isLoading ? (
-        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
           <SkeletonTable rows={6} columns={4} />
         </section>
       ) : !report ? (
-        <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
           <EmptyState
             icon={<BarChart2 size={24} />}
             heading="No performance data"
@@ -196,7 +197,7 @@ export default function PerformancePage(): JSX.Element {
         </section>
       ) : report.role === 'WAITER' ? (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <StatCard label="Orders Handled" value={report.ordersHandled} icon={<ShoppingBag size={18} />} />
             <StatCard label="Average Order Value" value={`KES ${report.averageOrderValue}`} icon={<DollarSign size={18} />} />
             <StatCard label="Revenue Generated" value={`KES ${report.totalRevenueGenerated}`} icon={<ListChecks size={18} />} />
@@ -212,29 +213,36 @@ export default function PerformancePage(): JSX.Element {
             summaryLabel="Total Orders"
           />
 
-          <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-            <h3 className="text-heading-sm font-semibold text-stone-900">Top 5 Items Ordered</h3>
-            <p className="mt-1 text-body-sm text-stone-500">Most frequently sold items from your orders.</p>
-            <div className="mt-4 space-y-2">
+          <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+            <h3 className="text-heading-md font-semibold text-stone-900">Top 5 Items Ordered</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">Most frequently sold items from your orders.</p>
+            <div className="mt-4">
               {report.topItems.length === 0 ? (
                 <p className="text-body-sm text-stone-500">No item trends in this range.</p>
               ) : (
-                report.topItems.map((item, index) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-3 py-2"
-                  >
-                    <span className="text-body-sm text-stone-800">{index + 1}. {item.name}</span>
-                    <span className="text-label-sm font-semibold text-espresso">{item.quantitySold}</span>
-                  </div>
-                ))
+                <div className="divide-y divide-stone-100">
+                  {report.topItems.map((item, index) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">
+                          {index + 1}
+                        </span>
+                        <span className="text-body-sm text-stone-800">{item.name}</span>
+                      </div>
+                      <span className="text-label-sm font-semibold text-espresso">{item.quantitySold} sold</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </section>
         </>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <StatCard label="Tickets Completed" value={report.ticketsCompleted} icon={<ListChecks size={18} />} />
             <StatCard label="Average Prep Time" value={`${report.averagePrepTimeMinutes} min`} icon={<Timer size={18} />} />
             <StatCard label="Fastest Prep" value={`${report.fastestPrepTimeMinutes} min`} icon={<CalendarRange size={18} />} />

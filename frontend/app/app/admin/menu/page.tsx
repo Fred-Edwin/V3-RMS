@@ -477,9 +477,10 @@ export default function Page(): JSX.Element {
 
   return (
     <>
-      <PageLayout>
+      <PageLayout className="animate-fade-up space-y-6">
         <PageHeader
           title="Menu Management"
+          titleClassName="font-display text-display-lg font-semibold text-espresso"
           subtitle="Create and maintain master categories and items."
           action={
             <Button type="button" leftIcon={<Plus size={16} />} onClick={handleOpenCreateCategory}>
@@ -489,26 +490,31 @@ export default function Page(): JSX.Element {
         />
 
         {isLoading ? (
-          <p className="text-body-md text-stone-500">Loading menu categories...</p>
+          <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+            <p className="text-body-md text-stone-500">Loading menu categories…</p>
+          </div>
         ) : (
-          <div className="space-y-8">
-            <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_220px_220px_auto] lg:items-end">
-                <Input
-                  id="menu-search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search categories or items"
-                  leftIcon={<Search size={16} />}
-                />
+          <div className="space-y-6">
+            {/* Filter bar */}
+            <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,2fr)_180px_180px_auto] sm:items-end">
+                <div className="col-span-2 sm:col-span-1">
+                  <Input
+                    id="menu-search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search categories or items"
+                    leftIcon={<Search size={16} />}
+                  />
+                </div>
                 <Select
                   id="menu-prep-station-filter"
                   value={prepStationFilter}
                   onChange={(event) => setPrepStationFilter(event.target.value as 'ALL' | PrepStation)}
                   options={[
                     { value: 'ALL', label: 'All stations' },
-                    { value: 'KITCHEN', label: 'KITCHEN' },
-                    { value: 'BARISTA', label: 'BARISTA' },
+                    { value: 'KITCHEN', label: 'Kitchen' },
+                    { value: 'BARISTA', label: 'Barista' },
                   ]}
                 />
                 <Select
@@ -521,13 +527,20 @@ export default function Page(): JSX.Element {
                     { value: 'INACTIVE', label: 'Inactive only' },
                   ]}
                 />
-                <Button type="button" variant="ghost" onClick={handleResetFilters} disabled={!hasActiveFilters}>
-                  Clear Filters
-                </Button>
+                <button
+                  type="button"
+                  className="h-10 rounded-md border border-stone-200 px-3 text-label-md font-medium text-stone-700 disabled:opacity-40"
+                  onClick={handleResetFilters}
+                  disabled={!hasActiveFilters}
+                >
+                  Clear
+                </button>
               </div>
             </section>
 
-            <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+            {/* Categories summary table */}
+            <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+              <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Categories</h2>
               <Table<CategoryRow>
                 columns={categoryColumns}
                 data={categoryRows}
@@ -537,32 +550,36 @@ export default function Page(): JSX.Element {
                     icon={<UtensilsCrossed size={28} />}
                     heading="No categories yet"
                     body="Create your first category to begin building the master menu."
+                    action={
+                      <Button type="button" leftIcon={<Plus size={14} />} onClick={handleOpenCreateCategory}>
+                        Add Category
+                      </Button>
+                    }
                   />
                 }
               />
             </div>
 
-            <div className="space-y-6">
+            {/* Per-category item lists */}
+            <div className="space-y-4">
               {filteredCategorySections.map(({ category, visibleItems }) => (
-                <section key={category.id} className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
+                <section key={category.id} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-heading-md font-semibold text-stone-900">{category.name}</h2>
-                      <p className="text-body-sm text-stone-500">
-                        {visibleItems.length} item{visibleItems.length === 1 ? '' : 's'}
+                      <p className="text-body-sm text-stone-400">
+                        {category.prepStation === 'KITCHEN' ? 'Kitchen' : 'Barista'} · {visibleItems.length} item{visibleItems.length === 1 ? '' : 's'}
                       </p>
                     </div>
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
+                      leftIcon={<Plus size={14} />}
                       onClick={() => {
                         setItemModalMode('create');
                         setEditingItem(null);
-                        setItemForm({
-                          ...initialItemForm,
-                          categoryId: category.id,
-                        });
+                        setItemForm({ ...initialItemForm, categoryId: category.id });
                         setItemModalOpen(true);
                       }}
                     >
@@ -571,45 +588,60 @@ export default function Page(): JSX.Element {
                   </div>
 
                   {visibleItems.length === 0 ? (
-                    <p className="text-body-sm text-stone-500">No items in this category.</p>
+                    <p className="text-body-sm text-stone-400">No items in this category yet.</p>
                   ) : (
                     <div className="w-full overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full min-w-[560px]">
                         <thead>
-                          <tr>
-                            <th className="h-11 border-b-2 border-stone-200 px-4 text-left text-label-sm uppercase tracking-wider text-stone-500">
+                          <tr className="border-b-2 border-stone-100">
+                            <th className="h-9 px-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
                               Item
                             </th>
-                            <th className="h-11 border-b-2 border-stone-200 px-4 text-left text-label-sm uppercase tracking-wider text-stone-500">
+                            <th className="h-9 px-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
                               Price
                             </th>
-                            <th className="h-11 border-b-2 border-stone-200 px-4 text-left text-label-sm uppercase tracking-wider text-stone-500">
+                            <th className="h-9 px-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
                               Status
                             </th>
-                            <th className="h-11 border-b-2 border-stone-200 px-4 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                              Actions
-                            </th>
+                            <th className="h-9 px-3 text-label-sm font-semibold uppercase tracking-wider text-stone-400" />
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-stone-100">
                           {visibleItems.map((item) => {
                             const numericPrice = Number.parseFloat(item.price);
                             return (
-                              <tr key={item.id} className="h-[52px] border-b border-stone-100">
-                                <td className="px-4 text-body-sm text-stone-900">
-                                  <p>{item.name}</p>
-                                  {item.description ? (
-                                    <p className="text-caption text-stone-500">{item.description}</p>
-                                  ) : null}
+                              <tr key={item.id}>
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center gap-3">
+                                    {item.imageUrl ? (
+                                      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-stone-100">
+                                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" sizes="36px" />
+                                      </div>
+                                    ) : null}
+                                    <div>
+                                      <p className="text-body-sm font-medium text-stone-900">{item.name}</p>
+                                      {item.description ? (
+                                        <p className="max-w-[220px] truncate text-caption text-stone-400">{item.description}</p>
+                                      ) : null}
+                                    </div>
+                                  </div>
                                 </td>
-                                <td className="px-4">
+                                <td className="px-3 py-3">
                                   <PriceDisplay amount={Number.isNaN(numericPrice) ? 0 : numericPrice} />
                                 </td>
-                                <td className="px-4 text-body-sm text-stone-900">
-                                  {item.isActive ? 'Active' : 'Inactive'}
+                                <td className="px-3 py-3">
+                                  <span
+                                    className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-medium ${
+                                      item.isActive
+                                        ? 'border border-[#86EFAC] bg-[#EDFAF1] text-[#1A6B3C]'
+                                        : 'border border-[#D4D4D8] bg-[#F4F4F5] text-[#71717A]'
+                                    }`}
+                                  >
+                                    {item.isActive ? 'Active' : 'Inactive'}
+                                  </span>
                                 </td>
-                                <td className="px-4">
-                                  <div className="flex items-center gap-2">
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center justify-end gap-2">
                                     <Button
                                       type="button"
                                       variant="ghost"
@@ -634,9 +666,7 @@ export default function Page(): JSX.Element {
                                       type="button"
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => {
-                                        setDeleteItemTarget(item);
-                                      }}
+                                      onClick={() => setDeleteItemTarget(item)}
                                     >
                                       Delete
                                     </Button>
@@ -691,8 +721,8 @@ export default function Page(): JSX.Element {
                 }))
               }
               options={[
-                { value: 'KITCHEN', label: 'KITCHEN' },
-                { value: 'BARISTA', label: 'BARISTA' },
+                { value: 'KITCHEN', label: 'Kitchen' },
+                { value: 'BARISTA', label: 'Barista' },
               ]}
             />
           </FormField>
@@ -706,13 +736,13 @@ export default function Page(): JSX.Element {
             />
           </FormField>
           {categoryModalMode === 'edit' ? (
-            <FormField label="Active Status" htmlFor="category-active-status">
+            <div className="rounded-lg border border-stone-100 bg-stone-50 px-4 py-3">
               <Toggle
                 checked={categoryForm.isActive}
                 onChange={(checked) => setCategoryForm((prev) => ({ ...prev, isActive: checked }))}
-                label={categoryForm.isActive ? 'Active' : 'Inactive'}
+                label={categoryForm.isActive ? 'Category is active — visible on menus' : 'Category is inactive — hidden from menus'}
               />
-            </FormField>
+            </div>
           ) : null}
         </form>
       </Modal>
@@ -762,22 +792,23 @@ export default function Page(): JSX.Element {
             />
           </FormField>
           <FormField label="Image" htmlFor="item-image">
-            <div className="flex items-center gap-4">
-              <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-50">
+            <div className="flex items-start gap-4">
+              <div className="relative h-28 w-28 flex-shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-50 shadow-sm">
                 {itemForm.imageUrl ? (
-                  <Image src={itemForm.imageUrl} alt="Item preview" fill className="object-cover" sizes="80px" />
+                  <Image src={itemForm.imageUrl} alt="Item preview" fill className="object-cover" sizes="112px" />
                 ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <ImageOff size={24} className="text-stone-300" />
+                  <div className="flex h-full flex-col items-center justify-center gap-1">
+                    <ImageOff size={22} className="text-stone-300" />
+                    <span className="text-caption text-stone-300">No image</span>
                   </div>
                 )}
                 {isUploadingImage && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-                    <span className="text-label-sm text-stone-500">Uploading…</span>
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                    <span className="text-label-sm font-medium text-stone-500">Uploading…</span>
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-2 pt-1">
                 <Button
                   type="button"
                   variant="secondary"
@@ -797,6 +828,7 @@ export default function Page(): JSX.Element {
                     Remove
                   </Button>
                 ) : null}
+                <p className="text-caption text-stone-400">JPG, PNG or WebP</p>
                 <input
                   ref={imageInputRef}
                   id="item-image"
@@ -820,13 +852,13 @@ export default function Page(): JSX.Element {
             />
           </FormField>
           {itemModalMode === 'edit' ? (
-            <FormField label="Active Status" htmlFor="item-active-status">
+            <div className="rounded-lg border border-stone-100 bg-stone-50 px-4 py-3">
               <Toggle
                 checked={itemForm.isActive}
                 onChange={(checked) => setItemForm((prev) => ({ ...prev, isActive: checked }))}
-                label={itemForm.isActive ? 'Active' : 'Inactive'}
+                label={itemForm.isActive ? 'Item is active — orderable by waiters' : 'Item is inactive — hidden from order flow'}
               />
-            </FormField>
+            </div>
           ) : null}
         </form>
       </Modal>

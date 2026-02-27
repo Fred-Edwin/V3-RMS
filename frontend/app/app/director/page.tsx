@@ -506,31 +506,30 @@ export default function DirectorDashboardPage(): JSX.Element {
       <PageHeader
         title="Director Dashboard"
         subtitle="Cross-branch oversight and executive reporting."
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
       />
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-heading-sm font-semibold text-stone-900">Overview Panel</h3>
-            <p className="mt-1 text-body-sm text-stone-500">Selected day across all branches, with optional branch focus.</p>
+            <h3 className="text-heading-md font-semibold text-stone-900">Overview Panel</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">Selected day across all branches, with optional branch focus.</p>
           </div>
-          <div className="grid w-full gap-2 md:w-auto md:grid-cols-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-2">
             <Input
               type="date"
               label="Overview Date"
               value={overviewDate}
               onChange={(event) => setOverviewDate(event.target.value)}
-              className="w-full md:w-56"
             />
             <Select
-              label="Branch Selector"
+              label="Branch"
               value={selectedOverviewBranch}
               options={[
                 { value: 'ALL', label: 'All Branches' },
                 ...branches.map((branch) => ({ value: branch.id, label: branch.name })),
               ]}
               onChange={(event) => setSelectedOverviewBranch(event.target.value)}
-              className="w-full md:w-72"
             />
           </div>
         </div>
@@ -548,30 +547,33 @@ export default function DirectorDashboardPage(): JSX.Element {
           />
         ) : (
           <div className="mt-5 space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <StatCard
                 label="Total Revenue"
                 value={`KES ${overviewRevenue}`}
-                caption={isOverviewToday ? `${overviewDate} (Today)` : overviewDate}
+                caption={isOverviewToday ? 'Today' : overviewDate}
                 icon={<TrendingUp size={18} />}
               />
               <StatCard
                 label="Total Orders"
                 value={overviewOrders}
-                caption={isOverviewToday ? `${overviewDate} (Today)` : overviewDate}
+                caption={isOverviewToday ? 'Today' : overviewDate}
                 icon={<Building2 size={18} />}
               />
             </div>
 
             {overviewToday.totalOrders === 0 && (
-              <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-body-sm text-stone-600">
-                No closed orders were recorded on {overviewDate}. Use a different date or the range report below.
+              <div className="flex items-start gap-3 rounded-xl border border-amber/30 bg-amber/8 px-4 py-3">
+                <Globe size={16} className="mt-0.5 shrink-0 text-amber" />
+                <p className="text-body-sm text-stone-700">
+                  No closed orders were recorded on <span className="font-medium">{overviewDate}</span>. Use a different date or the range report below.
+                </p>
               </div>
             )}
 
             <ComparisonBars title="Order Volume Per Branch" data={overviewVolumeBars} />
 
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
               <h4 className="text-label-lg font-semibold text-stone-900">Average Prep Time Per Branch</h4>
               <div className="mt-3 space-y-2">
                 {overviewBranchRows.map((branch) => (
@@ -591,10 +593,10 @@ export default function DirectorDashboardPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4">
-          <h3 className="text-heading-sm font-semibold text-stone-900">Trend Analytics</h3>
-          <p className="mt-1 text-body-sm text-stone-500">
+          <h3 className="text-heading-md font-semibold text-stone-900">Trend Analytics</h3>
+          <p className="mt-0.5 text-body-sm text-stone-500">
             Revenue, volume, contribution share, and category drivers over time.
           </p>
         </div>
@@ -608,70 +610,78 @@ export default function DirectorDashboardPage(): JSX.Element {
             body="Try another date range or run the report again."
           />
         ) : (
-          <div className="grid gap-4">
-            <LineTrendChart
-              title="Total Revenue Trend"
-              subtitle="Daily total revenue across all active branches."
-              data={totalRevenueTrendData}
-              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
-              tooltipUnit="Revenue"
-              summaryLabel="Total Revenue"
-            />
-            <LineTrendChart
-              title="Total Orders Trend"
-              subtitle="Daily closed order volume across all active branches."
-              data={totalOrdersTrendData}
-              valueFormatter={(value) => String(Math.round(value))}
-              tooltipUnit="Orders"
-              summaryLabel="Total Orders"
-            />
-            <MultiLineTrendChart
-              title="Branch Revenue Trend"
-              subtitle="Revenue trajectory by branch."
-              series={branchRevenueSeries}
-              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
-              tooltipUnit="Revenue"
-              summaryLabel="Primary Branch Revenue"
-            />
-            <MultiLineTrendChart
-              title="Branch Orders Trend"
-              subtitle="Order volume trajectory by branch."
-              series={branchOrdersSeries}
-              valueFormatter={(value) => String(Math.round(value))}
-              tooltipUnit="Orders"
-              summaryLabel="Primary Branch Orders"
-            />
-            <MultiLineTrendChart
-              title="Branch Contribution Trend"
-              subtitle="Branch share of total revenue by day."
-              series={branchContributionSeries}
-              valueFormatter={(value) => `${value.toFixed(2)}%`}
-              tooltipUnit="Share"
-              summaryLabel="Primary Branch Share"
-            />
-            <MultiLineTrendChart
-              title="Top Item Family Trend"
-              subtitle="Top 5 category revenue trends across branches."
-              series={itemFamilySeries}
-              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
-              tooltipUnit="Revenue"
-              summaryLabel="Primary Family Revenue"
-            />
+          <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <LineTrendChart
+                title="Total Revenue"
+                subtitle="Daily total revenue across all active branches."
+                data={totalRevenueTrendData}
+                valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(0)}`}
+                tooltipUnit="Revenue"
+                summaryLabel="Total Revenue"
+              />
+              <LineTrendChart
+                title="Total Orders"
+                subtitle="Daily closed order volume across all active branches."
+                data={totalOrdersTrendData}
+                valueFormatter={(value) => String(Math.round(value))}
+                tooltipUnit="Orders"
+                summaryLabel="Total Orders"
+              />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <MultiLineTrendChart
+                title="Revenue by Branch"
+                subtitle="Revenue trajectory per branch."
+                series={branchRevenueSeries}
+                valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(0)}`}
+                tooltipUnit="Revenue"
+                summaryLabel="Top Branch Revenue"
+              />
+              <MultiLineTrendChart
+                title="Orders by Branch"
+                subtitle="Order volume trajectory per branch."
+                series={branchOrdersSeries}
+                valueFormatter={(value) => String(Math.round(value))}
+                tooltipUnit="Orders"
+                summaryLabel="Top Branch Orders"
+              />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <MultiLineTrendChart
+                title="Branch Contribution Share"
+                subtitle="Each branch's share of total daily revenue."
+                series={branchContributionSeries}
+                valueFormatter={(value) => `${value.toFixed(1)}%`}
+                tooltipUnit="Share"
+                summaryLabel="Top Branch Share"
+              />
+              <MultiLineTrendChart
+                title="Top Item Family Trends"
+                subtitle="Top 5 category revenue trends across branches."
+                series={itemFamilySeries}
+                valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toFixed(0)}`}
+                tooltipUnit="Revenue"
+                summaryLabel="Top Family Revenue"
+              />
+            </div>
           </div>
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-heading-sm font-semibold text-stone-900">Branch Performance Report</h3>
-            <p className="mt-1 text-body-sm text-stone-500">Revenue, order count, and prep-time comparison by branch.</p>
+            <h3 className="text-heading-md font-semibold text-stone-900">Branch Performance Report</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">Revenue, order count, and prep-time comparison by branch.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-[1fr_1fr_auto_auto]">
             <Input label="Start" type="date" value={branchStartDate} onChange={(event) => setBranchStartDate(event.target.value)} />
             <Input label="End" type="date" value={branchEndDate} onChange={(event) => setBranchEndDate(event.target.value)} />
-            <div className="flex items-end gap-2">
+            <div className="flex items-end">
               <Button onClick={() => void runBranchReport()} isLoading={isLoadingBranchReport}>Run</Button>
+            </div>
+            <div className="flex items-end">
               <Popover
                 trigger={<Button variant="secondary" leftIcon={<Download size={16} />} isLoading={isExportingBranchReport}>Export</Button>}
                 className="w-44"
@@ -708,38 +718,39 @@ export default function DirectorDashboardPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-heading-sm font-semibold text-stone-900">Staff Performance Report</h3>
-            <p className="mt-1 text-body-sm text-stone-500">Cross-branch staff metrics with branch and role filters.</p>
-          </div>
-          <div className="grid gap-2 md:grid-cols-4">
-            <Input label="Start" type="date" value={staffStartDate} onChange={(event) => setStaffStartDate(event.target.value)} />
-            <Input label="End" type="date" value={staffEndDate} onChange={(event) => setStaffEndDate(event.target.value)} />
-            <Select
-              label="Branch"
-              value={staffBranchId}
-              options={branches.map((branch) => ({ value: branch.id, label: branch.name }))}
-              placeholder="Select branch"
-              onChange={(event) => setStaffBranchId(event.target.value)}
-            />
-            <Select
-              label="Role"
-              value={staffRole}
-              options={[
-                { value: 'ALL', label: 'All Roles' },
-                { value: 'WAITER', label: 'Waiter' },
-                { value: 'CHEF', label: 'Chef' },
-                { value: 'BARISTA', label: 'Barista' },
-              ]}
-              onChange={(event) => setStaffRole(event.target.value)}
-            />
+            <h3 className="text-heading-md font-semibold text-stone-900">Staff Performance Report</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">Cross-branch staff metrics with branch and role filters.</p>
           </div>
         </div>
 
+        <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+          <Input label="Start" type="date" value={staffStartDate} onChange={(event) => setStaffStartDate(event.target.value)} />
+          <Input label="End" type="date" value={staffEndDate} onChange={(event) => setStaffEndDate(event.target.value)} />
+          <Select
+            label="Branch"
+            value={staffBranchId}
+            options={branches.map((branch) => ({ value: branch.id, label: branch.name }))}
+            placeholder="Select branch"
+            onChange={(event) => setStaffBranchId(event.target.value)}
+          />
+          <Select
+            label="Role"
+            value={staffRole}
+            options={[
+              { value: 'ALL', label: 'All Roles' },
+              { value: 'WAITER', label: 'Waiter' },
+              { value: 'CHEF', label: 'Chef' },
+              { value: 'BARISTA', label: 'Barista' },
+            ]}
+            onChange={(event) => setStaffRole(event.target.value)}
+          />
+        </div>
+
         <div className="mb-4 flex gap-2">
-          <Button onClick={() => void runStaffReport()} isLoading={isLoadingStaffReport}>Run Staff Report</Button>
+          <Button onClick={() => void runStaffReport()} isLoading={isLoadingStaffReport}>Run Report</Button>
           <Popover
             trigger={<Button variant="secondary" leftIcon={<Download size={16} />} isLoading={isExportingStaffReport}>Export</Button>}
             className="w-44"

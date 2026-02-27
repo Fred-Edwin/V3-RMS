@@ -376,19 +376,35 @@ export default function DashboardPage(): JSX.Element {
   if (role === 'CHEF' || role === 'BARISTA') {
     return (
       <PageLayout className="space-y-6">
-        <PageHeader
-          title={`Good morning, ${user?.name ?? 'Staff'}`}
-          subtitle="Your preparation queue snapshot"
-          action={
-            <Button onClick={() => router.push(role === 'CHEF' ? '/app/kitchen' : '/app/barista')}>
-              Go to {role === 'CHEF' ? 'Kitchen Display' : 'Barista Display'}
-            </Button>
-          }
-        />
+        <header className="mb-6 flex items-start justify-between border-b border-stone-200 pb-4">
+          <div className="min-w-0 pr-4">
+            <h1 className="text-heading-lg font-sans font-semibold leading-tight text-stone-900 sm:text-heading-xl">
+              {`Good ${greetingTime}, ${displayFirstName}`}
+            </h1>
+            <p className="mt-1 text-body-md text-stone-500">Your preparation queue snapshot</p>
+          </div>
+          <Link
+            href="/app/profile"
+            aria-label="Open profile"
+            className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <Avatar name={headerAvatarName} size="md" />
+          </Link>
+        </header>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <StatCard label="Tickets Completed Today" value={String(ticketsCompletedToday)} />
-          <StatCard label="Avg Prep Time Today" value={`${avgPrepMinutesToday} min`} />
+          <StatCard
+            className="p-4"
+            label="Tickets Completed Today"
+            value={String(ticketsCompletedToday)}
+            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
+          />
+          <StatCard
+            className="p-4"
+            label="Avg Prep Time Today"
+            value={`${avgPrepMinutesToday} min`}
+            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
+          />
         </div>
 
         <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />

@@ -559,15 +559,16 @@ export default function ShiftManagementPage(): JSX.Element {
   ];
 
   return (
-    <PageLayout className="animate-fade-up space-y-8">
+    <PageLayout className="animate-fade-up space-y-6">
       <PageHeader
         title="Shift Management"
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Manage shift definitions, weekly assignments, and daily attendance."
         action={<Button onClick={openCreateShiftModal}>Add Shift</Button>}
       />
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-heading-sm font-semibold text-stone-900">Shift Definitions</h2>
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Shift Definitions</h2>
         {isLoading ? (
           <SkeletonTable rows={4} columns={4} />
         ) : shifts.length === 0 ? (
@@ -582,10 +583,10 @@ export default function ShiftManagementPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-heading-sm font-semibold text-stone-900">Weekly Schedule</h2>
+            <h2 className="text-heading-md font-semibold text-stone-900">Weekly Schedule</h2>
             <p className="text-body-sm text-stone-500">{formatWeekRange(weekStart)}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -618,45 +619,49 @@ export default function ShiftManagementPage(): JSX.Element {
           <div className="w-full overflow-x-auto">
             <table className="w-full min-w-[920px]">
               <thead>
-                <tr>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
+                <tr className="border-b-2 border-stone-100">
+                  <th className="h-10 px-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
                     Staff
                   </th>
-                  {weekDays.map((day) => (
-                    <th
-                      key={dateToYmd(day)}
-                      className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500"
-                    >
-                      <div>{day.toLocaleDateString([], { weekday: 'short' })}</div>
-                      <div className="text-caption normal-case tracking-normal text-stone-400">
-                        {day.toLocaleDateString([], { day: 'numeric', month: 'short' })}
-                      </div>
-                    </th>
-                  ))}
+                  {weekDays.map((day) => {
+                    const isToday = dateToYmd(day) === todayDateKey;
+                    return (
+                      <th
+                        key={dateToYmd(day)}
+                        className={`h-10 px-3 text-left text-label-sm font-semibold uppercase tracking-wider ${isToday ? 'text-espresso' : 'text-stone-400'}`}
+                      >
+                        <div>{day.toLocaleDateString([], { weekday: 'short' })}</div>
+                        <div className={`normal-case tracking-normal text-caption ${isToday ? 'font-semibold text-espresso' : 'text-stone-400'}`}>
+                          {day.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-stone-100">
                 {staff.map((person) => (
-                  <tr key={person.id} className="border-b border-stone-100">
+                  <tr key={person.id}>
                     <td className="px-3 py-3">
                       <div className="text-body-sm font-medium text-stone-900">{person.name}</div>
-                      <div className="text-caption text-stone-500">{person.role}</div>
+                      <div className="text-caption text-stone-400">{person.role}</div>
                     </td>
                     {weekDays.map((day) => {
                       const dateKey = dateToYmd(day);
                       const isPastDate = dateKey < todayDateKey;
+                      const isToday = dateKey === todayDateKey;
                       const assignment = assignmentsBySlot.get(`${person.id}|${dateKey}`);
                       return (
-                        <td key={dateKey} className="px-3 py-3 align-top">
+                        <td key={dateKey} className={`px-2 py-2.5 align-top ${isToday ? 'bg-crema/30' : ''}`}>
                           {assignment ? (
-                            <div className="rounded-md border border-stone-200 bg-stone-100 p-2">
+                            <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-sm">
                               <p className="text-body-sm font-medium text-stone-900">{assignment.shift.name}</p>
-                              <p className="text-caption text-stone-500">
-                                {assignment.shift.startTime} - {assignment.shift.endTime}
+                              <p className="text-caption text-stone-400">
+                                {assignment.shift.startTime}–{assignment.shift.endTime}
                               </p>
                               <button
                                 type="button"
-                                className="mt-1 text-caption text-[#991B1B] underline"
+                                className="mt-1 text-caption text-[#991B1B]/70 underline hover:text-[#991B1B]"
                                 onClick={() => setAssignmentPendingDelete(assignment)}
                               >
                                 Remove
@@ -664,11 +669,15 @@ export default function ShiftManagementPage(): JSX.Element {
                             </div>
                           ) : (
                             isPastDate ? (
-                              <span className="text-caption text-stone-400">Past</span>
+                              <span className="text-caption text-stone-300">—</span>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => openAssignModal(person.id, dateKey)}>
+                              <button
+                                type="button"
+                                className="rounded-md px-2 py-1 text-caption font-medium text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                                onClick={() => openAssignModal(person.id, dateKey)}
+                              >
                                 + Assign
-                              </Button>
+                              </button>
                             )
                           )}
                         </td>
@@ -682,8 +691,8 @@ export default function ShiftManagementPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-heading-sm font-semibold text-stone-900">Today&apos;s Attendance</h2>
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Today&apos;s Attendance</h2>
         {isLoading ? (
           <SkeletonTable rows={4} columns={7} />
         ) : attendanceRows.length === 0 ? (
@@ -837,8 +846,8 @@ export default function ShiftManagementPage(): JSX.Element {
               }))
             }
             options={[
-              { value: 'CLOCK_IN', label: 'CLOCK_IN' },
-              { value: 'CLOCK_OUT', label: 'CLOCK_OUT' },
+              { value: 'CLOCK_IN', label: 'Clock In' },
+              { value: 'CLOCK_OUT', label: 'Clock Out' },
             ]}
           />
           <Input

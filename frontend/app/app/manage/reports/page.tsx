@@ -191,43 +191,46 @@ export default function ManagerReportsPage(): JSX.Element {
     <PageLayout className="animate-fade-up space-y-6">
       <PageHeader
         title="Reports"
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Staff performance across the selected date range."
       />
 
-      <section className="grid gap-4 rounded-xl border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-4">
-        <Input
-          label="Start Date"
-          type="date"
-          value={startDate}
-          onChange={(event) => setStartDate(event.target.value)}
-        />
-        <Input
-          label="End Date"
-          type="date"
-          value={endDate}
-          onChange={(event) => setEndDate(event.target.value)}
-        />
-        <Select
-          label="Role Filter"
-          value={role}
-          options={[
-            { value: 'ALL', label: 'All Roles' },
-            { value: 'WAITER', label: 'Waiter' },
-            { value: 'CHEF', label: 'Chef' },
-            { value: 'BARISTA', label: 'Barista' },
-          ]}
-          onChange={(event) => setRole(event.target.value)}
-        />
-        <div className="flex items-end gap-2">
-          <Button className="w-full" onClick={() => void runReport()} isLoading={isLoading}>
-            Run Report
-          </Button>
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <Input
+            label="Start Date"
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+          />
+          <Input
+            label="End Date"
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+          />
+          <Select
+            label="Role Filter"
+            value={role}
+            options={[
+              { value: 'ALL', label: 'All Roles' },
+              { value: 'WAITER', label: 'Waiter' },
+              { value: 'CHEF', label: 'Chef' },
+              { value: 'BARISTA', label: 'Barista' },
+            ]}
+            onChange={(event) => setRole(event.target.value)}
+          />
+          <div className="col-span-2 flex items-end md:col-span-1">
+            <Button className="w-full" onClick={() => void runReport()} isLoading={isLoading}>
+              Run Report
+            </Button>
+          </div>
         </div>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div>
-          <h3 className="text-heading-sm font-semibold text-stone-900">Operational Trends</h3>
+          <h3 className="text-heading-md font-semibold text-stone-900">Operational Trends</h3>
           <p className="mt-1 text-body-sm text-stone-500">
             Trend analytics for orders, revenue, and prep velocity.
           </p>
@@ -245,9 +248,9 @@ export default function ManagerReportsPage(): JSX.Element {
             className="mt-4"
           />
         ) : (
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 space-y-4">
             <LineTrendChart
-              title="Total Orders Trend"
+              title="Total Orders"
               subtitle="Daily closed orders across the selected period."
               data={ordersTrendData}
               valueFormatter={(value) => String(Math.round(value))}
@@ -255,29 +258,29 @@ export default function ManagerReportsPage(): JSX.Element {
               summaryLabel="Total Orders"
             />
             <LineTrendChart
-              title="Total Revenue Trend"
+              title="Total Revenue"
               subtitle="Daily closed revenue for the selected period."
               data={revenueTrendData}
-              valueFormatter={(value) => `KES ${value.toFixed(2)}`}
+              valueFormatter={(value) => `KES ${value.toFixed(0)}`}
               tooltipUnit="Revenue"
               summaryLabel="Total Revenue"
             />
             <LineTrendChart
-              title="Average Prep Trend"
+              title="Avg Prep Time"
               subtitle="Daily average prep time (kitchen + barista)."
               data={prepTrendData}
               valueFormatter={(value) => `${Math.round(value)} min`}
-              tooltipUnit="Prep Min"
+              tooltipUnit="min"
               summaryLabel="Avg Prep"
             />
           </div>
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-heading-sm font-semibold text-stone-900">Staff Performance Results</h3>
+            <h3 className="text-heading-md font-semibold text-stone-900">Staff Performance</h3>
             <p className="mt-1 text-body-sm text-stone-500">
               {report
                 ? `${report.organizationName} · ${report.period.startDate} to ${report.period.endDate}`

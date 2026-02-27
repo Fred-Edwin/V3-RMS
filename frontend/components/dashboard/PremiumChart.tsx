@@ -1,5 +1,24 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
+
+function useContainerWidth(fallback = 320): [React.RefObject<HTMLDivElement>, number] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(fallback);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setWidth(Math.floor(entry.contentRect.width));
+    });
+    observer.observe(el);
+    setWidth(Math.floor(el.getBoundingClientRect().width));
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width];
+}
 
 interface ChartDatum {
   label: string;
@@ -211,6 +230,7 @@ export function LineTrendChart({
   const [range, setRange] = useState<RangeKey>('30d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const gradientId = useId();
+  const [containerRef, containerWidth] = useContainerWidth(320);
 
   useEffect(() => {
     if (!showRangeToggle) {
@@ -244,13 +264,13 @@ export function LineTrendChart({
     return data.slice(-30);
   }, [data, range, showRangeToggle]);
 
-  const width = Math.max(700, filteredData.length * 36);
-  const height = 220;
-  const paddingX = 44;
-  const paddingY = 20;
-  const innerWidth = width - paddingX * 2;
+  const width = containerWidth;
+  const height = 180;
+  const paddingX = 52;
+  const paddingY = 16;
+  const innerWidth = Math.max(width - paddingX * 2, 1);
   const innerHeight = height - paddingY * 2;
-  const yAxisTicks = 5;
+  const yAxisTicks = 4;
   const baselineY = height - paddingY;
 
   const safeData = filteredData.length > 0 ? filteredData : [{ label: '', value: 0 }];
@@ -321,17 +341,17 @@ export function LineTrendChart({
   const tooltipBody = hoveredPoint ? `${valueFormatter(hoveredPoint.value)} ${tooltipUnit}` : '';
 
   return (
-    <section className={cn('rounded-xl border border-stone-200 bg-white p-5 shadow-sm', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className={cn('rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-heading-sm font-semibold text-stone-900">{title}</h3>
-          {subtitle && <p className="mt-1 text-body-sm text-stone-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 text-body-sm text-stone-500">{subtitle}</p>}
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-label-md font-medium text-stone-600">{summaryLabel}:</span>
-            <span className="text-heading-md font-semibold text-espresso">{valueFormatter(totalOrders)}</span>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-label-md font-medium text-stone-500">{summaryLabel}:</span>
+            <span className="text-heading-sm font-semibold text-espresso">{valueFormatter(totalOrders)}</span>
             {trendBadge && (
               <span
                 className={cn(
@@ -347,7 +367,7 @@ export function LineTrendChart({
           </div>
 
           {showRangeToggle && (
-            <div className="inline-flex w-full items-center rounded-lg border border-stone-200 bg-stone-100 p-1">
+            <div className="inline-flex items-center rounded-lg border border-stone-200 bg-stone-100 p-1">
               {([
                 ['7d', '7D'],
                 ['30d', '30D'],
@@ -370,9 +390,8 @@ export function LineTrendChart({
         </div>
       </div>
 
-      <div className="mt-5 overflow-x-auto">
-        <div style={{ minWidth: `${width}px` }}>
-          <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title} className="w-full">
+      <div ref={containerRef} className="mt-4">
+        <svg width={width} height={height} role="img" aria-label={title}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#C4862A" stopOpacity="0.28" />
@@ -492,7 +511,6 @@ export function LineTrendChart({
               );
             })}
           </svg>
-        </div>
       </div>
     </section>
   );
@@ -509,6 +527,7 @@ export function MultiLineTrendChart({
 }: MultiLineTrendProps): JSX.Element {
   const [range, setRange] = useState<RangeKey>('30d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [containerRef, containerWidth] = useContainerWidth(320);
 
   useEffect(() => {
     const maxLength = Math.max(0, ...series.map((entry) => entry.data.length));
@@ -552,14 +571,14 @@ export function MultiLineTrendChart({
     });
   }, [filteredSeries, templateData]);
 
-  const width = Math.max(700, templateData.length * 36);
-  const height = 240;
-  const paddingX = 44;
-  const paddingY = 20;
-  const innerWidth = width - paddingX * 2;
+  const width = containerWidth;
+  const height = 180;
+  const paddingX = 52;
+  const paddingY = 16;
+  const innerWidth = Math.max(width - paddingX * 2, 1);
   const innerHeight = height - paddingY * 2;
   const baselineY = height - paddingY;
-  const yAxisTicks = 5;
+  const yAxisTicks = 4;
 
   const maxValue = Math.max(
     0,
@@ -639,16 +658,16 @@ export function MultiLineTrendChart({
   const tooltipHeight = 36 + tooltipSeriesValues.length * 14;
 
   return (
-    <section className={cn('rounded-xl border border-stone-200 bg-white p-5 shadow-sm', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <section className={cn('rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h3 className="text-heading-sm font-semibold text-stone-900">{title}</h3>
-          {subtitle && <p className="mt-1 text-body-sm text-stone-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 text-body-sm text-stone-500">{subtitle}</p>}
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-label-md font-medium text-stone-600">{summaryLabel}:</span>
-            <span className="text-heading-md font-semibold text-espresso">{valueFormatter(total)}</span>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-label-md font-medium text-stone-500">{summaryLabel}:</span>
+            <span className="text-heading-sm font-semibold text-espresso">{valueFormatter(total)}</span>
             {trendBadge && (
               <span
                 className={cn(
@@ -685,7 +704,7 @@ export function MultiLineTrendChart({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-3 flex flex-wrap gap-2">
         {alignedSeries.map((entry, index) => (
           <div key={entry.id} className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1">
             <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: getSeriesColor(index, entry.color) }} />
@@ -694,9 +713,8 @@ export function MultiLineTrendChart({
         ))}
       </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <div style={{ minWidth: `${width}px` }}>
-          <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title} className="w-full">
+      <div ref={containerRef} className="mt-4">
+        <svg width={width} height={height} role="img" aria-label={title}>
             {yTicks.map((tick) => (
               <g key={`${tick.y}-${tick.value}`}>
                 <line
@@ -803,7 +821,6 @@ export function MultiLineTrendChart({
               );
             })}
           </svg>
-        </div>
       </div>
     </section>
   );

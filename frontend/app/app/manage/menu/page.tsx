@@ -157,22 +157,24 @@ export default function Page(): JSX.Element {
         />
 
         <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_220px_220px_auto] lg:items-end">
-            <Input
-              id="branch-menu-search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search menu items"
-              leftIcon={<Search size={16} />}
-            />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,2fr)_180px_180px_auto] sm:items-end">
+            <div className="col-span-2 sm:col-span-1">
+              <Input
+                id="branch-menu-search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search menu items"
+                leftIcon={<Search size={16} />}
+              />
+            </div>
             <Select
               id="branch-menu-prep-station-filter"
               value={prepStationFilter}
               onChange={(event) => setPrepStationFilter(event.target.value as 'ALL' | 'KITCHEN' | 'BARISTA')}
               options={[
                 { value: 'ALL', label: 'All stations' },
-                { value: 'KITCHEN', label: 'KITCHEN' },
-                { value: 'BARISTA', label: 'BARISTA' },
+                { value: 'KITCHEN', label: 'Kitchen' },
+                { value: 'BARISTA', label: 'Barista' },
               ]}
             />
             <Select
@@ -195,7 +197,7 @@ export default function Page(): JSX.Element {
               }}
               disabled={!hasActiveFilters}
             >
-              Clear Filters
+              Clear
             </button>
           </div>
         </section>
@@ -222,12 +224,12 @@ export default function Page(): JSX.Element {
                 <p className="text-body-sm text-stone-500">{category.prepStation}</p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
                 {category.items.map((item) => {
                   const parsedPrice = Number.parseFloat(item.price);
 
                   return (
-                    <div key={item.id} className="rounded-md border border-stone-200 bg-white p-3 shadow-sm">
+                    <div key={item.id} className="rounded-xl border border-stone-200 bg-white p-2.5 shadow-sm sm:p-3">
                       <MenuItemCard
                         name={item.name}
                         description={item.description ?? undefined}

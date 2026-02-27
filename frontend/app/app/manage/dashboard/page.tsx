@@ -1,10 +1,9 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart2, Clock3, CreditCard, DollarSign, Users } from 'lucide-react';
+import { Activity, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Users } from 'lucide-react';
 import {
   EmptyState,
-  Input,
   OrderCard,
   PageHeader,
   PageLayout,
@@ -20,6 +19,20 @@ import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { DailySummary } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
+
+const formatDisplayDate = (ymd: string): string => {
+  const parsed = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return ymd;
+  }
+
+  return parsed.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
 
 const toYmd = (value: Date): string => {
   const year = value.getFullYear();
@@ -204,7 +217,8 @@ export default function ManagerDashboardPage(): JSX.Element {
   }, [dailySummary]);
 
   const isTodaySelected = selectedDate === todayDate;
-  const topCardLabelSuffix = isTodaySelected ? 'Today' : '(Selected Date)';
+  const topCardLabelSuffix = isTodaySelected ? 'Today' : formatDisplayDate(selectedDate);
+  const formattedSelectedDate = formatDisplayDate(selectedDate);
   const hasClosedOrdersForSelectedDate = (dailySummary?.orderCount ?? 0) > 0;
 
   return (
@@ -212,46 +226,51 @@ export default function ManagerDashboardPage(): JSX.Element {
       <PageHeader
         title="Manager Dashboard"
         subtitle="Live operations and daily branch insights."
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard
-          label={`Orders ${topCardLabelSuffix}`}
+          label="Orders"
           value={dailySummary?.orderCount ?? 0}
-          caption={selectedDate}
+          caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<Activity size={18} />}
         />
         <StatCard
-          label={`Revenue ${topCardLabelSuffix}`}
+          label="Revenue"
           value={`KES ${dailySummary?.totalRevenue ?? '0.00'}`}
-          caption={selectedDate}
+          caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<DollarSign size={18} />}
         />
         <StatCard
-          label={`Avg Prep ${topCardLabelSuffix}`}
+          label="Avg Prep"
           value={`${summaryAvgPrep} min`}
-          caption={selectedDate}
+          caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<Clock3 size={18} />}
+          className="col-span-2 sm:col-span-1"
         />
       </section>
 
       {!hasClosedOrdersForSelectedDate && (
-        <div className="rounded-lg border border-amber/40 bg-amber/10 px-4 py-3 text-body-sm text-stone-700">
-          No closed orders found for {selectedDate}. Reporting totals are computed from closed orders only.
+        <div className="flex items-start gap-3 rounded-xl border border-amber/30 bg-amber/8 px-4 py-3">
+          <CalendarDays size={16} className="mt-0.5 shrink-0 text-amber" />
+          <p className="text-body-sm text-stone-700">
+            No closed orders for <span className="font-medium">{formattedSelectedDate}</span>. Totals reflect closed orders only.
+          </p>
         </div>
       )}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-          <h3 className="text-heading-sm font-semibold text-stone-900">Active Orders Feed</h3>
-          <p className="mt-1 text-body-sm text-stone-500">Real-time branch order activity.</p>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+          <h3 className="text-heading-md font-semibold text-stone-900">Active Orders Feed</h3>
+          <p className="mt-0.5 text-body-sm text-stone-500">Real-time branch order activity.</p>
 
           <div className="mt-4 space-y-3">
             {isLoadingOrders ? (
               <SkeletonTable rows={4} columns={2} />
             ) : activeOrders.length === 0 ? (
               <EmptyState
-                icon={<BarChart2 size={22} />}
+                icon={<ClipboardList size={22} />}
                 heading="No active orders"
                 body="New incoming orders will appear here in real time."
               />
@@ -270,11 +289,11 @@ export default function ManagerDashboardPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-          <h3 className="text-heading-sm font-semibold text-stone-900">Staff On Shift Today</h3>
-          <p className="mt-1 text-body-sm text-stone-500">Clock-in status and override visibility.</p>
+        <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+          <h3 className="text-heading-md font-semibold text-stone-900">Staff On Shift Today</h3>
+          <p className="mt-0.5 text-body-sm text-stone-500">Clock-in status and override visibility.</p>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 divide-y divide-stone-100">
             {isLoadingShifts ? (
               <SkeletonTable rows={4} columns={3} />
             ) : shiftAssignments.length === 0 ? (
@@ -289,7 +308,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                 return (
                   <div
                     key={assignment.id}
-                    className="flex items-center justify-between rounded-md border border-stone-200 px-3 py-2"
+                    className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
                   >
                     <div>
                       <p className="text-body-sm font-medium text-stone-900">{assignment.user.name}</p>
@@ -309,19 +328,22 @@ export default function ManagerDashboardPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-heading-sm font-semibold text-stone-900">Daily Summary Panel</h3>
-            <p className="mt-1 text-body-sm text-stone-500">Revenue, order mix, top items, and payment breakdown.</p>
+            <h3 className="font-display text-display-lg font-semibold text-espresso">Daily Summary</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">Revenue, order mix, top items, and payment breakdown.</p>
           </div>
-          <Input
-            type="date"
-            label="Date"
-            value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
-            className="w-full md:w-60"
-          />
+          <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-label-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-stone-100">
+            <CalendarDays size={14} className="shrink-0 text-stone-500" />
+            <span>{formattedSelectedDate}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
         </div>
 
         {isLoadingSummary ? (
@@ -339,21 +361,21 @@ export default function ManagerDashboardPage(): JSX.Element {
           <div className="mt-5 space-y-6">
             {!hasClosedOrdersForSelectedDate && (
               <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-body-sm text-stone-600">
-                No closed orders were recorded for {selectedDate}. Active orders still appear in the Live Operations panel.
+                No closed orders were recorded for {formattedSelectedDate}. Active orders still appear in the Live Operations panel.
               </div>
             )}
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               <StatCard label="Total Revenue" value={`KES ${dailySummary.totalRevenue}`} icon={<DollarSign size={16} />} />
               <StatCard label="Closed Orders" value={dailySummary.orderCount} icon={<Activity size={16} />} />
               <StatCard
                 label="Top Item"
-                value={dailySummary.topItems[0]?.name ?? '-'}
+                value={dailySummary.topItems[0]?.name ?? '—'}
                 caption={dailySummary.topItems[0] ? `Qty ${dailySummary.topItems[0].quantitySold}` : undefined}
                 icon={<BarChart2 size={16} />}
               />
               <StatCard
-                label="Prep (K/B)"
-                value={`${dailySummary.averagePrepTimeMinutes.KITCHEN}/${dailySummary.averagePrepTimeMinutes.BARISTA} min`}
+                label="Prep K / B"
+                value={`${dailySummary.averagePrepTimeMinutes.KITCHEN} / ${dailySummary.averagePrepTimeMinutes.BARISTA} min`}
                 icon={<Clock3 size={16} />}
               />
             </div>
@@ -370,23 +392,28 @@ export default function ManagerDashboardPage(): JSX.Element {
               />
             </div>
 
-            <div className="rounded-lg border border-stone-200 bg-stone-50 p-4">
-              <h4 className="text-label-lg font-semibold text-stone-900">Top 5 Selling Items</h4>
-              <div className="mt-3 space-y-2">
-                {dailySummary.topItems.length === 0 ? (
-                  <p className="text-body-sm text-stone-500">No sales data for this date.</p>
-                ) : (
-                  dailySummary.topItems.map((item, index) => (
+            <div>
+              <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Top 5 Selling Items</h4>
+              {dailySummary.topItems.length === 0 ? (
+                <p className="text-body-sm text-stone-500">No sales data for this date.</p>
+              ) : (
+                <div className="divide-y divide-stone-100">
+                  {dailySummary.topItems.map((item, index) => (
                     <div
                       key={item.menuItemId}
-                      className="flex items-center justify-between rounded-md border border-stone-200 bg-white px-3 py-2"
+                      className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
                     >
-                      <span className="text-body-sm text-stone-800">{index + 1}. {item.name}</span>
-                      <span className="text-label-sm font-semibold text-espresso">{item.quantitySold}</span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">
+                          {index + 1}
+                        </span>
+                        <span className="text-body-sm text-stone-800">{item.name}</span>
+                      </div>
+                      <span className="text-label-sm font-semibold text-espresso">{item.quantitySold} sold</span>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

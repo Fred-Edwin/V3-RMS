@@ -255,22 +255,19 @@ export default function DeliveryZonesPage(): JSX.Element {
     <PageLayout className="animate-fade-up space-y-6">
       <PageHeader
         title="Delivery Zones"
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Manage delivery coverage and fee bands."
-        action={
-          <Button onClick={openCreateModal}>
-            Add Zone
-          </Button>
-        }
+        action={<Button onClick={openCreateModal}>Add Zone</Button>}
       />
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         {isLoading ? (
           <SkeletonTable columns={4} rows={5} />
         ) : tableData.length === 0 ? (
           <EmptyState
             icon={<Bike size={24} />}
             heading="No delivery zones yet"
-            body="Add a zone to enable delivery orders."
+            body="Add your first zone to enable delivery orders for this branch."
             action={<Button onClick={openCreateModal}>Add Zone</Button>}
           />
         ) : (
@@ -312,12 +309,14 @@ export default function DeliveryZonesPage(): JSX.Element {
             disabled={isSubmitting}
           />
           {editingZone && (
-            <Toggle
-              checked={form.isActive}
-              onChange={(checked) => setForm((current) => ({ ...current, isActive: checked }))}
-              label={form.isActive ? 'Active' : 'Inactive'}
-              disabled={isSubmitting}
-            />
+            <div className="rounded-lg border border-stone-100 bg-stone-50 px-4 py-3">
+              <Toggle
+                checked={form.isActive}
+                onChange={(checked) => setForm((current) => ({ ...current, isActive: checked }))}
+                label={form.isActive ? 'Zone is active — accepting delivery orders' : 'Zone is inactive — hidden from orders'}
+                disabled={isSubmitting}
+              />
+            </div>
           )}
         </form>
       </Modal>

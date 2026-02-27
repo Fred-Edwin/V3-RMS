@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, ShieldCheck, Users } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -16,6 +16,7 @@ import {
   PageHeader,
   PageLayout,
   Select,
+  SkeletonTable,
   StatCard,
   Table,
   type TableColumn,
@@ -94,13 +95,17 @@ export default function Page(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Branch modals
+  const [createBranchModalOpen, setCreateBranchModalOpen] = useState(false);
   const [branchForm, setBranchForm] = useState<BranchFormState>(initialBranchForm);
-  const [editBranchForm, setEditBranchForm] = useState<BranchFormState>(initialBranchForm);
-  const [userForm, setUserForm] = useState<UserFormState>(initialUserForm);
-
   const [editBranchModalOpen, setEditBranchModalOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<BranchDto | null>(null);
+  const [editBranchForm, setEditBranchForm] = useState<BranchFormState>(initialBranchForm);
   const [hubTarget, setHubTarget] = useState<BranchDto | null>(null);
+
+  // User modals
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
+  const [userForm, setUserForm] = useState<UserFormState>(initialUserForm);
   const [toggleUserTarget, setToggleUserTarget] = useState<StaffDto | null>(null);
 
   useEffect(() => {
@@ -125,11 +130,7 @@ export default function Page(): JSX.Element {
       setUsers([...directors, ...managers]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
-      toast({
-        variant: 'error',
-        title: 'Load failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Load failed', message });
     } finally {
       setIsLoading(false);
     }
@@ -168,47 +169,28 @@ export default function Page(): JSX.Element {
 
   const handleCreateBranch = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!accessToken) {
-      return;
-    }
+    if (!accessToken) return;
 
     const latitude = Number.parseFloat(branchForm.latitude);
     const longitude = Number.parseFloat(branchForm.longitude);
-
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      toast({
-        variant: 'warning',
-        title: 'Invalid coordinates',
-        message: 'Latitude and longitude must be valid numbers.',
-      });
+      toast({ variant: 'warning', title: 'Invalid coordinates', message: 'Latitude and longitude must be valid numbers.' });
       return;
     }
 
     setIsSubmitting(true);
     try {
       await branchService.createBranch(
-        {
-          name: branchForm.name.trim(),
-          address: branchForm.address.trim(),
-          city: branchForm.city.trim(),
-          latitude,
-          longitude,
-        },
+        { name: branchForm.name.trim(), address: branchForm.address.trim(), city: branchForm.city.trim(), latitude, longitude },
         accessToken,
       );
       setBranchForm(initialBranchForm);
-      toast({
-        variant: 'success',
-        title: 'Branch created',
-      });
+      setCreateBranchModalOpen(false);
+      toast({ variant: 'success', title: 'Branch created' });
       await loadData();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to create branch.';
-      toast({
-        variant: 'error',
-        title: 'Create failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Create failed', message });
     } finally {
       setIsSubmitting(false);
     }
@@ -228,19 +210,12 @@ export default function Page(): JSX.Element {
 
   const handleUpdateBranch = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!accessToken || !editingBranch) {
-      return;
-    }
+    if (!accessToken || !editingBranch) return;
 
     const latitude = Number.parseFloat(editBranchForm.latitude);
     const longitude = Number.parseFloat(editBranchForm.longitude);
-
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      toast({
-        variant: 'warning',
-        title: 'Invalid coordinates',
-        message: 'Latitude and longitude must be valid numbers.',
-      });
+      toast({ variant: 'warning', title: 'Invalid coordinates', message: 'Latitude and longitude must be valid numbers.' });
       return;
     }
 
@@ -248,55 +223,33 @@ export default function Page(): JSX.Element {
     try {
       await branchService.updateBranch(
         editingBranch.id,
-        {
-          name: editBranchForm.name.trim(),
-          address: editBranchForm.address.trim(),
-          city: editBranchForm.city.trim(),
-          latitude,
-          longitude,
-        },
+        { name: editBranchForm.name.trim(), address: editBranchForm.address.trim(), city: editBranchForm.city.trim(), latitude, longitude },
         accessToken,
       );
       setEditBranchModalOpen(false);
       setEditingBranch(null);
-      toast({
-        variant: 'success',
-        title: 'Branch updated',
-      });
+      toast({ variant: 'success', title: 'Branch updated' });
       await loadData();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to update branch.';
-      toast({
-        variant: 'error',
-        title: 'Update failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Update failed', message });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleConfirmSetHub = async (): Promise<void> => {
-    if (!accessToken || !hubTarget) {
-      return;
-    }
+    if (!accessToken || !hubTarget) return;
 
     setIsSubmitting(true);
     try {
       await branchService.setHub(hubTarget.id, accessToken);
       setHubTarget(null);
-      toast({
-        variant: 'success',
-        title: 'Hub branch updated',
-      });
+      toast({ variant: 'success', title: 'Hub branch updated' });
       await loadData();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to set hub branch.';
-      toast({
-        variant: 'error',
-        title: 'Hub update failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Hub update failed', message });
     } finally {
       setIsSubmitting(false);
     }
@@ -304,16 +257,10 @@ export default function Page(): JSX.Element {
 
   const handleCreateUser = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!accessToken) {
-      return;
-    }
+    if (!accessToken) return;
 
     if (userForm.role === 'MANAGER' && !userForm.organizationId) {
-      toast({
-        variant: 'warning',
-        title: 'Branch required',
-        message: 'Select a branch before creating a manager.',
-      });
+      toast({ variant: 'warning', title: 'Branch required', message: 'Select a branch before creating a manager.' });
       return;
     }
 
@@ -331,27 +278,19 @@ export default function Page(): JSX.Element {
         accessToken,
       );
       setUserForm(initialUserForm);
-      toast({
-        variant: 'success',
-        title: 'Account created',
-      });
+      setCreateUserModalOpen(false);
+      toast({ variant: 'success', title: 'Account created' });
       await loadData();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to create account.';
-      toast({
-        variant: 'error',
-        title: 'Create failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Create failed', message });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleConfirmToggleUser = async (): Promise<void> => {
-    if (!accessToken || !toggleUserTarget) {
-      return;
-    }
+    if (!accessToken || !toggleUserTarget) return;
 
     setIsSubmitting(true);
     try {
@@ -361,18 +300,11 @@ export default function Page(): JSX.Element {
         await staffService.reactivateStaff(toggleUserTarget.id, accessToken);
       }
       setToggleUserTarget(null);
-      toast({
-        variant: 'success',
-        title: 'Account status updated',
-      });
+      toast({ variant: 'success', title: 'Account status updated' });
       await loadData();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to update account status.';
-      toast({
-        variant: 'error',
-        title: 'Status update failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Status update failed', message });
     } finally {
       setIsSubmitting(false);
     }
@@ -384,36 +316,41 @@ export default function Page(): JSX.Element {
       label: 'Branch',
       render: (_value, row) => (
         <div>
-          <p className="text-body-sm text-stone-900">{row.branch.name}</p>
-          <p className="text-caption text-stone-500">{row.branch.address}</p>
+          <p className="text-body-sm font-medium text-stone-900">{row.branch.name}</p>
+          <p className="text-caption text-stone-400">{row.branch.address}</p>
         </div>
       ),
     },
     {
       key: 'city',
       label: 'City',
+      render: (_value, row) => <span className="text-body-sm text-stone-700">{row.branch.city}</span>,
     },
     {
       key: 'isHub',
       label: 'Hub',
-      render: (_value, row) => (row.branch.isHub ? 'Hub' : 'No'),
+      render: (_value, row) =>
+        row.branch.isHub ? (
+          <span className="inline-flex rounded-full border border-amber/40 bg-amber/10 px-2.5 py-0.5 text-label-sm font-semibold text-[#92400E]">
+            Hub
+          </span>
+        ) : (
+          <span className="text-caption text-stone-400">—</span>
+        ),
     },
     {
       key: 'isActive',
       label: 'Status',
       render: (_value, row) => (
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-label-sm font-medium ${
-            row.branch.isActive ? statusPillClass.active : statusPillClass.inactive
-          }`}
-        >
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-medium ${row.branch.isActive ? statusPillClass.active : statusPillClass.inactive}`}>
           {row.branch.isActive ? 'Active' : 'Inactive'}
         </span>
       ),
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
+      className: 'w-[160px]',
       render: (_value, row) => (
         <div className="flex items-center gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={() => openEditBranchModal(row.branch)}>
@@ -431,36 +368,51 @@ export default function Page(): JSX.Element {
     {
       key: 'name',
       label: 'Name',
-    },
-    {
-      key: 'email',
-      label: 'Email',
+      render: (_value, row) => (
+        <div>
+          <p className="text-body-sm font-medium text-stone-900">{row.user.name}</p>
+          <p className="text-caption text-stone-400">{row.user.email}</p>
+        </div>
+      ),
     },
     {
       key: 'role',
       label: 'Role',
+      render: (_value, row) => {
+        const isDirector = row.user.role === 'DIRECTOR';
+        return (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-semibold ${
+              isDirector
+                ? 'border border-[#C4862A]/30 bg-[#FEF0E0] text-[#A04F0A]'
+                : 'border border-stone-200 bg-stone-100 text-stone-700'
+            }`}
+          >
+            {isDirector ? 'Director' : 'Manager'}
+          </span>
+        );
+      },
     },
     {
       key: 'organizationName',
       label: 'Branch',
-      render: (_value, row) => row.user.organizationName ?? 'System',
+      render: (_value, row) => (
+        <span className="text-body-sm text-stone-600">{row.user.organizationName ?? <span className="text-stone-400">System</span>}</span>
+      ),
     },
     {
       key: 'isActive',
       label: 'Status',
       render: (_value, row) => (
-        <span
-          className={`inline-flex rounded-full px-3 py-1 text-label-sm font-medium ${
-            row.user.isActive ? statusPillClass.active : statusPillClass.inactive
-          }`}
-        >
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-medium ${row.user.isActive ? statusPillClass.active : statusPillClass.inactive}`}>
           {row.user.isActive ? 'Active' : 'Inactive'}
         </span>
       ),
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: '',
+      className: 'w-[120px]',
       render: (_value, row) => (
         <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
           {row.user.isActive ? 'Deactivate' : 'Reactivate'}
@@ -469,173 +421,168 @@ export default function Page(): JSX.Element {
     },
   ];
 
+  const activeBranches = branches.filter((b) => b.isActive).length;
+  const managerCount = users.filter((u) => u.role === 'MANAGER').length;
+  const directorCount = users.filter((u) => u.role === 'DIRECTOR').length;
+
   return (
     <>
-      <PageLayout>
+      <PageLayout className="animate-fade-up space-y-6">
         <PageHeader
-          title="System Admin Dashboard"
+          title="System Admin"
+          titleClassName="font-display text-display-lg font-semibold text-espresso"
           subtitle="Manage branches, leadership accounts, and system configuration."
           action={
-            <Button type="button" variant="secondary" onClick={() => router.push('/app/admin/menu')}>
-              Go to Menu Management
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push('/app/admin/menu')}
+            >
+              Master Menu
             </Button>
           }
         />
 
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard
-            value={branches.length}
-            label="Branches"
+            value={activeBranches}
+            label="Active Branches"
             icon={<Building2 size={18} />}
-            caption="Total registered branches"
+            caption={`${branches.length} total`}
           />
           <StatCard
-            value={users.filter((user) => user.role === 'MANAGER').length}
+            value={managerCount}
             label="Managers"
             icon={<Users size={18} />}
-            caption="Active and inactive manager accounts"
           />
           <StatCard
-            value={users.filter((user) => user.role === 'DIRECTOR').length}
+            value={directorCount}
             label="Directors"
             icon={<ShieldCheck size={18} />}
-            caption="System-wide leadership accounts"
+            className="col-span-2 sm:col-span-1"
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
-          <section className="space-y-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 className="text-heading-md font-semibold text-stone-900">Branches</h2>
-            <Table<BranchRow> columns={branchColumns} data={branchRows} keyField="id" />
-
-            <form className="space-y-4 border-t border-stone-200 pt-4" onSubmit={(event) => void handleCreateBranch(event)}>
-              <h3 className="text-heading-sm font-semibold text-stone-900">Create Branch</h3>
-              <FormField label="Name" htmlFor="branch-name" required>
-                <Input
-                  id="branch-name"
-                  value={branchForm.name}
-                  onChange={(event) => setBranchForm((prev) => ({ ...prev, name: event.target.value }))}
-                />
-              </FormField>
-              <FormField label="Address" htmlFor="branch-address" required>
-                <Input
-                  id="branch-address"
-                  value={branchForm.address}
-                  onChange={(event) => setBranchForm((prev) => ({ ...prev, address: event.target.value }))}
-                />
-              </FormField>
-              <FormField label="City" htmlFor="branch-city" required>
-                <Input
-                  id="branch-city"
-                  value={branchForm.city}
-                  onChange={(event) => setBranchForm((prev) => ({ ...prev, city: event.target.value }))}
-                />
-              </FormField>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <FormField label="Latitude" htmlFor="branch-latitude" required>
-                  <Input
-                    id="branch-latitude"
-                    value={branchForm.latitude}
-                    onChange={(event) => setBranchForm((prev) => ({ ...prev, latitude: event.target.value }))}
-                  />
-                </FormField>
-                <FormField label="Longitude" htmlFor="branch-longitude" required>
-                  <Input
-                    id="branch-longitude"
-                    value={branchForm.longitude}
-                    onChange={(event) => setBranchForm((prev) => ({ ...prev, longitude: event.target.value }))}
-                  />
-                </FormField>
-              </div>
-              <Button type="submit" isLoading={isSubmitting}>
-                Create Branch
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          {/* Branches */}
+          <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-heading-md font-semibold text-stone-900">Branches</h2>
+              <Button
+                type="button"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => {
+                  setBranchForm(initialBranchForm);
+                  setCreateBranchModalOpen(true);
+                }}
+              >
+                Add Branch
               </Button>
-            </form>
+            </div>
+            {isLoading ? (
+              <SkeletonTable rows={4} columns={4} />
+            ) : (
+              <Table<BranchRow> columns={branchColumns} data={branchRows} keyField="id" />
+            )}
           </section>
 
-          <section className="space-y-4 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-            <h2 className="text-heading-md font-semibold text-stone-900">Leadership Accounts</h2>
-            <Table<UserRow> columns={userColumns} data={userRows} keyField="id" />
-
-            <form className="space-y-4 border-t border-stone-200 pt-4" onSubmit={(event) => void handleCreateUser(event)}>
-              <h3 className="text-heading-sm font-semibold text-stone-900">Create Director / Manager</h3>
-              <FormField label="Name" htmlFor="user-name" required>
-                <Input
-                  id="user-name"
-                  value={userForm.name}
-                  onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
-                />
-              </FormField>
-              <FormField label="Email" htmlFor="user-email" required>
-                <Input
-                  id="user-email"
-                  type="email"
-                  value={userForm.email}
-                  onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
-                />
-              </FormField>
-              <FormField label="Phone" htmlFor="user-phone">
-                <Input
-                  id="user-phone"
-                  value={userForm.phone}
-                  onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
-                />
-              </FormField>
-              <FormField label="Role" htmlFor="user-role" required>
-                <Select
-                  id="user-role"
-                  value={userForm.role}
-                  onChange={(event) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      role: event.target.value as AdminUserRole,
-                    }))
-                  }
-                  options={[
-                    { value: 'MANAGER', label: 'MANAGER' },
-                    { value: 'DIRECTOR', label: 'DIRECTOR' },
-                  ]}
-                />
-              </FormField>
-              {userForm.role === 'MANAGER' ? (
-                <FormField label="Branch" htmlFor="user-branch" required>
-                  <Select
-                    id="user-branch"
-                    placeholder="Select branch"
-                    value={userForm.organizationId}
-                    onChange={(event) => setUserForm((prev) => ({ ...prev, organizationId: event.target.value }))}
-                    options={branches.map((branch) => ({
-                      value: branch.id,
-                      label: branch.name,
-                    }))}
-                  />
-                </FormField>
-              ) : null}
-              <FormField label="Temporary Password" htmlFor="user-password" required>
-                <Input
-                  id="user-password"
-                  type="password"
-                  value={userForm.temporaryPassword}
-                  onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
-                />
-              </FormField>
-              <Button type="submit" isLoading={isSubmitting}>
-                Create Account
+          {/* Leadership Accounts */}
+          <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-heading-md font-semibold text-stone-900">Leadership Accounts</h2>
+              <Button
+                type="button"
+                size="sm"
+                leftIcon={<Plus size={14} />}
+                onClick={() => {
+                  setUserForm(initialUserForm);
+                  setCreateUserModalOpen(true);
+                }}
+              >
+                Add Account
               </Button>
-            </form>
+            </div>
+            {isLoading ? (
+              <SkeletonTable rows={4} columns={4} />
+            ) : (
+              <Table<UserRow> columns={userColumns} data={userRows} keyField="id" />
+            )}
           </section>
         </div>
-
-        {isLoading ? <p className="mt-6 text-body-sm text-stone-500">Loading latest data...</p> : null}
       </PageLayout>
 
+      {/* Create Branch Modal */}
+      <Modal
+        isOpen={createBranchModalOpen}
+        onClose={() => { if (!isSubmitting) setCreateBranchModalOpen(false); }}
+        title="Add Branch"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setCreateBranchModalOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-branch-form" isLoading={isSubmitting}>
+              Create Branch
+            </Button>
+          </div>
+        }
+      >
+        <form id="create-branch-form" className="space-y-4" onSubmit={(event) => void handleCreateBranch(event)}>
+          <FormField label="Branch Name" htmlFor="branch-name" required>
+            <Input
+              id="branch-name"
+              value={branchForm.name}
+              onChange={(event) => setBranchForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="e.g. Wendo Kimathi"
+            />
+          </FormField>
+          <FormField label="Address" htmlFor="branch-address" required>
+            <Input
+              id="branch-address"
+              value={branchForm.address}
+              onChange={(event) => setBranchForm((prev) => ({ ...prev, address: event.target.value }))}
+              placeholder="Street address"
+            />
+          </FormField>
+          <FormField label="City" htmlFor="branch-city" required>
+            <Input
+              id="branch-city"
+              value={branchForm.city}
+              onChange={(event) => setBranchForm((prev) => ({ ...prev, city: event.target.value }))}
+              placeholder="e.g. Nyeri"
+            />
+          </FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Latitude" htmlFor="branch-latitude" required>
+              <Input
+                id="branch-latitude"
+                value={branchForm.latitude}
+                onChange={(event) => setBranchForm((prev) => ({ ...prev, latitude: event.target.value }))}
+                placeholder="-0.4167"
+              />
+            </FormField>
+            <FormField label="Longitude" htmlFor="branch-longitude" required>
+              <Input
+                id="branch-longitude"
+                value={branchForm.longitude}
+                onChange={(event) => setBranchForm((prev) => ({ ...prev, longitude: event.target.value }))}
+                placeholder="36.9500"
+              />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Branch Modal */}
       <Modal
         isOpen={editBranchModalOpen}
-        onClose={() => setEditBranchModalOpen(false)}
+        onClose={() => { if (!isSubmitting) setEditBranchModalOpen(false); }}
         title="Edit Branch"
         footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setEditBranchModalOpen(false)}>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setEditBranchModalOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button type="submit" form="edit-branch-form" isLoading={isSubmitting}>
@@ -645,7 +592,7 @@ export default function Page(): JSX.Element {
         }
       >
         <form id="edit-branch-form" className="space-y-4" onSubmit={(event) => void handleUpdateBranch(event)}>
-          <FormField label="Name" htmlFor="edit-branch-name" required>
+          <FormField label="Branch Name" htmlFor="edit-branch-name" required>
             <Input
               id="edit-branch-name"
               value={editBranchForm.name}
@@ -666,7 +613,7 @@ export default function Page(): JSX.Element {
               onChange={(event) => setEditBranchForm((prev) => ({ ...prev, city: event.target.value }))}
             />
           </FormField>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4">
             <FormField label="Latitude" htmlFor="edit-branch-latitude" required>
               <Input
                 id="edit-branch-latitude"
@@ -685,12 +632,92 @@ export default function Page(): JSX.Element {
         </form>
       </Modal>
 
+      {/* Create User Modal */}
+      <Modal
+        isOpen={createUserModalOpen}
+        onClose={() => { if (!isSubmitting) setCreateUserModalOpen(false); }}
+        title="Add Leadership Account"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setCreateUserModalOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-user-form" isLoading={isSubmitting}>
+              Create Account
+            </Button>
+          </div>
+        }
+      >
+        <form id="create-user-form" className="space-y-4" onSubmit={(event) => void handleCreateUser(event)}>
+          <FormField label="Full Name" htmlFor="user-name" required>
+            <Input
+              id="user-name"
+              value={userForm.name}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
+              placeholder="e.g. Jane Wambui"
+            />
+          </FormField>
+          <FormField label="Email" htmlFor="user-email" required>
+            <Input
+              id="user-email"
+              type="email"
+              value={userForm.email}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
+              placeholder="jane@wendo.co.ke"
+            />
+          </FormField>
+          <FormField label="Phone" htmlFor="user-phone">
+            <Input
+              id="user-phone"
+              value={userForm.phone}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, phone: event.target.value }))}
+              placeholder="+254 700 000 000"
+            />
+          </FormField>
+          <FormField label="Role" htmlFor="user-role" required>
+            <Select
+              id="user-role"
+              value={userForm.role}
+              onChange={(event) =>
+                setUserForm((prev) => ({ ...prev, role: event.target.value as AdminUserRole, organizationId: '' }))
+              }
+              options={[
+                { value: 'MANAGER', label: 'Manager' },
+                { value: 'DIRECTOR', label: 'Director' },
+              ]}
+            />
+          </FormField>
+          {userForm.role === 'MANAGER' ? (
+            <FormField label="Assign to Branch" htmlFor="user-branch" required>
+              <Select
+                id="user-branch"
+                placeholder="Select branch"
+                value={userForm.organizationId}
+                onChange={(event) => setUserForm((prev) => ({ ...prev, organizationId: event.target.value }))}
+                options={branches.map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
+              />
+            </FormField>
+          ) : null}
+          <FormField label="Temporary Password" htmlFor="user-password" required>
+            <Input
+              id="user-password"
+              type="password"
+              value={userForm.temporaryPassword}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
+            />
+          </FormField>
+        </form>
+      </Modal>
+
       <ConfirmDialog
         isOpen={!!hubTarget}
         onClose={() => setHubTarget(null)}
         onConfirm={() => void handleConfirmSetHub()}
         title="Set hub branch?"
-        description={`Set "${hubTarget?.name ?? ''}" as the system hub branch.`}
+        description={`Set "${hubTarget?.name ?? ''}" as the system hub branch. This will replace the current hub.`}
         confirmLabel="Set Hub"
         isLoading={isSubmitting}
       />
