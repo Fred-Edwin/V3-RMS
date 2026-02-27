@@ -205,6 +205,7 @@ export default function NewOrderPage(): JSX.Element {
             key={category.id}
             variant={selectedCategoryId === category.id ? 'primary' : 'secondary'}
             size="sm"
+            className="shrink-0 whitespace-nowrap"
             onClick={() => setSelectedCategoryId(category.id)}
           >
             {category.name}

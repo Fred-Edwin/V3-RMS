@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
@@ -13,10 +14,63 @@ import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
-import { Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
+import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { ApiError } from '@/types/api';
 import type { OrderDetail, OrderSummary, PaymentMethod } from '@/types/order';
 import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
+
+const ROLE_PLACEHOLDERS = new Set(['waiter', 'chef', 'barista', 'manager', 'director', 'admin', 'staff', 'user', 'system']);
+
+const toTitleCase = (value: string): string => {
+  if (!value) {
+    return value;
+  }
+
+  return `${value.charAt(0).toUpperCase()}${value.slice(1).toLowerCase()}`;
+};
+
+const getPreferredFirstName = (rawName: string | undefined): string => {
+  if (!rawName) {
+    return 'there';
+  }
+
+  const trimmedName = rawName.trim();
+  if (!trimmedName) {
+    return 'there';
+  }
+
+  const words = trimmedName.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    return toTitleCase(words[0]);
+  }
+
+  const parts = trimmedName.split(/[._-]+/).filter(Boolean);
+  const cleanedParts = parts
+    .map((part) => part.replace(/\d+/g, '').replace(/[^a-zA-Z]/g, ''))
+    .filter(Boolean);
+
+  const nonRolePart = cleanedParts.find((part) => !ROLE_PLACEHOLDERS.has(part.toLowerCase()));
+  if (nonRolePart) {
+    return toTitleCase(nonRolePart);
+  }
+
+  if (cleanedParts[0]) {
+    return toTitleCase(cleanedParts[0]);
+  }
+
+  return toTitleCase(trimmedName.replace(/[^a-zA-Z]/g, '')) || 'there';
+};
+
+const getGreetingPrefix = (): 'morning' | 'afternoon' | 'evening' => {
+  const hour = new Date().getHours();
+  if (hour < 12) {
+    return 'morning';
+  }
+  if (hour < 18) {
+    return 'afternoon';
+  }
+  return 'evening';
+};
 
 export default function DashboardPage(): JSX.Element {
   const router = useRouter();
@@ -46,6 +100,15 @@ export default function DashboardPage(): JSX.Element {
     () => inProgressTickets.filter((ticket) => ticket.claimedBy?.id === user?.id),
     [inProgressTickets, user?.id],
   );
+  const greetingTime = useMemo(() => getGreetingPrefix(), []);
+  const displayFirstName = useMemo(() => getPreferredFirstName(user?.name), [user?.name]);
+  const headerAvatarName = useMemo(() => {
+    if (!user?.name) {
+      return displayFirstName;
+    }
+
+    return user.name.includes(' ') ? user.name : displayFirstName;
+  }, [displayFirstName, user?.name]);
 
   const loadWaiterDashboardData = useCallback(async () => {
     if (!accessToken || role !== 'WAITER') {
@@ -227,11 +290,21 @@ export default function DashboardPage(): JSX.Element {
   if (role === 'WAITER') {
     return (
       <PageLayout className="space-y-6">
-        <PageHeader
-          title={`Good morning, ${user?.name ?? 'Waiter'}`}
-          subtitle="Your live order dashboard"
-          action={<Button onClick={() => router.push('/app/orders/new')}>New Order</Button>}
-        />
+        <header className="mb-6 flex items-start justify-between border-b border-stone-200 pb-4">
+          <div className="min-w-0 pr-4">
+            <h1 className="text-heading-lg font-sans font-semibold leading-tight text-stone-900 sm:text-heading-xl">
+              {`Good ${greetingTime}, ${displayFirstName}`}
+            </h1>
+            <p className="mt-1 text-body-md text-stone-500">Your live order dashboard</p>
+          </div>
+          <Link
+            href="/app/profile"
+            aria-label="Open profile"
+            className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <Avatar name={headerAvatarName} size="md" />
+          </Link>
+        </header>
 
         {canPromptFcmPermission && (
           <div className="rounded-md border border-[#F0D080] bg-[#FDF3DC] p-3">
@@ -254,8 +327,18 @@ export default function DashboardPage(): JSX.Element {
         )}
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <StatCard label="Orders Today" value={String(todayOrderCount)} />
-          <StatCard label="Total Value Today" value={`KES ${todayTotalValue.toFixed(2)}`} />
+          <StatCard
+            className="p-4"
+            label="Orders Today"
+            value={String(todayOrderCount)}
+            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
+          />
+          <StatCard
+            className="p-4"
+            label="Total Value Today"
+            value={`KES ${todayTotalValue.toFixed(2)}`}
+            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
+          />
         </div>
 
         <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />

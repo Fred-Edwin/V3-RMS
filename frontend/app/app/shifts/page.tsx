@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, History } from 'lucide-react';
-import { EmptyState, PageHeader, PageLayout, SkeletonTable } from '@/components/ui';
+import { CalendarClock } from 'lucide-react';
+import { PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
 import { useToast } from '@/hooks/useToast';
 import { shiftService } from '@/services/shiftService';
@@ -33,14 +33,15 @@ const formatDateLabel = (value: string): string => {
 };
 
 const formatTime = (value: string | null): string => {
-  if (!value) {
-    return '-';
-  }
+  if (!value) return '—';
+  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
-  return new Date(value).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const formatClockMethod = (method: string | null | undefined): string => {
+  if (!method) return '—';
+  if (method === 'GEOFENCE') return 'Geofence';
+  if (method === 'MANUAL') return 'Manual';
+  return method;
 };
 
 export default function ShiftsPage(): JSX.Element {
@@ -53,9 +54,7 @@ export default function ShiftsPage(): JSX.Element {
   const [todayAssignment, setTodayAssignment] = useState<ShiftAssignment | null>(null);
 
   const loadAssignments = useCallback(async (): Promise<void> => {
-    if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) {
-      return;
-    }
+    if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) return;
 
     setIsLoading(true);
     try {
@@ -66,88 +65,62 @@ export default function ShiftsPage(): JSX.Element {
       const yesterdayKey = dateToYmd(addDays(today, -1));
 
       const [upcoming, history] = await Promise.all([
-        shiftService.listAssignments(
-          {
-            startDate: todayKey,
-            endDate: upcomingEndKey,
-          },
-          accessToken,
-        ),
-        shiftService.listAssignments(
-          {
-            startDate: historyStartKey,
-            endDate: yesterdayKey,
-          },
-          accessToken,
-        ),
+        shiftService.listAssignments({ startDate: todayKey, endDate: upcomingEndKey }, accessToken),
+        shiftService.listAssignments({ startDate: historyStartKey, endDate: yesterdayKey }, accessToken),
       ]);
 
-      const orderedUpcoming = [...upcoming].sort((left, right) =>
-        `${left.date} ${left.shift.startTime}`.localeCompare(`${right.date} ${right.shift.startTime}`),
+      const orderedUpcoming = [...upcoming].sort((l, r) =>
+        `${l.date} ${l.shift.startTime}`.localeCompare(`${r.date} ${r.shift.startTime}`),
       );
 
       setUpcomingAssignments(orderedUpcoming);
       setHistoryAssignments(
-        [...history].sort((left, right) =>
-          `${right.date} ${right.shift.startTime}`.localeCompare(`${left.date} ${left.shift.startTime}`),
+        [...history].sort((l, r) =>
+          `${r.date} ${r.shift.startTime}`.localeCompare(`${l.date} ${l.shift.startTime}`),
         ),
       );
-      setTodayAssignment(orderedUpcoming.find((assignment) => assignment.date === todayKey) ?? null);
+      setTodayAssignment(orderedUpcoming.find((a) => a.date === todayKey) ?? null);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load shifts.';
-      toast({
-        variant: 'error',
-        title: 'Load failed',
-        message,
-      });
+      toast({ variant: 'error', title: 'Load failed', message });
     } finally {
       setIsLoading(false);
     }
   }, [accessToken, role, toast]);
 
-  useEffect(() => {
-    void loadAssignments();
-  }, [loadAssignments]);
+  useEffect(() => { void loadAssignments(); }, [loadAssignments]);
 
   const todayKey = useMemo(() => dateToYmd(new Date()), []);
 
   const handleClockUpdated = useCallback((record: ShiftAssignmentClockRecord) => {
-    setTodayAssignment((current) =>
-      current
-        ? {
-            ...current,
-            clockRecord: record,
-          }
-        : current,
-    );
+    setTodayAssignment((current) => current ? { ...current, clockRecord: record } : current);
     setUpcomingAssignments((current) =>
-      current.map((assignment) =>
-        assignment.id === todayAssignment?.id
-          ? {
-              ...assignment,
-              clockRecord: record,
-            }
-          : assignment,
+      current.map((a) =>
+        a.id === todayAssignment?.id ? { ...a, clockRecord: record } : a,
       ),
     );
   }, [todayAssignment?.id]);
 
   return (
     <PageLayout className="animate-fade-up space-y-6">
-      <PageHeader title="Shifts" subtitle="Your upcoming schedule and attendance history." />
+      <PageHeader title="Shifts" />
 
       <ClockWidget assignment={todayAssignment} onUpdated={handleClockUpdated} />
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-heading-sm font-semibold text-stone-900">Upcoming 7 Days</h2>
+      {/* ── Upcoming 7 Days ── */}
+      <section>
+        <h2 className="text-heading-sm font-semibold text-stone-900 mb-3">Next 7 days</h2>
+
         {isLoading ? (
-          <SkeletonTable rows={4} columns={3} />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <SkeletonBlock key={i} className="h-20 rounded-xl" />)}
+          </div>
         ) : upcomingAssignments.length === 0 ? (
-          <EmptyState
-            icon={<CalendarClock size={24} />}
-            heading="No upcoming shifts scheduled"
-            body="Your next shifts will appear here."
-          />
+          <div className="flex flex-col items-center justify-center rounded-xl bg-white border border-stone-200 py-12 text-center shadow-sm">
+            <CalendarClock size={32} className="text-stone-300 mb-3" />
+            <p className="text-body-md font-medium text-stone-600">You&apos;re all clear</p>
+            <p className="text-body-sm text-stone-400 mt-1">No shifts scheduled for the next 7 days.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {upcomingAssignments.map((assignment) => {
@@ -155,28 +128,47 @@ export default function ShiftsPage(): JSX.Element {
               return (
                 <article
                   key={assignment.id}
-                  className={`rounded-lg border p-4 ${
-                    isToday ? 'border-[#F0D080] bg-[#FDF3DC]' : 'border-stone-200 bg-stone-100'
+                  className={`rounded-xl border p-4 shadow-sm ${
+                    isToday
+                      ? 'border-[#F0D080] bg-[#FDF3DC]'
+                      : 'border-stone-200 bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-body-sm text-stone-500">{formatDateLabel(assignment.date)}</p>
-                      <h3 className="text-heading-sm font-semibold text-stone-900">{assignment.shift.name}</h3>
-                      <p className="text-body-sm text-stone-600">
-                        {assignment.shift.startTime} - {assignment.shift.endTime}
+                      <p className={`text-label-sm font-medium uppercase tracking-wider ${isToday ? 'text-[#92650A]' : 'text-stone-400'}`}>
+                        {isToday ? 'Today' : formatDateLabel(assignment.date)}
+                      </p>
+                      <h3 className="mt-0.5 text-heading-sm font-semibold text-stone-900">
+                        {assignment.shift.name}
+                      </h3>
+                      <p className="text-body-sm text-stone-500 mt-0.5">
+                        {assignment.shift.startTime} – {assignment.shift.endTime}
                       </p>
                     </div>
-                    <span className="rounded-full border border-stone-200 bg-white px-2 py-0.5 text-label-sm text-stone-600">
+                    <span className="shrink-0 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-label-sm text-stone-500">
                       {assignment.user.role}
                     </span>
                   </div>
-                  {isToday && assignment.clockRecord ? (
-                    <p className="mt-2 text-caption text-stone-600">
-                      Clock In: {formatTime(assignment.clockRecord.clockInAt)} | Clock Out:{' '}
-                      {formatTime(assignment.clockRecord.clockOutAt)}
-                    </p>
-                  ) : null}
+
+                  {isToday && assignment.clockRecord && (
+                    <div className="mt-3 flex items-center gap-4 border-t border-[#F0D080] pt-3">
+                      <div>
+                        <p className="text-label-sm uppercase tracking-wider text-[#92650A]/70">Clock In</p>
+                        <p className="text-body-sm font-medium text-[#92650A]">
+                          {formatTime(assignment.clockRecord.clockInAt)}
+                        </p>
+                      </div>
+                      {assignment.clockRecord.clockOutAt && (
+                        <div>
+                          <p className="text-label-sm uppercase tracking-wider text-[#92650A]/70">Clock Out</p>
+                          <p className="text-body-sm font-medium text-[#92650A]">
+                            {formatTime(assignment.clockRecord.clockOutAt)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -184,56 +176,60 @@ export default function ShiftsPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-heading-sm font-semibold text-stone-900">Attendance History (Past 30 Days)</h2>
+      {/* ── Attendance History ── */}
+      <section>
+        <h2 className="text-heading-sm font-semibold text-stone-900 mb-3">Attendance history</h2>
+
         {isLoading ? (
-          <SkeletonTable rows={5} columns={5} />
+          <div className="space-y-px rounded-xl overflow-hidden border border-stone-200 bg-white shadow-sm">
+            {[1, 2, 3, 4, 5].map((i) => <SkeletonBlock key={i} className="h-16" />)}
+          </div>
         ) : historyAssignments.length === 0 ? (
-          <EmptyState
-            icon={<History size={24} />}
-            heading="No attendance history yet"
-            body="Your completed shift records will appear here."
-          />
+          <div className="flex flex-col items-center justify-center rounded-xl bg-white border border-stone-200 py-12 text-center shadow-sm">
+            <div className="size-12 rounded-full bg-stone-100 flex items-center justify-center mb-3">
+              <span className="text-xl">☕</span>
+            </div>
+            <p className="text-body-md font-medium text-stone-600">Enjoy your rest</p>
+            <p className="text-body-sm text-stone-400 mt-1">Your shift records will appear here once you clock in.</p>
+          </div>
         ) : (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                    Date
-                  </th>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                    Shift
-                  </th>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                    Clock In
-                  </th>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                    Clock Out
-                  </th>
-                  <th className="h-11 border-b-2 border-stone-200 px-3 text-left text-label-sm uppercase tracking-wider text-stone-500">
-                    Method
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyAssignments.map((assignment) => (
-                  <tr key={assignment.id} className="h-[52px] border-b border-stone-100">
-                    <td className="px-3 text-body-sm text-stone-900">{formatDateLabel(assignment.date)}</td>
-                    <td className="px-3 text-body-sm text-stone-900">{assignment.shift.name}</td>
-                    <td className="px-3 text-body-sm text-stone-900">
-                      {formatTime(assignment.clockRecord?.clockInAt ?? null)}
-                    </td>
-                    <td className="px-3 text-body-sm text-stone-900">
-                      {formatTime(assignment.clockRecord?.clockOutAt ?? null)}
-                    </td>
-                    <td className="px-3 text-body-sm text-stone-900">
-                      {assignment.clockRecord?.clockInMethod ?? '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            {historyAssignments.map((assignment, index) => {
+              const hasClockedIn = !!assignment.clockRecord?.clockInAt;
+              return (
+                <div
+                  key={assignment.id}
+                  className={`flex items-center justify-between px-4 py-3.5 ${
+                    index !== 0 ? 'border-t border-stone-100' : ''
+                  }`}
+                >
+                  {/* Left: date + shift name */}
+                  <div className="min-w-0">
+                    <p className="text-body-sm font-medium text-stone-900">
+                      {formatDateLabel(assignment.date)}
+                    </p>
+                    <p className="text-label-sm text-stone-400 mt-0.5">{assignment.shift.name}</p>
+                  </div>
+
+                  {/* Right: times */}
+                  {hasClockedIn ? (
+                    <div className="shrink-0 text-right">
+                      <p className="text-body-sm font-medium text-stone-900">
+                        {formatTime(assignment.clockRecord?.clockInAt ?? null)}
+                        {assignment.clockRecord?.clockOutAt && (
+                          <> – {formatTime(assignment.clockRecord.clockOutAt)}</>
+                        )}
+                      </p>
+                      <p className="text-label-sm text-stone-400 mt-0.5">
+                        {formatClockMethod(assignment.clockRecord?.clockInMethod)}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="shrink-0 text-label-sm text-stone-400 italic">No record</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

@@ -49,7 +49,7 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, o
       onClick={onTap}
       onKeyDown={onTap ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap() } } : undefined}
       className={cn(
-        'bg-white border border-stone-200 border-l-[3px] shadow-sm rounded-md p-4',
+        'bg-white border-l-[3px] shadow-sm rounded-xl p-4',
         statusBorderClasses[status],
         onTap && 'cursor-pointer hover:shadow-md transition-shadow duration-fast focus-visible:outline-none focus-visible:shadow-focus',
         className
@@ -57,7 +57,7 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, o
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <span className="text-heading-sm font-semibold text-espresso">#{orderNumber}</span>
+          <span className="text-heading-md font-bold text-espresso">#{orderNumber}</span>
           <p className="text-label-sm text-stone-500 mt-0.5">
             {typeLabels[type]}{tableNumber ? ` · Table ${tableNumber}` : ''}
           </p>

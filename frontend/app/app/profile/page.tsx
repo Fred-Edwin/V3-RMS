@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, ConfirmDialog, Input, PageHeader, PageLayout } from '@/components/ui';
+import { LogOut, Bell, BellOff, ShieldCheck, User, Building2 } from 'lucide-react';
+import { Avatar, Button, ConfirmDialog, Input, PageLayout } from '@/components/ui';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { performLogout } from '@/lib/logout';
 import { authService } from '@/services/authService';
@@ -14,6 +15,48 @@ import type { AppRole } from '@/types/auth';
 const canUseStaffProfileEndpoints = (role: AppRole | null): boolean => {
   return role === 'MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
 };
+
+const roleLabels: Record<AppRole, string> = {
+  SYSTEM_ADMIN: 'System Admin',
+  DIRECTOR: 'Director',
+  MANAGER: 'Manager',
+  WAITER: 'Waiter',
+  CHEF: 'Chef',
+  BARISTA: 'Barista',
+  KITCHEN_DISPLAY: 'Kitchen Display',
+  BARISTA_DISPLAY: 'Barista Display',
+};
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-label-sm uppercase tracking-wider text-stone-400">{label}</span>
+      <span className="text-body-md font-medium text-stone-900">{value || '—'}</span>
+    </div>
+  );
+}
+
+function SectionCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-stone-200 bg-white shadow-sm ${className ?? ''}`}>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-3 px-8 py-5 border-b border-stone-100">
+      <span className="flex items-center justify-center size-9 rounded-lg bg-parchment text-stone-600">
+        {icon}
+      </span>
+      <div>
+        <h2 className="text-heading-sm font-sans font-semibold text-stone-900">{title}</h2>
+        {subtitle && <p className="text-caption text-stone-500 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function Page(): JSX.Element {
   const router = useRouter();
@@ -34,14 +77,12 @@ export default function Page(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [profileStatus, setProfileStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [passwordStatus, setPasswordStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     const loadProfile = async (): Promise<void> => {
-      if (!user || !accessToken) {
-        return;
-      }
+      if (!user || !accessToken) return;
 
       if (!canUseStaffProfileEndpoints(role)) {
         setProfile(null);
@@ -57,7 +98,7 @@ export default function Page(): JSX.Element {
         setPhone(data.phone ?? '');
       } catch (error: unknown) {
         const message = error instanceof ApiError ? error.message : 'Failed to load profile.';
-        setErrorMessage(message);
+        setProfileStatus({ type: 'error', message });
       }
     };
 
@@ -66,32 +107,23 @@ export default function Page(): JSX.Element {
 
   const handleSaveProfile = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!user?.id || !accessToken) {
-      return;
-    }
+    if (!user?.id || !accessToken) return;
 
     if (!canUseStaffProfileEndpoints(role)) {
-      setErrorMessage('Profile edits are not available for your role yet.');
+      setProfileStatus({ type: 'error', message: 'Profile edits are not available for your role yet.' });
       return;
     }
 
     setLoading(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
+    setProfileStatus(null);
     try {
       const updated = await staffService.updateStaff(user.id, { name, phone }, accessToken);
       setProfile(updated);
-      setAuth({
-        user: {
-          ...user,
-          name: updated.name,
-        },
-        accessToken,
-      });
-      setStatusMessage('Profile updated successfully.');
+      setAuth({ user: { ...user, name: updated.name }, accessToken });
+      setProfileStatus({ type: 'success', message: 'Profile updated successfully.' });
     } catch (error: unknown) {
       const message = error instanceof ApiError ? error.message : 'Failed to update profile.';
-      setErrorMessage(message);
+      setProfileStatus({ type: 'error', message });
     } finally {
       setLoading(false);
     }
@@ -99,34 +131,31 @@ export default function Page(): JSX.Element {
 
   const handleChangePassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (!accessToken) {
-      return;
-    }
+    if (!accessToken) return;
 
     if (!currentPassword || !newPassword) {
-      setErrorMessage('Current and new password are required.');
+      setPasswordStatus({ type: 'error', message: 'Current and new password are required.' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setErrorMessage('New password and confirmation do not match.');
+      setPasswordStatus({ type: 'error', message: 'New password and confirmation do not match.' });
       return;
     }
 
     setLoading(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
+    setPasswordStatus(null);
     try {
       await authService.changePassword({ currentPassword, newPassword }, accessToken);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setStatusMessage('Password updated successfully.');
+      setPasswordStatus({ type: 'success', message: 'Password updated successfully.' });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.statusCode === 400) {
-        setErrorMessage(error.message);
+        setPasswordStatus({ type: 'error', message: error.message });
       } else {
-        setErrorMessage('Failed to update password.');
+        setPasswordStatus({ type: 'error', message: 'Failed to update password.' });
       }
     } finally {
       setLoading(false);
@@ -144,133 +173,189 @@ export default function Page(): JSX.Element {
     }
   };
 
+  const displayName = profile?.name ?? user?.name ?? '';
+  const displayRole = role ? (roleLabels[role] ?? role) : '—';
+  const displayEmail = profile?.email ?? user?.email ?? '—';
+  const displayBranch = profile?.organizationName ?? user?.organizationName ?? '—';
+
   return (
     <>
-    <PageLayout className="animate-fade-up space-y-6">
-      <section className="mx-auto max-w-3xl space-y-6">
-        <PageHeader title="Profile" subtitle="Manage your personal account details." />
+      <PageLayout className="animate-fade-up">
+        <div className="mx-auto max-w-2xl space-y-8 py-2">
 
-        {canPromptFcmPermission && (
-          <div className="rounded-md border border-[#F0D080] bg-[#FDF3DC] p-3">
-            <p className="text-body-sm text-[#92650A]">
-              Turn on notifications for ready-order alerts while you are away from the app.
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => void requestPermissionAndRegister()}
-                isLoading={isRegisteringFcmToken}
-              >
-                Enable Notifications
-              </Button>
-              <Button size="sm" variant="ghost" onClick={dismissPrompt}>
-                Not now
-              </Button>
+          {/* Notifications prompt — top of page, outside cards */}
+          {canPromptFcmPermission && (
+            <div className="flex items-start gap-4 rounded-xl border border-[#F0D080] bg-[#FDF3DC] px-5 py-4">
+              <Bell size={18} className="mt-0.5 shrink-0 text-[#92650A]" />
+              <div className="flex-1">
+                <p className="text-body-sm font-medium text-[#92650A]">Enable push notifications</p>
+                <p className="text-caption text-[#92650A]/80 mt-0.5">
+                  Get ready-order alerts even when you&apos;re away from the app.
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => void requestPermissionAndRegister()}
+                    isLoading={isRegisteringFcmToken}
+                  >
+                    Enable Notifications
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={dismissPrompt} leftIcon={<BellOff size={14} />}>
+                    Not now
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
+          {/* ── Identity Hero ── */}
+          <SectionCard>
+            <div className="flex items-center gap-6 px-8 py-7">
+              <Avatar name={displayName || 'U'} size="lg" className="size-16 text-heading-sm shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-display text-display-lg text-espresso leading-tight truncate">
+                  {displayName || 'Unknown User'}
+                </h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-parchment px-3 py-1 text-label-sm font-medium text-stone-700 border border-stone-200">
+                    <span className="size-1.5 rounded-full bg-[#1A6B3C] inline-block" />
+                    {displayRole}
+                  </span>
+                  {displayBranch !== '—' && (
+                    <span className="text-caption text-stone-500 flex items-center gap-1">
+                      <Building2 size={12} />
+                      {displayBranch}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
 
-          {errorMessage ? (
-            <p className="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
-          ) : null}
-          {statusMessage ? (
-            <p className="mt-4 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-700">
-              {statusMessage}
-            </p>
-          ) : null}
+          {/* ── Account Info ── */}
+          <SectionCard>
+            <SectionHeader icon={<User size={18} />} title="Account Information" subtitle="Your identity in the system" />
+            <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5">
+              <InfoRow label="Email" value={displayEmail} />
+              <InfoRow label="Role" value={displayRole} />
+              <InfoRow label="Branch" value={displayBranch} />
+              <InfoRow label="Organisation" value={profile?.organizationName ?? user?.organizationName ?? '—'} />
+            </div>
+          </SectionCard>
 
-          <div className="mt-6 grid gap-3 text-sm text-stone-700">
-            <p>
-              <span className="font-medium">Email:</span> {profile?.email ?? user?.email ?? '-'}
-            </p>
-            <p>
-              <span className="font-medium">Role:</span> {profile?.role ?? user?.role ?? '-'}
-            </p>
-            <p>
-              <span className="font-medium">Branch:</span> {profile?.organizationName ?? user?.organizationName ?? '-'}
-            </p>
-          </div>
-
-          <div className="mt-6 border-t border-stone-200 pt-4">
-            <Button type="button" variant="destructive" onClick={() => setIsLogoutOpen(true)}>
-              Log Out
-            </Button>
-          </div>
-
-          <form className="mt-6 space-y-4" onSubmit={handleSaveProfile}>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-stone-700">Name</span>
+          {/* ── Edit Profile ── */}
+          <SectionCard>
+            <SectionHeader icon={<User size={18} />} title="Edit Profile" subtitle="Update your name and contact number" />
+            <form className="px-8 py-6 space-y-5" onSubmit={handleSaveProfile}>
+              {profileStatus && (
+                <div className={`rounded-lg border px-4 py-3 text-body-sm ${
+                  profileStatus.type === 'success'
+                    ? 'border-[#86EFAC] bg-[#EDFAF1] text-[#1A6B3C]'
+                    : 'border-[#FCA5A5] bg-[#FEF2F2] text-[#991B1B]'
+                }`}>
+                  {profileStatus.message}
+                </div>
+              )}
               <Input
+                label="Full name"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(e) => setName(e.target.value)}
+                disabled={loading || !canUseStaffProfileEndpoints(role)}
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-stone-700">Phone</span>
               <Input
+                label="Phone number"
                 value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+254 7XX XXX XXX"
+                disabled={loading || !canUseStaffProfileEndpoints(role)}
               />
-            </label>
-            <button
-              type="submit"
-              disabled={loading || !canUseStaffProfileEndpoints(role)}
-              className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            >
-              Save Profile
-            </button>
-          </form>
-        </div>
+              <div className="pt-1">
+                <Button
+                  type="submit"
+                  isLoading={loading}
+                  disabled={!canUseStaffProfileEndpoints(role)}
+                >
+                  Save changes
+                </Button>
+              </div>
+            </form>
+          </SectionCard>
 
-        <div className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-stone-900">Change Password</h2>
-          <form className="mt-4 space-y-4" onSubmit={handleChangePassword}>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-stone-700">Current Password</span>
+          {/* ── Security ── */}
+          <SectionCard>
+            <SectionHeader icon={<ShieldCheck size={18} />} title="Security" subtitle="Change your account password" />
+            <form className="px-8 py-6 space-y-5" onSubmit={handleChangePassword}>
+              {passwordStatus && (
+                <div className={`rounded-lg border px-4 py-3 text-body-sm ${
+                  passwordStatus.type === 'success'
+                    ? 'border-[#86EFAC] bg-[#EDFAF1] text-[#1A6B3C]'
+                    : 'border-[#FCA5A5] bg-[#FEF2F2] text-[#991B1B]'
+                }`}>
+                  {passwordStatus.message}
+                </div>
+              )}
               <Input
+                label="Current password"
                 type="password"
                 value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                disabled={loading}
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-stone-700">New Password</span>
               <Input
+                label="New password"
                 type="password"
                 value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={loading}
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-stone-700">Confirm New Password</span>
               <Input
+                label="Confirm new password"
                 type="password"
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={loading}
               />
-            </label>
-            <Button
-              type="submit"
-              disabled={loading}
-            >
-              Update Password
-            </Button>
-          </form>
+              <div className="pt-1">
+                <Button type="submit" isLoading={loading}>
+                  Update password
+                </Button>
+              </div>
+            </form>
+          </SectionCard>
+
+          {/* ── Danger Zone ── */}
+          <SectionCard>
+            <div className="px-8 py-6 flex items-center justify-between">
+              <div>
+                <p className="text-body-sm font-medium text-stone-900">Sign out of your account</p>
+                <p className="text-caption text-stone-500 mt-0.5">You will need to sign in again to access the system.</p>
+              </div>
+              <Button
+                variant="destructive"
+                leftIcon={<LogOut size={16} />}
+                onClick={() => setIsLogoutOpen(true)}
+              >
+                Log out
+              </Button>
+            </div>
+          </SectionCard>
+
         </div>
-      </section>
-    </PageLayout>
-    <ConfirmDialog
-      isOpen={isLogoutOpen}
-      onClose={() => setIsLogoutOpen(false)}
-      onConfirm={() => void handleLogout()}
-      title="Log out?"
-      description="Are you sure you want to log out?"
-      confirmLabel="Log Out"
-      cancelLabel="Cancel"
-      isLoading={isLoggingOut}
-    />
+      </PageLayout>
+
+      <ConfirmDialog
+        isOpen={isLogoutOpen}
+        onClose={() => setIsLogoutOpen(false)}
+        onConfirm={() => void handleLogout()}
+        title="Log out?"
+        description="Are you sure you want to log out?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        isLoading={isLoggingOut}
+      />
     </>
   );
 }

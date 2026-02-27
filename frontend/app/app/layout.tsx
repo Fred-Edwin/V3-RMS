@@ -28,28 +28,51 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-const mobileRoleTabs: Record<'WAITER' | 'CHEF' | 'BARISTA', NavTab[]> = {
-  WAITER: [
-    { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-    { label: 'New Order', href: '/app/orders/new', icon: ShoppingCart },
-    { label: 'Orders', href: '/app/orders', icon: ClipboardList },
-    { label: 'Shifts', href: '/app/shifts', icon: Calendar },
-    { label: 'Profile', href: '/app/profile', icon: UserCircle },
-  ],
-  CHEF: [
-    { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-    { label: 'Kitchen', href: '/app/kitchen', icon: ChefHat },
-    { label: 'Shifts', href: '/app/shifts', icon: Calendar },
-    { label: 'History', href: '/app/history', icon: Clock },
-    { label: 'Profile', href: '/app/profile', icon: UserCircle },
-  ],
-  BARISTA: [
-    { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-    { label: 'Barista', href: '/app/barista', icon: Coffee },
-    { label: 'Shifts', href: '/app/shifts', icon: Calendar },
-    { label: 'History', href: '/app/history', icon: Clock },
-    { label: 'Profile', href: '/app/profile', icon: UserCircle },
-  ],
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA';
+
+interface MobileRoleNavConfig {
+  tabs: NavTab[];
+  overflowTabs: NavTab[];
+}
+
+const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
+  WAITER: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+      { label: 'New Order', href: '/app/orders/new', icon: ShoppingCart },
+      { label: 'Orders', href: '/app/orders', icon: ClipboardList },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+    ],
+    overflowTabs: [
+      { label: 'Performance', href: '/app/performance', icon: BarChart2 },
+      { label: 'History', href: '/app/history', icon: Clock },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
+  CHEF: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+      { label: 'Kitchen', href: '/app/kitchen', icon: ChefHat },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'History', href: '/app/history', icon: Clock },
+    ],
+    overflowTabs: [
+      { label: 'Performance', href: '/app/performance', icon: BarChart2 },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
+  BARISTA: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+      { label: 'Barista', href: '/app/barista', icon: Coffee },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'History', href: '/app/history', icon: Clock },
+    ],
+    overflowTabs: [
+      { label: 'Performance', href: '/app/performance', icon: BarChart2 },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
 };
 
 const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
@@ -158,6 +181,10 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const isDesktopPreviewEnabled = env.roleDesktopPreview && process.env.NODE_ENV !== 'production';
 
   const sidebarSections = useMemo(() => (role ? sidebarSectionsByRole[role] ?? [] : []), [role]);
+  const mobileNavConfig = useMemo(
+    () => (role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' ? mobileRoleTabs[role] : null),
+    [role],
+  );
 
   const handleConfirmLogout = async (): Promise<void> => {
     setIsLoggingOut(true);
@@ -203,8 +230,12 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
       ) : (
         <MobileLayout
           bottomNav={
-            role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' ? (
-              <BottomNav tabs={mobileRoleTabs[role]} activeHref={pathname} />
+            mobileNavConfig ? (
+              <BottomNav
+                tabs={mobileNavConfig.tabs}
+                overflowTabs={mobileNavConfig.overflowTabs}
+                activeHref={pathname}
+              />
             ) : undefined
           }
         >

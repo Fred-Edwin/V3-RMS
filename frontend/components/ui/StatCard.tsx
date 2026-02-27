@@ -6,9 +6,19 @@ interface StatCardProps {
   icon?: React.ReactNode
   caption?: string
   className?: string
+  valueClassName?: string
+  labelClassName?: string
 }
 
-export function StatCard({ value, label, icon, caption, className }: StatCardProps) {
+export function StatCard({
+  value,
+  label,
+  icon,
+  caption,
+  className,
+  valueClassName,
+  labelClassName,
+}: StatCardProps) {
   return (
     <div className={cn('relative bg-white border border-stone-200 shadow-sm rounded-lg p-6', className)}>
       {icon && (
@@ -16,8 +26,10 @@ export function StatCard({ value, label, icon, caption, className }: StatCardPro
           {icon}
         </span>
       )}
-      <p className="text-display-lg font-display font-medium text-stone-900">{value}</p>
-      <p className="text-label-sm font-sans font-semibold uppercase tracking-wider text-stone-500 mt-1">
+      <p className={cn('text-display-lg font-display font-medium text-stone-900', valueClassName)}>
+        {value}
+      </p>
+      <p className={cn('mt-1 text-label-sm font-sans font-semibold uppercase tracking-wider text-stone-500', labelClassName)}>
         {label}
       </p>
       {caption && (

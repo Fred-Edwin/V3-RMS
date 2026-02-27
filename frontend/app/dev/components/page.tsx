@@ -474,7 +474,7 @@ export default function ComponentsPage() {
               isAvailable={false}
             />
           </div>
-          <p className="text-caption text-stone-500 mt-3">Cards without <code>imageUrl</code> show a placeholder. Pass <code>imageUrl</code> to display food photography.</p>
+          <p className="text-caption text-stone-500 mt-3">Cards without <code>imageUrl</code> switch to a clean text-first layout with a subtle coffee watermark. Pass <code>imageUrl</code> to display food photography.</p>
         </Section>
 
         {/* 21. StaffCard */}

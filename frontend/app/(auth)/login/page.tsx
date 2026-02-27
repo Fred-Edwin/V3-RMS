@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Mail, Lock, WifiOff } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import { roleHome } from '@/lib/role-home';
@@ -13,6 +17,7 @@ export default function Page(): JSX.Element {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -69,53 +74,103 @@ export default function Page(): JSX.Element {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 p-6 md:p-8">
-      <section className="mx-auto w-full max-w-md rounded-lg border border-stone-300 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-stone-900">Sign in</h1>
-        <p className="mt-1 text-sm text-stone-600">Use your Wendo RMS account credentials.</p>
+    <main className="min-h-screen bg-crema flex items-center justify-center p-6">
+      <div className="w-full max-w-md animate-fade-up">
 
-        {isOffline ? (
-          <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-            You are offline. Check your network before signing in.
+        {/* Brand header */}
+        <div className="flex flex-col items-center mb-10">
+          <div className="relative mb-5">
+            <Image
+              src="/images/wendo-logo.jpg"
+              alt="Wendo Coffee Bistro"
+              width={72}
+              height={72}
+              className="rounded-full object-cover ring-2 ring-[#C4862A66] ring-offset-2 ring-offset-crema shadow-md"
+              priority
+            />
           </div>
-        ) : null}
+          <h1 className="font-display text-display-lg text-espresso tracking-[-0.01em]">
+            Wendo Coffee Bistro
+          </h1>
+          <p className="mt-1 text-caption text-stone-500 tracking-wide uppercase">
+            Restaurant Management System
+          </p>
+        </div>
 
-        {errorMessage ? (
-          <div className="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</div>
-        ) : null}
+        {/* Card */}
+        <div className="bg-white rounded-xl border border-stone-200 shadow-md p-8">
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-stone-700">Email</span>
-            <input
-              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+          <div className="mb-6">
+            <h2 className="text-heading-md font-sans font-semibold text-stone-900">Welcome back</h2>
+            <p className="mt-1 text-body-sm text-stone-500">Sign in to your account to continue.</p>
+          </div>
+
+          {/* Offline banner */}
+          {isOffline && (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-[#F0D080] bg-[#FDF3DC] px-4 py-3">
+              <WifiOff size={16} className="mt-0.5 shrink-0 text-[#92650A]" />
+              <p className="text-body-sm text-[#92650A]">
+                You&apos;re offline — check your connection before signing in.
+              </p>
+            </div>
+          )}
+
+          {/* Error banner */}
+          {errorMessage && (
+            <div className="mb-5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
+              <p className="text-body-sm text-[#991B1B]">{errorMessage}</p>
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+            <Input
+              label="Email address"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              placeholder="you@wendocoffee.com"
+              leftIcon={<Mail size={16} />}
+              disabled={isLoading}
             />
-          </label>
 
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-stone-700">Password</span>
-            <input
-              className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-            />
-          </label>
+            <div className="relative">
+              <Input
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                leftIcon={<Lock size={16} />}
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 bottom-3 text-stone-400 hover:text-stone-600 transition-colors duration-fast"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-      </section>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full mt-2"
+              isLoading={isLoading}
+              disabled={isOffline}
+            >
+              {isLoading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-caption text-stone-400">
+          Wendo Coffee Bistro · Nyeri, Kenya
+        </p>
+      </div>
     </main>
   );
 }
