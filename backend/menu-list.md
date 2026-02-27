@@ -1,4 +1,4 @@
-[Espresso]
+[Espresso] done
   Americano (Double)
   Americano (Single)
   Cappuccino (Double)
@@ -27,7 +27,7 @@
   Peppermint Syrup
   Vanilla Syrup
 
-[Milkshakes]
+[Milkshakes] done
   Banana Milkshake
   Blueberry Milkshake
   Chocolate Milkshake
@@ -42,14 +42,14 @@
   Strawberry Milkshake
   Vanilla Milkshake
 
-[Iced Drinks]
+[Iced Drinks] done
   Iced Dawa
   Iced Flavored Tea
   Iced Latte
   Iced Mocha
   Iced Tea
 
-[Non-Coffee]
+[Non-Coffee] done
   African Tea (Large)
   African Tea (Small)
   Cardamom Tea (Large)
@@ -66,7 +66,7 @@
   Masala Tea (Small)
   Passion Dawa (Large)
 
-[Fresh Juices]
+[Fresh Juices] done
   Fruity Tropical
   Gooseberry Lemonade
   King Pineapple
@@ -78,40 +78,40 @@
   Strawberry Passion Hibiscus
   Sunny Citrus
 
-[Herbal Tea]
+[Herbal Tea] done
   Blackcurrant Tea
   Green Tea
   Hibiscus Tea
   Moringa Tea
   Raspberry Tea
 
-[Uji Pawa]
+[Uji Pawa] done
   Uji Trio Mix
 
-[Breakfast Combos]
+[Breakfast Combos] done
   Cucu's Delight
   Full Wendo Breakfast
   Pwani Delight
 
-[Pancakes]
+[Pancakes] done
   Banana Pancakes
   Crepes
   Fluffy Pancakes
 
-[Eggs]
-  Boiled Eggs
+[Eggs] done
+  Boiled Eggs 
   Fried Eggs (Sunny Side Up)
   Plain Omelette
   Poached Eggs
   Scrambled Eggs
   Spanish Omelette
 
-[Omelette Add-Ons]
+[Omelette Add-Ons] done
   Bacon
   Cheese
   Sausage
 
-[Salad Add-Ons]
+[Salad Add-Ons] done
   Bacon
   Boiled Egg
   Cheese

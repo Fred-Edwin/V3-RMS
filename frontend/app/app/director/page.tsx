@@ -547,7 +547,7 @@ export default function DirectorDashboardPage(): JSX.Element {
           />
         ) : (
           <div className="mt-5 space-y-5">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <StatCard
                 label="Total Revenue"
                 value={`KES ${overviewRevenue}`}

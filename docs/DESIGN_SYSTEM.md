@@ -233,13 +233,13 @@ An elegant, high-contrast serif with exceptional refinement at large sizes. Pull
 
 Google Fonts: `Cormorant Garamond` — weights 400, 500, 600
 
-**Body & UI: DM Sans**
-A geometric humanist sans-serif with warmth that most sans-serif fonts lack. Clean and highly legible at small sizes. Confident at medium sizes. Pairs beautifully with Cormorant by contrasting character (serif personality vs. geometric clarity) while sharing warmth. Used for all body text, labels, buttons, navigation, and operational UI.
+**Body & UI: Jost**
+A geometric sans-serif modeled after the 1920s–30s Johnston and Futura tradition — the same modernist era in which Cormorant Garamond's Renaissance letterforms were being rediscovered. The pairing is historically coherent: old-world warmth meets modernist clarity. Jost has airy letterforms, open apertures, and slightly rounded terminals that prevent the coldness of pure geometric sans-serifs like Inter or Roboto. It reads as editorial and intentional at every size from 12px caption to 20px heading, without ever feeling like a startup product font.
 
-Google Fonts: `DM Sans` — weights 300, 400, 500, 600
+Google Fonts: `Jost` — variable font, weights 300–700 in one request
 
 **Why these two together:**
-Cormorant at a heading signals "this is a place with taste and intention." DM Sans at a label signals "this is clear and efficient." The pairing captures both dimensions of what Wendo is — premium experience and practical operation.
+Cormorant is the personality — the serif that signals craft, history, and premium intention. Jost is the clarity — the geometric sans that signals precision and restraint. Both share the same quiet confidence. Neither shouts. Together they capture exactly what Wendo is: a place with taste that also runs an efficient operation.
 
 ---
 
@@ -1081,8 +1081,8 @@ const config: Config = {
       },
 
       fontFamily: {
-        display: ['Cormorant Garamond', 'Georgia', 'serif'],
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        display: ['Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', 'serif'],
+        sans: ['Jost', 'Futura', 'Century Gothic', 'sans-serif'],
       },
 
       fontSize: {

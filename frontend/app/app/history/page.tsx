@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { DatePicker, Modal, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
+import { Badge, DatePicker, Modal, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
 import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
 import { usePrepTicketHistory } from '@/hooks/usePrepTicketHistory';
@@ -9,13 +9,19 @@ import { useToast } from '@/hooks/useToast';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderStatus } from '@/types/order';
+import type { OrderDetail, OrderStatus, PrepTicketStatus } from '@/types/order';
 
 const statusOptions = [
   { value: '', label: 'All' },
   { value: 'CLOSED', label: 'Closed' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
+
+const prepStatusVariantMap: Record<PrepTicketStatus, 'pending' | 'inprogress' | 'ready'> = {
+  PENDING: 'pending',
+  IN_PROGRESS: 'inprogress',
+  READY: 'ready',
+};
 
 export default function HistoryPage(): JSX.Element {
   const role = useAuthStore((state) => state.role);
@@ -99,7 +105,7 @@ export default function HistoryPage(): JSX.Element {
         </>
       ) : (
         <div className="rounded-md border border-stone-200 bg-white">
-          <div className="grid grid-cols-5 gap-2 border-b border-stone-200 px-3 py-2 text-label-sm text-stone-500">
+          <div className="hidden grid-cols-5 gap-2 border-b border-stone-200 px-3 py-2 text-label-sm text-stone-500 md:grid">
             <span>Order</span>
             <span>Date</span>
             <span>Items</span>
@@ -107,12 +113,32 @@ export default function HistoryPage(): JSX.Element {
             <span>Status</span>
           </div>
           {prepRows.map(({ ticket, durationMinutes }) => (
-            <div key={ticket.id} className="grid grid-cols-5 gap-2 border-b border-stone-100 px-3 py-3 text-body-sm">
-              <span>#{ticket.orderDailyNumber}</span>
-              <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-              <span>{ticket.items.length}</span>
-              <span>{durationMinutes} min</span>
-              <span>{ticket.status}</span>
+            <div key={ticket.id} className="border-b border-stone-100 px-3 py-3 text-body-sm">
+              <div className="md:hidden">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-heading-sm font-semibold text-stone-900">#{ticket.orderDailyNumber}</p>
+                    <p className="mt-0.5 text-body-sm text-stone-600">
+                      {new Date(ticket.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge variant={prepStatusVariantMap[ticket.status]} />
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-body-sm text-stone-600">{ticket.items.length} items</span>
+                  <span className="text-body-sm text-stone-700">{durationMinutes} min</span>
+                </div>
+              </div>
+
+              <div className="hidden grid-cols-5 gap-2 md:grid">
+                <span>#{ticket.orderDailyNumber}</span>
+                <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                <span>{ticket.items.length}</span>
+                <span>{durationMinutes} min</span>
+                <span>
+                  <Badge variant={prepStatusVariantMap[ticket.status]} />
+                </span>
+              </div>
             </div>
           ))}
         </div>

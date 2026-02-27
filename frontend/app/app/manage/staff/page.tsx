@@ -1,12 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Button, Input, PageHeader, PageLayout, Select } from '@/components/ui';
+import { UserCircle, UserCheck, UserX, Pencil } from 'lucide-react';
+import { Button, EmptyState, Input, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
 
 type ManagerCreatableRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA' | 'KITCHEN_DISPLAY' | 'BARISTA_DISPLAY'>;
+
+const roleLabel: Record<string, string> = {
+  WAITER: 'Waiter',
+  CHEF: 'Chef',
+  BARISTA: 'Barista',
+  KITCHEN_DISPLAY: 'Kitchen Display',
+  BARISTA_DISPLAY: 'Barista Display',
+  MANAGER: 'Manager',
+  DIRECTOR: 'Director',
+  SYSTEM_ADMIN: 'System Admin',
+};
 
 export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -15,6 +27,9 @@ export default function Page(): JSX.Element {
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -55,11 +70,13 @@ export default function Page(): JSX.Element {
   const handleCreate = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!accessToken) {
-      setError('Session expired. Please sign in again.');
+      setFormError('Session expired. Please sign in again.');
       return;
     }
 
-    setError(null);
+    setFormError(null);
+    setFormSuccess(false);
+    setIsSubmitting(true);
     try {
       await staffService.createStaff(
         {
@@ -72,29 +89,21 @@ export default function Page(): JSX.Element {
         accessToken,
       );
 
-      setForm({
-        name: '',
-        email: '',
-        phone: '',
-        role: 'WAITER',
-        temporaryPassword: '',
-      });
+      setForm({ name: '', email: '', phone: '', role: 'WAITER', temporaryPassword: '' });
+      setFormSuccess(true);
       await loadStaff();
     } catch {
-      setError('Failed to create staff account.');
+      setFormError('Failed to create staff account.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = async (item: StaffDto): Promise<void> => {
-    if (!accessToken) {
-      setError('Session expired. Please sign in again.');
-      return;
-    }
+    if (!accessToken) return;
 
     const name = window.prompt('Name', item.name);
-    if (!name) {
-      return;
-    }
+    if (!name) return;
 
     const phone = window.prompt('Phone', item.phone ?? '');
     setError(null);
@@ -107,14 +116,8 @@ export default function Page(): JSX.Element {
   };
 
   const handleToggleActive = async (item: StaffDto): Promise<void> => {
-    if (!accessToken) {
-      setError('Session expired. Please sign in again.');
-      return;
-    }
-
-    if (!window.confirm(`${item.isActive ? 'Deactivate' : 'Reactivate'} ${item.name}?`)) {
-      return;
-    }
+    if (!accessToken) return;
+    if (!window.confirm(`${item.isActive ? 'Deactivate' : 'Reactivate'} ${item.name}?`)) return;
 
     setError(null);
     try {
@@ -123,7 +126,6 @@ export default function Page(): JSX.Element {
       } else {
         await staffService.reactivateStaff(item.id, accessToken);
       }
-
       await loadStaff();
     } catch {
       setError('Failed to update staff status.');
@@ -132,87 +134,169 @@ export default function Page(): JSX.Element {
 
   return (
     <PageLayout className="animate-fade-up space-y-6">
-        <PageHeader
-          title="Branch Staff Management"
-          subtitle="Create and maintain staff accounts for your branch."
-        />
-        <section className="mx-auto max-w-4xl space-y-6">
-        <header className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-          {loading ? <p className="mt-3 text-sm text-stone-500">Loading...</p> : null}
-          {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
-        </header>
+      <PageHeader
+        title="Staff"
+        subtitle="Manage branch staff accounts and access."
+        titleClassName="font-display text-display-lg font-semibold text-espresso"
+      />
 
-        <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-stone-900">Current Staff</h2>
-          <ul className="mt-4 space-y-3 text-sm text-stone-700">
+      {/* Staff list */}
+      <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+          <div>
+            <h2 className="text-heading-sm font-semibold text-stone-900">Team Members</h2>
+            <p className="mt-0.5 text-body-sm text-stone-500">
+              {loading ? 'Loading…' : `${staff.length} staff account${staff.length === 1 ? '' : 's'}`}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mx-5 mt-4 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
+            <p className="text-body-sm text-[#991B1B]">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="divide-y divide-stone-100">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <div className="h-9 w-9 animate-pulse rounded-full bg-stone-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-32 animate-pulse rounded bg-stone-200" />
+                  <div className="h-3 w-48 animate-pulse rounded bg-stone-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : staff.length === 0 ? (
+          <div className="px-5 py-8">
+            <EmptyState
+              icon={<UserCircle size={24} />}
+              heading="No staff accounts yet"
+              body="Create your first staff account using the form below."
+            />
+          </div>
+        ) : (
+          <ul className="divide-y divide-stone-100">
             {staff.map((item) => (
-              <li key={item.id} className="rounded-md border border-stone-200 p-3">
-                <p className="font-medium">{item.name}</p>
-                <p>{item.email}</p>
-                <p>
-                  {item.role} - {item.isActive ? 'Active' : 'Inactive'}
-                </p>
-                <div className="mt-2 flex gap-2">
+              <li key={item.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                {/* Avatar + info */}
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-label-sm font-semibold text-stone-600">
+                    {item.name.charAt(0).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-body-sm font-semibold text-stone-900">{item.name}</p>
+                    <p className="truncate text-caption text-stone-500">{item.email}</p>
+                  </div>
+                </div>
+
+                {/* Role + status + actions */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="hidden rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600 sm:inline-flex">
+                    {roleLabel[item.role] ?? item.role}
+                  </span>
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-medium ${
+                    item.isActive
+                      ? 'bg-[#EDFAF1] text-[#1A6B3C]'
+                      : 'bg-stone-100 text-stone-500'
+                  }`}>
+                    {item.isActive ? 'Active' : 'Inactive'}
+                  </span>
                   <button
                     type="button"
                     onClick={() => void handleEdit(item)}
-                    className="rounded border border-stone-300 px-2 py-1 text-xs"
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
+                    aria-label={`Edit ${item.name}`}
                   >
-                    Edit
+                    <Pencil size={14} />
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleToggleActive(item)}
-                    className="rounded border border-stone-300 px-2 py-1 text-xs"
+                    className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast ${
+                      item.isActive
+                        ? 'text-stone-400 hover:bg-[#FEF2F2] hover:text-[#991B1B]'
+                        : 'text-stone-400 hover:bg-[#EDFAF1] hover:text-[#1A6B3C]'
+                    }`}
+                    aria-label={item.isActive ? `Deactivate ${item.name}` : `Reactivate ${item.name}`}
                   >
-                    {item.isActive ? 'Deactivate' : 'Reactivate'}
+                    {item.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
                   </button>
                 </div>
               </li>
             ))}
           </ul>
-        </article>
+        )}
+      </section>
 
-        <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-stone-900">Create Staff Account</h2>
-          <form className="mt-4 space-y-3" onSubmit={handleCreate}>
+      {/* Create staff form */}
+      <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
+        <div className="border-b border-stone-100 px-5 py-4">
+          <h2 className="text-heading-sm font-semibold text-stone-900">Add Staff Account</h2>
+          <p className="mt-0.5 text-body-sm text-stone-500">A temporary password will be provided for first sign-in.</p>
+        </div>
+
+        <form className="space-y-4 p-5" onSubmit={(e) => void handleCreate(e)}>
+          {formError && (
+            <div className="rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
+              <p className="text-body-sm text-[#991B1B]">{formError}</p>
+            </div>
+          )}
+          {formSuccess && (
+            <div className="rounded-lg border border-[#86EFAC] bg-[#EDFAF1] px-4 py-3">
+              <p className="text-body-sm text-[#1A6B3C]">Staff account created successfully.</p>
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              placeholder="Name"
+              label="Full name"
+              placeholder="e.g. James Kariuki"
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             />
             <Input
-              placeholder="Email"
+              label="Email address"
+              type="email"
+              placeholder="james@wendocoffee.com"
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
             />
             <Input
-              placeholder="Phone"
+              label="Phone (optional)"
+              placeholder="+254 7XX XXX XXX"
               value={form.phone}
               onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
             />
             <Select
+              label="Role"
               value={form.role}
               onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value as ManagerCreatableRole }))}
               options={[
-                { value: 'WAITER', label: 'WAITER' },
-                { value: 'CHEF', label: 'CHEF' },
-                { value: 'BARISTA', label: 'BARISTA' },
-                { value: 'KITCHEN_DISPLAY', label: 'KITCHEN_DISPLAY' },
-                { value: 'BARISTA_DISPLAY', label: 'BARISTA_DISPLAY' },
+                { value: 'WAITER', label: 'Waiter' },
+                { value: 'CHEF', label: 'Chef' },
+                { value: 'BARISTA', label: 'Barista' },
+                { value: 'KITCHEN_DISPLAY', label: 'Kitchen Display' },
+                { value: 'BARISTA_DISPLAY', label: 'Barista Display' },
               ]}
             />
             <Input
+              label="Temporary password"
               type="password"
-              placeholder="Temporary Password"
+              placeholder="Min. 8 characters"
               value={form.temporaryPassword}
               onChange={(event) => setForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
             />
-            <Button type="submit">
-              Create Staff
+          </div>
+
+          <div className="pt-1">
+            <Button type="submit" isLoading={isSubmitting}>
+              Create Account
             </Button>
-          </form>
-        </article>
+          </div>
+        </form>
       </section>
     </PageLayout>
   );

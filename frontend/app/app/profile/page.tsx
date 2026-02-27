@@ -210,24 +210,22 @@ export default function Page(): JSX.Element {
 
           {/* ── Identity Hero ── */}
           <SectionCard>
-            <div className="flex items-center gap-6 px-8 py-7">
-              <Avatar name={displayName || 'U'} size="lg" className="size-16 text-heading-sm shrink-0" />
-              <div className="min-w-0">
-                <h1 className="font-display text-display-lg text-espresso leading-tight truncate">
-                  {displayName || 'Unknown User'}
-                </h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-parchment px-3 py-1 text-label-sm font-medium text-stone-700 border border-stone-200">
-                    <span className="size-1.5 rounded-full bg-[#1A6B3C] inline-block" />
-                    {displayRole}
+            <div className="flex flex-col items-center px-8 py-8 text-center">
+              <Avatar name={displayName || 'U'} size="lg" className="size-20 text-heading-md mb-4 shrink-0" />
+              <h1 className="font-display text-display-lg text-espresso leading-tight">
+                {displayName || 'Unknown User'}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-parchment px-3 py-1 text-label-sm font-medium text-stone-700 border border-stone-200">
+                  <span className="size-1.5 rounded-full bg-[#1A6B3C] inline-block" />
+                  {displayRole}
+                </span>
+                {displayBranch !== '—' && (
+                  <span className="text-caption text-stone-500 flex items-center gap-1">
+                    <Building2 size={12} />
+                    {displayBranch}
                   </span>
-                  {displayBranch !== '—' && (
-                    <span className="text-caption text-stone-500 flex items-center gap-1">
-                      <Building2 size={12} />
-                      {displayBranch}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </SectionCard>
@@ -235,11 +233,13 @@ export default function Page(): JSX.Element {
           {/* ── Account Info ── */}
           <SectionCard>
             <SectionHeader icon={<User size={18} />} title="Account Information" subtitle="Your identity in the system" />
-            <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5">
+            <div className="px-8 py-6 space-y-5">
               <InfoRow label="Email" value={displayEmail} />
-              <InfoRow label="Role" value={displayRole} />
-              <InfoRow label="Branch" value={displayBranch} />
-              <InfoRow label="Organisation" value={profile?.organizationName ?? user?.organizationName ?? '—'} />
+              <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                <InfoRow label="Role" value={displayRole} />
+                <InfoRow label="Branch" value={displayBranch} />
+                <InfoRow label="Organisation" value={profile?.organizationName ?? user?.organizationName ?? '—'} />
+              </div>
             </div>
           </SectionCard>
 
@@ -326,22 +326,24 @@ export default function Page(): JSX.Element {
             </form>
           </SectionCard>
 
-          {/* ── Danger Zone ── */}
-          <SectionCard>
-            <div className="px-8 py-6 flex items-center justify-between">
-              <div>
-                <p className="text-body-sm font-medium text-stone-900">Sign out of your account</p>
-                <p className="text-caption text-stone-500 mt-0.5">You will need to sign in again to access the system.</p>
-              </div>
-              <Button
-                variant="destructive"
-                leftIcon={<LogOut size={16} />}
-                onClick={() => setIsLogoutOpen(true)}
-              >
-                Log out
-              </Button>
+          {/* ── Sign Out ── */}
+          <div className="rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-6 flex flex-col items-center text-center gap-4">
+            <div className="size-11 rounded-full bg-white border border-[#FCA5A5] flex items-center justify-center">
+              <LogOut size={18} className="text-[#991B1B]" />
             </div>
-          </SectionCard>
+            <div>
+              <p className="text-body-sm font-semibold text-[#991B1B]">Sign out</p>
+              <p className="text-caption text-[#991B1B]/70 mt-0.5">You will need to sign in again to access the system.</p>
+            </div>
+            <Button
+              variant="destructive"
+              leftIcon={<LogOut size={16} />}
+              onClick={() => setIsLogoutOpen(true)}
+              className="w-full"
+            >
+              Log out of Wendo RMS
+            </Button>
+          </div>
 
         </div>
       </PageLayout>

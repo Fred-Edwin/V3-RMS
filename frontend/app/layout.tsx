@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Cormorant_Garamond, DM_Sans } from 'next/font/google';
+import { Cormorant_Garamond, Jost } from 'next/font/google';
 import './globals.css';
 import { SessionBootstrap } from '@/components/app/SessionBootstrap';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -11,10 +11,10 @@ const cormorantGaramond = Cormorant_Garamond({
   weight: ['400', '500', '600', '700'],
 });
 
-const dmSans = DM_Sans({
+const jost = Jost({
   subsets: ['latin'],
   variable: '--font-sans',
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -28,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cormorantGaramond.variable} ${dmSans.variable}`}>
-      <body className={`${cormorantGaramond.variable} ${dmSans.variable} font-sans`}>
+    <html lang="en" className={`${cormorantGaramond.variable} ${jost.variable}`}>
+      <body className={`${cormorantGaramond.variable} ${jost.variable} font-sans`}>
         <SessionBootstrap />
         <OfflineBanner />
         {children}

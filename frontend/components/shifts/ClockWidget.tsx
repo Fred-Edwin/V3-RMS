@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock, MapPinOff } from 'lucide-react';
-import { Button, EmptyState } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -51,13 +51,29 @@ const getCurrentCoordinates = (): Promise<{ latitude: number; longitude: number 
 };
 
 const parseDistanceMetres = (message: string): number | null => {
-  const match = message.match(/(\d+)\s*metres?/i);
-  if (!match?.[1]) {
+  const kmMatch = message.match(/([\d,.]+)\s*km\b/i);
+  if (kmMatch?.[1]) {
+    const parsedKm = Number.parseFloat(kmMatch[1].replace(/,/g, ''));
+    if (!Number.isNaN(parsedKm)) {
+      return Math.round(parsedKm * 1000);
+    }
+  }
+
+  const metresMatch = message.match(/([\d,.]+)\s*(?:metres?|meters?)\b/i);
+  if (!metresMatch?.[1]) {
     return null;
   }
 
-  const parsed = Number.parseInt(match[1], 10);
+  const parsed = Number.parseFloat(metresMatch[1].replace(/,/g, ''));
   return Number.isNaN(parsed) ? null : parsed;
+};
+
+const formatDistance = (distanceMetres: number): string => {
+  if (distanceMetres >= 1000) {
+    return `${(distanceMetres / 1000).toFixed(1)} km`;
+  }
+
+  return `${Math.round(distanceMetres)} m`;
 };
 
 export function ClockWidget({ assignment, onUpdated }: ClockWidgetProps): JSX.Element {
@@ -114,11 +130,11 @@ export function ClockWidget({ assignment, onUpdated }: ClockWidgetProps): JSX.El
       if (error instanceof ApiError && error.statusCode === 403) {
         const distance = parseDistanceMetres(error.message);
         if (distance !== null) {
+          const actionLabel = status === 'CLOCKED_IN' ? 'clock out' : 'clock in';
           toast({
             variant: 'warning',
-            title: `You're ${distance}m from the branch. Move closer to ${
-              status === 'CLOCKED_IN' ? 'clock out' : 'clock in'
-            }.`,
+            title: 'Move closer to the branch',
+            message: `You are approximately ${formatDistance(distance)} away. Move within 50 m to ${actionLabel}.`,
           });
         } else {
           toast({
@@ -130,6 +146,7 @@ export function ClockWidget({ assignment, onUpdated }: ClockWidgetProps): JSX.El
         toast({
           variant: 'warning',
           title: 'Location unavailable - ask your manager to clock you in',
+          message: error instanceof Error ? error.message : undefined,
         });
       }
     } finally {
@@ -139,23 +156,22 @@ export function ClockWidget({ assignment, onUpdated }: ClockWidgetProps): JSX.El
 
   if (!assignment) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white shadow-sm">
-        <EmptyState
-          icon={<Clock size={24} />}
-          heading="No shift today"
-          body="No shift assignment found for today."
-        />
+      <div className="flex flex-col items-center justify-center rounded-xl border border-stone-200 bg-white py-10 text-center shadow-sm">
+        <Clock size={28} className="text-stone-300 mb-3" />
+        <p className="text-body-md font-medium text-stone-600">You&apos;re off today</p>
+        <p className="text-body-sm text-stone-400 mt-1">Enjoy your rest — no shift scheduled.</p>
       </div>
     );
   }
 
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
       <header className="flex items-start justify-between gap-4">
         <div>
+          <p className="text-label-sm uppercase tracking-wider text-stone-400 mb-0.5">Today&apos;s shift</p>
           <h3 className="text-heading-sm font-semibold text-stone-900">{assignment.shift.name}</h3>
           <p className="text-body-sm text-stone-500">
-            {assignment.shift.startTime} - {assignment.shift.endTime}
+            {assignment.shift.startTime} – {assignment.shift.endTime}
           </p>
         </div>
         {localRecord?.clockInMethod === 'OVERRIDE' || localRecord?.clockOutMethod === 'OVERRIDE' ? (

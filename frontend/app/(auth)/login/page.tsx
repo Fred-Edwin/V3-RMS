@@ -89,10 +89,10 @@ export default function Page(): JSX.Element {
               priority
             />
           </div>
-          <h1 className="font-display text-display-lg text-espresso tracking-[-0.01em]">
-            Wendo Coffee Bistro
+          <h1 className="font-display text-display-xl text-espresso tracking-[-0.02em] text-center leading-[1.1]">
+            Wendo<br />Coffee Bistro
           </h1>
-          <p className="mt-1 text-caption text-stone-500 tracking-wide uppercase">
+          <p className="mt-2 text-caption text-stone-500 tracking-widest uppercase">
             Restaurant Management System
           </p>
         </div>

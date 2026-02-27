@@ -54,8 +54,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ['Cormorant Garamond', 'Georgia', 'serif'],
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        display: ['Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', 'serif'],
+        sans: ['Jost', 'Futura', 'Century Gothic', 'sans-serif'],
       },
       fontSize: {
         'display-2xl': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],

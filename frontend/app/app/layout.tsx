@@ -28,7 +28,7 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -36,6 +36,35 @@ interface MobileRoleNavConfig {
 }
 
 const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
+  MANAGER: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
+      { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
+      { label: 'Staff', href: '/app/manage/staff', icon: Users },
+      { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
+    ],
+    overflowTabs: [
+      { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
+      { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
+      { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
+  DIRECTOR: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [],
+  },
+  SYSTEM_ADMIN: {
+    tabs: [
+      { label: 'Branches', href: '/app/admin', icon: Settings2 },
+      { label: 'Menu', href: '/app/admin/menu', icon: UtensilsCrossed },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [],
+  },
   WAITER: {
     tabs: [
       { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
@@ -182,7 +211,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
 
   const sidebarSections = useMemo(() => (role ? sidebarSectionsByRole[role] ?? [] : []), [role]);
   const mobileNavConfig = useMemo(
-    () => (role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' ? mobileRoleTabs[role] : null),
+    () => (role && role in mobileRoleTabs ? mobileRoleTabs[role as MobileRole] : null),
     [role],
   );
 
@@ -217,15 +246,42 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     </div>
   );
 
-  const useSidebarShell =
+  const usesDualShell =
     role === 'MANAGER' ||
     role === 'DIRECTOR' ||
-    role === 'SYSTEM_ADMIN' ||
+    role === 'SYSTEM_ADMIN';
+
+  const useSidebarOnlyShell =
+    !usesDualShell &&
     (isDesktopPreviewEnabled && (role === 'WAITER' || role === 'CHEF' || role === 'BARISTA'));
+
+  const mobileShell = (
+    <MobileLayout
+      className="lg:hidden"
+      bottomNav={
+        mobileNavConfig ? (
+          <BottomNav
+            tabs={mobileNavConfig.tabs}
+            overflowTabs={mobileNavConfig.overflowTabs}
+            activeHref={pathname}
+          />
+        ) : undefined
+      }
+    >
+      {children}
+    </MobileLayout>
+  );
 
   return (
     <>
-      {useSidebarShell ? (
+      {usesDualShell ? (
+        <>
+          {/* Desktop: sidebar shell (hidden on mobile via SidebarLayout) */}
+          <SidebarLayout sidebar={sidebar}>{children}</SidebarLayout>
+          {/* Mobile: bottom nav shell */}
+          {mobileShell}
+        </>
+      ) : useSidebarOnlyShell ? (
         <SidebarLayout sidebar={sidebar}>{children}</SidebarLayout>
       ) : (
         <MobileLayout
