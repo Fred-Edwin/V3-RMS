@@ -6,6 +6,9 @@ import { cn } from '@/lib/cn'
 import { IconButton } from './IconButton'
 import { PriceDisplay } from './PriceDisplay'
 
+const toCloudinaryThumb = (url: string): string =>
+  url.replace('/upload/', '/upload/w_400,h_160,c_fill,f_auto,q_auto/')
+
 interface MenuItemCardProps {
   name: string
   description?: string
@@ -42,7 +45,7 @@ export function MenuItemCard({
       <div className="relative h-40 bg-parchment">
         {imageUrl ? (
           <Image
-            src={imageUrl}
+            src={toCloudinaryThumb(imageUrl)}
             alt={name}
             fill
             className="object-cover"
