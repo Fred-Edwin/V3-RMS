@@ -41,6 +41,7 @@ export interface MenuItemWithAvailability {
   id: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   price: string;
   isAvailable: boolean;
 }
@@ -62,6 +63,7 @@ export interface MenuCategoryManagementItem {
   categoryId: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
   price: string;
   isActive: boolean;
 }
@@ -128,6 +130,7 @@ export const mergeMenuAvailability = (
       id: item.id,
       name: item.name,
       description: item.description,
+      imageUrl: item.imageUrl,
       price: item.price.toString(),
       isAvailable: item.branchOverrides[0]?.isAvailable ?? true,
     })),
@@ -194,6 +197,7 @@ export const menuService = {
         categoryId: item.categoryId,
         name: item.name,
         description: item.description,
+        imageUrl: item.imageUrl,
         price: item.price.toString(),
         isActive: item.isActive,
       })),

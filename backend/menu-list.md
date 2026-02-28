@@ -117,7 +117,7 @@
   Cheese
   Chicken
 
-[Bits & Bites]
+[Bits & Bites] done
   Bacon
   Beef Pie
   Bhajia
@@ -135,13 +135,13 @@
   Two Samosas with Few Chips
   Two Sausages with Few Chips
 
-[Wraps]
+[Wraps] done
   Beef Wrap
   Smoked Pork Wrap
   Tikka Chicken Wrap
   Vegetable Wrap
 
-[Pastas]
+[Pastas] done
   Alfredo Pasta
   Bolognese Pasta
   Carbonara Pasta
@@ -150,7 +150,7 @@
   Mushroom Pasta
   Tuna Pasta
 
-[Curry Dishes]
+[Curry Dishes] done
   Beef Curry
   Chicken Curry
   Daal Makhani
@@ -160,13 +160,13 @@
   Paneer and Peas Curry
   Peas and Potato Curry
 
-[Oriental Dishes]
+[Oriental Dishes] done
   Kung Pao Chicken
   Sizzling Beef Teriyaki
   Sizzling Chicken Teriyaki
   Sizzling Pork Teriyaki
 
-[Pizza]
+[Pizza] done
   BBQ Chicken
   Boerewors
   Chicken and Bacon
@@ -177,12 +177,12 @@
   Prosciutto
   Sausage and Bacon
 
-[Murima / Lake Dishes]
+[Murima / Lake Dishes] done
   Kimanishi
   Mushenye
   Wet-Fried Tilapia Fish
 
-[Accompaniments]
+[Accompaniments] 
   Fries
   Lyonnaise
   Mashed Potatoes

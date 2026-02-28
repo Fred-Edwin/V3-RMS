@@ -1,0 +1,6 @@
+# Ignore all image files — they are uploaded to Cloudinary.
+# Only keep .gitkeep to preserve the folder in git.
+*.webp
+*.jpg
+*.jpeg
+*.png
