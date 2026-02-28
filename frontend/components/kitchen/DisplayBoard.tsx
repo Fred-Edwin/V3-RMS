@@ -253,13 +253,17 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   }
 
   return (
-    <FullscreenLayout>
-      <TopBar branchName={organizationName ?? 'Branch'} connectionStatus={connectionStatus} />
+    <FullscreenLayout className="bg-crema">
+      <TopBar
+        branchName={organizationName ?? 'Branch'}
+        connectionStatus={connectionStatus}
+        tone="light"
+      />
       {connectionStatus === 'disconnected' && (
         <div className="bg-[#FDF2F0] px-4 py-2 text-body-sm text-[#9B3A2A]">Offline. Reconnecting...</div>
       )}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
+        <div className="grid h-full min-h-0 grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
           <KDSColumn
             title="Pending"
             tickets={pendingTickets}

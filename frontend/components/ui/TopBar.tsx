@@ -8,6 +8,7 @@ import type { ConnectionStatus } from './ConnectionIndicator'
 interface TopBarProps {
   branchName: string
   connectionStatus: ConnectionStatus
+  tone?: 'dark' | 'light'
   className?: string
 }
 
@@ -20,7 +21,7 @@ function formatClock(date: Date): string {
   })
 }
 
-export function TopBar({ branchName, connectionStatus, className }: TopBarProps) {
+export function TopBar({ branchName, connectionStatus, tone = 'dark', className }: TopBarProps) {
   const [time, setTime] = useState<string | null>(null)
 
   useEffect(() => {
@@ -32,13 +33,34 @@ export function TopBar({ branchName, connectionStatus, className }: TopBarProps)
   }, [])
 
   return (
-    <header className={cn('h-14 bg-stone-900 text-crema grid grid-cols-3 items-center px-6 border-b border-stone-700 shrink-0', className)}>
-      <span className="text-label-lg font-semibold text-crema truncate">{branchName}</span>
-      <span className="text-heading-md font-display text-crema text-center tabular-nums">{time ?? '--:--:--'}</span>
+    <header
+      className={cn(
+        'grid h-14 shrink-0 grid-cols-3 items-center px-6',
+        tone === 'dark'
+          ? 'border-b border-stone-700 bg-stone-900 text-crema'
+          : 'border-b border-stone-200 bg-white text-stone-900 shadow-sm',
+        className,
+      )}
+    >
+      <span className={cn('truncate text-label-lg font-semibold', tone === 'dark' ? 'text-crema' : 'text-stone-900')}>
+        {branchName}
+      </span>
+      <span
+        className={cn(
+          'text-center font-display text-heading-md tabular-nums',
+          tone === 'dark' ? 'text-crema' : 'text-stone-900',
+        )}
+      >
+        {time ?? '--:--:--'}
+      </span>
       <div className="flex justify-end">
         <ConnectionIndicator
           status={connectionStatus}
-          className="text-crema [&>span:not(.sr-only)]:text-crema [&_.bg-amber]:!bg-amber [&_.bg-green-500]:!bg-green-400"
+          className={
+            tone === 'dark'
+              ? 'text-crema [&>span:not(.sr-only)]:text-crema [&_.bg-amber]:!bg-amber [&_.bg-green-500]:!bg-green-400'
+              : 'text-stone-700 [&>span:not(.sr-only)]:text-stone-700'
+          }
         />
       </div>
     </header>

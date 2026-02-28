@@ -79,7 +79,7 @@ export function KDSCard({
   return (
     <div
       className={cn(
-        'bg-white border border-stone-200 border-l-[4px] shadow-md rounded-md p-5 min-h-[160px] flex flex-col',
+        'flex min-h-[160px] flex-col rounded-md border border-stone-200 border-l-[4px] bg-white p-4 shadow-md',
         ticketBorderClasses[status],
         className
       )}
@@ -98,7 +98,7 @@ export function KDSCard({
       </div>
 
       {/* Items */}
-      <ul className="mt-3 space-y-1 flex-1">
+      <ul className="mt-2.5 flex-1 space-y-1">
         {items.map((item, i) => (
           <li key={i} className="text-body-md text-stone-900">
             <span className="font-semibold">{item.quantity}×</span> {item.name}
@@ -111,7 +111,7 @@ export function KDSCard({
 
       {/* Special instructions */}
       {specialInstructions && (
-        <p className="text-body-sm italic text-stone-500 border-t border-stone-200 pt-2 mt-3">
+        <p className="mt-2.5 border-t border-stone-200 pt-2 text-body-sm italic text-stone-500">
           {specialInstructions}
         </p>
       )}
@@ -122,7 +122,7 @@ export function KDSCard({
         size="lg"
         onClick={onAction}
         isLoading={isActionLoading}
-        className="w-full mt-4"
+        className="mt-3 w-full"
       >
         {actionLabel}
       </Button>
