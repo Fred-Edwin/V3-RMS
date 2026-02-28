@@ -24,13 +24,12 @@ const partitionTickets = (tickets: PrepTicketDetail[]) => {
   tickets.forEach((ticket) => {
     if (ticket.status === 'PENDING') {
       pendingTickets.push(ticket);
-      return;
-    }
-    if (ticket.status === 'IN_PROGRESS') {
+    } else if (ticket.status === 'IN_PROGRESS') {
       inProgressTickets.push(ticket);
-      return;
+    } else if (ticket.status === 'READY') {
+      readyTickets.push(ticket);
     }
-    readyTickets.push(ticket);
+    // CLOSED / CANCELLED tickets are intentionally discarded
   });
 
   return { pendingTickets, inProgressTickets, readyTickets };

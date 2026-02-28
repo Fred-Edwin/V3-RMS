@@ -539,10 +539,18 @@ export const orderService = {
     }
 
     const serialized = serializeOrder(updated);
+
     socketService.emitOrderPaid(actor.id, {
       orderId: serialized.id,
       dailyNumber: serialized.dailyNumber,
     });
+
+    const stations = [...new Set(order.prepTickets.map((t) => t.station))] as PrepStation[];
+    socketService.emitOrderClosed(organizationId, stations, {
+      orderId: serialized.id,
+      dailyNumber: serialized.dailyNumber,
+    });
+
     return serialized;
   },
 

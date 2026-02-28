@@ -1,4 +1,4 @@
-import { PrepTicketStatus, type PrepStation, type Prisma } from '@prisma/client';
+import { OrderStatus, PrepTicketStatus, type PrepStation, type Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import type { PrepTicketItemSnapshot } from '../types/order.types';
 
@@ -28,6 +28,7 @@ interface PrepTicketFilters {
   startDate?: Date;
   endDate?: Date;
   claimedById?: string;
+  activeOnly?: boolean;
   page: number;
   perPage: number;
 }
@@ -71,6 +72,15 @@ export const prepTicketRepository = {
       organizationId,
       station,
       ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.activeOnly
+        ? {
+            order: {
+              status: {
+                notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
+              },
+            },
+          }
+        : {}),
       ...(filters.claimedById ? { claimedById: filters.claimedById } : {}),
       ...(filters.startDate || filters.endDate
         ? {
@@ -88,7 +98,7 @@ export const prepTicketRepository = {
         where,
         include: prepTicketInclude,
         orderBy: {
-          createdAt: 'desc',
+          createdAt: 'asc',
         },
         skip: (filters.page - 1) * filters.perPage,
         take: filters.perPage,

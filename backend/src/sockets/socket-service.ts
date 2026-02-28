@@ -30,6 +30,11 @@ export interface OrderPaidPayload {
   dailyNumber: number;
 }
 
+export interface OrderClosedPayload {
+  orderId: string;
+  dailyNumber: number;
+}
+
 const emitToStations = (
   organizationId: string,
   stations: PrepStation[],
@@ -70,6 +75,10 @@ export const socketService = {
   emitOrderPaid: (waiterId: string, payload: OrderPaidPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:paid', payload);
+  },
+
+  emitOrderClosed: (organizationId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {
+    emitToStations(organizationId, stations, 'order:closed', payload);
   },
 
   emitOrderModified: (organizationId: string, tickets: PrepTicketRecord[]): void => {

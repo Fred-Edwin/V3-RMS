@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/cn'
 import { Button } from './Button'
+import { ClaimButton } from '@/components/kitchen/ClaimButton'
 import type { OrderType } from './OrderCard'
 
 export interface KDSItem {
@@ -25,6 +26,9 @@ interface KDSCardProps {
   isActionLoading?: boolean
   loadingMessage?: string
   onAction: () => void
+  /** When provided on a PENDING ticket, renders an inline ClaimButton instead of the generic action button */
+  staffOnShift?: Array<{ id: string; name: string }>
+  onClaim?: (staffId: string) => void
   className?: string
 }
 
@@ -64,6 +68,8 @@ export function KDSCard({
   isActionLoading = false,
   loadingMessage = 'Updating ticket...',
   onAction,
+  staffOnShift,
+  onClaim,
   className,
 }: KDSCardProps) {
   const [elapsedMinutes, setElapsedMinutes] = useState(() => getElapsedMinutes(startTime))
@@ -116,18 +122,45 @@ export function KDSCard({
         </p>
       )}
 
-      {/* Action */}
-      <Button
-        variant="primary"
-        size="lg"
-        onClick={onAction}
-        isLoading={isActionLoading}
-        className="mt-3 w-full"
-      >
-        {actionLabel}
-      </Button>
-      {isActionLoading && (
-        <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+      {/* Action — only shown for PENDING and IN_PROGRESS tickets */}
+      {status === 'PENDING' && staffOnShift && onClaim && (
+        <ClaimButton
+          staffOnShift={staffOnShift}
+          isLoading={isActionLoading}
+          onClaim={onClaim}
+        />
+      )}
+      {status === 'PENDING' && (!staffOnShift || !onClaim) && (
+        <>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={onAction}
+            isLoading={isActionLoading}
+            className="mt-3 w-full"
+          >
+            {actionLabel}
+          </Button>
+          {isActionLoading && (
+            <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+          )}
+        </>
+      )}
+      {status === 'IN_PROGRESS' && (
+        <>
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={onAction}
+            isLoading={isActionLoading}
+            className="mt-3 w-full"
+          >
+            {actionLabel}
+          </Button>
+          {isActionLoading && (
+            <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+          )}
+        </>
       )}
     </div>
   )

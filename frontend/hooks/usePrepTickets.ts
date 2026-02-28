@@ -41,7 +41,7 @@ export function usePrepTickets() {
     setLoading(true);
     setError(null);
     try {
-      const response = await prepTicketService.getTickets({}, accessToken);
+      const response = await prepTicketService.getTickets({ activeOnly: true }, accessToken);
       setTickets(response.tickets);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load prep tickets';
@@ -87,9 +87,14 @@ export function usePrepTickets() {
       removeOrderTickets(payload.orderId);
     };
 
+    const handleOrderClosed = (payload: { orderId: string }) => {
+      removeOrderTickets(payload.orderId);
+    };
+
     socket.on('order:new', handleNewOrder);
     socket.on('order:modified', handleOrderModified);
     socket.on('order:cancelled', handleOrderCancelled);
+    socket.on('order:closed', handleOrderClosed);
 
     const offReconnect = onReconnect(() => {
       void loadTickets();
@@ -99,6 +104,7 @@ export function usePrepTickets() {
       socket.off('order:new', handleNewOrder);
       socket.off('order:modified', handleOrderModified);
       socket.off('order:cancelled', handleOrderCancelled);
+      socket.off('order:closed', handleOrderClosed);
       offReconnect();
     };
   }, [

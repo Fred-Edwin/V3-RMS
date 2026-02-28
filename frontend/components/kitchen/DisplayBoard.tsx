@@ -33,13 +33,17 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const updateTicketRealTime = useKitchenStore((state) => state.updateTicketRealTime);
   const removeOrderTickets = useKitchenStore((state) => state.removeOrderTickets);
+  const clearReadyTickets = useKitchenStore((state) => state.clearReadyTickets);
 
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>(
     typeof navigator !== 'undefined' && navigator.onLine ? 'connected' : 'disconnected',
   );
   const [staffOnShift, setStaffOnShift] = useState<Array<{ id: string; name: string }>>([]);
   const [isUsingStaffFallback, setIsUsingStaffFallback] = useState(false);
+
+  // Phone-only: tracks which ticket has the claim sheet open
   const [selectedTicket, setSelectedTicket] = useState<PrepTicketDetail | null>(null);
+
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
 
@@ -90,12 +94,11 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     };
   }, []);
 
-  const handleClaim = async (claimedById: string) => {
-    if (!accessToken || !selectedTicket) {
+  const handleClaim = async (ticketId: string, claimedById: string) => {
+    if (!accessToken) {
       return;
     }
 
-    const ticketId = selectedTicket.id;
     setClaimingTicketId(ticketId);
 
     try {
@@ -159,42 +162,64 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
-  const renderTicket = (ticket: PrepTicketDetail) => {
-    return (
-      <KDSCard
-        key={ticket.id}
-        orderNumber={ticket.orderDailyNumber}
-        type={ticket.orderType}
-        tableNumber={ticket.tableNumber ?? undefined}
-        items={ticket.items}
-        specialInstructions={ticket.orderNotes}
-        startTime={ticket.createdAt}
-        status={ticket.status}
-        actionLabel={ticket.status === 'PENDING' ? 'Claim' : 'Mark Ready'}
-        isActionLoading={
-          ticket.status === 'PENDING'
-            ? claimingTicketId === ticket.id
-            : Boolean(markingReadyTicketIds[ticket.id])
-        }
-        loadingMessage={ticket.status === 'PENDING' ? 'Claiming ticket...' : 'Marking as ready...'}
-        onAction={() => {
-          if (ticket.status === 'PENDING') {
-            if (claimingTicketId === ticket.id) {
-              return;
-            }
-            setSelectedTicket(ticket);
-            return;
-          }
+  // Tablet KDS/BDS: inline ClaimButton, no modal
+  const renderTabletTicket = (ticket: PrepTicketDetail) => (
+    <KDSCard
+      key={ticket.id}
+      orderNumber={ticket.orderDailyNumber}
+      type={ticket.orderType}
+      tableNumber={ticket.tableNumber ?? undefined}
+      items={ticket.items}
+      specialInstructions={ticket.orderNotes}
+      startTime={ticket.createdAt}
+      status={ticket.status}
+      actionLabel="Mark Ready"
+      isActionLoading={
+        ticket.status === 'PENDING'
+          ? claimingTicketId === ticket.id
+          : Boolean(markingReadyTicketIds[ticket.id])
+      }
+      loadingMessage={ticket.status === 'PENDING' ? 'Claiming ticket...' : 'Marking as ready...'}
+      staffOnShift={ticket.status === 'PENDING' ? staffOnShift : undefined}
+      onClaim={ticket.status === 'PENDING' ? (staffId) => void handleClaim(ticket.id, staffId) : undefined}
+      onAction={() => {
+        if (markingReadyTicketIds[ticket.id]) return;
+        void handleMarkReady(ticket.id);
+      }}
+      className={ticket.status === 'PENDING' ? 'animate-slide-in-top' : undefined}
+    />
+  );
 
-          if (markingReadyTicketIds[ticket.id]) {
-            return;
-          }
-          void handleMarkReady(ticket.id);
-        }}
-        className={ticket.status === 'PENDING' ? 'animate-slide-in-top' : undefined}
-      />
-    );
-  };
+  // Phone (CHEF / BARISTA personal): BottomSheet claim flow
+  const renderPhoneTicket = (ticket: PrepTicketDetail) => (
+    <KDSCard
+      key={ticket.id}
+      orderNumber={ticket.orderDailyNumber}
+      type={ticket.orderType}
+      tableNumber={ticket.tableNumber ?? undefined}
+      items={ticket.items}
+      specialInstructions={ticket.orderNotes}
+      startTime={ticket.createdAt}
+      status={ticket.status}
+      actionLabel={ticket.status === 'PENDING' ? 'Claim' : 'Mark Ready'}
+      isActionLoading={
+        ticket.status === 'PENDING'
+          ? claimingTicketId === ticket.id
+          : Boolean(markingReadyTicketIds[ticket.id])
+      }
+      loadingMessage={ticket.status === 'PENDING' ? 'Claiming ticket...' : 'Marking as ready...'}
+      onAction={() => {
+        if (ticket.status === 'PENDING') {
+          if (claimingTicketId === ticket.id) return;
+          setSelectedTicket(ticket);
+          return;
+        }
+        if (markingReadyTicketIds[ticket.id]) return;
+        void handleMarkReady(ticket.id);
+      }}
+      className={ticket.status === 'PENDING' ? 'animate-slide-in-top' : undefined}
+    />
+  );
 
   const isPersonalRole = role === 'CHEF' || role === 'BARISTA';
 
@@ -217,7 +242,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
 
         <section>
           <h2 className="mb-2 text-heading-sm font-semibold text-stone-900">Pending</h2>
-          <div className="space-y-3">{pendingTickets.map((ticket) => renderTicket(ticket))}</div>
+          <div className="space-y-3">{pendingTickets.map((ticket) => renderPhoneTicket(ticket))}</div>
         </section>
 
         <section className="mt-6">
@@ -226,7 +251,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
             {myInProgressTickets.length === 0 ? (
               <p className="text-body-sm text-stone-500">No active claimed tickets.</p>
             ) : (
-              myInProgressTickets.map((ticket) => renderTicket(ticket))
+              myInProgressTickets.map((ticket) => renderPhoneTicket(ticket))
             )}
           </div>
         </section>
@@ -245,7 +270,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
             }
             isSubmitting={Boolean(selectedTicket && claimingTicketId === selectedTicket.id)}
             submittingMessage="Claiming ticket..."
-            onClaim={handleClaim}
+            onClaim={(staffId) => void handleClaim(selectedTicket.id, staffId)}
           />
         )}
       </main>
@@ -268,13 +293,13 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
             title="Pending"
             tickets={pendingTickets}
             emptyMessage="No pending tickets."
-            renderTicket={renderTicket}
+            renderTicket={renderTabletTicket}
           />
           <KDSColumn
             title="In Progress"
             tickets={inProgressTickets}
             emptyMessage="No in-progress tickets."
-            renderTicket={renderTicket}
+            renderTicket={renderTabletTicket}
           />
           <KDSColumn
             title="Ready"
@@ -282,11 +307,11 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
             emptyMessage="No ready tickets."
             renderTicket={(ticket) => (
               <div key={ticket.id}>
-                {renderTicket(ticket)}
+                {renderTabletTicket(ticket)}
                 <Button
                   variant="ghost"
                   className="mt-2 w-full"
-                  onClick={() => removeOrderTickets(ticket.orderId)}
+                  onClick={() => clearReadyTickets(ticket.orderId)}
                 >
                   Clear
                 </Button>
@@ -295,24 +320,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           />
         </div>
       </div>
-
-      {selectedTicket && (
-        <ClaimTicketSheet
-          isOpen={Boolean(selectedTicket)}
-          onClose={() => setSelectedTicket(null)}
-          ticketId={selectedTicket.id}
-          station={station}
-          staffOnShift={staffOnShift}
-          helperText={
-            isUsingStaffFallback
-              ? 'No clocked-in staff found. Showing active staff for local testing.'
-              : undefined
-          }
-          isSubmitting={Boolean(selectedTicket && claimingTicketId === selectedTicket.id)}
-          submittingMessage="Claiming ticket..."
-          onClaim={handleClaim}
-        />
-      )}
     </FullscreenLayout>
   );
 }
