@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import {
+  ClockMethod,
   OrderStatus,
   OrderType,
   PaymentMethod,
@@ -46,6 +47,17 @@ type SeedStats = {
   organizationName: string;
   ordersCreated: number;
   totalRevenue: Prisma.Decimal;
+  clockRecordsCreated: number;
+};
+
+type ClockRow = {
+  shiftAssignment: Prisma.ShiftAssignmentCreateManyInput;
+  clockRecord: Omit<Prisma.ClockRecordCreateInput, 'shiftAssignment' | 'user' | 'organization'> & {
+    id: string;
+    organizationId: string;
+    userId: string;
+    clockInMethod: ClockMethod;
+  };
 };
 
 type PreparedRows = {
@@ -569,6 +581,112 @@ const prepareRowsForOrganization = async (
   };
 };
 
+// Parse "HH:MM" into total minutes since midnight
+const shiftTimeToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+};
+
+// Outcomes for a single staff member on a given day
+// ~70% on-time, ~15% late, ~10% no-show, ~5% left early
+const chooseClockOutcome = (rng: LcgRng): 'on_time' | 'late' | 'no_show' | 'left_early' => {
+  const roll = rng.next();
+  if (roll < 0.70) return 'on_time';
+  if (roll < 0.85) return 'late';
+  if (roll < 0.95) return 'no_show';
+  return 'left_early';
+};
+
+const buildClockRows = async (
+  organizationId: string,
+  userPools: BranchUserPools,
+  today: Date,
+  rng: LcgRng,
+): Promise<ClockRow[]> => {
+  // Fetch active shifts for this org
+  const shifts = await prisma.shift.findMany({
+    where: { organizationId, isActive: true },
+    select: { id: true, startTime: true, endTime: true },
+  });
+
+  if (shifts.length === 0) return [];
+
+  const staffIds = userPools.fallback;
+  const rows: ClockRow[] = [];
+
+  for (const userId of staffIds) {
+    // Check for existing assignment today to avoid unique constraint violation
+    const existing = await prisma.shiftAssignment.findFirst({
+      where: { userId, date: today },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const shift = rng.pick(shifts);
+    const startMinutes = shiftTimeToMinutes(shift.startTime);
+    const endMinutes = shiftTimeToMinutes(shift.endTime);
+
+    const shiftStartAt = addMinutesUtc(today, startMinutes);
+    const shiftEndAt = addMinutesUtc(today, endMinutes);
+
+    const outcome = chooseClockOutcome(rng);
+
+    const shiftAssignment: Prisma.ShiftAssignmentCreateManyInput = {
+      id: randomUUID(),
+      organizationId,
+      shiftId: shift.id,
+      userId,
+      date: today,
+    };
+
+    if (outcome === 'no_show') {
+      // ShiftAssignment exists but ClockRecord has null times — represents a no-show
+      rows.push({
+        shiftAssignment,
+        clockRecord: {
+          id: randomUUID(),
+          organizationId,
+          userId,
+          clockInAt: null,
+          clockOutAt: null,
+          clockInMethod: ClockMethod.GPS,
+          clockOutMethod: null,
+          overrideById: null,
+          overrideNote: null,
+        },
+      });
+      continue;
+    }
+
+    const lateMinutes = outcome === 'late' ? rng.int(10, 45) : rng.int(-2, 5);
+    const clockInAt = addMinutesUtc(shiftStartAt, lateMinutes);
+
+    let clockOutAt: Date;
+    if (outcome === 'left_early') {
+      clockOutAt = addMinutesUtc(shiftEndAt, -rng.int(20, 90));
+    } else {
+      clockOutAt = addMinutesUtc(shiftEndAt, rng.int(-5, 15));
+    }
+
+    rows.push({
+      shiftAssignment,
+      clockRecord: {
+        id: randomUUID(),
+        organizationId,
+        userId,
+        clockInAt,
+        clockOutAt,
+        clockInMethod: ClockMethod.GPS,
+        clockOutMethod: ClockMethod.GPS,
+        overrideById: null,
+        overrideNote: null,
+      },
+    });
+  }
+
+  return rows;
+};
+
 const run = async (): Promise<void> => {
   const args = parseArgs(process.argv.slice(2));
   ensureSafetyGuards();
@@ -593,19 +711,26 @@ const run = async (): Promise<void> => {
     throw new Error('No active organizations found for report seeding');
   }
 
+  const today = startOfUtcDay(new Date());
+
   if (args.reset) {
     const deleted = await prisma.order.deleteMany({
       where: {
-        notes: {
-          startsWith: SEED_NOTE_PREFIX,
-        },
+        notes: { startsWith: SEED_NOTE_PREFIX },
         ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
       },
     });
     console.log(`Deleted ${deleted.count} previously seeded report orders`);
-  }
 
-  const today = startOfUtcDay(new Date());
+    // ClockRecords cascade-delete when ShiftAssignments are deleted
+    const deletedAssignments = await prisma.shiftAssignment.deleteMany({
+      where: {
+        date: today,
+        ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
+      },
+    });
+    console.log(`Deleted ${deletedAssignments.count} previously seeded shift assignments`);
+  }
   const stats: SeedStats[] = [];
 
   for (let organizationIndex = 0; organizationIndex < organizations.length; organizationIndex += 1) {
@@ -664,21 +789,38 @@ const run = async (): Promise<void> => {
       DEFAULT_CHUNK_SIZE * 2,
     );
 
+    // Seed today's clock-in/out data for all staff
+    const clockRows = await buildClockRows(organization.id, userPools, today, rng);
+    console.log(`  seeding ${clockRows.length} clock records for today...`);
+    let clockCount = 0;
+    for (const row of clockRows) {
+      await prisma.shiftAssignment.create({
+        data: {
+          ...row.shiftAssignment,
+          clockRecord: { create: row.clockRecord },
+        },
+      });
+      clockCount += 1;
+    }
+
     stats.push({
       organizationName: organization.name,
       ordersCreated: prepared.orders.length,
       totalRevenue: prepared.totalRevenue,
+      clockRecordsCreated: clockCount,
     });
   }
 
   const totalOrders = stats.reduce((sum, branch) => sum + branch.ordersCreated, 0);
   const grandRevenue = stats.reduce((sum, branch) => sum.add(branch.totalRevenue), new Prisma.Decimal(0));
+  const totalClock = stats.reduce((sum, branch) => sum + branch.clockRecordsCreated, 0);
 
   console.log('Report seeding complete');
   console.log(`Seed note prefix: ${SEED_NOTE_PREFIX}${seedTag}]`);
   console.log(`Date window: last ${args.days} days`);
   console.log(`Orders created: ${totalOrders}`);
   console.log(`Revenue generated: KES ${grandRevenue.toFixed(2)}`);
+  console.log(`Clock records created: ${totalClock}`);
   for (const branch of stats) {
     console.log(`- ${branch.organizationName}: ${branch.ordersCreated} orders, KES ${branch.totalRevenue.toFixed(2)}`);
   }
