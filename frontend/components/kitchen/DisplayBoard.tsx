@@ -32,7 +32,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   const role = useAuthStore((state) => state.role);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const updateTicketRealTime = useKitchenStore((state) => state.updateTicketRealTime);
-  const removeOrderTickets = useKitchenStore((state) => state.removeOrderTickets);
   const clearReadyTickets = useKitchenStore((state) => state.clearReadyTickets);
 
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>(
