@@ -39,8 +39,8 @@ STAFF DEVICES (browsers, phones, tablets)
          │ HTTPS API calls + WebSocket
          ▼
 ┌─────────────────────────────────────────┐
-│         Cloudflare Quick Tunnel         │   Free — no domain needed
-│   https://*.trycloudflare.com           │   DDoS protection + SSL
+│         Cloudflare Named Tunnel         │   Permanent URL — never changes
+│   https://api.wendo-rms.co.ke           │   DDoS protection + SSL
 └────────────────┬────────────────────────┘
                  │
                  ▼
@@ -77,7 +77,7 @@ STAFF DEVICES (browsers, phones, tablets)
 
 ### Key Design Decisions
 
-- **No custom domain** — using Cloudflare Quick Tunnel. URL changes on every restart (see [Section 12](#12-tunnel-url-changes)).
+- **Custom domain** — `api.wendo-rms.co.ke` via Cloudflare named tunnel. URL is permanent and never changes on reboot.
 - **All backend services on one machine** — PostgreSQL, Redis, API, and worker run on the same Droplet with no network hops between them. This is why the app is fast.
 - **Swap file** — 2GB swap added to prevent OOM kills during Docker builds on the 1GB RAM Droplet.
 - **pnpm** — package manager used throughout. Do not use npm or yarn.
@@ -109,7 +109,7 @@ STAFF DEVICES (browsers, phones, tablets)
 | Backend `.env` | `/home/edwinfred/wendo-rms/backend/.env` |
 | Root `.env` | `/home/edwinfred/wendo-rms/.env` (contains `POSTGRES_PASSWORD` only) |
 | Cloudflare tunnel log | `/home/edwinfred/cloudflared.log` |
-| Tunnel URL | Changes on each restart — see [Section 12](#12-tunnel-url-changes) |
+| API URL | `https://api.wendo-rms.co.ke` (permanent — Cloudflare named tunnel) |
 | Vercel project | `https://v3-rms.vercel.app` |
 | Docker network | `wendo-rms_wendo-network` |
 
@@ -642,31 +642,29 @@ docker compose start api worker
 
 ---
 
-## 12. Tunnel URL Changes
+## 12. Tunnel
 
-The Cloudflare Quick Tunnel URL **changes every time cloudflared restarts** (e.g. after a server reboot).
+The API is exposed via a **Cloudflare named tunnel** at `https://api.wendo-rms.co.ke`. This URL is permanent and never changes on reboot or redeploy.
 
-### After a Reboot — Get the New URL
-
-```bash
-# Wait ~30 seconds after reboot for the tunnel to start, then:
-cat ~/cloudflared.log | grep trycloudflare.com
-```
-
-### Update Vercel with the New URL
-
-On your local machine:
+The tunnel runs as a systemd service and auto-starts on every server reboot:
 
 ```bash
-cd "d:\AI applications\web\V3-RMS"
-vercel env rm NEXT_PUBLIC_API_URL production
-vercel env rm NEXT_PUBLIC_SOCKET_URL production
-vercel env add NEXT_PUBLIC_API_URL production    # https://NEW_URL/api/v1
-vercel env add NEXT_PUBLIC_SOCKET_URL production # https://NEW_URL
-vercel --prod
+# Check tunnel status
+sudo systemctl status cloudflared
+
+# Restart if needed
+sudo systemctl restart cloudflared
 ```
 
-> **Tip:** If this becomes painful, add a custom domain to Cloudflare and set up a named tunnel. The tunnel URL will then be permanent and never change.
+Tunnel config: `/etc/cloudflared/config.yml`
+Tunnel credentials: `/etc/cloudflared/<tunnel-id>.json`
+
+### Vercel Environment Variables (already set — permanent)
+
+```
+NEXT_PUBLIC_API_URL=https://api.wendo-rms.co.ke/api/v1
+NEXT_PUBLIC_SOCKET_URL=https://api.wendo-rms.co.ke
+```
 
 ---
 
@@ -722,6 +720,5 @@ Do not upgrade anything until these conditions are met:
 | Memory consistently >85% (`docker stats`) | Upgrade Droplet to $12/mo (2 GB RAM) |
 | Disk >80% (`df -h`) | Attach DigitalOcean Block Storage, move `postgres_data` volume |
 | DB queries slow >500ms avg | Move to DigitalOcean Managed PostgreSQL ($15/mo) |
-| Need permanent tunnel URL | Add custom domain to Cloudflare, set up named tunnel |
-| Multiple devs deploying | Add GitHub Actions → SSH deploy CI/CD pipeline |
+| Multiple devs deploying | Add branch protection + required PR reviews |
 | >5 branches, >100 concurrent users | Add Socket.io Redis adapter + load balancer |
