@@ -27,18 +27,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-COPY prisma ./prisma/
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy compiled output from builder stage
+# Copy everything from builder — node_modules includes the generated Prisma client
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-
-# Copy the generated Prisma client from builder (prisma is a devDep, not available in prod install)
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
 
 # Run as non-root user for security
 RUN addgroup -S wendo && adduser -S wendo -G wendo
