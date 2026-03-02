@@ -445,25 +445,28 @@ vercel --prod
 
 ## 7. Subsequent Deployments
 
-Every future deployment is one command on the server:
+### Automated (recommended)
+
+Every push to `main` triggers a GitHub Actions workflow that automatically:
+1. Runs `prisma migrate deploy` (no-op if no new migrations)
+2. Pulls latest code on the server
+3. Rebuilds `api` and `worker` images
+4. Restarts containers — `postgres` and `redis` keep running, no data risk
+5. Health checks `/api/v1/health` — fails the deploy if the API doesn't come up
+6. Cleans up old Docker images
+
+Monitor runs at: GitHub → repo → **Actions** tab.
+
+### Manual (if needed)
+
+SSH in and run:
 
 ```bash
 cd ~/wendo-rms
-./deploy.sh
+bash deploy.sh
 ```
 
-The script:
-1. Pulls latest code from `main`
-2. Rebuilds `api` and `worker` images
-3. Restarts them — `postgres` and `redis` keep running, no data risk
-4. Health checks the API and exits with error if it doesn't come up
-
-**If the release includes a database migration**, run it before `./deploy.sh`:
-
-```bash
-docker compose exec api npx prisma migrate deploy
-./deploy.sh
-```
+**Important:** Never edit files in `~/wendo-rms` directly on the server. All changes go through git. The only files safe to edit on the server are `.env` files (gitignored).
 
 ---
 
@@ -491,6 +494,23 @@ docker compose exec api npx prisma migrate status
 
 ## 9. Viewing Logs
 
+### From your local machine (recommended)
+
+Use the convenience scripts in `scripts/`:
+
+```powershell
+# Stream api logs (default)
+.\scripts\logs.ps1
+
+# Stream worker logs
+.\scripts\logs.ps1 worker
+
+# Last 100 lines then stream
+.\scripts\logs.ps1 api 100
+```
+
+### Directly on the server
+
 ```bash
 cd ~/wendo-rms
 
@@ -509,6 +529,10 @@ docker compose logs -f
 docker stats
 ```
 
+**When to check which:**
+- API errors or unexpected responses → `api` logs
+- Push notifications not arriving, background tasks failing → `worker` logs
+
 ---
 
 ## 10. Accessing the Database
@@ -526,30 +550,30 @@ Useful commands inside psql:
 
 ### Option B — Prisma Studio (visual, from local machine)
 
-**Step 1:** Open an SSH tunnel in one terminal (keep it running):
+Use the convenience script — it opens the SSH tunnel and launches Studio in one command:
+
+```powershell
+.\scripts\db-studio.ps1
+# prompts for Postgres password → opens tunnel → launches Studio
+```
+
+Opens at `http://localhost:5555`. Closing Studio automatically kills the tunnel.
+
+**Manual steps (if the script fails):**
+
+Step 1 — Open an SSH tunnel in one terminal (keep it running):
 
 ```bash
 ssh -L 5433:localhost:5432 edwinfred@104.248.29.42 -N
 ```
 
-Note: This requires port 5432 to be exposed on the postgres container. Add to `docker-compose.yml` under postgres service:
-
-```yaml
-ports:
-  - "5432:5432"
-```
-
-Then recreate: `docker compose up -d --force-recreate postgres`
-
-**Step 2:** Run Prisma Studio in another terminal:
+Step 2 — Run Prisma Studio in another terminal:
 
 ```powershell
 cd "d:\AI applications\web\V3-RMS\backend"
 $env:DATABASE_URL="postgresql://wendo_user:YOUR_PASSWORD@localhost:5433/wendo_rms"
 pnpm prisma studio
 ```
-
-Opens at `http://localhost:5555`
 
 ---
 
