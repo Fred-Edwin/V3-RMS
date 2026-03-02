@@ -34,11 +34,11 @@ COPY prisma ./prisma/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Generate Prisma client in the production image
-RUN pnpm prisma:generate
-
 # Copy compiled output from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy the generated Prisma client from builder (prisma is a devDep, not available in prod install)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 # Run as non-root user for security
 RUN addgroup -S wendo && adduser -S wendo -G wendo
