@@ -1,331 +1,1061 @@
 # Deployment Guide
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 1.0
-**Status:** Draft
-**Date:** 2026-02-26
+**Version:** 2.0
+**Status:** Active
+**Date:** 2026-03-01
+**Strategy:** DigitalOcean VPS ($6/mo) + Docker Compose + Vercel (frontend)
 
 ---
 
 ## Table of Contents
 
-1. [Infrastructure Overview](#1-infrastructure-overview)
-2. [Services & Accounts to Create](#2-services--accounts-to-create)
-3. [Environment Variables Reference](#3-environment-variables-reference)
-4. [First Deployment — Step by Step](#4-first-deployment--step-by-step)
-5. [Subsequent Deployments](#5-subsequent-deployments)
-6. [Database Migrations](#6-database-migrations)
-7. [Observability Setup](#7-observability-setup)
-8. [Health Checks & Uptime Monitoring](#8-health-checks--uptime-monitoring)
-9. [Rollback Procedure](#9-rollback-procedure)
-10. [Environments](#10-environments)
-11. [Deployment Checklist](#11-deployment-checklist)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Cost Summary](#2-cost-summary)
+3. [Services & Accounts Required](#3-services--accounts-required)
+4. [Environment Variables Reference](#4-environment-variables-reference)
+5. [Server Setup — Step by Step](#5-server-setup--step-by-step)
+6. [Docker Files](#6-docker-files)
+7. [First Deployment](#7-first-deployment)
+8. [Subsequent Deployments](#8-subsequent-deployments)
+9. [Database Migrations](#9-database-migrations)
+10. [Backups](#10-backups)
+11. [Observability Setup](#11-observability-setup)
+12. [Rollback Procedure](#12-rollback-procedure)
+13. [Scaling Triggers](#13-scaling-triggers)
+14. [Deployment Checklist](#14-deployment-checklist)
 
 ---
 
-## 1. Infrastructure Overview
+## 1. Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              Vercel (Frontend)                       │
-│  Next.js — global CDN, auto-deploy from main        │
-│  URL: app.wendorms.co.ke                            │
-└────────────────────┬────────────────────────────────┘
-                     │ HTTPS
-┌────────────────────▼────────────────────────────────┐
-│              Railway (Backend)                       │
-│  Node.js + Express — always-on, Pro plan            │
-│  URL: api.wendorms.co.ke                            │
-└──────────┬──────────────────────────┬───────────────┘
-           │                          │
-┌──────────▼──────────┐  ┌────────────▼──────────────┐
-│  Supabase           │  │  Upstash Redis             │
-│  (PostgreSQL)       │  │  Cache + BullMQ queues     │
-│  Free tier          │  │  Free tier                 │
-└─────────────────────┘  └────────────────────────────┘
-                                      │
-                             ┌────────▼────────┐
-                             │  Firebase (FCM) │
-                             │  Push notifs    │
-                             └────────┬────────┘
-                                      │
-                             ┌────────▼────────┐
-                             │   Cloudinary    │
-                             │  Image storage  │
-                             └─────────────────┘
-
-Observability:
-  Errors  → Sentry (free tier)
-  Logs    → Betterstack (free tier)
-  Uptime  → UptimeRobot (free)
-  Metrics → Railway built-in dashboard
-  Audit   → PostgreSQL (already in DB)
+STAFF DEVICES (browsers, phones, tablets)
+        │
+        ▼
+┌───────────────────┐         ┌──────────────────────────┐
+│      Vercel       │         │       Cloudflare          │
+│  v3-rms.vercel.app│         │  ├── DDoS protection      │
+│                   │         │  ├── SSL termination       │
+│  Next.js Frontend │         │  └── Tunnel → Droplet     │
+│  FREE             │         │  FREE                     │
+└───────────────────┘         └───────────┬──────────────┘
+                                          │ Cloudflare Tunnel (HTTPS)
+                                          ▼
+                               ┌─────────────────────────┐
+                               │  DigitalOcean Droplet    │
+                               │  $6/month — Frankfurt    │
+                               │  Ubuntu 24.04 LTS        │
+                               │                          │
+                               │  ┌─────────────────────┐│
+                               │  │       Nginx          ││
+                               │  │  (reverse proxy,     ││
+                               │  │   WebSocket support) ││
+                               │  └──────────┬──────────┘│
+                               │             │            │
+                               │  ┌──────────▼──────────┐│
+                               │  │   Docker Compose     ││
+                               │  │                      ││
+                               │  │  ┌────────────────┐  ││
+                               │  │  │  wendo-api     │  ││
+                               │  │  │  (port 4000)   │  ││
+                               │  │  │  Node.js +     │  ││
+                               │  │  │  Express +     │  ││
+                               │  │  │  Socket.io     │  ││
+                               │  │  └────────────────┘  ││
+                               │  │  ┌────────────────┐  ││
+                               │  │  │  wendo-worker  │  ││
+                               │  │  │  BullMQ jobs   │  ││
+                               │  │  └────────────────┘  ││
+                               │  │  ┌────────────────┐  ││
+                               │  │  │  postgres      │  ││
+                               │  │  │  (port 5432)   │  ││
+                               │  │  └────────────────┘  ││
+                               │  │  ┌────────────────┐  ││
+                               │  │  │  redis         │  ││
+                               │  │  │  (port 6379)   │  ││
+                               │  │  └────────────────┘  ││
+                               │  └─────────────────────┘│
+                               └─────────────────────────┘
+                                          │
+                               ┌──────────▼──────────────┐
+                               │   External Services      │
+                               │  Firebase FCM — FREE     │
+                               │  Cloudinary — FREE       │
+                               │  UptimeRobot — FREE      │
+                               │  Sentry — FREE           │
+                               │  Betterstack — FREE      │
+                               └─────────────────────────┘
 ```
 
-### Why This Stack
+### How Each Piece Fits Together
 
-| Service | Choice | Reason |
+| Component | Technology | Role |
 |---|---|---|
-| Frontend hosting | Vercel | Zero-config Next.js, global CDN, free |
-| Backend hosting | Railway Pro | Always-on (no cold starts), WebSocket support, built-in metrics |
-| Database | Supabase | Managed PostgreSQL, automatic backups, free tier sufficient for V1 |
-| Redis | Upstash | Serverless Redis, free tier covers V1 load, no idle cost |
-| Images | Cloudinary | Managed image storage and CDN, free tier generous |
-| Push notifications | Firebase FCM | Industry standard, free, Android web push |
-| Error tracking | Sentry | Best-in-class, free 5k errors/mo |
-| Log management | Betterstack | Structured log ingestion, Pino-native, free 1 GB/mo |
-| Uptime monitoring | UptimeRobot | Free, polls every 5 min, SMS/email alerts |
+| Frontend | Vercel (free) | Serves the Next.js app globally via CDN |
+| Tunnel + SSL | Cloudflare (free) | Exposes the VPS backend securely over HTTPS without a custom domain |
+| Reverse Proxy | Nginx (on Droplet) | Routes HTTP/WebSocket traffic to Docker containers |
+| API server | Docker: `wendo-api` | Express + Socket.io on port 4000 |
+| Background jobs | Docker: `wendo-worker` | BullMQ processors (shift reminders, daily reports) |
+| Database | Docker: `postgres` | PostgreSQL 16, data persisted on a named volume |
+| Cache / Queue | Docker: `redis` | Redis 7, data persisted on a named volume |
+| Images | Cloudinary | Menu item image storage and CDN |
+| Push notifications | Firebase FCM | Android push to waiters and staff |
 
 ---
 
-## 2. Services & Accounts to Create
+## 2. Cost Summary
 
-Create these accounts before beginning deployment. Free tiers are sufficient for V1.
-
-### 2.1 Supabase (PostgreSQL)
-1. Create account at supabase.com
-2. Create a new project — name it `wendo-rms-production`
-3. Choose a region close to Kenya (Europe West is currently closest)
-4. Note down two connection strings from **Project Settings → Database**:
-   - **Connection string (pooler)** — use this as `DATABASE_URL` in the app
-   - **Direct connection string** — use this for running Prisma migrations only
-
-### 2.2 Upstash (Redis)
-1. Create account at upstash.com
-2. Create a new Redis database — name it `wendo-rms-production`
-3. Select the same region as Supabase
-4. Enable **TLS** (always on by default)
-5. Note down from the database details page:
-   - `REDIS_URL` — the `rediss://` connection string
-   - `UPSTASH_REDIS_REST_URL`
-   - `UPSTASH_REDIS_REST_TOKEN`
-
-### 2.3 Firebase (FCM Push Notifications)
-1. Go to console.firebase.google.com
-2. Create a new project — name it `wendo-rms`
-3. Enable **Cloud Messaging** in Project Settings
-4. Generate a **Service Account** key:
-   - Project Settings → Service Accounts → Generate new private key
-   - Download the JSON file — this becomes `FIREBASE_SERVICE_ACCOUNT_JSON`
-5. Get the **VAPID key**:
-   - Project Settings → Cloud Messaging → Web Push certificates → Generate key pair
-   - This becomes `VAPID_KEY`
-6. Get the web app config values:
-   - Project Settings → General → Your apps → Add app (Web)
-   - Note down all `NEXT_PUBLIC_FIREBASE_*` values
-
-### 2.4 Cloudinary (Image Storage)
-1. Create account at cloudinary.com
-2. From the Dashboard, note down:
-   - `CLOUDINARY_CLOUD_NAME`
-   - `CLOUDINARY_API_KEY`
-   - `CLOUDINARY_API_SECRET`
-
-### 2.5 Railway (Backend Hosting)
-1. Create account at railway.app
-2. Upgrade to **Pro plan** ($20/mo minimum) — required for always-on production hosting
-3. Create a new project — name it `wendo-rms`
-4. Connect your GitHub repository
-
-### 2.6 Vercel (Frontend Hosting)
-1. Create account at vercel.com
-2. Import your GitHub repository
-3. Set the **root directory** to `frontend`
-4. Framework preset: Next.js (auto-detected)
-
-### 2.7 Sentry (Error Tracking)
-1. Create account at sentry.io
-2. Create two new projects:
-   - `wendo-rms-backend` (Node.js platform)
-   - `wendo-rms-frontend` (Next.js platform)
-3. Note down each project's `SENTRY_DSN`
-
-### 2.8 Betterstack (Log Management)
-1. Create account at betterstack.com
-2. Go to **Logs** → Create a new source
-3. Select **Node.js** as the platform
-4. Note down the `BETTERSTACK_SOURCE_TOKEN`
-
-### 2.9 UptimeRobot (Uptime Monitoring)
-1. Create account at uptimerobot.com
-2. Add a new monitor after the backend is deployed (step 4.10 below)
+| Service | Provider | Cost |
+|---|---|---|
+| VPS (API + DB + Redis) | DigitalOcean $6 Droplet | $6.00/mo |
+| Droplet backups | DigitalOcean (20% of Droplet) | $1.20/mo |
+| Frontend | Vercel free tier | $0 |
+| SSL + Tunnel | Cloudflare free tier | $0 |
+| Images | Cloudinary free tier | $0 |
+| Push notifications | Firebase FCM free tier | $0 |
+| Error tracking | Sentry free tier | $0 |
+| Log management | Betterstack free tier | $0 |
+| Uptime monitoring | UptimeRobot free tier | $0 |
+| **Total** | | **$7.20/mo** |
 
 ---
 
-## 3. Environment Variables Reference
+## 3. Services & Accounts Required
 
-### 3.1 Backend (Railway)
+You already have most of these. Verify each one before starting.
 
-Set all of these in Railway → Project → Service → Variables.
+### 3.1 DigitalOcean
+- Account at digitalocean.com
+- **Add billing** before creating a Droplet (credit card or PayPal)
+- Enable **Droplet Backups** when creating — adds $1.20/mo for weekly automated snapshots
+
+### 3.2 Cloudflare
+- Account at cloudflare.com — you already have this
+- No domain needed — Cloudflare Tunnel gives you a free `*.cfargotunnel.com` URL
+
+### 3.3 Firebase (already configured)
+- Project `v3-rms` — already set up
+- Keep your existing `FIREBASE_SERVICE_ACCOUNT_JSON` and `VAPID_KEY`
+
+### 3.4 Cloudinary (already configured)
+- Keep your existing `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+### 3.5 Sentry
+- Account at sentry.io
+- Create two projects: `wendo-rms-backend` (Node.js) and `wendo-rms-frontend` (Next.js)
+- Note the DSN for each — you already have the backend DSN in your `.env`
+
+### 3.6 Betterstack
+- Account at betterstack.com
+- Logs → Create new source → select Node.js
+- Note the `BETTERSTACK_SOURCE_TOKEN`
+
+### 3.7 UptimeRobot
+- Account at uptimerobot.com
+- Set up monitors after the server is live (Step 7.9)
+
+### 3.8 Vercel (already configured)
+- Project at v3-rms.vercel.app — already set up
+- You will only need to update two environment variables (the API and WebSocket URLs)
+
+---
+
+## 4. Environment Variables Reference
+
+### 4.1 Server `.env` (lives on the Droplet only — never committed to git)
+
+Create this file at `/home/wendo/wendo-rms/backend/.env` on the server.
+
+> **Security notice:** Before going live, generate new `JWT_ACCESS_SECRET` and
+> `JWT_REFRESH_SECRET` values. Use: `openssl rand -hex 64`
+> Your current secrets were shared in a chat and should be rotated.
 
 ```bash
 # Server
 NODE_ENV=production
 PORT=4000
 API_PREFIX=/api/v1
-FRONTEND_ORIGIN=https://app.wendorms.co.ke
+FRONTEND_ORIGIN=https://v3-rms.vercel.app
 
-# Database
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres
+# Database — points to the Docker postgres container on the same network
+DATABASE_URL=postgresql://wendo_user:CHOOSE_A_STRONG_PASSWORD@postgres:5432/wendo_rms
 
-# Redis
-REDIS_URL=rediss://default:[token]@[host].upstash.io:6379
-REDIS_TOKEN=[token]
-UPSTASH_REDIS_REST_URL=https://[host].upstash.io
-UPSTASH_REDIS_REST_TOKEN=[token]
+# Redis — points to the Docker redis container on the same network
+REDIS_URL=redis://redis:6379
 
-# JWT — generate two separate long random strings (min 32 chars each)
-JWT_ACCESS_SECRET=[random-string-min-32-chars]
-JWT_REFRESH_SECRET=[different-random-string-min-32-chars]
+# JWT — generate fresh values: openssl rand -hex 64
+JWT_ACCESS_SECRET=REPLACE_WITH_NEW_64_CHAR_HEX
+JWT_REFRESH_SECRET=REPLACE_WITH_DIFFERENT_64_CHAR_HEX
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 BCRYPT_ROUNDS=12
 
-# Firebase — paste the entire downloaded JSON as a single line
-FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"..."}
-VAPID_KEY=[web-push-vapid-key]
+# Firebase
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"v3-rms",...}
+VAPID_KEY=ZIn_fXSjVc5e9l-2qeX5ni-nzD8KG0Ufcl2OyPsNp10
 
 # Cloudinary
-CLOUDINARY_CLOUD_NAME=[cloud-name]
-CLOUDINARY_API_KEY=[api-key]
-CLOUDINARY_API_SECRET=[api-secret]
+CLOUDINARY_CLOUD_NAME=df402c59u
+CLOUDINARY_API_KEY=594672593559237
+CLOUDINARY_API_SECRET=WwGy7MOV-ZavsLaV7GRTQKTujVY
+CLOUDINARY_URL=cloudinary://594672593559237:WwGy7MOV-ZavsLaV7GRTQKTujVY@df402c59u
 
 # Rate limiting
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX=200
 
-# BullMQ workers — must be true in production
-START_BULLMQ_WORKERS=true
+# BullMQ workers — true for API container, false for worker container (set in docker-compose.yml)
+START_BULLMQ_WORKERS=false
 
 # Logging
 LOG_LEVEL=info
 LOG_PRETTY=false
 
 # Observability
-SENTRY_DSN=https://[key]@[org].ingest.sentry.io/[project-id]
-BETTERSTACK_SOURCE_TOKEN=[token]
+SENTRY_DSN=https://3e29ac6824b13a736f2624000c01b9d9@o4510415737192448.ingest.de.sentry.io/4510951521976400
+BETTERSTACK_SOURCE_TOKEN=REPLACE_WITH_YOUR_TOKEN
 
-# Seeded system admin (used only during first-time seed)
-SYSTEM_ADMIN_EMAIL=admin@wendo.co.ke
-SYSTEM_ADMIN_PASSWORD=[strong-password]
+# Seeded accounts — only used during first-time setup scripts
+SYSTEM_ADMIN_EMAIL=edwinfredofficial@gmail.com
+SYSTEM_ADMIN_PASSWORD=REPLACE_WITH_STRONG_PASSWORD
 
-# Branch coordinates for geofencing
-BRANCH_1_NAME=Nyeri Town
-BRANCH_1_LAT=-0.421034
-BRANCH_1_LNG=36.948930
-BRANCH_2_NAME=Kingz
-BRANCH_2_LAT=-0.412756
-BRANCH_2_LNG=36.952128
+# Feature flags
+SKIP_SHIFT_VALIDATION=false
+ALLOW_PRODUCTION_SEED=false
+SEED_REPORTS_CONFIRM=NO
 ```
 
-### 3.2 Frontend (Vercel)
+### 4.2 Frontend Environment Variables (set in Vercel dashboard)
 
-Set all of these in Vercel → Project → Settings → Environment Variables.
-Apply to **Production** environment (and **Preview** with staging values).
+After the Cloudflare Tunnel is running and you have your tunnel URL, update these
+in Vercel → Project → Settings → Environment Variables:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.wendorms.co.ke
-NEXT_PUBLIC_SOCKET_URL=https://api.wendorms.co.ke
+# Replace the tunnel URL with your actual Cloudflare tunnel URL
+NEXT_PUBLIC_API_URL=https://wendo-rms-api.cfargotunnel.com
+NEXT_PUBLIC_SOCKET_URL=https://wendo-rms-api.cfargotunnel.com
 
-# Firebase web config (from Firebase Console → Project Settings → Your apps)
-NEXT_PUBLIC_FIREBASE_API_KEY=[api-key]
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=[project-id].firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=[project-id]
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=[project-id].appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=[sender-id]
-NEXT_PUBLIC_FIREBASE_APP_ID=[app-id]
+# Firebase (unchanged — same values as before)
+NEXT_PUBLIC_FIREBASE_API_KEY=[your-value]
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=v3-rms.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=v3-rms
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=v3-rms.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=[your-value]
+NEXT_PUBLIC_FIREBASE_APP_ID=[your-value]
 
 # Sentry
-NEXT_PUBLIC_SENTRY_DSN=https://[key]@[org].ingest.sentry.io/[project-id]
-SENTRY_AUTH_TOKEN=[token]   # for source map upload during build
+NEXT_PUBLIC_SENTRY_DSN=[your-frontend-sentry-dsn]
+SENTRY_AUTH_TOKEN=[your-token]
 ```
-
-> **Critical:** All `NEXT_PUBLIC_FIREBASE_*` variables must be set **before the first build runs**. The `next.config.mjs` build step bakes these values into the FCM service worker at build time. Missing values will silently break push notifications.
 
 ---
 
-## 4. First Deployment — Step by Step
+## 5. Server Setup — Step by Step
 
-### Step 1 — Prepare the Database
+### Step 1 — Create the DigitalOcean Droplet
 
-Using the **direct connection string** (not the pooler):
+1. Log in to digitalocean.com and add billing first
+2. Click **Create → Droplets**
+3. Configure:
+   - **Region:** Frankfurt (FRA1) — closest to Kenya
+   - **OS:** Ubuntu 24.04 LTS (x64)
+   - **Droplet type:** Basic
+   - **CPU option:** Regular — $6/mo (1 vCPU, 1 GB RAM, 25 GB SSD)
+   - **Authentication:** SSH Key — add your public key (`~/.ssh/id_rsa.pub`)
+   - **Backups:** Enable — $1.20/mo for weekly automated snapshots
+   - **Hostname:** `wendo-rms`
+4. Click **Create Droplet** and note the IP address (e.g. `164.92.100.50`)
 
-```bash
-# From the backend directory
-cd backend
+### Step 2 — Initial Server Security
 
-# Apply all migrations to production
-DATABASE_URL="postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres" \
-  npx prisma migrate deploy
-
-# Verify migration succeeded
-DATABASE_URL="..." npx prisma migrate status
-```
-
-### Step 2 — Seed the System Admin Account
-
-```bash
-cd backend
-DATABASE_URL="[direct-connection-string]" pnpm seed:admin
-```
-
-This creates the initial `SYSTEM_ADMIN` account using `SYSTEM_ADMIN_EMAIL` and `SYSTEM_ADMIN_PASSWORD`. Run once only.
-
-### Step 3 — Import the Master Menu
+SSH into the server as root (first login only):
 
 ```bash
-cd backend
-DATABASE_URL="[direct-connection-string]" pnpm menu:import
+ssh root@YOUR_DROPLET_IP
 ```
 
-### Step 4 — Install Sentry on the Backend
+Create a non-root user and give it sudo access:
 
 ```bash
-cd backend
-pnpm add @sentry/node
+adduser wendo
+usermod -aG sudo wendo
+
+# Copy your SSH key to the new user
+rsync --archive --chown=wendo:wendo ~/.ssh /home/wendo
+
+# Test the new user works before closing this session
 ```
 
-Initialize Sentry at the top of `src/server.ts`, before any other imports:
+Open a new terminal and verify:
 
-```typescript
-import * as Sentry from '@sentry/node'
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-  tracesSampleRate: 0.2,  // capture 20% of transactions for performance
-})
+```bash
+ssh wendo@YOUR_DROPLET_IP
+# Should log in without a password
 ```
 
-Add the Sentry error handler in `src/middleware/errorHandler.ts` before the existing global handler:
+Configure the firewall (all future work is as the `wendo` user):
 
-```typescript
-import * as Sentry from '@sentry/node'
-
-// Must be registered before the global error handler
-app.use(Sentry.Handlers.errorHandler())
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status
+# Expected: Status: active, with rules for 22, 80, 443
 ```
 
-### Step 5 — Install Sentry on the Frontend
+Disable root SSH login:
+
+```bash
+sudo sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+sudo systemctl restart ssh
+```
+
+### Step 3 — Install Docker
+
+```bash
+# Update package index
+sudo apt-get update
+
+# Install prerequisites
+sudo apt-get install -y ca-certificates curl
+
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the Docker repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+
+# Install Docker Engine and Compose
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
+
+# Add wendo user to docker group (no sudo needed for docker commands)
+sudo usermod -aG docker wendo
+
+# Log out and back in for the group change to take effect
+exit
+```
+
+Log back in:
+
+```bash
+ssh wendo@YOUR_DROPLET_IP
+
+# Verify Docker works
+docker run hello-world
+docker compose version
+```
+
+### Step 4 — Install Nginx
+
+```bash
+sudo apt-get install -y nginx
+
+# Verify it's running
+sudo systemctl status nginx
+```
+
+### Step 5 — Install Cloudflare Tunnel (cloudflared)
+
+```bash
+# Download the latest cloudflared binary
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+  -o cloudflared.deb
+sudo dpkg -i cloudflared.deb
+
+# Verify installation
+cloudflared --version
+```
+
+Authenticate with your Cloudflare account:
+
+```bash
+cloudflared tunnel login
+# This prints a URL — open it in your browser and authorize
+```
+
+Create the tunnel:
+
+```bash
+cloudflared tunnel create wendo-rms-api
+# Note the tunnel ID printed — you'll need it below
+```
+
+Create the tunnel config file:
+
+```bash
+mkdir -p ~/.cloudflared
+
+cat > ~/.cloudflared/config.yml << 'EOF'
+tunnel: REPLACE_WITH_YOUR_TUNNEL_ID
+credentials-file: /home/wendo/.cloudflared/REPLACE_WITH_YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: wendo-rms-api.cfargotunnel.com
+    service: http://localhost:80
+  - service: http_status:404
+EOF
+```
+
+Route the tunnel to your chosen hostname:
+
+```bash
+cloudflared tunnel route dns wendo-rms-api wendo-rms-api.cfargotunnel.com
+```
+
+Install cloudflared as a system service so it starts on reboot:
+
+```bash
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+sudo systemctl status cloudflared
+# Should show: active (running)
+```
+
+Your backend will be reachable at: `https://wendo-rms-api.cfargotunnel.com`
+
+### Step 6 — Clone the Repository
+
+Set up a deploy key so the server can pull from GitHub:
+
+```bash
+# Generate a deploy key on the server
+ssh-keygen -t ed25519 -C "wendo-rms-droplet" -f ~/.ssh/deploy_key -N ""
+
+# Print the public key — add this to GitHub
+cat ~/.ssh/deploy_key.pub
+```
+
+Add the deploy key to GitHub:
+- Go to your repository → Settings → Deploy keys → Add deploy key
+- Paste the public key, tick "Allow read access" (read-only is sufficient)
+
+Configure SSH to use the deploy key for GitHub:
+
+```bash
+cat >> ~/.ssh/config << 'EOF'
+
+Host github.com
+  HostName github.com
+  IdentityFile ~/.ssh/deploy_key
+  IdentitiesOnly yes
+EOF
+```
+
+Clone the repository:
+
+```bash
+mkdir -p /home/wendo
+cd /home/wendo
+git clone git@github.com:YOUR_GITHUB_USERNAME/YOUR_REPO_NAME.git wendo-rms
+cd wendo-rms
+```
+
+### Step 7 — Create the `.env` File
+
+```bash
+cd /home/wendo/wendo-rms/backend
+nano .env
+```
+
+Paste the production `.env` contents from section 4.1. Fill in all `REPLACE_WITH_*` values.
+
+> **Never commit `.env` to git.** Verify it is in `.gitignore` before continuing.
+
+```bash
+# Confirm .env is ignored
+grep ".env" /home/wendo/wendo-rms/.gitignore
+```
+
+### Step 8 — Configure Nginx
+
+Remove the default Nginx config and create the Wendo config:
+
+```bash
+sudo rm /etc/nginx/sites-enabled/default
+
+sudo nano /etc/nginx/sites-available/wendo-rms
+```
+
+Paste this configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    # Increase body size limit for image uploads (Cloudinary)
+    client_max_body_size 10M;
+
+    # WebSocket upgrade support (required for Socket.io)
+    location / {
+        proxy_pass http://localhost:4000;
+        proxy_http_version 1.1;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts — important for long-lived WebSocket connections
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+```
+
+Enable the site and test the config:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/wendo-rms /etc/nginx/sites-enabled/
+sudo nginx -t
+# Expected: syntax is ok, test is successful
+sudo systemctl reload nginx
+```
+
+---
+
+## 6. Docker Files
+
+These files live in the repository. Create them locally, commit, and push — they will be on the server after `git pull`.
+
+### 6.1 `backend/Dockerfile`
+
+```dockerfile
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy dependency files first (better layer caching)
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma/
+
+# Install all dependencies (including devDependencies for build)
+RUN pnpm install --frozen-lockfile
+
+# Generate Prisma client
+RUN pnpm prisma:generate
+
+# Copy source and compile TypeScript
+COPY . .
+RUN pnpm build
+
+# ── Stage 2: Production image ────────────────────────────────────────────────
+FROM node:22-alpine AS production
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma/
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --prod
+
+# Generate Prisma client in the production image
+RUN pnpm prisma:generate
+
+# Copy compiled output from builder
+COPY --from=builder /app/dist ./dist
+
+# Non-root user for security
+RUN addgroup -S wendo && adduser -S wendo -G wendo
+USER wendo
+
+EXPOSE 4000
+
+CMD ["node", "dist/server.js"]
+```
+
+### 6.2 `docker-compose.yml` (root of the repository)
+
+```yaml
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: wendo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wendo_rms
+      POSTGRES_USER: wendo_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wendo_user -d wendo_rms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wendo-network
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: wendo-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wendo-network
+
+  # ── API Server ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wendo-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/.env
+    environment:
+      START_BULLMQ_WORKERS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wendo-network
+
+  # ── BullMQ Worker ──────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wendo-worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      START_BULLMQ_WORKERS: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wendo-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  wendo-network:
+    driver: bridge
+```
+
+> **Note on `POSTGRES_PASSWORD`:** Add `POSTGRES_PASSWORD=CHOOSE_A_STRONG_PASSWORD` to your
+> `backend/.env` file. Docker Compose reads it from there via the `${POSTGRES_PASSWORD}` syntax.
+> Make sure your `DATABASE_URL` uses the same password.
+
+### 6.3 `deploy.sh` (root of the repository)
+
+This is the script you run every time you want to deploy a new version.
+
+```bash
+#!/usr/bin/env bash
+set -e  # Exit immediately on any error
+
+echo "=== Wendo RMS Deploy ==="
+echo "Started at: $(date)"
+
+# Pull the latest code
+echo "--- Pulling latest code..."
+git pull origin main
+
+# Rebuild and restart containers (zero-downtime: postgres and redis keep running)
+echo "--- Building new images..."
+docker compose build api worker
+
+echo "--- Restarting API and worker..."
+docker compose up -d --no-deps api worker
+
+# Wait for the API to be healthy
+echo "--- Waiting for API health check..."
+sleep 5
+for i in {1..12}; do
+  if curl -sf http://localhost:4000/health > /dev/null; then
+    echo "--- API is healthy."
+    break
+  fi
+  echo "--- Waiting... ($i/12)"
+  sleep 5
+done
+
+# Check if API came up
+if ! curl -sf http://localhost:4000/health > /dev/null; then
+  echo "!!! API failed to start. Rolling back..."
+  docker compose logs api --tail=50
+  exit 1
+fi
+
+# Clean up old images
+echo "--- Cleaning up old Docker images..."
+docker image prune -f
+
+echo "=== Deploy complete at $(date) ==="
+```
+
+Make it executable after creating the file:
+
+```bash
+chmod +x deploy.sh
+```
+
+---
+
+## 7. First Deployment
+
+### Step 7.1 — Commit and Push the Docker Files
+
+On your **local machine**:
+
+```bash
+# From the repository root
+git add backend/Dockerfile docker-compose.yml deploy.sh
+git commit -m "chore: add Docker and deploy configuration"
+git push origin main
+```
+
+### Step 7.2 — Pull the Code on the Server
+
+```bash
+cd /home/wendo/wendo-rms
+git pull origin main
+```
+
+### Step 7.3 — Start the Database and Redis First
+
+Start only the data services first so you can run migrations before the API starts:
+
+```bash
+cd /home/wendo/wendo-rms
+docker compose up -d postgres redis
+
+# Wait for them to be healthy
+docker compose ps
+# Both should show: healthy
+```
+
+### Step 7.4 — Run Database Migrations
+
+```bash
+# Run migrations using a temporary container that has access to the network
+docker compose run --rm api sh -c "node -e \"
+const { execSync } = require('child_process');
+execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+\""
+```
+
+Alternatively, run it directly from the backend directory on the server:
+
+```bash
+cd /home/wendo/wendo-rms/backend
+# Install dependencies temporarily for the migration
+docker run --rm \
+  --network wendo-rms_wendo-network \
+  --env-file .env \
+  -v "$(pwd)":/app \
+  -w /app \
+  node:22-alpine sh -c "corepack enable && pnpm install --frozen-lockfile && npx prisma migrate deploy"
+```
+
+Verify migrations applied:
+
+```bash
+docker compose run --rm api node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+p.\$connect().then(() => { console.log('DB connected OK'); process.exit(0); });
+"
+```
+
+### Step 7.5 — Start the Full Stack
+
+```bash
+docker compose up -d
+docker compose ps
+# All 4 services (postgres, redis, api, worker) should show: running / healthy
+```
+
+### Step 7.6 — Verify the Health Check
+
+```bash
+curl http://localhost:4000/health
+# Expected: {"status":"ok","db":"connected","redis":"connected","uptime":...}
+```
+
+Also verify via the Cloudflare tunnel:
+
+```bash
+curl https://wendo-rms-api.cfargotunnel.com/health
+```
+
+### Step 7.7 — Seed the System Admin Account
+
+Run once only:
+
+```bash
+docker compose exec api node dist/scripts/seed-admin.js
+# If the compiled script doesn't work, run via tsx:
+docker compose run --rm api sh -c "pnpm dlx tsx src/scripts/seed-admin.ts"
+```
+
+### Step 7.8 — Import the Master Menu
+
+Run once only:
+
+```bash
+docker compose run --rm api sh -c "pnpm dlx tsx src/scripts/import-menu.ts"
+```
+
+### Step 7.9 — Update Vercel Frontend Variables
+
+In Vercel → Project → Settings → Environment Variables, update:
+
+```
+NEXT_PUBLIC_API_URL     = https://wendo-rms-api.cfargotunnel.com
+NEXT_PUBLIC_SOCKET_URL  = https://wendo-rms-api.cfargotunnel.com
+```
+
+Trigger a new Vercel deployment (push a trivial commit or redeploy from the Vercel dashboard) so the new values are baked in.
+
+### Step 7.10 — Set Up UptimeRobot
+
+1. Log in to uptimerobot.com
+2. Add monitor 1:
+   - **Type:** HTTPS
+   - **URL:** `https://wendo-rms-api.cfargotunnel.com/health`
+   - **Interval:** Every 5 minutes
+3. Add monitor 2:
+   - **URL:** `https://v3-rms.vercel.app`
+   - **Interval:** Every 5 minutes
+4. Add your phone number and email as alert contacts
+
+### Step 7.11 — Verify Socket.io (WebSocket)
+
+1. Log in to the app as a waiter
+2. Open browser DevTools → Network → WS tab
+3. You should see a WebSocket connection to `wendo-rms-api.cfargotunnel.com`
+4. Submit a test order and confirm it appears on the KDS within 2 seconds
+
+---
+
+## 8. Subsequent Deployments
+
+Every future deployment is one command on the server:
+
+```bash
+cd /home/wendo/wendo-rms
+./deploy.sh
+```
+
+The script:
+1. Pulls the latest code from `main`
+2. Rebuilds only the `api` and `worker` images
+3. Restarts them with zero downtime — `postgres` and `redis` keep running throughout
+4. Waits for the health check to pass
+5. Automatically rolls back (exits with error) if the API doesn't come up healthy
+
+**If there is a database migration in the release**, run it before `./deploy.sh`:
+
+```bash
+docker compose run --rm api sh -c "npx prisma migrate deploy"
+./deploy.sh
+```
+
+---
+
+## 9. Database Migrations
+
+### Safe Migration Workflow
+
+```
+1. Write migration locally: pnpm prisma:migrate
+2. Test locally against your local Postgres
+3. Commit and push to main
+4. On the server, run the migration BEFORE deploying new code:
+   docker compose run --rm api sh -c "npx prisma migrate deploy"
+5. Run deploy.sh — the new code starts against the already-updated schema
+```
+
+### Rules
+
+- **Never** run `prisma migrate dev` on the server — this can drop data
+- **Always** use `prisma migrate deploy` on the server
+- For destructive migrations (dropping columns, renaming):
+  - Phase 1: deploy code that works with both old and new schema
+  - Phase 2: run the migration
+  - Phase 3: deploy code that uses only the new schema
+
+### Check Migration Status
+
+```bash
+docker compose run --rm api sh -c "npx prisma migrate status"
+```
+
+### Access the Database Directly
+
+```bash
+docker compose exec postgres psql -U wendo_user -d wendo_rms
+```
+
+---
+
+## 10. Backups
+
+### Why Backups Are Your Responsibility Now
+
+With Supabase, backups were automatic. With Postgres running in Docker on your Droplet, you are responsible. DigitalOcean weekly Droplet snapshots protect against server failure, but for granular database recovery you need daily database dumps.
+
+### 10.1 Automated Daily Database Backup Script
+
+Create the backup script on the server:
+
+```bash
+sudo mkdir -p /opt/backups/wendo
+sudo chown wendo:wendo /opt/backups/wendo
+
+nano /home/wendo/backup.sh
+```
+
+Paste this content:
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+BACKUP_DIR=/opt/backups/wendo
+DATE=$(date +%Y-%m-%d_%H-%M)
+BACKUP_FILE="$BACKUP_DIR/wendo_rms_$DATE.sql.gz"
+RETAIN_DAYS=14
+
+echo "[$DATE] Starting backup..."
+
+# Dump the database and compress it
+docker compose -f /home/wendo/wendo-rms/docker-compose.yml exec -T postgres \
+  pg_dump -U wendo_user wendo_rms | gzip > "$BACKUP_FILE"
+
+echo "[$DATE] Backup written to $BACKUP_FILE ($(du -sh $BACKUP_FILE | cut -f1))"
+
+# Delete backups older than RETAIN_DAYS
+find "$BACKUP_DIR" -name "*.sql.gz" -mtime +$RETAIN_DAYS -delete
+echo "[$DATE] Cleaned up backups older than $RETAIN_DAYS days"
+
+echo "[$DATE] Done."
+```
+
+Make it executable and test it:
+
+```bash
+chmod +x /home/wendo/backup.sh
+/home/wendo/backup.sh
+ls -lh /opt/backups/wendo/
+# Should show a .sql.gz file
+```
+
+### 10.2 Schedule with Cron
+
+```bash
+crontab -e
+```
+
+Add this line to run the backup at 2:00 AM every day:
+
+```
+0 2 * * * /home/wendo/backup.sh >> /opt/backups/wendo/backup.log 2>&1
+```
+
+### 10.3 Restore from Backup
+
+```bash
+# Pick the backup file you want to restore from
+BACKUP_FILE=/opt/backups/wendo/wendo_rms_2026-03-01_02-00.sql.gz
+
+# Restore (this REPLACES the current database)
+gunzip -c "$BACKUP_FILE" | docker compose exec -T postgres \
+  psql -U wendo_user -d wendo_rms
+```
+
+---
+
+## 11. Observability Setup
+
+### 11.1 View Live Logs
+
+```bash
+# All containers
+docker compose logs -f
+
+# API only
+docker compose logs -f api
+
+# Last 100 lines from worker
+docker compose logs worker --tail=100
+```
+
+### 11.2 Sentry — Error Tracking
+
+Sentry is already configured via `SENTRY_DSN` in your `.env`. No additional setup needed on the server side.
+
+Verify it works after deployment:
+
+```bash
+# Temporarily hit a route that throws, then check your Sentry dashboard
+# You should see the error within 30 seconds
+```
+
+**Frontend Sentry** — install in the frontend project:
 
 ```bash
 cd frontend
 pnpm add @sentry/nextjs
-```
-
-Run the Sentry wizard (it auto-configures Next.js):
-
-```bash
 npx @sentry/wizard@latest -i nextjs
 ```
 
-### Step 6 — Install Betterstack Log Transport
+Set `NEXT_PUBLIC_SENTRY_DSN` in Vercel environment variables.
+
+### 11.3 Betterstack — Log Shipping
+
+Install the Betterstack Pino transport in the backend:
 
 ```bash
 cd backend
 pnpm add @logtail/pino
 ```
 
-Update `src/config/logger.ts` to ship logs to Betterstack in production:
+Update `src/config/logger.ts`:
 
 ```typescript
 import { Logtail } from '@logtail/node'
@@ -349,324 +1079,153 @@ const logger = isProduction && process.env.BETTERSTACK_SOURCE_TOKEN
 export default logger
 ```
 
-### Step 7 — Deploy the Backend to Railway
+Commit and deploy. Logs will appear in your Betterstack dashboard in real time.
 
-1. In Railway, create a new service → **Deploy from GitHub repo**
-2. Set the **root directory** to `backend`
-3. Set the **build command**: `pnpm install && pnpm build`
-4. Set the **start command**: `pnpm start`
-5. Add all environment variables from section 3.1
-6. Deploy and wait for the first build to complete
-7. Assign a custom domain: `api.wendorms.co.ke`
-8. Verify the health check: `GET https://api.wendorms.co.ke/health`
-   - Expected: `{ "status": "ok", "db": "connected", "redis": "connected" }`
+### 11.4 Monitor Container Resources
 
-### Step 8 — Deploy the Frontend to Vercel
-
-1. In Vercel, import the GitHub repository
-2. Set the **root directory** to `frontend`
-3. Add all environment variables from section 3.2
-4. Deploy — Vercel will auto-detect Next.js
-5. Assign a custom domain: `app.wendorms.co.ke`
-6. Verify the login page loads and can authenticate against the backend
-
-### Step 9 — Verify Socket.io
-
-1. Log in as a waiter on a phone
-2. Open browser DevTools → Network → WS tab
-3. Confirm a WebSocket connection is established to `api.wendorms.co.ke`
-4. Submit a test order and confirm it appears on the KDS in real time
-
-### Step 10 — Set Up UptimeRobot
-
-1. Log in to uptimerobot.com
-2. Add a new monitor:
-   - **Type:** HTTPS
-   - **URL:** `https://api.wendorms.co.ke/health`
-   - **Interval:** Every 5 minutes
-   - **Alert contacts:** Your phone number and email
-3. Add a second monitor for the frontend:
-   - **URL:** `https://app.wendorms.co.ke`
-   - **Interval:** Every 5 minutes
-
----
-
-## 5. Subsequent Deployments
-
-Both services auto-deploy on merge to `main`. No manual steps required.
-
-```
-Developer merges PR to main
-        ↓
-Railway detects push → builds backend → deploys (zero-downtime rolling deploy)
-Vercel detects push  → builds frontend → deploys (atomic, instant swap)
-```
-
-If a migration is included in the PR, it must be deployed to the database **before** the new backend version starts — see section 6.
-
----
-
-## 6. Database Migrations
-
-### Safe Migration Workflow
-
-Never run migrations directly against production without testing on staging first.
-
-```
-1. Write migration locally with: pnpm prisma:migrate
-2. Test on staging database
-3. Merge to main
-4. Run migration on production BEFORE Railway deploys the new code:
-   DATABASE_URL="[direct-url]" npx prisma migrate deploy
-5. Railway deploys the new backend (now safe — schema is already updated)
-```
-
-### Rules
-
-- **Never** run `prisma migrate dev` against production — this can drop data
-- **Always** use `prisma migrate deploy` on production
-- **Always** use the direct connection string (not pooler) for migrations
-- Destructive migrations (dropping columns, renaming) require a two-phase deploy:
-  - Phase 1: deploy code that works with both old and new schema
-  - Phase 2: run the migration
-  - Phase 3: deploy code that uses only the new schema
-
----
-
-## 7. Observability Setup
-
-### 7.1 Sentry — Error Tracking
-
-**What it captures:**
-- All unhandled exceptions on the backend (5xx errors)
-- Frontend JavaScript errors and crashes
-- Full stack traces with request context (userId, organizationId, path)
-
-**Verify it works after deployment:**
 ```bash
-# Temporarily add this to a test route and hit it once, then remove
-throw new Error('Sentry test — delete me')
-```
-Check that the error appears in your Sentry dashboard within 30 seconds.
+# Live resource usage for all containers
+docker stats
 
-**Alerting:** Configure Sentry to send an email/Slack notification on first occurrence of a new error type.
-
----
-
-### 7.2 Betterstack — Log Management
-
-**What it captures:**
-- All structured Pino logs shipped from the backend in real time
-- Searchable by userId, organizationId, requestId, path, level
-
-**Useful queries in Betterstack:**
-```
-# All errors in the last hour
-level:error
-
-# All requests from a specific branch
-organizationId:"[branch-id]"
-
-# Slow queries
-message:"Slow query" AND duration:>200
-
-# Failed geofence attempts
-message:"geofence" AND level:warn
-
-# Order lifecycle for a specific order
-orderId:"[order-id]"
+# Check disk space
+df -h
+du -sh /opt/backups/wendo/
+docker system df
 ```
 
-**Retention:** Free tier gives 3-day retention. Upgrade to paid ($25/mo) for 30-day retention if post-incident investigation is important.
-
----
-
-### 7.3 UptimeRobot — Uptime Monitoring
-
-**What it monitors:**
-- `GET https://api.wendorms.co.ke/health` — backend health (db + redis connectivity)
-- `GET https://app.wendorms.co.ke` — frontend availability
-
-**Alerting:** Sends SMS + email if either monitor goes down. Response time graphs are available on the dashboard.
-
-**The `/health` endpoint checks:**
-```json
-{
-  "status": "ok",
-  "db": "connected",
-  "redis": "connected",
-  "uptime": 86400
-}
-```
-If `db` or `redis` reports disconnected, the health check returns a non-200 status and UptimeRobot triggers an alert.
-
----
-
-### 7.4 Railway Metrics — Built-in Dashboard
-
-Available automatically on Railway Pro with no setup required.
-
-**What to watch:**
-| Metric | What it tells you | Alert threshold |
+Alert thresholds to watch:
+| Metric | Check command | Alert threshold |
 |---|---|---|
-| CPU usage | Backend load | Sustained >70% |
-| Memory usage | Memory leaks or spikes | Sustained >80% of limit |
-| Network in/out | Traffic volume | Sudden spikes = investigate |
-| Deploy history | Which commit is running | — |
-
-**Where to find it:** Railway dashboard → your service → Metrics tab.
+| Memory | `docker stats --no-stream` | Sustained >80% of 1 GB |
+| Disk | `df -h /` | >80% used |
+| CPU | `docker stats --no-stream` | Sustained >70% |
 
 ---
 
-### 7.5 Audit Trail — Database
+## 12. Rollback Procedure
 
-Sensitive operations are persisted to the database by the application and are always queryable:
+### Application Rollback
 
-| Operation | Where stored |
+If a deployment breaks the API:
+
+```bash
+cd /home/wendo/wendo-rms
+
+# Find the last working commit
+git log --oneline -10
+
+# Roll back to that commit
+git checkout COMMIT_HASH
+
+# Rebuild and restart with the old code
+docker compose build api worker
+docker compose up -d --no-deps api worker
+
+# Verify health
+curl http://localhost:4000/health
+```
+
+### Database Rollback
+
+If a migration caused data issues, restore from the most recent backup:
+
+```bash
+# Stop the API to prevent writes during restore
+docker compose stop api worker
+
+# Restore
+gunzip -c /opt/backups/wendo/LATEST_BACKUP.sql.gz | \
+  docker compose exec -T postgres psql -U wendo_user -d wendo_rms
+
+# Restart
+docker compose start api worker
+```
+
+### Emergency: Full Server Recovery
+
+If the Droplet itself fails:
+
+1. Create a new Droplet from the latest DigitalOcean weekly snapshot (Droplet → Snapshots → Restore)
+2. The Cloudflare Tunnel ID is stored in `~/.cloudflared/` — this is included in the snapshot
+3. Start the containers: `cd /home/wendo/wendo-rms && docker compose up -d`
+4. The data volumes are restored from the snapshot — no backup restore needed
+
+---
+
+## 13. Scaling Triggers
+
+Don't upgrade anything until these specific conditions are met:
+
+| Condition | Action |
 |---|---|
-| Staff account created/deactivated | `AuditLog` table |
-| Manager clock-in overrides | `ClockEvent` table (method: OVERRIDE, reason field) |
-| Menu availability changes | `AuditLog` table |
-| Payment recorded | `Order` table (paymentMethod, paidAt, paidBy) |
-
-Query audit logs directly via Supabase's SQL editor or Prisma Studio for incident investigation.
-
----
-
-### 7.6 Observability Summary
-
-| Layer | Tool | Cost | What it answers |
-|---|---|---|---|
-| Errors | Sentry | Free | What broke and why |
-| Logs | Betterstack | Free | What happened and when |
-| Uptime | UptimeRobot | Free | Is it up right now |
-| Metrics | Railway dashboard | Included in Pro | Is it healthy |
-| Audit | PostgreSQL | Included | Who did what |
+| Memory consistently above 85% (`docker stats`) | Upgrade Droplet from $6/mo to $12/mo (2 GB RAM) |
+| Disk above 80% | Attach a DigitalOcean Block Storage volume, move `postgres_data` volume to it |
+| Database queries slow (>500ms average) | Move PostgreSQL to DigitalOcean Managed DB ($15/mo) — eliminates backup management too |
+| Multiple developers deploying simultaneously | Add a proper CI/CD pipeline (GitHub Actions → SSH deploy) |
+| Expanding beyond 5 branches with 100+ concurrent users | Add Socket.io Redis Adapter, introduce a load balancer |
 
 ---
 
-## 8. Health Checks & Uptime Monitoring
+## 14. Deployment Checklist
 
-### Backend Health Check
-
-```
-GET /health
-```
-
-Returns `200 OK` when the service is healthy:
-```json
-{
-  "status": "ok",
-  "db": "connected",
-  "redis": "connected",
-  "uptime": 3600
-}
-```
-
-Returns `503 Service Unavailable` if database or Redis is unreachable. UptimeRobot treats any non-200 as a failure and triggers an alert.
-
-### Railway Health Check Configuration
-
-In Railway → Service → Settings → Health Check:
-- **Path:** `/health`
-- **Interval:** 30 seconds
-- Railway will restart the service automatically if health checks fail 3 times consecutively.
-
----
-
-## 9. Rollback Procedure
-
-### Backend (Railway)
-1. Go to Railway → Project → Service → Deployments
-2. Find the last known good deployment
-3. Click **Redeploy** on that deployment
-4. Railway performs a zero-downtime rollback within ~2 minutes
-
-If the rollback also requires a database migration rollback, that must be done manually via Supabase SQL editor before the old code is redeployed.
-
-### Frontend (Vercel)
-1. Go to Vercel → Project → Deployments
-2. Find the last known good deployment
-3. Click the three-dot menu → **Promote to Production**
-4. Vercel swaps the deployment instantly (atomic, zero downtime)
-
----
-
-## 10. Environments
-
-| Environment | Frontend URL | Backend URL | Database | Trigger |
-|---|---|---|---|---|
-| Development | localhost:3000 | localhost:4000 | Local PostgreSQL | Manual (`pnpm dev`) |
-| Staging | staging.wendorms.co.ke | staging-api.wendorms.co.ke | Supabase staging project | Push to `staging` branch |
-| Production | app.wendorms.co.ke | api.wendorms.co.ke | Supabase production project | Merge to `main` |
-
-### Staging Environment
-
-Staging mirrors production exactly. All PRs should be tested on staging before merging to main. Staging uses:
-- Its own Supabase project (separate database — never shared with production)
-- Its own Upstash Redis database
-- Same Firebase project is acceptable for staging (use a separate app registration)
-- `NODE_ENV=staging` or `NODE_ENV=development` on the staging backend
-
----
-
-## 11. Deployment Checklist
-
-Use this checklist for every first deployment to a new environment.
+Use this for the first deployment only.
 
 ### Infrastructure
-- [ ] Supabase project created, connection strings noted
-- [ ] Upstash Redis database created, credentials noted
-- [ ] Firebase project created, service account JSON downloaded, VAPID key generated
-- [ ] Cloudinary account created, credentials noted
-- [ ] Railway project created, GitHub repo connected
-- [ ] Vercel project created, GitHub repo connected, root directory set to `frontend`
+- [ ] DigitalOcean account with billing enabled
+- [ ] Droplet created (Ubuntu 24.04, $6/mo, Frankfurt)
+- [ ] Droplet backups enabled ($1.20/mo)
+- [ ] Cloudflare account ready
+- [ ] Firebase project `v3-rms` — service account JSON and VAPID key available
+- [ ] Cloudinary account — credentials available
 - [ ] Sentry projects created (backend + frontend), DSNs noted
 - [ ] Betterstack source created, token noted
 
+### Server Setup
+- [ ] Non-root user `wendo` created, SSH key configured
+- [ ] UFW firewall enabled (ports 22, 80, 443 only)
+- [ ] Docker and Docker Compose installed
+- [ ] `wendo` user added to docker group
+- [ ] Nginx installed and configured
+- [ ] Cloudflare Tunnel installed and running as a systemd service
+- [ ] Tunnel URL confirmed: `https://wendo-rms-api.cfargotunnel.com`
+
+### Application
+- [ ] GitHub deploy key added to repository
+- [ ] Repository cloned to `/home/wendo/wendo-rms`
+- [ ] `backend/.env` created with all production values
+- [ ] New JWT secrets generated (`openssl rand -hex 64`) — **do not reuse development secrets**
+- [ ] `POSTGRES_PASSWORD` added to `.env` — matches the password in `DATABASE_URL`
+- [ ] `docker-compose.yml`, `backend/Dockerfile`, `deploy.sh` committed and pushed
+
 ### Database
-- [ ] `prisma migrate deploy` run against production database (direct connection string)
-- [ ] Migration status verified: `npx prisma migrate status`
+- [ ] `docker compose up -d postgres redis` — both healthy
+- [ ] `prisma migrate deploy` run successfully
 - [ ] `pnpm seed:admin` run — system admin account created
 - [ ] `pnpm menu:import` run — master menu imported
 
-### Backend
-- [ ] All environment variables set on Railway (section 3.1)
-- [ ] `START_BULLMQ_WORKERS=true` set
-- [ ] `FRONTEND_ORIGIN` set to the Vercel production URL
-- [ ] Service deployed and build succeeded
-- [ ] Custom domain `api.wendorms.co.ke` assigned
-- [ ] Health check passing: `GET https://api.wendorms.co.ke/health` returns `200 ok`
-- [ ] Railway health check path configured: `/health`
-- [ ] Sentry error handler installed and verified
-- [ ] Betterstack log transport installed and logs appearing in dashboard
+### Full Stack
+- [ ] `docker compose up -d` — all 4 containers running
+- [ ] Health check passing: `curl http://localhost:4000/health`
+- [ ] Health check via tunnel: `curl https://wendo-rms-api.cfargotunnel.com/health`
+- [ ] Nginx proxying correctly (no CORS errors)
 
 ### Frontend
-- [ ] All environment variables set on Vercel (section 3.2)
-- [ ] All `NEXT_PUBLIC_FIREBASE_*` vars set **before first build**
-- [ ] Service deployed and build succeeded
-- [ ] Custom domain `app.wendorms.co.ke` assigned
-- [ ] Login page loads and authentication works end-to-end
-- [ ] Sentry installed and verified on frontend
+- [ ] Vercel environment variables updated with Cloudflare Tunnel URL
+- [ ] Vercel redeployed — frontend calls new backend URL
+- [ ] Login works end-to-end
+- [ ] WebSocket connecting (DevTools → Network → WS tab)
+- [ ] Test order submitted — appears on KDS within 2 seconds
 
-### Integration
-- [ ] CORS working — frontend can call backend (no CORS errors in browser console)
-- [ ] WebSocket connecting — confirm in browser DevTools → Network → WS tab
-- [ ] Real-time order flow tested: submit order → appears on KDS within 2 seconds
-- [ ] Push notification permission prompt appears on login
-- [ ] FCM test notification delivered to a device
-
-### Observability
-- [ ] UptimeRobot monitor created for `https://api.wendorms.co.ke/health`
-- [ ] UptimeRobot monitor created for `https://app.wendorms.co.ke`
-- [ ] UptimeRobot alert contacts (email + phone) configured
+### Backups & Monitoring
+- [ ] `backup.sh` created, tested manually, and scheduled in cron (2am daily)
+- [ ] UptimeRobot monitors created for health endpoint and frontend
 - [ ] Sentry test error verified — appears in dashboard
 - [ ] Betterstack logs appearing in real time
-- [ ] Railway metrics dashboard visible
+- [ ] `docker stats` checked — memory within safe range
 
 ### Security
-- [ ] JWT secrets are long random strings (not default placeholder values)
-- [ ] System admin password changed from default
-- [ ] No `.env` files committed to the repository
-- [ ] HTTPS enforced on both domains
-- [ ] Refresh token cookie is HTTP-only and Secure in production
+- [ ] New JWT secrets used (not the development values)
+- [ ] System admin password is strong and not the development default
+- [ ] No `.env` files committed to git
+- [ ] Root SSH login disabled
+- [ ] UFW firewall active

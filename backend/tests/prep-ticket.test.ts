@@ -43,6 +43,32 @@ describe('Prep ticket routes', () => {
     vi.restoreAllMocks();
   });
 
+  it('GET /api/v1/prep-tickets forwards activeOnly query filter', async () => {
+    const getByStationSpy = vi.spyOn(prepTicketService, 'getByStation').mockResolvedValue({
+      tickets: [],
+      pagination: {
+        total: 0,
+        page: 1,
+        perPage: 20,
+        totalPages: 1,
+      },
+    });
+
+    const response = await request(app)
+      .get('/api/v1/prep-tickets?activeOnly=true')
+      .set('Authorization', `Bearer ${chefToken}`);
+
+    expect(response.status).toBe(200);
+    expect(getByStationSpy).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        activeOnly: true,
+        page: 1,
+        perPage: 20,
+      }),
+    );
+  });
+
   it('PATCH /api/v1/prep-tickets/:id/claim claims ticket', async () => {
     vi.spyOn(prepTicketService, 'claim').mockResolvedValue(sampleTicket);
 

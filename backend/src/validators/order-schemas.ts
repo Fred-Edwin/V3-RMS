@@ -78,6 +78,7 @@ export const PrepTicketQuerySchema = z.object({
   status: z.nativeEnum(PrepTicketStatus).optional(),
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
+  activeOnly: z.coerce.boolean().optional(),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
 });

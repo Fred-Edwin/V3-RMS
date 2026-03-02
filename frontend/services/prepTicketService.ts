@@ -5,6 +5,7 @@ interface GetPrepTicketsParams {
   status?: PrepTicketStatus;
   startDate?: string;
   endDate?: string;
+  activeOnly?: boolean;
   page?: number;
   perPage?: number;
 }
@@ -14,6 +15,7 @@ const toQueryString = (params: GetPrepTicketsParams): string => {
   if (params.status) query.set('status', params.status);
   if (params.startDate) query.set('startDate', params.startDate);
   if (params.endDate) query.set('endDate', params.endDate);
+  if (typeof params.activeOnly === 'boolean') query.set('activeOnly', String(params.activeOnly));
   if (params.page) query.set('page', String(params.page));
   if (params.perPage) query.set('perPage', String(params.perPage));
 

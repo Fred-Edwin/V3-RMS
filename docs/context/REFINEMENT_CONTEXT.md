@@ -257,6 +257,86 @@ Full redesign from prototype to premium:
 - **Empty state body:** warmer copy — "Add your first zone to enable delivery orders for this branch."
 - **Toggle in edit modal:** wrapped in `rounded-lg bg-stone-50 px-4 py-3` container; label is contextual — "Zone is active — accepting delivery orders" / "Zone is inactive — hidden from orders"
 
+### Waiter Dashboard (Mobile-First Polish)
+**File:** `frontend/app/app/dashboard/page.tsx`
+
+- Header action changed from top-right `New Order` button to profile avatar link (`/app/profile`) to remove nav redundancy with bottom tabs
+- Greeting humanized: first-name extraction with username cleanup fallback (`waiter1.kingz` -> `Kingz`)
+- Time-aware greeting (`Good morning/afternoon/evening, <name>`)
+- Waiter stat cards switched to operational numeric styling: `font-sans`, `font-bold`, `tabular-nums`, tighter tracking
+- Card density refined on mobile: stat card padding `p-4`
+
+### Chef/Barista Dashboard Parity
+**File:** `frontend/app/app/dashboard/page.tsx`
+
+- Applied same premium header treatment as waiter: humanized greeting + avatar profile action
+- Applied same metric readability treatment:
+  - `Tickets Completed Today` and `Avg Prep Time Today` values in bold sans numeric style
+  - `p-4` stat cards for tighter mobile rhythm
+
+### New Order / Edit Order Category Chips
+**Files:** `frontend/app/app/orders/new/page.tsx`, `frontend/app/app/orders/[id]/edit/page.tsx`
+
+- Long category names no longer collapse or overflow awkwardly
+- Added `shrink-0 whitespace-nowrap` to category buttons so chips keep shape and scroll cleanly in horizontal rail
+
+### Menu Item Card Fallback (No Image)
+**File:** `frontend/components/ui/MenuItemCard.tsx`
+
+- Kept original card structure with fixed image area height
+- Replaced broken-image icon style with premium fallback:
+  - soft tan panel (`#EDE2D0`)
+  - subtle radial wash
+  - minimalist cup watermark icon
+- Quantity/status/"Added" chips stay in the image area for consistent composition
+
+### Mobile Bottom Navigation Overflow
+**Files:** `frontend/components/ui/BottomNav.tsx`, `frontend/app/app/layout.tsx`
+
+- Added overflow support with `More` entry (3-dot icon) that opens a `BottomSheet`
+- Added role-aware overflow tab sets for `WAITER`, `CHEF`, `BARISTA`
+- `Performance` and other secondary routes remain reachable on narrow phone widths
+- Active-state indicator also applies when the current route is inside `More`
+
+### History Page Mobile Readability
+**Files:** `frontend/components/orders/OrderHistoryRow.tsx`, `frontend/app/app/history/page.tsx`
+
+- Waiter history rows:
+  - mobile (`< md`): stacked card-style row (order/date + badge + type/items + total)
+  - desktop/tablet (`md+`): existing 6-column row retained
+- Chef/Barista prep history:
+  - mobile (`< md`): stacked row (order/date + status badge + items + prep time)
+  - desktop/tablet (`md+`): existing 5-column grid retained
+- Prep status now uses semantic `Badge` variants (`pending` / `inprogress` / `ready`)
+
+### Shift Geofence Feedback
+**File:** `frontend/components/shifts/ClockWidget.tsx`
+
+- Geofence warning toast now consistently shows parsed distance from backend message
+- Supports distance parsing in:
+  - metres/meters
+  - km
+  - decimal/comma number formats
+- User-facing copy now explicit:
+  - Title: "Move closer to the branch"
+  - Message: "You are approximately X m/km away. Move within 50 m to clock in/out."
+
+### Toast ID Compatibility Fix
+**File:** `frontend/store/toastStore.ts`
+
+- Fixed runtime crash on environments where `crypto.randomUUID()` is unavailable (common on local HTTP mobile testing)
+- Added safe ID fallback chain:
+  - `crypto.randomUUID()`
+  - `crypto.getRandomValues(...)`
+  - timestamp + random string
+
+### Backend Startup Stability (Redis/BullMQ)
+**File:** `backend/src/server.ts`
+
+- Prevented eager BullMQ import on every server startup
+- Workers now lazy-load only when `START_BULLMQ_WORKERS=true`
+- Eliminates unnecessary Redis TLS connection attempts in local/dev runs when workers are disabled
+
 ---
 
 ## Bug Fixes

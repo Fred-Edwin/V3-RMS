@@ -1,0 +1,86 @@
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: wendo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wendo_rms
+      POSTGRES_USER: wendo_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wendo_user -d wendo_rms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wendo-network
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: wendo-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wendo-network
+
+  # ── API Server ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wendo-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override: API container does NOT run BullMQ workers
+      START_BULLMQ_WORKERS: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wendo-network
+
+  # ── BullMQ Worker ──────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wendo-worker
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override: worker container ONLY runs BullMQ workers (no HTTP server needed)
+      START_BULLMQ_WORKERS: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wendo-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  wendo-network:
+    driver: bridge

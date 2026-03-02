@@ -20,7 +20,8 @@
       "Bash(node -e \":*)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({''scripts'':d.get\\(''scripts'',{}\\), ''dependencies'': list\\(d.get\\(''dependencies'',{}\\).keys\\(\\)\\)}, indent=2\\)\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({''scripts'':d.get\\(''scripts'',{}\\)}, indent=2\\)\\)\")",
-      "Bash(python -c \"import json; f=open\\(''C:/Users/edwin/Downloads/v3-rms-firebase-adminsdk-fbsvc-8e0bdd4f73.json''\\); print\\(json.dumps\\(json.load\\(f\\)\\)\\)\")"
+      "Bash(python -c \"import json; f=open\\(''C:/Users/edwin/Downloads/v3-rms-firebase-adminsdk-fbsvc-8e0bdd4f73.json''\\); print\\(json.dumps\\(json.load\\(f\\)\\)\\)\")",
+      "Bash(pnpm exec tsc -p tsconfig.json)"
     ]
   }
 }

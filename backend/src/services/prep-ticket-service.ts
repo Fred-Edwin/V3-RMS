@@ -139,6 +139,7 @@ export const prepTicketService = {
       status: query.status,
       startDate: query.startDate ? parseDateOnlyStart(query.startDate) : undefined,
       endDate: query.endDate ? parseDateOnlyEnd(query.endDate) : undefined,
+      activeOnly: query.activeOnly,
       page: query.page,
       perPage: query.perPage,
     });
