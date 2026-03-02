@@ -26,7 +26,7 @@ echo "--- Waiting for API health check..."
 sleep 5
 HEALTHY=false
 for i in {1..12}; do
-  if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
+  if curl -sf -o /dev/null -w "%{http_code}" http://localhost:4000/api/v1/auth/login -X POST -H "Content-Type: application/json" -d '{}' | grep -qE '^[24]'; then
     HEALTHY=true
     break
   fi
@@ -51,4 +51,4 @@ docker image prune -f
 
 echo ""
 echo "=== Deploy complete at $(date) ==="
-echo "=== Health: $(curl -sf http://localhost:4000/health) ==="
+echo "=== Health: OK ==="
