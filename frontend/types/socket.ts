@@ -25,6 +25,7 @@ export interface ServerToClientEvents {
   'order:paid': (payload: { orderId: string; dailyNumber: number }) => void;
   'order:modified': (payload: PrepTicketDetail) => void;
   'order:cancelled': (payload: { orderId: string }) => void;
+  'order:closed': (payload: { orderId: string }) => void;
 }
 
 export interface ClientToServerEvents {

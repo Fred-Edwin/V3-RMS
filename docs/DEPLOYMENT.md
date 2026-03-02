@@ -131,7 +131,9 @@ You already have most of these. Verify each one before starting.
 
 ### 3.2 Cloudflare
 - Account at cloudflare.com — you already have this
-- No domain needed — Cloudflare Tunnel gives you a free `*.cfargotunnel.com` URL
+- No domain needed — using a Cloudflare Quick Tunnel (`*.trycloudflare.com`)
+- **Current tunnel URL:** `https://restaurants-agricultural-juan-candidate.trycloudflare.com`
+- Note: quick tunnel URLs change on every restart — update Vercel env vars when this happens
 
 ### 3.3 Firebase (already configured)
 - Project `v3-rms` — already set up
@@ -164,7 +166,7 @@ You already have most of these. Verify each one before starting.
 
 ### 4.1 Server `.env` (lives on the Droplet only — never committed to git)
 
-Create this file at `/home/wendo/wendo-rms/backend/.env` on the server.
+Create this file at `/home/edwinfred/wendo-rms/backend/.env` on the server.
 
 > **Security notice:** Before going live, generate new `JWT_ACCESS_SECRET` and
 > `JWT_REFRESH_SECRET` values. Use: `openssl rand -hex 64`
@@ -178,9 +180,11 @@ API_PREFIX=/api/v1
 FRONTEND_ORIGIN=https://v3-rms.vercel.app
 
 # Database — points to the Docker postgres container on the same network
+# CHOOSE_A_STRONG_PASSWORD must match POSTGRES_PASSWORD below
 DATABASE_URL=postgresql://wendo_user:CHOOSE_A_STRONG_PASSWORD@postgres:5432/wendo_rms
 
 # Redis — points to the Docker redis container on the same network
+# Remove REDIS_TOKEN and UPSTASH_* vars — those were for Upstash, not needed here
 REDIS_URL=redis://redis:6379
 
 # JWT — generate fresh values: openssl rand -hex 64
@@ -190,7 +194,10 @@ JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 BCRYPT_ROUNDS=12
 
-# Firebase
+# Postgres password — must match DATABASE_URL above
+POSTGRES_PASSWORD=CHOOSE_A_STRONG_PASSWORD
+
+# Firebase — paste the full JSON from your local backend/.env
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"v3-rms",...}
 VAPID_KEY=ZIn_fXSjVc5e9l-2qeX5ni-nzD8KG0Ufcl2OyPsNp10
 
@@ -232,8 +239,8 @@ in Vercel → Project → Settings → Environment Variables:
 
 ```bash
 # Replace the tunnel URL with your actual Cloudflare tunnel URL
-NEXT_PUBLIC_API_URL=https://wendo-rms-api.cfargotunnel.com
-NEXT_PUBLIC_SOCKET_URL=https://wendo-rms-api.cfargotunnel.com
+NEXT_PUBLIC_API_URL=https://restaurants-agricultural-juan-candidate.trycloudflare.com
+NEXT_PUBLIC_SOCKET_URL=https://restaurants-agricultural-juan-candidate.trycloudflare.com
 
 # Firebase (unchanged — same values as before)
 NEXT_PUBLIC_FIREBASE_API_KEY=[your-value]
@@ -340,7 +347,7 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin
 
 # Add wendo user to docker group (no sudo needed for docker commands)
-sudo usermod -aG docker wendo
+sudo usermod -aG docker edwinfred
 
 # Log out and back in for the group change to take effect
 exit
@@ -367,63 +374,41 @@ sudo systemctl status nginx
 
 ### Step 5 — Install Cloudflare Tunnel (cloudflared)
 
+**Already completed.** Summary of what was done:
+
 ```bash
-# Download the latest cloudflared binary
 curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
   -o cloudflared.deb
 sudo dpkg -i cloudflared.deb
-
-# Verify installation
-cloudflared --version
 ```
 
-Authenticate with your Cloudflare account:
+We are using a **Quick Tunnel** (no domain required). Start it in a background terminal:
 
 ```bash
-cloudflared tunnel login
-# This prints a URL — open it in your browser and authorize
+cloudflared tunnel --url http://localhost:80
 ```
 
-Create the tunnel:
+**Current tunnel URL:** `https://restaurants-agricultural-juan-candidate.trycloudflare.com`
+
+> **Important:** Quick tunnel URLs change every time cloudflared restarts (e.g. after a server reboot).
+> When that happens:
+> 1. Start the tunnel and note the new URL
+> 2. Update `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` in Vercel → Project → Settings → Environment Variables
+> 3. Trigger a Vercel redeploy (Deployments → Redeploy)
+
+To start the tunnel automatically on reboot:
 
 ```bash
-cloudflared tunnel create wendo-rms-api
-# Note the tunnel ID printed — you'll need it below
+crontab -e
+# Add this line:
+@reboot cloudflared tunnel --url http://localhost:80 >> /home/edwinfred/cloudflared.log 2>&1 &
 ```
 
-Create the tunnel config file:
+After a reboot, check the new URL with:
 
 ```bash
-mkdir -p ~/.cloudflared
-
-cat > ~/.cloudflared/config.yml << 'EOF'
-tunnel: REPLACE_WITH_YOUR_TUNNEL_ID
-credentials-file: /home/wendo/.cloudflared/REPLACE_WITH_YOUR_TUNNEL_ID.json
-
-ingress:
-  - hostname: wendo-rms-api.cfargotunnel.com
-    service: http://localhost:80
-  - service: http_status:404
-EOF
+cat /home/edwinfred/cloudflared.log | grep trycloudflare.com
 ```
-
-Route the tunnel to your chosen hostname:
-
-```bash
-cloudflared tunnel route dns wendo-rms-api wendo-rms-api.cfargotunnel.com
-```
-
-Install cloudflared as a system service so it starts on reboot:
-
-```bash
-sudo cloudflared service install
-sudo systemctl enable cloudflared
-sudo systemctl start cloudflared
-sudo systemctl status cloudflared
-# Should show: active (running)
-```
-
-Your backend will be reachable at: `https://wendo-rms-api.cfargotunnel.com`
 
 ### Step 6 — Clone the Repository
 
@@ -465,7 +450,7 @@ cd wendo-rms
 ### Step 7 — Create the `.env` File
 
 ```bash
-cd /home/wendo/wendo-rms/backend
+cd /home/edwinfred/wendo-rms/backend
 nano .env
 ```
 
@@ -475,7 +460,7 @@ Paste the production `.env` contents from section 4.1. Fill in all `REPLACE_WITH
 
 ```bash
 # Confirm .env is ignored
-grep ".env" /home/wendo/wendo-rms/.gitignore
+grep ".env" /home/edwinfred/wendo-rms/.gitignore
 ```
 
 ### Step 8 — Configure Nginx
@@ -751,7 +736,7 @@ git push origin main
 ### Step 7.2 — Pull the Code on the Server
 
 ```bash
-cd /home/wendo/wendo-rms
+cd /home/edwinfred/wendo-rms
 git pull origin main
 ```
 
@@ -760,7 +745,7 @@ git pull origin main
 Start only the data services first so you can run migrations before the API starts:
 
 ```bash
-cd /home/wendo/wendo-rms
+cd /home/edwinfred/wendo-rms
 docker compose up -d postgres redis
 
 # Wait for them to be healthy
@@ -781,7 +766,7 @@ execSync('npx prisma migrate deploy', { stdio: 'inherit' });
 Alternatively, run it directly from the backend directory on the server:
 
 ```bash
-cd /home/wendo/wendo-rms/backend
+cd /home/edwinfred/wendo-rms/backend
 # Install dependencies temporarily for the migration
 docker run --rm \
   --network wendo-rms_wendo-network \
@@ -819,7 +804,7 @@ curl http://localhost:4000/health
 Also verify via the Cloudflare tunnel:
 
 ```bash
-curl https://wendo-rms-api.cfargotunnel.com/health
+curl https://restaurants-agricultural-juan-candidate.trycloudflare.com/health
 ```
 
 ### Step 7.7 — Seed the System Admin Account
@@ -845,8 +830,8 @@ docker compose run --rm api sh -c "pnpm dlx tsx src/scripts/import-menu.ts"
 In Vercel → Project → Settings → Environment Variables, update:
 
 ```
-NEXT_PUBLIC_API_URL     = https://wendo-rms-api.cfargotunnel.com
-NEXT_PUBLIC_SOCKET_URL  = https://wendo-rms-api.cfargotunnel.com
+NEXT_PUBLIC_API_URL     = https://restaurants-agricultural-juan-candidate.trycloudflare.com
+NEXT_PUBLIC_SOCKET_URL  = https://restaurants-agricultural-juan-candidate.trycloudflare.com
 ```
 
 Trigger a new Vercel deployment (push a trivial commit or redeploy from the Vercel dashboard) so the new values are baked in.
@@ -856,7 +841,7 @@ Trigger a new Vercel deployment (push a trivial commit or redeploy from the Verc
 1. Log in to uptimerobot.com
 2. Add monitor 1:
    - **Type:** HTTPS
-   - **URL:** `https://wendo-rms-api.cfargotunnel.com/health`
+   - **URL:** `https://restaurants-agricultural-juan-candidate.trycloudflare.com/health`
    - **Interval:** Every 5 minutes
 3. Add monitor 2:
    - **URL:** `https://v3-rms.vercel.app`
@@ -877,7 +862,7 @@ Trigger a new Vercel deployment (push a trivial commit or redeploy from the Verc
 Every future deployment is one command on the server:
 
 ```bash
-cd /home/wendo/wendo-rms
+cd /home/edwinfred/wendo-rms
 ./deploy.sh
 ```
 
@@ -964,7 +949,7 @@ RETAIN_DAYS=14
 echo "[$DATE] Starting backup..."
 
 # Dump the database and compress it
-docker compose -f /home/wendo/wendo-rms/docker-compose.yml exec -T postgres \
+docker compose -f /home/edwinfred/wendo-rms/docker-compose.yml exec -T postgres \
   pg_dump -U wendo_user wendo_rms | gzip > "$BACKUP_FILE"
 
 echo "[$DATE] Backup written to $BACKUP_FILE ($(du -sh $BACKUP_FILE | cut -f1))"
@@ -1109,7 +1094,7 @@ Alert thresholds to watch:
 If a deployment breaks the API:
 
 ```bash
-cd /home/wendo/wendo-rms
+cd /home/edwinfred/wendo-rms
 
 # Find the last working commit
 git log --oneline -10
@@ -1147,7 +1132,7 @@ If the Droplet itself fails:
 
 1. Create a new Droplet from the latest DigitalOcean weekly snapshot (Droplet → Snapshots → Restore)
 2. The Cloudflare Tunnel ID is stored in `~/.cloudflared/` — this is included in the snapshot
-3. Start the containers: `cd /home/wendo/wendo-rms && docker compose up -d`
+3. Start the containers: `cd /home/edwinfred/wendo-rms && docker compose up -d`
 4. The data volumes are restored from the snapshot — no backup restore needed
 
 ---
@@ -1171,27 +1156,28 @@ Don't upgrade anything until these specific conditions are met:
 Use this for the first deployment only.
 
 ### Infrastructure
-- [ ] DigitalOcean account with billing enabled
-- [ ] Droplet created (Ubuntu 24.04, $6/mo, Frankfurt)
+- [x] DigitalOcean account with billing enabled
+- [x] Droplet created (Ubuntu 24.04, $6/mo, Frankfurt) — IP: `104.248.29.42`
 - [ ] Droplet backups enabled ($1.20/mo)
-- [ ] Cloudflare account ready
-- [ ] Firebase project `v3-rms` — service account JSON and VAPID key available
-- [ ] Cloudinary account — credentials available
+- [x] Cloudflare account ready
+- [x] Firebase project `v3-rms` — service account JSON and VAPID key available
+- [x] Cloudinary account — credentials available
 - [ ] Sentry projects created (backend + frontend), DSNs noted
 - [ ] Betterstack source created, token noted
 
 ### Server Setup
-- [ ] Non-root user `wendo` created, SSH key configured
-- [ ] UFW firewall enabled (ports 22, 80, 443 only)
-- [ ] Docker and Docker Compose installed
-- [ ] `wendo` user added to docker group
-- [ ] Nginx installed and configured
-- [ ] Cloudflare Tunnel installed and running as a systemd service
-- [ ] Tunnel URL confirmed: `https://wendo-rms-api.cfargotunnel.com`
+- [x] Non-root user `edwinfred` created, SSH key configured
+- [x] UFW firewall enabled (ports 22, 80, 443 only)
+- [x] Docker and Docker Compose installed
+- [x] `edwinfred` user added to docker group
+- [x] Nginx installed and configured
+- [x] cloudflared installed (Quick Tunnel mode)
+- [x] Tunnel URL confirmed: `https://restaurants-agricultural-juan-candidate.trycloudflare.com`
+- [ ] Tunnel auto-start on reboot added to crontab (`@reboot cloudflared tunnel ...`)
 
 ### Application
-- [ ] GitHub deploy key added to repository
-- [ ] Repository cloned to `/home/wendo/wendo-rms`
+- [x] GitHub deploy key added to repository
+- [ ] Repository cloned to `/home/edwinfred/wendo-rms`
 - [ ] `backend/.env` created with all production values
 - [ ] New JWT secrets generated (`openssl rand -hex 64`) — **do not reuse development secrets**
 - [ ] `POSTGRES_PASSWORD` added to `.env` — matches the password in `DATABASE_URL`
@@ -1206,7 +1192,7 @@ Use this for the first deployment only.
 ### Full Stack
 - [ ] `docker compose up -d` — all 4 containers running
 - [ ] Health check passing: `curl http://localhost:4000/health`
-- [ ] Health check via tunnel: `curl https://wendo-rms-api.cfargotunnel.com/health`
+- [ ] Health check via tunnel: `curl https://restaurants-agricultural-juan-candidate.trycloudflare.com/health`
 - [ ] Nginx proxying correctly (no CORS errors)
 
 ### Frontend
@@ -1224,8 +1210,8 @@ Use this for the first deployment only.
 - [ ] `docker stats` checked — memory within safe range
 
 ### Security
-- [ ] New JWT secrets used (not the development values)
+- [ ] New JWT secrets used (not the development values) — run `openssl rand -hex 64`
 - [ ] System admin password is strong and not the development default
 - [ ] No `.env` files committed to git
-- [ ] Root SSH login disabled
-- [ ] UFW firewall active
+- [x] Root SSH login disabled
+- [x] UFW firewall active
