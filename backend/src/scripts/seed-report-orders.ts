@@ -722,14 +722,22 @@ const run = async (): Promise<void> => {
     });
     console.log(`Deleted ${deleted.count} previously seeded report orders`);
 
-    // ClockRecords cascade-delete when ShiftAssignments are deleted
+    // Delete clock records first (FK constraint blocks deleting shift assignments directly)
+    const deletedClockRecords = await prisma.clockRecord.deleteMany({
+      where: {
+        shiftAssignment: {
+          date: today,
+          ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
+        },
+      },
+    });
     const deletedAssignments = await prisma.shiftAssignment.deleteMany({
       where: {
         date: today,
         ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
       },
     });
-    console.log(`Deleted ${deletedAssignments.count} previously seeded shift assignments`);
+    console.log(`Deleted ${deletedClockRecords.count} clock records and ${deletedAssignments.count} shift assignments`);
   }
   const stats: SeedStats[] = [];
 
