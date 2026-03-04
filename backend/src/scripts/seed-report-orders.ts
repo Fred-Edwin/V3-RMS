@@ -39,6 +39,7 @@ type SeedArgs = {
   minOrders: number;
   maxOrders: number;
   reset: boolean;
+  resetOnly: boolean;
   seed: number;
   organizationIds: string[] | null;
 };
@@ -112,6 +113,7 @@ const parseArgs = (argv: string[]): SeedArgs => {
   let minOrders = 6;
   let maxOrders = 18;
   let reset = false;
+  let resetOnly = false;
   let seed = 42;
   const organizationIds: string[] = [];
 
@@ -122,6 +124,12 @@ const parseArgs = (argv: string[]): SeedArgs => {
     }
 
     if (arg === '--reset') {
+      reset = true;
+      continue;
+    }
+
+    if (arg === '--reset-only') {
+      resetOnly = true;
       reset = true;
       continue;
     }
@@ -167,6 +175,7 @@ const parseArgs = (argv: string[]): SeedArgs => {
     minOrders,
     maxOrders,
     reset,
+    resetOnly,
     seed,
     organizationIds: organizationIds.length > 0 ? organizationIds : null,
   };
@@ -738,6 +747,11 @@ const run = async (): Promise<void> => {
       },
     });
     console.log(`Deleted ${deletedClockRecords.count} clock records and ${deletedAssignments.count} shift assignments`);
+
+    if (args.resetOnly) {
+      console.log('Reset complete. No new data seeded (--reset-only).');
+      return;
+    }
   }
   const stats: SeedStats[] = [];
 
