@@ -39,3 +39,5 @@ next-env.d.ts
 
 # Generated at build time from public/firebase-messaging-sw.template.js
 /public/firebase-messaging-sw.js
+
+.vercel
