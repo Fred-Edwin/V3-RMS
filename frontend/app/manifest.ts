@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Wendo RMS',
     short_name: 'Wendo',
-    description: 'Wendo Coffee Bistro — Restaurant Management System',
+    description: 'Wendo Coffee Bistro - Restaurant Management System',
     start_url: '/login',
     display: 'standalone',
     background_color: '#F5F0E8',
@@ -14,11 +14,19 @@ export default function manifest(): MetadataRoute.Manifest {
         src: '/android-chrome-192x192.png',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'any',
       },
       {
         src: '/android-chrome-512x512.png',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/android-chrome-512x512-maskable.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
       },
     ],
   };
