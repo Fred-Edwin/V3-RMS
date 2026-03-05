@@ -25,6 +25,8 @@ pnpm-debug.log*
 # Misc
 .DS_Store
 *.pem
+prod_snapshot.sql
+local_before_seed_cleanup.sql
 
 # TypeScript
 **/*.tsbuildinfo
