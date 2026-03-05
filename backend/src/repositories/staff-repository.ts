@@ -109,6 +109,7 @@ export const staffRepository = {
     id: string,
     data: {
       name?: string;
+      email?: string;
       phone?: string;
     },
     organizationId?: string,
@@ -119,6 +120,35 @@ export const staffRepository = {
         organizationId,
       },
       data,
+    });
+  },
+
+  updatePassword: async (id: string, passwordHash: string, organizationId?: string) => {
+    return prisma.user.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
+      data: { passwordHash },
+    });
+  },
+
+  countDependencies: async (id: string, organizationId?: string) => {
+    const where = { userId: id, ...(organizationId ? { organizationId } : {}) };
+    const [orders, shiftAssignments, clockRecords] = await Promise.all([
+      prisma.order.count({ where: { createdById: id, ...(organizationId ? { organizationId } : {}) } }),
+      prisma.shiftAssignment.count({ where }),
+      prisma.clockRecord.count({ where }),
+    ]);
+    return { orders, shiftAssignments, clockRecords };
+  },
+
+  hardDelete: async (id: string, organizationId?: string) => {
+    return prisma.user.deleteMany({
+      where: {
+        id,
+        organizationId,
+      },
     });
   },
 

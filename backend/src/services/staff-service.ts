@@ -1,5 +1,6 @@
 import type { UserRole } from '@prisma/client';
 import type { Request } from 'express';
+import { authRepository } from '../repositories/auth-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { hashPassword } from '../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
@@ -134,21 +135,72 @@ export const staffService = {
     id: string,
     data: {
       name?: string;
+      email?: string;
       phone?: string;
     },
     actor: Actor,
   ) => {
+    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
     const staff = await staffRepository.findById(
       id,
-      actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined,
+      orgScope,
       actor.role === 'MANAGER' ? branchStaffRoles : undefined,
     );
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
 
-    await staffRepository.update(id, data, actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined);
+    if (data.email && data.email !== staff.email) {
+      const existing = await staffRepository.findByEmail(data.email);
+      if (existing && existing.id !== id) {
+        throw new ConflictError('Email is already in use');
+      }
+    }
+
+    await staffRepository.update(id, data, orgScope);
     return staffService.getStaff(id, actor);
+  },
+
+  resetPassword: async (id: string, temporaryPassword: string, actor: Actor) => {
+    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
+    const staff = await staffRepository.findById(
+      id,
+      orgScope,
+      actor.role === 'MANAGER' ? branchStaffRoles : undefined,
+    );
+    if (!staff) {
+      throw new NotFoundError('Staff account not found');
+    }
+
+    const passwordHash = await hashPassword(temporaryPassword);
+    await staffRepository.updatePassword(id, passwordHash, orgScope);
+    await authRepository.deleteAllRefreshTokensByUserId(id);
+  },
+
+  hardDeleteStaff: async (id: string, actor: Actor) => {
+    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
+    const staff = await staffRepository.findById(
+      id,
+      orgScope,
+      actor.role === 'MANAGER' ? branchStaffRoles : undefined,
+    );
+    if (!staff) {
+      throw new NotFoundError('Staff account not found');
+    }
+
+    const deps = await staffRepository.countDependencies(id, orgScope);
+    const reasons: string[] = [];
+    if (deps.orders > 0) reasons.push(`${deps.orders} order(s)`);
+    if (deps.shiftAssignments > 0) reasons.push(`${deps.shiftAssignments} shift assignment(s)`);
+    if (deps.clockRecords > 0) reasons.push(`${deps.clockRecords} clock record(s)`);
+
+    if (reasons.length > 0) {
+      throw new ConflictError(
+        `Cannot delete staff account — linked to ${reasons.join(', ')}. Deactivate instead.`,
+      );
+    }
+
+    await staffRepository.hardDelete(id, orgScope);
   },
 
   deactivateStaff: async (id: string, actor: Actor) => {

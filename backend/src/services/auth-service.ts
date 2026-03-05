@@ -157,6 +157,9 @@ export const authService = {
 
     const newPasswordHash = await hashPassword(newPassword);
     await authRepository.updatePassword(user.id, newPasswordHash);
+
+    // Revoke all existing sessions so a compromised token can't persist
+    await authRepository.deleteAllRefreshTokensByUserId(user.id);
   },
 
   registerDevice: async (input: { userId: string; fcmToken: string }): Promise<void> => {

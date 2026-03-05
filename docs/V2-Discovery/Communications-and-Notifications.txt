@@ -1,0 +1,72 @@
+## Wendo Coffee Bistro — Communication & Notifications Module (V2)
+
+### Current State
+
+V1 of the system includes push notifications through Firebase Cloud Messaging — these are operational alerts tied directly to order activity. A waiter is notified when their order is ready, a chef is alerted when a new order arrives, and staff receive shift reminders 24 hours in advance. These notifications are functional but narrow in scope — they are system-generated, automatic, and entirely tied to operational events. There is no way for a person to initiate a communication to another person or group within the system.
+
+Outside the system, Wendo's internal communication happens through WhatsApp groups and informal conversation. There is no professional, structured communication channel for company announcements, HR notices, meeting schedules, or formal staff correspondence. The HR manager's concern is that critical information — a policy change, an upcoming meeting, a formal notice — gets lost in the noise of a WhatsApp group or never reaches the right person at all.
+
+The suggestion to build communication into the RMS rather than purchasing Microsoft 365 Business plans with Teams addresses this directly. The communication module becomes Wendo's internal professional communication layer, purpose-built for their structure and already accessible to every staff member who uses the system daily.
+
+---
+
+### Two Distinct Layers
+
+The V2 communication module has two distinct layers that serve different purposes and should be understood separately.
+
+The first is an evolution of the existing notification system — making operational alerts smarter, more reliable, and more comprehensive. The second is a new in-app communication layer that enables human-to-human and management-to-staff communication within the system. Both layers live within the same module but serve fundamentally different functions.
+
+---
+
+### Layer 1 — Enhanced Operational Notifications
+
+V1 notifications are accurate for the events they cover, but the scope needs to expand in V2. Every staff member who needs to know something operationally should receive a clear, timely, and unavoidable alert — including roles that are currently outside the notification system such as delivery riders.
+
+Delivery riders need to be notified when an order is ready for collection so they can move immediately without having to check with a waiter or wait at the branch. Branch managers need alerts when a requisition has been fulfilled and dispatched from the Central Kitchen so they know when to expect a delivery. Staff need reliable, timely shift reminders that cannot be easily dismissed or missed.
+
+The word "unavoidable" used by the HR manager is meaningful — the goal is notifications that demand acknowledgement rather than ones that can be swiped away and forgotten. Whether this is achieved through in-app acknowledgement requirements, repeated reminders for unread alerts, or another mechanism will be decided during scoping.
+
+---
+
+### Layer 2 — In-App Professional Communication
+
+This is the new capability. Rather than a generic messaging tool, this layer is structured around Wendo's organisational hierarchy and communication needs. It is not a social chat — it is a professional communication channel where the context is always the business.
+
+**Broadcast Announcements**
+Management and HR need to send company-wide or branch-specific announcements to all staff. An upcoming all-staff meeting, a change in policy, a public holiday notice, a health and safety reminder — these communications need to reach every relevant staff member within the system, with confidence that the message was delivered and seen. Broadcasts can be scoped to the entire company, to a specific branch, or to a specific role group.
+
+**Direct Messaging**
+Managers, HR, and supervisors need to communicate with individual staff members professionally and on record. A manager following up on a disciplinary issue, HR notifying a staff member about a schedule change, or a director communicating directly with a branch manager — these conversations should happen within the system rather than through personal WhatsApp, keeping professional correspondence in a professional space.
+
+**HR Formal Notices**
+The HR manager specifically needs to deliver formal communications — meeting invitations, warning notices, policy updates, performance reviews — in a way that is documented and timestamped within the system. When a staff member receives a formal notice, it is logged against their record. This connects directly to the HR management module, where disciplinary records and staff history are maintained.
+
+**Shift and Schedule Communications**
+Beyond automated shift reminders, managers need to communicate schedule changes, emergency cover requests, and ad-hoc shift adjustments directly to affected staff. Rather than a phone call or a WhatsApp message that may be missed, these communications are sent within the system to the specific staff members involved.
+
+---
+
+### Who Can Communicate With Whom
+
+The communication module respects Wendo's organisational structure. Not everyone can message everyone — the system should reflect the professional hierarchy.
+
+The HR manager and directors can broadcast to all staff across all branches or send direct messages to any individual. Branch managers can broadcast to their branch and message any staff member within their branch. Supervisors — Head Chef, Head Waiter, and their assistants — can send messages to the staff they supervise and receive messages from management above them. Operational staff — waiters, chefs, baristas — receive communications and can respond to direct messages from their supervisors and managers, but do not initiate broadcasts.
+
+The exact permission model for who can initiate which type of communication will be defined during V2 scoping.
+
+---
+
+### Delivery Riders
+
+Delivery riders represent a specific communication case. They are not permanent staff in the traditional sense, and their primary need is operational — knowing when an order is ready for collection and where it is going. The module needs to accommodate rider notifications without necessarily giving riders full access to internal staff communications. How riders are onboarded into the system, what access they have, and how they are notified will be addressed during scoping.
+
+---
+
+### Open Questions for V2 Planning
+
+1. **Acknowledgement requirements** — Which notification types require a staff member to explicitly confirm they have read and understood the message, and what happens if they do not acknowledge within a defined timeframe.
+2. **Rider access model** — How delivery riders are represented in the system — whether as a formal role with a staff account, a lightweight external account, or something else entirely.
+3. **Message retention and records** — How long messages and announcements are stored, and which communications are permanently attached to staff records versus treated as transient conversation.
+4. **Offline delivery** — How formal notices and critical announcements are handled when a staff member's device is offline, ensuring they receive the communication when they reconnect.
+5. **Communication between branches** — Whether branch managers and staff can communicate across branches, or whether inter-branch communication is restricted to director and HR level only.
+6. **Read receipts** — Whether senders can see who has read a broadcast or direct message, and whether this is visible to all senders or management only.

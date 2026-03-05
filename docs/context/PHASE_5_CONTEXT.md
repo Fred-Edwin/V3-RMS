@@ -105,6 +105,126 @@ This file captures implementation and verification for Phase 5 (Staff Management
 
 ---
 
+## Post-Review Production Hardening (applied after Phase 6)
+
+The following issues were identified during a production readiness review and fixed:
+
+### Fix 1 & 2 — Timezone: `getTodayDateOnly()` and `hasFutureAssignments` used server local time
+- **Problem**: `getTodayDateOnly()` in `backend/src/utils/date-only.ts` used `new Date().getFullYear()` etc., which returns the server's local date. On UTC servers, between midnight UTC and 3am UTC (midnight–3am EAT gap), all "today" comparisons were wrong — blocking valid clock-ins and allowing invalid assignment deletions.
+- `shift-repository.ts` had its own `getTodayStart()` with the same bug.
+- **Fix**: Replaced `getTodayDateOnly()` with `Intl.DateTimeFormat` using `timeZone: 'Africa/Nairobi'`. Removed the duplicate `getTodayStart()` from `shift-repository.ts` and replaced with the shared `getTodayDateOnly()`.
+- **Files changed**: `backend/src/utils/date-only.ts`, `backend/src/repositories/shift-repository.ts`
+
+### Fix 3 — Race condition on concurrent clock-in
+- **Problem**: Clock-in did read-then-write without catching the unique constraint on `shiftAssignmentId`. Double-tap or network retry could cause two concurrent requests to pass the existence check and the second would fail with an unhandled Prisma `P2002` error (500 Internal Server Error).
+- **Fix**: Wrapped `createClockIn` calls in both `clockIn` and `clockOverride` with a `PrismaClientKnownRequestError` catch for code `P2002`, re-throwing as `ConflictError` (409).
+- **File changed**: `backend/src/services/clock-service.ts`
+
+### Fix 4 — Override button visible on completed attendance
+- **Problem**: The "Override" button in the manager attendance table was always shown, even when a staff member had already clocked in and out (shift complete). Clicking it returned a 409 from the API but the UX was confusing.
+- **Fix**: Replaced button with "Complete" text when `clockRecord.clockInAt && clockRecord.clockOutAt`.
+- **File changed**: `frontend/app/app/manage/shifts/page.tsx`
+
+### Fix 5 — "Remove" link visible on today/past assignments in weekly grid
+- **Problem**: The "Remove" link appeared on all assignments including today and past dates. The backend correctly rejected deletion, but the UI should prevent the attempt.
+- **Fix**: Only render the Remove link when `dateKey > todayDateKey`.
+- **File changed**: `frontend/app/app/manage/shifts/page.tsx`
+
+### Fix 6 (cosmetic) — `formatClockMethod` referenced stale enum values
+- **Problem**: Staff shifts history page checked for `'GEOFENCE'` and `'MANUAL'` but actual enum values are `'GPS'` and `'OVERRIDE'`, causing raw enum strings to display.
+- **Fix**: Updated string checks to match the actual `ClockMethod` enum.
+- **File changed**: `frontend/app/app/shifts/page.tsx`
+
+### Fix 7 — Shift overlap detection for same user same day
+- **Problem**: A staff member could be assigned to two overlapping shifts on the same day (e.g., "Morning 06:00–14:00" and "Mid-Morning 10:00–18:00"). The unique constraint only prevented the *same* shift twice.
+- **Fix**: Added time-range overlap check in `createAssignment()` — queries existing assignments for the user on the target date and compares `startTime`/`endTime` ranges. Returns 409 with descriptive message naming both conflicting shifts.
+- **File changed**: `backend/src/services/shift-assignment-service.ts`
+
+### Fix 8 — Weekly grid only showed one shift per user per day
+- **Problem**: The `assignmentsBySlot` map used `userId|date` as key, so if a user had two non-overlapping shifts on the same day (e.g., "Morning" + "Evening"), only the last one was displayed.
+- **Fix**: Changed map value from `ShiftAssignment` to `ShiftAssignment[]`. Updated grid cell rendering to iterate over the array. Also shows "+ Assign" button below existing assignments on future dates.
+- **File changed**: `frontend/app/app/manage/shifts/page.tsx`
+
+### Fix 9 — order-service.test.ts missing `emitOrderClosed` mock
+- **Problem**: Pre-existing test failure — `socketService.emitOrderClosed` was called in the service but not mocked in the test file, causing a `TypeError: socketService.emitOrderClosed is not a function`.
+- **Fix**: Added `emitOrderClosed: vi.fn()` to the socket service mock.
+- **File changed**: `backend/src/services/order-service.test.ts`
+
+### Verification
+- [x] `pnpm --dir backend build` — passes
+- [x] `pnpm --dir backend test` — **all 122 tests pass (24 files, 0 failures)**
+- [x] `pnpm --dir frontend typecheck` — passes
+- [x] `pnpm --dir frontend build` — passes
+
+---
+
+## Staff Account Management Improvements (applied after Phase 6)
+
+Managers previously had no proper way to edit staff accounts (used `window.prompt()`), could not edit emails, reset passwords, or permanently delete accounts.
+
+### Backend Changes
+
+#### New Endpoints
+- `PATCH /staff/:id/reset-password` — Manager/SystemAdmin resets a staff member's password, revokes all refresh tokens (forces re-login)
+- `DELETE /staff/:id` — Manager/SystemAdmin permanently deletes a staff account if no orders, shift assignments, or clock records are linked (returns 409 with dependency counts otherwise)
+
+#### Updated Endpoints
+- `PATCH /staff/:id` — Now accepts `email` in addition to `name` and `phone`, with uniqueness check (409 if taken by another user)
+
+#### Files Changed
+- `backend/src/validators/staff-schemas.ts` — Added `email` to `updateStaffSchema`, added `resetPasswordSchema`
+- `backend/src/repositories/staff-repository.ts` — Widened `update()` for email, added `updatePassword()`, `countDependencies()`, `hardDelete()`
+- `backend/src/services/staff-service.ts` — Email uniqueness check on update, `resetPassword()` (hashes + revokes sessions), `hardDeleteStaff()` (blocks if dependencies exist)
+- `backend/src/controllers/staff-controller.ts` — Added `resetPassword` and `hardDelete` handlers
+- `backend/src/routes/staff-routes.ts` — Two new routes (MANAGER, SYSTEM_ADMIN)
+
+### Frontend Changes
+- `frontend/services/staffService.ts` — Added `email` to `UpdateStaffInput`, added `resetPassword()` and `deleteStaff()` methods
+- `frontend/app/app/manage/staff/page.tsx` — Replaced `window.prompt()` with three proper modals:
+  1. **Edit Staff Modal** — form with name, email, phone inputs
+  2. **Reset Password Modal** — single password field with session invalidation warning
+  3. **Delete ConfirmDialog** — destructive confirmation explaining dependency blocking
+
+### Design Decisions
+- Hard delete blocks if orders, shifts, or clock records exist — no cascade
+- Password reset invalidates all sessions via `deleteAllRefreshTokensByUserId`
+- Role editing not supported (create new account instead)
+
+### Tests Added
+- `backend/tests/staff.test.ts` — 6 new tests: email update (200), duplicate email (409), reset password (200), reset password unauthorized (403), delete no deps (200), delete with deps (409)
+
+### Verification
+- [x] `pnpm --dir backend build` — passes
+- [x] `pnpm --dir backend test` — **all 128 tests pass (24 files, 0 failures)**
+- [x] `pnpm --dir frontend typecheck` — passes
+- [x] `pnpm --dir frontend build` — passes
+
+---
+
+## Weekly Schedule UI Refinement (applied after staff account improvements)
+
+Redesigned the manager weekly schedule grid for a more polished, premium look while preserving all existing functionality.
+
+### Visual Changes
+- **Color-coded shift cards** — Each shift definition gets a distinct warm color (amber, orange, green, blue, purple) with a left border accent, matching the order card pattern from the design system
+- **Today column** — Highlighted with crema background and the day number in an espresso-filled circle
+- **Staff column** — Avatar initials with role-specific color coding + small role badge
+- **Past dates** — Subtly dimmed with `bg-stone-50/40`
+- **Weekend columns** — Lightly tinted to visually separate work week
+- **Remove button** — Hidden by default, appears as a small red circle on hover (cleaner than the old text link)
+- **Assign buttons** — Dashed border placeholder that appears on hover for empty cells, compact `+` button when shifts already exist
+- **Shift legend** — Color-keyed footer strip showing all shift definitions
+- **Sticky staff column** — Stays visible when scrolling horizontally
+
+### Files Changed
+- `frontend/app/app/manage/shifts/page.tsx` — Weekly schedule section rewritten
+
+### Verification
+- [x] `pnpm --dir frontend typecheck` — passes
+- [x] `pnpm --dir frontend build` — passes
+
+---
+
 ## Notes for Next Phase (Phase 6)
 - If Phase 6 introduces payroll/attendance analytics, reuse `ShiftAssignment` + `ClockRecord` as the source of truth.
 - Preserve branch-level role scoping when expanding director-wide reporting over shift data.

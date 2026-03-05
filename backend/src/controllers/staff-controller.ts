@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { staffService } from '../services/staff-service';
-import { listStaffQuerySchema, createStaffSchema, updateStaffSchema } from '../validators/staff-schemas';
+import { listStaffQuerySchema, createStaffSchema, updateStaffSchema, resetPasswordSchema } from '../validators/staff-schemas';
 import { UnauthorizedError, ValidationError } from '../utils/errors';
 
 const requireActor = (req: Request) => {
@@ -98,6 +98,29 @@ export const staffController = {
         isActive: staff.isActive,
       },
       message: 'Staff account reactivated',
+    });
+  },
+
+  resetPassword: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const staffId = requireRouteId(req.params.id);
+    const { temporaryPassword } = resetPasswordSchema.parse(req.body);
+    await staffService.resetPassword(staffId, temporaryPassword, actor);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully. Staff member will need to sign in again.',
+    });
+  },
+
+  hardDelete: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const staffId = requireRouteId(req.params.id);
+    await staffService.hardDeleteStaff(staffId, actor);
+
+    res.status(200).json({
+      success: true,
+      message: 'Staff account permanently deleted.',
     });
   },
 };

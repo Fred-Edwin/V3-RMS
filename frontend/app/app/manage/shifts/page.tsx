@@ -61,6 +61,31 @@ const emptyShiftForm: ShiftFormState = {
 
 const roleOrder: ShiftRole[] = ['WAITER', 'CHEF', 'BARISTA'];
 
+const roleBadgeStyle: Record<string, string> = {
+  WAITER: 'bg-[#FDF3DC] text-[#92650A] border-[#F0D080]',
+  CHEF: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
+  BARISTA: 'bg-[#EDFAF1] text-[#1A6B3C] border-[#86EFAC]',
+};
+
+const roleAvatarStyle: Record<string, string> = {
+  WAITER: 'bg-[#FDF3DC] text-[#92650A]',
+  CHEF: 'bg-[#FEF0E0] text-[#A04F0A]',
+  BARISTA: 'bg-[#EDFAF1] text-[#1A6B3C]',
+};
+
+const shiftCardColors = [
+  { bg: 'bg-[#FDF3DC]', border: 'border-l-[#C4862A]', text: 'text-[#92650A]', dot: 'bg-[#C4862A]' },
+  { bg: 'bg-[#FEF0E0]', border: 'border-l-[#D97706]', text: 'text-[#A04F0A]', dot: 'bg-[#D97706]' },
+  { bg: 'bg-[#EDFAF1]', border: 'border-l-[#16A34A]', text: 'text-[#1A6B3C]', dot: 'bg-[#16A34A]' },
+  { bg: 'bg-[#EFF6FF]', border: 'border-l-[#3B82F6]', text: 'text-[#1E40AF]', dot: 'bg-[#3B82F6]' },
+  { bg: 'bg-[#F5F3FF]', border: 'border-l-[#8B5CF6]', text: 'text-[#5B21B6]', dot: 'bg-[#8B5CF6]' },
+];
+
+const getShiftColor = (shiftId: string, allShifts: Shift[]) => {
+  const index = allShifts.findIndex((s) => s.id === shiftId);
+  return shiftCardColors[index >= 0 ? index % shiftCardColors.length : 0];
+};
+
 const dateToYmd = (value: Date): string => {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -219,9 +244,15 @@ export default function ShiftManagementPage(): JSX.Element {
   }, [loadAssignments]);
 
   const assignmentsBySlot = useMemo(() => {
-    const map = new Map<string, ShiftAssignment>();
+    const map = new Map<string, ShiftAssignment[]>();
     for (const assignment of weekAssignments) {
-      map.set(`${assignment.userId}|${assignment.date}`, assignment);
+      const key = `${assignment.userId}|${assignment.date}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(assignment);
+      } else {
+        map.set(key, [assignment]);
+      }
     }
     return map;
   }, [weekAssignments]);
@@ -539,22 +570,28 @@ export default function ShiftManagementPage(): JSX.Element {
       key: 'override',
       label: 'Override',
       className: 'w-[120px]',
-      render: (_value, row) => (
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() =>
-            setOverrideModal({
-              isOpen: true,
-              assignment: row,
-              action: row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'CLOCK_OUT' : 'CLOCK_IN',
-              reason: '',
-            })
-          }
-        >
-          Override
-        </Button>
-      ),
+      render: (_value, row) => {
+        const isComplete = row.clockRecord?.clockInAt && row.clockRecord?.clockOutAt;
+        if (isComplete) {
+          return <span className="text-label-sm text-stone-400">Complete</span>;
+        }
+        return (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              setOverrideModal({
+                isOpen: true,
+                assignment: row,
+                action: row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'CLOCK_OUT' : 'CLOCK_IN',
+                reason: '',
+              })
+            }
+          >
+            Override
+          </Button>
+        );
+      },
     },
   ];
 
@@ -583,13 +620,13 @@ export default function ShiftManagementPage(): JSX.Element {
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
             <h2 className="text-heading-md font-semibold text-stone-900">Weekly Schedule</h2>
-            <p className="text-body-sm text-stone-500">{formatWeekRange(weekStart)}</p>
+            <p className="mt-0.5 text-body-sm text-stone-500">{formatWeekRange(weekStart)}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <IconButton
               icon={<ChevronLeft size={18} />}
               label="Previous week"
@@ -607,6 +644,7 @@ export default function ShiftManagementPage(): JSX.Element {
           </div>
         </div>
 
+        <div className="p-4 sm:p-5">
         {isLoading ? (
           <SkeletonTable rows={5} columns={8} />
         ) : staff.length === 0 ? (
@@ -617,63 +655,122 @@ export default function ShiftManagementPage(): JSX.Element {
           />
         ) : (
           <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[920px]">
+            <table className="w-full min-w-[960px] border-separate border-spacing-0">
               <thead>
-                <tr className="border-b-2 border-stone-100">
-                  <th className="h-10 px-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
+                <tr>
+                  <th className="sticky left-0 z-10 w-[180px] bg-white pb-3 pl-1 pr-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
                     Staff
                   </th>
                   {weekDays.map((day) => {
-                    const isToday = dateToYmd(day) === todayDateKey;
+                    const dateKey = dateToYmd(day);
+                    const isToday = dateKey === todayDateKey;
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                     return (
                       <th
-                        key={dateToYmd(day)}
-                        className={`h-10 px-3 text-left text-label-sm font-semibold uppercase tracking-wider ${isToday ? 'text-espresso' : 'text-stone-400'}`}
+                        key={dateKey}
+                        className={`pb-3 text-center text-label-sm font-semibold uppercase tracking-wider ${
+                          isToday ? 'text-espresso' : isWeekend ? 'text-stone-300' : 'text-stone-400'
+                        }`}
                       >
-                        <div>{day.toLocaleDateString([], { weekday: 'short' })}</div>
-                        <div className={`normal-case tracking-normal text-caption ${isToday ? 'font-semibold text-espresso' : 'text-stone-400'}`}>
-                          {day.toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                        <div className="text-[11px]">{day.toLocaleDateString([], { weekday: 'short' })}</div>
+                        <div className={`mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-caption font-semibold ${
+                          isToday
+                            ? 'bg-espresso text-crema'
+                            : ''
+                        }`}>
+                          {day.getDate()}
                         </div>
                       </th>
                     );
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
-                {staff.map((person) => (
+              <tbody>
+                {staff.map((person, personIndex) => (
                   <tr key={person.id}>
-                    <td className="px-3 py-3">
-                      <div className="text-body-sm font-medium text-stone-900">{person.name}</div>
-                      <div className="text-caption text-stone-400">{person.role}</div>
+                    <td className={`sticky left-0 z-10 bg-white py-3 pl-1 pr-3 ${personIndex > 0 ? 'border-t border-stone-100' : ''}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-label-sm font-semibold ${
+                          roleAvatarStyle[person.role] ?? 'bg-stone-100 text-stone-600'
+                        }`}>
+                          {person.name.charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-body-sm font-medium text-stone-900">{person.name}</p>
+                          <span className={`mt-0.5 inline-flex rounded-full border px-1.5 py-px text-[10px] font-medium leading-tight ${
+                            roleBadgeStyle[person.role] ?? 'border-stone-200 bg-stone-100 text-stone-600'
+                          }`}>
+                            {person.role}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     {weekDays.map((day) => {
                       const dateKey = dateToYmd(day);
                       const isPastDate = dateKey < todayDateKey;
                       const isToday = dateKey === todayDateKey;
-                      const assignment = assignmentsBySlot.get(`${person.id}|${dateKey}`);
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                      const cellAssignments = assignmentsBySlot.get(`${person.id}|${dateKey}`);
                       return (
-                        <td key={dateKey} className={`px-2 py-2.5 align-top ${isToday ? 'bg-crema/30' : ''}`}>
-                          {assignment ? (
-                            <div className="rounded-lg border border-stone-200 bg-white p-2 shadow-sm">
-                              <p className="text-body-sm font-medium text-stone-900">{assignment.shift.name}</p>
-                              <p className="text-caption text-stone-400">
-                                {assignment.shift.startTime}–{assignment.shift.endTime}
-                              </p>
-                              <button
-                                type="button"
-                                className="mt-1 text-caption text-[#991B1B]/70 underline hover:text-[#991B1B]"
-                                onClick={() => setAssignmentPendingDelete(assignment)}
-                              >
-                                Remove
-                              </button>
+                        <td
+                          key={dateKey}
+                          className={`px-1.5 py-2 align-top ${personIndex > 0 ? 'border-t border-stone-100' : ''} ${
+                            isToday
+                              ? 'bg-crema/40'
+                              : isPastDate
+                                ? 'bg-stone-50/40'
+                                : isWeekend
+                                  ? 'bg-stone-50/30'
+                                  : ''
+                          }`}
+                        >
+                          {cellAssignments && cellAssignments.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {cellAssignments.map((assignment) => {
+                                const color = getShiftColor(assignment.shiftId, shifts);
+                                return (
+                                  <div
+                                    key={assignment.id}
+                                    className={`group relative rounded-md border-l-[3px] ${color.border} ${color.bg} px-2 py-1.5 transition-shadow duration-fast hover:shadow-md`}
+                                  >
+                                    <p className={`text-label-sm font-semibold ${color.text}`}>
+                                      {assignment.shift.name}
+                                    </p>
+                                    <p className="text-[10px] text-stone-500">
+                                      {assignment.shift.startTime} – {assignment.shift.endTime}
+                                    </p>
+                                    {dateKey > todayDateKey && (
+                                      <button
+                                        type="button"
+                                        className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
+                                        onClick={() => setAssignmentPendingDelete(assignment)}
+                                        aria-label={`Remove ${assignment.shift.name}`}
+                                      >
+                                        <Trash2 size={9} />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {!isPastDate && (
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-center rounded-md border border-dashed border-stone-200 py-1 text-[10px] font-medium text-stone-400 transition-colors duration-fast hover:border-stone-300 hover:bg-stone-50 hover:text-stone-600"
+                                  onClick={() => openAssignModal(person.id, dateKey)}
+                                >
+                                  +
+                                </button>
+                              )}
                             </div>
                           ) : (
                             isPastDate ? (
-                              <span className="text-caption text-stone-300">—</span>
+                              <div className="flex h-10 items-center justify-center">
+                                <span className="text-caption text-stone-300">—</span>
+                              </div>
                             ) : (
                               <button
                                 type="button"
-                                className="rounded-md px-2 py-1 text-caption font-medium text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                                className="flex h-10 w-full items-center justify-center rounded-md border border-dashed border-transparent text-caption font-medium text-stone-300 transition-all duration-fast hover:border-stone-200 hover:bg-stone-50 hover:text-stone-500"
                                 onClick={() => openAssignModal(person.id, dateKey)}
                               >
                                 + Assign
@@ -687,6 +784,24 @@ export default function ShiftManagementPage(): JSX.Element {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        </div>
+
+        {/* Shift color legend */}
+        {shifts.length > 0 && !isLoading && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-stone-100 px-5 py-3">
+            {shifts.map((shift, index) => {
+              const color = shiftCardColors[index % shiftCardColors.length];
+              return (
+                <div key={shift.id} className="flex items-center gap-1.5">
+                  <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`} />
+                  <span className="text-caption text-stone-500">
+                    {shift.name} ({shift.startTime}–{shift.endTime})
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

@@ -76,16 +76,22 @@ describe('Auth routes', () => {
 
   it('POST /api/v1/auth/logout clears cookie', async () => {
     vi.spyOn(authService, 'logout').mockResolvedValue();
-    const token = signAccessToken({
-      userId: 'manager-1',
-      role: 'MANAGER',
-      organizationId: 'org-1',
-    });
 
     const response = await request(app)
       .post('/api/v1/auth/logout')
-      .set('Authorization', `Bearer ${token}`)
       .set('Cookie', ['refreshToken=valid-refresh-token']);
+
+    expect(response.status).toBe(200);
+    const setCookie = response.headers['set-cookie'] as string[];
+    expect(setCookie.some((value) => value.startsWith('refreshToken=;'))).toBe(true);
+  });
+
+  it('POST /api/v1/auth/logout works without access token (expired session)', async () => {
+    vi.spyOn(authService, 'logout').mockResolvedValue();
+
+    const response = await request(app)
+      .post('/api/v1/auth/logout')
+      .set('Cookie', ['refreshToken=expired-session-token']);
 
     expect(response.status).toBe(200);
     const setCookie = response.headers['set-cookie'] as string[];

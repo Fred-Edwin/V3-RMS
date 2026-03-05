@@ -48,5 +48,19 @@ staffRoutes.patch(
   requireRole('MANAGER', 'SYSTEM_ADMIN'),
   staffController.reactivate,
 );
+staffRoutes.patch(
+  '/staff/:id/reset-password',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  staffController.resetPassword,
+);
+staffRoutes.delete(
+  '/staff/:id',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  staffController.hardDelete,
+);
 
 export default staffRoutes;

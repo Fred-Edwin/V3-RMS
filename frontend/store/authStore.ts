@@ -10,6 +10,7 @@ interface AuthState {
   organizationId: string | null;
   role: AuthUser['role'] | null;
   isAuthenticated: boolean;
+  isHydrated: boolean;
   setAuth: (input: { user: AuthUser; accessToken: string }) => void;
   refreshAccessToken: () => Promise<void>;
   hydrateSession: () => Promise<void>;
@@ -109,6 +110,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   organizationId: null,
   role: null,
   isAuthenticated: false,
+  isHydrated: false,
   setAuth: ({ user, accessToken }) => {
     setAccessTokenCookie(accessToken);
     scheduleRefresh(accessToken);
@@ -118,6 +120,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       organizationId: user.organizationId,
       role: user.role,
       isAuthenticated: true,
+      isHydrated: true,
     });
   },
   refreshAccessToken: async () => {
@@ -152,19 +155,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrateSession: async () => {
     const { accessToken } = useAuthStore.getState();
     if (accessToken) {
+      set({ isHydrated: true });
       return;
     }
 
     await useAuthStore.getState().refreshAccessToken();
+    set({ isHydrated: true });
   },
   logout: async () => {
-    const { accessToken } = useAuthStore.getState();
-    if (accessToken) {
-      try {
-        await authService.logout(accessToken);
-      } catch {
-        // No-op: state must still be cleared locally.
-      }
+    try {
+      await authService.logout();
+    } catch {
+      // No-op: state must still be cleared locally.
     }
 
     useAuthStore.getState().clearAuth();

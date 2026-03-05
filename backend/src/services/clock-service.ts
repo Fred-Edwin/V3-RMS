@@ -1,4 +1,5 @@
 import { ClockMethod } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import type { Request } from 'express';
 import { branchRepository } from '../repositories/branch-repository';
 import { clockRecordRepository } from '../repositories/clock-record-repository';
@@ -65,11 +66,18 @@ export const clockService = {
 
     await assertWithinGeofence(organizationId, input.latitude, input.longitude, 'clock in');
 
-    return clockRecordRepository.createClockIn(organizationId, {
-      shiftAssignmentId: assignment.id,
-      userId: actor.id,
-      method: ClockMethod.GPS,
-    });
+    try {
+      return await clockRecordRepository.createClockIn(organizationId, {
+        shiftAssignmentId: assignment.id,
+        userId: actor.id,
+        method: ClockMethod.GPS,
+      });
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictError('Already clocked in');
+      }
+      throw error;
+    }
   },
 
   clockOut: async (actor: Actor, input: ClockInOutInput) => {
@@ -124,18 +132,25 @@ export const clockService = {
         throw new ConflictError('Shift attendance is already completed');
       }
 
-      const record = await clockRecordRepository.createClockIn(organizationId, {
-        shiftAssignmentId: assignment.id,
-        userId: input.userId,
-        method: ClockMethod.OVERRIDE,
-        overrideById: actor.id,
-        overrideNote: input.reason,
-      });
+      try {
+        const record = await clockRecordRepository.createClockIn(organizationId, {
+          shiftAssignmentId: assignment.id,
+          userId: input.userId,
+          method: ClockMethod.OVERRIDE,
+          overrideById: actor.id,
+          overrideNote: input.reason,
+        });
 
-      return {
-        record,
-        message: `Clock-in override applied for ${assignment.user.name}`,
-      };
+        return {
+          record,
+          message: `Clock-in override applied for ${assignment.user.name}`,
+        };
+      } catch (error) {
+        if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictError('Staff member is already clocked in');
+        }
+        throw error;
+      }
     }
 
     const existingRecord = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);

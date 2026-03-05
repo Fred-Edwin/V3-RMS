@@ -31,6 +31,7 @@ export interface CreateStaffInput {
 
 export interface UpdateStaffInput {
   name?: string;
+  email?: string;
   phone?: string;
 }
 
@@ -80,5 +81,13 @@ export const staffService = {
 
   reactivateStaff: async (id: string, accessToken: string): Promise<void> => {
     await apiClient.patch(`/staff/${id}/reactivate`, {}, accessToken);
+  },
+
+  resetPassword: async (id: string, temporaryPassword: string, accessToken: string): Promise<void> => {
+    await apiClient.patch(`/staff/${id}/reset-password`, { temporaryPassword }, accessToken);
+  },
+
+  deleteStaff: async (id: string, accessToken: string): Promise<void> => {
+    await apiClient.delete(`/staff/${id}`, accessToken);
   },
 };

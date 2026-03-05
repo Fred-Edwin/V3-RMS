@@ -39,8 +39,8 @@ const formatTime = (value: string | null): string => {
 
 const formatClockMethod = (method: string | null | undefined): string => {
   if (!method) return '—';
-  if (method === 'GEOFENCE') return 'Geofence';
-  if (method === 'MANUAL') return 'Manual';
+  if (method === 'GPS') return 'GPS';
+  if (method === 'OVERRIDE') return 'Override';
   return method;
 };
 

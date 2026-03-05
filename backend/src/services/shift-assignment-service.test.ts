@@ -85,6 +85,7 @@ describe('shiftAssignmentService.createAssignment', () => {
 
   it('creates assignment for today and returns stable YYYY-MM-DD', async () => {
     const today = formatDateOnly(getTodayDateOnly());
+    vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([]);
     vi.mocked(shiftAssignmentRepository.create).mockResolvedValue({
       id: '55555555-5555-4555-8555-555555555555',
       organizationId,

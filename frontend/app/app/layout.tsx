@@ -202,6 +202,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const pathname = usePathname();
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -225,6 +226,18 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
       setLogoutOpen(false);
     }
   };
+
+  // Show a minimal loading indicator while session hydration is in progress
+  if (!role && !isHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-crema">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-amber-700" />
+          <p className="text-body-sm text-stone-500">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!role || (isDisplayRoute && isDisplayOnlyRole)) {
     return <>{children}</>;

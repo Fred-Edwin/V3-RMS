@@ -1,0 +1,53 @@
+## Wendo Coffee Bistro — Current Inventory & Supply Workflow
+
+### Overview
+
+Wendo operates a Central Kitchen that functions as the sole supply and preparation hub for all branches. The Central Kitchen is a support function — it does not generate sales. All revenue flows through the branches. A Store Manager based at the Central Kitchen oversees stock, portioning, and fulfilment of branch requisitions.
+
+---
+
+### The Central Kitchen
+
+All food items sold across Wendo's branches originate from the Central Kitchen. Raw ingredients are received, prepared, and portioned here before being dispatched to branches. Every menu item has a fixed portion size — for example, 10kg of a given ingredient consistently yields 100 portions. These conversion ratios are defined once but are subject to revision as the business refines its standard portion sizes.
+
+The Central Kitchen does not interact with customers or process orders. Its entire function is to ensure branches are stocked with the right portioned items in the right quantities to fulfil the day's expected sales.
+
+---
+
+### Daily Requisition Flow
+
+Each morning, branch managers submit a requisition to the Central Kitchen — a request specifying the items and quantities they need for the day. The Central Kitchen reviews all incoming requisitions, portions the requested items from available raw stock, and dispatches them to the respective branches.
+
+If the Central Kitchen does not have sufficient stock to fulfil a requisition — due to low raw ingredient levels or high demand across branches — the affected branch receives a short or partial delivery. In response, the branch manager marks the unavailable items as unavailable on that branch's menu, preventing waiters from taking orders for items that cannot be prepared. This capability already exists in the V1 system.
+
+Branches can submit a second, unplanned requisition mid-day if they unexpectedly run out of a high-demand item before the day ends. This is an exception rather than the norm but happens with some regularity.
+
+---
+
+### Branch Receiving
+
+When a branch receives its delivery from the Central Kitchen, the branch manager — or in practice, the head chef or head waiter — is responsible for receiving the stock. The expected process at this point is that the person receiving checks the delivered items against what was requisitioned, records any discrepancies, and accepts the delivery. If items are missing from the delivery, the logical response is for the branch to flag the shortfall, adjust their available menu accordingly, and — if the gap is significant enough — submit a follow-up requisition to the Central Kitchen for the missing items.
+
+---
+
+### Stock Consumption at the Branch
+
+Once portioned items arrive at the branch, they are consumed as orders are fulfilled throughout the day. Because portion sizes are fixed and tied directly to menu items, stock levels at the branch deplete in a predictable and traceable way as orders are placed and prepared.
+
+---
+
+### Non-Order Consumables
+
+Not all stock consumed at a branch is directly tied to customer orders. Certain items — cooking oil, seasoning, sugar used in coffee preparation, and similar operational consumables — are used continuously during the day but do not map cleanly to individual orders or portion sizes. How these items are tracked, accounted for, and requisitioned is an open question the business is still working through. There is currently no established method for measuring or recording their consumption with any precision.
+
+---
+
+### Open Questions for V2 Planning
+
+The following areas have no defined current process and will need to be resolved during V2 scoping:
+
+1. **Discrepancy handling** — The exact process when a branch receives a delivery with missing or incorrect items is not yet formally defined.
+2. **Stock visibility** — It is unclear how much real-time awareness the Central Kitchen currently has of stock levels at individual branches between requisition cycles.
+3. **Receiving responsibility** — Formally the branch manager receives deliveries, but in practice this may fall to the head chef or head waiter. The system should accommodate all three roles.
+4. **End-of-day reconciliation** — The process for reconciling expected vs. actual stock consumption at the close of each day is not yet defined.
+5. **Non-order consumables** — How to account for items consumed at the branch but not directly tied to orders remains unresolved and will require a dedicated discussion during scoping.

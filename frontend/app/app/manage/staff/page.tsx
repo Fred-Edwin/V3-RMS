@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { UserCircle, UserCheck, UserX, Pencil } from 'lucide-react';
-import { Button, EmptyState, Input, PageHeader, PageLayout, Select } from '@/components/ui';
+import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2 } from 'lucide-react';
+import { Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
+import { ApiError } from '@/types/api';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/useToast';
 
 type ManagerCreatableRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA' | 'KITCHEN_DISPLAY' | 'BARISTA_DISPLAY'>;
 
@@ -23,6 +25,7 @@ const roleLabel: Record<string, string> = {
 export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const hydrateSession = useAuthStore((state) => state.hydrateSession);
+  const { toast } = useToast();
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,6 +41,20 @@ export default function Page(): JSX.Element {
     role: 'WAITER' as ManagerCreatableRole,
     temporaryPassword: '',
   });
+
+  // ── Edit modal state ──
+  const [editTarget, setEditTarget] = useState<StaffDto | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // ── Reset password modal state ──
+  const [resetTarget, setResetTarget] = useState<StaffDto | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  // ── Delete confirm state ──
+  const [deleteTarget, setDeleteTarget] = useState<StaffDto | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -92,26 +109,84 @@ export default function Page(): JSX.Element {
       setForm({ name: '', email: '', phone: '', role: 'WAITER', temporaryPassword: '' });
       setFormSuccess(true);
       await loadStaff();
-    } catch {
-      setFormError('Failed to create staff account.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to create staff account.';
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = async (item: StaffDto): Promise<void> => {
-    if (!accessToken) return;
+  // ── Edit handlers ──
+  const openEditModal = (item: StaffDto): void => {
+    setEditTarget(item);
+    setEditForm({ name: item.name, email: item.email, phone: item.phone ?? '' });
+  };
 
-    const name = window.prompt('Name', item.name);
-    if (!name) return;
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !editTarget) return;
 
-    const phone = window.prompt('Phone', item.phone ?? '');
-    setError(null);
+    setEditSubmitting(true);
     try {
-      await staffService.updateStaff(item.id, { name, phone: phone ?? undefined }, accessToken);
+      await staffService.updateStaff(
+        editTarget.id,
+        {
+          name: editForm.name || undefined,
+          email: editForm.email || undefined,
+          phone: editForm.phone || undefined,
+        },
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Updated', message: `${editForm.name} updated successfully.` });
+      setEditTarget(null);
       await loadStaff();
-    } catch {
-      setError('Failed to update staff details.');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to update staff details.';
+      toast({ variant: 'error', title: 'Update failed', message });
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // ── Reset password handlers ──
+  const openResetModal = (item: StaffDto): void => {
+    setResetTarget(item);
+    setResetPassword('');
+  };
+
+  const handleResetSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !resetTarget) return;
+
+    setResetSubmitting(true);
+    try {
+      await staffService.resetPassword(resetTarget.id, resetPassword, accessToken);
+      toast({ variant: 'success', title: 'Password reset', message: `${resetTarget.name} will need to sign in again.` });
+      setResetTarget(null);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to reset password.';
+      toast({ variant: 'error', title: 'Reset failed', message });
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
+  // ── Delete handlers ──
+  const handleDeleteConfirm = async (): Promise<void> => {
+    if (!accessToken || !deleteTarget) return;
+
+    setDeleteSubmitting(true);
+    try {
+      await staffService.deleteStaff(deleteTarget.id, accessToken);
+      toast({ variant: 'success', title: 'Deleted', message: `${deleteTarget.name} permanently deleted.` });
+      setDeleteTarget(null);
+      await loadStaff();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to delete staff account.';
+      toast({ variant: 'error', title: 'Delete failed', message });
+    } finally {
+      setDeleteSubmitting(false);
     }
   };
 
@@ -146,7 +221,7 @@ export default function Page(): JSX.Element {
           <div>
             <h2 className="text-heading-sm font-semibold text-stone-900">Team Members</h2>
             <p className="mt-0.5 text-body-sm text-stone-500">
-              {loading ? 'Loading…' : `${staff.length} staff account${staff.length === 1 ? '' : 's'}`}
+              {loading ? 'Loading\u2026' : `${staff.length} staff account${staff.length === 1 ? '' : 's'}`}
             </p>
           </div>
         </div>
@@ -206,11 +281,19 @@ export default function Page(): JSX.Element {
                   </span>
                   <button
                     type="button"
-                    onClick={() => void handleEdit(item)}
+                    onClick={() => openEditModal(item)}
                     className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
                     aria-label={`Edit ${item.name}`}
                   >
                     <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openResetModal(item)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-amber-50 hover:text-amber-700"
+                    aria-label={`Reset password for ${item.name}`}
+                  >
+                    <KeyRound size={14} />
                   </button>
                   <button
                     type="button"
@@ -223,6 +306,14 @@ export default function Page(): JSX.Element {
                     aria-label={item.isActive ? `Deactivate ${item.name}` : `Reactivate ${item.name}`}
                   >
                     {item.isActive ? <UserX size={14} /> : <UserCheck size={14} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(item)}
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-[#FEF2F2] hover:text-[#991B1B]"
+                    aria-label={`Delete ${item.name}`}
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </li>
@@ -298,6 +389,85 @@ export default function Page(): JSX.Element {
           </div>
         </form>
       </section>
+
+      {/* ── Edit Staff Modal ── */}
+      <Modal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        title={`Edit ${editTarget?.name ?? 'Staff'}`}
+        maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={() => setEditTarget(null)} disabled={editSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-staff-form" isLoading={editSubmitting}>
+              Save Changes
+            </Button>
+          </div>
+        }
+      >
+        <form id="edit-staff-form" className="space-y-4" onSubmit={(e) => void handleEditSubmit(e)}>
+          <Input
+            label="Full name"
+            value={editForm.name}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+          />
+          <Input
+            label="Email address"
+            type="email"
+            value={editForm.email}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+          />
+          <Input
+            label="Phone"
+            value={editForm.phone}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+          />
+        </form>
+      </Modal>
+
+      {/* ── Reset Password Modal ── */}
+      <Modal
+        isOpen={!!resetTarget}
+        onClose={() => setResetTarget(null)}
+        title={`Reset Password — ${resetTarget?.name ?? ''}`}
+        maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={() => setResetTarget(null)} disabled={resetSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="reset-password-form" isLoading={resetSubmitting}>
+              Reset Password
+            </Button>
+          </div>
+        }
+      >
+        <form id="reset-password-form" className="space-y-4" onSubmit={(e) => void handleResetSubmit(e)}>
+          <p className="text-body-sm text-stone-500">
+            This will invalidate all active sessions for this staff member.
+          </p>
+          <Input
+            label="New temporary password"
+            type="password"
+            placeholder="Min. 8 characters"
+            value={resetPassword}
+            onChange={(e) => setResetPassword(e.target.value)}
+          />
+        </form>
+      </Modal>
+
+      {/* ── Delete Confirm Dialog ── */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteConfirm()}
+        title={`Delete ${deleteTarget?.name ?? ''}?`}
+        description="This permanently removes the staff account. If this person has orders, shifts, or clock records, deletion will be blocked — deactivate instead."
+        confirmLabel="Delete permanently"
+        isLoading={deleteSubmitting}
+      />
     </PageLayout>
   );
 }

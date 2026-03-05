@@ -79,6 +79,18 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 - [x] Added backend dependency `pdfkit`.
 - [x] Added backend dev dependency `@types/pdfkit`.
 
+### PWA & Favicon (Post-Phase Addendum)
+- [x] Added favicon assets to `frontend/app/favicon.ico` (auto-resolved by Next.js) and `frontend/public/` (16x16, 32x32 PNG, apple-touch-icon, android-chrome 192/512).
+- [x] Added `frontend/app/manifest.ts` — Next.js App Router manifest convention; generates `/manifest.webmanifest` at build time with:
+  - `name: "Wendo RMS"`, `short_name: "Wendo"`
+  - `start_url: "/login"`, `display: "standalone"`
+  - `background_color: "#F5F0E8"` (crema), `theme_color: "#2C1810"` (espresso)
+  - Icons: android-chrome-192x192.png, android-chrome-512x512.png
+- [x] Updated `frontend/app/layout.tsx` root layout:
+  - Added `viewport` export (themeColor `#2C1810`, standard mobile viewport)
+  - Added `manifest`, `appleWebApp` (iOS "Add to Home Screen"), and `icons` to `metadata`
+- App is now installable as a PWA on Android and iOS (staff daily use case).
+
 ---
 
 ## Decisions Made

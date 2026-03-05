@@ -82,7 +82,7 @@ All interfaces are role-aware — the same application serves a different view b
           │         HTTPS + WSS (TLS)              │
           │                │                      │
 ┌─────────▼────────────────▼──────────────────────▼───────────────┐
-│                     BACKEND (Render)                             │
+│                     BACKEND (DigitalOcean)                             │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    Express API Server                     │   │
@@ -101,7 +101,7 @@ All interfaces are role-aware — the same application serves a different view b
                        │                  │
           ┌────────────▼───┐    ┌─────────▼──────┐
           │  PostgreSQL    │    │   Redis         │
-          │  (Supabase)    │    │   (Upstash)     │
+          │  (PostgreSQL)    │    │   (Redis)     │
           │                │    │                 │
           │  - All data    │    │  - Session cache│
           │  - Migrations  │    │  - Menu cache   │
@@ -149,15 +149,15 @@ All interfaces are role-aware — the same application serves a different view b
 | Backend | Node.js + Express + TypeScript | Proven, performant, large ecosystem |
 | Validation | Zod | Runtime type safety at API boundaries |
 | ORM | Prisma | Type-safe queries, clean migrations, PostgreSQL native |
-| Database | PostgreSQL (Supabase) | Relational integrity, ACID compliance, managed hosting |
+| Database | PostgreSQL 16 (Docker on DigitalOcean) | Relational integrity, ACID compliance, low-cost co-located deployment |
 | Real-time | Socket.io | WebSocket abstraction with auto-reconnect |
-| Caching | Redis (Upstash) | Fast in-memory cache, job queue backing |
+| Caching | Redis 7 (Docker on DigitalOcean) | Fast in-memory cache, BullMQ backing, no external network hop |
 | Background Jobs | BullMQ | Reliable job queuing backed by Redis |
 | Push Notifications | Firebase Cloud Messaging (FCM) | Industry standard, free, Android web push support |
 | Frontend Hosting | Vercel | Zero-config Next.js deployment, global CDN |
-| Backend Hosting | Render | Managed Node.js hosting, auto-deploy from Git |
-| Database Hosting | Supabase | Managed PostgreSQL, automatic backups |
-| Redis Hosting | Upstash | Serverless Redis, pay-per-use |
+| Backend Hosting | DigitalOcean Droplet + Docker Compose | Full control, low cost, containerized API/worker runtime |
+| Database Hosting | PostgreSQL container + DigitalOcean backups + daily dumps | Predictable recovery model with infra-level and logical backups |
+| Redis Hosting | Redis container on DigitalOcean | Simple ops, local network performance, no external dependency |
 
 ---
 
@@ -810,7 +810,7 @@ async getMenu(organizationId: string) {
 - Sensitive fields (passwordHash, tokens) never returned in API responses — enforced by selecting specific fields in all user queries
 
 ### Transport Security
-- HTTPS enforced on all endpoints (handled by Render and Vercel)
+- HTTPS enforced end-to-end (Vercel + Cloudflare tunnel + TLS)
 - WebSocket connections over WSS (TLS)
 
 ### Rate Limiting
@@ -882,26 +882,16 @@ At launch (2 branches): approximately 20–30 concurrent users during peak hours
 ### Infrastructure Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Vercel (Frontend)                  │
-│   Next.js app — global CDN, auto-deploys from Git   │
-│   URL: app.wendorms.co.ke                           │
-└────────────────────────┬────────────────────────────┘
-                         │ HTTPS
-┌────────────────────────▼────────────────────────────┐
-│                   Render (Backend)                   │
-│   Node.js + Express — single server, V1             │
-│   Auto-deploys from Git on merge to main            │
-│   URL: api.wendorms.co.ke                           │
-└──────────┬──────────────────────────┬───────────────┘
-           │                          │
-┌──────────▼──────────┐  ┌────────────▼──────────────┐
-│  Supabase           │  │  Upstash Redis             │
-│  (PostgreSQL)       │  │  - Session cache           │
-│  - Primary DB       │  │  - Menu cache              │
-│  - Auto backups     │  │  - BullMQ job queues       │
-│  - Connection pool  │  └────────────────────────────┘
-└─────────────────────┘
+Clients (phones/tablets/browsers)
+  -> Vercel (Next.js frontend, global CDN)
+  -> Cloudflare named tunnel (api.wendo-rms.co.ke, TLS, DDoS edge)
+  -> DigitalOcean Droplet (Docker Compose)
+       - nginx reverse proxy (80 -> 4000)
+       - wendo-api (Express + Socket.io)
+       - wendo-worker (BullMQ workers)
+       - wendo-postgres (PostgreSQL)
+       - wendo-redis (Redis)
+  -> External services: Firebase FCM, Cloudinary, UptimeRobot
 ```
 
 ### Environments
@@ -909,30 +899,42 @@ At launch (2 branches): approximately 20–30 concurrent users during peak hours
 | Environment | Purpose | Deployment Trigger |
 |---|---|---|
 | `development` | Local developer machines | Manual |
-| `staging` | Pre-production testing, mirrors production | Push to `staging` branch |
-| `production` | Live system | Merge to `main` branch |
+| `production` | Live system | Push to `main` (GitHub Actions deploy workflow) |
+
+Note: A dedicated staging environment is not currently provisioned.
 
 ### Migration Strategy
 
-Database migrations follow the standards defined in `04_DATABASE_STANDARDS.md`:
 - Never manually edit production database
 - All schema changes via Prisma migrations
-- Migrations tested on staging before production
-- `npx prisma migrate deploy` on production — never `migrate dev`
+- Run only `npx prisma migrate deploy` on production (never `migrate dev`)
+- Production deploy workflow runs migrations before rebuilding/restarting application containers
+- Validate migrations locally (or on a temporary mirror) before merging to `main`
 
 ### Environment Variables
 
-All secrets managed as environment variables — never hardcoded. Each environment (development, staging, production) has its own `.env` file locally and environment variable configuration on the hosting platform.
+All secrets are environment variables. Production uses:
+- server env file: `backend/.env`
+- compose root env file: `.env` (for `POSTGRES_PASSWORD`)
+- frontend env in Vercel dashboard
 
-Required variables:
+Required variables (core):
 ```
-DATABASE_URL              # Supabase PostgreSQL connection string
-REDIS_URL                 # Upstash Redis connection string
-JWT_ACCESS_SECRET         # Access token signing secret
-JWT_REFRESH_SECRET        # Refresh token signing secret
-FIREBASE_SERVICE_ACCOUNT  # FCM service account JSON
-NEXT_PUBLIC_API_URL       # Backend API URL (frontend)
-NEXT_PUBLIC_SOCKET_URL    # WebSocket server URL (frontend)
+NODE_ENV
+PORT
+API_PREFIX
+FRONTEND_ORIGIN
+DATABASE_URL
+REDIS_URL
+JWT_ACCESS_SECRET
+JWT_REFRESH_SECRET
+FIREBASE_SERVICE_ACCOUNT_JSON
+VAPID_KEY
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
+NEXT_PUBLIC_API_URL
+NEXT_PUBLIC_SOCKET_URL
 ```
 
 ---
@@ -983,7 +985,7 @@ GET /health
 → { status: "ok", db: "connected", redis: "connected", uptime: 3600 }
 ```
 
-Used by Render for health monitoring and automatic restart if the service becomes unhealthy.
+Used by deployment automation and uptime monitoring to verify service health after deploys and during runtime.
 
 ---
 
@@ -1066,3 +1068,5 @@ Used by Render for health monitoring and automatic restart if the service become
 ---
 
 *This document is the authoritative technical reference for the Wendo RMS V1. All development must conform to the architecture defined here. Deviations require an ADR entry and a document update before implementation.*
+
+

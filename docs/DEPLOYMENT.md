@@ -20,9 +20,11 @@
 9. [Viewing Logs](#9-viewing-logs)
 10. [Accessing the Database](#10-accessing-the-database)
 11. [Backups](#11-backups)
-12. [Tunnel URL Changes](#12-tunnel-url-changes)
-13. [Rollback Procedure](#13-rollback-procedure)
-14. [Scaling Triggers](#14-scaling-triggers)
+12. [Seeding Demo Data](#12-seeding-demo-data)
+13. [Tunnel](#13-tunnel)
+14. [Rollback Procedure](#14-rollback-procedure)
+15. [Scaling Triggers](#15-scaling-triggers)
+16. [Local Development Runbook](#16-local-development-runbook)
 
 ---
 
@@ -550,7 +552,28 @@ Useful commands inside psql:
 
 ### Option B — Prisma Studio (visual, from local machine)
 
-Use the convenience script — it opens the SSH tunnel and launches Studio in one command:
+Important:
+- Run `.\scripts\db-studio.ps1` from your local Windows machine (PowerShell), not from the Ubuntu server shell.
+- Do not SSH into the server and try to run `.ps1` scripts there; Ubuntu/bash cannot execute PowerShell `.ps1` scripts by default.
+
+Use the convenience scripts:
+
+```powershell
+# Production DB (opens SSH tunnel first)
+.\scripts\db-studio.ps1
+
+# Local Docker DB
+.\scripts\db-studio-local.ps1
+```
+
+`db-studio-local.ps1` expects local Postgres to be exposed on host port `5433` via `docker-compose.yml`.
+If this is your first time after pulling compose changes, recreate postgres:
+
+```powershell
+docker compose up -d --force-recreate postgres
+```
+
+For production, `.\scripts\db-studio.ps1` opens the SSH tunnel and launches Studio in one command:
 
 ```powershell
 .\scripts\db-studio.ps1
@@ -558,6 +581,13 @@ Use the convenience script — it opens the SSH tunnel and launches Studio in on
 ```
 
 Opens at `http://localhost:5555`. Closing Studio automatically kills the tunnel.
+
+If you are already on the Ubuntu server and just need to inspect production data quickly, use server-side `psql` instead:
+
+```bash
+cd ~/wendo-rms
+docker compose exec postgres psql -U wendo_user -d wendo_rms
+```
 
 **Manual steps (if the script fails):**
 
@@ -642,7 +672,62 @@ docker compose start api worker
 
 ---
 
-## 12. Tunnel
+## 12. Seeding Demo Data
+
+The seed script generates realistic synthetic data for demos and testing. It creates fake orders, prep tickets, shift assignments, and clock-in/out records across all active branches.
+
+**Important:** This is fake data for demos only — it never modifies real staff, menu items, or branches.
+
+### What it creates
+
+| Data | Description |
+|---|---|
+| **Orders** | Customer orders (DINE_IN, TAKE_AWAY, DELIVERY) with timestamps, payment methods, totals |
+| **Order Items** | Items attached to each order, picked from the real menu |
+| **Prep Tickets** | Kitchen/barista tickets for each order |
+| **Shift Assignments** | Staff assigned to shifts for today |
+| **Clock Records** | Clock-in/out times (~70% on-time, ~15% late, ~10% no-show, ~5% left early) |
+
+### Seed data (run on the server)
+
+```bash
+cd ~/wendo-rms
+docker compose exec api sh -c "SEED_REPORTS_CONFIRM=YES ALLOW_PRODUCTION_SEED=true node dist/scripts/seed-report-orders.js --days=7 --min-orders=12 --max-orders=30"
+```
+
+### Delete all seed data (without re-seeding)
+
+```bash
+docker compose exec api sh -c "SEED_REPORTS_CONFIRM=YES ALLOW_PRODUCTION_SEED=true node dist/scripts/seed-report-orders.js --reset-only"
+```
+
+### Delete and re-seed fresh data
+
+```bash
+docker compose exec api sh -c "SEED_REPORTS_CONFIRM=YES ALLOW_PRODUCTION_SEED=true node dist/scripts/seed-report-orders.js --days=7 --min-orders=12 --max-orders=30 --reset"
+```
+
+### Available flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--days=N` | 20 | Days of order history to generate |
+| `--min-orders=N` | 6 | Minimum orders per day per branch |
+| `--max-orders=N` | 18 | Maximum orders per day per branch |
+| `--seed=N` | 42 | Random seed — same number produces same data |
+| `--reset` | off | Delete existing seed data before inserting new data |
+| `--reset-only` | off | Delete existing seed data and stop — no new data created |
+| `--org=<id>` | all | Limit to a specific organization ID |
+
+### Prerequisites
+
+- Shifts must exist for each organization — the clock seeding skips orgs with no active shifts
+- Active staff must exist — the script distributes orders and clock records across real staff accounts
+- Active menu items must exist — orders are built from the real menu
+
+---
+
+## 13. Tunnel
 
 The API is exposed via a **Cloudflare named tunnel** at `https://api.wendo-rms.co.ke`. This URL is permanent and never changes on reboot or redeploy.
 
@@ -668,7 +753,7 @@ NEXT_PUBLIC_SOCKET_URL=https://api.wendo-rms.co.ke
 
 ---
 
-## 13. Rollback Procedure
+## 14. Rollback Procedure
 
 ### Application Rollback
 
@@ -711,7 +796,7 @@ docker compose start api worker
 
 ---
 
-## 14. Scaling Triggers
+## 15. Scaling Triggers
 
 Do not upgrade anything until these conditions are met:
 
@@ -722,3 +807,158 @@ Do not upgrade anything until these conditions are met:
 | DB queries slow >500ms avg | Move to DigitalOcean Managed PostgreSQL ($15/mo) |
 | Multiple devs deploying | Add branch protection + required PR reviews |
 | >5 branches, >100 concurrent users | Add Socket.io Redis adapter + load balancer |
+
+---
+
+## 16. Local Development Runbook
+
+Use this when running the project fully on `localhost`.
+
+### Prerequisites
+
+1. Docker Desktop is running.
+2. `pnpm` is installed.
+3. `backend/.env` exists and is valid dotenv format (`KEY=value` only; no multiline private keys).
+4. Root `.env` exists with `POSTGRES_PASSWORD=...` for Docker Compose interpolation.
+
+### Local Startup (Backend + Infra via Docker)
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d postgres redis api worker
+```
+
+Health check:
+
+```powershell
+Invoke-RestMethod http://localhost:4000/api/v1/health
+```
+
+### Local Frontend Startup
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+Copy-Item .env.example .env -Force
+pnpm install
+pnpm dev
+```
+
+Open:
+- Frontend: `http://localhost:3000`
+- API: `http://localhost:4000/api/v1`
+- Socket endpoint: `http://localhost:4000`
+
+### First-Time DB Setup (if needed)
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose exec api npx prisma migrate deploy
+docker compose exec api node dist/scripts/seed-admin.js
+```
+
+### Test on Phone (Same Wi-Fi, Localhost Stack)
+
+`localhost` on your phone points to the phone itself, not your laptop. Use your laptop LAN IP.
+
+1. Find your laptop IP:
+
+```powershell
+ipconfig
+```
+
+Use the IPv4 address on your active Wi-Fi adapter (example: `192.168.0.105`).
+
+2. Update frontend env for LAN access (`frontend/.env`):
+
+```dotenv
+NEXT_PUBLIC_API_URL=http://192.168.0.105:4000/api/v1
+NEXT_PUBLIC_SOCKET_URL=http://192.168.0.105:4000
+```
+
+3. Update backend CORS origin (`backend/.env`):
+
+```dotenv
+FRONTEND_ORIGIN=http://192.168.0.105:3000
+```
+
+4. Recreate backend containers to reload env:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d --force-recreate api worker
+```
+
+5. Start frontend bound to all interfaces:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+pnpm dev -- -H 0.0.0.0 -p 3000
+```
+
+6. Open on phone browser:
+
+```text
+http://192.168.0.105:3000
+```
+
+If it does not open, allow Node/Docker through Windows Firewall for Private networks.
+
+After phone testing, you can switch envs back to localhost values for normal desktop-only local dev.
+
+### Import Production DB Data Into Local
+
+Yes: after `docker compose down -v`, your local DB volume is new/empty (except whatever you seed/import after).
+
+Use a one-off SQL snapshot from production and restore it into local Postgres.
+
+1. Ensure local DB containers are up:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d postgres redis
+```
+
+2. Export production DB to a local SQL file (run from your local machine):
+
+```powershell
+ssh edwinfred@104.248.29.42 "cd ~/wendo-rms && docker compose exec -T postgres pg_dump -U wendo_user -d wendo_rms" > .\prod_snapshot.sql
+```
+
+3. Restore into local Postgres container:
+
+```powershell
+docker cp .\prod_snapshot.sql wendo-postgres:/tmp/prod_snapshot.sql
+docker compose exec postgres psql -U wendo_user -d wendo_rms -f /tmp/prod_snapshot.sql
+```
+
+4. Start app services:
+
+```powershell
+docker compose up -d api worker
+Invoke-RestMethod http://localhost:4000/api/v1/health
+```
+
+Notes:
+- Do not run `seed-admin` after importing production data unless you intentionally need another admin record.
+- Treat production snapshots as sensitive data. Store locally only as needed and delete when done:
+
+```powershell
+Remove-Item .\prod_snapshot.sql
+```
+
+### Common Local Errors
+
+1. `POSTGRES_PASSWORD variable is not set`
+- Cause: missing root `.env`.
+- Fix: create `d:\AI applications\web\V3-RMS\.env` with:
+```dotenv
+POSTGRES_PASSWORD=your_password
+```
+
+2. `failed to read backend/.env ... unexpected character "/" in variable name`
+- Cause: invalid/multiline content in `.env` (commonly pasted SSH private keys).
+- Fix: keep `.env` entries as single-line `KEY=value` only. Remove SSH keys and other non-env blocks from `backend/.env`.
+
+3. `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+- Cause: Docker Desktop daemon is not running.
+- Fix: start Docker Desktop, wait for it to initialize, then rerun `docker compose up -d ...`.

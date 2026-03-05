@@ -12,7 +12,12 @@ export const createStaffSchema = z.object({
 
 export const updateStaffSchema = z.object({
   name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
   phone: z.string().min(1).optional(),
+});
+
+export const resetPasswordSchema = z.object({
+  temporaryPassword: z.string().min(8),
 });
 
 export const listStaffQuerySchema = z.object({

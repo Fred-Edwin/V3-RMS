@@ -97,6 +97,43 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 
 ---
 
+## Pre-Production Auth Hardening (Post Phase 6)
+
+### Problem
+Users were being forced to re-login on every page refresh or after websocket disconnects.
+Additionally, the logout endpoint would fail silently when the access token had already expired.
+
+### Root Cause
+Next.js middleware redirected to `/login` whenever the `accessToken` cookie was missing or expired, without checking whether a valid `refreshToken` cookie existed for silent client-side refresh.
+
+### Changes Made
+
+#### Session Persistence Fix
+- **`frontend/middleware.ts`** — Middleware now checks for `refreshToken` cookie before redirecting. If a refresh token exists, the request passes through so `SessionBootstrap` can silently obtain a new access token. Only redirects to `/login` when both tokens are absent.
+- **`frontend/store/authStore.ts`** — Added `isHydrated` state flag. `hydrateSession()` and `setAuth()` both set it on completion, enabling the UI to distinguish "loading" from "unauthenticated".
+- **`frontend/components/app/SessionBootstrap.tsx`** — Now handles post-hydration redirects: sends unauthenticated users to `/login` after failed hydration, and redirects authenticated users away from `/login` to their role-appropriate dashboard.
+- **`frontend/app/app/layout.tsx`** — Shows a loading spinner while `!role && !isHydrated` instead of flashing empty content.
+
+#### Logout Reliability Fix
+- **`backend/src/routes/auth-routes.ts`** — Removed `authenticate`, `branchScope`, and `requireRole` middleware from `/auth/logout`. The endpoint only needs the `refreshToken` cookie.
+- **`frontend/services/authService.ts`** — `logout()` no longer requires an access token parameter.
+- **`frontend/store/authStore.ts`** — `logout()` calls `authService.logout()` without passing the access token.
+
+#### Security Hardening
+- **`backend/src/routes/auth-routes.ts`** — Added rate limiting (20 req/min) to `/auth/refresh` endpoint to prevent brute-force attacks.
+- **`backend/src/services/auth-service.ts`** — `changePassword()` now calls `authRepository.deleteAllRefreshTokensByUserId()` to revoke all existing sessions after a password change, preventing compromised tokens from persisting.
+- **`backend/src/repositories/auth-repository.ts`** — Added `deleteAllRefreshTokensByUserId()` method.
+- **`backend/src/validators/auth-schemas.ts`** — Login password validation tightened from `min(1)` to `min(8)` to match `changePasswordSchema`.
+
+#### Tests
+- **`backend/tests/auth.test.ts`** — Updated logout test to not require Authorization header; added new test verifying logout works without an access token (expired session scenario). All 8 auth tests pass.
+
+### Decisions
+- Access token cookie remains non-HttpOnly intentionally: Next.js edge middleware needs to read it for role-based routing. The backend always validates JWT signatures, and the security-critical refresh token is properly HttpOnly.
+- Refresh rate limit set to 20/min (vs 10/min for login) to allow legitimate silent refreshes without being too permissive.
+
+---
+
 ## Notes for Next Phase (Phase 3)
 - Menu backend endpoints are live and wired under `/api/v1/menu*`.
 - Admin menu management UI is in `/app/admin/menu` and is shared by `SYSTEM_ADMIN` and `DIRECTOR`.

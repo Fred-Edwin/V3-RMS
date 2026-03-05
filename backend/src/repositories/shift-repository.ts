@@ -1,5 +1,6 @@
 import { type Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
+import { getTodayDateOnly } from '../utils/date-only';
 
 const shiftSelect = {
   id: true,
@@ -11,11 +12,6 @@ const shiftSelect = {
   createdAt: true,
   updatedAt: true,
 } as const;
-
-const getTodayStart = (): Date => {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-};
 
 export type ShiftRecord = Prisma.ShiftGetPayload<{ select: typeof shiftSelect }>;
 
@@ -93,8 +89,8 @@ export const shiftRepository = {
   },
 
   hasFutureAssignments: async (id: string, organizationId: string): Promise<boolean> => {
-    const nextDayStart = getTodayStart();
-    nextDayStart.setDate(nextDayStart.getDate() + 1);
+    const nextDayStart = getTodayDateOnly();
+    nextDayStart.setUTCDate(nextDayStart.getUTCDate() + 1);
 
     const assignment = await prisma.shiftAssignment.findFirst({
       where: {

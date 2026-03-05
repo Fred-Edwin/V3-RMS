@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/app';
 import { staffService } from '../src/services/staff-service';
 import { authService } from '../src/services/auth-service';
-import { ConflictError, ForbiddenError, UnauthorizedError } from '../src/utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 
 describe('Staff routes', () => {
@@ -190,5 +190,119 @@ describe('Staff routes', () => {
     });
 
     expect(loginResponse.status).toBe(401);
+  });
+
+  it('PATCH /api/v1/staff/:id updates email — 200', async () => {
+    vi.spyOn(staffService, 'updateStaff').mockResolvedValue({
+      id: 'user-1',
+      name: 'Grace',
+      email: 'grace.new@wendo.co.ke',
+      phone: '+254700000001',
+      role: 'WAITER',
+      isActive: true,
+      organizationId: 'org-1',
+      createdAt: new Date(),
+      organization: { name: 'Wendo Kingz' },
+      organizationName: 'Wendo Kingz',
+    });
+    const token = signAccessToken({
+      userId: 'manager-1',
+      role: 'MANAGER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .patch('/api/v1/staff/user-1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ email: 'grace.new@wendo.co.ke' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.email).toBe('grace.new@wendo.co.ke');
+  });
+
+  it('PATCH /api/v1/staff/:id with duplicate email — 409', async () => {
+    vi.spyOn(staffService, 'updateStaff').mockRejectedValue(
+      new ConflictError('Email is already in use'),
+    );
+    const token = signAccessToken({
+      userId: 'manager-1',
+      role: 'MANAGER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .patch('/api/v1/staff/user-1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ email: 'taken@wendo.co.ke' });
+
+    expect(response.status).toBe(409);
+  });
+
+  it('PATCH /api/v1/staff/:id/reset-password — 200', async () => {
+    vi.spyOn(staffService, 'resetPassword').mockResolvedValue(undefined);
+    const token = signAccessToken({
+      userId: 'manager-1',
+      role: 'MANAGER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .patch('/api/v1/staff/user-1/reset-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ temporaryPassword: 'NewPass123!' });
+
+    expect(response.status).toBe(200);
+    expect(staffService.resetPassword).toHaveBeenCalledWith(
+      'user-1',
+      'NewPass123!',
+      expect.objectContaining({ role: 'MANAGER' }),
+    );
+  });
+
+  it('PATCH /api/v1/staff/:id/reset-password — 403 for waiter', async () => {
+    const token = signAccessToken({
+      userId: 'waiter-1',
+      role: 'WAITER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .patch('/api/v1/staff/user-1/reset-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ temporaryPassword: 'NewPass123!' });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('DELETE /api/v1/staff/:id with no dependencies — 200', async () => {
+    vi.spyOn(staffService, 'hardDeleteStaff').mockResolvedValue(undefined);
+    const token = signAccessToken({
+      userId: 'manager-1',
+      role: 'MANAGER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .delete('/api/v1/staff/user-1')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('DELETE /api/v1/staff/:id with dependencies — 409', async () => {
+    vi.spyOn(staffService, 'hardDeleteStaff').mockRejectedValue(
+      new ConflictError('Cannot delete staff account — linked to 3 order(s), 5 shift assignment(s). Deactivate instead.'),
+    );
+    const token = signAccessToken({
+      userId: 'manager-1',
+      role: 'MANAGER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .delete('/api/v1/staff/user-1')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(409);
   });
 });

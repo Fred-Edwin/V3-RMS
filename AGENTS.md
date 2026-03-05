@@ -82,3 +82,138 @@ types/ — shared TypeScript types
 Phase: 6
 Status: Complete
 Context file: docs/context/PHASE_6_CONTEXT.md
+
+## Current Deployment Model (Authoritative)
+
+- Production is **DigitalOcean + Docker Compose** (not Render/Supabase/Upstash).
+- Frontend: Vercel (`v3-rms.vercel.app`).
+- API: Cloudflare tunnel (`https://api.wendo-rms.co.ke`) -> DigitalOcean droplet.
+- Backend services on server: `api`, `worker`, `postgres`, `redis`.
+- No dedicated staging environment is currently provisioned.
+
+## Command Quick Reference (for Coding Agents)
+
+### Local Dev - Core
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d postgres redis api worker
+docker compose ps
+Invoke-RestMethod http://localhost:4000/api/v1/health
+```
+
+Frontend:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+pnpm install
+pnpm dev
+```
+
+Build checks:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\backend"
+pnpm build
+pnpm test
+
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+pnpm typecheck
+pnpm build
+```
+
+### Local DB - Migrations and Seed
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npx prisma migrate status
+docker compose exec api node dist/scripts/seed-admin.js
+```
+
+Reset local DB/data volumes:
+
+```powershell
+docker compose down -v
+docker compose up -d postgres redis api worker
+```
+
+### Prisma Studio (Important Distinction)
+
+- **Local DB Studio** (run on local Windows machine):
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+.\scripts\db-studio-local.ps1
+```
+
+- **Production DB Studio** (run on local Windows machine; opens SSH tunnel):
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+.\scripts\db-studio.ps1
+```
+
+Do **not** run `.ps1` scripts inside Ubuntu server shell.
+
+### Logs
+
+Local Docker logs:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose logs -f api
+docker compose logs -f worker
+docker compose logs --tail=100 postgres
+```
+
+Production logs from local machine:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+.\scripts\logs.ps1
+.\scripts\logs.ps1 worker
+```
+
+### Production Server - Safe DB Commands
+
+```bash
+cd ~/wendo-rms
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npx prisma migrate status
+docker compose exec postgres psql -U wendo_user -d wendo_rms
+```
+
+Never run `prisma migrate dev` on production.
+
+### Demo Seed Data (Production/Server)
+
+```bash
+cd ~/wendo-rms
+docker compose exec api sh -c "SEED_REPORTS_CONFIRM=YES ALLOW_PRODUCTION_SEED=true node dist/scripts/seed-report-orders.js --days=7 --min-orders=12 --max-orders=30"
+docker compose exec api sh -c "SEED_REPORTS_CONFIRM=YES ALLOW_PRODUCTION_SEED=true node dist/scripts/seed-report-orders.js --reset-only"
+```
+
+### Local Network (Phone Testing)
+
+Set phone-facing envs:
+- `frontend/.env`:
+  - `NEXT_PUBLIC_API_URL=http://<LAN_IP>:4000/api/v1`
+  - `NEXT_PUBLIC_SOCKET_URL=http://<LAN_IP>:4000`
+- `backend/.env`:
+  - `FRONTEND_ORIGIN=http://<LAN_IP>:3000`
+
+Then:
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d --force-recreate api worker
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+pnpm dev -- -H 0.0.0.0 -p 3000
+```
+
+### Known Gotchas
+
+- Root `.env` must include `POSTGRES_PASSWORD=...` for Docker Compose.
+- `backend/.env` must be valid dotenv (`KEY=value` only; no multiline SSH keys).
+- Local Postgres is exposed on host `5433` for Prisma Studio local script.

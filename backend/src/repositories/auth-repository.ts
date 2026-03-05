@@ -70,6 +70,12 @@ export const authRepository = {
     });
   },
 
+  deleteAllRefreshTokensByUserId: async (userId: string) => {
+    return prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
+  },
+
   updatePassword: async (userId: string, passwordHash: string) => {
     return prisma.user.update({
       where: { id: userId },

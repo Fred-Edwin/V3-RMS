@@ -77,25 +77,40 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('accessToken')?.value;
+  const hasRefreshToken = request.cookies.has('refreshToken');
 
   if (pathname.startsWith('/app') && !token) {
+    // If a refresh token exists, let the request through so the client-side
+    // SessionBootstrap can silently obtain a new access token.
+    if (hasRefreshToken) {
+      return NextResponse.next();
+    }
+
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (PUBLIC_PATHS.includes(pathname) && token) {
-    const role = decodeRole(token);
-    if (!role) {
-      return NextResponse.next();
+  if (PUBLIC_PATHS.includes(pathname)) {
+    if (token) {
+      const role = decodeRole(token);
+      if (role) {
+        return NextResponse.redirect(new URL(roleHome[role], request.url));
+      }
     }
 
-    return NextResponse.redirect(new URL(roleHome[role], request.url));
+    return NextResponse.next();
   }
 
   if (pathname.startsWith('/app') && token) {
     const role = decodeRole(token);
     if (!role) {
+      // Token present but undecodable. If a refresh token exists, let the
+      // client attempt a silent refresh instead of hard-redirecting to login.
+      if (hasRefreshToken) {
+        return NextResponse.next();
+      }
+
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);

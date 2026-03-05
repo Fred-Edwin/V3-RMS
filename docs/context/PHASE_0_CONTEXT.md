@@ -136,11 +136,11 @@ This file is the authoritative progress log for Phase 0.
 - BullMQ workers are not auto-run in dev by default to avoid duplicate processors.
 - Redis/BullMQ use TLS `rediss://` endpoint compatible with Upstash redis endpoint.
 - Frontend manager route convention uses `/app/manage/*` — aligned with BUILD_ORDER.md spec.
-- Frontend cloud tasks are local-verify only for Phase 0 in-repo work; Vercel/staging setup remains manual.
+- Frontend cloud tasks were local-verify only during Phase 0 in-repo work (historical note).
 
 ## Blockers / Issues
-- Render/Vercel CI/CD wiring is still pending (external console actions).
-- Staging deployment verification is pending until Render service is configured.
+- Render/Vercel CI/CD wiring was pending at Phase 0 time (historical note; superseded by current deployment runbook).
+- Staging deployment verification was pending in Phase 0 (historical note).
 - `create-next-app` initialized a nested `frontend/.git` repository; retained as-is because removal was blocked by shell policy in this environment.
 
 ## Verification Commands Run
@@ -169,10 +169,23 @@ pnpm dev
 ```
 
 ## Notes for Next Phase (Phase 1)
-- Staging URL (backend): pending
-- Staging URL (frontend): pending
+- Staging URL (backend): not provisioned in current deployment model
+- Staging URL (frontend): not provisioned in current deployment model
 - Database connection: confirmed (live)
 - Redis connection: confirmed (live)
 - Socket.io connectivity: confirmed (local end-to-end)
 - Frontend Phase 0 scaffold: confirmed local.
 - Next backend focus: Auth/RBAC middleware hardening, branch-scoped auth context, and auth endpoints.
+
+## Post-Phase Deployment Update (2026-03-02)
+
+This Phase 0 file recorded the initial plan state. Deployment was finalized later and is now live.
+
+- Production backend is no longer Render-based; it runs on a DigitalOcean Droplet via Docker Compose (`api`, `worker`, `postgres`, `redis`).
+- Production API is exposed via Cloudflare named tunnel at `https://api.wendo-rms.co.ke`.
+- Frontend remains on Vercel with production env vars pointing to the Cloudflare API domain.
+- CI/CD is active via GitHub Actions deploy workflow on push to `main`.
+- A dedicated staging environment is currently not provisioned.
+
+Authoritative deployment runbook: `docs/DEPLOYMENT.md`.
+

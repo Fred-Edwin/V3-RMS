@@ -5,6 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: wendo-postgres
     restart: unless-stopped
+    ports:
+      # Host access for local Prisma Studio and debugging (container still uses 5432 internally)
+      - "5433:5432"
     environment:
       POSTGRES_DB: wendo_rms
       POSTGRES_USER: wendo_user

@@ -92,6 +92,20 @@ export const shiftAssignmentService = {
       throw new ValidationError('shiftId is invalid for this branch');
     }
 
+    const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
+      input.userId,
+      actor.organizationId,
+      assignmentDate,
+      assignmentDate,
+    );
+    for (const existing of existingAssignments) {
+      if (shift.startTime < existing.shift.endTime && shift.endTime > existing.shift.startTime) {
+        throw new ConflictError(
+          `Shift "${shift.name}" (${shift.startTime}–${shift.endTime}) overlaps with "${existing.shift.name}" (${existing.shift.startTime}–${existing.shift.endTime})`,
+        );
+      }
+    }
+
     try {
       const created = await shiftAssignmentRepository.create(actor.organizationId, {
         userId: input.userId,
