@@ -189,7 +189,6 @@ export const prepTicketRepository = {
     rejectedById: string,
     rejectedReason: string,
   ): Promise<PrepTicketWithOrderRecord | null> => {
-    const rejectedAt = new Date();
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
@@ -197,10 +196,12 @@ export const prepTicketRepository = {
         status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.IN_PROGRESS] },
       },
       data: {
-        status: PrepTicketStatus.REJECTED,
+        status: PrepTicketStatus.PENDING,
+        claimedById: null,
+        claimedAt: null,
         rejectedById,
         rejectedReason,
-        rejectedAt,
+        rejectedAt: new Date(),
       },
     });
 

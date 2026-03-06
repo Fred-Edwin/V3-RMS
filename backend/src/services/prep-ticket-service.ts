@@ -287,14 +287,6 @@ export const prepTicketService = {
       throw new ConflictError('This ticket cannot be rejected in its current state.');
     }
 
-    socketService.emitTicketRejected(ticket.order.createdById, {
-      orderId: ticket.orderId,
-      ticketId: rejectedTicket.id,
-      station: rejectedTicket.station,
-      dailyNumber: ticket.order.dailyNumber,
-      reason,
-    });
-
     incidentService.log({
       organizationId,
       orderId: ticket.orderId,
@@ -308,30 +300,21 @@ export const prepTicketService = {
       },
     });
 
+    // Revert order to PENDING if all tickets are now PENDING
     const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
-    const allRejected = allOrderTickets.every((t) => t.status === PrepTicketStatus.REJECTED);
+    const allPending = allOrderTickets.every((t) => t.status === PrepTicketStatus.PENDING);
 
-    if (allRejected) {
-      await orderRepository.cancel(
-        ticket.orderId,
-        organizationId,
-        [OrderStatus.PENDING, OrderStatus.IN_PROGRESS],
-        'All prep tickets rejected by kitchen/barista',
-        actor.id,
-      );
-
-      incidentService.log({
-        organizationId,
-        orderId: ticket.orderId,
-        type: 'ORDER_CANCELLED',
-        actorId: actor.id,
-        details: {
-          dailyNumber: ticket.order.dailyNumber,
-          reason: 'All prep tickets rejected',
-          autoCancel: true,
-        },
-      });
+    if (allPending) {
+      await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
     }
+
+    socketService.emitTicketRejected(ticket.order.createdById, {
+      orderId: ticket.orderId,
+      ticketId: rejectedTicket.id,
+      station: rejectedTicket.station,
+      dailyNumber: ticket.order.dailyNumber,
+      reason,
+    });
 
     return serializePrepTicket(rejectedTicket);
   },

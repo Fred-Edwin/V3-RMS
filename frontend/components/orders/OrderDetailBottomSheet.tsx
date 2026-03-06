@@ -11,7 +11,6 @@ interface OrderDetailBottomSheetProps {
   onEdit: (orderId: string) => void;
   onPayment: (orderId: string, method: PaymentMethod) => void;
   onCancel?: (orderId: string) => void;
-  onRequestModification?: (orderId: string) => void;
   isPaymentSubmitting?: boolean;
   isOwner?: boolean;
   isManager?: boolean;
@@ -30,7 +29,6 @@ export function OrderDetailBottomSheet({
   onEdit,
   onPayment,
   onCancel,
-  onRequestModification,
   isPaymentSubmitting = false,
   isOwner = false,
   isManager = false,
@@ -42,8 +40,9 @@ export function OrderDetailBottomSheet({
     [order],
   );
   const canEdit = isOwner && allPending;
-  const canCancel = (isOwner && order?.status === 'PENDING') || (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED');
-  const canRequestMod = isOwner && order?.status === 'IN_PROGRESS' && !allPending;
+  const canCancel =
+    (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED') ||
+    (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED');
 
   if (!order) {
     return null;
@@ -96,12 +95,6 @@ export function OrderDetailBottomSheet({
         {canEdit && (
           <Button variant="secondary" className="w-full" onClick={() => onEdit(order.id)}>
             Edit Order
-          </Button>
-        )}
-
-        {canRequestMod && onRequestModification && (
-          <Button variant="secondary" className="w-full" onClick={() => onRequestModification(order.id)}>
-            Request Modification
           </Button>
         )}
 

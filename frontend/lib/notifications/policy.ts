@@ -140,9 +140,9 @@ export const resolveNotificationPolicy = (
     return {
       channels: ['sound', 'toast'],
       toast: {
-        variant: 'error',
-        title: 'Ticket rejected',
-        message: event.payload.reason,
+        variant: 'warning',
+        title: 'Ticket sent back',
+        message: `${event.payload.reason} — you can now edit or cancel.`,
       },
       dedupeKey: `${event.type}:${event.payload.ticketId}`,
       dedupeWindowMs: 5000,
@@ -162,41 +162,6 @@ export const resolveNotificationPolicy = (
         message: `A ${event.payload.station.toLowerCase()} ticket was returned to pending.`,
       },
       dedupeKey: `${event.type}:${event.payload.ticketId}`,
-      dedupeWindowMs: 5000,
-    };
-  }
-
-  if (event.type === 'modification:requested') {
-    if (!isPrepRole(role)) {
-      return null;
-    }
-
-    return {
-      channels: ['sound', 'toast'],
-      toast: {
-        variant: 'info',
-        title: 'Modification requested',
-        message: event.payload.description,
-      },
-      dedupeKey: `${event.type}:${event.payload.id}`,
-      dedupeWindowMs: 5000,
-    };
-  }
-
-  if (event.type === 'modification:reviewed') {
-    if (role !== 'WAITER') {
-      return null;
-    }
-
-    const approved = event.payload.status === 'APPROVED';
-    return {
-      channels: ['toast'],
-      toast: {
-        variant: approved ? 'success' : 'warning',
-        title: approved ? 'Modification approved' : 'Modification rejected',
-        message: event.payload.reviewNote ?? (approved ? 'You can now edit the order.' : 'Your modification request was denied.'),
-      },
-      dedupeKey: `${event.type}:${event.payload.id}`,
       dedupeWindowMs: 5000,
     };
   }

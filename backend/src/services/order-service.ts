@@ -8,7 +8,6 @@ import {
   type SummaryOrderPrismaRecord,
 } from '../repositories/order-repository';
 import { idempotencyRepository } from '../repositories/idempotency-repository';
-import { modificationRequestRepository } from '../repositories/modification-request-repository';
 import { socketService } from '../sockets/socket-service';
 import { fcmService } from './fcm-service';
 import { incidentService } from './incident-service';
@@ -486,13 +485,7 @@ export const orderService = {
 
     const anyTicketBeyondPending = existingOrder.prepTickets.some((ticket) => ticket.status !== 'PENDING');
     if (anyTicketBeyondPending) {
-      const approvedRequest = await modificationRequestRepository.findApprovedByOrder(orderId, organizationId);
-      if (!approvedRequest) {
-        throw new ConflictError(
-          'Order is being prepared. Submit a modification request to the kitchen/barista first.',
-        );
-      }
-      await modificationRequestRepository.consumeApproved(orderId, organizationId);
+      throw new ConflictError('Order is being prepared and cannot be edited.');
     }
 
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
@@ -604,19 +597,14 @@ export const orderService = {
 
     assertOwnership(order, actor);
 
-    const isManager = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
-    const allowedStatuses = isManager
-      ? [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY]
-      : [OrderStatus.PENDING];
+    const allowedStatuses = [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY];
 
     const cancelled = await orderRepository.cancel(orderId, organizationId, allowedStatuses, reason, actor.id);
     if (!cancelled) {
-      throw new ConflictError(
-        isManager
-          ? 'Order cannot be cancelled in its current state.'
-          : 'Order cannot be cancelled. Preparation has already started.',
-      );
+      throw new ConflictError('Order cannot be cancelled in its current state.');
     }
+
+    const isManager = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
 
     const serialized = serializeOrder(cancelled);
     const stations = order.prepTickets.map((ticket) => ticket.station);

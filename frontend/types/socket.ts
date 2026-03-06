@@ -38,18 +38,6 @@ export interface ServerToClientEvents {
     ticketId: string;
     station: PrepStation;
   }) => void;
-  'modification:requested': (payload: {
-    id: string;
-    orderId: string;
-    description: string;
-    requestedBy: { id: string; name: string };
-  }) => void;
-  'modification:reviewed': (payload: {
-    id: string;
-    orderId: string;
-    status: 'APPROVED' | 'REJECTED';
-    reviewNote?: string;
-  }) => void;
   'incident:new': (payload: {
     id: string;
     type: string;

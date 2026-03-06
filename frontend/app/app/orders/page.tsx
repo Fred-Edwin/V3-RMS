@@ -7,12 +7,11 @@ import { CancelOrderSheet } from '@/components/orders/CancelOrderSheet';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { getSocket } from '@/lib/socket';
-import { modificationRequestService } from '@/services/modificationRequestService';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import { useOrderStore } from '@/store/orderStore';
 import { useToast } from '@/hooks/useToast';
-import { BottomSheet, Button, IconButton, OrderCard, PageHeader, PageLayout, Textarea } from '@/components/ui';
+import { BottomSheet, IconButton, OrderCard, PageHeader, PageLayout } from '@/components/ui';
 import { ApiError } from '@/types/api';
 import type { OrderDetail, OrderStatus, OrderType, PaymentMethod } from '@/types/order';
 
@@ -59,14 +58,10 @@ export default function OrdersPage(): JSX.Element {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
-  const [isModRequestOpen, setIsModRequestOpen] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
-  const [modRequestOrderId, setModRequestOrderId] = useState<string | null>(null);
-  const [modDescription, setModDescription] = useState('');
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
-  const [isModSubmitting, setIsModSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | OrderType>('ALL');
 
@@ -196,29 +191,6 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Cancel failed', message });
     } finally {
       setIsCancelSubmitting(false);
-    }
-  };
-
-  const handleOpenModRequest = (orderId: string) => {
-    setModRequestOrderId(orderId);
-    setModDescription('');
-    setIsDetailOpen(false);
-    setIsModRequestOpen(true);
-  };
-
-  const handleModRequestSubmit = async () => {
-    if (!accessToken || !modRequestOrderId || !modDescription.trim()) return;
-    setIsModSubmitting(true);
-    try {
-      await modificationRequestService.create(modRequestOrderId, modDescription.trim(), accessToken);
-      toast({ variant: 'success', title: 'Modification request sent to kitchen' });
-      setIsModRequestOpen(false);
-      setModRequestOrderId(null);
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Unable to submit modification request.';
-      toast({ variant: 'error', title: 'Request failed', message });
-    } finally {
-      setIsModSubmitting(false);
     }
   };
 
@@ -380,7 +352,6 @@ export default function OrdersPage(): JSX.Element {
         onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
         onPayment={(orderId, method) => void handlePayment(orderId, method)}
         onCancel={handleOpenCancel}
-        onRequestModification={handleOpenModRequest}
         isPaymentSubmitting={isPaymentSubmitting}
         isOwner={isOwner}
         isManager={isManager}
@@ -396,35 +367,6 @@ export default function OrdersPage(): JSX.Element {
         isSubmitting={isCancelSubmitting}
       />
 
-      <BottomSheet
-        isOpen={isModRequestOpen}
-        onClose={() => {
-          setIsModRequestOpen(false);
-          setModRequestOrderId(null);
-        }}
-        title="Request Modification"
-      >
-        <div className="space-y-4">
-          <p className="text-body-sm text-stone-600">
-            Describe what changes you need. The kitchen/barista will review your request.
-          </p>
-          <Textarea
-            label="Description"
-            value={modDescription}
-            onChange={(e) => setModDescription(e.target.value)}
-            placeholder="e.g. Remove sugar from latte, add extra side..."
-            rows={3}
-          />
-          <Button
-            className="w-full"
-            disabled={!modDescription.trim()}
-            isLoading={isModSubmitting}
-            onClick={() => void handleModRequestSubmit()}
-          >
-            Send Request
-          </Button>
-        </div>
-      </BottomSheet>
     </PageLayout>
   );
 }

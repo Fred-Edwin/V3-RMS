@@ -9,9 +9,7 @@ export type NotificationEventType =
   | 'order:paid'
   | 'order:force_cancelled'
   | 'ticket:rejected'
-  | 'ticket:unclaimed'
-  | 'modification:requested'
-  | 'modification:reviewed';
+  | 'ticket:unclaimed';
 
 export type NotificationChannel = 'sound' | 'toast' | 'push';
 
@@ -55,18 +53,6 @@ export interface NotificationEventPayloadMap {
     orderId: string;
     ticketId: string;
     station: PrepStation;
-  };
-  'modification:requested': {
-    id: string;
-    orderId: string;
-    description: string;
-    requestedBy: { id: string; name: string };
-  };
-  'modification:reviewed': {
-    id: string;
-    orderId: string;
-    status: 'APPROVED' | 'REJECTED';
-    reviewNote?: string;
   };
 }
 

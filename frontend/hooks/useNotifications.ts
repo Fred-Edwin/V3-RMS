@@ -200,30 +200,6 @@ export const useNotifications = (): void => {
       );
     };
 
-    const handleModificationRequested = (payload: {
-      id: string;
-      orderId: string;
-      description: string;
-      requestedBy: { id: string; name: string };
-    }) => {
-      dispatchNotificationEvent(
-        { type: 'modification:requested', source: 'socket', occurredAt: Date.now(), payload },
-        { role, toast },
-      );
-    };
-
-    const handleModificationReviewed = (payload: {
-      id: string;
-      orderId: string;
-      status: 'APPROVED' | 'REJECTED';
-      reviewNote?: string;
-    }) => {
-      dispatchNotificationEvent(
-        { type: 'modification:reviewed', source: 'socket', occurredAt: Date.now(), payload },
-        { role, toast },
-      );
-    };
-
     const handleIncidentNew = () => {
       if (role === 'MANAGER' || role === 'DIRECTOR') {
         incrementUnread();
@@ -238,8 +214,6 @@ export const useNotifications = (): void => {
     socket.on('order:force_cancelled', handleForceCancelled);
     socket.on('ticket:rejected', handleTicketRejected);
     socket.on('ticket:unclaimed', handleTicketUnclaimed);
-    socket.on('modification:requested', handleModificationRequested);
-    socket.on('modification:reviewed', handleModificationReviewed);
     socket.on('incident:new', handleIncidentNew);
 
     const offReconnect = onReconnect(() => {
@@ -256,8 +230,6 @@ export const useNotifications = (): void => {
       socket.off('order:force_cancelled', handleForceCancelled);
       socket.off('ticket:rejected', handleTicketRejected);
       socket.off('ticket:unclaimed', handleTicketUnclaimed);
-      socket.off('modification:requested', handleModificationRequested);
-      socket.off('modification:reviewed', handleModificationReviewed);
       socket.off('incident:new', handleIncidentNew);
       offReconnect();
     };
