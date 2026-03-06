@@ -640,9 +640,11 @@ Shift reminders (24 hours before shift start) are handled by a BullMQ scheduled 
 3. Coordinates sent to POST /api/v1/clock/in
 4. Server retrieves branch coordinates from database (or Redis cache)
 5. Server calculates distance using Haversine formula
-6. If distance ≤ 50 metres → clock-in approved, record saved with method: GPS
-7. If distance > 50 metres → 403 error returned, client shows "You must be at the branch to clock in"
-8. Manager override → POST /api/v1/clock/override with reason note → saved with method: OVERRIDE
+6. Server enforces "one open clock record per user" before creating a new clock-in, including manager overrides
+7. If distance ≤ configured radius (default 50 metres) → clock-in approved, record saved with method: GPS
+8. If distance > configured radius → 403 error returned with structured details (`distanceMetres`, `allowedRadiusMetres`)
+9. Manager override → POST /api/v1/clock/override with reason note → saved with method: OVERRIDE
+10. Valid override action is derived from the current attendance state; the UI must not ask the manager to guess when a staff member should clock in vs clock out
 ```
 
 ### Haversine Formula
@@ -672,6 +674,12 @@ export function getDistanceMetres(
 ### Security Consideration
 
 The geofence check is **server-side only**. Client-side GPS coordinates are untrusted input — the server validates them against the stored branch coordinates. A staff member cannot bypass geofencing by manipulating their device.
+
+### Reliability Constraints
+
+- All "today" attendance checks use `Africa/Nairobi` business date semantics.
+- Clock-out writes must be guarded against stale concurrent updates; repeated or raced requests return a deterministic `409` instead of silently overwriting attendance state.
+- Client UX must treat geolocation failures separately from attendance-state conflicts (for example: permission denied vs already clocked in).
 
 ---
 

@@ -24,6 +24,7 @@ const request = async <T>(
       payload.error?.message ?? 'Request failed',
       response.status,
       payload.error?.code ?? 'UNKNOWN_ERROR',
+      payload.error?.details,
     );
   }
 
@@ -53,6 +54,7 @@ const requestEnvelope = async <T>(
       payload.error?.message ?? 'Request failed',
       response.status,
       payload.error?.code ?? 'UNKNOWN_ERROR',
+      payload.error?.details,
     );
   }
 
@@ -65,6 +67,8 @@ export const apiClient = {
     requestEnvelope<T>('GET', path, undefined, token),
   post: <T>(path: string, body: unknown, token?: string): Promise<T> =>
     request<T>('POST', path, body, token),
+  postWithEnvelope: <T>(path: string, body: unknown, token?: string): Promise<ApiResponseEnvelope<T>> =>
+    requestEnvelope<T>('POST', path, body, token),
   patch: <T>(path: string, body: unknown, token?: string): Promise<T> =>
     request<T>('PATCH', path, body, token),
   delete: <T>(path: string, token?: string): Promise<T> =>

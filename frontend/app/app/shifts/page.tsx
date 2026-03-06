@@ -5,17 +5,11 @@ import { CalendarClock } from 'lucide-react';
 import { PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
 import { useToast } from '@/hooks/useToast';
+import { getTodayYmdInTimeZone } from '@/lib/date';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
-
-const dateToYmd = (value: Date): string => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const addDays = (date: Date, days: number): Date => {
   const next = new Date(date);
@@ -51,7 +45,6 @@ export default function ShiftsPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [upcomingAssignments, setUpcomingAssignments] = useState<ShiftAssignment[]>([]);
   const [historyAssignments, setHistoryAssignments] = useState<ShiftAssignment[]>([]);
-  const [todayAssignment, setTodayAssignment] = useState<ShiftAssignment | null>(null);
 
   const loadAssignments = useCallback(async (): Promise<void> => {
     if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) return;
@@ -59,10 +52,10 @@ export default function ShiftsPage(): JSX.Element {
     setIsLoading(true);
     try {
       const today = new Date();
-      const todayKey = dateToYmd(today);
-      const upcomingEndKey = dateToYmd(addDays(today, 7));
-      const historyStartKey = dateToYmd(addDays(today, -30));
-      const yesterdayKey = dateToYmd(addDays(today, -1));
+      const todayKey = getTodayYmdInTimeZone();
+      const upcomingEndKey = getTodayYmdInTimeZone(addDays(today, 7));
+      const historyStartKey = getTodayYmdInTimeZone(addDays(today, -30));
+      const yesterdayKey = getTodayYmdInTimeZone(addDays(today, -1));
 
       const [upcoming, history] = await Promise.all([
         shiftService.listAssignments({ startDate: todayKey, endDate: upcomingEndKey }, accessToken),
@@ -79,7 +72,6 @@ export default function ShiftsPage(): JSX.Element {
           `${r.date} ${r.shift.startTime}`.localeCompare(`${l.date} ${l.shift.startTime}`),
         ),
       );
-      setTodayAssignment(orderedUpcoming.find((a) => a.date === todayKey) ?? null);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load shifts.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -90,22 +82,25 @@ export default function ShiftsPage(): JSX.Element {
 
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
 
-  const todayKey = useMemo(() => dateToYmd(new Date()), []);
+  const todayKey = useMemo(() => getTodayYmdInTimeZone(), []);
+  const todayAssignments = useMemo(
+    () => upcomingAssignments.filter((assignment) => assignment.date === todayKey),
+    [todayKey, upcomingAssignments],
+  );
 
-  const handleClockUpdated = useCallback((record: ShiftAssignmentClockRecord) => {
-    setTodayAssignment((current) => current ? { ...current, clockRecord: record } : current);
+  const handleClockUpdated = useCallback((assignmentId: string, record: ShiftAssignmentClockRecord) => {
     setUpcomingAssignments((current) =>
       current.map((a) =>
-        a.id === todayAssignment?.id ? { ...a, clockRecord: record } : a,
+        a.id === assignmentId ? { ...a, clockRecord: record } : a,
       ),
     );
-  }, [todayAssignment?.id]);
+  }, []);
 
   return (
     <PageLayout className="animate-fade-up space-y-6">
       <PageHeader title="Shifts" />
 
-      <ClockWidget assignment={todayAssignment} onUpdated={handleClockUpdated} />
+      <ClockWidget assignments={todayAssignments} onUpdated={handleClockUpdated} />
 
       {/* ── Upcoming 7 Days ── */}
       <section>

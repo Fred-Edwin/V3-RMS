@@ -68,6 +68,10 @@ export const clockRecordRepository = {
       where: {
         id,
         organizationId,
+        clockInAt: {
+          not: null,
+        },
+        clockOutAt: null,
       },
       data: {
         clockOutAt: data.clockOutAt,

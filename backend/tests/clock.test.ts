@@ -53,7 +53,14 @@ describe('Clock routes', () => {
 
   it('POST /api/v1/clock/in returns 403 with distance message when outside geofence', async () => {
     vi.spyOn(clockService, 'clockIn').mockRejectedValue(
-      new ForbiddenError('You must be at the branch to clock in. You are approximately 120 metres away.'),
+      new ForbiddenError(
+        'You must be at the branch to clock in. You are approximately 120 metres away.',
+        'CLOCK_OUTSIDE_GEOFENCE',
+        {
+          distanceMetres: 120,
+          allowedRadiusMetres: 50,
+        },
+      ),
     );
 
     const response = await request(app)
@@ -67,6 +74,8 @@ describe('Clock routes', () => {
 
     expect(response.status).toBe(403);
     expect(response.body.error.message).toContain('120 metres away');
+    expect(response.body.error.code).toBe('CLOCK_OUTSIDE_GEOFENCE');
+    expect(response.body.error.details.distanceMetres).toBe(120);
   });
 
   it('POST /api/v1/clock/in returns 409 when already clocked in', async () => {

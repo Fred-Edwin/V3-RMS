@@ -18,6 +18,7 @@ import {
   type TableColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
+import { getTodayYmdInTimeZone, toYmdInTimeZone } from '@/lib/date';
 import { shiftService } from '@/services/shiftService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -50,7 +51,8 @@ interface OverrideModalState {
   isOpen: boolean;
   assignment: ShiftAssignment | null;
   action: ClockOverrideInput['action'];
-  reason: string;
+  reasonCode: string;
+  notes: string;
 }
 
 const emptyShiftForm: ShiftFormState = {
@@ -60,6 +62,13 @@ const emptyShiftForm: ShiftFormState = {
 };
 
 const roleOrder: ShiftRole[] = ['WAITER', 'CHEF', 'BARISTA'];
+const overrideReasonOptions = [
+  { value: 'GPS permission denied', label: 'GPS permission denied' },
+  { value: 'Device GPS unavailable', label: 'Device GPS unavailable' },
+  { value: 'Weak indoor GPS signal', label: 'Weak indoor GPS signal' },
+  { value: 'Network issue during clocking', label: 'Network issue during clocking' },
+  { value: 'Other', label: 'Other' },
+] as const;
 
 const roleBadgeStyle: Record<string, string> = {
   WAITER: 'bg-[#FDF3DC] text-[#92650A] border-[#F0D080]',
@@ -86,12 +95,7 @@ const getShiftColor = (shiftId: string, allShifts: Shift[]) => {
   return shiftCardColors[index >= 0 ? index % shiftCardColors.length : 0];
 };
 
-const dateToYmd = (value: Date): string => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const dateToYmd = (value: Date): string => toYmdInTimeZone(value);
 
 const addDays = (date: Date, days: number): Date => {
   const next = new Date(date);
@@ -153,14 +157,32 @@ export default function ShiftManagementPage(): JSX.Element {
     isOpen: false,
     assignment: null,
     action: 'CLOCK_IN',
-    reason: '',
+    reasonCode: '',
+    notes: '',
   });
+
+  const buildOverrideReason = (reasonCode: string, notes: string): string => {
+    const trimmedNotes = notes.trim();
+    if (reasonCode === 'Other') {
+      return trimmedNotes;
+    }
+
+    if (!trimmedNotes) {
+      return reasonCode;
+    }
+
+    return `${reasonCode}: ${trimmedNotes}`;
+  };
+
+  const getOverrideActionLabel = (action: ClockOverrideInput['action']): string => {
+    return action === 'CLOCK_IN' ? 'Clock In' : 'Clock Out';
+  };
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
     [weekStart],
   );
-  const todayDateKey = useMemo(() => dateToYmd(new Date()), []);
+  const todayDateKey = useMemo(() => getTodayYmdInTimeZone(), []);
 
   const loadCoreData = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -205,7 +227,7 @@ export default function ShiftManagementPage(): JSX.Element {
     }
 
     try {
-      const today = dateToYmd(new Date());
+      const today = getTodayYmdInTimeZone();
       const [weekly, todayData] = await Promise.all([
         shiftService.listAssignments(
           {
@@ -429,14 +451,24 @@ export default function ShiftManagementPage(): JSX.Element {
       return;
     }
 
+    const resolvedReason = buildOverrideReason(overrideModal.reasonCode, overrideModal.notes);
+    if (!resolvedReason.trim()) {
+      toast({
+        variant: 'warning',
+        title: 'Reason required',
+        message: 'Choose or enter the reason for this attendance override.',
+      });
+      return;
+    }
+
     setIsSavingOverride(true);
     try {
-      await shiftService.clockOverride(
+      const response = await shiftService.clockOverride(
         {
           userId: overrideModal.assignment.userId,
           shiftAssignmentId: overrideModal.assignment.id,
           action: overrideModal.action,
-          reason: overrideModal.reason,
+          reason: resolvedReason,
         },
         accessToken,
       );
@@ -445,12 +477,13 @@ export default function ShiftManagementPage(): JSX.Element {
         isOpen: false,
         assignment: null,
         action: 'CLOCK_IN',
-        reason: '',
+        reasonCode: '',
+        notes: '',
       });
       await loadAssignments();
       toast({
         variant: 'success',
-        title: 'Override applied',
+        title: response.message ?? `${getOverrideActionLabel(overrideModal.action)} override applied`,
       });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to apply override.';
@@ -579,16 +612,18 @@ export default function ShiftManagementPage(): JSX.Element {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() =>
+            onClick={() => {
+              const nextAction = row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'CLOCK_OUT' : 'CLOCK_IN';
               setOverrideModal({
                 isOpen: true,
                 assignment: row,
-                action: row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'CLOCK_OUT' : 'CLOCK_IN',
-                reason: '',
-              })
-            }
+                action: nextAction,
+                reasonCode: '',
+                notes: '',
+              });
+            }}
           >
-            Override
+            {row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'Override Clock Out' : 'Override Clock In'}
           </Button>
         );
       },
@@ -922,11 +957,12 @@ export default function ShiftManagementPage(): JSX.Element {
               isOpen: false,
               assignment: null,
               action: 'CLOCK_IN',
-              reason: '',
+              reasonCode: '',
+              notes: '',
             });
           }
         }}
-        title="Apply Attendance Override"
+        title={`${getOverrideActionLabel(overrideModal.action)} Attendance Override`}
         footer={
           <div className="flex justify-end gap-3">
             <Button
@@ -936,7 +972,8 @@ export default function ShiftManagementPage(): JSX.Element {
                   isOpen: false,
                   assignment: null,
                   action: 'CLOCK_IN',
-                  reason: '',
+                  reasonCode: '',
+                  notes: '',
                 })
               }
               disabled={isSavingOverride}
@@ -944,32 +981,37 @@ export default function ShiftManagementPage(): JSX.Element {
               Cancel
             </Button>
             <Button type="submit" form="override-form" isLoading={isSavingOverride}>
-              Apply Override
+              {getOverrideActionLabel(overrideModal.action)}
             </Button>
           </div>
         }
       >
         <form id="override-form" className="space-y-4" onSubmit={(event) => void handleApplyOverride(event)}>
           <Input label="Staff Member" value={overrideModal.assignment?.user.name ?? ''} disabled />
+          <Input label="Action" value={getOverrideActionLabel(overrideModal.action)} disabled />
+          <p className="text-body-sm text-stone-500">
+            {overrideModal.action === 'CLOCK_IN'
+              ? 'Use this when a staff member should be starting their shift but GPS failed.'
+              : 'Use this when a staff member already clocked in and needs help closing the shift.'}
+          </p>
           <Select
-            label="Action"
-            value={overrideModal.action}
-            onChange={(event) =>
-              setOverrideModal((current) => ({
-                ...current,
-                action: event.target.value as ClockOverrideInput['action'],
-              }))
-            }
+            label="Reason"
+            value={overrideModal.reasonCode}
+            onChange={(event) => setOverrideModal((current) => ({ ...current, reasonCode: event.target.value }))}
             options={[
-              { value: 'CLOCK_IN', label: 'Clock In' },
-              { value: 'CLOCK_OUT', label: 'Clock Out' },
+              { value: '', label: 'Select a reason' },
+              ...overrideReasonOptions.map((option) => ({ value: option.value, label: option.label })),
             ]}
           />
           <Input
-            label="Reason"
-            value={overrideModal.reason}
-            onChange={(event) => setOverrideModal((current) => ({ ...current, reason: event.target.value }))}
-            placeholder="e.g. GPS unavailable on device"
+            label={overrideModal.reasonCode === 'Other' ? 'Reason details' : 'Additional note'}
+            value={overrideModal.notes}
+            onChange={(event) => setOverrideModal((current) => ({ ...current, notes: event.target.value }))}
+            placeholder={
+              overrideModal.reasonCode === 'Other'
+                ? 'Describe why the override is needed'
+                : 'Optional note for the audit trail'
+            }
           />
         </form>
       </Modal>

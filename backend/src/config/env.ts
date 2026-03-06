@@ -33,6 +33,7 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(1),
   VAPID_KEY: z.string().optional().default(''),
   SKIP_SHIFT_VALIDATION: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  CLOCK_GEOFENCE_RADIUS_METRES: z.coerce.number().int().positive().max(1000).default(50),
   LOG_LEVEL: z.string().default('info'),
   LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 });

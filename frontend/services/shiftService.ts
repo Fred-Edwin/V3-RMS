@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
+import type { ApiResponseEnvelope } from '@/types/api';
 import type {
   ClockInOutInput,
   ClockOverrideInput,
@@ -78,15 +79,18 @@ export const shiftService = {
     await apiClient.delete<void>(`/shift-assignments/${id}`, accessToken);
   },
 
-  clockIn: (data: ClockInOutInput, accessToken: string): Promise<ShiftAssignmentClockRecord> => {
-    return apiClient.post<ShiftAssignmentClockRecord>('/clock/in', data, accessToken);
+  clockIn: (data: ClockInOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {
+    return apiClient.postWithEnvelope<ShiftAssignmentClockRecord>('/clock/in', data, accessToken);
   },
 
-  clockOut: (data: ClockInOutInput, accessToken: string): Promise<ShiftAssignmentClockRecord> => {
-    return apiClient.post<ShiftAssignmentClockRecord>('/clock/out', data, accessToken);
+  clockOut: (data: ClockInOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {
+    return apiClient.postWithEnvelope<ShiftAssignmentClockRecord>('/clock/out', data, accessToken);
   },
 
-  clockOverride: (data: ClockOverrideInput, accessToken: string): Promise<ShiftAssignmentClockRecord> => {
-    return apiClient.post<ShiftAssignmentClockRecord>('/clock/override', data, accessToken);
+  clockOverride: (
+    data: ClockOverrideInput,
+    accessToken: string,
+  ): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {
+    return apiClient.postWithEnvelope<ShiftAssignmentClockRecord>('/clock/override', data, accessToken);
   },
 };

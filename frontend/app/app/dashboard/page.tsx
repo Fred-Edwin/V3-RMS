@@ -9,6 +9,7 @@ import { ClockWidget } from '@/components/shifts/ClockWidget';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
+import { getTodayYmdInTimeZone } from '@/lib/date';
 import { orderService } from '@/services/orderService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
@@ -94,7 +95,7 @@ export default function DashboardPage(): JSX.Element {
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
   const [ticketsCompletedToday, setTicketsCompletedToday] = useState(0);
   const [avgPrepMinutesToday, setAvgPrepMinutesToday] = useState(0);
-  const [todayShiftAssignment, setTodayShiftAssignment] = useState<ShiftAssignment | null>(null);
+  const [todayShiftAssignments, setTodayShiftAssignments] = useState<ShiftAssignment[]>([]);
 
   const myInProgressTickets = useMemo(
     () => inProgressTickets.filter((ticket) => ticket.claimedBy?.id === user?.id),
@@ -115,7 +116,7 @@ export default function DashboardPage(): JSX.Element {
       return;
     }
 
-    const todayDate = new Date().toISOString().slice(0, 10);
+    const todayDate = getTodayYmdInTimeZone();
     const perPage = 50;
     let page = 1;
     let totalPages = 1;
@@ -154,7 +155,7 @@ export default function DashboardPage(): JSX.Element {
     }
 
     try {
-      const todayDate = new Date().toISOString().slice(0, 10);
+      const todayDate = getTodayYmdInTimeZone();
       const perPage = 50;
       let page = 1;
       let totalPages = 1;
@@ -208,13 +209,13 @@ export default function DashboardPage(): JSX.Element {
     void loadPrepDashboardData();
   }, [loadPrepDashboardData]);
 
-  const loadTodayShiftAssignment = useCallback(async () => {
+  const loadTodayShiftAssignments = useCallback(async () => {
     if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) {
       return;
     }
 
     try {
-      const todayDate = new Date().toISOString().slice(0, 10);
+      const todayDate = getTodayYmdInTimeZone();
       const assignments = await shiftService.listAssignments(
         {
           startDate: todayDate,
@@ -222,7 +223,7 @@ export default function DashboardPage(): JSX.Element {
         },
         accessToken,
       );
-      setTodayShiftAssignment(assignments[0] ?? null);
+      setTodayShiftAssignments(assignments);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to load today shift.';
       toast({
@@ -233,17 +234,19 @@ export default function DashboardPage(): JSX.Element {
   }, [accessToken, role, toast]);
 
   useEffect(() => {
-    void loadTodayShiftAssignment();
-  }, [loadTodayShiftAssignment]);
+    void loadTodayShiftAssignments();
+  }, [loadTodayShiftAssignments]);
 
-  const handleClockUpdated = useCallback((record: ShiftAssignmentClockRecord) => {
-    setTodayShiftAssignment((current) =>
-      current
-        ? {
-            ...current,
-            clockRecord: record,
-          }
-        : current,
+  const handleClockUpdated = useCallback((assignmentId: string, record: ShiftAssignmentClockRecord) => {
+    setTodayShiftAssignments((current) =>
+      current.map((assignment) =>
+        assignment.id === assignmentId
+          ? {
+              ...assignment,
+              clockRecord: record,
+            }
+          : assignment,
+      ),
     );
   }, []);
 
@@ -341,7 +344,7 @@ export default function DashboardPage(): JSX.Element {
           />
         </div>
 
-        <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />
+        <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
         <ActiveOrdersSummary orders={activeOrders} />
 
@@ -407,7 +410,7 @@ export default function DashboardPage(): JSX.Element {
           />
         </div>
 
-        <ClockWidget assignment={todayShiftAssignment} onUpdated={handleClockUpdated} />
+        <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
         <section>
           <h2 className="mb-3 text-heading-sm font-semibold text-stone-900">My Active Orders</h2>

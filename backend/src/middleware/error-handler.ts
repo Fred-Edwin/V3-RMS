@@ -31,6 +31,7 @@ export const errorHandler = (
       error: {
         code: error.code,
         message: error.message,
+        details: error.details,
       },
     });
     return;

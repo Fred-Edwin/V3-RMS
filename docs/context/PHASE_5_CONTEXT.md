@@ -156,6 +156,41 @@ The following issues were identified during a production readiness review and fi
 - [x] `pnpm --dir frontend typecheck` — passes
 - [x] `pnpm --dir frontend build` — passes
 
+### Fix 10 — Clock-out stale-write protection
+- **Problem**: `clockOut` still used a read-then-write flow without guarding on `clockOutAt = null`, so concurrent/retried clock-out requests could overwrite each other.
+- **Fix**: `clockRecordRepository.updateClockOut()` now updates only open records and the service returns a deterministic `CLOCK_STALE_STATE` conflict when another request wins first.
+- **Files changed**: `backend/src/repositories/clock-record-repository.ts`, `backend/src/services/clock-service.ts`
+
+### Fix 11 — Manager override could create a second open shift
+- **Problem**: Manager `CLOCK_IN` override checked only the target assignment and could create a second open clock record while the same staff member was already clocked into another shift.
+- **Fix**: Override clock-in now enforces the same single-open-record rule as normal staff clock-in and returns `CLOCK_ALREADY_IN` with the open assignment id in structured details.
+- **Files changed**: `backend/src/services/clock-service.ts`
+
+### Fix 12 — Structured clock error contract
+- **Problem**: Frontend attendance UX had to parse free-text error messages to detect distance and could not reliably distinguish GPS failures from attendance conflicts.
+- **Fix**: Clock endpoints now return stable error codes/details for geofence rejections, invalid assignments, already-in/out states, and stale updates. Frontend `ApiError` now preserves `details`.
+- **Files changed**: `backend/src/utils/errors.ts`, `backend/src/middleware/error-handler.ts`, `frontend/types/api.ts`, `frontend/lib/apiClient.ts`
+
+### Fix 13 — Staff clock UX redesigned for reliability
+- **Problem**: Staff clocking assumed only one shift per day, collapsed most failures into a generic GPS message, and used UTC date strings in some screens.
+- **Fix**:
+  - clock widget now supports multiple same-day shifts explicitly
+  - dashboard and shifts page now use Nairobi business-date utilities
+  - geofence, permission-denied, timeout, unavailable-location, already-in/out, and stale-state errors now show distinct guidance
+- **Files changed**: `frontend/components/shifts/ClockWidget.tsx`, `frontend/app/app/dashboard/page.tsx`, `frontend/app/app/shifts/page.tsx`, `frontend/lib/date.ts`
+
+### Fix 14 — Manager override UX redesigned
+- **Problem**: Override modal asked managers to choose `CLOCK_IN` vs `CLOCK_OUT` manually even when the current row state already determined the only valid action.
+- **Fix**: Attendance table now opens the modal with the valid action only, labels the CTA explicitly (`Override Clock In` / `Override Clock Out`), and uses guided reason options plus optional notes.
+- **Files changed**: `frontend/app/app/manage/shifts/page.tsx`
+
+### Additional Verification
+- [x] `pnpm --dir backend test -- tests/clock.test.ts src/services/clock-service.test.ts`
+- [x] `pnpm --dir backend exec tsc -p tsconfig.json`
+- [x] `pnpm --dir frontend typecheck`
+- [x] `pnpm --dir frontend build`
+- [ ] `pnpm --dir backend build` — blocked in this run by a local Windows Prisma query-engine file lock during `prisma generate`, not by TypeScript errors
+
 ---
 
 ## Staff Account Management Improvements (applied after Phase 6)

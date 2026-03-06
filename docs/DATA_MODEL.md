@@ -396,6 +396,7 @@ model ClockRecord {
 - `clockInAt` and `clockOutAt` are nullable — a record may exist with only clock-in (staff is still on shift).
 - `clockInMethod` and `clockOutMethod` distinguish GPS-verified clock actions from manager overrides. This is recorded permanently for audit and compliance.
 - `overrideById` and `overrideNote` are required when `clockInMethod = OVERRIDE`.
+- Application-level invariant: a user may have many historical `ClockRecord`s, but only one open attendance record (`clockInAt` set, `clockOutAt = null`) is allowed at a time across all assignments.
 
 ---
 
@@ -518,13 +519,13 @@ model PrepTicket {
 - `items` is stored as `Json` — a snapshot of the items and quantities relevant to that station at the time the ticket was created. This makes the KDS/BDS display query fast (no joins needed to render a ticket card) and preserves the original state even if an order is subsequently modified.
 - `claimedAt` and `readyAt` timestamps are the source of truth for **prep time metrics** (reports: average prep time per chef/barista).
 - `PrepTicketStatus` is independent from `OrderStatus`. An order can have its food ticket In-Progress while its drinks ticket is still Pending.
-- **Rejection fields** (added in lifecycle redesign): `rejectedById`, `rejectedReason`, `rejectedAt` track when kitchen/barista rejects a ticket as unavailable. If all tickets for an order are REJECTED, the order is auto-cancelled.
+- **Rejection fields** (added in lifecycle redesign): `rejectedById`, `rejectedReason`, `rejectedAt` track when kitchen/barista rejects a ticket. Rejection reverts the ticket to `PENDING` (clears claim data), allowing the waiter to edit or cancel. If all tickets revert to `PENDING`, the order status also reverts to `PENDING`.
 
 ---
 
-### 4.13 OrderModificationRequest
+### 4.13 OrderModificationRequest (Deprecated)
 
-When an order is already IN_PROGRESS (at least one ticket claimed), waiters cannot directly edit it. Instead, they submit a modification request describing the desired change. Kitchen/barista staff review and approve or reject it. An approved request unlocks the edit flow for one use.
+> **Note:** The modification request workflow has been removed from the application. The simplified flow is: PENDING orders can be freely edited; non-PENDING orders can only be cancelled. The model remains in the database schema for migration compatibility but the API routes are unregistered and the frontend does not use it.
 
 ```prisma
 model OrderModificationRequest {
@@ -619,18 +620,18 @@ enum OrderStatus {
 }
 
 enum PrepTicketStatus {
-  PENDING       -- waiting to be claimed
+  PENDING       -- waiting to be claimed (also set after rejection — ticket reverts to pending)
   IN_PROGRESS   -- claimed, being prepared
   READY         -- preparation complete
-  REJECTED      -- item unavailable, rejected by kitchen/barista
+  REJECTED      -- exists in schema but unused at runtime; rejection reverts ticket to PENDING
 }
 
 enum IncidentType {
   ORDER_CANCELLED
   TICKET_REJECTED
-  MODIFICATION_REQUESTED
-  MODIFICATION_APPROVED
-  MODIFICATION_REJECTED
+  MODIFICATION_REQUESTED   -- deprecated, no longer generated
+  MODIFICATION_APPROVED    -- deprecated, no longer generated
+  MODIFICATION_REJECTED    -- deprecated, no longer generated
   TICKET_UNCLAIMED
   ORDER_STALE
 }

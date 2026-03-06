@@ -10,8 +10,26 @@ import { ApiError } from '@/types/api';
 import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
 
 interface ClockWidgetProps {
-  assignment: ShiftAssignment | null;
-  onUpdated?: (record: ShiftAssignmentClockRecord) => void;
+  assignments: ShiftAssignment[];
+  onUpdated?: (assignmentId: string, record: ShiftAssignmentClockRecord) => void;
+}
+
+type ClockWidgetStatus = 'NOT_CLOCKED_IN' | 'CLOCKED_IN' | 'CLOCKED_OUT';
+type GeolocationFailureCode = 'PERMISSION_DENIED' | 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'UNSUPPORTED' | 'UNKNOWN';
+
+interface ClockErrorDetails {
+  action?: string;
+  assignmentId?: string;
+  userId?: string;
+  openShiftAssignmentId?: string;
+  distanceMetres?: number;
+  allowedRadiusMetres?: number;
+}
+
+class GeolocationFailure extends Error {
+  constructor(public readonly code: GeolocationFailureCode, message: string) {
+    super(message);
+  }
 }
 
 const formatTime = (value: string | null): string => {
@@ -25,10 +43,22 @@ const formatTime = (value: string | null): string => {
   });
 };
 
+const getStatus = (record: ShiftAssignmentClockRecord | null): ClockWidgetStatus => {
+  if (!record?.clockInAt) {
+    return 'NOT_CLOCKED_IN';
+  }
+
+  if (!record.clockOutAt) {
+    return 'CLOCKED_IN';
+  }
+
+  return 'CLOCKED_OUT';
+};
+
 const getCurrentCoordinates = (): Promise<{ latitude: number; longitude: number }> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocation unavailable'));
+      reject(new GeolocationFailure('UNSUPPORTED', 'This device does not support location sharing.'));
       return;
     }
 
@@ -39,8 +69,35 @@ const getCurrentCoordinates = (): Promise<{ latitude: number; longitude: number 
           longitude: position.coords.longitude,
         });
       },
-      () => {
-        reject(new Error('Location unavailable'));
+      (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            reject(
+              new GeolocationFailure(
+                'PERMISSION_DENIED',
+                'Location access is blocked. Enable it in your browser settings or ask your manager for an override.',
+              ),
+            );
+            return;
+          case error.POSITION_UNAVAILABLE:
+            reject(
+              new GeolocationFailure(
+                'POSITION_UNAVAILABLE',
+                'Your device could not determine your location. Move near a window or ask your manager for an override.',
+              ),
+            );
+            return;
+          case error.TIMEOUT:
+            reject(
+              new GeolocationFailure(
+                'TIMEOUT',
+                'We could not get your location in time. Try again where GPS signal is stronger.',
+              ),
+            );
+            return;
+          default:
+            reject(new GeolocationFailure('UNKNOWN', 'We could not read your location from this device.'));
+        }
       },
       {
         enableHighAccuracy: true,
@@ -50,22 +107,22 @@ const getCurrentCoordinates = (): Promise<{ latitude: number; longitude: number 
   });
 };
 
-const parseDistanceMetres = (message: string): number | null => {
-  const kmMatch = message.match(/([\d,.]+)\s*km\b/i);
-  if (kmMatch?.[1]) {
-    const parsedKm = Number.parseFloat(kmMatch[1].replace(/,/g, ''));
-    if (!Number.isNaN(parsedKm)) {
-      return Math.round(parsedKm * 1000);
-    }
-  }
-
-  const metresMatch = message.match(/([\d,.]+)\s*(?:metres?|meters?)\b/i);
-  if (!metresMatch?.[1]) {
+const parseClockErrorDetails = (details: unknown): ClockErrorDetails | null => {
+  if (!details || typeof details !== 'object') {
     return null;
   }
 
-  const parsed = Number.parseFloat(metresMatch[1].replace(/,/g, ''));
-  return Number.isNaN(parsed) ? null : parsed;
+  const candidate = details as Record<string, unknown>;
+  return {
+    action: typeof candidate.action === 'string' ? candidate.action : undefined,
+    assignmentId: typeof candidate.assignmentId === 'string' ? candidate.assignmentId : undefined,
+    userId: typeof candidate.userId === 'string' ? candidate.userId : undefined,
+    openShiftAssignmentId:
+      typeof candidate.openShiftAssignmentId === 'string' ? candidate.openShiftAssignmentId : undefined,
+    distanceMetres: typeof candidate.distanceMetres === 'number' ? candidate.distanceMetres : undefined,
+    allowedRadiusMetres:
+      typeof candidate.allowedRadiusMetres === 'number' ? candidate.allowedRadiusMetres : undefined,
+  };
 };
 
 const formatDistance = (distanceMetres: number): string => {
@@ -76,130 +133,227 @@ const formatDistance = (distanceMetres: number): string => {
   return `${Math.round(distanceMetres)} m`;
 };
 
-export function ClockWidget({ assignment, onUpdated }: ClockWidgetProps): JSX.Element {
+export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [localRecord, setLocalRecord] = useState<ShiftAssignmentClockRecord | null>(
-    assignment?.clockRecord ?? null,
-  );
+  const [isSubmittingAssignmentId, setIsSubmittingAssignmentId] = useState<string | null>(null);
+  const [localAssignments, setLocalAssignments] = useState<ShiftAssignment[]>(assignments);
 
   useEffect(() => {
-    setLocalRecord(assignment?.clockRecord ?? null);
-  }, [assignment]);
+    setLocalAssignments(assignments);
+  }, [assignments]);
 
-  const status = useMemo(() => {
-    if (!localRecord?.clockInAt) {
-      return 'NOT_CLOCKED_IN' as const;
-    }
+  const sortedAssignments = useMemo(() => {
+    return [...localAssignments].sort((left, right) => left.shift.startTime.localeCompare(right.shift.startTime));
+  }, [localAssignments]);
 
-    if (localRecord.clockInAt && !localRecord.clockOutAt) {
-      return 'CLOCKED_IN' as const;
-    }
+  const handleClockAction = useCallback(
+    async (assignment: ShiftAssignment): Promise<void> => {
+      if (!accessToken) {
+        return;
+      }
 
-    return 'CLOCKED_OUT' as const;
-  }, [localRecord]);
+      const status = getStatus(assignment.clockRecord);
+      if (status === 'CLOCKED_OUT') {
+        return;
+      }
 
-  const handleClockAction = useCallback(async () => {
-    if (!assignment || !accessToken) {
-      return;
-    }
+      setIsSubmittingAssignmentId(assignment.id);
+      try {
+        const coordinates = await getCurrentCoordinates();
+        const payload = {
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          shiftAssignmentId: assignment.id,
+        };
 
-    setIsSubmitting(true);
-    try {
-      const coordinates = await getCurrentCoordinates();
-      const payload = {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        shiftAssignmentId: assignment.id,
-      };
+        const response =
+          status === 'CLOCKED_IN'
+            ? await shiftService.clockOut(payload, accessToken)
+            : await shiftService.clockIn(payload, accessToken);
 
-      const nextRecord =
-        status === 'CLOCKED_IN'
-          ? await shiftService.clockOut(payload, accessToken)
-          : await shiftService.clockIn(payload, accessToken);
+        const nextRecord = response.data;
+        if (!nextRecord) {
+          throw new Error('Clock response did not include attendance data.');
+        }
 
-      setLocalRecord(nextRecord);
-      onUpdated?.(nextRecord);
+        setLocalAssignments((current) =>
+          current.map((item) => (item.id === assignment.id ? { ...item, clockRecord: nextRecord } : item)),
+        );
+        onUpdated?.(assignment.id, nextRecord);
 
-      toast({
-        variant: 'success',
-        title: status === 'CLOCKED_IN' ? 'Clocked out successfully' : 'Clocked in successfully',
-      });
-    } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 403) {
-        const distance = parseDistanceMetres(error.message);
-        if (distance !== null) {
-          const actionLabel = status === 'CLOCKED_IN' ? 'clock out' : 'clock in';
-          toast({
-            variant: 'warning',
-            title: 'Move closer to the branch',
-            message: `You are approximately ${formatDistance(distance)} away. Move within 50 m to ${actionLabel}.`,
-          });
+        toast({
+          variant: 'success',
+          title: response.message ?? (status === 'CLOCKED_IN' ? 'Clocked out successfully' : 'Clocked in successfully'),
+          message: `${assignment.shift.name} (${assignment.shift.startTime} - ${assignment.shift.endTime})`,
+        });
+      } catch (error) {
+        if (error instanceof GeolocationFailure) {
+          if (error.code === 'PERMISSION_DENIED') {
+            toast({
+              variant: 'warning',
+              title: 'Allow location to clock in',
+              message: error.message,
+            });
+          } else if (error.code === 'TIMEOUT') {
+            toast({
+              variant: 'warning',
+              title: 'Location request timed out',
+              message: error.message,
+            });
+          } else if (error.code === 'POSITION_UNAVAILABLE') {
+            toast({
+              variant: 'warning',
+              title: 'Location not available',
+              message: error.message,
+            });
+          } else {
+            toast({
+              variant: 'warning',
+              title: 'Location unavailable on this device',
+              message: error.message,
+            });
+          }
+        } else if (error instanceof ApiError) {
+          const details = parseClockErrorDetails(error.details);
+
+          if (error.code === 'CLOCK_OUTSIDE_GEOFENCE' && details?.distanceMetres !== undefined) {
+            const radius = details.allowedRadiusMetres ?? 50;
+            const actionLabel = status === 'CLOCKED_IN' ? 'clock out' : 'clock in';
+            toast({
+              variant: 'warning',
+              title: 'Move closer to the branch',
+              message: `You are approximately ${formatDistance(details.distanceMetres)} away. Move within ${radius} m to ${actionLabel}.`,
+            });
+          } else if (error.code === 'CLOCK_ALREADY_IN') {
+            toast({
+              variant: 'warning',
+              title: 'You are already clocked in',
+              message: details?.openShiftAssignmentId
+                ? 'Finish or resolve the other open shift before starting this one.'
+                : error.message,
+            });
+          } else if (error.code === 'CLOCK_NOT_IN') {
+            toast({
+              variant: 'warning',
+              title: "You haven't clocked in yet",
+              message: error.message,
+            });
+          } else if (error.code === 'CLOCK_ALREADY_OUT') {
+            toast({
+              variant: 'info',
+              title: 'This shift is already clocked out',
+              message: 'Refresh your shifts if the times on screen look out of date.',
+            });
+          } else if (error.code === 'CLOCK_ASSIGNMENT_INVALID') {
+            toast({
+              variant: 'warning',
+              title: 'This shift is not available right now',
+              message: error.message,
+            });
+          } else if (error.code === 'CLOCK_STALE_STATE') {
+            toast({
+              variant: 'warning',
+              title: 'Attendance changed just now',
+              message: error.message,
+            });
+          } else {
+            toast({
+              variant: 'warning',
+              title: 'Clock action failed',
+              message: error.message,
+            });
+          }
         } else {
           toast({
             variant: 'warning',
-            title: error.message,
+            title: 'Clock action failed',
+            message: error instanceof Error ? error.message : 'Please try again.',
           });
         }
-      } else {
-        toast({
-          variant: 'warning',
-          title: 'Location unavailable - ask your manager to clock you in',
-          message: error instanceof Error ? error.message : undefined,
-        });
+      } finally {
+        setIsSubmittingAssignmentId(null);
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [accessToken, assignment, onUpdated, status, toast]);
+    },
+    [accessToken, onUpdated, toast],
+  );
 
-  if (!assignment) {
+  if (sortedAssignments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-stone-200 bg-white py-10 text-center shadow-sm">
-        <Clock size={28} className="text-stone-300 mb-3" />
+        <Clock size={28} className="mb-3 text-stone-300" />
         <p className="text-body-md font-medium text-stone-600">You&apos;re off today</p>
-        <p className="text-body-sm text-stone-400 mt-1">Enjoy your rest — no shift scheduled.</p>
+        <p className="mt-1 text-body-sm text-stone-400">Enjoy your rest. No shift is scheduled for today.</p>
       </div>
     );
   }
 
   return (
     <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-label-sm uppercase tracking-wider text-stone-400 mb-0.5">Today&apos;s shift</p>
-          <h3 className="text-heading-sm font-semibold text-stone-900">{assignment.shift.name}</h3>
-          <p className="text-body-sm text-stone-500">
-            {assignment.shift.startTime} – {assignment.shift.endTime}
-          </p>
-        </div>
-        {localRecord?.clockInMethod === 'OVERRIDE' || localRecord?.clockOutMethod === 'OVERRIDE' ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[#F5B87A] bg-[#FEF0E0] px-2 py-0.5 text-label-sm text-[#A04F0A]">
-            <MapPinOff size={14} />
-            Override
-          </span>
-        ) : null}
+      <header className="mb-4">
+        <p className="mb-0.5 text-label-sm uppercase tracking-wider text-stone-400">Today&apos;s shift{sortedAssignments.length > 1 ? 's' : ''}</p>
+        <h3 className="text-heading-sm font-semibold text-stone-900">
+          {sortedAssignments.length > 1 ? 'Choose the shift you need to update' : sortedAssignments[0].shift.name}
+        </h3>
+        <p className="text-body-sm text-stone-500">
+          {sortedAssignments.length > 1
+            ? 'Each shift must be clocked separately. Finish one before starting another.'
+            : `${sortedAssignments[0].shift.startTime} - ${sortedAssignments[0].shift.endTime}`}
+        </p>
       </header>
 
-      <dl className="mt-4 grid grid-cols-2 gap-3">
-        <div>
-          <dt className="text-label-sm uppercase tracking-wide text-stone-500">Clock In</dt>
-          <dd className="text-body-md text-stone-900">{formatTime(localRecord?.clockInAt ?? null)}</dd>
-        </div>
-        <div>
-          <dt className="text-label-sm uppercase tracking-wide text-stone-500">Clock Out</dt>
-          <dd className="text-body-md text-stone-900">{formatTime(localRecord?.clockOutAt ?? null)}</dd>
-        </div>
-      </dl>
+      <div className="space-y-3">
+        {sortedAssignments.map((assignment) => {
+          const status = getStatus(assignment.clockRecord);
+          const isOverride =
+            assignment.clockRecord?.clockInMethod === 'OVERRIDE' ||
+            assignment.clockRecord?.clockOutMethod === 'OVERRIDE';
 
-      {status !== 'CLOCKED_OUT' ? (
-        <div className="mt-4">
-          <Button onClick={() => void handleClockAction()} isLoading={isSubmitting} className="w-full sm:w-auto">
-            {status === 'CLOCKED_IN' ? 'Clock Out' : 'Clock In'}
-          </Button>
-        </div>
-      ) : null}
+          return (
+            <article key={assignment.id} className="rounded-xl border border-stone-200 bg-stone-50/60 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-body-md font-semibold text-stone-900">{assignment.shift.name}</h4>
+                  <p className="text-body-sm text-stone-500">
+                    {assignment.shift.startTime} - {assignment.shift.endTime}
+                  </p>
+                </div>
+                {isOverride ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[#F5B87A] bg-[#FEF0E0] px-2 py-0.5 text-label-sm text-[#A04F0A]">
+                    <MapPinOff size={14} />
+                    Override
+                  </span>
+                ) : null}
+              </div>
+
+              <dl className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-label-sm uppercase tracking-wide text-stone-500">Clock In</dt>
+                  <dd className="text-body-md text-stone-900">{formatTime(assignment.clockRecord?.clockInAt ?? null)}</dd>
+                </div>
+                <div>
+                  <dt className="text-label-sm uppercase tracking-wide text-stone-500">Clock Out</dt>
+                  <dd className="text-body-md text-stone-900">{formatTime(assignment.clockRecord?.clockOutAt ?? null)}</dd>
+                </div>
+              </dl>
+
+              {status !== 'CLOCKED_OUT' ? (
+                <div className="mt-4">
+                  <Button
+                    onClick={() => void handleClockAction(assignment)}
+                    isLoading={isSubmittingAssignmentId === assignment.id}
+                    className="w-full sm:w-auto"
+                  >
+                    {status === 'CLOCKED_IN' ? 'Clock Out' : 'Clock In'}
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-4 text-body-sm text-stone-500">This shift attendance is complete.</p>
+              )}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

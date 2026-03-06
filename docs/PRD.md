@@ -302,10 +302,12 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 
 **FR-STF-04 — Geofencing Clock-In/Out:**
 - Staff tap **Clock In** on their app
-- The system checks the device GPS coordinates against the branch coordinates (50m radius)
+- The system checks the device GPS coordinates against the branch coordinates (default 50m radius, configurable by environment)
 - If within range, clock-in is recorded with a GPS-verified flag
-- If outside range, clock-in is blocked and an error message is displayed
-- A Manager can perform a manual override from their dashboard — this is recorded with an "Override" flag and requires the manager to enter a reason note
+- If outside range, clock-in is blocked and the user sees a clear distance-based error
+- The app distinguishes geofence rejection, GPS permission denial, GPS timeout, unavailable device location, and attendance-state conflicts
+- If a staff member has more than one shift on the same day, they must clock each shift separately against the correct assignment
+- A Manager can perform a manual override from their dashboard — this is recorded with an "Override" flag, requires a reason note, and only presents the valid override action for the current attendance state
 - Clock-out follows the same geofencing rules
 
 **FR-STF-05 — Shift Scheduling:**
@@ -315,7 +317,8 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 - Staff can view their own upcoming shifts in their app
 - The system records scheduled hours vs actual hours worked (calculated from clock-in/out timestamps)
 
-**FR-STF-06:** Staff can only clock in if they are assigned to a shift for that day at their branch, or if the manager performs an override.
+**FR-STF-06:** Staff can only clock in if they are assigned to a shift for that business day at their branch, or if the manager performs an override.
+Only one open attendance record is allowed per staff member at a time across all assignments.
 
 ---
 

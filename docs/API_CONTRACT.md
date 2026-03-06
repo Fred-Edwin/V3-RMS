@@ -752,8 +752,8 @@ Creates a new order. This is the critical path — see TDD Section 14.
 ---
 
 ### PATCH `/orders/:id/items`
-**Access:** 🔑 WAITER  
-Modifies the items on an order. Only allowed while at least one prep ticket for the affected items is still `PENDING`.
+**Access:** 🔑 WAITER
+Modifies the items on an order. Only allowed while ALL prep tickets are still `PENDING`. Waiter must be the order creator (ownership check).
 
 **Request Body:**
 ```json
@@ -767,8 +767,7 @@ Modifies the items on an order. Only allowed while at least one prep ticket for 
 
 **Validation Rules:**
 - `items` must have at least 1 item
-- If all prep tickets are `IN_PROGRESS` or `READY`, modification is rejected with `409 CONFLICT`
-- Only items routed to stations still in `PENDING` can be changed
+- If any prep ticket is beyond `PENDING`, modification is rejected with `409 CONFLICT`
 
 **Response `200`:**
 ```json
@@ -832,15 +831,21 @@ Records payment for an order and marks it as closed. For delivery orders, marks 
 ---
 
 ### PATCH `/orders/:id/cancel`
-**Access:** 🔑 WAITER, MGR  
-Cancels an order. Only allowed while all prep tickets are still `PENDING`.
+**Access:** 🔑 WAITER, MGR
+Cancels an order. Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS`, or `READY` status. Managers can cancel any non-terminal order. Cancellation of `IN_PROGRESS`/`READY` orders by a manager emits `order:force_cancelled`.
 
 **Request Body:**
 ```json
 {
-  "reason": "Customer left"
+  "reason": "Customer left",
+  "reasonDetail": "Optional detail for 'Other' reason"
 }
 ```
+
+**Validation Rules:**
+- `reason` required: one of `Customer changed their mind | Customer left | Duplicate order | Wrong items ordered | Item unavailable | Other`
+- `reasonDetail` required when reason is `Other`
+- Waiter must be the order creator (ownership check)
 
 **Response `200`:**
 ```json
@@ -857,7 +862,7 @@ Cancels an order. Only allowed while all prep tickets are still `PENDING`.
   "success": false,
   "error": {
     "code": "CONFLICT",
-    "message": "Order cannot be cancelled. Preparation has already started."
+    "message": "Order cannot be cancelled in its current state."
   }
 }
 ```
@@ -978,28 +983,33 @@ Marks a prep ticket as ready. Moves it from `IN_PROGRESS` to `READY`.
 
 ### PATCH `/prep-tickets/:id/reject`
 **Access:** CHEF, KDS, BARISTA, BDS
-Rejects a prep ticket (item unavailable). If all tickets for the order become REJECTED, the order is auto-cancelled.
+Rejects a prep ticket and reverts it to `PENDING`. The ticket's claim is cleared, allowing the waiter to edit or cancel the order. If all tickets for the order are now `PENDING`, the order status is also reverted to `PENDING`.
 
 **Request Body:**
 ```json
 {
-  "reason": "Out of stock"
+  "reason": "Item out of stock"
 }
 ```
+
+**Validation Rules:**
+- `reason` required: predefined reasons include `Item out of stock | Equipment not working | Wrong station | Ingredient unavailable | Quality issue with ingredient | Other: {detail}`
 
 **Response `200`:**
 ```json
 {
   "success": true,
-  "data": { "id": "uuid", "status": "REJECTED" },
+  "data": { "id": "uuid", "status": "PENDING" },
   "message": "Prep ticket rejected"
 }
 ```
 
 **Notes:**
+- Reverts ticket to PENDING (clears claimedBy/claimedAt)
+- Stores rejection metadata (rejectedById, rejectedReason, rejectedAt) for audit
 - Emits `ticket:rejected` to the waiter's user room
 - Logs an incident of type `TICKET_REJECTED`
-- If all order tickets are now REJECTED, auto-cancels the order
+- If all order tickets are now PENDING, reverts order status to PENDING
 
 ---
 
@@ -1025,91 +1035,13 @@ Unclaims a prep ticket (fix wrong claim). Only allowed within 2 minutes of claim
 
 ---
 
-### POST `/orders/:orderId/modification-requests`
-**Access:** WAITER
-Creates a modification request for an in-progress order. Waiter must own the order.
-
-**Request Body:**
-```json
-{
-  "description": "Customer wants to change latte to cappuccino"
-}
-```
-
-**Response `201`:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "orderId": "uuid",
-    "description": "...",
-    "status": "PENDING",
-    "requestedBy": { "id": "uuid", "name": "John" },
-    "reviewedBy": null,
-    "reviewedAt": null,
-    "reviewNote": null,
-    "createdAt": "2026-03-06T10:00:00Z"
-  },
-  "message": "Modification request submitted"
-}
-```
-
-**Notes:**
-- Only one PENDING request allowed per order at a time
-- Order must be IN_PROGRESS (at least one ticket claimed)
-- Emits `modification:requested` to relevant station rooms
-
----
-
-### GET `/orders/:orderId/modification-requests`
-**Access:** WAITER, CHEF, KDS, BARISTA, BDS, MGR
-Returns all modification requests for the given order.
-
-**Response `200`:**
-```json
-{
-  "success": true,
-  "data": [{ "id": "uuid", "status": "APPROVED", "..." : "..." }]
-}
-```
-
----
-
-### PATCH `/modification-requests/:id/review`
-**Access:** CHEF, KDS, BARISTA, BDS
-Approves or rejects a pending modification request.
-
-**Request Body:**
-```json
-{
-  "status": "APPROVED",
-  "reviewNote": "Go ahead"
-}
-```
-
-**Response `200`:**
-```json
-{
-  "success": true,
-  "data": { "id": "uuid", "status": "APPROVED", "reviewedBy": { "id": "uuid", "name": "Chef" } },
-  "message": "Modification request approved"
-}
-```
-
-**Notes:**
-- On APPROVE: waiter can now edit the order (consumed on edit)
-- Emits `modification:reviewed` to waiter's user room
-
----
-
 ### GET `/incidents`
 **Access:** MGR, DIR
 Returns paginated incident log entries for the manager's branch.
 
 **Query Params:**
 ```
-type       (optional) — ORDER_CANCELLED | TICKET_REJECTED | MODIFICATION_REQUESTED | MODIFICATION_APPROVED | MODIFICATION_REJECTED | TICKET_UNCLAIMED | ORDER_STALE
+type       (optional) — ORDER_CANCELLED | TICKET_REJECTED | TICKET_UNCLAIMED | ORDER_STALE
 startDate  (optional) — YYYY-MM-DD
 endDate    (optional) — YYYY-MM-DD
 orderId    (optional) — uuid
@@ -1514,7 +1446,7 @@ Records a clock-in. Validates geofence on the server.
 
 **Validation Rules:**
 - `shiftAssignmentId` must belong to the authenticated user and today's date
-- User must not already be clocked in
+- User must not already have an open clock-in for any shift
 
 **Response `201`:**
 ```json
@@ -1534,8 +1466,29 @@ Records a clock-in. Validates geofence on the server.
 {
   "success": false,
   "error": {
-    "code": "AUTHORIZATION_ERROR",
-    "message": "You must be at the branch to clock in. You are approximately 120 metres away."
+    "code": "CLOCK_OUTSIDE_GEOFENCE",
+    "message": "You must be at the branch to clock in. You are approximately 120 metres away.",
+    "details": {
+      "action": "clock in",
+      "distanceMetres": 120,
+      "allowedRadiusMetres": 50
+    }
+  }
+}
+```
+
+**Error `409` (already clocked in on another shift):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CLOCK_ALREADY_IN",
+    "message": "You already have an open clock-in for another shift.",
+    "details": {
+      "assignmentId": "uuid",
+      "userId": "uuid",
+      "openShiftAssignmentId": "uuid"
+    }
   }
 }
 ```
@@ -1569,11 +1522,26 @@ Records a clock-out with geofence validation.
 }
 ```
 
+**Error `409` (stale or already completed):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CLOCK_STALE_STATE",
+    "message": "Attendance changed just now. Refresh and try again.",
+    "details": {
+      "assignmentId": "uuid",
+      "userId": "uuid"
+    }
+  }
+}
+```
+
 ---
 
 ### POST `/clock/override`
 **Access:** 🔑 MGR  
-Manager override for a staff member's clock-in or clock-out.
+Manager override for a staff member's clock-in or clock-out. The client should present only the valid override action for the current attendance state.
 
 **Request Body:**
 ```json
@@ -1598,6 +1566,13 @@ Manager override for a staff member's clock-in or clock-out.
   "message": "Clock-in override applied for James Kamau"
 }
 ```
+
+**Error Codes**
+- `CLOCK_ASSIGNMENT_INVALID` — assignment does not belong to the staff member for today's business date
+- `CLOCK_OVERRIDE_NOT_ALLOWED` — override requested for a non-today assignment
+- `CLOCK_ALREADY_IN` — staff member already has an open clock record
+- `CLOCK_ALREADY_OUT` — the shift attendance is already complete
+- `CLOCK_STALE_STATE` — another request completed the action first
 
 ---
 
@@ -2083,18 +2058,24 @@ const socket = io('wss://api.wendorms.co.ke', {
 | Event | Payload | Description |
 |---|---|---|
 | `join:branch` | `{ organizationId }` | Client joins their branch room. Sent immediately after connect. |
+| `join:station` | `{ organizationId, station }` | Client joins a station room (KDS/BDS). |
+| `join:user` | `{ userId }` | Client joins their personal user room. |
 
 ### Server → Client Events
 
 | Event | Payload | Recipient |
 |---|---|---|
 | `order:new` | `PrepTicket` object | Kitchen or Barista room (based on station) |
-| `order:claimed` | `{ orderId, ticketId, station, claimedBy: { id, name } }` | Waiter user room |
-| `order:ready` | `{ orderId, ticketId, station, orderDailyNumber }` | Waiter user room |
-| `order:all_ready` | `{ orderId, orderDailyNumber }` | Waiter user room |
+| `order:claimed` | `{ orderId, ticketId, station, dailyNumber, claimedBy: { id, name } }` | Waiter user room |
+| `order:ready` | `{ orderId, ticketId, station, dailyNumber }` | Waiter user room |
+| `order:all_ready` | `{ orderId, dailyNumber }` | Waiter user room |
+| `order:paid` | `{ orderId, dailyNumber }` | Waiter user room |
 | `order:modified` | Updated `PrepTicket` object | Affected station room |
-| `order:cancelled` | `{ orderId, orderDailyNumber }` | Kitchen and Barista room |
-| `ticket:status_changed` | `{ ticketId, orderId, status, claimedBy }` | Branch room |
+| `order:cancelled` | `{ orderId }` | Kitchen and Barista room |
+| `order:force_cancelled` | `{ orderId }` | Waiter user room + station rooms |
+| `ticket:rejected` | `{ orderId, ticketId, station, reason }` | Waiter user room |
+| `ticket:unclaimed` | `{ orderId, ticketId, station }` | Waiter user room |
+| `incident:new` | `{ id, type, orderId?, actor, details, createdAt }` | Branch room (managers) |
 
 ### Connection Error Handling
 
