@@ -51,4 +51,12 @@ export const prepTicketService = {
   markReady: (id: string, accessToken: string): Promise<PrepTicketDetail> => {
     return apiClient.patch<PrepTicketDetail>(`/prep-tickets/${id}/ready`, {}, accessToken);
   },
+
+  reject: (id: string, reason: string, accessToken: string): Promise<PrepTicketDetail> => {
+    return apiClient.patch<PrepTicketDetail>(`/prep-tickets/${id}/reject`, { reason }, accessToken);
+  },
+
+  unclaim: (id: string, accessToken: string): Promise<PrepTicketDetail> => {
+    return apiClient.patch<PrepTicketDetail>(`/prep-tickets/${id}/unclaim`, {}, accessToken);
+  },
 };

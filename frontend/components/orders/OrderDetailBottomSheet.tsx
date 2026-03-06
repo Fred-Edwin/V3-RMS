@@ -10,7 +10,11 @@ interface OrderDetailBottomSheetProps {
   order: OrderDetail | null;
   onEdit: (orderId: string) => void;
   onPayment: (orderId: string, method: PaymentMethod) => void;
+  onCancel?: (orderId: string) => void;
+  onRequestModification?: (orderId: string) => void;
   isPaymentSubmitting?: boolean;
+  isOwner?: boolean;
+  isManager?: boolean;
 }
 
 const paymentOptions = [
@@ -25,14 +29,21 @@ export function OrderDetailBottomSheet({
   order,
   onEdit,
   onPayment,
+  onCancel,
+  onRequestModification,
   isPaymentSubmitting = false,
+  isOwner = false,
+  isManager = false,
 }: OrderDetailBottomSheetProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MPESA');
 
-  const canEdit = useMemo(
-    () => Boolean(order?.prepTickets.some((ticket) => ticket.status === 'PENDING')),
+  const allPending = useMemo(
+    () => Boolean(order?.prepTickets.every((ticket) => ticket.status === 'PENDING')),
     [order],
   );
+  const canEdit = isOwner && allPending;
+  const canCancel = (isOwner && order?.status === 'PENDING') || (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED');
+  const canRequestMod = isOwner && order?.status === 'IN_PROGRESS' && !allPending;
 
   if (!order) {
     return null;
@@ -85,6 +96,18 @@ export function OrderDetailBottomSheet({
         {canEdit && (
           <Button variant="secondary" className="w-full" onClick={() => onEdit(order.id)}>
             Edit Order
+          </Button>
+        )}
+
+        {canRequestMod && onRequestModification && (
+          <Button variant="secondary" className="w-full" onClick={() => onRequestModification(order.id)}>
+            Request Modification
+          </Button>
+        )}
+
+        {canCancel && onCancel && (
+          <Button variant="destructive" className="w-full" onClick={() => onCancel(order.id)}>
+            Cancel Order
           </Button>
         )}
 

@@ -2,7 +2,7 @@ export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANCELLED';
 export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD';
 export type PrepStation = 'KITCHEN' | 'BARISTA';
-export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY';
+export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED';
 export type OrderListView = 'full' | 'summary';
 
 export interface PrepTicketSummary {
@@ -29,6 +29,8 @@ export interface OrderSummary {
   paymentMethod: PaymentMethod | null;
   paidAt: string | null;
   createdAt: string;
+  cancelReason: string | null;
+  cancelledBy: { id: string; name: string } | null;
   createdBy: { id: string; name: string };
   prepTickets: PrepTicketSummary[];
 }

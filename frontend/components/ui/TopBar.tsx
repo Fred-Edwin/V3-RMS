@@ -7,6 +7,7 @@ import type { ConnectionStatus } from './ConnectionIndicator'
 
 interface TopBarProps {
   branchName: string
+  stationLabel?: string
   connectionStatus: ConnectionStatus
   tone?: 'dark' | 'light'
   className?: string
@@ -21,7 +22,7 @@ function formatClock(date: Date): string {
   })
 }
 
-export function TopBar({ branchName, connectionStatus, tone = 'dark', className }: TopBarProps) {
+export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dark', className }: TopBarProps) {
   const [time, setTime] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,9 +43,16 @@ export function TopBar({ branchName, connectionStatus, tone = 'dark', className 
         className,
       )}
     >
-      <span className={cn('truncate text-label-lg font-semibold', tone === 'dark' ? 'text-crema' : 'text-stone-900')}>
-        {branchName}
-      </span>
+      <div className="truncate">
+        <span className={cn('text-label-lg font-semibold', tone === 'dark' ? 'text-crema' : 'text-stone-900')}>
+          {branchName}
+        </span>
+        {stationLabel && (
+          <span className={cn('ml-2 text-label-sm', tone === 'dark' ? 'text-crema/60' : 'text-stone-500')}>
+            {stationLabel}
+          </span>
+        )}
+      </div>
       <span
         className={cn(
           'text-center font-display text-heading-md tabular-nums',

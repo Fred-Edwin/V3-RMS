@@ -26,6 +26,7 @@ model Organization {
   orders          Order[]
   orderCounters   OrderCounter[]
   prepTickets     PrepTicket[]
+  incidentLogs    IncidentLog[]
 
   @@map("organizations")
 }
@@ -58,11 +59,16 @@ model User {
   updatedAt          DateTime          @updatedAt @map("updated_at")
   deletedAt          DateTime?         @map("deleted_at")
   organization       Organization?     @relation(fields: [organizationId], references: [id])
-  ordersCreated      Order[]           @relation("OrderCreatedBy")
-  shiftAssignments   ShiftAssignment[]
-  clockRecords       ClockRecord[]
-  prepTicketsClaimed PrepTicket[]      @relation("PrepTicketClaimedBy")
-  refreshTokens      RefreshToken[]
+  ordersCreated        Order[]           @relation("OrderCreatedBy")
+  ordersCancelled      Order[]           @relation("OrderCancelledBy")
+  shiftAssignments     ShiftAssignment[]
+  clockRecords         ClockRecord[]
+  prepTicketsClaimed   PrepTicket[]      @relation("PrepTicketClaimedBy")
+  prepTicketsRejected  PrepTicket[]      @relation("PrepTicketRejectedBy")
+  refreshTokens        RefreshToken[]
+  modRequestsCreated   OrderModificationRequest[] @relation("ModRequestedBy")
+  modRequestsReviewed  OrderModificationRequest[] @relation("ModReviewedBy")
+  incidentsActed       IncidentLog[]     @relation("IncidentActor")
 
   @@index([organizationId])
   @@index([email])
@@ -206,29 +212,34 @@ model ClockRecord {
 }
 
 model Order {
-  id            String         @id @default(uuid())
-  organizationId String        @map("organization_id")
-  dailyNumber   Int            @map("daily_number")
-  orderDate     DateTime       @db.Date @map("order_date")
-  type          OrderType
-  status        OrderStatus    @default(PENDING)
-  tableNumber   String?        @map("table_number")
-  notes         String?
-  subtotal      Decimal        @db.Decimal(10, 2)
-  deliveryFee   Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
-  total         Decimal        @db.Decimal(10, 2)
-  paymentMethod PaymentMethod? @map("payment_method")
-  paidAt        DateTime?      @map("paid_at")
-  deliveryZoneId String?       @map("delivery_zone_id")
-  createdById   String         @map("created_by_id")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
-  closedAt      DateTime?      @map("closed_at")
-  organization  Organization   @relation(fields: [organizationId], references: [id])
-  deliveryZone  DeliveryZone?  @relation(fields: [deliveryZoneId], references: [id])
-  createdBy     User           @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  items         OrderItem[]
-  prepTickets   PrepTicket[]
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  dailyNumber    Int            @map("daily_number")
+  orderDate      DateTime       @db.Date @map("order_date")
+  type           OrderType
+  status         OrderStatus    @default(PENDING)
+  tableNumber    String?        @map("table_number")
+  notes          String?
+  subtotal       Decimal        @db.Decimal(10, 2)
+  deliveryFee    Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
+  total          Decimal        @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod? @map("payment_method")
+  paidAt         DateTime?      @map("paid_at")
+  cancelReason   String?        @map("cancel_reason")
+  cancelledById  String?        @map("cancelled_by_id")
+  deliveryZoneId String?        @map("delivery_zone_id")
+  createdById    String         @map("created_by_id")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  closedAt       DateTime?      @map("closed_at")
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  deliveryZone   DeliveryZone?  @relation(fields: [deliveryZoneId], references: [id])
+  createdBy      User           @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  cancelledBy    User?          @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
+  items          OrderItem[]
+  prepTickets    PrepTicket[]
+  modificationRequests OrderModificationRequest[]
+  incidents      IncidentLog[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -263,12 +274,16 @@ model PrepTicket {
   claimedById    String?          @map("claimed_by_id")
   claimedAt      DateTime?        @map("claimed_at")
   readyAt        DateTime?        @map("ready_at")
+  rejectedById   String?          @map("rejected_by_id")
+  rejectedReason String?          @map("rejected_reason")
+  rejectedAt     DateTime?        @map("rejected_at")
   items          Json
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
   organization   Organization     @relation(fields: [organizationId], references: [id])
   order          Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
   claimedBy      User?            @relation("PrepTicketClaimedBy", fields: [claimedById], references: [id])
+  rejectedBy     User?            @relation("PrepTicketRejectedBy", fields: [rejectedById], references: [id])
 
   @@unique([orderId, station])
   @@index([organizationId])
@@ -311,6 +326,7 @@ enum PrepTicketStatus {
   PENDING
   IN_PROGRESS
   READY
+  REJECTED
 }
 
 enum PaymentMethod {
@@ -322,4 +338,71 @@ enum PaymentMethod {
 enum ClockMethod {
   GPS
   OVERRIDE
+}
+
+enum IncidentType {
+  ORDER_CANCELLED
+  TICKET_REJECTED
+  MODIFICATION_REQUESTED
+  MODIFICATION_APPROVED
+  MODIFICATION_REJECTED
+  TICKET_UNCLAIMED
+  ORDER_STALE
+}
+
+enum ModificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model OrderModificationRequest {
+  id             String                    @id @default(uuid())
+  organizationId String                    @map("organization_id")
+  orderId        String                    @map("order_id")
+  requestedById  String                    @map("requested_by_id")
+  description    String
+  status         ModificationRequestStatus @default(PENDING)
+  reviewedById   String?                   @map("reviewed_by_id")
+  reviewedAt     DateTime?                 @map("reviewed_at")
+  reviewNote     String?                   @map("review_note")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+  order          Order                     @relation(fields: [orderId], references: [id])
+  requestedBy    User                      @relation("ModRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy     User?                     @relation("ModReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([organizationId, status])
+  @@map("order_modification_requests")
+}
+
+model IncidentLog {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  orderId        String?      @map("order_id")
+  type           IncidentType
+  actorId        String       @map("actor_id")
+  details        Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  order          Order?       @relation(fields: [orderId], references: [id])
+  actor          User         @relation("IncidentActor", fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, type])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("incident_logs")
+}
+
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  orderId   String   @map("order_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key])
+  @@map("idempotency_keys")
 }

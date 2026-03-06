@@ -7,7 +7,11 @@ import {
   type FullOrderPrismaRecord,
   type SummaryOrderPrismaRecord,
 } from '../repositories/order-repository';
+import { idempotencyRepository } from '../repositories/idempotency-repository';
+import { modificationRequestRepository } from '../repositories/modification-request-repository';
 import { socketService } from '../sockets/socket-service';
+import { fcmService } from './fcm-service';
+import { incidentService } from './incident-service';
 import type {
   OrderRecord,
   OrderSummaryRecord,
@@ -97,6 +101,15 @@ const resolveOrganizationId = (actor: Actor, requestedBranchId?: string): string
   return requestedBranchId;
 };
 
+const assertOwnership = (order: FullOrderPrismaRecord, actor: Actor): void => {
+  if (actor.role === 'MANAGER' || actor.role === 'DIRECTOR') {
+    return;
+  }
+  if (order.createdById !== actor.id) {
+    throw new ForbiddenError('Only the waiter who created this order can perform this action');
+  }
+};
+
 const parsePrepTicketItems = (value: Prisma.JsonValue): PrepTicketItemSnapshot[] => {
   if (!Array.isArray(value)) {
     return [];
@@ -176,6 +189,8 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
     total: order.total.toString(),
     paymentMethod: order.paymentMethod,
     paidAt: order.paidAt,
+    cancelReason: order.cancelReason,
+    cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
     closedAt: order.closedAt,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
@@ -217,6 +232,8 @@ const serializeOrderSummary = (order: SummaryOrderPrismaRecord): OrderSummaryRec
     total: order.total.toString(),
     paymentMethod: order.paymentMethod,
     paidAt: order.paidAt,
+    cancelReason: order.cancelReason,
+    cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
     createdAt: order.createdAt,
     createdBy: {
       id: order.createdBy.id,
@@ -293,9 +310,20 @@ const stringifyStationItems = (items: Array<{ menuItemId: string; quantity: numb
 const serializeTicketsForSocket = (order: OrderRecord): PrepTicketRecord[] => order.prepTickets;
 
 export const orderService = {
-  create: async (data: CreateOrderInput, actor: Actor): Promise<OrderRecord> => {
+  create: async (data: CreateOrderInput, actor: Actor, idempotencyKey?: string): Promise<OrderRecord> => {
     const startedAt = Date.now();
     const organizationId = resolveOrganizationId(actor);
+
+    if (idempotencyKey) {
+      const existing = await idempotencyRepository.findByKey(idempotencyKey);
+      if (existing) {
+        const existingOrder = await orderRepository.findById(existing.orderId, organizationId);
+        if (existingOrder) {
+          return serializeOrder(existingOrder);
+        }
+      }
+    }
+
     const resolvedItemsStart = Date.now();
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
     const resolveItemsMs = Date.now() - resolvedItemsStart;
@@ -345,6 +373,10 @@ export const orderService = {
       })),
     });
     const createOrderMs = Date.now() - createOrderStart;
+
+    if (idempotencyKey) {
+      await idempotencyRepository.create(idempotencyKey, created.id);
+    }
 
     const serializeStart = Date.now();
     const serialized = serializeOrder(created);
@@ -423,12 +455,13 @@ export const orderService = {
     query: ActiveOrderQueryInput = { view: 'full' },
   ): Promise<Array<OrderRecord | OrderSummaryRecord>> => {
     const organizationId = resolveOrganizationId(actor);
+    const today = normalizeOrderDate(new Date());
     if (query.view === 'summary') {
-      const orders = await orderRepository.findActiveSummary(organizationId);
+      const orders = await orderRepository.findActiveSummary(organizationId, today);
       return orders.map(serializeOrderSummary);
     }
 
-    const orders = await orderRepository.findActive(organizationId);
+    const orders = await orderRepository.findActive(organizationId, today);
     return orders.map(serializeOrder);
   },
 
@@ -449,11 +482,17 @@ export const orderService = {
       throw new NotFoundError('Order not found');
     }
 
-    const allTicketsBeyondPending = existingOrder.prepTickets.every((ticket) => ticket.status !== 'PENDING');
-    if (allTicketsBeyondPending) {
-      throw new ConflictError(
-        'Order cannot be modified. Preparation has already started at all stations.',
-      );
+    assertOwnership(existingOrder, actor);
+
+    const anyTicketBeyondPending = existingOrder.prepTickets.some((ticket) => ticket.status !== 'PENDING');
+    if (anyTicketBeyondPending) {
+      const approvedRequest = await modificationRequestRepository.findApprovedByOrder(orderId, organizationId);
+      if (!approvedRequest) {
+        throw new ConflictError(
+          'Order is being prepared. Submit a modification request to the kitchen/barista first.',
+        );
+      }
+      await modificationRequestRepository.consumeApproved(orderId, organizationId);
     }
 
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
@@ -525,6 +564,8 @@ export const orderService = {
       throw new NotFoundError('Order not found');
     }
 
+    assertOwnership(order, actor);
+
     if (order.status !== OrderStatus.READY) {
       throw new ConflictError('Payment can only be recorded when the order is ready.');
     }
@@ -554,31 +595,60 @@ export const orderService = {
     return serialized;
   },
 
-  cancel: async (orderId: string, actor: Actor): Promise<OrderRecord> => {
+  cancel: async (orderId: string, reason: string, actor: Actor): Promise<OrderRecord> => {
     const organizationId = resolveOrganizationId(actor);
     const order = await orderRepository.findById(orderId, organizationId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
 
-    const hasStartedPreparation = order.prepTickets.some(
-      (ticket) => ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY,
-    );
-    if (hasStartedPreparation) {
-      throw new ConflictError('Order cannot be cancelled. Preparation has already started.');
-    }
+    assertOwnership(order, actor);
 
-    const cancelled = await orderRepository.cancel(orderId, organizationId);
+    const isManager = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
+    const allowedStatuses = isManager
+      ? [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY]
+      : [OrderStatus.PENDING];
+
+    const cancelled = await orderRepository.cancel(orderId, organizationId, allowedStatuses, reason, actor.id);
     if (!cancelled) {
-      throw new NotFoundError('Order not found');
+      throw new ConflictError(
+        isManager
+          ? 'Order cannot be cancelled in its current state.'
+          : 'Order cannot be cancelled. Preparation has already started.',
+      );
     }
 
     const serialized = serializeOrder(cancelled);
-    socketService.emitOrderCancelled(
+    const stations = order.prepTickets.map((ticket) => ticket.station);
+    const wasForceCancelled = isManager && order.status !== OrderStatus.PENDING;
+
+    if (wasForceCancelled) {
+      socketService.emitOrderForceCancelled(organizationId, stations, order.createdById, {
+        orderId: serialized.id,
+        dailyNumber: serialized.dailyNumber,
+        cancelledBy: actor.id,
+      });
+      void fcmService.sendOrderForceCancelledPush(order.createdById, {
+        orderId: serialized.id,
+        dailyNumber: serialized.dailyNumber,
+      });
+    } else {
+      socketService.emitOrderCancelled(organizationId, stations, { orderId: serialized.id });
+    }
+
+    incidentService.log({
       organizationId,
-      order.prepTickets.map((ticket) => ticket.station),
-      { orderId: serialized.id },
-    );
+      orderId,
+      type: 'ORDER_CANCELLED',
+      actorId: actor.id,
+      details: {
+        dailyNumber: serialized.dailyNumber,
+        previousStatus: order.status,
+        reason,
+        forceCancelled: wasForceCancelled,
+      },
+    });
+
     return serialized;
   },
 };

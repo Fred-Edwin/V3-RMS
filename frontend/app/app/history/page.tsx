@@ -17,10 +17,11 @@ const statusOptions = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const prepStatusVariantMap: Record<PrepTicketStatus, 'pending' | 'inprogress' | 'ready'> = {
+const prepStatusVariantMap: Record<PrepTicketStatus, 'pending' | 'inprogress' | 'ready' | 'cancelled'> = {
   PENDING: 'pending',
   IN_PROGRESS: 'inprogress',
   READY: 'ready',
+  REJECTED: 'cancelled',
 };
 
 export default function HistoryPage(): JSX.Element {

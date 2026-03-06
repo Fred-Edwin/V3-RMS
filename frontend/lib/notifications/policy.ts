@@ -115,5 +115,91 @@ export const resolveNotificationPolicy = (
     };
   }
 
+  if (event.type === 'order:force_cancelled') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    return {
+      channels: ['sound', 'toast'],
+      toast: {
+        variant: 'warning',
+        title: 'Order force-cancelled by manager',
+        message: 'An in-progress order was cancelled.',
+      },
+      dedupeKey: `${event.type}:${event.payload.orderId}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
+  if (event.type === 'ticket:rejected') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    return {
+      channels: ['sound', 'toast'],
+      toast: {
+        variant: 'error',
+        title: 'Ticket rejected',
+        message: event.payload.reason,
+      },
+      dedupeKey: `${event.type}:${event.payload.ticketId}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
+  if (event.type === 'ticket:unclaimed') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    return {
+      channels: ['toast'],
+      toast: {
+        variant: 'warning',
+        title: 'Ticket unclaimed',
+        message: `A ${event.payload.station.toLowerCase()} ticket was returned to pending.`,
+      },
+      dedupeKey: `${event.type}:${event.payload.ticketId}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
+  if (event.type === 'modification:requested') {
+    if (!isPrepRole(role)) {
+      return null;
+    }
+
+    return {
+      channels: ['sound', 'toast'],
+      toast: {
+        variant: 'info',
+        title: 'Modification requested',
+        message: event.payload.description,
+      },
+      dedupeKey: `${event.type}:${event.payload.id}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
+  if (event.type === 'modification:reviewed') {
+    if (role !== 'WAITER') {
+      return null;
+    }
+
+    const approved = event.payload.status === 'APPROVED';
+    return {
+      channels: ['toast'],
+      toast: {
+        variant: approved ? 'success' : 'warning',
+        title: approved ? 'Modification approved' : 'Modification rejected',
+        message: event.payload.reviewNote ?? (approved ? 'You can now edit the order.' : 'Your modification request was denied.'),
+      },
+      dedupeKey: `${event.type}:${event.payload.id}`,
+      dedupeWindowMs: 5000,
+    };
+  }
+
   return null;
 };

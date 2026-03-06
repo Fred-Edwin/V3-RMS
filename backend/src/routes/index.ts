@@ -11,6 +11,8 @@ import shiftRoutes from './shift-routes';
 import shiftAssignmentRoutes from './shift-assignment-routes';
 import clockRoutes from './clock-routes';
 import reportRoutes from './report-routes';
+import incidentRoutes from './incident-routes';
+import modificationRequestRoutes from './modification-request-routes';
 
 const apiRouter = Router();
 
@@ -26,5 +28,7 @@ apiRouter.use(shiftRoutes);
 apiRouter.use(shiftAssignmentRoutes);
 apiRouter.use(clockRoutes);
 apiRouter.use(reportRoutes);
+apiRouter.use(incidentRoutes);
+apiRouter.use(modificationRequestRoutes);
 
 export default apiRouter;

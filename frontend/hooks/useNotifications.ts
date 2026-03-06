@@ -13,6 +13,7 @@ import {
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
+import { useIncidentStore } from '@/store/incidentStore';
 import { useToast } from './useToast';
 import type { PrepTicketDetail, PrepStation } from '@/types/order';
 
@@ -55,6 +56,7 @@ export const useNotifications = (): void => {
   const organizationId = useAuthStore((state) => state.organizationId);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const { toast } = useToast();
+  const incrementUnread = useIncidentStore((state) => state.incrementUnread);
 
   useEffect(() => {
     if (!pathname.startsWith('/app') || !env.notificationsV2 || !accessToken || !role) {
@@ -168,11 +170,77 @@ export const useNotifications = (): void => {
       );
     };
 
+    const handleForceCancelled = (payload: { orderId: string }) => {
+      dispatchNotificationEvent(
+        { type: 'order:force_cancelled', source: 'socket', occurredAt: Date.now(), payload },
+        { role, toast },
+      );
+    };
+
+    const handleTicketRejected = (payload: {
+      orderId: string;
+      ticketId: string;
+      station: PrepStation;
+      reason: string;
+    }) => {
+      dispatchNotificationEvent(
+        { type: 'ticket:rejected', source: 'socket', occurredAt: Date.now(), payload },
+        { role, toast },
+      );
+    };
+
+    const handleTicketUnclaimed = (payload: {
+      orderId: string;
+      ticketId: string;
+      station: PrepStation;
+    }) => {
+      dispatchNotificationEvent(
+        { type: 'ticket:unclaimed', source: 'socket', occurredAt: Date.now(), payload },
+        { role, toast },
+      );
+    };
+
+    const handleModificationRequested = (payload: {
+      id: string;
+      orderId: string;
+      description: string;
+      requestedBy: { id: string; name: string };
+    }) => {
+      dispatchNotificationEvent(
+        { type: 'modification:requested', source: 'socket', occurredAt: Date.now(), payload },
+        { role, toast },
+      );
+    };
+
+    const handleModificationReviewed = (payload: {
+      id: string;
+      orderId: string;
+      status: 'APPROVED' | 'REJECTED';
+      reviewNote?: string;
+    }) => {
+      dispatchNotificationEvent(
+        { type: 'modification:reviewed', source: 'socket', occurredAt: Date.now(), payload },
+        { role, toast },
+      );
+    };
+
+    const handleIncidentNew = () => {
+      if (role === 'MANAGER' || role === 'DIRECTOR') {
+        incrementUnread();
+      }
+    };
+
     socket.on('order:new', handleOrderNew);
     socket.on('order:claimed', handleOrderClaimed);
     socket.on('order:ready', handleOrderReady);
     socket.on('order:all_ready', handleOrderAllReady);
     socket.on('order:paid', handleOrderPaid);
+    socket.on('order:force_cancelled', handleForceCancelled);
+    socket.on('ticket:rejected', handleTicketRejected);
+    socket.on('ticket:unclaimed', handleTicketUnclaimed);
+    socket.on('modification:requested', handleModificationRequested);
+    socket.on('modification:reviewed', handleModificationReviewed);
+    socket.on('incident:new', handleIncidentNew);
 
     const offReconnect = onReconnect(() => {
       joinRoleRooms(role, organizationId, userId);
@@ -185,7 +253,13 @@ export const useNotifications = (): void => {
       socket.off('order:ready', handleOrderReady);
       socket.off('order:all_ready', handleOrderAllReady);
       socket.off('order:paid', handleOrderPaid);
+      socket.off('order:force_cancelled', handleForceCancelled);
+      socket.off('ticket:rejected', handleTicketRejected);
+      socket.off('ticket:unclaimed', handleTicketUnclaimed);
+      socket.off('modification:requested', handleModificationRequested);
+      socket.off('modification:reviewed', handleModificationReviewed);
+      socket.off('incident:new', handleIncidentNew);
       offReconnect();
     };
-  }, [accessToken, organizationId, pathname, role, toast, userId]);
+  }, [accessToken, incrementUnread, organizationId, pathname, role, toast, userId]);
 };

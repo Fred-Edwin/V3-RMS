@@ -80,7 +80,11 @@ export const orderService = {
     return apiClient.patch<OrderDetail>(`/orders/${id}/payment`, { paymentMethod }, accessToken);
   },
 
-  cancel: (id: string, reason: string, accessToken: string): Promise<OrderDetail> => {
-    return apiClient.patch<OrderDetail>(`/orders/${id}/cancel`, { reason }, accessToken);
+  cancel: (
+    id: string,
+    data: { reason: string; reasonDetail?: string },
+    accessToken: string,
+  ): Promise<OrderDetail> => {
+    return apiClient.patch<OrderDetail>(`/orders/${id}/cancel`, data, accessToken);
   },
 };

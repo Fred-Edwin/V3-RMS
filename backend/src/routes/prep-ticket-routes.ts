@@ -30,4 +30,20 @@ prepTicketRoutes.patch(
   prepTicketController.markPrepTicketReady,
 );
 
+prepTicketRoutes.patch(
+  '/prep-tickets/:id/reject',
+  authenticate,
+  branchScope,
+  requireRole('CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
+  prepTicketController.rejectPrepTicket,
+);
+
+prepTicketRoutes.patch(
+  '/prep-tickets/:id/unclaim',
+  authenticate,
+  branchScope,
+  requireRole('CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
+  prepTicketController.unclaimPrepTicket,
+);
+
 export default prepTicketRoutes;

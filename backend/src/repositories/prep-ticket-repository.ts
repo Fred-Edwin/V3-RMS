@@ -183,6 +183,64 @@ export const prepTicketRepository = {
     });
   },
 
+  reject: async (
+    id: string,
+    organizationId: string,
+    rejectedById: string,
+    rejectedReason: string,
+  ): Promise<PrepTicketWithOrderRecord | null> => {
+    const rejectedAt = new Date();
+    const updated = await prisma.prepTicket.updateMany({
+      where: {
+        id,
+        organizationId,
+        status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.IN_PROGRESS] },
+      },
+      data: {
+        status: PrepTicketStatus.REJECTED,
+        rejectedById,
+        rejectedReason,
+        rejectedAt,
+      },
+    });
+
+    if (updated.count === 0) {
+      return null;
+    }
+
+    return prisma.prepTicket.findFirst({
+      where: { id, organizationId },
+      include: prepTicketInclude,
+    });
+  },
+
+  unclaim: async (
+    id: string,
+    organizationId: string,
+  ): Promise<PrepTicketWithOrderRecord | null> => {
+    const updated = await prisma.prepTicket.updateMany({
+      where: {
+        id,
+        organizationId,
+        status: PrepTicketStatus.IN_PROGRESS,
+      },
+      data: {
+        status: PrepTicketStatus.PENDING,
+        claimedById: null,
+        claimedAt: null,
+      },
+    });
+
+    if (updated.count === 0) {
+      return null;
+    }
+
+    return prisma.prepTicket.findFirst({
+      where: { id, organizationId },
+      include: prepTicketInclude,
+    });
+  },
+
   updateItemsSnapshot: async (
     id: string,
     organizationId: string,

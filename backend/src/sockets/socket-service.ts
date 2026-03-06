@@ -1,6 +1,6 @@
 import type { PrepStation } from '@prisma/client';
 import type { PrepTicketRecord } from '../types/order.types';
-import { getSocketServer, stationRoomName, userRoomName } from './socket';
+import { branchRoomName, getSocketServer, stationRoomName, userRoomName } from './socket';
 
 export interface OrderClaimedPayload {
   orderId: string;
@@ -90,5 +90,53 @@ export const socketService = {
 
   emitOrderCancelled: (organizationId: string, stations: PrepStation[], payload: { orderId: string }): void => {
     emitToStations(organizationId, stations, 'order:cancelled', payload);
+  },
+
+  emitOrderForceCancelled: (
+    organizationId: string,
+    stations: PrepStation[],
+    waiterId: string,
+    payload: { orderId: string; dailyNumber: number; cancelledBy: string },
+  ): void => {
+    emitToStations(organizationId, stations, 'order:force_cancelled', payload);
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:force_cancelled', payload);
+  },
+
+  emitTicketRejected: (
+    waiterId: string,
+    payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number; reason: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('ticket:rejected', payload);
+  },
+
+  emitTicketUnclaimed: (
+    waiterId: string,
+    payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('ticket:unclaimed', payload);
+  },
+
+  emitModificationRequested: (
+    organizationId: string,
+    stations: PrepStation[],
+    payload: { requestId: string; orderId: string; dailyNumber: number; description: string; requestedBy: { id: string; name: string } },
+  ): void => {
+    emitToStations(organizationId, stations, 'modification:requested', payload);
+  },
+
+  emitModificationReviewed: (
+    waiterId: string,
+    payload: { requestId: string; orderId: string; status: string; reviewNote: string | null },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('modification:reviewed', payload);
+  },
+
+  emitIncident: (organizationId: string, payload: unknown): void => {
+    const io = getSocketServer();
+    io.to(branchRoomName(organizationId)).emit('incident:new', payload);
   },
 };

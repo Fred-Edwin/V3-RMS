@@ -12,6 +12,7 @@ import {
   Coffee,
   LayoutDashboard,
   LogOut,
+  AlertTriangle,
   Settings2,
   ShoppingCart,
   UserCircle,
@@ -47,6 +48,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
+      { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -123,7 +125,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
     {
-      items: [{ label: 'Reports', href: '/app/manage/reports', icon: BarChart2 }],
+      items: [
+        { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
+        { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
+      ],
     },
     {
       label: 'Account',

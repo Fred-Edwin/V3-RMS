@@ -71,7 +71,15 @@ export function useActiveOrders() {
     socket.on('order:all_ready', handleOrderAllReady);
     socket.on('order:cancelled', handleOrderCancelled);
 
+    const handleForceCancelled = (payload: { orderId: string }) => {
+      removeOrderFromActive(payload.orderId);
+    };
+
+    socket.on('order:force_cancelled', handleForceCancelled);
+
     const offReconnect = onReconnect(() => {
+      joinBranchRoom(organizationId);
+      joinUserRoom(userId);
       void loadActiveOrders();
     });
 
@@ -79,6 +87,7 @@ export function useActiveOrders() {
       socket.off('order:claimed', handleOrderClaimed);
       socket.off('order:all_ready', handleOrderAllReady);
       socket.off('order:cancelled', handleOrderCancelled);
+      socket.off('order:force_cancelled', handleForceCancelled);
       offReconnect();
     };
   }, [

@@ -26,6 +26,38 @@ export interface ServerToClientEvents {
   'order:modified': (payload: PrepTicketDetail) => void;
   'order:cancelled': (payload: { orderId: string }) => void;
   'order:closed': (payload: { orderId: string }) => void;
+  'order:force_cancelled': (payload: { orderId: string }) => void;
+  'ticket:rejected': (payload: {
+    orderId: string;
+    ticketId: string;
+    station: PrepStation;
+    reason: string;
+  }) => void;
+  'ticket:unclaimed': (payload: {
+    orderId: string;
+    ticketId: string;
+    station: PrepStation;
+  }) => void;
+  'modification:requested': (payload: {
+    id: string;
+    orderId: string;
+    description: string;
+    requestedBy: { id: string; name: string };
+  }) => void;
+  'modification:reviewed': (payload: {
+    id: string;
+    orderId: string;
+    status: 'APPROVED' | 'REJECTED';
+    reviewNote?: string;
+  }) => void;
+  'incident:new': (payload: {
+    id: string;
+    type: string;
+    orderId?: string;
+    actor: { id: string; name: string };
+    details: Record<string, unknown>;
+    createdAt: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {

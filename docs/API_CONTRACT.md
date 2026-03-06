@@ -976,6 +976,165 @@ Marks a prep ticket as ready. Moves it from `IN_PROGRESS` to `READY`.
 - Emits `order:ready` WebSocket event to the waiter's user room with station info
 - If ALL prep tickets on the parent order are now `READY`, emits a combined `order:all_ready` event and updates `Order.status` to `READY`
 
+### PATCH `/prep-tickets/:id/reject`
+**Access:** CHEF, KDS, BARISTA, BDS
+Rejects a prep ticket (item unavailable). If all tickets for the order become REJECTED, the order is auto-cancelled.
+
+**Request Body:**
+```json
+{
+  "reason": "Out of stock"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "status": "REJECTED" },
+  "message": "Prep ticket rejected"
+}
+```
+
+**Notes:**
+- Emits `ticket:rejected` to the waiter's user room
+- Logs an incident of type `TICKET_REJECTED`
+- If all order tickets are now REJECTED, auto-cancels the order
+
+---
+
+### PATCH `/prep-tickets/:id/unclaim`
+**Access:** CHEF, KDS, BARISTA, BDS
+Unclaims a prep ticket (fix wrong claim). Only allowed within 2 minutes of claiming.
+
+**Request Body:** None
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "status": "PENDING" },
+  "message": "Prep ticket unclaimed"
+}
+```
+
+**Notes:**
+- Returns 409 if more than 2 minutes since claim
+- Emits `ticket:unclaimed` to the waiter's user room
+- Logs an incident of type `TICKET_UNCLAIMED`
+
+---
+
+### POST `/orders/:orderId/modification-requests`
+**Access:** WAITER
+Creates a modification request for an in-progress order. Waiter must own the order.
+
+**Request Body:**
+```json
+{
+  "description": "Customer wants to change latte to cappuccino"
+}
+```
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "orderId": "uuid",
+    "description": "...",
+    "status": "PENDING",
+    "requestedBy": { "id": "uuid", "name": "John" },
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNote": null,
+    "createdAt": "2026-03-06T10:00:00Z"
+  },
+  "message": "Modification request submitted"
+}
+```
+
+**Notes:**
+- Only one PENDING request allowed per order at a time
+- Order must be IN_PROGRESS (at least one ticket claimed)
+- Emits `modification:requested` to relevant station rooms
+
+---
+
+### GET `/orders/:orderId/modification-requests`
+**Access:** WAITER, CHEF, KDS, BARISTA, BDS, MGR
+Returns all modification requests for the given order.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [{ "id": "uuid", "status": "APPROVED", "..." : "..." }]
+}
+```
+
+---
+
+### PATCH `/modification-requests/:id/review`
+**Access:** CHEF, KDS, BARISTA, BDS
+Approves or rejects a pending modification request.
+
+**Request Body:**
+```json
+{
+  "status": "APPROVED",
+  "reviewNote": "Go ahead"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "status": "APPROVED", "reviewedBy": { "id": "uuid", "name": "Chef" } },
+  "message": "Modification request approved"
+}
+```
+
+**Notes:**
+- On APPROVE: waiter can now edit the order (consumed on edit)
+- Emits `modification:reviewed` to waiter's user room
+
+---
+
+### GET `/incidents`
+**Access:** MGR, DIR
+Returns paginated incident log entries for the manager's branch.
+
+**Query Params:**
+```
+type       (optional) — ORDER_CANCELLED | TICKET_REJECTED | MODIFICATION_REQUESTED | MODIFICATION_APPROVED | MODIFICATION_REJECTED | TICKET_UNCLAIMED | ORDER_STALE
+startDate  (optional) — YYYY-MM-DD
+endDate    (optional) — YYYY-MM-DD
+orderId    (optional) — uuid
+page       (optional, default 1)
+perPage    (optional, default 20)
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "type": "ORDER_CANCELLED",
+      "orderId": "uuid",
+      "actor": { "id": "uuid", "name": "John" },
+      "details": { "reason": "Customer left", "dailyNumber": 42 },
+      "createdAt": "2026-03-06T10:00:00Z"
+    }
+  ],
+  "pagination": { "total": 15, "page": 1, "perPage": 20, "totalPages": 1 }
+}
+```
+
 ---
 
 ## 6. Staff

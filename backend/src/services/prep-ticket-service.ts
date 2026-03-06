@@ -5,6 +5,7 @@ import { prepTicketRepository, type PrepTicketWithOrderRecord } from '../reposit
 import { staffRepository } from '../repositories/staff-repository';
 import { socketService } from '../sockets/socket-service';
 import { fcmService } from './fcm-service';
+import { incidentService } from './incident-service';
 import { env } from '../config/env';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type { ClaimPrepTicketInput, PrepTicketQueryInput } from '../validators/order-schemas';
@@ -262,5 +263,135 @@ export const prepTicketService = {
     }
 
     return serializePrepTicket(readyTicket);
+  },
+
+  reject: async (ticketId: string, reason: string, actor: Actor): Promise<PrepTicketResponse> => {
+    const organizationId = resolveOrganizationId(actor);
+    const station = resolveStation(actor.role);
+
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    if (!ticket) {
+      throw new NotFoundError('Prep ticket not found');
+    }
+
+    if (ticket.station !== station) {
+      throw new ForbiddenError('Cannot reject a ticket from another station');
+    }
+
+    if (ticket.status !== PrepTicketStatus.PENDING && ticket.status !== PrepTicketStatus.IN_PROGRESS) {
+      throw new ConflictError('This ticket cannot be rejected in its current state.');
+    }
+
+    const rejectedTicket = await prepTicketRepository.reject(ticketId, organizationId, actor.id, reason);
+    if (!rejectedTicket) {
+      throw new ConflictError('This ticket cannot be rejected in its current state.');
+    }
+
+    socketService.emitTicketRejected(ticket.order.createdById, {
+      orderId: ticket.orderId,
+      ticketId: rejectedTicket.id,
+      station: rejectedTicket.station,
+      dailyNumber: ticket.order.dailyNumber,
+      reason,
+    });
+
+    incidentService.log({
+      organizationId,
+      orderId: ticket.orderId,
+      type: 'TICKET_REJECTED',
+      actorId: actor.id,
+      details: {
+        ticketId,
+        station,
+        dailyNumber: ticket.order.dailyNumber,
+        reason,
+      },
+    });
+
+    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
+    const allRejected = allOrderTickets.every((t) => t.status === PrepTicketStatus.REJECTED);
+
+    if (allRejected) {
+      await orderRepository.cancel(
+        ticket.orderId,
+        organizationId,
+        [OrderStatus.PENDING, OrderStatus.IN_PROGRESS],
+        'All prep tickets rejected by kitchen/barista',
+        actor.id,
+      );
+
+      incidentService.log({
+        organizationId,
+        orderId: ticket.orderId,
+        type: 'ORDER_CANCELLED',
+        actorId: actor.id,
+        details: {
+          dailyNumber: ticket.order.dailyNumber,
+          reason: 'All prep tickets rejected',
+          autoCancel: true,
+        },
+      });
+    }
+
+    return serializePrepTicket(rejectedTicket);
+  },
+
+  unclaim: async (ticketId: string, actor: Actor): Promise<PrepTicketResponse> => {
+    const organizationId = resolveOrganizationId(actor);
+    const station = resolveStation(actor.role);
+
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    if (!ticket) {
+      throw new NotFoundError('Prep ticket not found');
+    }
+
+    if (ticket.station !== station) {
+      throw new ForbiddenError('Cannot unclaim a ticket from another station');
+    }
+
+    if (ticket.status !== PrepTicketStatus.IN_PROGRESS) {
+      throw new ConflictError('Only in-progress tickets can be unclaimed.');
+    }
+
+    if (ticket.claimedAt) {
+      const elapsedMs = Date.now() - ticket.claimedAt.getTime();
+      const twoMinutes = 2 * 60 * 1000;
+      if (elapsedMs > twoMinutes) {
+        throw new ConflictError('Tickets can only be unclaimed within 2 minutes of claiming.');
+      }
+    }
+
+    const unclaimedTicket = await prepTicketRepository.unclaim(ticketId, organizationId);
+    if (!unclaimedTicket) {
+      throw new ConflictError('Only in-progress tickets can be unclaimed.');
+    }
+
+    socketService.emitTicketUnclaimed(ticket.order.createdById, {
+      orderId: ticket.orderId,
+      ticketId: unclaimedTicket.id,
+      station: unclaimedTicket.station,
+      dailyNumber: ticket.order.dailyNumber,
+    });
+
+    incidentService.log({
+      organizationId,
+      orderId: ticket.orderId,
+      type: 'TICKET_UNCLAIMED',
+      actorId: actor.id,
+      details: {
+        ticketId,
+        station,
+        dailyNumber: ticket.order.dailyNumber,
+      },
+    });
+
+    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
+    const allPending = allOrderTickets.every((t) => t.status === PrepTicketStatus.PENDING);
+
+    if (allPending) {
+      await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
+    }
+
+    return serializePrepTicket(unclaimedTicket);
   },
 };

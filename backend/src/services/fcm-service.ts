@@ -8,6 +8,11 @@ interface OrderReadyPushPayload {
   dailyNumber: number;
 }
 
+interface OrderForceCancelledPushPayload {
+  orderId: string;
+  dailyNumber: number;
+}
+
 interface ShiftReminderPushPayload {
   shiftName: string;
   startTime: string;
@@ -51,6 +56,45 @@ export const fcmService = {
       });
     } catch (error) {
       logger.warn({ error, waiterId, orderId: payload.orderId }, 'Failed to send order ready FCM push');
+    }
+  },
+
+  sendOrderForceCancelledPush: async (waiterId: string, payload: OrderForceCancelledPushPayload): Promise<void> => {
+    try {
+      if (!firebaseMessaging) {
+        return;
+      }
+
+      if (!env.VAPID_KEY) {
+        return;
+      }
+
+      const fcmToken = await authRepository.findFcmToken(waiterId);
+      if (!fcmToken) {
+        return;
+      }
+
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: {
+            Urgency: 'high',
+          },
+          notification: {
+            title: 'Order Cancelled',
+            body: `Order #${payload.dailyNumber} was cancelled by a manager`,
+            icon: '/favicon.ico',
+          },
+          fcmOptions: {
+            link: '/app/orders',
+          },
+        },
+        data: {
+          orderId: payload.orderId,
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, waiterId, orderId: payload.orderId }, 'Failed to send force cancel FCM push');
     }
   },
 

@@ -65,6 +65,8 @@ export interface OrderSummaryRecord {
   total: string;
   paymentMethod: PaymentMethod | null;
   paidAt: Date | null;
+  cancelReason: string | null;
+  cancelledBy: { id: string; name: string } | null;
   createdAt: Date;
   createdBy: {
     id: string;
@@ -87,6 +89,8 @@ export interface OrderRecord {
   total: string;
   paymentMethod: PaymentMethod | null;
   paidAt: Date | null;
+  cancelReason: string | null;
+  cancelledBy: { id: string; name: string } | null;
   closedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

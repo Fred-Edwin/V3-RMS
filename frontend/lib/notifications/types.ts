@@ -1,7 +1,17 @@
 import type { AppRole } from '@/types/auth';
 import type { PrepStation } from '@/types/order';
 
-export type NotificationEventType = 'order:new' | 'order:claimed' | 'order:ready' | 'order:all_ready' | 'order:paid';
+export type NotificationEventType =
+  | 'order:new'
+  | 'order:claimed'
+  | 'order:ready'
+  | 'order:all_ready'
+  | 'order:paid'
+  | 'order:force_cancelled'
+  | 'ticket:rejected'
+  | 'ticket:unclaimed'
+  | 'modification:requested'
+  | 'modification:reviewed';
 
 export type NotificationChannel = 'sound' | 'toast' | 'push';
 
@@ -31,6 +41,32 @@ export interface NotificationEventPayloadMap {
   'order:paid': {
     orderId: string;
     dailyNumber: number;
+  };
+  'order:force_cancelled': {
+    orderId: string;
+  };
+  'ticket:rejected': {
+    orderId: string;
+    ticketId: string;
+    station: PrepStation;
+    reason: string;
+  };
+  'ticket:unclaimed': {
+    orderId: string;
+    ticketId: string;
+    station: PrepStation;
+  };
+  'modification:requested': {
+    id: string;
+    orderId: string;
+    description: string;
+    requestedBy: { id: string; name: string };
+  };
+  'modification:reviewed': {
+    id: string;
+    orderId: string;
+    status: 'APPROVED' | 'REJECTED';
+    reviewNote?: string;
   };
 }
 

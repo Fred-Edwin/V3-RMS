@@ -213,3 +213,52 @@ CLOUDINARY_API_SECRET=your_api_secret
   - [ ] Push notification delivery/tap on real device/browser
   - [ ] Offline/online banner behavior in browser
   - [ ] 375px and 1280px viewport visual audit
+
+## Phase 3 Order Lifecycle Redesign
+
+### Problem
+Production readiness review and staff feedback revealed race conditions, missing features, and UX gaps in the order management flow. Concurrent actors could corrupt order state, kitchen staff couldn't reject or unclaim tickets, and managers had no incident visibility.
+
+### Design Principles
+- **Single ownership**: Only the creating waiter can mutate their order (edit, pay, cancel). Managers can force-cancel.
+- **Race condition prevention**: All state transitions use WHERE clause guards on `status` in Prisma `updateMany`. The `updateItems` transaction re-verifies ticket statuses.
+- **Every non-happy-path event is logged** as an incident for manager review.
+
+### New Models
+- `OrderModificationRequest` — Two-path modification: direct edit when PENDING, request/approve flow when IN_PROGRESS
+- `IncidentLog` — Fire-and-forget logging of cancellations, rejections, unclaims, modification requests
+- `IdempotencyKey` — Deduplicates order creation via `X-Idempotency-Key` header
+
+### New Columns
+- `Order.cancelReason`, `Order.cancelledById` — Predefined cancellation reasons stored with actor
+- `PrepTicket.rejectedById`, `PrepTicket.rejectedReason`, `PrepTicket.rejectedAt` — Kitchen rejection tracking
+- `PrepTicketStatus.REJECTED` — New enum value
+
+### New API Endpoints
+- `PATCH /prep-tickets/:id/reject` — Kitchen/barista reject unavailable items
+- `PATCH /prep-tickets/:id/unclaim` — Fix wrong-name claims (2-min window)
+- `POST /orders/:orderId/modification-requests` — Waiter requests modification on IN_PROGRESS order
+- `GET /orders/:orderId/modification-requests` — List modification requests for an order
+- `PATCH /modification-requests/:id/review` — Chef/barista approve or reject modification
+- `GET /incidents` — Manager-only paginated incident log with type/date filters
+
+### New Socket Events
+- `order:force_cancelled` — Manager force-cancelled an in-progress order
+- `ticket:rejected` — Kitchen/barista rejected a ticket
+- `ticket:unclaimed` — Kitchen/barista unclaimed a ticket
+- `modification:requested` — Waiter requested modification (sent to station rooms)
+- `modification:reviewed` — Chef/barista reviewed modification (sent to waiter)
+- `incident:new` — New incident logged (sent to branch room for managers)
+
+### Frontend Changes
+- Cancel order flow: bottom sheet with 6 predefined reasons + "Other" detail
+- Edit order page: gates by modification request approval when tickets are non-PENDING
+- KDS cards: reject/unclaim buttons with 2-min unclaim window
+- Notification policies: 5 new event types with role-based sound/toast
+- Manager incidents page at `/app/manage/incidents` with type/date filters and real-time updates
+- Incident store with unread count badge
+
+### Key Files Changed
+**Backend**: schema.prisma, order-repository, order-service, prep-ticket-repository, prep-ticket-service, order-controller, prep-ticket-controller, socket-service, fcm-service, order-schemas
+**Backend (new)**: incident-repository, incident-service, incident-controller, incident-routes, modification-request-repository, modification-request-service, modification-request-controller, modification-request-routes, idempotency-repository
+**Frontend**: socket types, order types, notification types/policy, useNotifications, useActiveOrders, usePrepTickets, CancelOrderSheet, OrderDetailBottomSheet, KDSCard, DisplayBoard, edit order page, incidents page, incidentStore

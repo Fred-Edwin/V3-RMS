@@ -96,7 +96,14 @@ export function usePrepTickets() {
     socket.on('order:cancelled', handleOrderCancelled);
     socket.on('order:closed', handleOrderClosed);
 
+    const handleForceCancelled = (payload: { orderId: string }) => {
+      removeOrderTickets(payload.orderId);
+    };
+
+    socket.on('order:force_cancelled', handleForceCancelled);
+
     const offReconnect = onReconnect(() => {
+      joinStationRoom(organizationId, station);
       void loadTickets();
     });
 
@@ -105,6 +112,7 @@ export function usePrepTickets() {
       socket.off('order:modified', handleOrderModified);
       socket.off('order:cancelled', handleOrderCancelled);
       socket.off('order:closed', handleOrderClosed);
+      socket.off('order:force_cancelled', handleForceCancelled);
       offReconnect();
     };
   }, [

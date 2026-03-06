@@ -37,6 +37,12 @@ const orderInclude = {
       name: true,
     },
   },
+  cancelledBy: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
   deliveryZone: {
     select: {
       id: true,
@@ -61,6 +67,12 @@ const orderSummaryInclude = {
     },
   },
   createdBy: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  cancelledBy: {
     select: {
       id: true,
       name: true,
@@ -326,10 +338,11 @@ export const orderRepository = {
     };
   },
 
-  findActive: async (organizationId: string): Promise<FullOrderPrismaRecord[]> => {
+  findActive: async (organizationId: string, orderDate: Date): Promise<FullOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
         organizationId,
+        orderDate,
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
         },
@@ -338,13 +351,15 @@ export const orderRepository = {
       orderBy: {
         createdAt: 'asc',
       },
+      take: 200,
     });
   },
 
-  findActiveSummary: async (organizationId: string): Promise<SummaryOrderPrismaRecord[]> => {
+  findActiveSummary: async (organizationId: string, orderDate: Date): Promise<SummaryOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
         organizationId,
+        orderDate,
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
         },
@@ -353,6 +368,7 @@ export const orderRepository = {
       orderBy: {
         createdAt: 'asc',
       },
+      take: 200,
     });
   },
 
@@ -369,10 +385,21 @@ export const orderRepository = {
           id: orderId,
           organizationId,
         },
+        include: {
+          prepTickets: { select: { station: true, status: true } },
+        },
       });
 
       if (!existingOrder) {
         return null;
+      }
+
+      const stationsToUpdate = Object.keys(ticketSnapshots) as PrepStation[];
+      for (const station of stationsToUpdate) {
+        const ticket = existingOrder.prepTickets.find((t) => t.station === station);
+        if (ticket && ticket.status !== 'PENDING') {
+          return null;
+        }
       }
 
       await tx.orderItem.deleteMany({
@@ -441,6 +468,7 @@ export const orderRepository = {
       where: {
         id: orderId,
         organizationId,
+        status: OrderStatus.READY,
       },
       data: {
         status: OrderStatus.CLOSED,
@@ -463,14 +491,23 @@ export const orderRepository = {
     });
   },
 
-  cancel: async (orderId: string, organizationId: string): Promise<FullOrderPrismaRecord | null> => {
+  cancel: async (
+    orderId: string,
+    organizationId: string,
+    allowedStatuses: OrderStatus[],
+    cancelReason: string,
+    cancelledById: string,
+  ): Promise<FullOrderPrismaRecord | null> => {
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
         organizationId,
+        status: { in: allowedStatuses },
       },
       data: {
         status: OrderStatus.CANCELLED,
+        cancelReason,
+        cancelledById,
       },
     });
 

@@ -445,6 +445,7 @@ model Order {
 - `subtotal`, `deliveryFee`, and `total` are denormalised (stored, not calculated on the fly). This is intentional — it creates an immutable financial record. If a menu item's price changes tomorrow, old orders still reflect the price at the time of ordering.
 - `status` at this level represents the overall order status, derived from the prep tickets but managed explicitly to avoid complex joins on every read.
 - `closedAt` provides a clean timestamp for reporting — "how long from order creation to closure".
+- **Cancellation fields** (added in lifecycle redesign): `cancelReason` stores the predefined reason string, `cancelledById` references the user who cancelled. These are nullable (only set when order is cancelled).
 
 ---
 
@@ -517,6 +518,72 @@ model PrepTicket {
 - `items` is stored as `Json` — a snapshot of the items and quantities relevant to that station at the time the ticket was created. This makes the KDS/BDS display query fast (no joins needed to render a ticket card) and preserves the original state even if an order is subsequently modified.
 - `claimedAt` and `readyAt` timestamps are the source of truth for **prep time metrics** (reports: average prep time per chef/barista).
 - `PrepTicketStatus` is independent from `OrderStatus`. An order can have its food ticket In-Progress while its drinks ticket is still Pending.
+- **Rejection fields** (added in lifecycle redesign): `rejectedById`, `rejectedReason`, `rejectedAt` track when kitchen/barista rejects a ticket as unavailable. If all tickets for an order are REJECTED, the order is auto-cancelled.
+
+---
+
+### 4.13 OrderModificationRequest
+
+When an order is already IN_PROGRESS (at least one ticket claimed), waiters cannot directly edit it. Instead, they submit a modification request describing the desired change. Kitchen/barista staff review and approve or reject it. An approved request unlocks the edit flow for one use.
+
+```prisma
+model OrderModificationRequest {
+  id              String                     @id @default(uuid())
+  organizationId  String                     @map("organization_id")
+  orderId         String                     @map("order_id")
+  requestedById   String                     @map("requested_by_id")
+  description     String
+  status          ModificationRequestStatus  @default(PENDING)
+  reviewedById    String?                    @map("reviewed_by_id")
+  reviewedAt      DateTime?                  @map("reviewed_at")
+  reviewNote      String?                    @map("review_note")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt      @map("updated_at")
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([organizationId, status])
+  @@map("order_modification_requests")
+}
+```
+
+### 4.14 IncidentLog
+
+Fire-and-forget log of every non-happy-path event. Managers can view incidents to understand what went wrong during a service.
+
+```prisma
+model IncidentLog {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  orderId         String?      @map("order_id")
+  type            IncidentType
+  actorId         String       @map("actor_id")
+  details         Json
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([organizationId])
+  @@index([organizationId, type])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("incident_logs")
+}
+```
+
+### 4.15 IdempotencyKey
+
+Prevents duplicate order creation from double-taps or network retries. Keys are pruned after 60 seconds.
+
+```prisma
+model IdempotencyKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  orderId   String   @map("order_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key])
+  @@map("idempotency_keys")
+}
+```
 
 ---
 
@@ -555,6 +622,23 @@ enum PrepTicketStatus {
   PENDING       -- waiting to be claimed
   IN_PROGRESS   -- claimed, being prepared
   READY         -- preparation complete
+  REJECTED      -- item unavailable, rejected by kitchen/barista
+}
+
+enum IncidentType {
+  ORDER_CANCELLED
+  TICKET_REJECTED
+  MODIFICATION_REQUESTED
+  MODIFICATION_APPROVED
+  MODIFICATION_REJECTED
+  TICKET_UNCLAIMED
+  ORDER_STALE
+}
+
+enum ModificationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum PaymentMethod {

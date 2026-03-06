@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { prepTicketService } from '../services/prep-ticket-service';
-import { ClaimPrepTicketSchema, PrepTicketQuerySchema, routeIdParamSchema } from '../validators/order-schemas';
+import { ClaimPrepTicketSchema, PrepTicketQuerySchema, RejectPrepTicketSchema, routeIdParamSchema } from '../validators/order-schemas';
 import { UnauthorizedError } from '../utils/errors';
 
 const requireActor = (req: Request) => {
@@ -46,6 +46,31 @@ export const prepTicketController = {
       success: true,
       data: ticket,
       message: 'Order marked as ready',
+    });
+  },
+
+  rejectPrepTicket: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const { reason } = RejectPrepTicketSchema.parse(req.body);
+    const ticket = await prepTicketService.reject(id, reason, actor);
+
+    res.status(200).json({
+      success: true,
+      data: ticket,
+      message: 'Ticket rejected',
+    });
+  },
+
+  unclaimPrepTicket: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const ticket = await prepTicketService.unclaim(id, actor);
+
+    res.status(200).json({
+      success: true,
+      data: ticket,
+      message: 'Ticket unclaimed',
     });
   },
 };

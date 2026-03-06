@@ -12,7 +12,7 @@ export interface KDSItem {
   notes?: string | null
 }
 
-export type TicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY'
+export type TicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED'
 
 interface KDSCardProps {
   orderNumber: number
@@ -29,6 +29,9 @@ interface KDSCardProps {
   /** When provided on a PENDING ticket, renders an inline ClaimButton instead of the generic action button */
   staffOnShift?: Array<{ id: string; name: string }>
   onClaim?: (staffId: string) => void
+  onReject?: () => void
+  onUnclaim?: () => void
+  claimedAt?: string | null
   className?: string
 }
 
@@ -37,6 +40,7 @@ const ticketBorderClasses: Record<TicketStatus, string> = {
   PENDING: 'border-l-[#F0D080]',
   IN_PROGRESS: 'border-l-[#F5B87A]',
   READY: 'border-l-[#86EFAC]',
+  REJECTED: 'border-l-[#FCA5A5]',
 }
 
 const typeLabels: Record<OrderType, string> = {
@@ -70,6 +74,9 @@ export function KDSCard({
   onAction,
   staffOnShift,
   onClaim,
+  onReject,
+  onUnclaim,
+  claimedAt,
   className,
 }: KDSCardProps) {
   const [elapsedMinutes, setElapsedMinutes] = useState(() => getElapsedMinutes(startTime))
@@ -160,7 +167,24 @@ export function KDSCard({
           {isActionLoading && (
             <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
           )}
+          <div className="mt-2 flex gap-2">
+            {onUnclaim && claimedAt && (Date.now() - new Date(claimedAt).getTime() < 2 * 60 * 1000) && (
+              <Button variant="secondary" size="sm" onClick={onUnclaim} className="flex-1">
+                Unclaim
+              </Button>
+            )}
+            {onReject && (
+              <Button variant="destructive" size="sm" onClick={onReject} className="flex-1">
+                Reject
+              </Button>
+            )}
+          </div>
         </>
+      )}
+      {status === 'PENDING' && onReject && (
+        <Button variant="destructive" size="sm" onClick={onReject} className="mt-2 w-full">
+          Reject
+        </Button>
       )}
     </div>
   )

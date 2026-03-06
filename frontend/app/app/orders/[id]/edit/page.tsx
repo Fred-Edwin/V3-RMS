@@ -6,6 +6,7 @@ import { CartBottomSheet } from '@/components/orders/CartBottomSheet';
 import { Button, IconButton, MenuItemCard, PageHeader, PageLayout } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { menuService } from '@/services/menuService';
+import { modificationRequestService } from '@/services/modificationRequestService';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import { useOrderStore } from '@/store/orderStore';
@@ -29,6 +30,7 @@ export default function EditOrderPage(): JSX.Element {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasApprovedModRequest, setHasApprovedModRequest] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !params.id) {
@@ -49,6 +51,20 @@ export default function EditOrderPage(): JSX.Element {
             notes: item.notes,
           })),
         );
+
+        // Check if there's an approved modification request allowing edit
+        const hasNonPending = loadedOrder.prepTickets.some((t) => t.status !== 'PENDING');
+        if (hasNonPending) {
+          modificationRequestService
+            .getByOrder(loadedOrder.id, accessToken)
+            .then((requests) => {
+              const approved = requests.some((r) => r.status === 'APPROVED');
+              setHasApprovedModRequest(approved);
+            })
+            .catch(() => {
+              // Silently fail — locked state is the safe default
+            });
+        }
       })
       .catch((error) => {
         toast({
@@ -64,9 +80,14 @@ export default function EditOrderPage(): JSX.Element {
     [categories, selectedCategoryId],
   );
 
-  const isLocked = useMemo(
-    () => Boolean(order && order.prepTickets.every((ticket) => ticket.status !== 'PENDING')),
+  const allTicketsPending = useMemo(
+    () => Boolean(order && order.prepTickets.every((ticket) => ticket.status === 'PENDING')),
     [order],
+  );
+
+  const isLocked = useMemo(
+    () => Boolean(order && !allTicketsPending && !hasApprovedModRequest),
+    [order, allTicketsPending, hasApprovedModRequest],
   );
 
   const handleSave = async () => {
@@ -105,7 +126,7 @@ export default function EditOrderPage(): JSX.Element {
     <PageLayout className="space-y-4">
       <PageHeader
         title={order ? `Edit Order #${order.dailyNumber}` : 'Edit Order'}
-        subtitle="Modify items while stations are still pending"
+        subtitle={hasApprovedModRequest && !allTicketsPending ? 'Modification approved — edit and save' : 'Modify items while stations are still pending'}
         action={
           <div className="relative">
             <IconButton
@@ -125,7 +146,13 @@ export default function EditOrderPage(): JSX.Element {
 
       {isLocked && (
         <div className="rounded-md border border-[#FCA5A5] bg-[#FEF2F2] p-3 text-body-sm text-[#991B1B]">
-          This order is already being prepared and cannot be modified.
+          This order is being prepared. Submit a modification request from the order details to request changes.
+        </div>
+      )}
+
+      {hasApprovedModRequest && !allTicketsPending && (
+        <div className="rounded-md border border-amber/50 bg-amber/10 p-3 text-body-sm text-stone-800">
+          Modification approved — make your changes and save.
         </div>
       )}
 

@@ -14,6 +14,7 @@ import { ApiError } from '@/types/api';
 import type { PrepStation, PrepTicketDetail } from '@/types/order';
 import { KDSColumn } from './KDSColumn';
 import { ClaimTicketSheet } from './ClaimTicketSheet';
+import { RejectTicketSheet } from './RejectTicketSheet';
 
 interface DisplayBoardProps {
   station: PrepStation;
@@ -45,6 +46,8 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
 
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
+  const [rejectingTicket, setRejectingTicket] = useState<PrepTicketDetail | null>(null);
+  const [isRejectSubmitting, setIsRejectSubmitting] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -161,6 +164,34 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
+  const handleReject = async (ticketId: string, reason: string) => {
+    if (!accessToken) return;
+    setIsRejectSubmitting(true);
+    try {
+      await prepTicketService.reject(ticketId, reason, accessToken);
+      toast({ variant: 'success', title: 'Ticket rejected' });
+      setRejectingTicket(null);
+      void reload();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to reject ticket.';
+      toast({ variant: 'error', title: message });
+    } finally {
+      setIsRejectSubmitting(false);
+    }
+  };
+
+  const handleUnclaim = async (ticketId: string) => {
+    if (!accessToken) return;
+    try {
+      await prepTicketService.unclaim(ticketId, accessToken);
+      toast({ variant: 'success', title: 'Ticket unclaimed' });
+      void reload();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to unclaim ticket.';
+      toast({ variant: 'error', title: message });
+    }
+  };
+
   // Tablet KDS/BDS: inline ClaimButton, no modal
   const renderTabletTicket = (ticket: PrepTicketDetail) => (
     <KDSCard
@@ -185,6 +216,9 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
       }}
+      onReject={() => setRejectingTicket(ticket)}
+      onUnclaim={ticket.status === 'IN_PROGRESS' ? () => void handleUnclaim(ticket.id) : undefined}
+      claimedAt={ticket.claimedAt}
       className={ticket.status === 'PENDING' ? 'animate-slide-in-top' : undefined}
     />
   );
@@ -216,6 +250,9 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
       }}
+      onReject={() => setRejectingTicket(ticket)}
+      onUnclaim={ticket.status === 'IN_PROGRESS' ? () => void handleUnclaim(ticket.id) : undefined}
+      claimedAt={ticket.claimedAt}
       className={ticket.status === 'PENDING' ? 'animate-slide-in-top' : undefined}
     />
   );
@@ -272,6 +309,15 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
             onClaim={(staffId) => void handleClaim(selectedTicket.id, staffId)}
           />
         )}
+
+        <RejectTicketSheet
+          isOpen={Boolean(rejectingTicket)}
+          onClose={() => setRejectingTicket(null)}
+          onConfirm={(reason) => {
+            if (rejectingTicket) void handleReject(rejectingTicket.id, reason);
+          }}
+          isSubmitting={isRejectSubmitting}
+        />
       </main>
     );
   }
@@ -280,6 +326,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     <FullscreenLayout className="bg-crema">
       <TopBar
         branchName={organizationName ?? 'Branch'}
+        stationLabel={station === 'KITCHEN' ? 'Kitchen Display' : 'Barista Display'}
         connectionStatus={connectionStatus}
         tone="light"
       />
@@ -319,6 +366,14 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           />
         </div>
       </div>
+      <RejectTicketSheet
+        isOpen={Boolean(rejectingTicket)}
+        onClose={() => setRejectingTicket(null)}
+        onConfirm={(reason) => {
+          if (rejectingTicket) void handleReject(rejectingTicket.id, reason);
+        }}
+        isSubmitting={isRejectSubmitting}
+      />
     </FullscreenLayout>
   );
 }

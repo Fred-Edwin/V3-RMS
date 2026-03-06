@@ -48,12 +48,31 @@ export const RecordPaymentSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethod),
 });
 
-export const CancelOrderSchema = z.object({
-  reason: z.string().min(1).max(500),
-});
+export const CANCEL_REASONS = [
+  'Customer changed their mind',
+  'Customer left',
+  'Duplicate order',
+  'Wrong items ordered',
+  'Item unavailable',
+  'Other',
+] as const;
+
+export const CancelOrderSchema = z
+  .object({
+    reason: z.enum(CANCEL_REASONS),
+    reasonDetail: z.string().min(1).max(500).optional(),
+  })
+  .refine(
+    (data) => data.reason !== 'Other' || (data.reasonDetail && data.reasonDetail.trim().length > 0),
+    { message: 'Please provide details for "Other" reason', path: ['reasonDetail'] },
+  );
 
 export const ClaimPrepTicketSchema = z.object({
   claimedById: z.string().uuid(),
+});
+
+export const RejectPrepTicketSchema = z.object({
+  reason: z.string().min(1).max(500),
 });
 
 export const orderListViewSchema = z.enum(['full', 'summary']);

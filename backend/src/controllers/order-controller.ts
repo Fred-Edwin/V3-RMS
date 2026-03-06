@@ -28,7 +28,10 @@ export const orderController = {
   createOrder: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const data = CreateOrderSchema.parse(req.body);
-    const order = await orderService.create(data, actor);
+    const idempotencyKey = typeof req.headers['x-idempotency-key'] === 'string'
+      ? req.headers['x-idempotency-key']
+      : undefined;
+    const order = await orderService.create(data, actor, idempotencyKey);
 
     res.status(201).json({
       success: true,
@@ -101,8 +104,9 @@ export const orderController = {
   cancelOrder: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = routeIdParamSchema.parse(req.params);
-    CancelOrderSchema.parse(req.body);
-    const order = await orderService.cancel(id, actor);
+    const data = CancelOrderSchema.parse(req.body);
+    const reason = data.reason === 'Other' ? `Other: ${data.reasonDetail}` : data.reason;
+    const order = await orderService.cancel(id, reason, actor);
 
     res.status(200).json({
       success: true,
