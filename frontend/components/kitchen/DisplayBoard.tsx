@@ -13,6 +13,7 @@ import { useKitchenStore } from '@/store/kitchenStore';
 import { ApiError } from '@/types/api';
 import type { PrepStation, PrepTicketDetail } from '@/types/order';
 import { KDSColumn } from './KDSColumn';
+import { ClaimTicketSheet } from './ClaimTicketSheet';
 import { RejectTicketSheet } from './RejectTicketSheet';
 
 interface DisplayBoardProps {
@@ -38,6 +39,8 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     typeof navigator !== 'undefined' && navigator.onLine ? 'connected' : 'disconnected',
   );
   const [staffOnShift, setStaffOnShift] = useState<Array<{ id: string; name: string }>>([]);
+  const [isUsingStaffFallback, setIsUsingStaffFallback] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<PrepTicketDetail | null>(null);
 
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
@@ -59,6 +62,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
 
         if (onShiftStaff.length > 0) {
           setStaffOnShift(onShiftStaff.map((entry) => ({ id: entry.id, name: entry.name })));
+          setIsUsingStaffFallback(false);
           return;
         }
 
@@ -67,8 +71,10 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           isActive: true,
         });
         setStaffOnShift(activeStaff.map((entry) => ({ id: entry.id, name: entry.name })));
+        setIsUsingStaffFallback(activeStaff.length > 0);
       } catch {
         setStaffOnShift([]);
+        setIsUsingStaffFallback(false);
       }
     };
 
@@ -116,6 +122,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           { role, toast },
         );
       }
+      setSelectedTicket(null);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to claim this ticket right now.';
       toast({
@@ -123,6 +130,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         title: message,
       });
       void reload();
+      setSelectedTicket(null);
     } finally {
       setClaimingTicketId(null);
     }
@@ -198,7 +206,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
-  // Tablet KDS/BDS: inline ClaimButton, no modal
+  // Tablet KDS/BDS: shared claim sheet flow
   const renderTabletTicket = (ticket: PrepTicketDetail) => (
     <KDSCard
       key={ticket.id}
@@ -209,16 +217,19 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
       specialInstructions={ticket.orderNotes}
       startTime={ticket.createdAt}
       status={ticket.status}
-      actionLabel="Mark Ready"
+      actionLabel={ticket.status === 'PENDING' ? 'Claim' : 'Mark Ready'}
       isActionLoading={
         ticket.status === 'PENDING'
           ? claimingTicketId === ticket.id
           : Boolean(markingReadyTicketIds[ticket.id])
       }
       loadingMessage={ticket.status === 'PENDING' ? 'Claiming ticket...' : 'Marking as ready...'}
-      staffOnShift={ticket.status === 'PENDING' ? staffOnShift : undefined}
-      onClaim={ticket.status === 'PENDING' ? (staffId) => void handleClaim(ticket.id, staffId) : undefined}
       onAction={() => {
+        if (ticket.status === 'PENDING') {
+          if (claimingTicketId === ticket.id) return;
+          setSelectedTicket(ticket);
+          return;
+        }
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
       }}
@@ -264,22 +275,21 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
 
   const isPersonalRole = role === 'CHEF' || role === 'BARISTA';
 
-  const prioritizedInProgressTickets = useMemo(() => {
+  const myInProgressTickets = useMemo(() => {
     if (!currentUserId) {
-      return inProgressTickets;
+      return [];
     }
 
-    return [...inProgressTickets].sort((left, right) => {
-      const leftIsMine = left.claimedBy?.id === currentUserId;
-      const rightIsMine = right.claimedBy?.id === currentUserId;
-
-      if (leftIsMine === rightIsMine) {
-        return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-      }
-
-      return leftIsMine ? -1 : 1;
-    });
+    return inProgressTickets.filter((ticket) => ticket.claimedBy?.id === currentUserId);
   }, [currentUserId, inProgressTickets]);
+
+  const myReadyTickets = useMemo(() => {
+    if (!currentUserId) {
+      return [];
+    }
+
+    return readyTickets.filter((ticket) => ticket.claimedBy?.id === currentUserId);
+  }, [currentUserId, readyTickets]);
 
   if (activeStation !== station) {
     return null;
@@ -305,28 +315,23 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         </section>
 
         <section className="mt-6">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="text-heading-sm font-semibold text-stone-900">In Progress</h2>
-            {currentUserId && prioritizedInProgressTickets.some((ticket) => ticket.claimedBy?.id === currentUserId) ? (
-              <span className="text-caption text-stone-500">Your tickets appear first</span>
-            ) : null}
-          </div>
+          <h2 className="mb-2 text-heading-sm font-semibold text-stone-900">My In Progress</h2>
           <div className="space-y-3">
-            {prioritizedInProgressTickets.length === 0 ? (
-              <p className="text-body-sm text-stone-500">No in-progress tickets.</p>
+            {myInProgressTickets.length === 0 ? (
+              <p className="text-body-sm text-stone-500">You have no claimed tickets in progress.</p>
             ) : (
-              prioritizedInProgressTickets.map((ticket) => renderPhoneTicket(ticket))
+              myInProgressTickets.map((ticket) => renderPhoneTicket(ticket))
             )}
           </div>
         </section>
 
         <section className="mt-6">
-          <h2 className="mb-2 text-heading-sm font-semibold text-stone-900">Ready</h2>
+          <h2 className="mb-2 text-heading-sm font-semibold text-stone-900">My Ready</h2>
           <div className="space-y-3">
-            {readyTickets.length === 0 ? (
-              <p className="text-body-sm text-stone-500">No ready tickets.</p>
+            {myReadyTickets.length === 0 ? (
+              <p className="text-body-sm text-stone-500">You have no ready tickets.</p>
             ) : (
-              readyTickets.map((ticket) => renderPhoneTicket(ticket))
+              myReadyTickets.map((ticket) => renderPhoneTicket(ticket))
             )}
           </div>
         </section>
@@ -395,6 +400,23 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         }}
         isSubmitting={isRejectSubmitting}
       />
+      {selectedTicket && (
+        <ClaimTicketSheet
+          isOpen={Boolean(selectedTicket)}
+          onClose={() => setSelectedTicket(null)}
+          ticketId={selectedTicket.id}
+          station={station}
+          staffOnShift={staffOnShift}
+          helperText={
+            isUsingStaffFallback
+              ? 'No clocked-in staff found. Showing active staff for local testing.'
+              : undefined
+          }
+          isSubmitting={Boolean(selectedTicket && claimingTicketId === selectedTicket.id)}
+          submittingMessage="Claiming ticket..."
+          onClaim={(staffId) => void handleClaim(selectedTicket.id, staffId)}
+        />
+      )}
     </FullscreenLayout>
   );
 }

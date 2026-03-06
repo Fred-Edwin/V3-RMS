@@ -127,4 +127,25 @@ describe('Prep ticket routes', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('PATCH /api/v1/prep-tickets/:id/ready returns 409 when another staff member owns the ticket', async () => {
+    vi.spyOn(prepTicketService, 'markReady').mockRejectedValue(
+      new ConflictError('This ticket is assigned to Chef One.', 'TICKET_ASSIGNED_TO_OTHER_STAFF', {
+        claimedById: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        claimedByName: 'Chef One',
+      }),
+    );
+
+    const response = await request(app)
+      .patch(`/api/v1/prep-tickets/${ticketId}/ready`)
+      .set('Authorization', `Bearer ${chefToken}`);
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('TICKET_ASSIGNED_TO_OTHER_STAFF');
+    expect(response.body.error.message).toBe('This ticket is assigned to Chef One.');
+    expect(response.body.error.details).toEqual({
+      claimedById: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      claimedByName: 'Chef One',
+    });
+  });
 });

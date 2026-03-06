@@ -964,6 +964,11 @@ Marks a prep ticket as ready. Moves it from `IN_PROGRESS` to `READY`.
 
 **Request Body:** None
 
+**Validation Rules:**
+- Ticket must be in `IN_PROGRESS` status
+- Personal chef/barista accounts may only mark tickets ready when `claimedById` matches the authenticated user
+- Shared display accounts (`KDS`, `BDS`) may still complete tickets for the station queue
+
 **Response `200`:**
 ```json
 {
@@ -980,6 +985,21 @@ Marks a prep ticket as ready. Moves it from `IN_PROGRESS` to `READY`.
 **Notes:**
 - Emits `order:ready` WebSocket event to the waiter's user room with station info
 - If ALL prep tickets on the parent order are now `READY`, emits a combined `order:all_ready` event and updates `Order.status` to `READY`
+
+**Error `409` (claimed by another staff member):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TICKET_ASSIGNED_TO_OTHER_STAFF",
+    "message": "This ticket is assigned to Chef Maina.",
+    "details": {
+      "claimedById": "uuid",
+      "claimedByName": "Chef Maina"
+    }
+  }
+}
+```
 
 ### PATCH `/prep-tickets/:id/reject`
 **Access:** CHEF, KDS, BARISTA, BDS

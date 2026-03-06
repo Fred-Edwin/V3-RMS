@@ -64,6 +64,33 @@ const resolveStation = (role: UserRole): PrepStation => {
   throw new ForbiddenError('Role cannot access prep tickets');
 };
 
+const isPersonalPrepRole = (role: UserRole): role is 'CHEF' | 'BARISTA' => {
+  return role === 'CHEF' || role === 'BARISTA';
+};
+
+const assertPersonalActorOwnsTicket = (
+  actor: Actor,
+  ticket: PrepTicketWithOrderRecord,
+): void => {
+  if (!isPersonalPrepRole(actor.role)) {
+    return;
+  }
+
+  if (ticket.claimedById === actor.id) {
+    return;
+  }
+
+  const claimedByName = ticket.claimedBy?.name ?? 'another staff member';
+  throw new ConflictError(
+    `This ticket is assigned to ${claimedByName}.`,
+    'TICKET_ASSIGNED_TO_OTHER_STAFF',
+    {
+      claimedById: ticket.claimedById,
+      claimedByName,
+    },
+  );
+};
+
 const parseDateOnlyStart = (date: string): Date => {
   const parts = date.split('-');
   const year = Number(parts[0] ?? '0');
@@ -234,6 +261,8 @@ export const prepTicketService = {
     if (ticket.status !== PrepTicketStatus.IN_PROGRESS) {
       throw new ConflictError('This ticket is not in progress.');
     }
+
+    assertPersonalActorOwnsTicket(actor, ticket);
 
     const readyTicket = await prepTicketRepository.markReady(ticketId, organizationId);
     if (!readyTicket) {
