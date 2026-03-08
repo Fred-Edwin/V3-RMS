@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart2, CalendarRange, DollarSign, Flame, ListChecks, ShoppingBag, Timer } from 'lucide-react';
+import { BarChart2, CalendarRange, Clock, DollarSign, Flame, ListChecks, ShoppingBag, Timer } from 'lucide-react';
 import {
   EmptyState,
   Input,
@@ -54,6 +54,7 @@ export default function PerformancePage(): JSX.Element {
   const [endDate, setEndDate] = useState<string>(() => toYmd(new Date()));
   const [isLoading, setIsLoading] = useState(true);
   const [report, setReport] = useState<MyPerformance | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const applyPreset = useCallback((nextPreset: RangePreset) => {
     const today = new Date();
@@ -82,6 +83,7 @@ export default function PerformancePage(): JSX.Element {
         endDate,
       });
       setReport(data);
+      setLastUpdated(new Date());
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load personal performance.';
       toast({
@@ -140,13 +142,23 @@ export default function PerformancePage(): JSX.Element {
     );
   }
 
+  const periodSubtitle = `${formatDay(startDate)} – ${formatDay(endDate)}`;
+
   return (
     <PageLayout className="animate-fade-up space-y-6">
-      <PageHeader
-        title="Performance"
-        subtitle="Personal metrics for your selected period."
-        titleClassName="font-display text-display-lg font-semibold text-espresso"
-      />
+      <div className="flex items-start justify-between gap-2">
+        <PageHeader
+          title="Performance"
+          subtitle={`Personal metrics · ${periodSubtitle}`}
+          titleClassName="font-display text-display-lg font-semibold text-espresso"
+        />
+        {lastUpdated && (
+          <p className="mt-2 flex shrink-0 items-center gap-1 text-caption text-stone-400">
+            <Clock size={11} />
+            Updated {lastUpdated.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+      </div>
 
       <section className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-3 sm:p-5">
         <Select

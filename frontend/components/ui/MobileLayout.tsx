@@ -19,7 +19,7 @@ export function MobileLayout({ children, bottomNav, className }: MobileLayoutPro
       </main>
 
       {bottomNav && (
-        <div className="fixed bottom-0 left-0 right-0 z-40">
+        <div className="fixed bottom-0 left-0 right-0 z-40 print:hidden">
           {bottomNav}
         </div>
       )}

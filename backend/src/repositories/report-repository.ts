@@ -1143,6 +1143,72 @@ export const reportRepository = {
     return summaries;
   },
 
+  getDirectorPulse: async (): Promise<import('../types/report.types').DirectorPulseReport> => {
+    const organizations = await prisma.organization.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    const now = new Date();
+
+    const branchResults = await Promise.all(
+      organizations.map(async (organization) => {
+        const [activeOrders, tickets, clockedInRecords] = await Promise.all([
+          prisma.order.count({
+            where: {
+              organizationId: organization.id,
+              status: { in: ['PENDING', 'IN_PROGRESS', 'READY'] },
+            },
+          }),
+          prisma.prepTicket.groupBy({
+            by: ['status'],
+            where: {
+              organizationId: organization.id,
+              status: { in: ['PENDING', 'IN_PROGRESS'] },
+            },
+            _count: { _all: true },
+          }),
+          prisma.clockRecord.findMany({
+            where: {
+              organizationId: organization.id,
+              clockInAt: { not: null },
+              clockOutAt: null,
+            },
+            select: {
+              user: { select: { name: true, role: true } },
+            },
+          }),
+        ]);
+
+        const pendingTickets =
+          tickets.find((ticket) => ticket.status === 'PENDING')?._count._all ?? 0;
+        const inProgressTickets =
+          tickets.find((ticket) => ticket.status === 'IN_PROGRESS')?._count._all ?? 0;
+
+        return {
+          id: organization.id,
+          name: organization.name,
+          activeOrders,
+          pendingTickets,
+          inProgressTickets,
+          clockedInCount: clockedInRecords.length,
+          clockedInStaff: clockedInRecords.map((record) => ({
+            name: record.user.name,
+            role: record.user.role,
+          })),
+        };
+      }),
+    );
+
+    return {
+      asOf: now.toISOString(),
+      totalActiveOrders: branchResults.reduce((sum, branch) => sum + branch.activeOrders, 0),
+      totalClockedIn: branchResults.reduce((sum, branch) => sum + branch.clockedInCount, 0),
+      branches: branchResults,
+    };
+  },
+
   getPrepRowsByReadyAtRange: async (organizationId: string, date: Date) => {
     const nextDate = toNextDate(date);
     return prisma.prepTicket.findMany({

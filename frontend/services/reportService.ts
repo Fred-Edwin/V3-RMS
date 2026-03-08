@@ -7,6 +7,7 @@ import type {
   BranchOverview,
   BranchOverviewQuery,
   DailySummary,
+  DirectorPulseReport,
   DirectorTrendsQuery,
   DirectorTrendsReport,
   ExportReportQuery,
@@ -113,6 +114,10 @@ export const reportService = {
       })}`,
       accessToken,
     );
+  },
+
+  getDirectorPulse: (accessToken: string): Promise<DirectorPulseReport> => {
+    return apiClient.get<DirectorPulseReport>('/reports/director-pulse', accessToken);
   },
 
   exportReport: async (accessToken: string, query: ExportReportQuery): Promise<void> => {

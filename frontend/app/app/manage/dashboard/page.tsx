@@ -1,8 +1,9 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Users } from 'lucide-react';
+import { Activity, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Printer, ShoppingBag, Users } from 'lucide-react';
 import {
+  Button,
   EmptyState,
   OrderCard,
   PageHeader,
@@ -192,6 +193,21 @@ export default function ManagerDashboardPage(): JSX.Element {
     );
   }, [dailySummary]);
 
+  const summaryAvgOrderValue = useMemo(() => {
+    if (!dailySummary || dailySummary.orderCount === 0) return 'KES 0.00';
+    const total = Number.parseFloat(dailySummary.totalRevenue);
+    if (Number.isNaN(total)) return 'KES 0.00';
+    const avg = total / dailySummary.orderCount;
+    return `KES ${avg.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }, [dailySummary]);
+
+  const formattedTotalRevenue = useMemo(() => {
+    if (!dailySummary) return 'KES 0.00';
+    const num = Number.parseFloat(dailySummary.totalRevenue);
+    if (Number.isNaN(num)) return 'KES 0.00';
+    return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }, [dailySummary]);
+
   const orderTypeBars = useMemo(() => {
     if (!dailySummary) {
       return [];
@@ -222,25 +238,49 @@ export default function ManagerDashboardPage(): JSX.Element {
   const hasClosedOrdersForSelectedDate = (dailySummary?.orderCount ?? 0) > 0;
 
   return (
-    <PageLayout className="animate-fade-up space-y-6">
-      <PageHeader
-        title="Manager Dashboard"
-        subtitle="Live operations and daily branch insights."
-        titleClassName="font-display text-display-lg font-semibold text-espresso"
-      />
+    <PageLayout className="animate-fade-up space-y-6 print:space-y-4">
+      {/* ── Print header (hidden on screen) ───────────────────────── */}
+      <div className="hidden print:block">
+        <h1 className="text-2xl font-bold text-stone-900">Manager Dashboard — Daily Summary</h1>
+        <p className="mt-1 text-sm text-stone-600">{formattedSelectedDate}</p>
+        <p className="mt-1 text-xs text-stone-400">Generated {new Date().toLocaleString('en-GB')}</p>
+        <hr className="mt-3 border-stone-200" />
+      </div>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="flex items-start justify-between gap-3 print:hidden">
+        <PageHeader
+          title="Manager Dashboard"
+          subtitle="Live operations and daily branch insights."
+          titleClassName="font-display text-display-lg font-semibold text-espresso"
+        />
+        <Button
+          variant="ghost"
+          leftIcon={<Printer size={16} />}
+          className="mt-1 shrink-0"
+          onClick={() => window.print()}
+        >
+          Print
+        </Button>
+      </div>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
-          label="Orders"
+          label="Closed Orders"
           value={dailySummary?.orderCount ?? 0}
           caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<Activity size={18} />}
         />
         <StatCard
           label="Revenue"
-          value={`KES ${dailySummary?.totalRevenue ?? '0.00'}`}
+          value={formattedTotalRevenue}
           caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<DollarSign size={18} />}
+        />
+        <StatCard
+          label="Avg Order Value"
+          value={summaryAvgOrderValue}
+          caption="Closed orders"
+          icon={<ShoppingBag size={18} />}
         />
         <StatCard
           label="Avg Prep"
@@ -365,7 +405,7 @@ export default function ManagerDashboardPage(): JSX.Element {
               </div>
             )}
             <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <StatCard label="Total Revenue" value={`KES ${dailySummary.totalRevenue}`} icon={<DollarSign size={16} />} />
+              <StatCard label="Total Revenue" value={formattedTotalRevenue} icon={<DollarSign size={16} />} />
               <StatCard label="Closed Orders" value={dailySummary.orderCount} icon={<Activity size={16} />} />
               <StatCard
                 label="Top Item"

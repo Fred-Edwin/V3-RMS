@@ -91,6 +91,25 @@ This file is updated as tasks are completed. It is the agent's source of truth a
   - Added `manifest`, `appleWebApp` (iOS "Add to Home Screen"), and `icons` to `metadata`
 - App is now installable as a PWA on Android and iOS (staff daily use case).
 
+### Director Experience Improvements (Post-Phase Addendum)
+
+#### Backend
+- [x] Added `DirectorPulseReport` type to `backend/src/types/report.types.ts` with per-branch active order counts, pending/in-progress ticket counts, and clocked-in staff roster.
+- [x] Added `getDirectorPulse()` to `backend/src/repositories/report-repository.ts` — queries all active organisations in parallel for live order counts (status IN `PENDING, IN_PROGRESS, READY`), prep ticket counts, and clock records where `clockInAt IS NOT NULL AND clockOutAt IS NULL`.
+- [x] Added `getDirectorPulse(actor)` to `backend/src/services/report-service.ts` with DIRECTOR role guard.
+- [x] Added `DirectorPulseQuerySchema` to `backend/src/validators/report-schemas.ts`.
+- [x] Added `getDirectorPulse` handler to `backend/src/controllers/report-controller.ts`.
+- [x] Registered `GET /api/v1/reports/director-pulse` in `backend/src/routes/report-routes.ts` — DIRECTOR-only, no branchScope middleware (cross-org).
+
+#### Frontend
+- [x] Added `DirectorPulseBranchRow` and `DirectorPulseReport` interfaces to `frontend/types/report.ts`.
+- [x] Added `getDirectorPulse(accessToken)` to `frontend/services/reportService.ts`.
+- [x] Rebuilt `frontend/app/app/director/page.tsx` with four new capabilities:
+  1. **Live Operations Pulse** — real-time panel showing active orders + pending tickets + clocked-in staff per branch with a refreshable snapshot timestamp and "Live" indicator. Includes system-wide KPI row (total active orders, total clocked-in, branches reporting, branches active).
+  2. **Today vs Yesterday delta stat cards** — Overview Panel now loads today and yesterday in parallel; Revenue and Orders stat cards show % change delta badge with directional indicator.
+  3. **Daily Branch Breakdown section** — new section below Overview Panel; loads `GET /reports/daily-summary` for each branch in parallel, renders per-branch cards with: revenue, order type split (Dine-In/Take-Away/Delivery), payment method bar chart (Mpesa/Cash/Card), top 5 items with rank, quantity, and revenue, and avg prep times.
+  4. **All existing sections preserved** — Trend Analytics, Branch Performance Report (with date range, export, print), and Staff Performance Report all retained intact.
+
 ---
 
 ## Decisions Made

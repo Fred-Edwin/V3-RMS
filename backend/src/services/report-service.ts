@@ -8,6 +8,7 @@ import type {
   BranchTrendsReport,
   BranchOverviewReport,
   DailySummaryReport,
+  DirectorPulseReport,
   DirectorTrendsReport,
   MyPerformanceReport,
   ReportType,
@@ -294,6 +295,14 @@ export const reportService = {
       filename: `${filenameStem}.${query.format}`,
       contentType: query.format === 'csv' ? 'text/csv; charset=utf-8' : 'application/pdf',
     };
+  },
+
+  getDirectorPulse: async (actor: Actor): Promise<DirectorPulseReport> => {
+    if (actor.role !== 'DIRECTOR') {
+      throw new ForbiddenError('Access restricted to directors');
+    }
+
+    return reportRepository.getDirectorPulse();
   },
 
   precomputeDailySummaryForOrganization: async (

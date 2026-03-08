@@ -162,6 +162,23 @@ export interface PrepMyPerformanceReport {
 
 export type MyPerformanceReport = WaiterMyPerformanceReport | PrepMyPerformanceReport;
 
+export interface DirectorPulseBranchRow {
+  id: string;
+  name: string;
+  activeOrders: number;
+  pendingTickets: number;
+  inProgressTickets: number;
+  clockedInCount: number;
+  clockedInStaff: Array<{ name: string; role: string }>;
+}
+
+export interface DirectorPulseReport {
+  asOf: string;
+  totalActiveOrders: number;
+  totalClockedIn: number;
+  branches: DirectorPulseBranchRow[];
+}
+
 export type ReportType = 'daily_summary' | 'staff_performance' | 'branch_overview';
 export type ReportFormat = 'csv' | 'pdf';
 

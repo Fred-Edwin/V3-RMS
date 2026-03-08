@@ -44,6 +44,9 @@ export const ExportQuerySchema = dateRangeSchema
     path: ['startDate'],
   });
 
+export const DirectorPulseQuerySchema = z.object({});
+export type DirectorPulseQueryInput = z.infer<typeof DirectorPulseQuerySchema>;
+
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;
 export type BranchOverviewQueryInput = z.infer<typeof BranchOverviewQuerySchema>;

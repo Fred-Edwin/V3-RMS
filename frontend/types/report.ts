@@ -164,6 +164,23 @@ export interface PrepPerformance {
 
 export type MyPerformance = WaiterPerformance | PrepPerformance;
 
+export interface DirectorPulseBranchRow {
+  id: string;
+  name: string;
+  activeOrders: number;
+  pendingTickets: number;
+  inProgressTickets: number;
+  clockedInCount: number;
+  clockedInStaff: Array<{ name: string; role: string }>;
+}
+
+export interface DirectorPulseReport {
+  asOf: string;
+  totalActiveOrders: number;
+  totalClockedIn: number;
+  branches: DirectorPulseBranchRow[];
+}
+
 export interface StaffPerformanceQuery {
   startDate: string;
   endDate: string;

@@ -45,6 +45,13 @@ reportRoutes.get(
 );
 
 reportRoutes.get(
+  '/reports/director-pulse',
+  authenticate,
+  requireRole('DIRECTOR'),
+  reportController.getDirectorPulse,
+);
+
+reportRoutes.get(
   '/reports/my-performance',
   authenticate,
   branchScope,

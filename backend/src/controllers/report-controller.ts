@@ -5,6 +5,7 @@ import {
   BranchTrendsQuerySchema,
   BranchOverviewQuerySchema,
   DailySummaryQuerySchema,
+  DirectorPulseQuerySchema,
   DirectorTrendsQuerySchema,
   ExportQuerySchema,
   MyPerformanceQuerySchema,
@@ -79,6 +80,17 @@ export const reportController = {
     const actor = requireActor(req);
     const query = MyPerformanceQuerySchema.parse(req.query);
     const report = await reportService.getMyPerformance(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getDirectorPulse: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    DirectorPulseQuerySchema.parse(req.query);
+    const report = await reportService.getDirectorPulse(actor);
 
     res.status(200).json({
       success: true,
