@@ -28,7 +28,11 @@
       "Bash(curl -s -X POST http://localhost:4000/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"admin@wendo.co.ke\"\",\"\"password\"\":\"\"Admin123!\"\"}')",
       "Bash(node -e \"fetch\\(''http://localhost:4000/api/v1/auth/login'',{method:''POST'',headers:{''Content-Type'':''application/json''},body:JSON.stringify\\({email:''admin@wendo.co.ke'',password:''Admin123!''}\\)}\\).then\\(r=>r.json\\(\\)\\).then\\(d=>console.log\\(JSON.stringify\\(d,null,2\\)\\)\\).catch\\(e=>console.error\\(e\\)\\)\")",
       "Bash(node -e \"const {PrismaClient}=require\\(''@prisma/client''\\);const p=new PrismaClient\\(\\);p.user.findFirst\\(\\).then\\(u=>console.log\\(''DB OK, user:'',u?.email\\)\\).catch\\(e=>console.error\\(''DB ERROR:'',e.message\\)\\).finally\\(\\(\\)=>p.$disconnect\\(\\)\\)\")",
-      "Bash(node -e \"const{PrismaClient}=require\\(''@prisma/client''\\);const p=new PrismaClient\\(\\);p.user.findFirst\\(\\).then\\(u=>console.log\\(''DB OK, user:'',u?.email\\)\\).catch\\(e=>console.error\\(''DB ERROR:'',e.message\\)\\).finally\\(\\(\\)=>p[''$disconnect'']\\(\\)\\)\")"
+      "Bash(node -e \"const{PrismaClient}=require\\(''@prisma/client''\\);const p=new PrismaClient\\(\\);p.user.findFirst\\(\\).then\\(u=>console.log\\(''DB OK, user:'',u?.email\\)\\).catch\\(e=>console.error\\(''DB ERROR:'',e.message\\)\\).finally\\(\\(\\)=>p[''$disconnect'']\\(\\)\\)\")",
+      "Bash(npx prisma migrate dev --name order_lifecycle_redesign --create-only)",
+      "Bash(docker compose up -d postgres redis)",
+      "Bash(set DATABASE_URL=postgresql://wendo_user:10035south@localhost:5433/wendo_rms)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name order_lifecycle_redesign --create-only)"
     ]
   }
 }
