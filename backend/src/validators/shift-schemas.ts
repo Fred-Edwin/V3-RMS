@@ -38,6 +38,12 @@ export const CreateShiftAssignmentSchema = z.object({
   date: isoDateSchema,
 });
 
+export const BatchCreateShiftAssignmentSchema = z.object({
+  shiftId: z.string().uuid(),
+  userIds: z.array(z.string().uuid()).min(1).max(50),
+  dates: z.array(isoDateSchema).min(1).max(62),
+});
+
 export const ClockInOutSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
@@ -63,5 +69,6 @@ export type UpdateShiftInput = z.infer<typeof UpdateShiftSchema>;
 export type ShiftListQueryInput = z.infer<typeof ShiftListQuerySchema>;
 export type ShiftAssignmentQueryInput = z.infer<typeof ShiftAssignmentQuerySchema>;
 export type CreateShiftAssignmentInput = z.infer<typeof CreateShiftAssignmentSchema>;
+export type BatchCreateShiftAssignmentInput = z.infer<typeof BatchCreateShiftAssignmentSchema>;
 export type ClockInOutInput = z.infer<typeof ClockInOutSchema>;
 export type ClockOverrideInput = z.infer<typeof ClockOverrideSchema>;

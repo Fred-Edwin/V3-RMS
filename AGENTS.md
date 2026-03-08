@@ -7,7 +7,7 @@ a premium coffee bistro in Nyeri, Kenya, expanding from 2 to 10 branches.
 Stack: Next.js + TypeScript (frontend), Node.js + Express + TypeScript
 (backend), PostgreSQL + Prisma, Redis, Socket.io.
 
-## Project Documents — Read ONLY THE SPECIFIED SECTION/LINES of the document Before Acting - Do not read the whole document to avoid wasting tokens.
+## Project Documents — Read THE SPECIFIED SECTION of the document Before Acting - Do not read the whole document to avoid wasting tokens.
 
 Before implementing anything, read the document(s) specific sections/lines relevant to your task:
 

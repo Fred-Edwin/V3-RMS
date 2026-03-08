@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { shiftAssignmentService } from '../services/shift-assignment-service';
 import { UnauthorizedError } from '../utils/errors';
 import {
+  BatchCreateShiftAssignmentSchema,
   CreateShiftAssignmentSchema,
   ShiftAssignmentIdParamSchema,
   ShiftAssignmentQuerySchema,
@@ -36,6 +37,18 @@ export const shiftAssignmentController = {
       success: true,
       data: assignment,
       message: 'Shift assigned successfully',
+    });
+  },
+
+  batchCreateAssignments: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = BatchCreateShiftAssignmentSchema.parse(req.body);
+    const result = await shiftAssignmentService.batchCreateAssignments(actor, data);
+
+    res.status(207).json({
+      success: true,
+      data: result,
+      message: `${result.created} assignment${result.created === 1 ? '' : 's'} created, ${result.skipped} skipped`,
     });
   },
 

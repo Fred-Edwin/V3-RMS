@@ -88,3 +88,15 @@ export interface ClockOverrideInput {
   action: 'CLOCK_IN' | 'CLOCK_OUT';
   reason: string;
 }
+
+export interface BatchCreateAssignmentInput {
+  shiftId: string;
+  userIds: string[];
+  dates: string[];
+}
+
+export interface BatchCreateAssignmentResult {
+  created: number;
+  skipped: number;
+  errors: { userId: string; date: string; reason: string }[];
+}

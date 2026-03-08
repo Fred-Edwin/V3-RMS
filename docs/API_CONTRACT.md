@@ -1991,6 +1991,46 @@ endDate     (required) — YYYY-MM-DD
 
 ---
 
+### GET `/reports/director-pulse`
+**Access:** 🔑 DIR
+Returns a real-time snapshot of live operations across all active branches — active orders, prep tickets in flight, and clocked-in staff.
+
+**Query Params:** None
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "asOf": "2026-03-08T07:45:12.000Z",
+    "totalActiveOrders": 14,
+    "totalClockedIn": 9,
+    "branches": [
+      {
+        "id": "uuid",
+        "name": "Wendo Kingz",
+        "activeOrders": 8,
+        "pendingTickets": 3,
+        "inProgressTickets": 2,
+        "clockedInCount": 5,
+        "clockedInStaff": [
+          { "name": "James Mwangi", "role": "WAITER" },
+          { "name": "Alice Njeri", "role": "CHEF" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Notes:**
+- `activeOrders` counts orders with status `PENDING`, `IN_PROGRESS`, or `READY` (not yet closed).
+- `pendingTickets` / `inProgressTickets` count prep tickets at those statuses at that branch.
+- `clockedInStaff` lists staff whose `clockInAt IS NOT NULL AND clockOutAt IS NULL` at that branch.
+- Response is live — no caching applied.
+
+---
+
 ### GET `/reports/export`
 **Access:** 🔑 MGR, DIR  
 Exports a report as PDF or CSV.

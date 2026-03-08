@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search } from 'lucide-react';
 import { Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
 import { ApiError } from '@/types/api';
@@ -28,6 +28,9 @@ export default function Page(): JSX.Element {
   const { toast } = useToast();
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -83,6 +86,19 @@ export default function Page(): JSX.Element {
   useEffect(() => {
     void loadStaff();
   }, [loadStaff]);
+
+  const filteredStaff = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return staff.filter((item) => {
+      const matchesSearch = !q || item.name.toLowerCase().includes(q) || item.email.toLowerCase().includes(q);
+      const matchesRole = !filterRole || item.role === filterRole;
+      const matchesStatus =
+        !filterStatus ||
+        (filterStatus === 'active' && item.isActive) ||
+        (filterStatus === 'inactive' && !item.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [staff, searchQuery, filterRole, filterStatus]);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -217,12 +233,65 @@ export default function Page(): JSX.Element {
 
       {/* Staff list */}
       <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
-          <div>
-            <h2 className="text-heading-sm font-semibold text-stone-900">Team Members</h2>
-            <p className="mt-0.5 text-body-sm text-stone-500">
-              {loading ? 'Loading\u2026' : `${staff.length} staff account${staff.length === 1 ? '' : 's'}`}
-            </p>
+        <div className="space-y-3 border-b border-stone-100 px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-heading-sm font-semibold text-stone-900">Team Members</h2>
+              <p className="mt-0.5 text-body-sm text-stone-500">
+                {loading
+                  ? 'Loading\u2026'
+                  : filteredStaff.length === staff.length
+                    ? `${staff.length} staff account${staff.length === 1 ? '' : 's'}`
+                    : `${filteredStaff.length} of ${staff.length} accounts`}
+              </p>
+            </div>
+          </div>
+
+          {/* Search + filters */}
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                type="search"
+                placeholder="Search by name or email…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-full rounded-lg border border-stone-200 bg-white pl-8 pr-3 text-body-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none"
+              />
+            </div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="h-9 rounded-lg border border-stone-200 bg-white px-3 text-body-sm text-stone-700 focus:border-stone-400 focus:outline-none"
+              aria-label="Filter by role"
+            >
+              <option value="">All roles</option>
+              <option value="WAITER">Waiter</option>
+              <option value="CHEF">Chef</option>
+              <option value="BARISTA">Barista</option>
+              <option value="KITCHEN_DISPLAY">Kitchen Display</option>
+              <option value="BARISTA_DISPLAY">Barista Display</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="h-9 rounded-lg border border-stone-200 bg-white px-3 text-body-sm text-stone-700 focus:border-stone-400 focus:outline-none"
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            {(searchQuery || filterRole || filterStatus) && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setFilterRole(''); setFilterStatus(''); }}
+                className="h-9 rounded-lg border border-stone-200 px-3 text-body-sm text-stone-500 transition-colors duration-fast hover:border-stone-300 hover:text-stone-700"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -252,9 +321,17 @@ export default function Page(): JSX.Element {
               body="Create your first staff account using the form below."
             />
           </div>
+        ) : filteredStaff.length === 0 ? (
+          <div className="px-5 py-8">
+            <EmptyState
+              icon={<Search size={24} />}
+              heading="No results"
+              body="No staff match your search or filters. Try adjusting the criteria."
+            />
+          </div>
         ) : (
           <ul className="divide-y divide-stone-100">
-            {staff.map((item) => (
+            {filteredStaff.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-4 px-5 py-4">
                 {/* Avatar + info */}
                 <div className="flex min-w-0 items-center gap-3">

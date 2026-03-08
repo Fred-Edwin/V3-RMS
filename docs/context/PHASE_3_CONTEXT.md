@@ -54,9 +54,11 @@ This file captures what was implemented for Phase 3 (Order Management), key deci
   - `useOrderHistory`
   - `usePrepTicketHistory`
 - [x] Added order/kitchen/dashboard components:
-  - `CartBottomSheet`
   - `OrderConfirmBottomSheet`
   - `OrderDetailBottomSheet`
+  - `EditCheckoutSheet`
+  - `CancelOrderSheet`
+  - `RejectTicketSheet`
   - `OrderHistoryRow`
   - `KDSColumn`
   - `ClaimTicketSheet`
@@ -223,42 +225,56 @@ Production readiness review and staff feedback revealed race conditions, missing
 - **Single ownership**: Only the creating waiter can mutate their order (edit, pay, cancel). Managers can force-cancel.
 - **Race condition prevention**: All state transitions use WHERE clause guards on `status` in Prisma `updateMany`. The `updateItems` transaction re-verifies ticket statuses.
 - **Every non-happy-path event is logged** as an incident for manager review.
+- **Simplified modification flow** (based on head waitress feedback): PENDING orders are freely editable; non-PENDING orders can only be cancelled. No request/approve workflow.
 
 ### New Models
-- `OrderModificationRequest` — Two-path modification: direct edit when PENDING, request/approve flow when IN_PROGRESS
-- `IncidentLog` — Fire-and-forget logging of cancellations, rejections, unclaims, modification requests
+- `OrderModificationRequest` — **Deprecated**: DB model exists but routes are unregistered and frontend removed. The simplified flow makes it unnecessary.
+- `IncidentLog` — Fire-and-forget logging of cancellations, rejections, unclaims
 - `IdempotencyKey` — Deduplicates order creation via `X-Idempotency-Key` header
 
 ### New Columns
 - `Order.cancelReason`, `Order.cancelledById` — Predefined cancellation reasons stored with actor
-- `PrepTicket.rejectedById`, `PrepTicket.rejectedReason`, `PrepTicket.rejectedAt` — Kitchen rejection tracking
-- `PrepTicketStatus.REJECTED` — New enum value
+- `PrepTicket.rejectedById`, `PrepTicket.rejectedReason`, `PrepTicket.rejectedAt` — Kitchen rejection tracking (rejection reverts ticket to PENDING, not a terminal state)
+
+### Order Modification Flow (Simplified)
+- **PENDING**: Waiter can freely edit via `/app/orders/[id]/edit` (2-column menu grid with images, floating cart FAB, EditCheckoutSheet)
+- **IN_PROGRESS / READY**: Order is locked. Waiter can only cancel (predefined reasons). If kitchen rejects a ticket, it reverts to PENDING — waiter can then edit again.
+- **Race condition handling**: If a waiter tries to edit but a ticket was claimed between page load and save, the backend returns 409. Waiter can ask the chef to reject the ticket, which reverts it to PENDING.
+
+### Ticket Rejection Flow
+- Kitchen/barista rejects a ticket with a predefined reason (Item out of stock, Equipment not working, Wrong station, Ingredient unavailable, Quality issue, Other)
+- Ticket reverts to `PENDING` status (claim data cleared, rejection metadata stored for audit)
+- If all tickets for the order revert to `PENDING`, order status also reverts to `PENDING`
+- Waiter receives `ticket:rejected` notification: "Item out of stock — you can now edit or cancel."
+
+### Cancellation Flow
+- Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS`, or `READY` status
+- Managers can cancel any non-terminal order (force cancel)
+- Predefined reasons: Customer changed their mind, Customer left, Duplicate order, Wrong items ordered, Item unavailable, Other (requires detail)
+- Force cancel of IN_PROGRESS/READY emits `order:force_cancelled` to station rooms + waiter
 
 ### New API Endpoints
-- `PATCH /prep-tickets/:id/reject` — Kitchen/barista reject unavailable items
+- `PATCH /prep-tickets/:id/reject` — Kitchen/barista reject (reverts ticket to PENDING)
 - `PATCH /prep-tickets/:id/unclaim` — Fix wrong-name claims (2-min window)
-- `POST /orders/:orderId/modification-requests` — Waiter requests modification on IN_PROGRESS order
-- `GET /orders/:orderId/modification-requests` — List modification requests for an order
-- `PATCH /modification-requests/:id/review` — Chef/barista approve or reject modification
 - `GET /incidents` — Manager-only paginated incident log with type/date filters
 
 ### New Socket Events
 - `order:force_cancelled` — Manager force-cancelled an in-progress order
-- `ticket:rejected` — Kitchen/barista rejected a ticket
+- `ticket:rejected` — Kitchen/barista rejected a ticket (reverted to PENDING)
 - `ticket:unclaimed` — Kitchen/barista unclaimed a ticket
-- `modification:requested` — Waiter requested modification (sent to station rooms)
-- `modification:reviewed` — Chef/barista reviewed modification (sent to waiter)
 - `incident:new` — New incident logged (sent to branch room for managers)
 
 ### Frontend Changes
 - Cancel order flow: bottom sheet with 6 predefined reasons + "Other" detail
-- Edit order page: gates by modification request approval when tickets are non-PENDING
-- KDS cards: reject/unclaim buttons with 2-min unclaim window
-- Notification policies: 5 new event types with role-based sound/toast
+- Edit order page: 2-column menu grid with OrderMenuItemTile (images, quantity badges), floating cart FAB, EditCheckoutSheet — matches new order page UX
+- KDS cards: reject/unclaim buttons with predefined reject reasons and 2-min unclaim window
+- Notification policies for ticket:rejected, ticket:unclaimed, order:force_cancelled
 - Manager incidents page at `/app/manage/incidents` with type/date filters and real-time updates
 - Incident store with unread count badge
+- Removed: modification request flow (frontend service, socket handlers, notification policies, OrderDetailBottomSheet prop, orders page BottomSheet)
+- Deleted: `CartBottomSheet.tsx`, `modificationRequestService.ts`
 
 ### Key Files Changed
-**Backend**: schema.prisma, order-repository, order-service, prep-ticket-repository, prep-ticket-service, order-controller, prep-ticket-controller, socket-service, fcm-service, order-schemas
-**Backend (new)**: incident-repository, incident-service, incident-controller, incident-routes, modification-request-repository, modification-request-service, modification-request-controller, modification-request-routes, idempotency-repository
-**Frontend**: socket types, order types, notification types/policy, useNotifications, useActiveOrders, usePrepTickets, CancelOrderSheet, OrderDetailBottomSheet, KDSCard, DisplayBoard, edit order page, incidents page, incidentStore
+**Backend**: schema.prisma, order-repository, order-service, prep-ticket-repository, prep-ticket-service, order-controller, prep-ticket-controller, socket-service, fcm-service, order-schemas, routes/index.ts
+**Backend (new)**: incident-repository, incident-service, incident-controller, incident-routes, idempotency-repository
+**Frontend**: socket types, order types, notification types/policy, useNotifications, useActiveOrders, usePrepTickets, CancelOrderSheet, RejectTicketSheet, EditCheckoutSheet, OrderDetailBottomSheet, KDSCard, DisplayBoard, edit order page, orders page, incidents page, incidentStore

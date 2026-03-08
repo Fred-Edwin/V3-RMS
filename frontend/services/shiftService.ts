@@ -1,6 +1,8 @@
 import { apiClient } from '@/lib/apiClient';
 import type { ApiResponseEnvelope } from '@/types/api';
 import type {
+  BatchCreateAssignmentInput,
+  BatchCreateAssignmentResult,
   ClockInOutInput,
   ClockOverrideInput,
   CreateShiftAssignmentInput,
@@ -73,6 +75,13 @@ export const shiftService = {
       createdAt: string;
       updatedAt: string;
     }>('/shift-assignments', data, accessToken);
+  },
+
+  batchCreateAssignments: (
+    data: BatchCreateAssignmentInput,
+    accessToken: string,
+  ): Promise<BatchCreateAssignmentResult> => {
+    return apiClient.post<BatchCreateAssignmentResult>('/shift-assignments/batch', data, accessToken);
   },
 
   deleteAssignment: async (id: string, accessToken: string): Promise<void> => {
