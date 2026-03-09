@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Copy, Printer, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { env } from '@/lib/env';
 import {
   Button,
   ConfirmDialog,
@@ -263,9 +265,22 @@ export default function BranchSettingsPage(): JSX.Element {
       >
         <div className="space-y-4 p-1">
           <p className="text-body-sm text-stone-700">
-            <strong>{tokenModal?.stationName}</strong> has been created. Copy the token below and
-            paste it into the Wendo Printer app on the work phone.
+            <strong>{tokenModal?.stationName}</strong> has been created. Scan the QR code with the
+            Wendo Printer app, or copy the token manually.
           </p>
+          {tokenModal && (
+            <div className="flex justify-center rounded-xl border border-stone-200 bg-white p-4">
+              <QRCodeSVG
+                value={JSON.stringify({
+                  url: env.apiUrl,
+                  token: tokenModal.token,
+                  name: tokenModal.stationName,
+                })}
+                size={180}
+                level="M"
+              />
+            </div>
+          )}
           <div className="rounded-lg border border-amber/40 bg-[#FDF3DC] p-3">
             <p className="mb-2 text-label-sm text-[#92650A]">
               This token will NOT be shown again.
