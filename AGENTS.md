@@ -155,6 +155,7 @@ Set-Location "d:\AI applications\web\V3-RMS"
 ```
 
 Do **not** run `.ps1` scripts inside Ubuntu server shell.
+Production Prisma Studio tunnels to server host port `5433`.
 
 ### Logs
 

@@ -594,7 +594,7 @@ docker compose exec postgres psql -U wendo_user -d wendo_rms
 Step 1 — Open an SSH tunnel in one terminal (keep it running):
 
 ```bash
-ssh -L 5433:localhost:5432 edwinfred@104.248.29.42 -N
+ssh -L 5433:localhost:5433 edwinfred@104.248.29.42 -N
 ```
 
 Step 2 — Run Prisma Studio in another terminal:

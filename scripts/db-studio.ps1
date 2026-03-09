@@ -11,10 +11,10 @@ $plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
 )
 
-Write-Host "Opening SSH tunnel (localhost:5433 -> server:5432)..." -ForegroundColor Cyan
+Write-Host "Opening SSH tunnel (localhost:5433 -> server:5433)..." -ForegroundColor Cyan
 
 $tunnel = Start-Process ssh -ArgumentList @(
-    "-L", "5433:localhost:5432",
+    "-L", "5433:localhost:5433",
     "edwinfred@104.248.29.42",
     "-N"
 ) -PassThru
