@@ -8,8 +8,14 @@ declare global {
       organizationId: string | null;
     }
 
+    interface PrintStationContext {
+      id: string;
+      organizationId: string;
+    }
+
     interface Request {
       user?: UserContext;
+      printStation?: PrintStationContext;
     }
   }
 }

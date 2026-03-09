@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Printer } from 'lucide-react';
 import { BottomSheet, Button, PriceDisplay, Select } from '@/components/ui';
 import type { OrderDetail, PaymentMethod } from '@/types/order';
 
@@ -11,7 +12,9 @@ interface OrderDetailBottomSheetProps {
   onEdit: (orderId: string) => void;
   onPayment: (orderId: string, method: PaymentMethod) => void;
   onCancel?: (orderId: string) => void;
+  onPrintReceipt?: (orderId: string) => void;
   isPaymentSubmitting?: boolean;
+  isPrintSubmitting?: boolean;
   isOwner?: boolean;
   isManager?: boolean;
 }
@@ -29,7 +32,9 @@ export function OrderDetailBottomSheet({
   onEdit,
   onPayment,
   onCancel,
+  onPrintReceipt,
   isPaymentSubmitting = false,
+  isPrintSubmitting = false,
   isOwner = false,
   isManager = false,
 }: OrderDetailBottomSheetProps) {
@@ -40,6 +45,7 @@ export function OrderDetailBottomSheet({
     [order],
   );
   const canEdit = isOwner && allPending;
+  const isPaid = Boolean(order?.paymentMethod);
   const canCancel =
     (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED') ||
     (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED');
@@ -137,6 +143,18 @@ export function OrderDetailBottomSheet({
               </p>
             )}
           </div>
+        )}
+
+        {isPaid && onPrintReceipt && (
+          <Button
+            variant="secondary"
+            className="w-full"
+            isLoading={isPrintSubmitting}
+            onClick={() => onPrintReceipt(order.id)}
+          >
+            <Printer size={16} className="mr-2 shrink-0" />
+            Print Receipt
+          </Button>
         )}
       </div>
     </BottomSheet>

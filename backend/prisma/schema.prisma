@@ -27,6 +27,8 @@ model Organization {
   orderCounters   OrderCounter[]
   prepTickets     PrepTicket[]
   incidentLogs    IncidentLog[]
+  printJobs       PrintJob[]
+  printStations   PrintStation[]
 
   @@map("organizations")
 }
@@ -69,6 +71,7 @@ model User {
   modRequestsCreated   OrderModificationRequest[] @relation("ModRequestedBy")
   modRequestsReviewed  OrderModificationRequest[] @relation("ModReviewedBy")
   incidentsActed       IncidentLog[]     @relation("IncidentActor")
+  printJobsRequested   PrintJob[]        @relation("PrintJobRequester")
 
   @@index([organizationId])
   @@index([email])
@@ -240,6 +243,7 @@ model Order {
   prepTickets    PrepTicket[]
   modificationRequests OrderModificationRequest[]
   incidents      IncidentLog[]
+  printJobs      PrintJob[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -405,4 +409,49 @@ model IdempotencyKey {
 
   @@index([key])
   @@map("idempotency_keys")
+}
+
+model PrintJob {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  orderId        String         @map("order_id")
+  status         PrintJobStatus @default(PENDING)
+  receiptData    Json           @map("receipt_data")
+  requestedById  String         @map("requested_by_id")
+  printedAt      DateTime?      @map("printed_at")
+  failureReason  String?        @map("failure_reason")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  order          Order          @relation(fields: [orderId], references: [id])
+  requestedBy    User           @relation("PrintJobRequester", fields: [requestedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([orderId])
+  @@map("print_jobs")
+}
+
+model PrintStation {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  name           String       @default("Default Printer")
+  token          String       @unique
+  isActive       Boolean      @default(true) @map("is_active")
+  lastSeenAt     DateTime?    @map("last_seen_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([token])
+  @@map("print_stations")
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTING
+  COMPLETED
+  FAILED
 }

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   AlertTriangle,
+  Printer,
   Settings2,
   ShoppingCart,
   UserCircle,
@@ -49,6 +50,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
       { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
+      { label: 'Settings', href: '/app/manage/settings', icon: Printer },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -122,6 +124,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
         { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
         { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
+        { label: 'Settings', href: '/app/manage/settings', icon: Printer },
       ],
     },
     {

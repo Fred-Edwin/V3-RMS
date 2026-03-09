@@ -133,33 +133,19 @@ const ensureOrderCounterInitialized = async (
   organizationId: string,
   orderDate: Date,
 ): Promise<void> => {
-  const existing = await tx.orderCounter.findUnique({
-    where: counterWhere(organizationId, orderDate),
-    select: {
-      id: true,
-    },
-  });
-
-  if (existing) {
-    return;
-  }
-
+  // Always sync counter to MAX(actual orders) to handle seed data or any
+  // out-of-band inserts that bypassed the counter. GREATEST ensures we never
+  // move the counter backwards.
   const maxDailyNumber = await getMaxDailyNumber(tx, organizationId, orderDate);
 
-  try {
-    await tx.orderCounter.create({
-      data: {
-        organizationId,
-        orderDate,
-        lastNumber: maxDailyNumber,
-      },
-    });
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return;
-    }
-    throw error;
-  }
+  await tx.$executeRaw`
+    INSERT INTO order_counters (id, organization_id, order_date, last_number, created_at, updated_at)
+    VALUES (gen_random_uuid(), ${organizationId}, ${orderDate}::date, ${maxDailyNumber}, NOW(), NOW())
+    ON CONFLICT (organization_id, order_date)
+    DO UPDATE SET
+      last_number = GREATEST(order_counters.last_number, ${maxDailyNumber}),
+      updated_at  = NOW()
+  `;
 };
 
 const allocateNextDailyNumber = async (
@@ -220,6 +206,7 @@ export const orderRepository = {
       for (let attempt = 0; attempt < 3; attempt += 1) {
         const dailyNumber = await allocateNextDailyNumber(tx, data.organizationId, data.orderDate);
 
+        await tx.$executeRawUnsafe('SAVEPOINT create_order');
         try {
           order = await tx.order.create({
             data: {
@@ -245,8 +232,10 @@ export const orderRepository = {
               id: true,
             },
           });
+          await tx.$executeRawUnsafe('RELEASE SAVEPOINT create_order');
           break;
         } catch (error) {
+          await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT create_order');
           if (isUniqueConstraintError(error) && attempt < 2) {
             continue;
           }

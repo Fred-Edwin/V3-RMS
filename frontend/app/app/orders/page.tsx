@@ -8,6 +8,7 @@ import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomShe
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { getSocket } from '@/lib/socket';
 import { orderService } from '@/services/orderService';
+import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
 import { useOrderStore } from '@/store/orderStore';
 import { useToast } from '@/hooks/useToast';
@@ -62,6 +63,7 @@ export default function OrdersPage(): JSX.Element {
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
+  const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | OrderType>('ALL');
 
@@ -157,11 +159,11 @@ export default function OrdersPage(): JSX.Element {
     setIsPaymentSubmitting(true);
     try {
       await orderService.recordPayment(orderId, method, accessToken);
+      // Update in-list state to CLOSED so the order remains tappable for reprinting
       updateOrderRealTime(orderId, { status: 'CLOSED' });
-      removeOrderFromActive(orderId);
       toast({ variant: 'success', title: 'Payment recorded. Order closed.' });
-      setIsDetailOpen(false);
-      setSelectedOrder(null);
+      // Keep the sheet open with paid state so Print Receipt button is immediately visible
+      setSelectedOrder((prev) => (prev ? { ...prev, paymentMethod: method, status: 'CLOSED' } : prev));
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to record payment.';
       toast({ variant: 'error', title: 'Payment failed', message });
@@ -191,6 +193,25 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Cancel failed', message });
     } finally {
       setIsCancelSubmitting(false);
+    }
+  };
+
+  const handlePrintReceipt = async (orderId: string) => {
+    if (!accessToken || isPrintSubmitting) return;
+    setIsPrintSubmitting(true);
+    try {
+      await printService.createPrintJob(orderId, accessToken);
+      toast({ variant: 'success', title: 'Receipt sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintSubmitting(false);
     }
   };
 
@@ -352,7 +373,9 @@ export default function OrdersPage(): JSX.Element {
         onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
         onPayment={(orderId, method) => void handlePayment(orderId, method)}
         onCancel={handleOpenCancel}
+        onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}
         isPaymentSubmitting={isPaymentSubmitting}
+        isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
       />
