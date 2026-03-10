@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FullscreenLayout, KDSCard, TopBar, Button } from '@/components/ui';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
 import { useToast } from '@/hooks/useToast';
+import { useFcmToken } from '@/hooks/useFcmToken';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import { notificationSoundPlayer } from '@/lib/notifications/sound-player';
 import { env } from '@/lib/env';
@@ -57,6 +58,10 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     notificationSoundPlayer.unlock();
     setAudioUnlocked(true);
   }, []);
+
+  // FCM push notification registration — chefs/baristas only visit this page,
+  // so we must prompt here rather than relying on the dashboard banner.
+  const { canPrompt: canPromptFcm, requestPermissionAndRegister } = useFcmToken();
 
   useEffect(() => {
     if (!accessToken) {
@@ -309,6 +314,18 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   if (isPersonalRole) {
     return (
       <main className="min-h-screen bg-crema p-4">
+        {canPromptFcm && (
+          <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-amber-50 px-3 py-2 text-body-sm text-amber-900">
+            <span>Enable notifications for new order alerts.</span>
+            <button
+              type="button"
+              onClick={() => void requestPermissionAndRegister()}
+              className="shrink-0 rounded bg-amber-600 px-3 py-1 text-body-sm font-medium text-white"
+            >
+              Enable
+            </button>
+          </div>
+        )}
         <header className="mb-4">
           <h1 className="font-display text-display-lg text-espresso">{station === 'KITCHEN' ? 'Kitchen' : 'Barista'}</h1>
           <p className="text-body-sm text-stone-600">{isLoading ? 'Loading tickets...' : 'Live ticket queue'}</p>
@@ -381,6 +398,18 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
       />
       {connectionStatus === 'disconnected' && (
         <div className="bg-[#FDF2F0] px-4 py-2 text-body-sm text-[#9B3A2A]">Offline. Reconnecting...</div>
+      )}
+      {canPromptFcm && (
+        <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2 text-body-sm text-amber-900">
+          <span>Enable push notifications to receive new order alerts when this screen is off.</span>
+          <button
+            type="button"
+            onClick={() => void requestPermissionAndRegister()}
+            className="shrink-0 rounded bg-amber-600 px-3 py-1 text-body-sm font-medium text-white"
+          >
+            Enable
+          </button>
+        </div>
       )}
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
         <div className="grid h-full min-h-0 grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
