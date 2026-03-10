@@ -382,8 +382,19 @@ export const orderService = {
     const serializeMs = Date.now() - serializeStart;
 
     const socketEmitStart = Date.now();
-    socketService.emitNewOrder(organizationId, serializeTicketsForSocket(serialized));
+    const ticketsForSocket = serializeTicketsForSocket(serialized);
+    socketService.emitNewOrder(organizationId, ticketsForSocket);
     const emitSocketMs = Date.now() - socketEmitStart;
+
+    // Fire-and-forget FCM push to kitchen/barista staff for each ticket station.
+    // Runs after the response is sent — does not block order creation latency.
+    for (const ticket of ticketsForSocket) {
+      void fcmService.sendNewOrderPush(organizationId, {
+        orderId: created.id,
+        dailyNumber: serialized.dailyNumber,
+        station: ticket.station,
+      });
+    }
 
     logger.debug(
       {

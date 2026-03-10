@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FullscreenLayout, KDSCard, TopBar, Button } from '@/components/ui';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
 import { useToast } from '@/hooks/useToast';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
+import { notificationSoundPlayer } from '@/lib/notifications/sound-player';
 import { env } from '@/lib/env';
 import { prepTicketService } from '@/services/prepTicketService';
 import { staffService } from '@/services/staffService';
@@ -46,6 +47,16 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
   const [rejectingTicket, setRejectingTicket] = useState<PrepTicketDetail | null>(null);
   const [isRejectSubmitting, setIsRejectSubmitting] = useState(false);
+
+  // Tablet KDS/BDS: track whether the browser has granted audio autoplay.
+  // Chrome blocks audio until a user gesture occurs on the page. We show a
+  // fullscreen overlay on first load; tapping it unlocks audio for the session.
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  const handleAudioUnlock = useCallback(() => {
+    notificationSoundPlayer.unlock();
+    setAudioUnlocked(true);
+  }, []);
 
   useEffect(() => {
     if (!accessToken) {
@@ -350,6 +361,18 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
 
   return (
     <FullscreenLayout className="bg-crema">
+      {!audioUnlocked && (
+        <button
+          type="button"
+          onClick={handleAudioUnlock}
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-espresso/90 backdrop-blur-sm"
+          aria-label="Tap to enable sound notifications"
+        >
+          <span className="text-6xl" aria-hidden="true">🔔</span>
+          <p className="text-display-sm font-display text-crema">Tap to enable sound</p>
+          <p className="text-body-md text-crema/70">Audio alerts will play automatically for new orders</p>
+        </button>
+      )}
       <TopBar
         branchName={organizationName ?? 'Branch'}
         stationLabel={station === 'KITCHEN' ? 'Kitchen Display' : 'Barista Display'}

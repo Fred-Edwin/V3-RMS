@@ -7,7 +7,7 @@ interface FullscreenLayoutProps {
 
 export function FullscreenLayout({ children, className }: FullscreenLayoutProps) {
   return (
-    <div className={cn('min-h-screen w-full flex flex-col bg-stone-900 overflow-hidden', className)}>
+    <div className={cn('relative min-h-screen w-full flex flex-col bg-stone-900 overflow-hidden', className)}>
       {children}
     </div>
   )

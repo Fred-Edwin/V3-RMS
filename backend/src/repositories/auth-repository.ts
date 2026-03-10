@@ -98,4 +98,26 @@ export const authRepository = {
 
     return user?.fcmToken ?? null;
   },
+
+  findFcmTokensByStation: async (
+    organizationId: string,
+    station: 'KITCHEN' | 'BARISTA',
+  ): Promise<string[]> => {
+    const roles =
+      station === 'KITCHEN'
+        ? (['CHEF', 'KITCHEN_DISPLAY'] as const)
+        : (['BARISTA', 'BARISTA_DISPLAY'] as const);
+
+    const users = await prisma.user.findMany({
+      where: {
+        organizationId,
+        role: { in: [...roles] },
+        isActive: true,
+        fcmToken: { not: null },
+      },
+      select: { fcmToken: true },
+    });
+
+    return users.map((u) => u.fcmToken as string);
+  },
 };

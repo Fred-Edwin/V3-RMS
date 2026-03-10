@@ -3,6 +3,12 @@ import { firebaseMessaging } from '../config/firebase';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+interface NewOrderPushPayload {
+  orderId: string;
+  dailyNumber: number;
+  station: 'KITCHEN' | 'BARISTA';
+}
+
 interface OrderReadyPushPayload {
   orderId: string;
   dailyNumber: number;
@@ -20,6 +26,54 @@ interface ShiftReminderPushPayload {
 }
 
 export const fcmService = {
+  /**
+   * Sends a push notification to all active CHEF/KITCHEN_DISPLAY (or BARISTA/
+   * BARISTA_DISPLAY) staff at a branch when a new order arrives.
+   * Runs fire-and-forget — does not block order creation.
+   */
+  sendNewOrderPush: async (
+    organizationId: string,
+    payload: NewOrderPushPayload,
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const tokens = await authRepository.findFcmTokensByStation(organizationId, payload.station);
+      if (tokens.length === 0) {
+        return;
+      }
+
+      const stationLabel = payload.station === 'KITCHEN' ? 'Kitchen' : 'Barista';
+      const link = payload.station === 'KITCHEN' ? '/app/kitchen' : '/app/barista';
+
+      // sendEachForMulticast sends one message per token and handles
+      // per-token failures gracefully — invalid tokens don't fail the batch.
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: `New Order #${payload.dailyNumber}`,
+            body: `A new order has arrived at the ${stationLabel} station`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `new-order-${payload.orderId}-${payload.station}`,
+            renotify: true,
+          },
+          fcmOptions: { link },
+        },
+        data: {
+          orderId: payload.orderId,
+          station: payload.station,
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, organizationId, orderId: payload.orderId }, 'Failed to send new order FCM push');
+    }
+  },
+
   sendOrderReadyPush: async (waiterId: string, payload: OrderReadyPushPayload): Promise<void> => {
     try {
       if (!firebaseMessaging) {
