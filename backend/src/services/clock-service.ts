@@ -171,6 +171,10 @@ export const clockService = {
       );
     }
 
+    // Auto-close any stale open records from a previous day before checking for conflicts.
+    // This prevents yesterday's forgotten clock-out from permanently blocking today's clock-in.
+    await clockRecordRepository.closeStaleOpenRecords(organizationId, getTodayDateOnly());
+
     const openRecord = await clockRecordRepository.findOpenByUserId(actor.id, organizationId);
     if (openRecord) {
       throwAlreadyClockedInConflict(

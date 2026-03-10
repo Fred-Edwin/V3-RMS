@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Bell, BellOff, ShieldCheck, User, Building2 } from 'lucide-react';
-import { Avatar, Button, ConfirmDialog, Input, PageLayout } from '@/components/ui';
+import { Avatar, Button, ConfirmDialog, Input, PageLayout, SupportContact } from '@/components/ui';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { performLogout } from '@/lib/logout';
 import { authService } from '@/services/authService';
@@ -325,6 +325,9 @@ export default function Page(): JSX.Element {
               </div>
             </form>
           </SectionCard>
+
+          {/* ── Support ── */}
+          <SupportContact />
 
           {/* ── Sign Out ── */}
           <div className="rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-6 flex flex-col items-center text-center gap-4">

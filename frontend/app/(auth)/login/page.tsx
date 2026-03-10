@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { SupportContact } from '@/components/ui/SupportContact';
 import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import { roleHome } from '@/lib/role-home';
@@ -170,6 +171,7 @@ export default function Page(): JSX.Element {
         <p className="mt-6 text-center text-caption text-stone-400">
           Wendo Coffee Bistro · Nyeri, Kenya
         </p>
+        <SupportContact className="mt-3" />
       </div>
     </main>
   );

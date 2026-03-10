@@ -54,6 +54,31 @@ export const clockRecordRepository = {
     });
   },
 
+  // Close all open clock records whose clockInAt is before the start of today (Nairobi).
+  // Returns the number of records closed. Used by the nightly job and as a safety
+  // guard inside clockIn so stale records from a previous day never block new ones.
+  closeStaleOpenRecords: async (
+    organizationId: string,
+    todayStartUtc: Date,
+  ): Promise<number> => {
+    const result = await prisma.clockRecord.updateMany({
+      where: {
+        organizationId,
+        clockInAt: {
+          not: null,
+          lt: todayStartUtc,
+        },
+        clockOutAt: null,
+      },
+      data: {
+        clockOutAt: todayStartUtc,
+        clockOutMethod: ClockMethod.OVERRIDE,
+        overrideNote: 'Auto-closed: shift ended without clock-out',
+      },
+    });
+    return result.count;
+  },
+
   updateClockOut: async (
     id: string,
     organizationId: string,
