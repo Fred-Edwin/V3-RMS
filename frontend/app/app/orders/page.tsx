@@ -63,6 +63,7 @@ export default function OrdersPage(): JSX.Element {
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
+  const [isPrintBillSubmitting, setIsPrintBillSubmitting] = useState(false);
   const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | OrderType>('ALL');
@@ -193,6 +194,25 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Cancel failed', message });
     } finally {
       setIsCancelSubmitting(false);
+    }
+  };
+
+  const handlePrintBill = async (orderId: string) => {
+    if (!accessToken || isPrintBillSubmitting) return;
+    setIsPrintBillSubmitting(true);
+    try {
+      await printService.createPrintJob(orderId, accessToken, 'BILL');
+      toast({ variant: 'success', title: 'Bill sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintBillSubmitting(false);
     }
   };
 
@@ -373,8 +393,10 @@ export default function OrdersPage(): JSX.Element {
         onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
         onPayment={(orderId, method) => void handlePayment(orderId, method)}
         onCancel={handleOpenCancel}
+        onPrintBill={(orderId) => void handlePrintBill(orderId)}
         onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}
         isPaymentSubmitting={isPaymentSubmitting}
+        isPrintBillSubmitting={isPrintBillSubmitting}
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}

@@ -29,14 +29,14 @@ export const printController = {
 
   createPrintJob: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const { orderId } = CreatePrintJobSchema.parse(req.body);
+    const { orderId, receiptType } = CreatePrintJobSchema.parse(req.body);
 
     const organizationId = actor.organizationId;
     if (!organizationId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const job = await printService.createPrintJob(orderId, actor.id, organizationId);
+    const job = await printService.createPrintJob(orderId, actor.id, organizationId, receiptType);
 
     res.status(201).json({
       success: true,

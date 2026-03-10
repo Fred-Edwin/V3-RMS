@@ -4,14 +4,15 @@ import type {
   PrintJob,
   PrintJobSummary,
   PrintStation,
+  ReceiptType,
 } from '@/types/print';
 import type { ApiResponseEnvelope } from '@/types/api';
 
 export const printService = {
   // ── Print Jobs ────────────────────────────────────────────────────────────
 
-  createPrintJob: (orderId: string, token: string): Promise<PrintJobSummary> =>
-    apiClient.post<PrintJobSummary>('/print-jobs', { orderId }, token),
+  createPrintJob: (orderId: string, token: string, receiptType: ReceiptType = 'RECEIPT'): Promise<PrintJobSummary> =>
+    apiClient.post<PrintJobSummary>('/print-jobs', { orderId, receiptType }, token),
 
   getPrintJobs: (
     token: string,

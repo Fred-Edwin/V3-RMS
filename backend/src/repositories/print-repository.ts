@@ -1,4 +1,4 @@
-import { type PrintJobStatus, type Prisma } from '@prisma/client';
+import { type PrintJobStatus, type ReceiptType, type Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 
 // ─── Print Job DTOs ────────────────────────────────────────────────────────
@@ -7,6 +7,8 @@ export interface PrintJobRecord {
   id: string;
   organizationId: string;
   orderId: string;
+  receiptType: ReceiptType;
+  copies: number;
   status: PrintJobStatus;
   receiptData: Prisma.JsonValue;
   requestedById: string;
@@ -19,6 +21,8 @@ export interface PrintJobRecord {
 export interface PrintJobSummaryRecord {
   id: string;
   orderId: string;
+  receiptType: ReceiptType;
+  copies: number;
   status: PrintJobStatus;
   createdAt: Date;
 }
@@ -73,6 +77,8 @@ export const printRepository = {
     organizationId: string;
     orderId: string;
     requestedById: string;
+    receiptType: ReceiptType;
+    copies: number;
     receiptData: Prisma.InputJsonValue;
   }): Promise<PrintJobSummaryRecord> => {
     return prisma.printJob.create({
@@ -80,11 +86,15 @@ export const printRepository = {
         organizationId: data.organizationId,
         orderId: data.orderId,
         requestedById: data.requestedById,
+        receiptType: data.receiptType,
+        copies: data.copies,
         receiptData: data.receiptData,
       },
       select: {
         id: true,
         orderId: true,
+        receiptType: true,
+        copies: true,
         status: true,
         createdAt: true,
       },
@@ -103,17 +113,21 @@ export const printRepository = {
   findActiveJobForOrder: async (
     orderId: string,
     organizationId: string,
+    receiptType: ReceiptType,
   ): Promise<PrintJobSummaryRecord | null> => {
     return prisma.printJob.findFirst({
       where: {
         orderId,
         organizationId,
+        receiptType,
         status: { in: ['PENDING', 'PRINTING'] },
       },
       select: {
         id: true,
         organizationId: true,
         orderId: true,
+        receiptType: true,
+        copies: true,
         status: true,
         createdAt: true,
       },

@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'crypto';
-import type { PrintJobStatus, Prisma } from '@prisma/client';
+import type { PrintJobStatus, ReceiptType, Prisma } from '@prisma/client';
 import { printRepository, type PrintJobRecord, type PrintJobSummaryRecord, type PrintStationRecord } from '../repositories/print-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 
@@ -16,6 +16,7 @@ interface ReceiptItem {
 
 interface ReceiptData {
   branchName: string;
+  branchPhone: string | null;
   orderNumber: string;
   dailyNumber: number;
   orderDate: string;
@@ -23,13 +24,26 @@ interface ReceiptData {
   orderType: string;
   tableNumber: string | null;
   waiterName: string;
+  waiterFirstName: string;
   items: ReceiptItem[];
   subtotal: number;
   deliveryFee: number;
   total: number;
-  paymentMethod: string;
-  paidAt: string;
+  // Only present on RECEIPT type (payment confirmed)
+  paymentMethod?: string;
+  paidAt?: string;
 }
+
+const BRANCH_PHONES: Record<string, string> = {
+  "king'ong'o": '0707 242 987',
+  'nyeri town': '0722 392 343',
+};
+
+const getBranchPhone = (branchName: string): string | null =>
+  BRANCH_PHONES[branchName.trim().toLowerCase()] ?? null;
+
+const getFirstName = (fullName: string): string =>
+  fullName.trim().split(/\s+/)[0] ?? fullName.trim();
 
 interface PaginationMeta {
   total: number;
@@ -70,6 +84,7 @@ export const printService = {
     orderId: string,
     requestedById: string,
     organizationId: string,
+    receiptType: ReceiptType = 'RECEIPT',
   ): Promise<PrintJobSummaryRecord> => {
     const order = await printRepository.findOrderForReceipt(orderId, organizationId);
 
@@ -77,28 +92,31 @@ export const printService = {
       throw new NotFoundError('Order not found');
     }
 
-    if (!order.paymentMethod) {
-      throw new ValidationError('Order has not been paid yet — cannot create a print job');
+    // RECEIPT requires payment; BILL does not
+    if (receiptType === 'RECEIPT' && !order.paymentMethod) {
+      throw new ValidationError('Order has not been paid yet — cannot print a receipt');
     }
 
-    // Idempotency: return existing PENDING/PRINTING job rather than creating a duplicate
-    const existing = await printRepository.findActiveJobForOrder(orderId, organizationId);
+    // Idempotency: return existing PENDING/PRINTING job of the same type rather than creating a duplicate
+    const existing = await printRepository.findActiveJobForOrder(orderId, organizationId, receiptType);
     if (existing) {
       return existing;
     }
 
     const orderDate = new Date(order.orderDate);
-    const paidAt = order.paidAt ?? order.createdAt;
+    const timestampRef = order.paidAt ?? order.createdAt;
 
     const receiptData: ReceiptData = {
       branchName: order.organization.name,
+      branchPhone: getBranchPhone(order.organization.name),
       orderNumber: `WCB-${String(order.dailyNumber).padStart(4, '0')}`,
       dailyNumber: order.dailyNumber,
       orderDate: formatDate(orderDate),
-      orderTime: formatTime(paidAt),
+      orderTime: formatTime(timestampRef),
       orderType: order.type,
       tableNumber: order.tableNumber,
       waiterName: order.createdBy.name,
+      waiterFirstName: getFirstName(order.createdBy.name),
       items: order.items.map((item) => ({
         name: item.menuItem.name,
         quantity: item.quantity,
@@ -108,14 +126,21 @@ export const printService = {
       subtotal: toDecimalNumber(order.subtotal),
       deliveryFee: toDecimalNumber(order.deliveryFee),
       total: toDecimalNumber(order.total),
-      paymentMethod: order.paymentMethod,
-      paidAt: paidAt.toISOString(),
+      // Payment fields only included on confirmed receipts
+      ...(receiptType === 'RECEIPT' && order.paymentMethod
+        ? { paymentMethod: order.paymentMethod, paidAt: timestampRef.toISOString() }
+        : {}),
     };
+
+    // Payment receipts always print 2 copies (customer + accountant); bills print 1
+    const copies = receiptType === 'RECEIPT' ? 2 : 1;
 
     return printRepository.createPrintJob({
       organizationId,
       orderId,
       requestedById,
+      receiptType,
+      copies,
       receiptData: receiptData as unknown as Prisma.InputJsonValue,
     });
   },

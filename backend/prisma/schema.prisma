@@ -412,20 +412,22 @@ model IdempotencyKey {
 }
 
 model PrintJob {
-  id             String         @id @default(uuid())
-  organizationId String         @map("organization_id")
-  orderId        String         @map("order_id")
-  status         PrintJobStatus @default(PENDING)
-  receiptData    Json           @map("receipt_data")
-  requestedById  String         @map("requested_by_id")
-  printedAt      DateTime?      @map("printed_at")
-  failureReason  String?        @map("failure_reason")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")
+  orderId        String          @map("order_id")
+  receiptType    ReceiptType     @default(RECEIPT) @map("receipt_type")
+  copies         Int             @default(1)
+  status         PrintJobStatus  @default(PENDING)
+  receiptData    Json            @map("receipt_data")
+  requestedById  String          @map("requested_by_id")
+  printedAt      DateTime?       @map("printed_at")
+  failureReason  String?         @map("failure_reason")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  order          Order          @relation(fields: [orderId], references: [id])
-  requestedBy    User           @relation("PrintJobRequester", fields: [requestedById], references: [id])
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  order          Order           @relation(fields: [orderId], references: [id])
+  requestedBy    User            @relation("PrintJobRequester", fields: [requestedById], references: [id])
 
   @@index([organizationId, status])
   @@index([orderId])
@@ -454,4 +456,9 @@ enum PrintJobStatus {
   PRINTING
   COMPLETED
   FAILED
+}
+
+enum ReceiptType {
+  BILL
+  RECEIPT
 }

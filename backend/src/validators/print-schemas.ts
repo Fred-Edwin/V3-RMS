@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { PrintJobStatus } from '@prisma/client';
+import { PrintJobStatus, ReceiptType } from '@prisma/client';
 
 // POST /print-jobs
 export const CreatePrintJobSchema = z.object({
   orderId: z.string().uuid('orderId must be a valid UUID'),
+  receiptType: z.nativeEnum(ReceiptType).default(ReceiptType.RECEIPT),
 });
 
 // GET /print-jobs query
@@ -45,6 +46,7 @@ export const routeIdParamSchema = z.object({
 });
 
 export type CreatePrintJobInput = z.infer<typeof CreatePrintJobSchema>;
+export { ReceiptType };
 export type PrintJobQueryInput = z.infer<typeof PrintJobQuerySchema>;
 export type UpdatePrintJobStatusInput = z.infer<typeof UpdatePrintJobStatusSchema>;
 export type StationJobQueryInput = z.infer<typeof StationJobQuerySchema>;

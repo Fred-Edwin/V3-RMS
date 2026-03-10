@@ -1,8 +1,11 @@
 export type PrintJobStatus = 'PENDING' | 'PRINTING' | 'COMPLETED' | 'FAILED';
+export type ReceiptType = 'BILL' | 'RECEIPT';
 
 export interface PrintJobSummary {
   id: string;
   orderId: string;
+  receiptType: ReceiptType;
+  copies: number;
   status: PrintJobStatus;
   createdAt: string;
 }
@@ -11,6 +14,8 @@ export interface PrintJob {
   id: string;
   organizationId: string;
   orderId: string;
+  receiptType: ReceiptType;
+  copies: number;
   status: PrintJobStatus;
   receiptData: Record<string, unknown>;
   requestedById: string;
