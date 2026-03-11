@@ -196,7 +196,7 @@ export const prepTicketRepository = {
         status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.IN_PROGRESS] },
       },
       data: {
-        status: PrepTicketStatus.PENDING,
+        status: PrepTicketStatus.REJECTED,
         claimedById: null,
         claimedAt: null,
         rejectedById,

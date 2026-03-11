@@ -104,11 +104,13 @@ export const socketService = {
   },
 
   emitTicketRejected: (
+    organizationId: string,
     waiterId: string,
     payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number; reason: string },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('ticket:rejected', payload);
+    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:rejected', payload);
   },
 
   emitTicketUnclaimed: (

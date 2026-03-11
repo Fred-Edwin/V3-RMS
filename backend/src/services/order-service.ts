@@ -154,6 +154,7 @@ const serializePrepTicket = (
     claimedBy: ticket.claimedBy ? { id: ticket.claimedBy.id, name: ticket.claimedBy.name } : null,
     claimedAt: ticket.claimedAt,
     readyAt: ticket.readyAt,
+    rejectedReason: ticket.rejectedReason,
     items: parsePrepTicketItems(ticket.items),
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
@@ -170,6 +171,7 @@ const serializePrepTicketSummary = (
     claimedBy: ticket.claimedBy ? { id: ticket.claimedBy.id, name: ticket.claimedBy.name } : null,
     claimedAt: ticket.claimedAt,
     readyAt: ticket.readyAt,
+    rejectedReason: ticket.rejectedReason,
   };
 };
 
@@ -466,12 +468,13 @@ export const orderService = {
   ): Promise<Array<OrderRecord | OrderSummaryRecord>> => {
     const organizationId = resolveOrganizationId(actor);
     const today = normalizeOrderDate(new Date());
+    const createdById = actor.role === 'WAITER' ? actor.id : undefined;
     if (query.view === 'summary') {
-      const orders = await orderRepository.findActiveSummary(organizationId, today);
+      const orders = await orderRepository.findActiveSummary(organizationId, today, createdById);
       return orders.map(serializeOrderSummary);
     }
 
-    const orders = await orderRepository.findActive(organizationId, today);
+    const orders = await orderRepository.findActive(organizationId, today, createdById);
     return orders.map(serializeOrder);
   },
 
@@ -494,7 +497,7 @@ export const orderService = {
 
     assertOwnership(existingOrder, actor);
 
-    const anyTicketBeyondPending = existingOrder.prepTickets.some((ticket) => ticket.status !== 'PENDING');
+    const anyTicketBeyondPending = existingOrder.prepTickets.some((ticket) => ticket.status !== 'PENDING' && ticket.status !== 'REJECTED');
     if (anyTicketBeyondPending) {
       throw new ConflictError('Order is being prepared and cannot be edited.');
     }
@@ -527,7 +530,7 @@ export const orderService = {
       const stationChanged = stringifyStationItems(currentStationItems) !== stringifyStationItems(newStationItems);
       const stationTicket = existingOrder.prepTickets.find((ticket) => ticket.station === station);
 
-      if (stationChanged && stationTicket && stationTicket.status !== 'PENDING') {
+      if (stationChanged && stationTicket && stationTicket.status !== 'PENDING' && stationTicket.status !== 'REJECTED') {
         throw new ConflictError('Order cannot be modified. Preparation has already started at one or more stations.');
       }
     }

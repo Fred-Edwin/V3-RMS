@@ -1,4 +1,4 @@
-import { OrderStatus, type PaymentMethod, Prisma, type PrepStation } from '@prisma/client';
+import { OrderStatus, type PaymentMethod, Prisma, type PrepStation, PrepTicketStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import type { CreateOrderWithTicketsDto, CreateOrderItemWithPriceDto, PrepTicketItemSnapshot } from '../types/order.types';
 
@@ -327,7 +327,7 @@ export const orderRepository = {
     };
   },
 
-  findActive: async (organizationId: string, orderDate: Date): Promise<FullOrderPrismaRecord[]> => {
+  findActive: async (organizationId: string, orderDate: Date, createdById?: string): Promise<FullOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
         organizationId,
@@ -335,6 +335,7 @@ export const orderRepository = {
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
         },
+        ...(createdById ? { createdById } : {}),
       },
       include: orderInclude,
       orderBy: {
@@ -344,7 +345,7 @@ export const orderRepository = {
     });
   },
 
-  findActiveSummary: async (organizationId: string, orderDate: Date): Promise<SummaryOrderPrismaRecord[]> => {
+  findActiveSummary: async (organizationId: string, orderDate: Date, createdById?: string): Promise<SummaryOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
         organizationId,
@@ -352,6 +353,7 @@ export const orderRepository = {
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
         },
+        ...(createdById ? { createdById } : {}),
       },
       include: orderSummaryInclude,
       orderBy: {
@@ -386,7 +388,7 @@ export const orderRepository = {
       const stationsToUpdate = Object.keys(ticketSnapshots) as PrepStation[];
       for (const station of stationsToUpdate) {
         const ticket = existingOrder.prepTickets.find((t) => t.station === station);
-        if (ticket && ticket.status !== 'PENDING') {
+        if (ticket && ticket.status !== 'PENDING' && ticket.status !== 'REJECTED') {
           return null;
         }
       }
@@ -430,6 +432,12 @@ export const orderRepository = {
               station,
             },
             data: {
+              status: PrepTicketStatus.PENDING,
+              claimedById: null,
+              claimedAt: null,
+              rejectedById: null,
+              rejectedReason: null,
+              rejectedAt: null,
               items: (ticketSnapshots[station] ?? []) as unknown as Prisma.InputJsonValue,
             },
           }),

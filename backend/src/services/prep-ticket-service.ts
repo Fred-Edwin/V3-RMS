@@ -162,12 +162,21 @@ export const prepTicketService = {
   ): Promise<{ tickets: PrepTicketResponse[]; pagination: PaginationMeta }> => {
     const organizationId = resolveOrganizationId(actor);
     const station = resolveStation(actor.role);
+    // For history queries (activeOnly=false), personal roles (CHEF/BARISTA) only see
+    // tickets they personally claimed. For active/live queries, all pending tickets
+    // remain visible so they can be claimed.
+    const isHistoryQuery = !query.activeOnly;
+    const claimedById =
+      isHistoryQuery && (actor.role === 'CHEF' || actor.role === 'BARISTA')
+        ? actor.id
+        : undefined;
 
     const result = await prepTicketRepository.findByStation(organizationId, station, {
       status: query.status,
       startDate: query.startDate ? parseDateOnlyStart(query.startDate) : undefined,
       endDate: query.endDate ? parseDateOnlyEnd(query.endDate) : undefined,
       activeOnly: query.activeOnly,
+      claimedById,
       page: query.page,
       perPage: query.perPage,
     });
@@ -337,7 +346,7 @@ export const prepTicketService = {
       await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
     }
 
-    socketService.emitTicketRejected(ticket.order.createdById, {
+    socketService.emitTicketRejected(organizationId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: rejectedTicket.id,
       station: rejectedTicket.station,

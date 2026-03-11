@@ -190,7 +190,6 @@ The system has six distinct roles, each with scoped access and a primary interfa
 ### Out of Scope — V1 (Planned for V2)
 - Inventory management
 - Payment processing (Pesapal/Mpesa STK Push integration)
-- Receipt printing (thermal printer integration)
 - Grubba delivery integration
 - Branch-to-branch stock transfer
 
@@ -260,6 +259,15 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 **FR-ORD-09:** Order statuses shall be: `Pending` → `In-Progress` → `Ready` → `Closed`.
 
 **FR-ORD-10:** An order is marked **Closed** when the waiter confirms payment (or marks as Handed to Grubba for delivery).
+
+**FR-ORD-11 — Receipt Printing:**
+- After payment is recorded, the waiter shall see a "Print Receipt" button on the order detail screen
+- Tapping the button creates a print job in the database (status: PENDING)
+- A dedicated Android app ("Wendo Printer") installed on the branch work phone polls for pending jobs every 3 seconds and sends ESC/POS commands to the Bluetooth-connected thermal printer
+- Receipts print on 80mm thermal paper and include: branch name, phone, order number, order type, date/time, waiter first name, itemised list with quantities and amounts, subtotal, delivery fee (if applicable), total, payment method, and a QR code linking to `https://www.wendoz.co.ke/`
+- Print jobs are persisted in the DB — if the printer is offline, jobs queue and print when reconnected
+- Jobs older than 24 hours are automatically expired
+- Managers configure the print station from the branch settings page — a QR code is generated for one-tap app setup
 
 ---
 
@@ -445,6 +453,7 @@ Only one open attendance record is allowed per staff member at a time across all
 - As a waiter, I want to modify an order before it's claimed so I can handle customer changes without confusion.
 - As a waiter taking a delivery order, I want the delivery fee to be added automatically when I select the zone, so I don't have to calculate it manually.
 - As a waiter, I want to record how a customer paid so we have a record for end-of-day.
+- As a waiter, I want to print a receipt immediately after recording payment so I can hand it to the customer without delays.
 
 ### Chef
 - As a chef, I want to see incoming food orders on the kitchen tablet or my phone so I always know what to prepare.
@@ -461,6 +470,7 @@ Only one open attendance record is allowed per staff member at a time across all
 - As a manager, I want to see a daily sales summary so I can review how the branch performed.
 - As a manager, I want to override a staff clock-in when GPS fails so a legitimate staff member isn't blocked from working.
 - As a manager, I want to mark a menu item as unavailable at my branch when we run out of an ingredient.
+- As a manager, I want to set up the branch thermal printer by scanning a QR code so I don't have to type long configuration tokens manually.
 
 ### Director
 - As a director, I want to compare performance across all branches in one dashboard so I can identify where to focus my attention.
@@ -477,7 +487,7 @@ The following features are explicitly excluded from Version 1 and planned for a 
 |---|---|
 | Inventory management | High complexity; requires dedicated design sprint |
 | Mpesa STK Push (Pesapal) | Payment integration deferred to V2 |
-| Receipt/thermal printer integration | Deferred to V2 |
+| Receipt/thermal printer integration | ✅ Implemented in V1 — Bluetooth thermal printer via Android companion app |
 | Grubba delivery API integration | Awaiting Grubba API documentation |
 | Branch-to-branch stock transfers | Dependent on inventory module |
 | iOS support | Not applicable — system is web-based and works on any modern mobile browser |

@@ -343,6 +343,7 @@ export default function OrdersPage(): JSX.Element {
               type={order.type}
               tableNumber={order.tableNumber ?? undefined}
               startTime={order.createdAt}
+              hasRejectedTickets={order.prepTickets.some((t) => t.status === 'REJECTED')}
               onTap={() => void handleOpenOrder(order.id)}
             />
           ))}

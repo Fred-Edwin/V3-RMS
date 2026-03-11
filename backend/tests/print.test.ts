@@ -413,6 +413,7 @@ describe('printService.createPrintJob', () => {
       ],
     });
 
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(null);
     const createSpy = vi.spyOn(printRepository, 'createPrintJob').mockResolvedValue(samplePrintJobSummary);
 
     await printService.createPrintJob(orderId, 'user-1', orgId);

@@ -35,6 +35,7 @@ export interface PrepTicketRecord {
   } | null;
   claimedAt: Date | null;
   readyAt: Date | null;
+  rejectedReason?: string | null;
   items: PrepTicketItemSnapshot[];
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +51,7 @@ export interface PrepTicketSummaryRecord {
   } | null;
   claimedAt: Date | null;
   readyAt: Date | null;
+  rejectedReason?: string | null;
 }
 
 export interface OrderSummaryRecord {

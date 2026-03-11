@@ -29,7 +29,8 @@ const partitionTickets = (tickets: PrepTicketDetail[]) => {
     } else if (ticket.status === 'READY') {
       readyTickets.push(ticket);
     }
-    // CLOSED / CANCELLED tickets are intentionally discarded
+    // CLOSED / CANCELLED / REJECTED tickets are intentionally discarded
+    // REJECTED tickets are handled by the waiter/manager UI and removed from KDS/BDS active queues
   });
 
   return { pendingTickets, inProgressTickets, readyTickets };
@@ -66,6 +67,15 @@ export const useKitchenStore = create<KitchenStore>((set, get) => ({
 
   updateTicketRealTime: (ticketId, updates) =>
     set((state) => {
+      // If the ticket is being set to REJECTED, it should be removed from active queues
+      if (updates.status === 'REJECTED') {
+        return {
+          pendingTickets: state.pendingTickets.filter((ticket) => ticket.id !== ticketId),
+          inProgressTickets: state.inProgressTickets.filter((ticket) => ticket.id !== ticketId),
+          readyTickets: state.readyTickets.filter((ticket) => ticket.id !== ticketId),
+        };
+      }
+
       const allTickets = [...state.pendingTickets, ...state.inProgressTickets, ...state.readyTickets];
       const updated = allTickets.map((ticket) =>
         ticket.id === ticketId

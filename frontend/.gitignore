@@ -41,3 +41,4 @@ next-env.d.ts
 /public/firebase-messaging-sw.js
 
 .vercel
+.env*.local

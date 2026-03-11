@@ -45,11 +45,11 @@ export function OrderDetailBottomSheet({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MPESA');
   const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
 
-  const allPending = useMemo(
-    () => Boolean(order?.prepTickets.every((ticket) => ticket.status === 'PENDING')),
+  const allPendingOrRejected = useMemo(
+    () => Boolean(order?.prepTickets.every((ticket) => ticket.status === 'PENDING' || ticket.status === 'REJECTED')),
     [order],
   );
-  const canEdit = isOwner && allPending;
+  const canEdit = isOwner && allPendingOrRejected;
   const isPaid = Boolean(order?.paymentMethod);
   const canCancel =
     (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED') ||
@@ -104,23 +104,28 @@ export function OrderDetailBottomSheet({
             <p className="mb-2 text-body-md font-semibold text-stone-900">Preparation Status</p>
             <div className="space-y-2">
               {order.prepTickets.map((ticket) => (
-                <div key={ticket.id} className="flex items-center justify-between">
-                  <span className="text-body-sm text-stone-700">{ticket.station}</span>
-                  <span className="text-body-sm text-stone-700">
-                    {ticket.status}
-                    {ticket.claimedBy ? ` - ${ticket.claimedBy.name}` : ''}
-                  </span>
+                <div key={ticket.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-body-sm text-stone-700">{ticket.station}</span>
+                    <span className={ticket.status === 'REJECTED' ? 'text-body-sm text-red-600 font-medium' : 'text-body-sm text-stone-700'}>
+                      {ticket.status}
+                      {ticket.claimedBy ? ` - ${ticket.claimedBy.name}` : ''}
+                    </span>
+                  </div>
+                  {ticket.status === 'REJECTED' && ticket.rejectedReason && (
+                    <p className="text-caption text-red-500">Reason: {ticket.rejectedReason}</p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-stone-200 pt-3">
+          <div className="flex items-center justify-between border-t border-stone-200 pt-3 mb-4">
             <span className="text-body-md font-semibold text-stone-900">Total</span>
             <PriceDisplay amount={Number.parseFloat(order.total)} />
           </div>
 
-          {canEdit && (
+          {canEdit && onEdit && (
             <Button variant="secondary" className="w-full" onClick={() => onEdit(order.id)}>
               Edit Order
             </Button>

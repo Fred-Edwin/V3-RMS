@@ -14,6 +14,7 @@ interface OrderCardProps {
   type: OrderType
   tableNumber?: string
   startTime: string | Date
+  hasRejectedTickets?: boolean
   onTap?: () => void
   className?: string
 }
@@ -41,7 +42,7 @@ const typeLabels: Record<OrderType, string> = {
   DELIVERY: 'Delivery',
 }
 
-export function OrderCard({ orderNumber, status, type, tableNumber, startTime, onTap, className }: OrderCardProps) {
+export function OrderCard({ orderNumber, status, type, tableNumber, startTime, hasRejectedTickets, onTap, className }: OrderCardProps) {
   return (
     <div
       role={onTap ? 'button' : undefined}
@@ -50,7 +51,7 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, o
       onKeyDown={onTap ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap() } } : undefined}
       className={cn(
         'bg-white border-l-[3px] shadow-sm rounded-xl p-4',
-        statusBorderClasses[status],
+        hasRejectedTickets ? 'border-l-red-500' : statusBorderClasses[status],
         onTap && 'cursor-pointer hover:shadow-md transition-shadow duration-fast focus-visible:outline-none focus-visible:shadow-focus',
         className
       )}
@@ -67,6 +68,12 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, o
 
       <div className="flex items-center justify-between mt-3">
         <Badge variant={statusToBadgeVariant[status]} />
+        {hasRejectedTickets && (
+          <span className="text-caption text-red-600 font-medium tracking-tight bg-red-50 px-2 py-0.5 rounded-full border border-red-100 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+            Action Required
+          </span>
+        )}
       </div>
     </div>
   )

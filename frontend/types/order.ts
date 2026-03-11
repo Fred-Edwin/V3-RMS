@@ -13,6 +13,7 @@ export interface PrepTicketSummary {
   claimedBy: { id: string; name: string } | null;
   claimedAt: string | null;
   readyAt: string | null;
+  rejectedReason?: string | null;
 }
 
 export interface OrderSummary {
@@ -107,6 +108,7 @@ export interface PrepTicketDetail {
   claimedBy: { id: string; name: string } | null;
   claimedAt: string | null;
   readyAt: string | null;
+  rejectedReason?: string | null;
   items: PrepTicketItemSnapshot[];
   createdAt: string;
 }

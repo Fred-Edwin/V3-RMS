@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose exec api grep -c \"drawBrandedHeader\\\\|ESPRESSO\\\\|drawKpiRow\" dist/utils/report-formatters.js)",
+      "Bash(docker compose exec api npx prisma migrate dev --name add_print_jobs_and_stations)",
+      "Bash(docker compose exec api npx prisma migrate dev --name add_print_jobs_and_stations --skip-generate)",
+      "Bash(docker compose exec api npx prisma migrate status)",
+      "Bash(pnpm prisma migrate dev --name add_print_jobs_and_stations)",
+      "Bash(docker compose up -d --build api worker)",
+      "Bash(xargs grep -l \"paymentMethod\\\\|recordPayment\\\\|Payment\")",
+      "Bash(pnpm test --reporter=verbose)",
+      "Bash(docker compose build api worker)",
+      "Bash(docker compose logs --tail=20 api)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(docker compose stop api worker)",
+      "Bash(docker compose logs --tail=15 api)",
+      "Bash(docker compose logs --tail=10 api)",
+      "Bash(docker compose logs --tail=5 api)",
+      "Bash(docker compose logs --tail=3 api)",
+      "Bash(pnpm add qrcode.react)"
+    ]
+  }
+}

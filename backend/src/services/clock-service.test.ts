@@ -18,6 +18,7 @@ vi.mock('../repositories/clock-record-repository', () => ({
     findOpenByUserId: vi.fn(),
     createClockIn: vi.fn(),
     updateClockOut: vi.fn(),
+    closeStaleOpenRecords: vi.fn(),
   },
 }));
 
