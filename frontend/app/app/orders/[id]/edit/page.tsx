@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ShoppingCart } from 'lucide-react';
+import { Search, ShoppingCart } from 'lucide-react';
 import { EditCheckoutSheet } from '@/components/orders/EditCheckoutSheet';
 import { OrderMenuItemTile } from '@/components/orders/OrderMenuItemTile';
-import { Button, PageHeader, PageLayout } from '@/components/ui';
+import { Button, EmptyState, Input, PageHeader, PageLayout } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { menuService } from '@/services/menuService';
 import { orderService } from '@/services/orderService';
@@ -34,6 +34,7 @@ export default function EditOrderPage(): JSX.Element {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (!accessToken || !params.id) {
@@ -69,6 +70,38 @@ export default function EditOrderPage(): JSX.Element {
     () => categories.find((category) => category.id === selectedCategoryId) ?? categories[0],
     [categories, selectedCategoryId],
   );
+
+  const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm]);
+  const hasSearch = normalizedSearchTerm.length > 0;
+
+  const filteredCategories = useMemo(() => {
+    if (!hasSearch) {
+      return [];
+    }
+
+    return categories.flatMap((category) => {
+      const visibleItems = category.items.filter((item) => {
+        return (
+          item.name.toLowerCase().includes(normalizedSearchTerm) ||
+          (item.description?.toLowerCase().includes(normalizedSearchTerm) ?? false)
+        );
+      });
+
+      if (visibleItems.length === 0) {
+        return [];
+      }
+
+      return [{ ...category, items: visibleItems }];
+    });
+  }, [categories, hasSearch, normalizedSearchTerm]);
+
+  const searchResultCount = useMemo(() => {
+    if (!hasSearch) {
+      return 0;
+    }
+
+    return filteredCategories.reduce((total, category) => total + category.items.length, 0);
+  }, [filteredCategories, hasSearch]);
 
   const handleSave = async () => {
     if (!accessToken || !order) {
@@ -115,25 +148,85 @@ export default function EditOrderPage(): JSX.Element {
         subtitle="Modify items and save"
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {categories.map((category) => (
+      <section className="rounded-lg border border-stone-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Input
+              id="waiter-edit-menu-search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search menu items"
+              leftIcon={<Search size={16} />}
+            />
+          </div>
           <Button
-            key={category.id}
-            variant={selectedCategoryId === category.id ? 'primary' : 'secondary'}
+            variant="ghost"
             size="sm"
-            className="shrink-0 whitespace-nowrap"
-            onClick={() => setSelectedCategoryId(category.id)}
+            className="h-10"
+            onClick={() => setSearchTerm('')}
+            disabled={!hasSearch}
           >
-            {category.name}
+            Clear
           </Button>
-        ))}
-      </div>
+        </div>
+        {hasSearch ? (
+          <p className="mt-2 text-caption text-stone-500">
+            {searchResultCount === 0
+              ? 'No items match your search yet.'
+              : `Found ${searchResultCount} item${searchResultCount === 1 ? '' : 's'} across ${
+                  filteredCategories.length
+                } categor${filteredCategories.length === 1 ? 'y' : 'ies'}.`}
+          </p>
+        ) : null}
+      </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-        {selectedCategory?.items.map((item) => (
-          <OrderMenuItemTile key={item.id} item={item} />
-        ))}
-      </div>
+      {!hasSearch ? (
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategoryId === category.id ? 'primary' : 'secondary'}
+              size="sm"
+              className="shrink-0 whitespace-nowrap"
+              onClick={() => setSelectedCategoryId(category.id)}
+            >
+              {category.name}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      {hasSearch && filteredCategories.length === 0 ? (
+        <EmptyState
+          icon={<Search size={28} />}
+          heading="No menu items found"
+          body="Try searching by item name or a key ingredient."
+        />
+      ) : null}
+
+      {hasSearch ? (
+        <div className="space-y-6">
+          {filteredCategories.map((category) => (
+            <section key={category.id} className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <h2 className="text-heading-md font-semibold text-stone-900">{category.name}</h2>
+                <span className="text-caption text-stone-400">{category.items.length} items</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                {category.items.map((item) => (
+                  <OrderMenuItemTile key={item.id} item={item} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+          {selectedCategory?.items.map((item) => (
+            <OrderMenuItemTile key={item.id} item={item} />
+          ))}
+        </div>
+      )}
 
       {/* Floating cart FAB — same pattern as new order page */}
       <button
