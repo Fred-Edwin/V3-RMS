@@ -1,11 +1,13 @@
 import { randomBytes, createHash } from 'crypto';
 import type { PrintJobStatus, ReceiptType, Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { printRepository, type PrintJobRecord, type PrintJobSummaryRecord, type PrintStationRecord } from '../repositories/print-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 
 const PRINT_STATION_TOKEN_PREFIX = 'pst_';
 const STATION_ONLINE_THRESHOLD_SECONDS = 60;
 const JOB_MAX_AGE_HOURS = 24;
+const CLAIM_LEASE_SECONDS = 120;
 
 interface ReceiptItem {
   name: string;
@@ -135,14 +137,27 @@ export const printService = {
     // Payment receipts always print 2 copies (customer + accountant); bills print 1
     const copies = receiptType === 'RECEIPT' ? 2 : 1;
 
-    return printRepository.createPrintJob({
-      organizationId,
-      orderId,
-      requestedById,
-      receiptType,
-      copies,
-      receiptData: receiptData as unknown as Prisma.InputJsonValue,
-    });
+    const activeKey = `${orderId}:${receiptType}`;
+
+    try {
+      return await printRepository.createPrintJob({
+        organizationId,
+        orderId,
+        requestedById,
+        receiptType,
+        copies,
+        activeKey,
+        receiptData: receiptData as unknown as Prisma.InputJsonValue,
+      });
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existingActive = await printRepository.findActiveJobForOrder(orderId, organizationId, receiptType);
+        if (existingActive) {
+          return existingActive;
+        }
+      }
+      throw error;
+    }
   },
 
   getPrintJobs: async (
@@ -173,15 +188,23 @@ export const printService = {
     return job;
   },
 
-  getPendingJobsForStation: async (
+  claimJobsForStation: async (
     organizationId: string,
-    status: PrintJobStatus,
+    stationId: string,
+    limit: number,
   ): Promise<PrintJobRecord[]> => {
     // Auto-expire jobs older than 24 hours before returning results
     const expireBefore = new Date(Date.now() - JOB_MAX_AGE_HOURS * 60 * 60 * 1000);
     await printRepository.expireOldPendingJobs(organizationId, expireBefore);
 
-    return printRepository.listPendingJobsForStation(organizationId, status);
+    const now = new Date();
+    return printRepository.claimPendingJobsForStation(
+      organizationId,
+      stationId,
+      limit,
+      CLAIM_LEASE_SECONDS,
+      now,
+    );
   },
 
   updateJobStatus: async (
@@ -192,17 +215,45 @@ export const printService = {
       printedAt?: string;
       failureReason?: string;
     },
+    stationId?: string,
   ): Promise<PrintJobRecord> => {
     const existing = await printRepository.findPrintJobById(jobId, organizationId);
     if (!existing) {
       throw new NotFoundError('Print job not found');
     }
 
-    return printRepository.updatePrintJobStatus(jobId, organizationId, {
+    const update: {
+      status: PrintJobStatus;
+      printedAt?: Date;
+      failureReason?: string;
+      activeKey?: string | null;
+      claimedByStationId?: string | null;
+      claimedAt?: Date | null;
+      leaseExpiresAt?: Date | null;
+      printedByStationId?: string | null;
+    } = {
       status: data.status,
       printedAt: data.printedAt ? new Date(data.printedAt) : undefined,
       failureReason: data.failureReason,
-    });
+    };
+
+    if (data.status === 'COMPLETED') {
+      update.printedAt = update.printedAt ?? new Date();
+      update.printedByStationId = stationId ?? null;
+      update.activeKey = null;
+      update.claimedByStationId = null;
+      update.claimedAt = null;
+      update.leaseExpiresAt = null;
+    }
+
+    if (data.status === 'FAILED') {
+      update.activeKey = null;
+      update.claimedByStationId = null;
+      update.claimedAt = null;
+      update.leaseExpiresAt = null;
+    }
+
+    return printRepository.updatePrintJobStatus(jobId, organizationId, update);
   },
 
   createPrintStation: async (

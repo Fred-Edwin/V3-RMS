@@ -14,11 +14,17 @@ export interface PrintJob {
   id: string;
   organizationId: string;
   orderId: string;
+  activeKey: string | null;
   receiptType: ReceiptType;
   copies: number;
   status: PrintJobStatus;
   receiptData: Record<string, unknown>;
   requestedById: string;
+  claimedByStationId: string | null;
+  claimedAt: string | null;
+  leaseExpiresAt: string | null;
+  printAttemptCount: number;
+  printedByStationId: string | null;
   printedAt: string | null;
   failureReason: string | null;
   createdAt: string;

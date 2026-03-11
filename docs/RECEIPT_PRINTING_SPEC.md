@@ -29,7 +29,7 @@ Waiter/Manager (browser, any device)
   → Backend creates PrintJob (status: PENDING, copies: 2)
 
 Flutter App (work phone, polling every 3–5s)
-  → GET /api/v1/print-station/jobs?status=PENDING
+  → GET /api/v1/print-station/jobs?limit=10
   → Receives pending jobs with receiptType + copies
   → Generates ESC/POS commands (format differs by type)
   → Prints `copies` times
@@ -79,11 +79,17 @@ model PrintJob {
   id              String         @id @default(uuid())
   organizationId  String         @map("organization_id")
   orderId         String         @map("order_id")
+  activeKey       String?        @unique @map("active_key")
   receiptType     ReceiptType    @default(RECEIPT) @map("receipt_type")
   copies          Int            @default(1)
   status          PrintJobStatus @default(PENDING)
   receiptData     Json           @map("receipt_data")
   requestedById   String         @map("requested_by_id")
+  claimedByStationId String?     @map("claimed_by_station_id")
+  claimedAt       DateTime?      @map("claimed_at")
+  leaseExpiresAt  DateTime?      @map("lease_expires_at")
+  printAttemptCount Int          @default(0) @map("print_attempt_count")
+  printedByStationId String?     @map("printed_by_station_id")
   printedAt       DateTime?      @map("printed_at")
   failureReason   String?        @map("failure_reason")
   createdAt       DateTime       @default(now()) @map("created_at")
@@ -92,6 +98,8 @@ model PrintJob {
   organization    Organization   @relation(fields: [organizationId], references: [id])
   order           Order          @relation(fields: [orderId], references: [id])
   requestedBy     User           @relation("PrintJobRequester", fields: [requestedById], references: [id])
+  claimedByStation PrintStation? @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
+  printedByStation PrintStation? @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])
 
   @@index([organizationId, status])
   @@index([orderId])
@@ -115,6 +123,8 @@ model PrintStation {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   organization    Organization @relation(fields: [organizationId], references: [id])
+  claimedJobs     PrintJob[]    @relation("PrintJobClaimedBy")
+  printedJobs     PrintJob[]    @relation("PrintJobPrintedBy")
 
   @@index([organizationId])
   @@index([token])
@@ -270,11 +280,14 @@ These endpoints use **print station token auth** (Bearer token), not JWT.
 #### `GET /api/v1/print-station/jobs`
 
 **Access:** 🖨️ Print Station Token
-Returns PENDING print jobs for the station's branch.
+Atomically claims print jobs for the station's branch and returns the claimed jobs.
+
+Claiming sets jobs to `PRINTING`, assigns a **lease** (default 120s), and increments `printAttemptCount`.  
+Expired `PRINTING` jobs (lease expired) can be reclaimed.
 
 **Query Params:**
 ```
-status    (optional, default: PENDING)
+limit    (optional, default: 10, max: 50)
 ```
 
 **Response `200`:**
@@ -287,8 +300,11 @@ status    (optional, default: PENDING)
       "orderId": "uuid",
       "receiptType": "BILL",
       "copies": 1,
-      "status": "PENDING",
+      "status": "PRINTING",
       "receiptData": { ... },
+      "claimedAt": "2026-03-08T14:32:00Z",
+      "leaseExpiresAt": "2026-03-08T14:34:00Z",
+      "printAttemptCount": 1,
       "createdAt": "2026-03-08T14:32:00Z"
     }
   ]
@@ -471,8 +487,8 @@ App Starts
 
 ```
 POLLING LOOP (every 3–5 seconds):
-  1. GET /print-station/jobs?status=PENDING
-  2. If jobs returned AND printer is connected:
+  1. If printer is connected → GET /print-station/jobs?limit=10 (claims jobs)
+  2. If jobs returned:
      a. For each job:
         i.   Read receiptType and copies from job
         ii.  Generate ESC/POS commands from receiptData (BILL or RECEIPT layout)
@@ -480,9 +496,9 @@ POLLING LOOP (every 3–5 seconds):
         iv.  PATCH job status → COMPLETED with printedAt timestamp
         v.   On Bluetooth send error → PATCH job status → FAILED with reason
      b. If JSON parse error on a job → skip that job, mark it FAILED, continue to next
-  3. If jobs returned AND printer is NOT connected:
-     a. Leave jobs as PENDING (do NOT mark FAILED — they'll print when reconnected)
-     b. Show notification: "X print jobs waiting — printer disconnected"
+  3. If printer is NOT connected:
+     a. Skip claiming jobs (do not call /print-station/jobs)
+     b. Show notification: "Printer disconnected"
 
 HEARTBEAT LOOP (every 30 seconds, independent timer):
   1. POST /print-station/heartbeat
@@ -1273,7 +1289,7 @@ Useful for debugging "did it print?" questions.
 | Very long item names (> 28 chars) | ESC/POS formatter wraps to a second line (2-space indent). If remainder still exceeds 26 chars after indent, truncate with `...`. |
 | Order with 20+ items | Receipt will be long but printers handle continuous paper. No issue. |
 | Stale PENDING jobs (e.g., from yesterday) | `maxAge` check: PENDING jobs older than 24 hours are auto-marked as `FAILED` with reason "Expired — not printed within 24h." This prevents the printer from spitting out yesterday's receipts when turned on in the morning. |
-| Concurrent poll picks up same job on two cycles | The PATCH to PRINTING acts as a lock. If the first cycle already set it to PRINTING, the second cycle's poll won't return it (poll filters `status=PENDING`). |
+| Concurrent poll picks up same job on two cycles | Claim endpoint atomically sets `PRINTING` with a lease using `FOR UPDATE SKIP LOCKED`, so the same job cannot be returned twice. Expired leases can be reclaimed. |
 | JSON parse error on a print job | App must NOT crash. Skip the bad job, mark it FAILED with reason "Invalid receipt data", log the error locally, continue processing remaining jobs. |
 
 ### 11.4 Network Edge Cases

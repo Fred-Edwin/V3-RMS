@@ -32,7 +32,8 @@ export const UpdatePrintJobStatusSchema = z
 
 // GET /print-station/jobs query
 export const StationJobQuerySchema = z.object({
-  status: z.nativeEnum(PrintJobStatus).optional().default(PrintJobStatus.PENDING),
+  status: z.literal(PrintJobStatus.PENDING).optional().default(PrintJobStatus.PENDING),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
 // POST /print-stations

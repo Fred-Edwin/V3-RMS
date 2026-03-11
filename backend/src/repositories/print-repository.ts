@@ -1,4 +1,4 @@
-import { type PrintJobStatus, type ReceiptType, type Prisma } from '@prisma/client';
+import { Prisma, type PrintJobStatus, type ReceiptType } from '@prisma/client';
 import { prisma } from '../config/database';
 
 // ─── Print Job DTOs ────────────────────────────────────────────────────────
@@ -7,11 +7,17 @@ export interface PrintJobRecord {
   id: string;
   organizationId: string;
   orderId: string;
+  activeKey: string | null;
   receiptType: ReceiptType;
   copies: number;
   status: PrintJobStatus;
   receiptData: Prisma.JsonValue;
   requestedById: string;
+  claimedByStationId: string | null;
+  claimedAt: Date | null;
+  leaseExpiresAt: Date | null;
+  printAttemptCount: number;
+  printedByStationId: string | null;
   printedAt: Date | null;
   failureReason: string | null;
   createdAt: Date;
@@ -79,6 +85,7 @@ export const printRepository = {
     requestedById: string;
     receiptType: ReceiptType;
     copies: number;
+    activeKey: string;
     receiptData: Prisma.InputJsonValue;
   }): Promise<PrintJobSummaryRecord> => {
     return prisma.printJob.create({
@@ -88,6 +95,7 @@ export const printRepository = {
         requestedById: data.requestedById,
         receiptType: data.receiptType,
         copies: data.copies,
+        activeKey: data.activeKey,
         receiptData: data.receiptData,
       },
       select: {
@@ -167,6 +175,59 @@ export const printRepository = {
     });
   },
 
+  claimPendingJobsForStation: async (
+    organizationId: string,
+    stationId: string,
+    limit: number,
+    leaseTtlSeconds: number,
+    now: Date,
+  ): Promise<PrintJobRecord[]> => {
+    const leaseExpiresAt = new Date(now.getTime() + leaseTtlSeconds * 1000);
+
+    return prisma.$queryRaw<PrintJobRecord[]>(Prisma.sql`
+      WITH candidates AS (
+        SELECT "id"
+        FROM "public"."print_jobs"
+        WHERE "organization_id" = ${organizationId}
+          AND (
+            "status" = 'PENDING'
+            OR ("status" = 'PRINTING' AND ("lease_expires_at" IS NULL OR "lease_expires_at" < ${now}))
+          )
+        ORDER BY "created_at" ASC
+        LIMIT ${limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE "public"."print_jobs" AS pj
+      SET "status" = 'PRINTING',
+          "claimed_by_station_id" = ${stationId},
+          "claimed_at" = ${now},
+          "lease_expires_at" = ${leaseExpiresAt},
+          "print_attempt_count" = pj."print_attempt_count" + 1,
+          "active_key" = COALESCE(pj."active_key", pj."order_id" || ':' || pj."receipt_type")
+      FROM candidates
+      WHERE pj."id" = candidates."id"
+      RETURNING
+        pj."id",
+        pj."organization_id" AS "organizationId",
+        pj."order_id" AS "orderId",
+        pj."active_key" AS "activeKey",
+        pj."receipt_type" AS "receiptType",
+        pj."copies",
+        pj."status",
+        pj."receipt_data" AS "receiptData",
+        pj."requested_by_id" AS "requestedById",
+        pj."claimed_by_station_id" AS "claimedByStationId",
+        pj."claimed_at" AS "claimedAt",
+        pj."lease_expires_at" AS "leaseExpiresAt",
+        pj."print_attempt_count" AS "printAttemptCount",
+        pj."printed_by_station_id" AS "printedByStationId",
+        pj."printed_at" AS "printedAt",
+        pj."failure_reason" AS "failureReason",
+        pj."created_at" AS "createdAt",
+        pj."updated_at" AS "updatedAt"
+    `);
+  },
+
   updatePrintJobStatus: async (
     id: string,
     organizationId: string,
@@ -174,15 +235,24 @@ export const printRepository = {
       status: PrintJobStatus;
       printedAt?: Date;
       failureReason?: string;
+      activeKey?: string | null;
+      claimedByStationId?: string | null;
+      claimedAt?: Date | null;
+      leaseExpiresAt?: Date | null;
+      printedByStationId?: string | null;
     },
   ): Promise<PrintJobRecord> => {
     return prisma.printJob.update({
       where: { id },
       data: {
-        organizationId, // used for validation in service
         status: data.status,
         printedAt: data.printedAt,
         failureReason: data.failureReason,
+        activeKey: data.activeKey,
+        claimedByStationId: data.claimedByStationId,
+        claimedAt: data.claimedAt,
+        leaseExpiresAt: data.leaseExpiresAt,
+        printedByStationId: data.printedByStationId,
       },
     });
   },
@@ -197,6 +267,10 @@ export const printRepository = {
       data: {
         status: 'FAILED',
         failureReason: 'Expired — not printed within 24h',
+        activeKey: null,
+        claimedByStationId: null,
+        claimedAt: null,
+        leaseExpiresAt: null,
       },
     });
     return result.count;

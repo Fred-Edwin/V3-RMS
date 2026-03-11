@@ -86,9 +86,10 @@ export const printController = {
     const station = requireStation(req);
     const query = StationJobQuerySchema.parse(req.query);
 
-    const jobs = await printService.getPendingJobsForStation(
+    const jobs = await printService.claimJobsForStation(
       station.organizationId,
-      query.status,
+      station.id,
+      query.limit,
     );
 
     res.status(200).json({
@@ -106,7 +107,7 @@ export const printController = {
       status: body.status,
       printedAt: 'printedAt' in body ? body.printedAt : undefined,
       failureReason: 'failureReason' in body ? body.failureReason : undefined,
-    });
+    }, station.id);
 
     res.status(200).json({
       success: true,

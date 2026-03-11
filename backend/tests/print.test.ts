@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { app } from '../src/app';
 import { printService } from '../src/services/print-service';
 import { printRepository } from '../src/repositories/print-repository';
@@ -35,9 +36,17 @@ const samplePrintJob = {
   id: printJobId,
   organizationId: orgId,
   orderId,
+  activeKey: `${orderId}:RECEIPT`,
+  receiptType: 'RECEIPT' as const,
+  copies: 2,
   status: 'PENDING' as const,
   receiptData: { branchName: 'Wendo Kingz' },
   requestedById: '11111111-1111-4111-8111-111111111111',
+  claimedByStationId: null,
+  claimedAt: null,
+  leaseExpiresAt: null,
+  printAttemptCount: 0,
+  printedByStationId: null,
   printedAt: null,
   failureReason: null,
   createdAt: new Date('2026-03-08T10:00:00Z'),
@@ -47,6 +56,8 @@ const samplePrintJob = {
 const samplePrintJobSummary = {
   id: printJobId,
   orderId,
+  receiptType: 'RECEIPT' as const,
+  copies: 2,
   status: 'PENDING' as const,
   createdAt: new Date('2026-03-08T10:00:00Z'),
 };
@@ -337,7 +348,7 @@ describe('Print station token auth middleware', () => {
       organizationId: orgId,
       isActive: true,
     });
-    vi.spyOn(printService, 'getPendingJobsForStation').mockResolvedValue([]);
+    vi.spyOn(printService, 'claimJobsForStation').mockResolvedValue([]);
 
     const res = await request(app)
       .get('/api/v1/print-station/jobs')
@@ -428,6 +439,41 @@ describe('printService.createPrintJob', () => {
       paymentMethod: 'CASH',
     });
   });
+
+  it('returns existing active job when unique active key conflict occurs', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue({
+      id: orderId,
+      organizationId: orgId,
+      dailyNumber: 42,
+      orderDate: new Date('2026-03-08'),
+      type: 'DINE_IN',
+      tableNumber: 'T5',
+      subtotal: { toString: () => '1200' } as never,
+      deliveryFee: { toString: () => '0' } as never,
+      total: { toString: () => '1200' } as never,
+      paymentMethod: 'CASH',
+      paidAt: new Date('2026-03-08T14:32:00Z'),
+      createdAt: new Date('2026-03-08T10:00:00Z'),
+      organization: { name: 'Wendo Kingz' },
+      createdBy: { name: 'Jane M.' },
+      items: [],
+    });
+
+    vi.spyOn(printRepository, 'findActiveJobForOrder')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(samplePrintJobSummary);
+
+    const uniqueError = new PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: '5.0.0',
+      meta: { target: ['print_jobs_active_key_key'] },
+    });
+    vi.spyOn(printRepository, 'createPrintJob').mockRejectedValue(uniqueError);
+
+    const result = await printService.createPrintJob(orderId, 'user-1', orgId);
+
+    expect(result).toBe(samplePrintJobSummary);
+  });
 });
 
 describe('printService.createPrintStation', () => {
@@ -495,19 +541,46 @@ describe('printService.deactivatePrintStation', () => {
   });
 });
 
-describe('printService.getPendingJobsForStation', () => {
+describe('printService.updateJobStatus', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('clears active key and records printedByStationId on completion', async () => {
+    vi.spyOn(printRepository, 'findPrintJobById').mockResolvedValue(samplePrintJob);
+    const updateSpy = vi.spyOn(printRepository, 'updatePrintJobStatus').mockResolvedValue(samplePrintJob);
+
+    await printService.updateJobStatus(
+      printJobId,
+      orgId,
+      { status: 'COMPLETED' },
+      stationId,
+    );
+
+    const updateData = updateSpy.mock.calls[0]?.[2];
+    expect(updateData?.status).toBe('COMPLETED');
+    expect(updateData?.printedByStationId).toBe(stationId);
+    expect(updateData?.activeKey).toBeNull();
+    expect(updateData?.claimedByStationId).toBeNull();
+    expect(updateData?.claimedAt).toBeNull();
+    expect(updateData?.leaseExpiresAt).toBeNull();
+    expect(updateData?.printedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('printService.claimJobsForStation', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   it('expires old pending jobs and returns current ones', async () => {
     const expireSpy = vi.spyOn(printRepository, 'expireOldPendingJobs').mockResolvedValue(2);
-    const listSpy = vi.spyOn(printRepository, 'listPendingJobsForStation').mockResolvedValue([samplePrintJob]);
+    const claimSpy = vi.spyOn(printRepository, 'claimPendingJobsForStation').mockResolvedValue([samplePrintJob]);
 
-    const result = await printService.getPendingJobsForStation(orgId, 'PENDING');
+    const result = await printService.claimJobsForStation(orgId, stationId, 10);
 
     expect(expireSpy).toHaveBeenCalledOnce();
-    expect(listSpy).toHaveBeenCalledWith(orgId, 'PENDING');
+    expect(claimSpy).toHaveBeenCalledWith(orgId, stationId, 10, 120, expect.any(Date));
     expect(result).toHaveLength(1);
   });
 });
