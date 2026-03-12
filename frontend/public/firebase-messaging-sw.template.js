@@ -2,7 +2,6 @@
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js');
 
-// __FIREBASE_CONFIG_JSON__ is replaced at build time by next.config.mjs
 firebase.initializeApp(__FIREBASE_CONFIG_JSON__);
 
 const messaging = firebase.messaging();
