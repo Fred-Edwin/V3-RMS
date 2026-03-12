@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Printer } from 'lucide-react';
 import { BottomSheet, Button, PriceDisplay, Select } from '@/components/ui';
 import type { OrderDetail, PaymentMethod } from '@/types/order';
