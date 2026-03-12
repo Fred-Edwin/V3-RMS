@@ -2,8 +2,7 @@
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging-compat.js');
 
-// {"apiKey":"AIzaSyD0yql92PxxhUrdXhWXM8RtqxcEzNB9lyM","authDomain":"v3-rms.firebaseapp.com","projectId":"v3-rms","storageBucket":"v3-rms.firebasestorage.app","messagingSenderId":"204805554525","appId":"1:204805554525:web:296a60399953a7fefb68b4"} is replaced at build time by next.config.mjs
-firebase.initializeApp(__FIREBASE_CONFIG_JSON__);
+firebase.initializeApp({"apiKey":"AIzaSyD0yql92PxxhUrdXhWXM8RtqxcEzNB9lyM","authDomain":"v3-rms.firebaseapp.com","projectId":"v3-rms","storageBucket":"v3-rms.firebasestorage.app","messagingSenderId":"204805554525","appId":"1:204805554525:web:296a60399953a7fefb68b4"});
 
 const messaging = firebase.messaging();
 
