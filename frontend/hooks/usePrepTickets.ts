@@ -91,10 +91,22 @@ export function usePrepTickets() {
       removeOrderTickets(payload.orderId);
     };
 
+    const handleOrderClaimed = (payload: { ticketId: string; station: PrepStation }) => {
+      if (payload.station !== station) return;
+      updateTicketRealTime(payload.ticketId, { status: 'IN_PROGRESS' });
+    };
+
+    const handleTicketUnclaimed = (payload: { ticketId: string; station: PrepStation }) => {
+      if (payload.station !== station) return;
+      updateTicketRealTime(payload.ticketId, { status: 'PENDING' });
+    };
+
     socket.on('order:new', handleNewOrder);
     socket.on('order:modified', handleOrderModified);
     socket.on('order:cancelled', handleOrderCancelled);
     socket.on('order:closed', handleOrderClosed);
+    socket.on('order:claimed', handleOrderClaimed);
+    socket.on('ticket:unclaimed', handleTicketUnclaimed);
 
     const handleForceCancelled = (payload: { orderId: string }) => {
       removeOrderTickets(payload.orderId);
@@ -112,6 +124,8 @@ export function usePrepTickets() {
       socket.off('order:modified', handleOrderModified);
       socket.off('order:cancelled', handleOrderCancelled);
       socket.off('order:closed', handleOrderClosed);
+      socket.off('order:claimed', handleOrderClaimed);
+      socket.off('ticket:unclaimed', handleTicketUnclaimed);
       socket.off('order:force_cancelled', handleForceCancelled);
       offReconnect();
     };

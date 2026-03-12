@@ -241,7 +241,7 @@ export const prepTicketService = {
       await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.IN_PROGRESS);
     }
 
-    socketService.emitOrderClaimed(ticket.order.createdById, {
+    socketService.emitOrderClaimed(organizationId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: claimedTicket.id,
       station: claimedTicket.station,
@@ -388,7 +388,7 @@ export const prepTicketService = {
       throw new ConflictError('Only in-progress tickets can be unclaimed.');
     }
 
-    socketService.emitTicketUnclaimed(ticket.order.createdById, {
+    socketService.emitTicketUnclaimed(organizationId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: unclaimedTicket.id,
       station: unclaimedTicket.station,

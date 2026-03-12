@@ -57,9 +57,10 @@ export const socketService = {
     });
   },
 
-  emitOrderClaimed: (waiterId: string, payload: OrderClaimedPayload): void => {
+  emitOrderClaimed: (organizationId: string, waiterId: string, payload: OrderClaimedPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:claimed', payload);
+    io.to(stationRoomName(organizationId, payload.station)).emit('order:claimed', payload);
   },
 
   emitOrderReady: (waiterId: string, payload: OrderReadyPayload): void => {
@@ -114,11 +115,13 @@ export const socketService = {
   },
 
   emitTicketUnclaimed: (
+    organizationId: string,
     waiterId: string,
     payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('ticket:unclaimed', payload);
+    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:unclaimed', payload);
   },
 
   emitModificationRequested: (
