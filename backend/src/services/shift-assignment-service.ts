@@ -221,11 +221,6 @@ export const shiftAssignmentService = {
       throw new NotFoundError('Shift assignment not found');
     }
 
-    const today = toIsoDateOnly(getTodayDateOnly());
-    if (toIsoDateOnly(assignment.date) <= today) {
-      throw new ValidationError('Cannot delete past or current shift assignments');
-    }
-
     await shiftAssignmentRepository.delete(id, actor.organizationId);
   },
 };

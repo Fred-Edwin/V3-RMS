@@ -15,7 +15,6 @@ import { useKitchenStore } from '@/store/kitchenStore';
 import { ApiError } from '@/types/api';
 import type { PrepStation, PrepTicketDetail } from '@/types/order';
 import { KDSColumn } from './KDSColumn';
-import { ClaimTicketSheet } from './ClaimTicketSheet';
 import { RejectTicketSheet } from './RejectTicketSheet';
 
 interface DisplayBoardProps {
@@ -42,9 +41,10 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   );
   const [staffOnShift, setStaffOnShift] = useState<Array<{ id: string; name: string }>>([]);
   const [isUsingStaffFallback, setIsUsingStaffFallback] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<PrepTicketDetail | null>(null);
 
+  // ticketId → staffId being claimed (one active claim at a time per ticket)
   const [claimingTicketId, setClaimingTicketId] = useState<string | null>(null);
+  const [claimingStaffId, setClaimingStaffId] = useState<string | null>(null);
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
   const [rejectingTicket, setRejectingTicket] = useState<PrepTicketDetail | null>(null);
   const [isRejectSubmitting, setIsRejectSubmitting] = useState(false);
@@ -116,6 +116,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
 
     setClaimingTicketId(ticketId);
+    setClaimingStaffId(claimedById);
 
     try {
       const claimedTicket = await prepTicketService.claim(ticketId, claimedById, accessToken);
@@ -138,7 +139,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           { role, toast },
         );
       }
-      setSelectedTicket(null);
+      // KDSCard closes the picker automatically when status transitions to IN_PROGRESS
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to claim this ticket right now.';
       toast({
@@ -146,9 +147,9 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         title: message,
       });
       void reload();
-      setSelectedTicket(null);
     } finally {
       setClaimingTicketId(null);
+      setClaimingStaffId(null);
     }
   };
 
@@ -222,7 +223,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
-  // Tablet KDS/BDS: shared claim sheet flow
+  // Tablet KDS/BDS: inline claim picker flow — no bottom sheet
   const renderTabletTicket = (ticket: PrepTicketDetail) => (
     <KDSCard
       key={ticket.id}
@@ -234,20 +235,23 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
       startTime={ticket.createdAt}
       status={ticket.status}
       actionLabel={ticket.status === 'PENDING' ? 'Claim' : 'Mark Ready'}
-      isActionLoading={
-        ticket.status === 'PENDING'
-          ? claimingTicketId === ticket.id
-          : Boolean(markingReadyTicketIds[ticket.id])
-      }
-      loadingMessage={ticket.status === 'PENDING' ? 'Claiming ticket...' : 'Marking as ready...'}
+      isActionLoading={Boolean(markingReadyTicketIds[ticket.id])}
+      loadingMessage="Marking as ready..."
       onAction={() => {
-        if (ticket.status === 'PENDING') {
-          if (claimingTicketId === ticket.id) return;
-          setSelectedTicket(ticket);
-          return;
-        }
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
+      }}
+      station={station}
+      staffOnShiftForPicker={staffOnShift}
+      pickerHelperText={
+        isUsingStaffFallback
+          ? 'No clocked-in staff found. Showing active staff.'
+          : undefined
+      }
+      claimingStaffId={claimingTicketId === ticket.id ? claimingStaffId : null}
+      onTabletClaim={(staffId) => {
+        if (claimingTicketId === ticket.id) return;
+        void handleClaim(ticket.id, staffId);
       }}
       onReject={() => setRejectingTicket(ticket)}
       onUnclaim={ticket.status === 'IN_PROGRESS' ? () => void handleUnclaim(ticket.id) : undefined}
@@ -452,23 +456,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         }}
         isSubmitting={isRejectSubmitting}
       />
-      {selectedTicket && (
-        <ClaimTicketSheet
-          isOpen={Boolean(selectedTicket)}
-          onClose={() => setSelectedTicket(null)}
-          ticketId={selectedTicket.id}
-          station={station}
-          staffOnShift={staffOnShift}
-          helperText={
-            isUsingStaffFallback
-              ? 'No clocked-in staff found. Showing active staff for local testing.'
-              : undefined
-          }
-          isSubmitting={Boolean(selectedTicket && claimingTicketId === selectedTicket.id)}
-          submittingMessage="Claiming ticket..."
-          onClaim={(staffId) => void handleClaim(selectedTicket.id, staffId)}
-        />
-      )}
     </FullscreenLayout>
   );
 }

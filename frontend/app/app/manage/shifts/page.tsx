@@ -601,16 +601,14 @@ export default function ShiftManagementPage(): JSX.Element {
                 <div key={assignment.id} className={`group relative rounded-md border-l-[3px] ${color.border} ${color.bg} px-2 py-1.5 transition-shadow duration-fast hover:shadow-md`}>
                   <p className={`text-label-sm font-semibold ${color.text}`}>{assignment.shift.name}</p>
                   <p className="text-[10px] text-stone-500">{assignment.shift.startTime} – {assignment.shift.endTime}</p>
-                  {dateKey > todayDateKey && (
-                    <button
-                      type="button"
-                      className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
-                      onClick={() => setAssignmentPendingDelete(assignment)}
-                      aria-label={`Remove ${assignment.shift.name}`}
-                    >
-                      <Trash2 size={9} />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
+                    onClick={() => setAssignmentPendingDelete(assignment)}
+                    aria-label={`Remove ${assignment.shift.name}`}
+                  >
+                    <Trash2 size={9} />
+                  </button>
                 </div>
               );
             })}
@@ -688,16 +686,14 @@ export default function ShiftManagementPage(): JSX.Element {
                 <div key={a.id} className={`group relative flex items-center gap-1 rounded px-1 py-0.5 ${color.bg}`}>
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`} />
                   <span className={`truncate text-[9px] font-medium leading-tight ${color.text}`}>{a.shift.name}</span>
-                  {dateKey > todayDateKey && (
-                    <button
-                      type="button"
-                      className="ml-auto hidden shrink-0 text-[#991B1B] group-hover:block"
-                      onClick={() => setAssignmentPendingDelete(a)}
-                      aria-label={`Remove ${a.shift.name}`}
-                    >
-                      <Trash2 size={8} />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="ml-auto hidden shrink-0 text-[#991B1B] group-hover:block"
+                    onClick={() => setAssignmentPendingDelete(a)}
+                    aria-label={`Remove ${a.shift.name}`}
+                  >
+                    <Trash2 size={8} />
+                  </button>
                 </div>
               );
             })}
@@ -1240,7 +1236,7 @@ export default function ShiftManagementPage(): JSX.Element {
         onClose={() => { if (!isSubmitting) setShiftPendingDelete(null); }}
         onConfirm={() => void handleDeleteShift()}
         title="Delete shift?"
-        description={shiftPendingDelete ? `Delete "${shiftPendingDelete.name}"? This is blocked if future assignments exist.` : 'Delete this shift?'}
+        description={shiftPendingDelete ? `Delete "${shiftPendingDelete.name}"? This will also remove all associated assignments.` : 'Delete this shift?'}
         confirmLabel="Delete"
         isLoading={isSubmitting}
       />

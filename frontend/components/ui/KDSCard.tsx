@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/cn'
 import { Button } from './Button'
 import { ClaimButton } from '@/components/kitchen/ClaimButton'
+import { ClaimTicketSheet } from '@/components/kitchen/ClaimTicketSheet'
 import type { OrderType } from './OrderCard'
+import type { PrepStation } from '@/types/order'
 
 export interface KDSItem {
   quantity: number
@@ -26,9 +28,15 @@ interface KDSCardProps {
   isActionLoading?: boolean
   loadingMessage?: string
   onAction: () => void
-  /** When provided on a PENDING ticket, renders an inline ClaimButton instead of the generic action button */
+  /** Personal phone flow: renders an inline ClaimButton instead of tablet picker */
   staffOnShift?: Array<{ id: string; name: string }>
   onClaim?: (staffId: string) => void
+  /** Tablet display flow: enables the inline claim picker overlay */
+  station?: PrepStation
+  staffOnShiftForPicker?: Array<{ id: string; name: string }>
+  pickerHelperText?: string
+  claimingStaffId?: string | null
+  onTabletClaim?: (staffId: string) => void
   onReject?: () => void
   onUnclaim?: () => void
   claimedAt?: string | null
@@ -74,12 +82,19 @@ export function KDSCard({
   onAction,
   staffOnShift,
   onClaim,
+  station,
+  staffOnShiftForPicker,
+  pickerHelperText,
+  claimingStaffId,
+  onTabletClaim,
   onReject,
   onUnclaim,
   claimedAt,
   className,
 }: KDSCardProps) {
   const [elapsedMinutes, setElapsedMinutes] = useState(() => getElapsedMinutes(startTime))
+  // Tracks whether the inline claim picker is open on this card (tablet flow only)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     setElapsedMinutes(getElapsedMinutes(startTime))
@@ -89,6 +104,16 @@ export function KDSCard({
     return () => clearInterval(interval)
   }, [startTime])
 
+  // Close the picker if the ticket is no longer pending (claimed by someone else)
+  useEffect(() => {
+    if (status !== 'PENDING') {
+      setPickerOpen(false)
+    }
+  }, [status])
+
+  const isTabletClaimFlow = Boolean(station && staffOnShiftForPicker && onTabletClaim)
+  const isBeingClaimed = Boolean(claimingStaffId)
+
   return (
     <div
       className={cn(
@@ -97,7 +122,7 @@ export function KDSCard({
         className
       )}
     >
-      {/* Header */}
+      {/* Header — always visible */}
       <div className="flex items-start justify-between gap-2">
         <div>
           <span className="text-heading-md font-semibold text-espresso">#{orderNumber}</span>
@@ -110,81 +135,127 @@ export function KDSCard({
         </span>
       </div>
 
-      {/* Items */}
-      <ul className="mt-2.5 flex-1 space-y-1">
-        {items.map((item, i) => (
-          <li key={i} className="text-body-md text-stone-900">
-            <span className="font-semibold">{item.quantity}×</span> {item.name}
-            {item.notes && (
-              <span className="text-label-sm text-stone-500 italic ml-1">({item.notes})</span>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {/* Special instructions */}
-      {specialInstructions && (
-        <p className="mt-2.5 border-t border-stone-200 pt-2 text-body-sm italic text-stone-500">
-          {specialInstructions}
-        </p>
-      )}
-
-      {/* Action — only shown for PENDING and IN_PROGRESS tickets */}
-      {status === 'PENDING' && staffOnShift && onClaim && (
-        <ClaimButton
-          staffOnShift={staffOnShift}
-          isLoading={isActionLoading}
-          onClaim={onClaim}
-        />
-      )}
-      {status === 'PENDING' && (!staffOnShift || !onClaim) && (
+      {pickerOpen && isTabletClaimFlow ? (
+        /*
+         * CLAIM PICKER MODE — replaces items + action with the staff grid.
+         * The card stays at its same position; only its body swaps.
+         * A thin divider separates the header (order info) from the picker.
+         */
+        <div className="mt-3 border-t border-stone-100 pt-3">
+          <ClaimTicketSheet
+            station={station!}
+            staffOnShift={staffOnShiftForPicker!}
+            helperText={pickerHelperText}
+            isSubmitting={isBeingClaimed}
+            claimingStaffId={claimingStaffId ?? null}
+            onClaim={(staffId) => {
+              onTabletClaim!(staffId)
+              // Sheet stays open with spinner until the parent closes it via
+              // status change (PENDING → IN_PROGRESS triggers the useEffect above)
+            }}
+            onCancel={() => setPickerOpen(false)}
+          />
+        </div>
+      ) : (
         <>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={onAction}
-            isLoading={isActionLoading}
-            className="mt-3 w-full"
-          >
-            {actionLabel}
-          </Button>
-          {isActionLoading && (
-            <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+          {/* Items */}
+          <ul className="mt-2.5 flex-1 space-y-1">
+            {items.map((item, i) => (
+              <li key={i} className="text-body-md text-stone-900">
+                <span className="font-semibold">{item.quantity}×</span> {item.name}
+                {item.notes && (
+                  <span className="text-label-sm text-stone-500 italic ml-1">({item.notes})</span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Special instructions */}
+          {specialInstructions && (
+            <p className="mt-2.5 border-t border-stone-200 pt-2 text-body-sm italic text-stone-500">
+              {specialInstructions}
+            </p>
+          )}
+
+          {/* ── PENDING actions ── */}
+
+          {/* Tablet display: "Claim" opens the inline picker */}
+          {status === 'PENDING' && isTabletClaimFlow && (
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => setPickerOpen(true)}
+              isLoading={isActionLoading}
+              className="mt-3 w-full"
+            >
+              Claim
+            </Button>
+          )}
+
+          {/* Personal phone flow: inline ClaimButton (split button / direct claim) */}
+          {status === 'PENDING' && staffOnShift && onClaim && (
+            <ClaimButton
+              staffOnShift={staffOnShift}
+              isLoading={isActionLoading}
+              onClaim={onClaim}
+            />
+          )}
+
+          {/* Fallback generic button when no staff props are provided */}
+          {status === 'PENDING' && !isTabletClaimFlow && (!staffOnShift || !onClaim) && (
+            <>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={onAction}
+                isLoading={isActionLoading}
+                className="mt-3 w-full"
+              >
+                {actionLabel}
+              </Button>
+              {isActionLoading && (
+                <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+              )}
+            </>
+          )}
+
+          {/* Reject button for pending tickets (personal phone) */}
+          {status === 'PENDING' && onReject && !isTabletClaimFlow && (
+            <Button variant="destructive" size="sm" onClick={onReject} className="mt-2 w-full">
+              Reject
+            </Button>
+          )}
+
+          {/* ── IN_PROGRESS actions ── */}
+          {status === 'IN_PROGRESS' && (
+            <>
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={onAction}
+                isLoading={isActionLoading}
+                className="mt-3 w-full"
+              >
+                {actionLabel}
+              </Button>
+              {isActionLoading && (
+                <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
+              )}
+              <div className="mt-2 flex gap-2">
+                {onUnclaim && claimedAt && (Date.now() - new Date(claimedAt).getTime() < 2 * 60 * 1000) && (
+                  <Button variant="secondary" size="sm" onClick={onUnclaim} className="flex-1">
+                    Unclaim
+                  </Button>
+                )}
+                {onReject && (
+                  <Button variant="destructive" size="sm" onClick={onReject} className="flex-1">
+                    Reject
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </>
-      )}
-      {status === 'IN_PROGRESS' && (
-        <>
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={onAction}
-            isLoading={isActionLoading}
-            className="mt-3 w-full"
-          >
-            {actionLabel}
-          </Button>
-          {isActionLoading && (
-            <p className="mt-2 text-center text-caption text-stone-500">{loadingMessage}</p>
-          )}
-          <div className="mt-2 flex gap-2">
-            {onUnclaim && claimedAt && (Date.now() - new Date(claimedAt).getTime() < 2 * 60 * 1000) && (
-              <Button variant="secondary" size="sm" onClick={onUnclaim} className="flex-1">
-                Unclaim
-              </Button>
-            )}
-            {onReject && (
-              <Button variant="destructive" size="sm" onClick={onReject} className="flex-1">
-                Reject
-              </Button>
-            )}
-          </div>
-        </>
-      )}
-      {status === 'PENDING' && onReject && (
-        <Button variant="destructive" size="sm" onClick={onReject} className="mt-2 w-full">
-          Reject
-        </Button>
       )}
     </div>
   )

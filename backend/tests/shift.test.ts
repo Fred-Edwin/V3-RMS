@@ -2,7 +2,6 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/app';
 import { shiftService } from '../src/services/shift-service';
-import { ConflictError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 
 const managerToken = signAccessToken({
@@ -108,15 +107,13 @@ describe('Shift routes', () => {
     expect(response.body.data.name).toBe('Early Morning');
   });
 
-  it('DELETE /api/v1/shifts/:id returns 409 when future assignments exist', async () => {
-    vi.spyOn(shiftService, 'deleteShift').mockRejectedValue(
-      new ConflictError('Cannot delete shift with future assignments'),
-    );
+  it('DELETE /api/v1/shifts/:id succeeds regardless of existing assignments', async () => {
+    vi.spyOn(shiftService, 'deleteShift').mockResolvedValue(undefined);
 
     const response = await request(app)
       .delete(`/api/v1/shifts/${shiftId}`)
       .set('Authorization', `Bearer ${managerToken}`);
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
   });
 });

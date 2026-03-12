@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { shiftRepository } from '../repositories/shift-repository';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type { CreateShiftInput, ShiftListQueryInput, UpdateShiftInput } from '../validators/shift-schemas';
 
 type Actor = NonNullable<Request['user']>;
@@ -68,11 +68,6 @@ export const shiftService = {
     const existing = await shiftRepository.findById(id, organizationId);
     if (!existing) {
       throw new NotFoundError('Shift not found');
-    }
-
-    const hasFutureAssignments = await shiftRepository.hasFutureAssignments(id, organizationId);
-    if (hasFutureAssignments) {
-      throw new ConflictError('Cannot delete shift with future assignments');
     }
 
     await shiftRepository.softDelete(id, organizationId);
