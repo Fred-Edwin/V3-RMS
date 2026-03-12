@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Wendo RMS — Production Deploy Script
-# Run from /home/wendo/wendo-rms on the server
+# Run from ~/wendo-rms on the server
 # Usage: ./deploy.sh
-# With migration: docker compose run --rm api npx prisma migrate deploy && ./deploy.sh
 
 set -e  # Exit immediately on any error
 
@@ -12,6 +11,10 @@ echo "Started at: $(date)"
 # Pull the latest code from main
 echo "--- Pulling latest code..."
 git pull origin main
+
+# Run any pending database migrations (uses the already-running api container)
+echo "--- Running database migrations..."
+docker compose exec api npx prisma migrate deploy
 
 # Rebuild only the application images (postgres and redis are not rebuilt)
 echo "--- Building new images..."
