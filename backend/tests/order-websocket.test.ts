@@ -147,7 +147,7 @@ describe('Order websocket events', () => {
         claimedBy: { id: string; name: string };
       }>(socket, 'order:claimed');
 
-      socketService.emitOrderClaimed(waiterId, {
+      socketService.emitOrderClaimed(organizationId, waiterId, {
         orderId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
         ticketId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
         station: 'KITCHEN',
