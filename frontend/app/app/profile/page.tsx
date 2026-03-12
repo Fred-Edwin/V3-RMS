@@ -62,8 +62,10 @@ export default function Page(): JSX.Element {
   const router = useRouter();
   const { user, accessToken, setAuth, role } = useAuthStore();
   const {
+    isSupported: isFcmSupported,
     canPrompt: canPromptFcmPermission,
     isRegistering: isRegisteringFcmToken,
+    permission: fcmPermission,
     requestPermissionAndRegister,
     dismissPrompt,
   } = useFcmToken();
@@ -183,29 +185,56 @@ export default function Page(): JSX.Element {
       <PageLayout className="animate-fade-up">
         <div className="mx-auto max-w-2xl space-y-8 py-2">
 
-          {/* Notifications prompt — top of page, outside cards */}
-          {canPromptFcmPermission && (
-            <div className="flex items-start gap-4 rounded-xl border border-[#F0D080] bg-[#FDF3DC] px-5 py-4">
-              <Bell size={18} className="mt-0.5 shrink-0 text-[#92650A]" />
-              <div className="flex-1">
-                <p className="text-body-sm font-medium text-[#92650A]">Enable push notifications</p>
-                <p className="text-caption text-[#92650A]/80 mt-0.5">
-                  Get ready-order alerts even when you&apos;re away from the app.
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => void requestPermissionAndRegister()}
-                    isLoading={isRegisteringFcmToken}
-                  >
-                    Enable Notifications
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={dismissPrompt} leftIcon={<BellOff size={14} />}>
-                    Not now
-                  </Button>
-                </div>
+          {/* Notifications card — always visible for staff roles */}
+          {isFcmSupported && (
+            <SectionCard>
+              <SectionHeader icon={<Bell size={18} />} title="Push Notifications" subtitle="Receive alerts even when the app is in the background" />
+              <div className="px-8 py-6">
+                {fcmPermission === 'granted' && !canPromptFcmPermission && (
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#EDFAF1]">
+                      <Bell size={16} className="text-[#1A6B3C]" />
+                    </span>
+                    <div>
+                      <p className="text-body-sm font-medium text-stone-900">Notifications enabled</p>
+                      <p className="text-caption text-stone-500 mt-0.5">This device will receive order alerts in the background.</p>
+                    </div>
+                  </div>
+                )}
+                {canPromptFcmPermission && (
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FDF3DC]">
+                      <Bell size={16} className="text-[#92650A]" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-body-sm font-medium text-stone-900">Notifications not enabled</p>
+                      <p className="text-caption text-stone-500 mt-0.5">Enable push notifications to receive order-ready alerts when you&apos;re away from the app.</p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button size="sm" onClick={() => void requestPermissionAndRegister()} isLoading={isRegisteringFcmToken}>
+                          Enable Notifications
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={dismissPrompt} leftIcon={<BellOff size={14} />}>
+                          Not now
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {fcmPermission === 'denied' && (
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FEF2F2]">
+                      <BellOff size={16} className="text-[#991B1B]" />
+                    </span>
+                    <div>
+                      <p className="text-body-sm font-medium text-stone-900">Notifications blocked</p>
+                      <p className="text-caption text-stone-500 mt-0.5">
+                        You blocked notifications for this site. To re-enable: tap the lock icon in your browser address bar → Notifications → Allow.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            </SectionCard>
           )}
 
           {/* ── Identity Hero ── */}
