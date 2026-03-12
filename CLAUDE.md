@@ -213,8 +213,31 @@ Set-Location "d:\AI applications\web\V3-RMS\frontend"
 pnpm dev -- -H 0.0.0.0 -p 3000
 ```
 
+### Push Notifications (FCM) — Ops Reference
+
+**VAPID key:** The `NEXT_PUBLIC_FIREBASE_VAPID_KEY` must be the **public key** (88 chars)
+from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
+The private key (44 chars) shown below it must never be used here.
+
+**Staff onboarding:** Each staff member must visit Profile → Push Notifications and tap
+**Enable Notifications** once on their device. Tokens are stored per-device in `users.fcm_token`.
+
+**Check who has registered:**
+```bash
+docker compose exec postgres psql -U wendo_user -d wendo_rms -c \
+  "SELECT name, role, CASE WHEN fcm_token IS NOT NULL THEN 'YES' ELSE 'NO' END as notifications_enabled FROM users WHERE is_active = true AND role IN ('WAITER','CHEF','BARISTA','KITCHEN_DISPLAY','BARISTA_DISPLAY') ORDER BY notifications_enabled, role, name;"
+```
+
+**Service worker:** `frontend/public/firebase-messaging-sw.js` is the committed fallback with
+real config baked in. `next.config.mjs` regenerates it from `firebase-messaging-sw.template.js`
+at build time when env vars are present. The `no-cache` header prevents CDN/browser caching.
+
+**If a device stops receiving pushes:** Token may be stale. Staff should re-visit Profile →
+Push Notifications — if it shows Enabled, they can log out and back in to re-register.
+
 ### Known Gotchas
 
 - Root `.env` must include `POSTGRES_PASSWORD=...` for Docker Compose.
 - `backend/.env` must be valid dotenv (`KEY=value` only; no multiline SSH keys).
 - Local Postgres is exposed on host `5433` for Prisma Studio local script.
+- FCM VAPID key: use the **public** key (88 chars), not the private key (44 chars).
