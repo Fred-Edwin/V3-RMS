@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+﻿import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import {
   buildPrepTicketItemsSnapshot,
@@ -50,12 +50,14 @@ describe('order-utils', () => {
       const snapshot = buildPrepTicketItemsSnapshot(
         [
           {
+            menuItemId: 'burger-id',
             name: 'Burger',
             quantity: 1,
             notes: null,
             category: { prepStation: 'KITCHEN' },
           },
           {
+            menuItemId: 'latte-id',
             name: 'Latte',
             quantity: 2,
             notes: 'Extra hot',
@@ -65,7 +67,7 @@ describe('order-utils', () => {
         'BARISTA',
       );
 
-      expect(snapshot).toEqual([{ name: 'Latte', quantity: 2, notes: 'Extra hot' }]);
+      expect(snapshot).toEqual([{ menuItemId: 'latte-id', name: 'Latte', quantity: 2, notes: 'Extra hot' }]);
     });
   });
 
@@ -98,3 +100,4 @@ describe('order-utils', () => {
     });
   });
 });
+

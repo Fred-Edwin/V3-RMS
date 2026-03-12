@@ -1,7 +1,8 @@
-import { create } from 'zustand';
-import type { OrderSummary } from '@/types/order';
+﻿import { create } from 'zustand';
+import type { OrderSummary, PrepStation } from '@/types/order';
 
 export interface CartItem {
+  prepStation: PrepStation;
   menuItemId: string;
   name: string;
   price: number;
@@ -104,3 +105,4 @@ export const useOrderStore = create<OrderStore>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 }));
+

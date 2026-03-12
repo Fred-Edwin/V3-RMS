@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   OrderStatus,
   OrderType,
   PaymentMethod,
@@ -8,6 +8,7 @@ import type {
 } from '@prisma/client';
 
 export interface PrepTicketItemSnapshot {
+  menuItemId?: string;
   name: string;
   quantity: number;
   notes: string | null;
@@ -139,3 +140,4 @@ export interface CreateOrderWithTicketsDto {
   items: CreateOrderItemWithPriceDto[];
   prepTickets: CreatePrepTicketDto[];
 }
+

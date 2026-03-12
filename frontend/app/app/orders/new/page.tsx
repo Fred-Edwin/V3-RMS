@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -298,7 +298,7 @@ export default function NewOrderPage(): JSX.Element {
               </div>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                 {category.items.map((item) => (
-                  <OrderMenuItemTile key={item.id} item={item} />
+                  <OrderMenuItemTile key={item.id} item={item} prepStation={category.prepStation} />
                 ))}
               </div>
             </section>
@@ -307,7 +307,7 @@ export default function NewOrderPage(): JSX.Element {
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {selectedCategory?.items.map((item) => (
-            <OrderMenuItemTile key={item.id} item={item} />
+            <OrderMenuItemTile key={item.id} item={item} prepStation={selectedCategory.prepStation} />
           ))}
         </div>
       )}

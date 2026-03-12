@@ -1,4 +1,4 @@
-export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
+﻿export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANCELLED';
 export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD';
 export type PrepStation = 'KITCHEN' | 'BARISTA';
@@ -91,6 +91,7 @@ export interface UpdateOrderItemsDto {
 }
 
 export interface PrepTicketItemSnapshot {
+  menuItemId?: string;
   name: string;
   quantity: number;
   notes: string | null;
@@ -119,3 +120,4 @@ export interface PaginationMeta {
   perPage: number;
   totalPages: number;
 }
+

@@ -1,4 +1,4 @@
-import { OrderStatus, OrderType, PaymentMethod, Prisma } from '@prisma/client';
+﻿import { OrderStatus, OrderType, PaymentMethod, Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
@@ -261,6 +261,188 @@ describe('orderService.create', () => {
   });
 });
 
+
+describe('orderService.updateItems', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const buildEditableOrderRecord = (overrides?: Partial<FullOrderPrismaRecord>): FullOrderPrismaRecord => {
+    return {
+      ...buildCreatedOrderRecord(),
+      status: OrderStatus.IN_PROGRESS,
+      items: [
+        {
+          id: 'item-kitchen-1',
+          orderId: '33333333-3333-4333-8333-333333333333',
+          menuItemId: 'kitchen-item-1',
+          quantity: 1,
+          unitPrice: new Prisma.Decimal('500.00'),
+          subtotal: new Prisma.Decimal('500.00'),
+          notes: null,
+          menuItem: {
+            id: 'kitchen-item-1',
+            name: 'Burger',
+            category: {
+              prepStation: 'KITCHEN',
+            },
+          },
+        },
+        {
+          id: 'item-barista-1',
+          orderId: '33333333-3333-4333-8333-333333333333',
+          menuItemId: 'barista-item-1',
+          quantity: 1,
+          unitPrice: new Prisma.Decimal('300.00'),
+          subtotal: new Prisma.Decimal('300.00'),
+          notes: null,
+          menuItem: {
+            id: 'barista-item-1',
+            name: 'Latte',
+            category: {
+              prepStation: 'BARISTA',
+            },
+          },
+        },
+      ],
+      prepTickets: [
+        {
+          id: 'ticket-kitchen-1',
+          organizationId,
+          orderId: '33333333-3333-4333-8333-333333333333',
+          station: 'KITCHEN',
+          sequence: 1,
+          status: 'IN_PROGRESS',
+          claimedById: 'chef-1',
+          claimedAt: new Date('2026-02-24T10:05:00.000Z'),
+          readyAt: null,
+          rejectedById: null,
+          rejectedReason: null,
+          rejectedAt: null,
+          items: [{ menuItemId: 'kitchen-item-1', name: 'Burger', quantity: 1, notes: null }],
+          createdAt: new Date('2026-02-24T10:00:00.000Z'),
+          updatedAt: new Date('2026-02-24T10:05:00.000Z'),
+          claimedBy: { id: 'chef-1', name: 'Chef One' },
+        },
+        {
+          id: 'ticket-barista-1',
+          organizationId,
+          orderId: '33333333-3333-4333-8333-333333333333',
+          station: 'BARISTA',
+          sequence: 1,
+          status: 'PENDING',
+          claimedById: null,
+          claimedAt: null,
+          readyAt: null,
+          rejectedById: null,
+          rejectedReason: null,
+          rejectedAt: null,
+          items: [{ menuItemId: 'barista-item-1', name: 'Latte', quantity: 1, notes: null }],
+          createdAt: new Date('2026-02-24T10:00:00.000Z'),
+          updatedAt: new Date('2026-02-24T10:00:00.000Z'),
+          claimedBy: null,
+        },
+      ],
+      ...overrides,
+    } as unknown as FullOrderPrismaRecord;
+  };
+
+  it('creates a follow-up ticket when adding items to an in-progress station', async () => {
+    const order = buildEditableOrderRecord();
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(order);
+    vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
+      createMenuItem('kitchen-item-1', 'Burger', '500.00', 'KITCHEN'),
+      createMenuItem('barista-item-1', 'Latte', '300.00', 'BARISTA'),
+      createMenuItem('kitchen-item-2', 'Fries', '200.00', 'KITCHEN'),
+    ]);
+
+    const updatedOrder = buildEditableOrderRecord({
+      items: [
+        ...order.items,
+        {
+          id: 'item-kitchen-2',
+          orderId: order.id,
+          menuItemId: 'kitchen-item-2',
+          quantity: 1,
+          unitPrice: new Prisma.Decimal('200.00'),
+          subtotal: new Prisma.Decimal('200.00'),
+          notes: null,
+          menuItem: {
+            id: 'kitchen-item-2',
+            name: 'Fries',
+            category: { prepStation: 'KITCHEN' },
+          },
+        },
+      ],
+      prepTickets: [
+        ...order.prepTickets,
+        {
+          id: 'ticket-kitchen-2',
+          organizationId,
+          orderId: order.id,
+          station: 'KITCHEN',
+          sequence: 2,
+          status: 'PENDING',
+          claimedById: null,
+          claimedAt: null,
+          readyAt: null,
+          rejectedById: null,
+          rejectedReason: null,
+          rejectedAt: null,
+          items: [{ menuItemId: 'kitchen-item-2', name: 'Fries', quantity: 1, notes: null }],
+          createdAt: new Date('2026-02-24T10:10:00.000Z'),
+          updatedAt: new Date('2026-02-24T10:10:00.000Z'),
+          claimedBy: null,
+        },
+      ],
+      subtotal: new Prisma.Decimal('1000.00'),
+      total: new Prisma.Decimal('1000.00'),
+    });
+
+    vi.mocked(orderRepository.updateItems).mockResolvedValue(updatedOrder);
+
+    await orderService.updateItems(
+      order.id,
+      {
+        items: [
+          { menuItemId: 'kitchen-item-1', quantity: 1, notes: null },
+          { menuItemId: 'barista-item-1', quantity: 1, notes: null },
+          { menuItemId: 'kitchen-item-2', quantity: 1, notes: null },
+        ],
+      },
+      waiterActor,
+    );
+
+    const call = vi.mocked(orderRepository.updateItems).mock.calls[0];
+    expect(call?.[4].creates).toEqual([
+      { station: 'KITCHEN', items: [{ menuItemId: 'kitchen-item-2', name: 'Fries', quantity: 1, notes: null }] },
+    ]);
+
+    expect(socketService.emitNewOrder).toHaveBeenCalledWith(organizationId, expect.any(Array));
+  });
+
+  it('rejects decreasing items for a station already in progress', async () => {
+    const order = buildEditableOrderRecord();
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(order);
+    vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
+      createMenuItem('barista-item-1', 'Latte', '300.00', 'BARISTA'),
+    ]);
+
+    await expect(
+      orderService.updateItems(
+        order.id,
+        {
+          items: [{ menuItemId: 'barista-item-1', quantity: 1, notes: null }],
+        },
+        waiterActor,
+      ),
+    ).rejects.toThrow('Order cannot be modified. Preparation has already started at one or more stations.');
+
+    expect(orderRepository.updateItems).not.toHaveBeenCalled();
+  });
+});
 describe('orderService.recordPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -308,3 +490,5 @@ describe('orderService.recordPayment', () => {
     expect(result.paymentMethod).toBe('MPESA');
   });
 });
+
+

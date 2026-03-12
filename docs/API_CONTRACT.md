@@ -753,7 +753,7 @@ Creates a new order. This is the critical path — see TDD Section 14.
 
 ### PATCH `/orders/:id/items`
 **Access:** 🔑 WAITER
-Modifies the items on an order. Only allowed while ALL prep tickets are still `PENDING`. Waiter must be the order creator (ownership check).
+Modifies the items on an order. Allowed as long as the order is not `CLOSED` or `CANCELLED`. Waiter must be the order creator (ownership check).
 
 **Request Body:**
 ```json
@@ -767,7 +767,11 @@ Modifies the items on an order. Only allowed while ALL prep tickets are still `P
 
 **Validation Rules:**
 - `items` must have at least 1 item
-- If any prep ticket is beyond `PENDING`, modification is rejected with `409 CONFLICT`
+- Order must not be `CLOSED` or `CANCELLED`
+- Station-aware rules:
+  - If a station has any prep ticket in `IN_PROGRESS` or `READY`, that station becomes add-only
+  - For add-only stations, removals/decreases are rejected with `409 CONFLICT`
+  - Additions for add-only stations create a new follow-up prep ticket batch (`PENDING`)
 
 **Response `200`:**
 ```json
@@ -784,18 +788,19 @@ Modifies the items on an order. Only allowed while ALL prep tickets are still `P
   "success": false,
   "error": {
     "code": "CONFLICT",
-    "message": "Order cannot be modified. Preparation has already started at all stations."
+    "message": "Order cannot be modified. Preparation has already started at one or more stations."
   }
 }
 ```
 
 **Notes:**
 - Recalculates subtotal and total
-- Regenerates the JSON items snapshot on the affected PrepTicket(s)
-- Emits `order:modified` WebSocket event to affected station room(s)
+- Updates PrepTicket JSON snapshots for stations still editable (`PENDING` / `REJECTED`)
+- Creates follow-up PrepTickets for add-only station additions
+- Emits `order:modified` for updated tickets and `order:new` for newly created tickets
+- If the order was `READY` and new prep tickets are created, order status reverts to `IN_PROGRESS`
 
 ---
-
 ### PATCH `/orders/:id/payment`
 **Access:** 🔑 WAITER  
 Records payment for an order and marks it as closed. For delivery orders, marks as handed to Grubba.
@@ -2148,3 +2153,4 @@ const socket = io('wss://api.wendorms.co.ke', {
 ---
 
 *This API Contract is the authoritative reference for all frontend-backend communication in the Wendo RMS V1. Every endpoint reflects the data model, business rules, and architectural decisions defined in the PRD, Data Model, and TDD. Any new endpoint or change to an existing one must be documented here before implementation.*
+

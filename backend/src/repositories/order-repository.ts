@@ -1,4 +1,4 @@
-import { OrderStatus, type PaymentMethod, Prisma, type PrepStation, PrepTicketStatus } from '@prisma/client';
+﻿import { OrderStatus, type PaymentMethod, Prisma, type PrepStation, PrepTicketStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import type { CreateOrderWithTicketsDto, CreateOrderItemWithPriceDto, PrepTicketItemSnapshot } from '../types/order.types';
 
@@ -362,13 +362,24 @@ export const orderRepository = {
       take: 200,
     });
   },
-
   updateItems: async (
     orderId: string,
     organizationId: string,
     newItems: CreateOrderItemWithPriceDto[],
     newTotals: { subtotal: Prisma.Decimal; total: Prisma.Decimal },
-    ticketSnapshots: Partial<Record<PrepStation, PrepTicketItemSnapshot[]>>,
+    ticketPlan: {
+      updates: Array<{
+        ticketId: string;
+        station: PrepStation;
+        status: PrepTicketStatus;
+        items: PrepTicketItemSnapshot[];
+        rejectedReason?: string;
+        clearRejection?: boolean;
+      }>;
+      creates: Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }>;
+      actorId: string;
+      reopenOrder: boolean;
+    },
   ): Promise<FullOrderPrismaRecord | null> => {
     return prisma.$transaction(async (tx) => {
       const existingOrder = await tx.order.findFirst({
@@ -377,20 +388,12 @@ export const orderRepository = {
           organizationId,
         },
         include: {
-          prepTickets: { select: { station: true, status: true } },
+          prepTickets: { select: { id: true, station: true, status: true, sequence: true } },
         },
       });
 
       if (!existingOrder) {
         return null;
-      }
-
-      const stationsToUpdate = Object.keys(ticketSnapshots) as PrepStation[];
-      for (const station of stationsToUpdate) {
-        const ticket = existingOrder.prepTickets.find((t) => t.station === station);
-        if (ticket && ticket.status !== 'PENDING' && ticket.status !== 'REJECTED') {
-          return null;
-        }
       }
 
       await tx.orderItem.deleteMany({
@@ -419,30 +422,80 @@ export const orderRepository = {
         data: {
           subtotal: newTotals.subtotal,
           total: newTotals.total,
+          ...(ticketPlan.reopenOrder ? { status: OrderStatus.IN_PROGRESS } : {}),
         },
       });
+      for (const update of ticketPlan.updates) {
+        const existingTicket = await tx.prepTicket.findFirst({
+          where: {
+            id: update.ticketId,
+            organizationId,
+            status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.REJECTED] },
+          },
+          select: {
+            id: true,
+            status: true,
+          },
+        });
 
-      const stations = Object.keys(ticketSnapshots) as PrepStation[];
-      await Promise.all(
-        stations.map((station) =>
-          tx.prepTicket.updateMany({
-            where: {
-              orderId,
-              organizationId,
-              station,
-            },
-            data: {
-              status: PrepTicketStatus.PENDING,
-              claimedById: null,
-              claimedAt: null,
-              rejectedById: null,
-              rejectedReason: null,
-              rejectedAt: null,
-              items: (ticketSnapshots[station] ?? []) as unknown as Prisma.InputJsonValue,
-            },
-          }),
-        ),
-      );
+        if (!existingTicket) {
+          return null;
+        }
+
+        const data: Prisma.PrepTicketUncheckedUpdateInput = {
+          items: update.items as unknown as Prisma.InputJsonValue,
+        };
+
+        if (update.clearRejection) {
+          data.status = PrepTicketStatus.PENDING;
+          data.rejectedById = null;
+          data.rejectedReason = null;
+          data.rejectedAt = null;
+        }
+
+        if (update.status === PrepTicketStatus.REJECTED) {
+          data.status = PrepTicketStatus.REJECTED;
+          data.claimedById = null;
+          data.claimedAt = null;
+          data.readyAt = null;
+          data.rejectedById = ticketPlan.actorId;
+          data.rejectedReason = update.rejectedReason ?? 'Removed from order';
+          data.rejectedAt = new Date();
+        }
+
+        await tx.prepTicket.update({
+          where: {
+            id: update.ticketId,
+          },
+          data,
+        });
+      }
+
+      for (const create of ticketPlan.creates) {
+        const maxSeq = await tx.prepTicket.aggregate({
+          where: {
+            orderId,
+            organizationId,
+            station: create.station,
+          },
+          _max: {
+            sequence: true,
+          },
+        });
+
+        const sequence = (maxSeq._max.sequence ?? 0) + 1;
+
+        await tx.prepTicket.create({
+          data: {
+            organizationId,
+            orderId,
+            station: create.station,
+            sequence,
+            status: PrepTicketStatus.PENDING,
+            items: create.items as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
 
       return tx.order.findFirst({
         where: {
@@ -549,3 +602,6 @@ export const orderRepository = {
     });
   },
 };
+
+
+

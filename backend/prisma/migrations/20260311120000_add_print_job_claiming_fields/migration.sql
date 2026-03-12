@@ -17,6 +17,17 @@ UPDATE "public"."print_jobs"
 SET "active_key" = NULL
 WHERE "status" IN ('COMPLETED', 'FAILED');
 
+-- Deduplicate: keep only the newest active job per active_key, null out the rest
+UPDATE "public"."print_jobs" pj
+SET "active_key" = NULL
+WHERE "active_key" IS NOT NULL
+  AND "id" <> (
+    SELECT "id" FROM "public"."print_jobs" pj2
+    WHERE pj2."active_key" = pj."active_key"
+    ORDER BY "created_at" DESC
+    LIMIT 1
+  );
+
 -- Foreign keys for claimed/printed station tracking
 ALTER TABLE "public"."print_jobs"
   ADD CONSTRAINT "print_jobs_claimed_by_station_id_fkey"

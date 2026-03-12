@@ -1,9 +1,9 @@
-# Data Model
-## Wendo Coffee Bistro — Restaurant Management System (RMS)
+﻿# Data Model
+## Wendo Coffee Bistro â€” Restaurant Management System (RMS)
 **Version:** 1.0  
 **Status:** Draft  
 **Date:** 2026-02-22  
-**Stack:** PostgreSQL · Prisma ORM  
+**Stack:** PostgreSQL Â· Prisma ORM  
 
 ---
 
@@ -37,7 +37,7 @@ Every design decision in this schema follows these rules, derived from the Engin
 
 **UUIDs everywhere.** All primary keys are UUIDs. This prevents enumeration attacks (a malicious user cannot guess `order/2` because they saw `order/1`) and makes IDs safe to expose in URLs and APIs.
 
-**Multi-tenancy by `organization_id`.** Every table that holds business data carries an `organization_id` foreign key. Every query against business data filters by `organization_id`. This is enforced at the repository layer — not optionally, always. A user at one branch can never see data from another branch.
+**Multi-tenancy by `organization_id`.** Every table that holds business data carries an `organization_id` foreign key. Every query against business data filters by `organization_id`. This is enforced at the repository layer â€” not optionally, always. A user at one branch can never see data from another branch.
 
 **Soft deletes for business data.** Orders, menu items, staff records, and other business entities are never permanently deleted. They receive a `deleted_at` timestamp. This preserves history for reporting and prevents accidental data loss.
 
@@ -45,7 +45,7 @@ Every design decision in this schema follows these rules, derived from the Engin
 
 **Money as Decimal, never Float.** All monetary values use `Decimal(10, 2)`. Floating-point arithmetic causes rounding errors in financial calculations. This is non-negotiable.
 
-**Enums for fixed value sets.** Any field with a known, finite set of values is an enum — not a raw string. This enforces data integrity at the database level.
+**Enums for fixed value sets.** Any field with a known, finite set of values is an enum â€” not a raw string. This enforces data integrity at the database level.
 
 ---
 
@@ -54,15 +54,15 @@ Every design decision in this schema follows these rules, derived from the Engin
 | Entity | Description |
 |---|---|
 | `Organization` | A branch of Wendo (e.g., Kingz, Town). The top-level tenant unit. |
-| `User` | Any person with a system account — Admin, Director, Manager, Waiter, Chef, Barista. |
+| `User` | Any person with a system account â€” Admin, Director, Manager, Waiter, Chef, Barista. |
 | `MenuCategory` | A grouping of menu items (e.g., Hot Drinks, Mains). Determines prep station routing. |
 | `MenuItem` | A single item on the master menu (e.g., Chicken Burger, Cappuccino). |
-| `BranchMenuItem` | Branch-level override — marks a menu item as unavailable at a specific branch. |
+| `BranchMenuItem` | Branch-level override â€” marks a menu item as unavailable at a specific branch. |
 | `DeliveryZone` | A named delivery area and its fee, scoped to a branch. |
-| `Shift` | A named time block (e.g., Morning 6am–2pm), defined per branch. |
+| `Shift` | A named time block (e.g., Morning 6amâ€“2pm), defined per branch. |
 | `ShiftAssignment` | Assigns a specific staff member to a specific shift on a specific date. |
 | `ClockRecord` | Records a staff member's clock-in and clock-out for a given shift. |
-| `Order` | A customer order — the top-level entity that holds all items and tracks overall lifecycle. |
+| `Order` | A customer order â€” the top-level entity that holds all items and tracks overall lifecycle. |
 | `OrderItem` | A single line item within an order (menu item + quantity + price at time of order). |
 | `PrepTicket` | A routed sub-order sent to one prep station (KDS or BDS). Tracks that station's workflow independently. |
 
@@ -72,31 +72,31 @@ Every design decision in this schema follows these rules, derived from the Engin
 
 ```
 Organization (Branch)
-│
-├── User (staff accounts, scoped to branch)
-│
-├── BranchMenuItem (availability overrides per branch)
-│
-├── DeliveryZone (delivery areas and fees per branch)
-│
-├── Shift (shift definitions per branch)
-│   └── ShiftAssignment (staff assigned to shift on a date)
-│       └── ClockRecord (clock-in/out record per assignment)
-│
-└── Order (customer orders per branch)
-    ├── OrderItem (line items within the order)
-    └── PrepTicket (routed to Kitchen or Barista station)
-        └── (links back to OrderItems for that station)
+â”‚
+â”œâ”€â”€ User (staff accounts, scoped to branch)
+â”‚
+â”œâ”€â”€ BranchMenuItem (availability overrides per branch)
+â”‚
+â”œâ”€â”€ DeliveryZone (delivery areas and fees per branch)
+â”‚
+â”œâ”€â”€ Shift (shift definitions per branch)
+â”‚   â””â”€â”€ ShiftAssignment (staff assigned to shift on a date)
+â”‚       â””â”€â”€ ClockRecord (clock-in/out record per assignment)
+â”‚
+â””â”€â”€ Order (customer orders per branch)
+    â”œâ”€â”€ OrderItem (line items within the order)
+    â””â”€â”€ PrepTicket (routed to Kitchen or Barista station)
+        â””â”€â”€ (links back to OrderItems for that station)
 
 MenuCategory (system-level, no branch scope)
-└── MenuItem (system-level master menu items)
-    └── BranchMenuItem (branch-level availability override)
+â””â”€â”€ MenuItem (system-level master menu items)
+    â””â”€â”€ BranchMenuItem (branch-level availability override)
 
 User
-├── Order (waiter who created the order)
-├── ShiftAssignment (staff member assigned to shift)
-├── ClockRecord (staff member's clock record)
-└── PrepTicket (claimed_by — chef or barista who claimed it)
+â”œâ”€â”€ Order (waiter who created the order)
+â”œâ”€â”€ ShiftAssignment (staff member assigned to shift)
+â”œâ”€â”€ ClockRecord (staff member's clock record)
+â””â”€â”€ PrepTicket (claimed_by â€” chef or barista who claimed it)
 ```
 
 ---
@@ -105,7 +105,7 @@ User
 
 ### 4.1 Organization (Branch)
 
-Represents a single branch of Wendo. This is the **tenant unit** — all branch-scoped data references this table.
+Represents a single branch of Wendo. This is the **tenant unit** â€” all branch-scoped data references this table.
 
 ```prisma
 model Organization {
@@ -133,14 +133,14 @@ model Organization {
 
 **Notes:**
 - `latitude` and `longitude` stored as high-precision Decimal for accurate 50m geofencing calculations.
-- `isHub` — only one branch should be hub at a time. Enforced at the application layer (when one is set to hub, others are unset).
-- `isActive` — allows a branch to be deactivated without deleting it.
+- `isHub` â€” only one branch should be hub at a time. Enforced at the application layer (when one is set to hub, others are unset).
+- `isActive` â€” allows a branch to be deactivated without deleting it.
 
 ---
 
 ### 4.2 User
 
-Every person with a system account. One table for all roles — role determines what they can see and do.
+Every person with a system account. One table for all roles â€” role determines what they can see and do.
 
 ```prisma
 model User {
@@ -171,10 +171,10 @@ model User {
 ```
 
 **Notes:**
-- `organizationId` is nullable — System Admin and Director are not tied to a single branch.
+- `organizationId` is nullable â€” System Admin and Director are not tied to a single branch.
 - `email` is the login identifier. Must be unique across the entire system.
-- `passwordHash` — bcrypt, minimum 12 rounds. Never stored in plaintext.
-- `deletedAt` — soft delete. When a manager deactivates a staff account, `deletedAt` is set and `isActive` is false. The record is preserved for historical reporting (e.g., orders they handled).
+- `passwordHash` â€” bcrypt, minimum 12 rounds. Never stored in plaintext.
+- `deletedAt` â€” soft delete. When a manager deactivates a staff account, `deletedAt` is set and `isActive` is false. The record is preserved for historical reporting (e.g., orders they handled).
 
 ---
 
@@ -201,15 +201,15 @@ model MenuCategory {
 ```
 
 **Notes:**
-- No `organization_id` — categories are global across the entire system.
-- `prepStation` is the routing key — when an order is split, all items whose category has `prepStation = KITCHEN` go to KDS; `prepStation = BARISTA` go to BDS.
+- No `organization_id` â€” categories are global across the entire system.
+- `prepStation` is the routing key â€” when an order is split, all items whose category has `prepStation = KITCHEN` go to KDS; `prepStation = BARISTA` go to BDS.
 - `displayOrder` controls the visual order of categories on the menu interface.
 
 ---
 
 ### 4.4 MenuItem
 
-Individual items on the master menu. System-level — not scoped to a branch.
+Individual items on the master menu. System-level â€” not scoped to a branch.
 
 ```prisma
 model MenuItem {
@@ -236,10 +236,10 @@ model MenuItem {
 ```
 
 **Notes:**
-- `price` is universal — the same price applies at all branches.
+- `price` is universal â€” the same price applies at all branches.
 - `isActive` at this level means the item exists on the master menu. A branch-level override (`BranchMenuItem`) handles per-branch availability separately.
-- `deletedAt` — items are soft-deleted so historical orders that reference them remain intact and reportable.
-- `imageUrl` — optional Cloudinary secure URL. Uploaded via `POST /menu/items/upload-image`; stored and served via Cloudinary CDN with auto-format and quality optimization. Items without an image render an `ImageOff` placeholder in the UI.
+- `deletedAt` â€” items are soft-deleted so historical orders that reference them remain intact and reportable.
+- `imageUrl` â€” optional Cloudinary secure URL. Uploaded via `POST /menu/items/upload-image`; stored and served via Cloudinary CDN with auto-format and quality optimization. Items without an image render an `ImageOff` placeholder in the UI.
 
 ---
 
@@ -270,7 +270,7 @@ model BranchMenuItem {
 **Notes:**
 - The `@@unique` constraint on `[organizationId, menuItemId]` ensures there is exactly one availability record per item per branch. No duplicates possible.
 - If no `BranchMenuItem` record exists for an item at a branch, the item is assumed available (default-available pattern). Records are only created when a manager marks something unavailable.
-- `updatedBy` provides an audit trail — we know which manager toggled availability and when.
+- `updatedBy` provides an audit trail â€” we know which manager toggled availability and when.
 
 ---
 
@@ -324,13 +324,13 @@ model Shift {
 ```
 
 **Notes:**
-- `startTime` and `endTime` stored as `"HH:MM"` strings rather than timestamps. This is because shifts are recurring templates, not one-off calendar events — the actual date comes from `ShiftAssignment.date`.
+- `startTime` and `endTime` stored as `"HH:MM"` strings rather than timestamps. This is because shifts are recurring templates, not one-off calendar events â€” the actual date comes from `ShiftAssignment.date`.
 
 ---
 
 ### 4.8 ShiftAssignment
 
-Links a staff member to a shift on a specific date. This is the daily schedule — the manager populates this to assign who works which shift on which day.
+Links a staff member to a shift on a specific date. This is the daily schedule â€” the manager populates this to assign who works which shift on which day.
 
 ```prisma
 model ShiftAssignment {
@@ -358,7 +358,7 @@ model ShiftAssignment {
 
 **Notes:**
 - `@@unique([userId, date, shiftId])` prevents double-booking the same person to the same shift on the same day.
-- `date` uses `@db.Date` — date only, no time component. Time comes from the `Shift` definition.
+- `date` uses `@db.Date` â€” date only, no time component. Time comes from the `Shift` definition.
 
 ---
 
@@ -393,7 +393,7 @@ model ClockRecord {
 ```
 
 **Notes:**
-- `clockInAt` and `clockOutAt` are nullable — a record may exist with only clock-in (staff is still on shift).
+- `clockInAt` and `clockOutAt` are nullable â€” a record may exist with only clock-in (staff is still on shift).
 - `clockInMethod` and `clockOutMethod` distinguish GPS-verified clock actions from manager overrides. This is recorded permanently for audit and compliance.
 - `overrideById` and `overrideNote` are required when `clockInMethod = OVERRIDE`.
 - Application-level invariant: a user may have many historical `ClockRecord`s, but only one open attendance record (`clockInAt` set, `clockOutAt = null`) is allowed at a time across all assignments.
@@ -443,9 +443,9 @@ model Order {
 
 **Notes:**
 - `dailyNumber` combined with `orderDate` and `organizationId` provides the human-readable order number (e.g., "Order #7 on 22 Feb at Kingz branch"). The `@@unique` constraint enforces no duplicates.
-- `subtotal`, `deliveryFee`, and `total` are denormalised (stored, not calculated on the fly). This is intentional — it creates an immutable financial record. If a menu item's price changes tomorrow, old orders still reflect the price at the time of ordering.
+- `subtotal`, `deliveryFee`, and `total` are denormalised (stored, not calculated on the fly). This is intentional â€” it creates an immutable financial record. If a menu item's price changes tomorrow, old orders still reflect the price at the time of ordering.
 - `status` at this level represents the overall order status, derived from the prep tickets but managed explicitly to avoid complex joins on every read.
-- `closedAt` provides a clean timestamp for reporting — "how long from order creation to closure".
+- `closedAt` provides a clean timestamp for reporting â€” "how long from order creation to closure".
 - **Cancellation fields** (added in lifecycle redesign): `cancelReason` stores the predefined reason string, `cancelledById` references the user who cancelled. These are nullable (only set when order is cancelled).
 
 ---
@@ -461,7 +461,7 @@ model OrderItem {
   menuItemId   String  @map("menu_item_id")
   quantity     Int
   unitPrice    Decimal @db.Decimal(10, 2)  @map("unit_price")  -- price at time of order
-  subtotal     Decimal @db.Decimal(10, 2)                      -- quantity × unitPrice
+  subtotal     Decimal @db.Decimal(10, 2)                      -- quantity Ã— unitPrice
   notes        String?                                          -- item-level special instructions
 
   -- Relations
@@ -475,15 +475,15 @@ model OrderItem {
 ```
 
 **Notes:**
-- `unitPrice` is copied from `MenuItem.price` at the time the order is placed. This is a deliberate snapshot — price history is preserved regardless of future menu changes.
-- `onDelete: Cascade` — if an order is deleted (hard delete, only possible in edge cases), its items go with it. In practice, orders are never deleted.
-- No `createdAt`/`updatedAt` on this table — `OrderItem` records are immutable once created. Any change (add/remove item) happens by deleting and recreating items while the order is still in Pending status.
+- `unitPrice` is copied from `MenuItem.price` at the time the order is placed. This is a deliberate snapshot â€” price history is preserved regardless of future menu changes.
+- `onDelete: Cascade` â€” if an order is deleted (hard delete, only possible in edge cases), its items go with it. In practice, orders are never deleted.
+- No `createdAt`/`updatedAt` on this table â€” `OrderItem` records are immutable once created. Any change (add/remove item) happens by deleting and recreating items while the order is still in Pending status.
 
 ---
 
 ### 4.12 PrepTicket
 
-This is the routing entity. When an order is submitted, the system creates one `PrepTicket` per prep station involved. If an order has food and drinks, two PrepTickets are created — one for KITCHEN, one for BARISTA. Each ticket tracks its own preparation lifecycle independently.
+This is the routing entity. When an order is submitted, the system creates an initial `PrepTicket` batch per prep station involved (sequence 1). If additional items are added later for a station that has already started (`IN_PROGRESS` / `READY`), the system creates a follow-up `PrepTicket` batch for that station with an incremented sequence.
 
 This is the key to the split-order, unified-view design.
 
@@ -492,21 +492,22 @@ model PrepTicket {
   id              String           @id @default(uuid())
   organizationId  String           @map("organization_id")
   orderId         String           @map("order_id")
-  station         PrepStation                              -- KITCHEN or BARISTA
+  station         PrepStation                               -- KITCHEN or BARISTA
+  sequence        Int              @default(1)               -- batch number per station per order
   status          PrepTicketStatus @default(PENDING)
-  claimedById     String?          @map("claimed_by_id")  -- chef or barista who claimed it
+  claimedById     String?          @map("claimed_by_id")   -- chef or barista who claimed it
   claimedAt       DateTime?        @map("claimed_at")
-  readyAt         DateTime?        @map("ready_at")       -- when marked Ready
-  items           Json                                     -- snapshot of items for this station
-  createdAt       DateTime         @default(now())        @map("created_at")
-  updatedAt       DateTime         @updatedAt             @map("updated_at")
+  readyAt         DateTime?        @map("ready_at")        -- when marked Ready
+  items           Json                                      -- snapshot of items for this station batch
+  createdAt       DateTime         @default(now())          @map("created_at")
+  updatedAt       DateTime         @updatedAt               @map("updated_at")
 
   -- Relations
   organization  Organization @relation(fields: [organizationId], references: [id])
   order         Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   claimedBy     User?        @relation("PrepTicketClaimedBy", fields: [claimedById], references: [id])
 
-  @@unique([orderId, station])   -- one ticket per station per order
+  @@unique([orderId, station, sequence])   -- multiple batches per station per order
   @@index([organizationId])
   @@index([organizationId, station, status])   -- primary KDS/BDS query index
   @@index([claimedById])
@@ -515,11 +516,9 @@ model PrepTicket {
 ```
 
 **Notes:**
-- `@@unique([orderId, station])` — an order can have at most one Kitchen ticket and one Barista ticket. Enforced at the database level.
-- `items` is stored as `Json` — a snapshot of the items and quantities relevant to that station at the time the ticket was created. This makes the KDS/BDS display query fast (no joins needed to render a ticket card) and preserves the original state even if an order is subsequently modified.
-- `claimedAt` and `readyAt` timestamps are the source of truth for **prep time metrics** (reports: average prep time per chef/barista).
-- `PrepTicketStatus` is independent from `OrderStatus`. An order can have its food ticket In-Progress while its drinks ticket is still Pending.
-- **Rejection fields** (added in lifecycle redesign): `rejectedById`, `rejectedReason`, `rejectedAt` track when kitchen/barista rejects a ticket. Rejection reverts the ticket to `PENDING` (clears claim data), allowing the waiter to edit or cancel. If all tickets revert to `PENDING`, the order status also reverts to `PENDING`.
+- `sequence` enables follow-up ticket batches when customers add items mid-prep, without mutating already-claimed/ready tickets.
+- `items` is stored as `Json` as a snapshot. KDS/BDS can render a ticket card without joining `OrderItem` rows.
+- `PrepTicketStatus` is independent from `OrderStatus`. An order can have multiple tickets across stations and sequences.
 
 ---
 
@@ -620,7 +619,7 @@ enum OrderStatus {
 }
 
 enum PrepTicketStatus {
-  PENDING       -- waiting to be claimed (also set after rejection — ticket reverts to pending)
+  PENDING       -- waiting to be claimed (also set after rejection â€” ticket reverts to pending)
   IN_PROGRESS   -- claimed, being prepared
   READY         -- preparation complete
   REJECTED      -- exists in schema but unused at runtime; rejection reverts ticket to PENDING
@@ -660,11 +659,11 @@ enum ClockMethod {
 
 ### Why a separate PrepTicket table instead of status flags on Order?
 
-An order can involve two independent workflows happening simultaneously — the kitchen preparing food while the barista makes drinks. Each workflow has its own claim, its own In-Progress, its own Ready. These cannot be cleanly modelled as flags on a single `Order` row without duplicating columns and creating an awkward schema. `PrepTicket` gives each workflow its own clean lifecycle, its own claimant, and its own timestamps — while the `Order` still presents a unified view to the waiter.
+An order can involve two independent workflows happening simultaneously â€” the kitchen preparing food while the barista makes drinks. Each workflow has its own claim, its own In-Progress, its own Ready. These cannot be cleanly modelled as flags on a single `Order` row without duplicating columns and creating an awkward schema. `PrepTicket` gives each workflow its own clean lifecycle, its own claimant, and its own timestamps â€” while the `Order` still presents a unified view to the waiter.
 
 ### Why store `items` as JSON on PrepTicket instead of a join table?
 
-The KDS and BDS need to render order cards quickly. If items were stored in a separate join table, every ticket display would require a join. The JSON snapshot approach means the KDS can retrieve all the display information for a ticket in a single query. The tradeoff is that the JSON is a snapshot — changes to `OrderItem` records do not automatically update the ticket. This is intentional: when a waiter modifies an order while it's still Pending, the system must re-generate the PrepTicket's JSON snapshot and notify the station.
+The KDS and BDS need to render order cards quickly. If items were stored in a separate join table, every ticket display would require a join. The JSON snapshot approach means the KDS can retrieve all the display information for a ticket in a single query. The tradeoff is that the JSON is a snapshot â€” changes to `OrderItem` records do not automatically update the ticket. This is intentional: when a waiter modifies an order while it's still Pending, the system must re-generate the PrepTicket's JSON snapshot and notify the station.
 
 ### Why is OrderItem price snapshotted instead of referenced live?
 
@@ -687,7 +686,7 @@ All indexes are defined on the schema explicitly. The key indexes and their just
 | Table | Index | Reason |
 |---|---|---|
 | `users` | `organizationId` | All staff queries filter by branch |
-| `users` | `email` | Login lookup — must be instant |
+| `users` | `email` | Login lookup â€” must be instant |
 | `orders` | `(organizationId, status)` | Manager dashboard: "show all active orders at this branch" |
 | `orders` | `(organizationId, orderDate)` | Daily reporting queries |
 | `prep_tickets` | `(organizationId, station, status)` | Primary KDS/BDS query: "show all Kitchen tickets that are Pending at this branch" |
@@ -699,3 +698,4 @@ All indexes are defined on the schema explicitly. The key indexes and their just
 ---
 
 *This data model is the authoritative schema definition for Wendo RMS V1. Any structural changes must be reviewed here first, then reflected in the Prisma schema and a corresponding migration.*
+

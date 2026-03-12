@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import { selectCartCount, selectCartTotal, useOrderStore } from '@/store/orderStore';
 import type { MenuCategoryWithAvailability } from '@/types/menu';
-import type { OrderDetail } from '@/types/order';
+import type { OrderDetail, PrepStation } from '@/types/order';
 
 const formatCurrency = (amount: number): string => {
   return `KES ${amount.toFixed(2)}`;
@@ -46,8 +46,16 @@ export default function EditOrderPage(): JSX.Element {
         setOrder(loadedOrder);
         setCategories(menu.categories);
         setSelectedCategoryId(menu.categories[0]?.id ?? null);
+        const prepStationByItemId = new Map<string, PrepStation>();
+        menu.categories.forEach((category) => {
+          category.items.forEach((item) => {
+            prepStationByItemId.set(item.id, category.prepStation);
+          });
+        });
+
         setCart(
           loadedOrder.items.map((item) => ({
+            prepStation: prepStationByItemId.get(item.menuItemId) ?? 'KITCHEN',
             menuItemId: item.menuItemId,
             name: item.name,
             price: Number.parseFloat(item.unitPrice),
@@ -70,6 +78,20 @@ export default function EditOrderPage(): JSX.Element {
     () => categories.find((category) => category.id === selectedCategoryId) ?? categories[0],
     [categories, selectedCategoryId],
   );
+  const lockedStations = useMemo(() => {
+    if (!order) {
+      return [];
+    }
+
+    const locked = new Set<PrepStation>();
+    order.prepTickets.forEach((ticket) => {
+      if (ticket.status === 'IN_PROGRESS' || ticket.status === 'READY') {
+        locked.add(ticket.station);
+      }
+    });
+
+    return Array.from(locked);
+  }, [order]);
 
   const normalizedSearchTerm = useMemo(() => searchTerm.trim().toLowerCase(), [searchTerm]);
   const hasSearch = normalizedSearchTerm.length > 0;
@@ -214,7 +236,7 @@ export default function EditOrderPage(): JSX.Element {
               </div>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                 {category.items.map((item) => (
-                  <OrderMenuItemTile key={item.id} item={item} />
+                  <OrderMenuItemTile key={item.id} item={item} prepStation={category.prepStation} />
                 ))}
               </div>
             </section>
@@ -223,12 +245,12 @@ export default function EditOrderPage(): JSX.Element {
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
           {selectedCategory?.items.map((item) => (
-            <OrderMenuItemTile key={item.id} item={item} />
+            <OrderMenuItemTile key={item.id} item={item} prepStation={selectedCategory.prepStation} />
           ))}
         </div>
       )}
 
-      {/* Floating cart FAB — same pattern as new order page */}
+      {/* Floating cart FAB â€” same pattern as new order page */}
       <button
         type="button"
         className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 rounded-full border border-espresso bg-crema px-4 py-3 shadow-md transition-shadow duration-fast hover:shadow-lg focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-60"
@@ -248,6 +270,7 @@ export default function EditOrderPage(): JSX.Element {
       <EditCheckoutSheet
         isOpen={isCheckoutOpen}
         isSubmitting={isSubmitting}
+        lockedStations={lockedStations}
         onClose={() => {
           if (!isSubmitting) {
             setIsCheckoutOpen(false);
@@ -258,3 +281,8 @@ export default function EditOrderPage(): JSX.Element {
     </PageLayout>
   );
 }
+
+
+
+
+

@@ -1,12 +1,14 @@
-'use client';
+﻿'use client';
 
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { BottomSheet, Button, IconButton, PriceDisplay } from '@/components/ui';
 import { selectCartCount, selectCartTotal, useOrderStore } from '@/store/orderStore';
+import type { PrepStation } from '@/types/order';
 
 interface EditCheckoutSheetProps {
   isOpen: boolean;
   isSubmitting: boolean;
+  lockedStations?: PrepStation[];
   onClose: () => void;
   onSubmit: () => void;
 }
@@ -14,6 +16,7 @@ interface EditCheckoutSheetProps {
 export function EditCheckoutSheet({
   isOpen,
   isSubmitting,
+  lockedStations = [],
   onClose,
   onSubmit,
 }: EditCheckoutSheetProps): JSX.Element {
@@ -22,6 +25,7 @@ export function EditCheckoutSheet({
   const removeFromCart = useOrderStore((state) => state.removeFromCart);
   const cartItemCount = selectCartCount(cart);
   const subtotal = selectCartTotal(cart);
+  const lockedStationSet = new Set(lockedStations);
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Review Changes">
@@ -44,7 +48,7 @@ export function EditCheckoutSheet({
                     variant="ghost"
                     size="sm"
                     onClick={() => removeFromCart(item.menuItemId)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || lockedStationSet.has(item.prepStation)}
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between">
@@ -55,7 +59,7 @@ export function EditCheckoutSheet({
                       variant="secondary"
                       size="sm"
                       onClick={() => updateCartQuantity(item.menuItemId, item.quantity - 1)}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || lockedStationSet.has(item.prepStation)}
                     />
                     <span className="min-w-6 text-center text-body-sm text-stone-900">{item.quantity}</span>
                     <IconButton
@@ -94,3 +98,5 @@ export function EditCheckoutSheet({
     </BottomSheet>
   );
 }
+
+

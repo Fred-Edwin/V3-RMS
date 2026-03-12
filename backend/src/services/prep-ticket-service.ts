@@ -1,4 +1,4 @@
-import { OrderStatus, PrepTicketStatus, type PrepStation, type UserRole, type Prisma } from '@prisma/client';
+﻿import { OrderStatus, PrepTicketStatus, type PrepStation, type UserRole, type Prisma } from '@prisma/client';
 import type { Request } from 'express';
 import { orderRepository } from '../repositories/order-repository';
 import { prepTicketRepository, type PrepTicketWithOrderRecord } from '../repositories/prep-ticket-repository';
@@ -129,6 +129,7 @@ const parsePrepTicketItems = (value: Prisma.JsonValue): PrepTicketResponse['item
 
     return [
       {
+        menuItemId: typeof (item as { menuItemId?: unknown }).menuItemId === 'string' ? (item as unknown as { menuItemId: string }).menuItemId : undefined,
         name: item.name,
         quantity: item.quantity,
         notes: typeof item.notes === 'string' ? item.notes : null,
@@ -416,3 +417,6 @@ export const prepTicketService = {
     return serializePrepTicket(unclaimedTicket);
   },
 };
+
+
+

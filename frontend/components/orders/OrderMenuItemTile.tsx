@@ -1,15 +1,17 @@
-'use client';
+﻿'use client';
 
 import { memo, useEffect, useRef, useState } from 'react';
 import { MenuItemCard } from '@/components/ui';
 import { selectCartQuantityByItem, useOrderStore } from '@/store/orderStore';
 import type { MenuItemWithAvailability } from '@/types/menu';
+import type { PrepStation } from '@/types/order';
 
 interface OrderMenuItemTileProps {
   item: MenuItemWithAvailability;
+  prepStation: PrepStation;
 }
 
-function OrderMenuItemTileBase({ item }: OrderMenuItemTileProps): JSX.Element {
+function OrderMenuItemTileBase({ item, prepStation }: OrderMenuItemTileProps): JSX.Element {
   const addToCart = useOrderStore((state) => state.addToCart);
   const quantity = useOrderStore((state) => selectCartQuantityByItem(state.cart, item.id));
   const [isRecentlyAdded, setIsRecentlyAdded] = useState(false);
@@ -36,6 +38,7 @@ function OrderMenuItemTileBase({ item }: OrderMenuItemTileProps): JSX.Element {
     }
 
     addToCart({
+      prepStation,
       menuItemId: item.id,
       name: item.name,
       price: Number.parseFloat(item.price),
@@ -76,3 +79,4 @@ function OrderMenuItemTileBase({ item }: OrderMenuItemTileProps): JSX.Element {
 }
 
 export const OrderMenuItemTile = memo(OrderMenuItemTileBase);
+

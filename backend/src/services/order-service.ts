@@ -1,4 +1,4 @@
-import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
+﻿import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
 import { menuRepository, type MenuItemWithCategoryRecord } from '../repositories/menu-repository';
@@ -134,6 +134,7 @@ const parsePrepTicketItems = (value: Prisma.JsonValue): PrepTicketItemSnapshot[]
 
     return [
       {
+        menuItemId: typeof (item as { menuItemId?: unknown }).menuItemId === 'string' ? (item as unknown as { menuItemId: string }).menuItemId : undefined,
         name: item.name,
         quantity: item.quantity,
         notes: typeof item.notes === 'string' ? item.notes : null,
@@ -389,7 +390,7 @@ export const orderService = {
     const emitSocketMs = Date.now() - socketEmitStart;
 
     // Fire-and-forget FCM push to kitchen/barista staff for each ticket station.
-    // Runs after the response is sent — does not block order creation latency.
+    // Runs after the response is sent â€” does not block order creation latency.
     for (const ticket of ticketsForSocket) {
       void fcmService.sendNewOrderPush(organizationId, {
         orderId: created.id,
@@ -487,7 +488,6 @@ export const orderService = {
 
     return serializeOrder(order);
   },
-
   updateItems: async (orderId: string, data: UpdateOrderItemsInput, actor: Actor): Promise<OrderRecord> => {
     const organizationId = resolveOrganizationId(actor);
     const existingOrder = await orderRepository.findById(orderId, organizationId);
@@ -497,21 +497,66 @@ export const orderService = {
 
     assertOwnership(existingOrder, actor);
 
-    const anyTicketBeyondPending = existingOrder.prepTickets.some((ticket) => ticket.status !== 'PENDING' && ticket.status !== 'REJECTED');
-    if (anyTicketBeyondPending) {
-      throw new ConflictError('Order is being prepared and cannot be edited.');
+    if (existingOrder.status === OrderStatus.CLOSED || existingOrder.status === OrderStatus.CANCELLED) {
+      throw new ConflictError('This order is closed and cannot be modified.');
     }
 
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
-    const newStations = deriveStationsFromItems(resolvedItems);
+    const newItemsByStation = new Map<PrepStation, ResolvedOrderItem[]>();
+
+    resolvedItems.forEach((item) => {
+      const station = item.category.prepStation;
+      const current = newItemsByStation.get(station) ?? [];
+      current.push(item);
+      newItemsByStation.set(station, current);
+    });
+
     const existingStations = [...new Set(existingOrder.prepTickets.map((ticket) => ticket.station))];
+    const newStations = deriveStationsFromItems(resolvedItems);
+    const allStations = [...new Set([...existingStations, ...newStations])];
 
-    if (newStations.some((station) => !existingStations.includes(station))) {
-      throw new ValidationError('Cannot add items for a new prep station after order creation');
-    }
+    const ticketUpdates: Array<{
+      ticketId: string;
+      station: PrepStation;
+      status: PrepTicketStatus;
+      items: PrepTicketItemSnapshot[];
+      rejectedReason?: string;
+      clearRejection?: boolean;
+    }> = [];
 
-    for (const station of existingStations) {
-      const currentStationItems = existingOrder.items
+    const ticketCreates: Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }> = [];
+
+    const existingTicketIds = new Set(existingOrder.prepTickets.map((ticket) => ticket.id));
+
+    const buildKey = (menuItemId: string, notes: string | null): string => JSON.stringify([menuItemId, notes]);
+
+    const buildStationMap = (items: Array<{ menuItemId: string; quantity: number; notes: string | null }>): Map<string, number> => {
+      const map = new Map<string, number>();
+      items.forEach((item) => {
+        const key = buildKey(item.menuItemId, item.notes);
+        map.set(key, (map.get(key) ?? 0) + item.quantity);
+      });
+      return map;
+    };
+
+    const getLatestEditableTicket = (station: PrepStation) => {
+      const candidates = existingOrder.prepTickets
+        .filter((ticket) => ticket.station === station)
+        .filter((ticket) => ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED)
+        .sort((a, b) => {
+          if (a.sequence !== b.sequence) {
+            return b.sequence - a.sequence;
+          }
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        });
+
+      return candidates[0] ?? null;
+    };
+
+    for (const station of allStations) {
+      const requestedStationItems = newItemsByStation.get(station) ?? [];
+
+      const existingStationItems = existingOrder.items
         .filter((item) => item.menuItem.category.prepStation === station)
         .map((item) => ({
           menuItemId: item.menuItemId,
@@ -519,24 +564,92 @@ export const orderService = {
           notes: item.notes ?? null,
         }));
 
-      const newStationItems = resolvedItems
-        .filter((item) => item.category.prepStation === station)
-        .map((item) => ({
+      const hasStartedTicket = existingOrder.prepTickets.some(
+        (ticket) =>
+          ticket.station === station && (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
+      );
+
+      const requestedMap = buildStationMap(
+        requestedStationItems.map((item) => ({
           menuItemId: item.menuItemId,
           quantity: item.quantity,
           notes: item.notes,
-        }));
+        })),
+      );
 
-      const stationChanged = stringifyStationItems(currentStationItems) !== stringifyStationItems(newStationItems);
-      const stationTicket = existingOrder.prepTickets.find((ticket) => ticket.station === station);
+      const existingMap = buildStationMap(existingStationItems);
 
-      if (stationChanged && stationTicket && stationTicket.status !== 'PENDING' && stationTicket.status !== 'REJECTED') {
-        throw new ConflictError('Order cannot be modified. Preparation has already started at one or more stations.');
+      if (hasStartedTicket) {
+        // Once a station has started, we only allow additive changes for that station.
+        for (const [key, existingQty] of existingMap.entries()) {
+          const requestedQty = requestedMap.get(key) ?? 0;
+          if (requestedQty < existingQty) {
+            throw new ConflictError(
+              'Order cannot be modified. Preparation has already started at one or more stations.',
+            );
+          }
+        }
+
+        // Create a follow-up ticket batch containing only the delta items.
+        const deltaItems: ResolvedOrderItem[] = [];
+        requestedStationItems.forEach((item) => {
+          const key = buildKey(item.menuItemId, item.notes);
+          const existingQty = existingMap.get(key) ?? 0;
+          const requestedQty = requestedMap.get(key) ?? 0;
+          const deltaQty = requestedQty - existingQty;
+          if (deltaQty > 0) {
+            deltaItems.push({ ...item, quantity: deltaQty });
+          }
+        });
+
+        if (deltaItems.length > 0) {
+          ticketCreates.push({
+            station,
+            items: buildPrepTicketItemsSnapshot(deltaItems, station),
+          });
+        }
+
+        continue;
+      }
+
+      const latestEditable = getLatestEditableTicket(station);
+
+      if (requestedStationItems.length === 0) {
+        // No items remain for this station; reject/remove any pending ticket.
+        if (latestEditable && latestEditable.status === PrepTicketStatus.PENDING) {
+          ticketUpdates.push({
+            ticketId: latestEditable.id,
+            station,
+            status: PrepTicketStatus.REJECTED,
+            items: [],
+            rejectedReason: 'Removed from order',
+          });
+        }
+        continue;
+      }
+
+      const snapshot = buildPrepTicketItemsSnapshot(requestedStationItems, station);
+
+      if (latestEditable) {
+        ticketUpdates.push({
+          ticketId: latestEditable.id,
+          station,
+          status: PrepTicketStatus.PENDING,
+          items: snapshot,
+          clearRejection: latestEditable.status === PrepTicketStatus.REJECTED,
+        });
+      } else {
+        // New station added to an existing order.
+        ticketCreates.push({
+          station,
+          items: snapshot,
+        });
       }
     }
 
     const totals = calculateOrderTotals(resolvedItems, existingOrder.deliveryFee);
-    const ticketSnapshots = buildTicketSnapshotsByStation(resolvedItems, existingStations);
+    const reopenOrder = existingOrder.status === OrderStatus.READY && ticketCreates.length > 0;
+
     const updatedOrder = await orderRepository.updateItems(
       orderId,
       organizationId,
@@ -548,15 +661,31 @@ export const orderService = {
         notes: item.notes,
       })),
       totals,
-      ticketSnapshots,
+      {
+        updates: ticketUpdates,
+        creates: ticketCreates,
+        actorId: actor.id,
+        reopenOrder,
+      },
     );
 
     if (!updatedOrder) {
-      throw new NotFoundError('Order not found');
+      throw new ConflictError('Order could not be modified. Please refresh and try again.');
     }
 
     const serialized = serializeOrder(updatedOrder);
-    socketService.emitOrderModified(organizationId, serializeTicketsForSocket(serialized));
+
+    const newTickets = serialized.prepTickets.filter((ticket) => !existingTicketIds.has(ticket.id));
+    if (newTickets.length > 0) {
+      socketService.emitNewOrder(organizationId, newTickets);
+    }
+
+    const updatedTicketIds = new Set(ticketUpdates.map((update) => update.ticketId));
+    const modifiedTickets = serialized.prepTickets.filter((ticket) => updatedTicketIds.has(ticket.id));
+    if (modifiedTickets.length > 0) {
+      socketService.emitOrderModified(organizationId, modifiedTickets);
+    }
+
     return serialized;
   },
 
@@ -654,3 +783,8 @@ export const orderService = {
     return serialized;
   },
 };
+
+
+
+
+

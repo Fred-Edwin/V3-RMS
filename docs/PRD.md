@@ -1,5 +1,5 @@
-# Product Requirements Document
-## Wendo Coffee Bistro — Restaurant Management System (RMS)
+﻿# Product Requirements Document
+## Wendo Coffee Bistro â€” Restaurant Management System (RMS)
 **Version:** 1.0  
 **Status:** Draft  
 **Date:** 2026-02-22  
@@ -13,11 +13,11 @@
 2. [Problem Statement](#2-problem-statement)
 3. [Goals & Success Metrics](#3-goals--success-metrics)
 4. [Users & Roles](#4-users--roles)
-5. [Scope — V1](#5-scope--v1)
+5. [Scope â€” V1](#5-scope--v1)
 6. [Functional Requirements](#6-functional-requirements)
 7. [Non-Functional Requirements](#7-non-functional-requirements)
 8. [User Stories](#8-user-stories)
-9. [Out of Scope — V1](#9-out-of-scope--v1)
+9. [Out of Scope â€” V1](#9-out-of-scope--v1)
 10. [Assumptions & Constraints](#10-assumptions--constraints)
 11. [Open Questions & Future Considerations](#11-open-questions--future-considerations)
 
@@ -25,9 +25,9 @@
 
 ## 1. Executive Summary
 
-Wendo Coffee Bistro (commonly known as "Wendo") is a premium coffee bistro and restaurant currently operating two branches in Nyeri, Kenya — Kingz and Town. The business is planning to expand incrementally to 10 branches starting next month.
+Wendo Coffee Bistro (commonly known as "Wendo") is a premium coffee bistro and restaurant currently operating two branches in Nyeri, Kenya â€” Kingz and Town. The business is planning to expand incrementally to 10 branches starting next month.
 
-Wendo currently runs on paper-based order management, manual record keeping, and shared POS devices. As the business scales, these processes are becoming unsustainable. This document defines the requirements for a **Restaurant Management System (RMS)** — a digital platform that will replace paper operations, streamline order management across all stations, provide real-time operational visibility to management, and collect data to drive informed business decisions.
+Wendo currently runs on paper-based order management, manual record keeping, and shared POS devices. As the business scales, these processes are becoming unsustainable. This document defines the requirements for a **Restaurant Management System (RMS)** â€” a digital platform that will replace paper operations, streamline order management across all stations, provide real-time operational visibility to management, and collect data to drive informed business decisions.
 
 The system will be built as a multi-branch, mobile-first platform with a web dashboard for management, designed for reliability, scalability, and performance from day one.
 
@@ -38,12 +38,12 @@ The system will be built as a multi-branch, mobile-first platform with a web das
 ### Current State
 Wendo's operations are driven entirely by paper and manual processes:
 
-- Waiters handwrite orders, print receipts, and physically walk them to the Kitchen and Barista Station — which are some distance apart. This is physically tiring and slow.
+- Waiters handwrite orders, print receipts, and physically walk them to the Kitchen and Barista Station â€” which are some distance apart. This is physically tiring and slow.
 - There is no real-time visibility into order status. Waiters cannot tell if an order is being prepared or is ready without physically checking.
 - Chefs and Baristas have no structured queue. Orders pile up on paper with no clear prioritisation.
 - Inventory is tracked manually, making it difficult to manage stock across two branches. The manager cited this as the most significant pain point.
 - Staff performance cannot be measured. There is no data on prep times, order volumes per staff member, or attendance.
-- The business collects almost no operational data — making it impossible to identify what to improve or where to invest.
+- The business collects almost no operational data â€” making it impossible to identify what to improve or where to invest.
 - A single shared POS device per branch creates bottlenecks.
 - Managing two branches simultaneously is difficult. The Director has no consolidated view of how both branches are performing.
 
@@ -101,7 +101,7 @@ The system has six distinct roles, each with scoped access and a primary interfa
 - Designates which branch is the hub branch
 - Can manage the master menu alongside the System Admin
 
-**Access scope:** All branches — read access on everything, write access on menu and branch settings.
+**Access scope:** All branches â€” read access on everything, write access on menu and branch settings.
 
 ---
 
@@ -124,7 +124,7 @@ The system has six distinct roles, each with scoped access and a primary interfa
 
 ### 4.4 Waiter
 **Who:** Front-of-house staff who take orders and serve customers.  
-**Interface:** Mobile-first web app (accessible from any smartphone browser — no app install required).  
+**Interface:** Mobile-first web app (accessible from any smartphone browser â€” no app install required).  
 **Responsibilities:**
 - Takes orders from customers (dine-in, take-away, delivery)
 - Submits orders to the preparation stations digitally
@@ -163,18 +163,18 @@ The system has six distinct roles, each with scoped access and a primary interfa
 
 ---
 
-## 5. Scope — V1
+## 5. Scope â€” V1
 
 ### In Scope
-- Digital order management — Dine-In, Take-Away, Delivery
+- Digital order management â€” Dine-In, Take-Away, Delivery
 - Automated order routing to Kitchen Display System (KDS) and Barista Display System (BDS)
 - Real-time order tracking and status progression
 - Order modification (while status is Pending)
 - Manual payment recording (no actual payment processing)
-- Kitchen Display System (KDS) — Android tablet app (web app, browser-based)
-- Barista Display System (BDS) — Android tablet app (web app, browser-based)
-- Waiter interface — mobile-first web app (no install required)
-- Chef and Barista personal phone interface — mobile-first web app
+- Kitchen Display System (KDS) â€” Android tablet app (web app, browser-based)
+- Barista Display System (BDS) â€” Android tablet app (web app, browser-based)
+- Waiter interface â€” mobile-first web app (no install required)
+- Chef and Barista personal phone interface â€” mobile-first web app
 - Manager web dashboard
 - Director web dashboard
 - Menu management (System Admin and Director at system level; Manager for branch availability)
@@ -185,9 +185,9 @@ The system has six distinct roles, each with scoped access and a primary interfa
 - Delivery zones per branch with automatic fee calculation
 - Reporting and analytics (branch-level and cross-branch)
 - Report export (PDF and CSV)
-- Offline resilience — clear error states, graceful degradation
+- Offline resilience â€” clear error states, graceful degradation
 
-### Out of Scope — V1 (Planned for V2)
+### Out of Scope â€” V1 (Planned for V2)
 - Inventory management
 - Payment processing (Pesapal/Mpesa STK Push integration)
 - Grubba delivery integration
@@ -203,7 +203,7 @@ The system has six distinct roles, each with scoped access and a primary interfa
 
 **FR-MEN-02:** The System Admin and Director shall be able to create, edit, and delete menu categories.
 
-**FR-MEN-03:** Each menu category shall be assigned to exactly one preparation station — Kitchen or Barista. All items within that category automatically route to the assigned station.
+**FR-MEN-03:** Each menu category shall be assigned to exactly one preparation station â€” Kitchen or Barista. All items within that category automatically route to the assigned station.
 
 **FR-MEN-04:** The System Admin and Director shall be able to create, edit, and delete menu items within categories.
 
@@ -223,23 +223,23 @@ The system has six distinct roles, each with scoped access and a primary interfa
 
 **FR-ORD-02:** Orders shall be numbered daily per branch, resetting to #1 at the start of each new day (e.g., Order #1, #2, #3...).
 
-**FR-ORD-03 — Dine-In Order Flow:**
+**FR-ORD-03 â€” Dine-In Order Flow:**
 1. Waiter opens the menu, adds items to a cart
 2. Waiter opens the cart modal, reviews items and quantities
 3. Waiter adds a table number (free-text) and optional comments or instructions
 4. Waiter submits the order
-5. System splits the order internally — food items route to KDS, drink items route to BDS
+5. System splits the order internally â€” food items route to KDS, drink items route to BDS
 6. The waiter sees the order as a single unified order throughout
 7. Chef/Barista claims and prepares
 8. Waiter is notified when ready
 9. Waiter records payment method and marks as paid
 
-**FR-ORD-04 — Take-Away Order Flow:**  
+**FR-ORD-04 â€” Take-Away Order Flow:**  
 Same as Dine-In except no table number is required. Waiter packs the order instead of serving.
 
-**FR-ORD-05 — Delivery Order Flow:**
+**FR-ORD-05 â€” Delivery Order Flow:**
 1. Waiter creates a delivery order (typically via phone call from customer)
-2. Waiter selects the delivery zone — delivery fee is added automatically to the order total
+2. Waiter selects the delivery zone â€” delivery fee is added automatically to the order total
 3. Waiter manually confirms payment has been received (Mpesa only for delivery)
 4. Only after payment confirmation is the order submitted to the prep stations
 5. After preparation, waiter marks the order as **Handed to Grubba**
@@ -250,24 +250,24 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 **FR-ORD-07:** The waiter shall be able to track the preparation status of their submitted orders in real time from an order details view. The view shall show the status of each station (food: Pending / In-Progress / Ready; drinks: Pending / In-Progress / Ready).
 
 **FR-ORD-08 — Order Modification:**
-- A waiter may modify an order (add/remove items, change quantities, update comments) only while that station's portion is in **Pending** status (not yet claimed)
-- Each station's portion is independently modifiable based on its own status
-- If the food portion is still Pending but drinks are In-Progress, the waiter may still modify the food portion
-- Once a station's portion moves to In-Progress, it cannot be modified
+- A waiter may modify an order (add items, increase quantities, update comments) as long as the order is not `CLOSED` or `CANCELLED`
+- Station-aware rules:
+  - While a station ticket is `PENDING` (not yet claimed), the waiter may freely edit that station’s portion (add/remove/decrease/increase)
+  - Once a station has a ticket in `IN_PROGRESS` or `READY`, the waiter may not remove/decrease items already on the order for that station
+  - Additions for a started/ready station create a new follow-up prep ticket batch for that station (so KDS/BDS receives a new card)
 - When a modification occurs, the affected prep station (KDS or BDS) shall receive a notification of the change
-
-**FR-ORD-09:** Order statuses shall be: `Pending` → `In-Progress` → `Ready` → `Closed`.
+**FR-ORD-09:** Order statuses shall be: `Pending` â†’ `In-Progress` â†’ `Ready` â†’ `Closed`.
 
 **FR-ORD-10:** An order is marked **Closed** when the waiter confirms payment (or marks as Handed to Grubba for delivery).
 
-**FR-ORD-11 — Receipt Printing:**
+**FR-ORD-11 â€” Receipt Printing:**
 - After payment is recorded, the waiter shall see a "Print Receipt" button on the order detail screen
 - Tapping the button creates a print job in the database (status: PENDING)
 - A dedicated Android app ("Wendo Printer") installed on the branch work phone polls for pending jobs every 3 seconds and sends ESC/POS commands to the Bluetooth-connected thermal printer
 - Receipts print on 80mm thermal paper and include: branch name, phone, order number, order type, date/time, waiter first name, itemised list with quantities and amounts, subtotal, delivery fee (if applicable), total, payment method, and a QR code linking to `https://www.wendoz.co.ke/`
-- Print jobs are persisted in the DB — if the printer is offline, jobs queue and print when reconnected
+- Print jobs are persisted in the DB â€” if the printer is offline, jobs queue and print when reconnected
 - Jobs older than 24 hours are automatically expired
-- Managers configure the print station from the branch settings page — a QR code is generated for one-tap app setup
+- Managers configure the print station from the branch settings page â€” a QR code is generated for one-tap app setup
 
 ---
 
@@ -281,7 +281,7 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 
 **FR-KDS-04:** When a new order arrives, the KDS/BDS shall play an audio notification and the new order card shall appear in the Pending queue.
 
-**FR-KDS-05 — Claiming an Order:**
+**FR-KDS-05 â€” Claiming an Order:**
 - A Chef (on KDS or personal phone) clicks **Claim** on an order card
 - A dropdown appears showing the names of staff currently on shift at that branch for that role (Chefs for KDS, Baristas for BDS)
 - The staff member selects their name
@@ -291,7 +291,7 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 
 **FR-KDS-06:** A Chef/Barista shall mark an order as **Ready** from either the shared KDS/BDS or their personal phone. This moves the order to the Ready queue and triggers a push notification to the waiter.
 
-**FR-KDS-07:** Chef and Barista personal phone accounts shall mirror the shared display for their respective station — they can view Pending orders, claim from their phone, view their In-Progress orders, and mark Ready from their phone.
+**FR-KDS-07:** Chef and Barista personal phone accounts shall mirror the shared display for their respective station â€” they can view Pending orders, claim from their phone, view their In-Progress orders, and mark Ready from their phone.
 
 **FR-KDS-08:** All state changes (claim, mark ready) shall reflect in real time on both the shared display and all personal phones simultaneously.
 
@@ -308,18 +308,18 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 
 **FR-STF-03:** Managers can deactivate staff accounts for their branch. Deactivated accounts cannot log in.
 
-**FR-STF-04 — Geofencing Clock-In/Out:**
+**FR-STF-04 â€” Geofencing Clock-In/Out:**
 - Staff tap **Clock In** on their app
 - The system checks the device GPS coordinates against the branch coordinates (default 50m radius, configurable by environment)
 - If within range, clock-in is recorded with a GPS-verified flag
 - If outside range, clock-in is blocked and the user sees a clear distance-based error
 - The app distinguishes geofence rejection, GPS permission denial, GPS timeout, unavailable device location, and attendance-state conflicts
 - If a staff member has more than one shift on the same day, they must clock each shift separately against the correct assignment
-- A Manager can perform a manual override from their dashboard — this is recorded with an "Override" flag, requires a reason note, and only presents the valid override action for the current attendance state
+- A Manager can perform a manual override from their dashboard â€” this is recorded with an "Override" flag, requires a reason note, and only presents the valid override action for the current attendance state
 - Clock-out follows the same geofencing rules
 
-**FR-STF-05 — Shift Scheduling:**
-- Managers create shifts with a name, start time, and end time (e.g., Morning 6:00am–2:00pm)
+**FR-STF-05 â€” Shift Scheduling:**
+- Managers create shifts with a name, start time, and end time (e.g., Morning 6:00amâ€“2:00pm)
 - Shift times are editable by the Manager
 - Managers assign specific staff members to specific shifts per day
 - Staff can view their own upcoming shifts in their app
@@ -366,25 +366,25 @@ Only one open attendance record is allowed per staff member at a time across all
 
 **FR-REP-01:** Manager reports are scoped to their branch. Director reports cover all branches individually and in aggregate.
 
-**FR-REP-02 — Manager Dashboard (Live):**
+**FR-REP-02 â€” Manager Dashboard (Live):**
 - Active orders feed with real-time status
 - Number of orders today by type (Dine-In, Take-Away, Delivery)
 - Staff currently clocked in
 - Average order prep time today
 
-**FR-REP-03 — Daily Sales Summary (Manager & Director):**
+**FR-REP-03 â€” Daily Sales Summary (Manager & Director):**
 - Total revenue
 - Order count by type
 - Top 5 selling menu items
 - Revenue by payment method
 
-**FR-REP-04 — Staff Performance Report (Monthly):**
+**FR-REP-04 â€” Staff Performance Report (Monthly):**
 - **Waiters:** Number of orders handled, average order value
 - **Chefs:** Number of food orders prepared, average food prep time
 - **Baristas:** Number of drink orders prepared, average drink prep time
-- Attendance summary — scheduled hours vs actual hours worked
+- Attendance summary â€” scheduled hours vs actual hours worked
 
-**FR-REP-05 — Director Cross-Branch Reports:**
+**FR-REP-05 â€” Director Cross-Branch Reports:**
 - All branch-level reports viewable per branch
 - Aggregated summary across all branches
 - Branch performance comparison (revenue, order volume, average prep time)
@@ -413,9 +413,9 @@ Only one open attendance record is allowed per staff member at a time across all
 - Dashboard report load time: under 10 seconds
 
 ### 7.2 Reliability
-- System uptime target: 99.5% during operating hours (6am–10pm)
-- No data loss on network interruption — all submitted orders are persisted before acknowledgement
-- Graceful error handling — all failures surface a meaningful message, never a blank screen or crash
+- System uptime target: 99.5% during operating hours (6amâ€“10pm)
+- No data loss on network interruption â€” all submitted orders are persisted before acknowledgement
+- Graceful error handling â€” all failures surface a meaningful message, never a blank screen or crash
 
 ### 7.3 Scalability
 - The system must support 2 branches at launch and scale to 10+ branches without re-architecture
@@ -426,7 +426,7 @@ Only one open attendance record is allowed per staff member at a time across all
 - All API routes are authenticated via JWT
 - Access tokens expire in 15 minutes; refresh tokens in 7 days (HTTP-only cookies)
 - Role-based access control (RBAC) enforced on every endpoint
-- Branch data isolation enforced in every database query — a user at Branch A can never access Branch B data
+- Branch data isolation enforced in every database query â€” a user at Branch A can never access Branch B data
 - All user input validated and sanitised before processing
 - Passwords hashed with bcrypt (minimum 12 rounds)
 - No sensitive data in URLs or client-accessible storage
@@ -479,7 +479,7 @@ Only one open attendance record is allowed per staff member at a time across all
 
 ---
 
-## 9. Out of Scope — V1
+## 9. Out of Scope â€” V1
 
 The following features are explicitly excluded from Version 1 and planned for a future release:
 
@@ -487,10 +487,10 @@ The following features are explicitly excluded from Version 1 and planned for a 
 |---|---|
 | Inventory management | High complexity; requires dedicated design sprint |
 | Mpesa STK Push (Pesapal) | Payment integration deferred to V2 |
-| Receipt/thermal printer integration | ✅ Implemented in V1 — Bluetooth thermal printer via Android companion app |
+| Receipt/thermal printer integration | âœ… Implemented in V1 â€” Bluetooth thermal printer via Android companion app |
 | Grubba delivery API integration | Awaiting Grubba API documentation |
 | Branch-to-branch stock transfers | Dependent on inventory module |
-| iOS support | Not applicable — system is web-based and works on any modern mobile browser |
+| iOS support | Not applicable â€” system is web-based and works on any modern mobile browser |
 
 ---
 
@@ -499,7 +499,7 @@ The following features are explicitly excluded from Version 1 and planned for a 
 | # | Assumption / Constraint |
 |---|---|
 | A-01 | All operational staff use smartphones with a modern browser (Chrome on Android recommended) |
-| A-02 | Each branch has two Android tablets available for KDS and BDS — running Chrome browser |
+| A-02 | Each branch has two Android tablets available for KDS and BDS â€” running Chrome browser |
 | A-03 | Reliable internet connectivity is available at all branches during operating hours |
 | A-04 | The system will be built in English; no localisation required in V1 |
 | A-05 | Branch coordinates (GPS) for geofencing will be provided during setup |
@@ -515,13 +515,14 @@ The following features are explicitly excluded from Version 1 and planned for a 
 
 | # | Question / Consideration |
 |---|---|
-| OQ-01 | Grubba API — once documentation is available, delivery tracking integration should be scoped for V2 |
-| OQ-02 | Multi-director support — if the business brings on additional directors or executives, the role model will need to support multiple directors |
-| OQ-03 | iOS support — if waiters or managers begin using iPhones, an iOS app or PWA will need to be considered |
-| OQ-04 | Customer-facing features — loyalty programmes, digital menus, or order history for regular customers are not in scope but could add significant value |
-| OQ-05 | Offline order submission — full offline-first capability (submitting orders without internet) is a complex but potentially valuable feature for V3 |
-| OQ-06 | Integration with accounting software — exporting financial reports to tools like QuickBooks or Wave for accounting purposes |
+| OQ-01 | Grubba API â€” once documentation is available, delivery tracking integration should be scoped for V2 |
+| OQ-02 | Multi-director support â€” if the business brings on additional directors or executives, the role model will need to support multiple directors |
+| OQ-03 | iOS support â€” if waiters or managers begin using iPhones, an iOS app or PWA will need to be considered |
+| OQ-04 | Customer-facing features â€” loyalty programmes, digital menus, or order history for regular customers are not in scope but could add significant value |
+| OQ-05 | Offline order submission â€” full offline-first capability (submitting orders without internet) is a complex but potentially valuable feature for V3 |
+| OQ-06 | Integration with accounting software â€” exporting financial reports to tools like QuickBooks or Wave for accounting purposes |
 
 ---
 
 *This document is the authoritative source of product requirements for the Wendo RMS V1. Any scope changes must be reviewed and updated here before development begins.*
+

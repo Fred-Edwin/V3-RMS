@@ -1,4 +1,4 @@
-import { OrderStatus, PrepStation, PrepTicketStatus, Prisma } from '@prisma/client';
+﻿import { OrderStatus, PrepStation, PrepTicketStatus, Prisma } from '@prisma/client';
 import type { PrepTicketItemSnapshot } from '../types/order.types';
 
 interface ItemWithPrice {
@@ -13,6 +13,7 @@ interface ItemWithStation {
 }
 
 interface SnapshotSourceItem {
+  menuItemId: string;
   name: string;
   quantity: number;
   notes: string | null;
@@ -51,6 +52,7 @@ export const buildPrepTicketItemsSnapshot = (
   return items
     .filter((item) => item.category.prepStation === station)
     .map((item) => ({
+      menuItemId: item.menuItemId,
       name: item.name,
       quantity: item.quantity,
       notes: item.notes,
@@ -68,3 +70,4 @@ export const deriveOrderStatus = (tickets: TicketWithStatus[]): OrderStatus => {
 
   return OrderStatus.IN_PROGRESS;
 };
+

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { Printer } from 'lucide-react';
@@ -45,11 +45,7 @@ export function OrderDetailBottomSheet({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MPESA');
   const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
 
-  const allPendingOrRejected = useMemo(
-    () => Boolean(order?.prepTickets.every((ticket) => ticket.status === 'PENDING' || ticket.status === 'REJECTED')),
-    [order],
-  );
-  const canEdit = isOwner && allPendingOrRejected;
+  const canEdit = isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED';
   const isPaid = Boolean(order?.paymentMethod);
   const canCancel =
     (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED') ||
@@ -198,7 +194,7 @@ export function OrderDetailBottomSheet({
         </div>
       </BottomSheet>
 
-      {/* Reprint confirmation — prevents accidental duplicate prints */}
+      {/* Reprint confirmation â€” prevents accidental duplicate prints */}
       <BottomSheet
         isOpen={isReprintConfirmOpen}
         onClose={() => setIsReprintConfirmOpen(false)}
