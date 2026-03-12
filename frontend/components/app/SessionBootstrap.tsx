@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { roleHome } from '@/lib/role-home';
+import { notificationSoundPlayer } from '@/lib/notifications/sound-player';
 import { useAuthStore } from '@/store/authStore';
 
 export function SessionBootstrap(): null {
@@ -46,6 +47,25 @@ export function SessionBootstrap(): null {
       router.replace(nextParam || roleHome[role]);
     }
   }, [pathname, isAuthenticated, role, router]);
+
+  // Unlock audio on the first user gesture anywhere in the app.
+  // Required for browsers that block autoplay until a gesture occurs.
+  // The KDS/BDS fullscreen overlay handles its own unlock; this covers
+  // all other roles (WAITER, CHEF, BARISTA on phone/dashboard).
+  useEffect(() => {
+    if (notificationSoundPlayer.isUnlocked()) {
+      return;
+    }
+
+    const unlock = () => { notificationSoundPlayer.unlock(); };
+    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('touchend', unlock, { once: true });
+
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('touchend', unlock);
+    };
+  }, []);
 
   useNotifications();
   useFcmToken();
