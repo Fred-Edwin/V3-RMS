@@ -1,6 +1,6 @@
 ﻿export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANCELLED';
-export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD';
+export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT';
 export type PrepStation = 'KITCHEN' | 'BARISTA';
 export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED';
 export type OrderListView = 'full' | 'summary';
@@ -28,6 +28,9 @@ export interface OrderSummary {
   deliveryFee: string;
   total: string;
   paymentMethod: PaymentMethod | null;
+  mpesaCode: string | null;
+  mpesaAmount: string | null;
+  cashAmount: string | null;
   paidAt: string | null;
   createdAt: string;
   cancelReason: string | null;

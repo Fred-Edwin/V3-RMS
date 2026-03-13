@@ -57,6 +57,7 @@ const sampleDailySummary = {
     MPESA: '800.00',
     CASH: '200.00',
     CARD: '0.00',
+    SPLIT: '0.00',
   },
   topItems: [],
   averagePrepTimeMinutes: {

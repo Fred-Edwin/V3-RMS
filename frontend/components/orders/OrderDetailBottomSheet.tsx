@@ -2,15 +2,22 @@
 
 import { useState } from 'react';
 import { Printer, ChefHat, Coffee, User } from 'lucide-react';
-import { BottomSheet, Button, PriceDisplay, Select } from '@/components/ui';
+import { BottomSheet, Button, Input, PriceDisplay, Select } from '@/components/ui';
 import type { OrderDetail, PaymentMethod } from '@/types/order';
+
+export interface PaymentPayload {
+  paymentMethod: PaymentMethod;
+  mpesaCode?: string;
+  mpesaAmount?: number;
+  cashAmount?: number;
+}
 
 interface OrderDetailBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   order: OrderDetail | null;
   onEdit: (orderId: string) => void;
-  onPayment: (orderId: string, method: PaymentMethod) => void;
+  onPayment: (orderId: string, payload: PaymentPayload) => void;
   onCancel?: (orderId: string) => void;
   onPrintBill?: (orderId: string) => void;
   onPrintReceipt?: (orderId: string) => void;
@@ -25,6 +32,7 @@ const paymentOptions = [
   { value: 'MPESA', label: 'Mpesa' },
   { value: 'CASH', label: 'Cash' },
   { value: 'CARD', label: 'Card' },
+  { value: 'SPLIT', label: 'Split (Mpesa + Cash)' },
 ];
 
 export function OrderDetailBottomSheet({
@@ -43,6 +51,9 @@ export function OrderDetailBottomSheet({
   isManager = false,
 }: OrderDetailBottomSheetProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MPESA');
+  const [mpesaCode, setMpesaCode] = useState('');
+  const [mpesaAmount, setMpesaAmount] = useState('');
+  const [cashAmount, setCashAmount] = useState('');
   const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
 
   const canEdit = isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED';
@@ -195,7 +206,7 @@ export function OrderDetailBottomSheet({
                 <Button
                   className="w-full"
                   isLoading={isPaymentSubmitting}
-                  onClick={() => onPayment(order.id, 'MPESA')}
+                  onClick={() => onPayment(order.id, { paymentMethod: 'MPESA', mpesaCode: mpesaCode.trim() || undefined })}
                 >
                   Hand to Grubba
                 </Button>
@@ -205,12 +216,104 @@ export function OrderDetailBottomSheet({
                     label="Payment method"
                     options={paymentOptions}
                     value={paymentMethod}
-                    onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                    onChange={(event) => {
+                      setPaymentMethod(event.target.value as PaymentMethod);
+                      setMpesaCode('');
+                      setMpesaAmount('');
+                      setCashAmount('');
+                    }}
                   />
+
+                  {/* Mpesa transaction code — shown for MPESA and SPLIT */}
+                  {(paymentMethod === 'MPESA' || paymentMethod === 'SPLIT') && (
+                    <Input
+                      label="Mpesa transaction code"
+                      placeholder="e.g. QHG3KL9XPO"
+                      value={mpesaCode}
+                      onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                    />
+                  )}
+
+                  {/* Split payment amount inputs */}
+                  {paymentMethod === 'SPLIT' && (
+                    <div className="rounded-md border border-stone-200 p-3 space-y-3">
+                      <p className="text-label-sm font-medium text-stone-700">
+                        Split amounts must total{' '}
+                        <span className="text-espresso font-semibold">
+                          KES {Number.parseFloat(order.total).toFixed(2)}
+                        </span>
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          label="Mpesa amount (KES)"
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={mpesaAmount}
+                          onChange={(e) => {
+                            setMpesaAmount(e.target.value);
+                            // Auto-fill cash remainder
+                            const total = Number.parseFloat(order.total);
+                            const mpesa = Number.parseFloat(e.target.value) || 0;
+                            const remainder = total - mpesa;
+                            if (remainder >= 0) setCashAmount(remainder.toFixed(2));
+                          }}
+                        />
+                        <Input
+                          label="Cash amount (KES)"
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={cashAmount}
+                          onChange={(e) => setCashAmount(e.target.value)}
+                        />
+                      </div>
+                      {(() => {
+                        const total = Number.parseFloat(order.total);
+                        const mpesa = Number.parseFloat(mpesaAmount) || 0;
+                        const cash = Number.parseFloat(cashAmount) || 0;
+                        const diff = Math.abs(mpesa + cash - total);
+                        if ((mpesa > 0 || cash > 0) && diff > 1) {
+                          return (
+                            <p className="text-caption text-red-600">
+                              Amounts total KES {(mpesa + cash).toFixed(2)} — must equal KES {total.toFixed(2)}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+
                   <Button
                     className="w-full"
                     isLoading={isPaymentSubmitting}
-                    onClick={() => onPayment(order.id, paymentMethod)}
+                    disabled={
+                      paymentMethod === 'SPLIT' &&
+                      (() => {
+                        const total = Number.parseFloat(order.total);
+                        const mpesa = Number.parseFloat(mpesaAmount) || 0;
+                        const cash = Number.parseFloat(cashAmount) || 0;
+                        return mpesa <= 0 || cash <= 0 || Math.abs(mpesa + cash - total) > 1;
+                      })()
+                    }
+                    onClick={() => {
+                      if (paymentMethod === 'SPLIT') {
+                        onPayment(order.id, {
+                          paymentMethod: 'SPLIT',
+                          mpesaCode: mpesaCode.trim() || undefined,
+                          mpesaAmount: Number.parseFloat(mpesaAmount),
+                          cashAmount: Number.parseFloat(cashAmount),
+                        });
+                      } else {
+                        onPayment(order.id, {
+                          paymentMethod,
+                          mpesaCode: paymentMethod === 'MPESA' ? (mpesaCode.trim() || undefined) : undefined,
+                        });
+                      }
+                    }}
                   >
                     Confirm Payment
                   </Button>

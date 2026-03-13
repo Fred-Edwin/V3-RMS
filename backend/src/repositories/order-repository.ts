@@ -515,7 +515,12 @@ export const orderRepository = {
   recordPayment: async (
     orderId: string,
     organizationId: string,
-    paymentMethod: PaymentMethod,
+    payment: {
+      paymentMethod: PaymentMethod;
+      mpesaCode: string | null;
+      mpesaAmount: number | null;
+      cashAmount: number | null;
+    },
   ): Promise<FullOrderPrismaRecord | null> => {
     const paidAt = new Date();
 
@@ -527,7 +532,10 @@ export const orderRepository = {
       },
       data: {
         status: OrderStatus.CLOSED,
-        paymentMethod,
+        paymentMethod: payment.paymentMethod,
+        mpesaCode: payment.mpesaCode,
+        mpesaAmount: payment.mpesaAmount ?? undefined,
+        cashAmount: payment.cashAmount ?? undefined,
         paidAt,
         closedAt: paidAt,
       },

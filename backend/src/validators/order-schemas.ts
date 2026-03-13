@@ -44,9 +44,25 @@ export const UpdateOrderItemsSchema = z.object({
   items: z.array(OrderItemInputSchema).min(1),
 });
 
-export const RecordPaymentSchema = z.object({
-  paymentMethod: z.nativeEnum(PaymentMethod),
-});
+export const RecordPaymentSchema = z
+  .object({
+    paymentMethod: z.nativeEnum(PaymentMethod),
+    // Optional Mpesa transaction code — required when paymentMethod is MPESA or SPLIT
+    mpesaCode: z.string().min(1).max(20).optional(),
+    // Split payment amounts — required when paymentMethod is SPLIT
+    mpesaAmount: z.number().positive().optional(),
+    cashAmount: z.number().positive().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentMethod === PaymentMethod.SPLIT) {
+      if (data.mpesaAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaAmount is required for split payment', path: ['mpesaAmount'] });
+      }
+      if (data.cashAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cashAmount is required for split payment', path: ['cashAmount'] });
+      }
+    }
+  });
 
 export const CANCEL_REASONS = [
   'Customer changed their mind',

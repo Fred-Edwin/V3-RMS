@@ -190,6 +190,9 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
     deliveryFee: order.deliveryFee.toString(),
     total: order.total.toString(),
     paymentMethod: order.paymentMethod,
+    mpesaCode: order.mpesaCode,
+    mpesaAmount: order.mpesaAmount?.toString() ?? null,
+    cashAmount: order.cashAmount?.toString() ?? null,
     paidAt: order.paidAt,
     cancelReason: order.cancelReason,
     cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
@@ -233,6 +236,9 @@ const serializeOrderSummary = (order: SummaryOrderPrismaRecord): OrderSummaryRec
     deliveryFee: order.deliveryFee.toString(),
     total: order.total.toString(),
     paymentMethod: order.paymentMethod,
+    mpesaCode: order.mpesaCode,
+    mpesaAmount: order.mpesaAmount?.toString() ?? null,
+    cashAmount: order.cashAmount?.toString() ?? null,
     paidAt: order.paidAt,
     cancelReason: order.cancelReason,
     cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
@@ -718,7 +724,24 @@ export const orderService = {
       throw new ValidationError('Delivery orders only accept MPESA payment');
     }
 
-    const updated = await orderRepository.recordPayment(orderId, organizationId, data.paymentMethod);
+    // For split payment, validate that amounts sum to the order total
+    if (data.paymentMethod === PaymentMethod.SPLIT) {
+      const orderTotal = Number(order.total);
+      const splitTotal = (data.mpesaAmount ?? 0) + (data.cashAmount ?? 0);
+      // Allow a 1 KES tolerance for decimal rounding
+      if (Math.abs(splitTotal - orderTotal) > 1) {
+        throw new ValidationError(
+          `Split amounts (${splitTotal.toFixed(2)}) must equal the order total (${orderTotal.toFixed(2)})`,
+        );
+      }
+    }
+
+    const updated = await orderRepository.recordPayment(orderId, organizationId, {
+      paymentMethod: data.paymentMethod,
+      mpesaCode: data.mpesaCode ?? null,
+      mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
+      cashAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cashAmount ?? null) : null,
+    });
     if (!updated) {
       throw new NotFoundError('Order not found');
     }

@@ -67,6 +67,9 @@ export interface OrderSummaryRecord {
   deliveryFee: string;
   total: string;
   paymentMethod: PaymentMethod | null;
+  mpesaCode: string | null;
+  mpesaAmount: string | null;
+  cashAmount: string | null;
   paidAt: Date | null;
   cancelReason: string | null;
   cancelledBy: { id: string; name: string } | null;
@@ -91,6 +94,9 @@ export interface OrderRecord {
   deliveryFee: string;
   total: string;
   paymentMethod: PaymentMethod | null;
+  mpesaCode: string | null;
+  mpesaAmount: string | null;
+  cashAmount: string | null;
   paidAt: Date | null;
   cancelReason: string | null;
   cancelledBy: { id: string; name: string } | null;

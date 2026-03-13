@@ -17,7 +17,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderSummary, PaymentMethod } from '@/types/order';
+import type { OrderDetail, OrderSummary } from '@/types/order';
+import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
 import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
 
 const ROLE_PLACEHOLDERS = new Set(['waiter', 'chef', 'barista', 'manager', 'director', 'admin', 'staff', 'user', 'system']);
@@ -268,13 +269,13 @@ export default function DashboardPage(): JSX.Element {
     }
   };
 
-  const handlePayment = async (orderId: string, method: PaymentMethod) => {
+  const handlePayment = async (orderId: string, payload: PaymentPayload) => {
     if (!accessToken) {
       return;
     }
 
     try {
-      await orderService.recordPayment(orderId, method, accessToken);
+      await orderService.recordPayment(orderId, payload, accessToken);
       await Promise.all([reloadActiveOrders(), loadWaiterDashboardData()]);
       setIsDetailOpen(false);
       toast({
@@ -371,7 +372,7 @@ export default function DashboardPage(): JSX.Element {
           onClose={() => setIsDetailOpen(false)}
           order={selectedOrder}
           onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
-          onPayment={(orderId, method) => void handlePayment(orderId, method)}
+          onPayment={(orderId, payload) => void handlePayment(orderId, payload)}
         />
       </PageLayout>
     );

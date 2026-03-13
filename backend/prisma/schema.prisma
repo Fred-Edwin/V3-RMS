@@ -227,6 +227,9 @@ model Order {
   deliveryFee    Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
   total          Decimal        @db.Decimal(10, 2)
   paymentMethod  PaymentMethod? @map("payment_method")
+  mpesaCode      String?        @map("mpesa_code")
+  mpesaAmount    Decimal?       @db.Decimal(10, 2) @map("mpesa_amount")
+  cashAmount     Decimal?       @db.Decimal(10, 2) @map("cash_amount")
   paidAt         DateTime?      @map("paid_at")
   cancelReason   String?        @map("cancel_reason")
   cancelledById  String?        @map("cancelled_by_id")
@@ -338,6 +341,7 @@ enum PaymentMethod {
   MPESA
   CASH
   CARD
+  SPLIT
 }
 
 enum ClockMethod {

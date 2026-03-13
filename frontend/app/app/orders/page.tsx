@@ -14,7 +14,8 @@ import { useOrderStore } from '@/store/orderStore';
 import { useToast } from '@/hooks/useToast';
 import { BottomSheet, IconButton, OrderCard, PageHeader, PageLayout } from '@/components/ui';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderStatus, OrderType, PaymentMethod } from '@/types/order';
+import type { OrderDetail, OrderStatus, OrderType } from '@/types/order';
+import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
 
 export const dynamic = 'force-dynamic';
 
@@ -155,16 +156,16 @@ export default function OrdersPage(): JSX.Element {
     }
   };
 
-  const handlePayment = async (orderId: string, method: PaymentMethod) => {
+  const handlePayment = async (orderId: string, payload: PaymentPayload) => {
     if (!accessToken || isPaymentSubmitting) return;
     setIsPaymentSubmitting(true);
     try {
-      await orderService.recordPayment(orderId, method, accessToken);
+      await orderService.recordPayment(orderId, payload, accessToken);
       // Update in-list state to CLOSED so the order remains tappable for reprinting
       updateOrderRealTime(orderId, { status: 'CLOSED' });
       toast({ variant: 'success', title: 'Payment recorded. Order closed.' });
       // Keep the sheet open with paid state so Print Receipt button is immediately visible
-      setSelectedOrder((prev) => (prev ? { ...prev, paymentMethod: method, status: 'CLOSED' } : prev));
+      setSelectedOrder((prev) => (prev ? { ...prev, paymentMethod: payload.paymentMethod, status: 'CLOSED' } : prev));
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to record payment.';
       toast({ variant: 'error', title: 'Payment failed', message });
@@ -394,7 +395,7 @@ export default function OrdersPage(): JSX.Element {
         }}
         order={selectedOrder}
         onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
-        onPayment={(orderId, method) => void handlePayment(orderId, method)}
+        onPayment={(orderId, payload) => void handlePayment(orderId, payload)}
         onCancel={handleOpenCancel}
         onPrintBill={(orderId) => void handlePrintBill(orderId)}
         onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}

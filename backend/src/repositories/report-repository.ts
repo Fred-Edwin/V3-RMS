@@ -196,6 +196,7 @@ export const reportRepository = {
       MPESA: '0.00',
       CASH: '0.00',
       CARD: '0.00',
+      SPLIT: '0.00',
     };
 
     for (const row of paymentRows) {

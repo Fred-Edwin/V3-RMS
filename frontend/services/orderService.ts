@@ -80,8 +80,17 @@ export const orderService = {
     return apiClient.patch<OrderDetail>(`/orders/${id}/items`, data, accessToken);
   },
 
-  recordPayment: (id: string, paymentMethod: PaymentMethod, accessToken: string): Promise<OrderDetail> => {
-    return apiClient.patch<OrderDetail>(`/orders/${id}/payment`, { paymentMethod }, accessToken);
+  recordPayment: (
+    id: string,
+    payload: {
+      paymentMethod: PaymentMethod;
+      mpesaCode?: string;
+      mpesaAmount?: number;
+      cashAmount?: number;
+    },
+    accessToken: string,
+  ): Promise<OrderDetail> => {
+    return apiClient.patch<OrderDetail>(`/orders/${id}/payment`, payload, accessToken);
   },
 
   cancel: (

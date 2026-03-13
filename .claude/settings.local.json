@@ -32,7 +32,10 @@
       "Bash(npx prisma migrate dev --name order_lifecycle_redesign --create-only)",
       "Bash(docker compose up -d postgres redis)",
       "Bash(set DATABASE_URL=postgresql://wendo_user:10035south@localhost:5433/wendo_rms)",
-      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name order_lifecycle_redesign --create-only)"
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name order_lifecycle_redesign --create-only)",
+      "Bash(docker compose:*)",
+      "Bash(xxd \"backend/prisma/migrations/20260311180000_prep_ticket_sequences/migration.sql\")",
+      "Bash(gh run:*)"
     ]
   }
 }

@@ -22,6 +22,7 @@ export interface DailySummaryReport {
     MPESA: string;
     CASH: string;
     CARD: string;
+    SPLIT: string;
   };
   topItems: DailySummaryTopItem[];
   averagePrepTimeMinutes: {
