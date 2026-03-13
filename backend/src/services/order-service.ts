@@ -422,6 +422,8 @@ export const orderService = {
   getMany: async (actor: Actor, query: OrderQueryInput): Promise<OrderListResult> => {
     const organizationId = resolveOrganizationId(actor, query.branchId);
     const createdById = actor.role === 'WAITER' ? actor.id : undefined;
+    const prepTicketClaimedById =
+      actor.role === 'CHEF' || actor.role === 'BARISTA' ? actor.id : undefined;
 
     const orderDate = query.date ? parseDateOnly(query.date) : undefined;
     const orderDateGte = query.startDate ? parseDateOnly(query.startDate) : undefined;
@@ -434,6 +436,7 @@ export const orderService = {
       orderDateGte,
       orderDateLte,
       createdById,
+      prepTicketClaimedById,
       page: query.page,
       perPage: query.perPage,
     };

@@ -95,6 +95,8 @@ interface OrderFilters {
   orderDateGte?: Date;
   orderDateLte?: Date;
   createdById?: string;
+  /** Filter to orders that have at least one prep ticket claimed by this user */
+  prepTicketClaimedById?: string;
   page: number;
   perPage: number;
 }
@@ -186,6 +188,9 @@ const buildWhere = (organizationId: string, filters: OrderFilters): Prisma.Order
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.type ? { type: filters.type } : {}),
     ...(filters.createdById ? { createdById: filters.createdById } : {}),
+    ...(filters.prepTicketClaimedById
+      ? { prepTickets: { some: { claimedById: filters.prepTicketClaimedById } } }
+      : {}),
     ...(filters.orderDate ? { orderDate: filters.orderDate } : {}),
     ...(filters.orderDateGte || filters.orderDateLte
       ? {
