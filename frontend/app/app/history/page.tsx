@@ -1,15 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Badge, DatePicker, Modal, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
+import { useState } from 'react';
+import { DatePicker, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
 import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
+import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
-import { usePrepTicketHistory } from '@/hooks/usePrepTicketHistory';
 import { useToast } from '@/hooks/useToast';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderStatus, PrepTicketStatus } from '@/types/order';
+import type { OrderDetail, OrderStatus } from '@/types/order';
 
 const statusOptions = [
   { value: '', label: 'All' },
@@ -17,15 +17,9 @@ const statusOptions = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const prepStatusVariantMap: Record<PrepTicketStatus, 'pending' | 'inprogress' | 'ready' | 'cancelled'> = {
-  PENDING: 'pending',
-  IN_PROGRESS: 'inprogress',
-  READY: 'ready',
-  REJECTED: 'cancelled',
-};
-
 export default function HistoryPage(): JSX.Element {
   const role = useAuthStore((state) => state.role);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
@@ -34,151 +28,139 @@ export default function HistoryPage(): JSX.Element {
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  const orderHistory = useOrderHistory({ status, startDate: startDate || undefined, endDate: endDate || undefined, page });
-  const prepHistory = usePrepTicketHistory({ startDate: startDate || undefined, endDate: endDate || undefined, page });
+  const { orders, pagination, isLoading, error, totalValue } = useOrderHistory({
+    status,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    page,
+  });
 
-  const totalOrders = orderHistory.pagination.total;
-
-  const prepRows = useMemo(
-    () =>
-      prepHistory.tickets.map((ticket) => {
-        const claimedAt = ticket.claimedAt ? new Date(ticket.claimedAt).getTime() : 0;
-        const readyAt = ticket.readyAt ? new Date(ticket.readyAt).getTime() : 0;
-        const durationMinutes = claimedAt && readyAt ? Math.max(0, Math.round((readyAt - claimedAt) / 60000)) : 0;
-        return { ticket, durationMinutes };
-      }),
-    [prepHistory.tickets],
-  );
+  const isManager = role === 'MANAGER' || role === 'DIRECTOR';
+  const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
 
   const openOrder = async (orderId: string) => {
-    if (!accessToken) {
-      return;
-    }
-
+    if (!accessToken) return;
     try {
       const detail = await orderService.getById(orderId, accessToken);
       setSelectedOrder(detail);
-      setIsOrderModalOpen(true);
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : 'Unable to load order details.';
-      toast({
-        variant: 'error',
-        title: message,
-      });
+      setIsDetailOpen(true);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Unable to load order details.';
+      toast({ variant: 'error', title: message });
     }
   };
 
   return (
     <PageLayout className="space-y-4">
-      <PageHeader title="History" subtitle="Review completed and cancelled work" />
+      <PageHeader title="History" subtitle="Review completed and cancelled orders" />
 
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-stone-200 bg-white p-3 md:grid-cols-3">
+      {/* Filters */}
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-3 md:grid-cols-3">
         <DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
         <DatePicker label="End Date" value={endDate} onChange={setEndDate} />
-        {role === 'WAITER' && (
-          <Select
-            label="Status"
-            options={statusOptions}
-            value={status ?? ''}
-            onChange={(event) => {
-              const nextStatus = event.target.value;
-              setStatus(nextStatus ? (nextStatus as OrderStatus) : undefined);
-            }}
-          />
-        )}
+        <Select
+          label="Status"
+          options={statusOptions}
+          value={status ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            setStatus(v ? (v as OrderStatus) : undefined);
+            setPage(1);
+          }}
+        />
       </div>
 
-      {role === 'WAITER' ? (
-        <>
-          <div className="rounded-md border border-stone-200 bg-white p-3">
-            <p className="text-body-md text-stone-700">
-              {totalOrders} orders - <PriceDisplay amount={orderHistory.totalValue} />
-            </p>
-          </div>
+      {/* Summary bar */}
+      <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3">
+        <p className="text-body-sm text-stone-600">
+          <span className="font-semibold text-stone-900">{pagination.total}</span> orders
+        </p>
+        <PriceDisplay amount={totalValue} />
+      </div>
 
-          <div className="rounded-md border border-stone-200 bg-white">
-            {orderHistory.orders.map((order) => (
-              <OrderHistoryRow key={order.id} order={order} onTap={() => void openOrder(order.id)} />
+      {/* Order list */}
+      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+        {/* Desktop header */}
+        <div className="hidden grid-cols-[80px_100px_90px_1fr_1fr_100px_80px] gap-3 border-b border-stone-200 px-3 py-2 text-label-sm font-medium text-stone-500 md:grid">
+          <span>Order</span>
+          <span>Date</span>
+          <span>Type</span>
+          <span>Placed By</span>
+          <span>Prep Staff</span>
+          <span>Total</span>
+          <span>Status</span>
+        </div>
+
+        {isLoading && (
+          <div className="space-y-0 divide-y divide-stone-100">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-20 animate-pulse bg-stone-50 px-3 py-3" />
             ))}
           </div>
-        </>
-      ) : (
-        <div className="rounded-md border border-stone-200 bg-white">
-          <div className="hidden grid-cols-5 gap-2 border-b border-stone-200 px-3 py-2 text-label-sm text-stone-500 md:grid">
-            <span>Order</span>
-            <span>Date</span>
-            <span>Items</span>
-            <span>Prep Time</span>
-            <span>Status</span>
-          </div>
-          {prepRows.map(({ ticket, durationMinutes }) => (
-            <div key={ticket.id} className="border-b border-stone-100 px-3 py-3 text-body-sm">
-              <div className="md:hidden">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-heading-sm font-semibold text-stone-900">#{ticket.orderDailyNumber}</p>
-                    <p className="mt-0.5 text-body-sm text-stone-600">
-                      {new Date(ticket.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant={prepStatusVariantMap[ticket.status]} />
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-body-sm text-stone-600">{ticket.items.length} items</span>
-                  <span className="text-body-sm text-stone-700">{durationMinutes} min</span>
-                </div>
-              </div>
+        )}
 
-              <div className="hidden grid-cols-5 gap-2 md:grid">
-                <span>#{ticket.orderDailyNumber}</span>
-                <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                <span>{ticket.items.length}</span>
-                <span>{durationMinutes} min</span>
-                <span>
-                  <Badge variant={prepStatusVariantMap[ticket.status]} />
-                </span>
-              </div>
+        {error && (
+          <p className="px-4 py-6 text-body-sm text-red-600">{error}</p>
+        )}
+
+        {!isLoading && !error && orders.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-stone-100">
+              <span className="text-2xl">📋</span>
             </div>
-          ))}
-        </div>
-      )}
+            <p className="text-body-md font-medium text-stone-700">No orders found</p>
+            <p className="mt-1 text-body-sm text-stone-400">
+              Try adjusting the date range or status filter.
+            </p>
+          </div>
+        )}
 
+        {!isLoading && orders.map((order) => (
+          <OrderHistoryRow
+            key={order.id}
+            order={order}
+            onTap={() => void openOrder(order.id)}
+          />
+        ))}
+      </div>
+
+      {/* Pagination */}
       <div className="flex items-center justify-between">
         <button
           type="button"
-          className="rounded-md border border-stone-200 px-3 py-2 text-body-sm"
+          className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-body-sm text-stone-700 disabled:opacity-40"
           disabled={page <= 1}
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
           Previous
         </button>
-        <span className="text-body-sm text-stone-600">
-          Page {role === 'WAITER' ? orderHistory.pagination.page : prepHistory.pagination.page} of{' '}
-          {role === 'WAITER' ? orderHistory.pagination.totalPages : prepHistory.pagination.totalPages}
+        <span className="text-body-sm text-stone-500">
+          Page {pagination.page} of {pagination.totalPages}
         </span>
         <button
           type="button"
-          className="rounded-md border border-stone-200 px-3 py-2 text-body-sm"
-          onClick={() => setPage((current) => current + 1)}
+          className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-body-sm text-stone-700 disabled:opacity-40"
+          disabled={page >= pagination.totalPages}
+          onClick={() => setPage((p) => p + 1)}
         >
           Next
         </button>
       </div>
 
-      <Modal isOpen={isOrderModalOpen} onClose={() => setIsOrderModalOpen(false)} title="Order Details">
-        {selectedOrder && (
-          <div className="space-y-2">
-            <p className="text-body-md text-stone-900">Order #{selectedOrder.dailyNumber}</p>
-            {selectedOrder.items.map((item) => (
-              <p key={item.id} className="text-body-sm text-stone-700">
-                {item.quantity} x {item.name} - KES {Number.parseFloat(item.subtotal).toFixed(2)}
-              </p>
-            ))}
-          </div>
-        )}
-      </Modal>
+      <OrderDetailBottomSheet
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedOrder(null);
+        }}
+        order={selectedOrder}
+        onEdit={() => {/* read-only in history */}}
+        onPayment={() => {/* read-only in history */}}
+        isOwner={isOwner}
+        isManager={isManager}
+      />
     </PageLayout>
   );
 }
