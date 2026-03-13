@@ -105,6 +105,7 @@ const buildTicket = (
       tableNumber: '9',
       notes: null,
       createdById: '99999999-9999-4999-8999-999999999999',
+      createdBy: { id: '99999999-9999-4999-8999-999999999999', name: 'Test Waiter' },
     },
     ...overrides,
   } as PrepTicketWithOrderRecord;
