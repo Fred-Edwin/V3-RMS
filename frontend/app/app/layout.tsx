@@ -42,10 +42,11 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
       { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
-      { label: 'Staff', href: '/app/manage/staff', icon: Users },
+      { label: 'History', href: '/app/history', icon: Clock },
       { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
     ],
     overflowTabs: [
+      { label: 'Staff', href: '/app/manage/staff', icon: Users },
       { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
@@ -115,6 +116,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
         { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
+        { label: 'History', href: '/app/history', icon: Clock },
       ],
     },
     {
