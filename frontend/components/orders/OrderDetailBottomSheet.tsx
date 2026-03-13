@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, ChefHat, Coffee, User } from 'lucide-react';
 import { BottomSheet, Button, PriceDisplay, Select } from '@/components/ui';
 import type { OrderDetail, PaymentMethod } from '@/types/order';
 
@@ -75,10 +75,15 @@ export function OrderDetailBottomSheet({
     <>
       <BottomSheet isOpen={isOpen} onClose={onClose} title={`Order #${order.dailyNumber}`}>
         <div className="space-y-4">
-          <div className="rounded-md border border-stone-200 p-3">
+          <div className="rounded-md border border-stone-200 p-3 space-y-1">
             <p className="text-body-sm text-stone-500">{order.type.replace('_', ' ')}</p>
             {order.tableNumber && <p className="text-body-md text-stone-900">Table {order.tableNumber}</p>}
-            {order.notes && <p className="mt-1 text-body-sm text-stone-700">{order.notes}</p>}
+            {order.notes && <p className="text-body-sm text-stone-700">{order.notes}</p>}
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <User size={12} className="text-stone-400 shrink-0" />
+              <span className="text-label-sm text-stone-400">Placed by</span>
+              <span className="text-label-sm font-medium text-stone-700">{order.createdBy.name}</span>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -96,25 +101,64 @@ export function OrderDetailBottomSheet({
             ))}
           </div>
 
-          <div className="rounded-md border border-stone-200 p-3">
-            <p className="mb-2 text-body-md font-semibold text-stone-900">Preparation Status</p>
-            <div className="space-y-2">
-              {order.prepTickets.map((ticket) => (
-                <div key={ticket.id} className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-body-sm text-stone-700">{ticket.station}</span>
-                    <span className={ticket.status === 'REJECTED' ? 'text-body-sm text-red-600 font-medium' : 'text-body-sm text-stone-700'}>
-                      {ticket.status}
-                      {ticket.claimedBy ? ` - ${ticket.claimedBy.name}` : ''}
-                    </span>
-                  </div>
-                  {ticket.status === 'REJECTED' && ticket.rejectedReason && (
-                    <p className="text-caption text-red-500">Reason: {ticket.rejectedReason}</p>
-                  )}
-                </div>
-              ))}
+          {order.prepTickets.length > 0 && (
+            <div className="rounded-md border border-stone-200 p-3">
+              <p className="mb-2.5 text-body-sm font-semibold text-stone-500 uppercase tracking-wide">Preparation</p>
+              <div className="space-y-2">
+                {order.prepTickets.map((ticket) => {
+                  const isRejected = ticket.status === 'REJECTED';
+                  const isReady = ticket.status === 'READY';
+                  const isInProgress = ticket.status === 'IN_PROGRESS';
+                  const StationIcon = ticket.station === 'KITCHEN' ? ChefHat : Coffee;
+
+                  return (
+                    <div
+                      key={ticket.id}
+                      className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2.5 ${
+                        isRejected
+                          ? 'bg-red-50 border border-red-100'
+                          : isReady
+                            ? 'bg-green-50 border border-green-100'
+                            : isInProgress
+                              ? 'bg-amber-50 border border-amber-100'
+                              : 'bg-stone-50 border border-stone-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <StationIcon
+                          size={14}
+                          className={`shrink-0 ${isRejected ? 'text-red-500' : isReady ? 'text-green-600' : isInProgress ? 'text-amber-600' : 'text-stone-400'}`}
+                        />
+                        <span className="text-label-sm font-medium text-stone-700">
+                          {ticket.station === 'KITCHEN' ? 'Kitchen' : 'Barista'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-0.5 min-w-0">
+                        <span
+                          className={`text-label-sm font-semibold ${
+                            isRejected ? 'text-red-600' : isReady ? 'text-green-700' : isInProgress ? 'text-amber-700' : 'text-stone-500'
+                          }`}
+                        >
+                          {ticket.status === 'IN_PROGRESS' ? 'In Progress' : ticket.status.replace('_', ' ').charAt(0) + ticket.status.slice(1).toLowerCase().replace('_', ' ')}
+                        </span>
+                        {ticket.claimedBy && (
+                          <span className="text-caption text-stone-500 truncate max-w-[120px]">
+                            {ticket.claimedBy.name}
+                          </span>
+                        )}
+                        {isRejected && ticket.rejectedReason && (
+                          <span className="text-caption text-red-500 truncate max-w-[150px]" title={ticket.rejectedReason}>
+                            {ticket.rejectedReason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center justify-between border-t border-stone-200 pt-3 mb-4">
             <span className="text-body-md font-semibold text-stone-900">Total</span>

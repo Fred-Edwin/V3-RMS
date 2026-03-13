@@ -26,6 +26,7 @@ interface PrepTicketResponse {
   orderType: PrepTicketWithOrderRecord['order']['type'];
   tableNumber: string | null;
   orderNotes: string | null;
+  orderPlacedBy: { id: string; name: string };
   station: PrepStation;
   status: PrepTicketStatus;
   claimedBy: {
@@ -146,6 +147,7 @@ const serializePrepTicket = (ticket: PrepTicketWithOrderRecord): PrepTicketRespo
     orderType: ticket.order.type,
     tableNumber: ticket.order.tableNumber,
     orderNotes: ticket.order.notes,
+    orderPlacedBy: { id: ticket.order.createdBy.id, name: ticket.order.createdBy.name },
     station: ticket.station,
     status: ticket.status,
     claimedBy: ticket.claimedBy ? { id: ticket.claimedBy.id, name: ticket.claimedBy.name } : null,

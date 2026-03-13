@@ -104,6 +104,7 @@ export interface PrepTicketDetail {
   orderType: OrderType;
   tableNumber: string | null;
   orderNotes: string | null;
+  orderPlacedBy: { id: string; name: string };
   station: PrepStation;
   status: PrepTicketStatus;
   claimedBy: { id: string; name: string } | null;

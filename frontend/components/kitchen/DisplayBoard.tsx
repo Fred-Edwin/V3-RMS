@@ -241,6 +241,8 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
       }}
+      placedBy={ticket.orderPlacedBy.name}
+      claimedByName={ticket.claimedBy?.name}
       station={station}
       staffOnShiftForPicker={staffOnShift}
       pickerHelperText={
@@ -286,6 +288,8 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         if (markingReadyTicketIds[ticket.id]) return;
         void handleMarkReady(ticket.id);
       }}
+      placedBy={ticket.orderPlacedBy.name}
+      claimedByName={ticket.claimedBy?.name}
       onReject={() => setRejectingTicket(ticket)}
       onUnclaim={ticket.status === 'IN_PROGRESS' ? () => void handleUnclaim(ticket.id) : undefined}
       claimedAt={ticket.claimedAt}

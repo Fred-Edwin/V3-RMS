@@ -28,6 +28,10 @@ interface KDSCardProps {
   isActionLoading?: boolean
   loadingMessage?: string
   onAction: () => void
+  /** Name of the waiter who placed the order */
+  placedBy?: string
+  /** Name of the staff member currently working the ticket */
+  claimedByName?: string
   /** Personal phone flow: renders an inline ClaimButton instead of tablet picker */
   staffOnShift?: Array<{ id: string; name: string }>
   onClaim?: (staffId: string) => void
@@ -80,6 +84,8 @@ export function KDSCard({
   isActionLoading = false,
   loadingMessage = 'Updating ticket...',
   onAction,
+  placedBy,
+  claimedByName,
   staffOnShift,
   onClaim,
   station,
@@ -134,6 +140,30 @@ export function KDSCard({
           {elapsedMinutes < 1 ? '< 1 min' : `${elapsedMinutes} min`}
         </span>
       </div>
+
+      {/* Accountability row */}
+      {(placedBy || claimedByName) && (
+        <div className="mt-1.5 flex items-center gap-3 text-label-sm">
+          {placedBy && (
+            <span className="flex items-center gap-1 text-stone-500">
+              <span className="text-stone-400">by</span>
+              <span className="font-medium text-stone-700">{placedBy}</span>
+            </span>
+          )}
+          {claimedByName && status === 'IN_PROGRESS' && (
+            <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-800">
+              <span className="size-1.5 rounded-full bg-amber-400 inline-block" />
+              {claimedByName}
+            </span>
+          )}
+          {claimedByName && status === 'READY' && (
+            <span className="flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-green-800">
+              <span className="size-1.5 rounded-full bg-green-400 inline-block" />
+              {claimedByName}
+            </span>
+          )}
+        </div>
+      )}
 
       {pickerOpen && isTabletClaimFlow ? (
         /*

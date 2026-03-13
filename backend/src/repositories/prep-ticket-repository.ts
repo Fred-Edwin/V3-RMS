@@ -18,6 +18,12 @@ export type PrepTicketWithOrderRecord = Prisma.PrepTicketGetPayload<{
         tableNumber: true;
         notes: true;
         createdById: true;
+        createdBy: {
+          select: {
+            id: true;
+            name: true;
+          };
+        };
       };
     };
   };
@@ -33,7 +39,7 @@ interface PrepTicketFilters {
   perPage: number;
 }
 
-const prepTicketInclude: Prisma.PrepTicketInclude = {
+const prepTicketInclude = {
   claimedBy: {
     select: {
       id: true,
@@ -48,9 +54,15 @@ const prepTicketInclude: Prisma.PrepTicketInclude = {
       tableNumber: true,
       notes: true,
       createdById: true,
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   },
-};
+} as const;
 
 export const prepTicketRepository = {
   findByIdAndOrg: async (id: string, organizationId: string): Promise<PrepTicketWithOrderRecord | null> => {

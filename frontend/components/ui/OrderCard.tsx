@@ -8,12 +8,20 @@ import type { BadgeVariant } from './Badge'
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANCELLED'
 export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY'
 
+interface PrepTicketStaff {
+  station: 'KITCHEN' | 'BARISTA'
+  claimedBy: { id: string; name: string } | null
+  status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED'
+}
+
 interface OrderCardProps {
   orderNumber: number
   status: OrderStatus
   type: OrderType
   tableNumber?: string
   startTime: string | Date
+  placedBy?: string
+  prepTickets?: PrepTicketStaff[]
   hasRejectedTickets?: boolean
   onTap?: () => void
   className?: string
@@ -42,7 +50,29 @@ const typeLabels: Record<OrderType, string> = {
   DELIVERY: 'Delivery',
 }
 
-export function OrderCard({ orderNumber, status, type, tableNumber, startTime, hasRejectedTickets, onTap, className }: OrderCardProps) {
+const stationLabels: Record<'KITCHEN' | 'BARISTA', string> = {
+  KITCHEN: 'Kitchen',
+  BARISTA: 'Barista',
+}
+
+const ticketStatusDot: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', string> = {
+  PENDING: 'bg-[#F0D080]',
+  IN_PROGRESS: 'bg-[#F5B87A]',
+  READY: 'bg-[#86EFAC]',
+  REJECTED: 'bg-red-400',
+}
+
+export function OrderCard({ orderNumber, status, type, tableNumber, startTime, placedBy, prepTickets, hasRejectedTickets, onTap, className }: OrderCardProps) {
+  // Deduplicate: show only the latest ticket per station
+  const latestPerStation = prepTickets
+    ? Object.values(
+        prepTickets.reduce<Record<string, PrepTicketStaff>>((acc, t) => {
+          acc[t.station] = t
+          return acc
+        }, {}),
+      )
+    : []
+
   return (
     <div
       role={onTap ? 'button' : undefined}
@@ -66,6 +96,13 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, h
         <TimeElapsed startTime={startTime} />
       </div>
 
+      {/* Placed by */}
+      {placedBy && (
+        <p className="mt-1 text-label-sm text-stone-400">
+          by <span className="font-medium text-stone-600">{placedBy}</span>
+        </p>
+      )}
+
       <div className="flex items-center justify-between mt-3">
         <Badge variant={statusToBadgeVariant[status]} />
         {hasRejectedTickets && (
@@ -75,6 +112,24 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, h
           </span>
         )}
       </div>
+
+      {/* Prep staff summary */}
+      {latestPerStation.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {latestPerStation.map((ticket) => (
+            <span
+              key={ticket.station}
+              className="inline-flex items-center gap-1.5 rounded-full border border-stone-100 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600"
+            >
+              <span className={cn('size-1.5 rounded-full', ticketStatusDot[ticket.status])} />
+              <span className="text-stone-400">{stationLabels[ticket.station]}:</span>
+              <span className="font-medium">
+                {ticket.claimedBy ? ticket.claimedBy.name : '—'}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
