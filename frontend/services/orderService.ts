@@ -20,6 +20,8 @@ interface GetOrdersParams {
   view?: OrderListView;
   page?: number;
   perPage?: number;
+  createdById?: string;
+  prepTicketClaimedById?: string;
 }
 
 const toQueryString = (params: GetOrdersParams): string => {
@@ -33,6 +35,8 @@ const toQueryString = (params: GetOrdersParams): string => {
   if (params.view) query.set('view', params.view);
   if (params.page) query.set('page', String(params.page));
   if (params.perPage) query.set('perPage', String(params.perPage));
+  if (params.createdById) query.set('createdById', params.createdById);
+  if (params.prepTicketClaimedById) query.set('prepTicketClaimedById', params.prepTicketClaimedById);
 
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';

@@ -8,6 +8,8 @@ interface OrderHistoryFilters {
   startDate?: string;
   endDate?: string;
   page: number;
+  createdById?: string;
+  prepTicketClaimedById?: string;
 }
 
 export function useOrderHistory(filters: OrderHistoryFilters) {
@@ -39,6 +41,8 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
           endDate: filters.endDate,
           page: filters.page,
           perPage: 20,
+          createdById: filters.createdById,
+          prepTicketClaimedById: filters.prepTicketClaimedById,
         },
         accessToken,
       )
@@ -64,7 +68,7 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
     return () => {
       mounted = false;
     };
-  }, [accessToken, filters.endDate, filters.page, filters.startDate, filters.status]);
+  }, [accessToken, filters.createdById, filters.endDate, filters.page, filters.prepTicketClaimedById, filters.startDate, filters.status]);
 
   const totalValue = useMemo(
     () => orders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),

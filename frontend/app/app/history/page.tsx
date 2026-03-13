@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DatePicker, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
 import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
 import { useToast } from '@/hooks/useToast';
 import { orderService } from '@/services/orderService';
+import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
+import type { AppRole } from '@/types/auth';
 import type { OrderDetail, OrderStatus } from '@/types/order';
 
 const statusOptions = [
@@ -16,6 +18,9 @@ const statusOptions = [
   { value: 'CLOSED', label: 'Closed' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
+
+const PREP_ROLES: AppRole[] = ['CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'];
+const WAITER_ROLES: AppRole[] = ['WAITER'];
 
 export default function HistoryPage(): JSX.Element {
   const role = useAuthStore((state) => state.role);
@@ -30,11 +35,40 @@ export default function HistoryPage(): JSX.Element {
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  // Staff filter — only loaded and shown for MANAGER/DIRECTOR
+  const isManagerOrDirector = role === 'MANAGER' || role === 'DIRECTOR';
+  const [staffList, setStaffList] = useState<StaffDto[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+
+  useEffect(() => {
+    if (!isManagerOrDirector || !accessToken) return;
+    staffService
+      .listStaff(accessToken, { isActive: true })
+      .then((list) => {
+        // Exclude display-only roles — they don't place or prep orders
+        setStaffList(list.filter((s) => s.role !== 'KITCHEN_DISPLAY' && s.role !== 'BARISTA_DISPLAY' && s.role !== 'SYSTEM_ADMIN' && s.role !== 'DIRECTOR' && s.role !== 'MANAGER'));
+      })
+      .catch(() => {
+        // Non-critical — staff filter just won't populate
+      });
+  }, [isManagerOrDirector, accessToken]);
+
+  const selectedStaff = staffList.find((s) => s.id === selectedStaffId);
+  const createdById = selectedStaff && WAITER_ROLES.includes(selectedStaff.role) ? selectedStaff.id : undefined;
+  const prepTicketClaimedById = selectedStaff && PREP_ROLES.includes(selectedStaff.role) ? selectedStaff.id : undefined;
+
+  const staffOptions = [
+    { value: '', label: 'All Staff' },
+    ...staffList.map((s) => ({ value: s.id, label: `${s.name} (${s.role.charAt(0) + s.role.slice(1).toLowerCase()})` })),
+  ];
+
   const { orders, pagination, isLoading, error, totalValue } = useOrderHistory({
     status,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     page,
+    createdById,
+    prepTicketClaimedById,
   });
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR';
@@ -57,9 +91,9 @@ export default function HistoryPage(): JSX.Element {
       <PageHeader title="History" subtitle="Review completed and cancelled orders" />
 
       {/* Filters */}
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-3 md:grid-cols-3">
-        <DatePicker label="Start Date" value={startDate} onChange={setStartDate} />
-        <DatePicker label="End Date" value={endDate} onChange={setEndDate} />
+      <div className={`grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-3 ${isManagerOrDirector ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+        <DatePicker label="Start Date" value={startDate} onChange={(v) => { setStartDate(v); setPage(1); }} />
+        <DatePicker label="End Date" value={endDate} onChange={(v) => { setEndDate(v); setPage(1); }} />
         <Select
           label="Status"
           options={statusOptions}
@@ -70,6 +104,17 @@ export default function HistoryPage(): JSX.Element {
             setPage(1);
           }}
         />
+        {isManagerOrDirector && (
+          <Select
+            label="Staff"
+            options={staffOptions}
+            value={selectedStaffId}
+            onChange={(e) => {
+              setSelectedStaffId(e.target.value);
+              setPage(1);
+            }}
+          />
+        )}
       </div>
 
       {/* Summary bar */}

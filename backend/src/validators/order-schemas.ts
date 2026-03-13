@@ -85,6 +85,10 @@ export const OrderQuerySchema = z.object({
   endDate: isoDateSchema.optional(),
   view: orderListViewSchema.default('full'),
   branchId: z.string().uuid().optional(),
+  /** Filter by the staff member who placed the order (MANAGER/DIRECTOR only) */
+  createdById: z.string().uuid().optional(),
+  /** Filter by the prep staff who claimed a ticket (MANAGER/DIRECTOR only) */
+  prepTicketClaimedById: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
 });

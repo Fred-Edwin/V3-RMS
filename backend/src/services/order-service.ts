@@ -421,9 +421,14 @@ export const orderService = {
 
   getMany: async (actor: Actor, query: OrderQueryInput): Promise<OrderListResult> => {
     const organizationId = resolveOrganizationId(actor, query.branchId);
-    const createdById = actor.role === 'WAITER' ? actor.id : undefined;
+    const isManagerOrDirector = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
+    const createdById = actor.role === 'WAITER'
+      ? actor.id
+      : (isManagerOrDirector ? query.createdById : undefined);
     const prepTicketClaimedById =
-      actor.role === 'CHEF' || actor.role === 'BARISTA' ? actor.id : undefined;
+      actor.role === 'CHEF' || actor.role === 'BARISTA'
+        ? actor.id
+        : (isManagerOrDirector ? query.prepTicketClaimedById : undefined);
 
     const orderDate = query.date ? parseDateOnly(query.date) : undefined;
     const orderDateGte = query.startDate ? parseDateOnly(query.startDate) : undefined;

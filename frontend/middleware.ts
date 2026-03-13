@@ -67,6 +67,10 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER';
   }
 
+  if (pathname.startsWith('/app/history')) {
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR';
+  }
+
   if (pathname.startsWith('/app')) {
     return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA';
   }
