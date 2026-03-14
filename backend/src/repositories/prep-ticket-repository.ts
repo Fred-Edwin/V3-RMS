@@ -90,6 +90,7 @@ export const prepTicketRepository = {
               status: {
                 notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
               },
+              orderDate: new Date(new Date().toISOString().slice(0, 10)),
             },
           }
         : {}),
