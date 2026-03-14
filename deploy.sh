@@ -48,9 +48,11 @@ fi
 
 echo "--- API is healthy."
 
-# Remove dangling images from previous builds to free disk space
-echo "--- Cleaning up old Docker images..."
+# Remove dangling images and build cache older than 24h to free disk space
+# Keeps recent cache so the next deploy stays fast
+echo "--- Cleaning up old Docker images and build cache..."
 docker image prune -f
+docker builder prune -f --filter "until=24h"
 
 echo ""
 echo "=== Deploy complete at $(date) ==="
