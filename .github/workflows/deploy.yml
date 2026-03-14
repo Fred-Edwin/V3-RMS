@@ -54,6 +54,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: edwinfred
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
           script: |
             cd ~/wendo-rms
             bash deploy.sh
