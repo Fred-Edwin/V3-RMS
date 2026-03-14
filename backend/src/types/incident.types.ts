@@ -5,10 +5,7 @@ export interface IncidentLogRecord {
   organizationId: string;
   orderId: string | null;
   type: IncidentType;
-  actor: {
-    id: string;
-    name: string;
-  };
+  actor: { id: string; name: string } | null;
   details: Record<string, unknown>;
   createdAt: string;
 }
@@ -17,6 +14,6 @@ export interface CreateIncidentDto {
   organizationId: string;
   orderId?: string;
   type: IncidentType;
-  actorId: string;
+  actorId?: string;
   details: Record<string, unknown>;
 }

@@ -8,16 +8,16 @@ const serialize = (incident: {
   organizationId: string;
   orderId: string | null;
   type: string;
-  actorId: string;
+  actorId: string | null;
   details: unknown;
   createdAt: Date;
-  actor: { id: string; name: string };
+  actor: { id: string; name: string } | null;
 }): IncidentLogRecord => ({
   id: incident.id,
   organizationId: incident.organizationId,
   orderId: incident.orderId,
   type: incident.type as IncidentLogRecord['type'],
-  actor: { id: incident.actor.id, name: incident.actor.name },
+  actor: incident.actor ? { id: incident.actor.id, name: incident.actor.name } : null,
   details: (incident.details ?? {}) as Record<string, unknown>,
   createdAt: incident.createdAt.toISOString(),
 });

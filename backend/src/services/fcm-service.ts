@@ -152,6 +152,46 @@ export const fcmService = {
     }
   },
 
+  /**
+   * Sends a push notification to all active MANAGER/DIRECTOR staff at a branch
+   * when stale (unclosed) orders from the previous day are detected.
+   * Runs fire-and-forget — does not block the background job.
+   */
+  sendStaleOrdersPush: async (
+    organizationId: string,
+    staleCount: number,
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER', 'DIRECTOR']);
+      if (tokens.length === 0) {
+        return;
+      }
+
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: 'Unclosed Orders Detected',
+            body: `${staleCount} order${staleCount > 1 ? 's were' : ' was'} left open from yesterday`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `stale-orders-${organizationId}`,
+          },
+          fcmOptions: {
+            link: '/app/orders',
+          },
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, organizationId }, 'Failed to send stale orders FCM push');
+    }
+  },
+
   sendShiftReminderPush: async (userId: string, payload: ShiftReminderPushPayload): Promise<void> => {
     try {
       if (!firebaseMessaging) {

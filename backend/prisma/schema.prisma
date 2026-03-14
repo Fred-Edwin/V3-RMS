@@ -392,12 +392,12 @@ model IncidentLog {
   organizationId String       @map("organization_id")
   orderId        String?      @map("order_id")
   type           IncidentType
-  actorId        String       @map("actor_id")
+  actorId        String?      @map("actor_id")
   details        Json
   createdAt      DateTime     @default(now()) @map("created_at")
   organization   Organization @relation(fields: [organizationId], references: [id])
   order          Order?       @relation(fields: [orderId], references: [id])
-  actor          User         @relation("IncidentActor", fields: [actorId], references: [id])
+  actor          User?        @relation("IncidentActor", fields: [actorId], references: [id])
 
   @@index([organizationId])
   @@index([organizationId, type])

@@ -15,7 +15,7 @@ export interface Incident {
   organizationId: string;
   orderId: string | null;
   type: IncidentType;
-  actor: { id: string; name: string };
+  actor: { id: string; name: string } | null;
   details: Record<string, unknown>;
   createdAt: string;
 }

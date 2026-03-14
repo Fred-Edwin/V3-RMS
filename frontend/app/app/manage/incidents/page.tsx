@@ -123,7 +123,7 @@ export default function IncidentsPage(): JSX.Element {
       id: string;
       type: string;
       orderId?: string;
-      actor: { id: string; name: string };
+      actor: { id: string; name: string } | null;
       details: Record<string, unknown>;
       createdAt: string;
     }) => {
@@ -202,7 +202,7 @@ export default function IncidentsPage(): JSX.Element {
                   >
                     {incidentTypeLabel[incident.type]}
                   </span>
-                  <span className="text-body-sm text-stone-600">{incident.actor.name}</span>
+                  <span className="text-body-sm text-stone-600">{incident.actor?.name ?? 'System'}</span>
                 </div>
                 <span className="shrink-0 text-caption text-stone-400">
                   {formatTimestamp(incident.createdAt)}

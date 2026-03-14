@@ -15,7 +15,7 @@ export const incidentRepository = {
         organizationId: data.organizationId,
         orderId: data.orderId ?? null,
         type: data.type,
-        actorId: data.actorId,
+        actorId: data.actorId ?? null,
         details: data.details as Prisma.InputJsonValue,
       },
       include: incidentInclude,

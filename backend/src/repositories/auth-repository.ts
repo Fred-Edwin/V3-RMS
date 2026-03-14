@@ -1,3 +1,4 @@
+import type { UserRole } from '@prisma/client';
 import { prisma } from '../config/database';
 
 const userAuthSelect = {
@@ -112,6 +113,23 @@ export const authRepository = {
       where: {
         organizationId,
         role: { in: [...roles] },
+        isActive: true,
+        fcmToken: { not: null },
+      },
+      select: { fcmToken: true },
+    });
+
+    return users.map((u) => u.fcmToken as string);
+  },
+
+  findFcmTokensByRole: async (
+    organizationId: string,
+    roles: UserRole[],
+  ): Promise<string[]> => {
+    const users = await prisma.user.findMany({
+      where: {
+        organizationId,
+        role: { in: roles },
         isActive: true,
         fcmToken: { not: null },
       },

@@ -367,6 +367,27 @@ export const orderRepository = {
       take: 200,
     });
   },
+
+  findStaleOrders: async (
+    organizationId: string,
+    beforeDate: Date,
+  ): Promise<Array<{ id: string; dailyNumber: number; status: OrderStatus; orderDate: Date; _count: { items: number } }>> => {
+    return prisma.order.findMany({
+      where: {
+        organizationId,
+        orderDate: { lt: beforeDate },
+        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
+      },
+      select: {
+        id: true,
+        dailyNumber: true,
+        status: true,
+        orderDate: true,
+        _count: { select: { items: true } },
+      },
+      orderBy: { orderDate: 'asc' },
+    });
+  },
   updateItems: async (
     orderId: string,
     organizationId: string,

@@ -3,6 +3,7 @@ import { bullMqConnection, notificationQueue, reportQueue } from '../config/queu
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
+import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { fcmService } from '../services/fcm-service';
 import { logger } from '../utils/logger';
 
@@ -54,6 +55,12 @@ export const reportWorker = new Worker(
       return;
     }
 
+    if (job.name === 'stale-orders.schedule') {
+      const totalFlagged = await flagStaleOrders();
+      logger.info({ jobId: job.id, totalFlagged }, 'Stale orders schedule executed');
+      return;
+    }
+
     logger.info({ jobId: job.id, name: job.name }, 'Report job placeholder received');
   },
   {
@@ -74,6 +81,9 @@ export const startWorkers = (): void => {
     });
     void ensureStaleClockOutSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register stale clock-out schedule');
+    });
+    void ensureStaleOrdersSchedule(reportQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register stale orders schedule');
     });
     logger.info('BullMQ workers started');
   }
