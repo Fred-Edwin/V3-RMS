@@ -1,5 +1,5 @@
 import { branchRepository } from '../repositories/branch-repository';
-import { NotFoundError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 
 export const branchService = {
   listBranches: async () => {
@@ -33,6 +33,29 @@ export const branchService = {
     }
 
     return branchRepository.update(id, data);
+  },
+
+  getBranchProfile: async (id: string) => {
+    const branch = await branchRepository.findById(id);
+    if (!branch) {
+      throw new NotFoundError('Branch not found');
+    }
+    return branch;
+  },
+
+  updateBranchProfile: async (
+    id: string,
+    requestingOrgId: string,
+    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string }>,
+  ) => {
+    if (id !== requestingOrgId) {
+      throw new ForbiddenError('You can only edit your own branch');
+    }
+    const existing = await branchRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundError('Branch not found');
+    }
+    return branchRepository.updateProfile(id, data);
   },
 
   setHubBranch: async (id: string) => {

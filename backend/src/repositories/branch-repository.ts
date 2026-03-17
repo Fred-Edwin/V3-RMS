@@ -42,6 +42,20 @@ export const branchRepository = {
     });
   },
 
+  updateProfile: async (
+    id: string,
+    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string }>,
+  ) => {
+    return prisma.organization.update({
+      where: { id },
+      data: {
+        phone: data.phone,
+        mpesaPaybill: data.mpesaPaybill,
+        accountNumber: data.accountNumber,
+      },
+    });
+  },
+
   setHub: async (id: string) => {
     return prisma.$transaction(async (tx) => {
       await tx.organization.updateMany({

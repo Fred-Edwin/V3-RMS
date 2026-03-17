@@ -62,6 +62,9 @@ export interface OrderForReceipt {
   createdAt: Date;
   organization: {
     name: string;
+    phone: string | null;
+    mpesaPaybill: string | null;
+    accountNumber: string | null;
   };
   createdBy: {
     name: string;
@@ -296,7 +299,7 @@ export const printRepository = {
         paidAt: true,
         createdAt: true,
         organization: {
-          select: { name: true },
+          select: { name: true, phone: true, mpesaPaybill: true, accountNumber: true },
         },
         createdBy: {
           select: { name: true },

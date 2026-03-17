@@ -34,5 +34,19 @@ branchRoutes.patch(
   requireRole('DIRECTOR', 'SYSTEM_ADMIN'),
   branchController.setHub,
 );
+branchRoutes.get(
+  '/branches/:id/profile',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  branchController.getProfile,
+);
+branchRoutes.patch(
+  '/branches/:id/profile',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'DIRECTOR'),
+  branchController.updateProfile,
+);
 
 export default branchRoutes;

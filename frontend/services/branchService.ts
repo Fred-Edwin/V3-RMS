@@ -9,6 +9,9 @@ export interface BranchDto {
   longitude: string;
   isHub: boolean;
   isActive: boolean;
+  phone: string | null;
+  mpesaPaybill: string | null;
+  accountNumber: string | null;
 }
 
 export interface CreateBranchInput {
@@ -27,6 +30,12 @@ export interface UpdateBranchInput {
   longitude?: number;
 }
 
+export interface UpdateBranchProfileInput {
+  phone?: string;
+  mpesaPaybill?: string;
+  accountNumber?: string;
+}
+
 export const branchService = {
   listBranches: (accessToken: string): Promise<BranchDto[]> => {
     return apiClient.get('/branches', accessToken);
@@ -42,5 +51,13 @@ export const branchService = {
 
   setHub: (id: string, accessToken: string): Promise<BranchDto> => {
     return apiClient.patch(`/branches/${id}/set-hub`, {}, accessToken);
+  },
+
+  getBranchProfile: (id: string, accessToken: string): Promise<BranchDto> => {
+    return apiClient.get(`/branches/${id}/profile`, accessToken);
+  },
+
+  updateBranchProfile: (id: string, input: UpdateBranchProfileInput, accessToken: string): Promise<BranchDto> => {
+    return apiClient.patch(`/branches/${id}/profile`, input, accessToken);
   },
 };

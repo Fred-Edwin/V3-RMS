@@ -19,6 +19,8 @@ interface ReceiptItem {
 interface ReceiptData {
   branchName: string;
   branchPhone: string | null;
+  mpesaPaybill: string | null;
+  accountNumber: string | null;
   orderNumber: string;
   dailyNumber: number;
   orderDate: string;
@@ -35,14 +37,6 @@ interface ReceiptData {
   paymentMethod?: string;
   paidAt?: string;
 }
-
-const BRANCH_PHONES: Record<string, string> = {
-  "king'ong'o": '0707 242 987',
-  'nyeri town': '0722 392 343',
-};
-
-const getBranchPhone = (branchName: string): string | null =>
-  BRANCH_PHONES[branchName.trim().toLowerCase()] ?? null;
 
 const getFirstName = (fullName: string): string =>
   fullName.trim().split(/\s+/)[0] ?? fullName.trim();
@@ -110,7 +104,9 @@ export const printService = {
 
     const receiptData: ReceiptData = {
       branchName: order.organization.name,
-      branchPhone: getBranchPhone(order.organization.name),
+      branchPhone: order.organization.phone ?? null,
+      mpesaPaybill: order.organization.mpesaPaybill ?? null,
+      accountNumber: order.organization.accountNumber ?? null,
       orderNumber: `WCB-${String(order.dailyNumber).padStart(4, '0')}`,
       dailyNumber: order.dailyNumber,
       orderDate: formatDate(orderDate),

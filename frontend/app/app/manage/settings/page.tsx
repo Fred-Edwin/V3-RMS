@@ -1,7 +1,8 @@
 'use client';
 
+import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy, Printer, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Check, Copy, Hash, Pencil, Phone, Printer, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { env } from '@/lib/env';
 import {
@@ -13,9 +14,11 @@ import {
   Modal,
   PageHeader,
   PageLayout,
+  SkeletonBlock,
   SkeletonTable,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
+import { branchService, type BranchDto, type UpdateBranchProfileInput } from '@/services/branchService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -24,20 +27,75 @@ import type { CreatedPrintStation, PrintStation } from '@/types/print';
 export default function BranchSettingsPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const organizationId = useAuthStore((state) => state.organizationId);
 
+  // ─── Branch Details ──────────────────────────────────────────────────────
+  const [profile, setProfile] = useState<BranchDto | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState<UpdateBranchProfileInput>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    if (!accessToken || !organizationId) return;
+    setIsProfileLoading(true);
+    try {
+      const data = await branchService.getBranchProfile(organizationId, accessToken);
+      setProfile(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to load branch details.';
+      toast({ variant: 'error', title: 'Load failed', message });
+    } finally {
+      setIsProfileLoading(false);
+    }
+  }, [accessToken, organizationId, toast]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  const openEditModal = () => {
+    setEditForm({
+      phone: profile?.phone ?? '',
+      mpesaPaybill: profile?.mpesaPaybill ?? '',
+      accountNumber: profile?.accountNumber ?? '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!accessToken || !organizationId) return;
+    setIsSaving(true);
+    try {
+      // Send only non-empty strings; omit empty to leave existing values in place
+      const payload: UpdateBranchProfileInput = {};
+      if (editForm.phone?.trim()) payload.phone = editForm.phone.trim();
+      if (editForm.mpesaPaybill?.trim()) payload.mpesaPaybill = editForm.mpesaPaybill.trim();
+      if (editForm.accountNumber?.trim()) payload.accountNumber = editForm.accountNumber.trim();
+
+      const updated = await branchService.updateBranchProfile(organizationId, payload, accessToken);
+      setProfile(updated);
+      setIsEditModalOpen(false);
+      toast({ variant: 'success', title: 'Branch details updated' });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to save branch details.';
+      toast({ variant: 'error', title: 'Save failed', message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ─── Print Stations ──────────────────────────────────────────────────────
   const [stations, setStations] = useState<PrintStation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Add station modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newStationName, setNewStationName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
-  // Token reveal modal (shown once after creation)
   const [tokenModal, setTokenModal] = useState<{ stationName: string; token: string } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  // Remove confirm dialog
   const [stationPendingRemove, setStationPendingRemove] = useState<PrintStation | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -130,7 +188,54 @@ export default function BranchSettingsPage(): JSX.Element {
 
   return (
     <PageLayout className="space-y-6">
-      <PageHeader title="Branch Settings" subtitle="Manage printers and branch configuration" />
+      <PageHeader title="Branch Settings" subtitle="Manage branch details, printers and configuration" />
+
+      {/* Branch Details section */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-body-md font-semibold text-stone-900">Branch Details</h2>
+            <p className="text-body-sm text-stone-500">
+              Contact info and M-Pesa details shown on receipts
+            </p>
+          </div>
+          {!isProfileLoading && (
+            <Button size="sm" variant="secondary" onClick={openEditModal}>
+              <Pencil size={14} className="mr-1.5" />
+              Edit
+            </Button>
+          )}
+        </div>
+
+        {isProfileLoading && (
+          <div className="space-y-2">
+            <SkeletonBlock className="h-16 rounded-xl" />
+          </div>
+        )}
+
+        {!isProfileLoading && profile && (
+          <div className="rounded-xl border border-stone-200 bg-white divide-y divide-stone-100">
+            <ProfileRow
+              icon={<Phone size={14} />}
+              label="Phone"
+              value={profile.phone}
+              placeholder="Not set"
+            />
+            <ProfileRow
+              icon={<Smartphone size={14} />}
+              label="M-Pesa Paybill"
+              value={profile.mpesaPaybill}
+              placeholder="Not set"
+            />
+            <ProfileRow
+              icon={<Hash size={14} />}
+              label="Account Number"
+              value={profile.accountNumber}
+              placeholder="Not set"
+            />
+          </div>
+        )}
+      </section>
 
       {/* Print Stations section */}
       <section className="space-y-3">
@@ -204,6 +309,48 @@ export default function BranchSettingsPage(): JSX.Element {
           </div>
         )}
       </section>
+
+      {/* Edit Branch Details modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Branch Details"
+        maxWidth="sm"
+        footer={
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setIsEditModalOpen(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button className="flex-1" isLoading={isSaving} onClick={() => void handleSaveProfile()}>
+              Save
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 p-1">
+          <p className="text-body-sm text-stone-500">
+            These details appear on printed receipts and bills for this branch.
+          </p>
+          <Input
+            label="Phone Number"
+            value={editForm.phone ?? ''}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+            placeholder="e.g. 0707 242 987"
+          />
+          <Input
+            label="M-Pesa Paybill"
+            value={editForm.mpesaPaybill ?? ''}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, mpesaPaybill: e.target.value }))}
+            placeholder="e.g. 522522"
+          />
+          <Input
+            label="Account Number"
+            value={editForm.accountNumber ?? ''}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
+            placeholder="e.g. King'ong'o"
+          />
+        </div>
+      </Modal>
 
       {/* Add station modal */}
       <Modal
@@ -317,5 +464,28 @@ export default function BranchSettingsPage(): JSX.Element {
         onConfirm={() => void handleRemoveStation()}
       />
     </PageLayout>
+  );
+}
+
+// ─── ProfileRow sub-component ────────────────────────────────────────────────
+
+interface ProfileRowProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null | undefined;
+  placeholder: string;
+}
+
+function ProfileRow({ icon, label, value, placeholder }: ProfileRowProps): JSX.Element {
+  return (
+    <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center gap-2.5">
+        <span className="shrink-0 text-stone-400">{icon}</span>
+        <span className="text-body-sm text-stone-500">{label}</span>
+      </div>
+      <span className={value ? 'text-body-sm font-medium text-stone-900' : 'text-body-sm text-stone-400'}>
+        {value ?? placeholder}
+      </span>
+    </div>
   );
 }
