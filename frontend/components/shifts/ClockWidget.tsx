@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock, MapPinOff } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, ConfirmDialog } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -125,6 +125,17 @@ const parseClockErrorDetails = (details: unknown): ClockErrorDetails | null => {
   };
 };
 
+// Returns minutes remaining until shift end; negative means already past end time.
+const minutesUntilShiftEnd = (endTime: string): number => {
+  const now = new Date();
+  const [endHour, endMinute] = endTime.split(':').map(Number);
+  const end = new Date(now);
+  end.setHours(endHour, endMinute, 0, 0);
+  return (end.getTime() - now.getTime()) / 60_000;
+};
+
+const EARLY_CLOCK_OUT_THRESHOLD_MINUTES = 15;
+
 const formatDistance = (distanceMetres: number): string => {
   if (distanceMetres >= 1000) {
     return `${(distanceMetres / 1000).toFixed(1)} km`;
@@ -138,6 +149,7 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
   const accessToken = useAuthStore((state) => state.accessToken);
   const [isSubmittingAssignmentId, setIsSubmittingAssignmentId] = useState<string | null>(null);
   const [localAssignments, setLocalAssignments] = useState<ShiftAssignment[]>(assignments);
+  const [pendingClockOutAssignment, setPendingClockOutAssignment] = useState<ShiftAssignment | null>(null);
 
   useEffect(() => {
     setLocalAssignments(assignments);
@@ -147,7 +159,7 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
     return [...localAssignments].sort((left, right) => left.shift.startTime.localeCompare(right.shift.startTime));
   }, [localAssignments]);
 
-  const handleClockAction = useCallback(
+  const executeClockAction = useCallback(
     async (assignment: ShiftAssignment): Promise<void> => {
       if (!accessToken) {
         return;
@@ -278,6 +290,25 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
     [accessToken, onUpdated, toast],
   );
 
+  const handleClockAction = useCallback(
+    (assignment: ShiftAssignment): void => {
+      const status = getStatus(assignment.clockRecord);
+      if (status !== 'CLOCKED_IN') {
+        void executeClockAction(assignment);
+        return;
+      }
+
+      const minsLeft = minutesUntilShiftEnd(assignment.shift.endTime);
+      if (minsLeft > EARLY_CLOCK_OUT_THRESHOLD_MINUTES) {
+        // Shift is not near its end — ask for confirmation before proceeding.
+        setPendingClockOutAssignment(assignment);
+      } else {
+        void executeClockAction(assignment);
+      }
+    },
+    [executeClockAction],
+  );
+
   if (sortedAssignments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-stone-200 bg-white py-10 text-center shadow-sm">
@@ -288,7 +319,34 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
     );
   }
 
+  const earlyMinsLeft = pendingClockOutAssignment
+    ? Math.round(minutesUntilShiftEnd(pendingClockOutAssignment.shift.endTime))
+    : 0;
+
   return (
+    <>
+    <ConfirmDialog
+      isOpen={pendingClockOutAssignment !== null}
+      onClose={() => setPendingClockOutAssignment(null)}
+      onConfirm={() => {
+        if (pendingClockOutAssignment) {
+          setPendingClockOutAssignment(null);
+          void executeClockAction(pendingClockOutAssignment);
+        }
+      }}
+      isLoading={
+        pendingClockOutAssignment !== null &&
+        isSubmittingAssignmentId === pendingClockOutAssignment.id
+      }
+      title="Clock out early?"
+      description={
+        pendingClockOutAssignment
+          ? `Your shift (${pendingClockOutAssignment.shift.name}) ends at ${pendingClockOutAssignment.shift.endTime} — ${earlyMinsLeft} minute${earlyMinsLeft !== 1 ? 's' : ''} from now. Are you sure you want to clock out early?`
+          : ''
+      }
+      confirmLabel="Yes, clock out"
+      cancelLabel="Stay clocked in"
+    />
     <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
       <header className="mb-4">
         <p className="mb-0.5 text-label-sm uppercase tracking-wider text-stone-400">Today&apos;s shift{sortedAssignments.length > 1 ? 's' : ''}</p>
@@ -355,5 +413,6 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
         })}
       </div>
     </section>
+    </>
   );
 }
