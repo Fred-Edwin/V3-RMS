@@ -10,7 +10,7 @@ orderRoutes.get(
   '/orders',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'MANAGER', 'DIRECTOR'),
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'CHEF', 'BARISTA'),
   orderController.getOrders,
 );
 
@@ -26,7 +26,7 @@ orderRoutes.get(
   '/orders/:id',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'MANAGER', 'DIRECTOR'),
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'CHEF', 'BARISTA'),
   orderController.getOrderById,
 );
 
