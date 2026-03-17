@@ -91,6 +91,9 @@ export const prepTicketRepository = {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.activeOnly
         ? {
+            status: {
+              in: [PrepTicketStatus.PENDING, PrepTicketStatus.IN_PROGRESS],
+            },
             order: {
               status: {
                 notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
