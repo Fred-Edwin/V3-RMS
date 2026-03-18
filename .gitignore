@@ -25,6 +25,7 @@ pnpm-debug.log*
 # Misc
 .DS_Store
 *.pem
+docker-compose.override.yml
 prod_snapshot.sql
 local_before_seed_cleanup.sql
 
