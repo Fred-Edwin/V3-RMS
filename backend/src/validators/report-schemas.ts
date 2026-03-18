@@ -44,8 +44,13 @@ export const ExportQuerySchema = dateRangeSchema
     path: ['startDate'],
   });
 
+export const HourlyHeatmapQuerySchema = dateRangeSchema.extend({
+  organizationId: z.string().uuid().optional(),
+});
+
 export const DirectorPulseQuerySchema = z.object({});
 export type DirectorPulseQueryInput = z.infer<typeof DirectorPulseQuerySchema>;
+export type HourlyHeatmapQueryInput = z.infer<typeof HourlyHeatmapQuerySchema>;
 
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;

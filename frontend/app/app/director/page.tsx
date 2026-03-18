@@ -28,7 +28,7 @@ import {
   Table,
   type TableColumn,
 } from '@/components/ui';
-import { ComparisonBars, LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
+import { ComparisonBars, HourlyBarsChart, LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { reportService } from '@/services/reportService';
@@ -40,6 +40,7 @@ import type {
   DirectorPulseBranchRow,
   DirectorPulseReport,
   DirectorTrendsReport,
+  HourlyHeatmapReport,
   StaffPerformancePeriod,
   StaffPerformanceRow,
 } from '@/types/report';
@@ -78,6 +79,12 @@ const shiftYmd = (ymd: string, deltaDays: number): string => {
 };
 
 const getMonthStart = (value: Date): Date => new Date(value.getFullYear(), value.getMonth(), 1);
+
+const daysBetween = (start: string, end: string): number => {
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000));
+};
 
 const formatDay = (dateString: string): string => {
   const date = new Date(`${dateString}T00:00:00`);
@@ -319,6 +326,9 @@ export default function DirectorDashboardPage(): JSX.Element {
   const [branchReportUpdatedAt, setBranchReportUpdatedAt] = useState<Date | null>(null);
   const [directorTrends, setDirectorTrends] = useState<DirectorTrendsReport | null>(null);
   const [isLoadingDirectorTrends, setIsLoadingDirectorTrends] = useState(false);
+  const [hourlyBranchId, setHourlyBranchId] = useState<string>('');
+  const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
+  const [isLoadingHourly, setIsLoadingHourly] = useState(false);
 
   // ── Staff Performance ─────────────────────────────────────────────────────
   const [staffStartDate, setStaffStartDate] = useState<string>(() => toYmd(getMonthStart(new Date())));
@@ -339,6 +349,7 @@ export default function DirectorDashboardPage(): JSX.Element {
       const active = data.filter((branch) => branch.isActive);
       setBranches(active);
       setStaffBranchId((current) => current || active[0]?.id || '');
+      setHourlyBranchId((current) => current || active[0]?.id || '');
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load branches.';
       toast({ variant: 'error', title: 'Branch lookup failed', message });
@@ -487,6 +498,25 @@ export default function DirectorDashboardPage(): JSX.Element {
       setIsLoadingDirectorTrends(false);
     }
   }, [accessToken, branchEndDate, branchStartDate, toast]);
+
+  const runHourlyHeatmap = useCallback(async (): Promise<void> => {
+    if (!accessToken || !hourlyBranchId) return;
+    setIsLoadingHourly(true);
+    try {
+      const data = await reportService.getHourlyHeatmap(accessToken, {
+        startDate: branchStartDate,
+        endDate: branchEndDate,
+        organizationId: hourlyBranchId,
+      });
+      setHourlyData(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load hourly heatmap.';
+      toast({ variant: 'error', title: 'Hourly heatmap failed', message });
+      setHourlyData(null);
+    } finally {
+      setIsLoadingHourly(false);
+    }
+  }, [accessToken, branchEndDate, branchStartDate, hourlyBranchId, toast]);
 
   const exportBranchReport = useCallback(async (format: 'csv' | 'pdf'): Promise<void> => {
     if (!accessToken) return;
@@ -1063,6 +1093,55 @@ export default function DirectorDashboardPage(): JSX.Element {
               />
             </div>
           </div>
+        )}
+      </section>
+
+      {/* ── Order Volume by Time of Day ───────────────────────────────────── */}
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-heading-md font-semibold text-stone-900">Order Volume by Time of Day</h3>
+            <p className="mt-0.5 text-body-sm text-stone-500">
+              Peak hours and busiest days — {branchPeriodLabel}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-end gap-2">
+            <div className="flex items-center gap-2">
+              <label htmlFor="hourly-branch" className="text-label-sm font-medium text-stone-600">
+                Branch
+              </label>
+              <select
+                id="hourly-branch"
+                value={hourlyBranchId}
+                onChange={(e) => setHourlyBranchId(e.target.value)}
+                className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-body-sm text-stone-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button size="sm" onClick={() => void runHourlyHeatmap()} isLoading={isLoadingHourly}>
+              Load Chart
+            </Button>
+          </div>
+        </div>
+
+        {isLoadingHourly ? (
+          <SkeletonTable rows={4} columns={4} />
+        ) : !hourlyData ? (
+          <EmptyState
+            icon={<TrendingUp size={22} />}
+            heading="No hourly data"
+            body={hourlyBranchId ? 'Click Load Chart to see peak hours for the selected branch.' : 'Select a branch and click Load Chart.'}
+          />
+        ) : (
+          <HourlyBarsChart
+            data={hourlyData}
+            showDow={daysBetween(branchStartDate, branchEndDate) >= 14}
+          />
         )}
       </section>
 

@@ -7,6 +7,8 @@ import type {
   BranchOverviewReport,
   DailySummaryReport,
   DirectorTrendsReport,
+  DowHeatmapPoint,
+  HourlyHeatmapReport,
   MyPerformanceReport,
   NamedSeries,
   PrepMyPerformanceReport,
@@ -1233,6 +1235,117 @@ export const reportRepository = {
         readyAt: true,
       },
     });
+  },
+
+  getHourlyHeatmap: async (
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<HourlyHeatmapReport> => {
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+
+    const [organization, orders] = await Promise.all([
+      prisma.organization.findFirst({
+        where: { id: organizationId },
+        select: { id: true, name: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          createdAt: { gte: start, lt: endExclusive },
+          status: { not: 'CANCELLED' },
+        },
+        select: { createdAt: true, type: true },
+      }),
+    ]);
+
+    const nairobiFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Africa/Nairobi',
+      hour: 'numeric',
+      hour12: false,
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    const dowLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const countByHour = new Array<number>(24).fill(0);
+    const dineInByHour = new Array<number>(24).fill(0);
+    const takeAwayByHour = new Array<number>(24).fill(0);
+    const deliveryByHour = new Array<number>(24).fill(0);
+    const dowTotals = new Array<number>(7).fill(0);
+    // Track distinct calendar dates seen per day-of-week for averaging
+    const dowDateSets: Set<string>[] = Array.from({ length: 7 }, () => new Set<string>());
+
+    for (const order of orders) {
+      const parts = nairobiFormatter.formatToParts(order.createdAt);
+      const hourStr = parts.find((p) => p.type === 'hour')?.value ?? '0';
+      const weekdayStr = parts.find((p) => p.type === 'weekday')?.value ?? 'Sun';
+      const year = parts.find((p) => p.type === 'year')?.value ?? '';
+      const month = parts.find((p) => p.type === 'month')?.value ?? '';
+      const day = parts.find((p) => p.type === 'day')?.value ?? '';
+
+      const hour = parseInt(hourStr, 10);
+      const dow = dowLabels.indexOf(weekdayStr);
+      const dateKey = `${year}-${month}-${day}`;
+
+      if (hour >= 0 && hour < 24) {
+        countByHour[hour] = (countByHour[hour] ?? 0) + 1;
+        if (order.type === 'DINE_IN') {
+          dineInByHour[hour] = (dineInByHour[hour] ?? 0) + 1;
+        } else if (order.type === 'TAKE_AWAY') {
+          takeAwayByHour[hour] = (takeAwayByHour[hour] ?? 0) + 1;
+        } else if (order.type === 'DELIVERY') {
+          deliveryByHour[hour] = (deliveryByHour[hour] ?? 0) + 1;
+        }
+      }
+
+      if (dow >= 0) {
+        dowTotals[dow] = (dowTotals[dow] ?? 0) + 1;
+        dowDateSets[dow]?.add(dateKey);
+      }
+    }
+
+    const hourLabel = (hour: number): string => {
+      if (hour === 0) return '12am';
+      if (hour < 12) return `${String(hour)}am`;
+      if (hour === 12) return '12pm';
+      return `${String(hour - 12)}pm`;
+    };
+
+    const hourlyPoints = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      label: hourLabel(hour),
+      orderCount: countByHour[hour] ?? 0,
+      byType: {
+        DINE_IN: dineInByHour[hour] ?? 0,
+        TAKE_AWAY: takeAwayByHour[hour] ?? 0,
+        DELIVERY: deliveryByHour[hour] ?? 0,
+      },
+    }));
+
+    // Re-order DOW: Mon–Sun (business-friendly week start)
+    const dowOrder = [1, 2, 3, 4, 5, 6, 0]; // Mon=1..Sat=6, Sun=0
+    const dowPoints: DowHeatmapPoint[] = dowOrder.map((dow) => {
+      const dayCount = dowDateSets[dow]?.size ?? 0;
+      return {
+        dow,
+        label: dowLabels[dow] ?? '',
+        avgOrderCount: dayCount > 0 ? Math.round((dowTotals[dow] ?? 0) / dayCount) : 0,
+      };
+    });
+
+    return {
+      period: {
+        startDate: formatDateOnly(startDate),
+        endDate: formatDateOnly(endDate),
+      },
+      organizationId,
+      organizationName: organization?.name ?? 'Unknown Branch',
+      hourlyPoints,
+      dowPoints,
+    };
   },
 
   getOutstandingBalances: async (organizationId?: string) => {

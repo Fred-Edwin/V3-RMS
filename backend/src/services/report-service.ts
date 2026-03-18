@@ -10,6 +10,7 @@ import type {
   DailySummaryReport,
   DirectorPulseReport,
   DirectorTrendsReport,
+  HourlyHeatmapReport,
   MyPerformanceReport,
   OutstandingBalancesReport,
   ReportType,
@@ -21,6 +22,7 @@ import type {
   DailySummaryQueryInput,
   DirectorTrendsQueryInput,
   ExportQueryInput,
+  HourlyHeatmapQueryInput,
   MyPerformanceQueryInput,
   StaffPerformanceQueryInput,
 } from '../validators/report-schemas';
@@ -296,6 +298,15 @@ export const reportService = {
       filename: `${filenameStem}.${query.format}`,
       contentType: query.format === 'csv' ? 'text/csv; charset=utf-8' : 'application/pdf',
     };
+  },
+
+  getHourlyHeatmap: async (
+    actor: Actor,
+    query: HourlyHeatmapQueryInput,
+  ): Promise<HourlyHeatmapReport> => {
+    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const { start, end } = ensureValidRange(query.startDate, query.endDate);
+    return reportRepository.getHourlyHeatmap(organizationId, start, end);
   },
 
   getDirectorPulse: async (actor: Actor): Promise<DirectorPulseReport> => {

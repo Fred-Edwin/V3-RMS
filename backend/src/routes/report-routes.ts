@@ -74,5 +74,13 @@ reportRoutes.get(
   reportController.getOutstandingBalances,
 );
 
+reportRoutes.get(
+  '/reports/hourly-heatmap',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'DIRECTOR'),
+  reportController.getHourlyHeatmap,
+);
+
 export default reportRoutes;
 

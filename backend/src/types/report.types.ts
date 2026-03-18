@@ -223,6 +223,34 @@ export interface OutstandingBalancesReport {
   };
 }
 
+export interface HourlyHeatmapPoint {
+  hour: number;
+  label: string;
+  orderCount: number;
+  byType: {
+    DINE_IN: number;
+    TAKE_AWAY: number;
+    DELIVERY: number;
+  };
+}
+
+export interface DowHeatmapPoint {
+  dow: number;
+  label: string;
+  avgOrderCount: number;
+}
+
+export interface HourlyHeatmapReport {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  organizationId: string;
+  organizationName: string;
+  hourlyPoints: HourlyHeatmapPoint[];
+  dowPoints: DowHeatmapPoint[];
+}
+
 export type ReportType = 'daily_summary' | 'staff_performance' | 'branch_overview';
 export type ReportFormat = 'csv' | 'pdf';
 

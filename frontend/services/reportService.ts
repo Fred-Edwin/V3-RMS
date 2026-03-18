@@ -11,6 +11,8 @@ import type {
   DirectorTrendsQuery,
   DirectorTrendsReport,
   ExportReportQuery,
+  HourlyHeatmapQuery,
+  HourlyHeatmapReport,
   MyPerformance,
   MyPerformanceQuery,
   OutstandingBalancesReport,
@@ -170,5 +172,15 @@ export const reportService = {
 
   getOutstandingBalances: (token: string): Promise<OutstandingBalancesReport> =>
     apiClient.get('/reports/outstanding-balances', token),
+
+  getHourlyHeatmap: (token: string, query: HourlyHeatmapQuery): Promise<HourlyHeatmapReport> =>
+    apiClient.get(
+      `/reports/hourly-heatmap${toQueryString({
+        startDate: query.startDate,
+        endDate: query.endDate,
+        organizationId: query.organizationId,
+      })}`,
+      token,
+    ),
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { DowHeatmapPoint, HourlyHeatmapPoint, HourlyHeatmapReport } from '@/types/report';
 import { cn } from '@/lib/cn';
 
 function useContainerWidth(fallback = 320): [React.RefObject<HTMLDivElement>, number] {
@@ -822,6 +823,305 @@ export function MultiLineTrendChart({
             })}
           </svg>
       </div>
+    </section>
+  );
+}
+
+// ── HourlyBarsChart ───────────────────────────────────────────────────────────
+
+interface HourlyBarsChartProps {
+  data: HourlyHeatmapReport;
+  showDow?: boolean;
+  className?: string;
+}
+
+function DowBars({ points }: { points: DowHeatmapPoint[] }): JSX.Element {
+  const max = Math.max(...points.map((p) => p.avgOrderCount), 1);
+  const sorted = [...points].sort((a, b) => b.avgOrderCount - a.avgOrderCount);
+  const peakLabel = sorted[0]?.label;
+
+  return (
+    <div className="mt-6 border-t border-stone-100 pt-5">
+      <h4 className="mb-4 text-label-sm font-semibold uppercase tracking-wider text-stone-400">
+        Busiest Days of the Week
+      </h4>
+      <div className="flex flex-col gap-y-2.5">
+        {sorted.map((point) => {
+          const isPeak = point.label === peakLabel && point.avgOrderCount > 0;
+          const fillRatio = point.avgOrderCount > 0 ? point.avgOrderCount / max : 0;
+          return (
+            <div
+              key={point.label}
+              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 transition-colors ${isPeak ? 'bg-amber-50/60' : ''}`}
+            >
+              <div className="flex w-8 items-center gap-1.5 shrink-0">
+                {isPeak && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#C4862A] shrink-0" />
+                )}
+                <span
+                  className={`text-label-sm font-medium ${isPeak ? 'text-[#7C4A0A] font-semibold' : 'text-stone-500'} ${!isPeak ? 'ml-3' : ''}`}
+                >
+                  {point.label}
+                </span>
+              </div>
+              <div className="relative flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#8B5E2A] to-[#C4862A] transition-all duration-700"
+                  style={{ width: `${Math.round(fillRatio * 100)}%` }}
+                />
+              </div>
+              <span className={`w-16 text-right text-body-sm font-semibold tabular-nums shrink-0 ${isPeak ? 'text-[#7C4A0A]' : 'text-stone-700'}`}>
+                {point.avgOrderCount > 0 ? `${String(point.avgOrderCount)} /day` : '—'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function HourlyBarsChart({ data, showDow = false, className }: HourlyBarsChartProps): JSX.Element {
+  const [hoveredHour, setHoveredHour] = useState<number | null>(null);
+  const gradientId = useId();
+  const [containerRef, containerWidth] = useContainerWidth(320);
+
+  const maxCount = Math.max(...data.hourlyPoints.map((p) => p.orderCount), 1);
+  const peakHour = data.hourlyPoints.reduce(
+    (best, p) => (p.orderCount > best.orderCount ? p : best),
+    data.hourlyPoints[0] ?? { hour: 0, orderCount: 0, label: '', byType: { DINE_IN: 0, TAKE_AWAY: 0, DELIVERY: 0 } },
+  );
+  const totalOrders = data.hourlyPoints.reduce((sum, p) => sum + p.orderCount, 0);
+
+  const svgHeight = 200;
+  const paddingTop = 28;
+  const paddingBottom = 24;
+  const paddingLeft = 36;
+  const paddingRight = 8;
+  const innerWidth = Math.max(containerWidth - paddingLeft - paddingRight, 1);
+  const innerHeight = svgHeight - paddingTop - paddingBottom;
+
+  const points = data.hourlyPoints;
+  const barWidth = Math.max(innerWidth / points.length - 2, 2);
+  const barSpacing = innerWidth / points.length;
+
+  const xLabelHours = new Set([0, 3, 6, 9, 12, 15, 18, 21]);
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
+    y: paddingTop + innerHeight * (1 - ratio),
+    value: Math.round(maxCount * ratio),
+  }));
+
+  const hoveredPoint = hoveredHour !== null ? (points[hoveredHour] ?? null) : null;
+  const hoveredBarX = hoveredHour !== null ? paddingLeft + hoveredHour * barSpacing + barSpacing / 2 : 0;
+
+  // gradientId used to suppress unused var warning — referenced in defs
+  void gradientId;
+
+  return (
+    <section className={cn('rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="mt-0.5 text-body-sm text-stone-500">{data.organizationName}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {peakHour.orderCount > 0 && (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-0.5 text-label-sm font-semibold text-amber-800">
+              Peak: {peakHour.label} · {peakHour.orderCount} orders
+            </span>
+          )}
+          <span className="text-label-sm text-stone-500">{totalOrders} total</span>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          { color: '#2C1A12', label: 'Dine-In' },
+          { color: '#C4862A', label: 'Take-Away' },
+          { color: '#6B4E2E', label: 'Delivery' },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5"
+          >
+            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="text-label-sm text-stone-600">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div ref={containerRef} className="mt-4 select-none">
+        <svg width={containerWidth} height={svgHeight} role="img" aria-label="Order volume by hour of day">
+          {yTicks.map((tick) => (
+            <g key={`ytick-${tick.value}`}>
+              <line
+                x1={paddingLeft}
+                y1={tick.y}
+                x2={paddingLeft + innerWidth}
+                y2={tick.y}
+                stroke="#E8E5E1"
+                strokeWidth={1}
+                strokeDasharray="4 5"
+                strokeOpacity={0.8}
+              />
+              <text x={paddingLeft - 4} y={tick.y + 4} textAnchor="end" className="fill-stone-400 text-[9px] font-medium">
+                {tick.value}
+              </text>
+            </g>
+          ))}
+
+          {points.map((point, index) => {
+            const isPeak = point.hour === peakHour.hour && point.orderCount > 0;
+            const barX = paddingLeft + index * barSpacing + (barSpacing - barWidth) / 2;
+            const totalH = maxCount > 0 ? (point.orderCount / maxCount) * innerHeight : 0;
+            const dineH = point.orderCount > 0 ? (point.byType.DINE_IN / point.orderCount) * totalH : 0;
+            const takeH = point.orderCount > 0 ? (point.byType.TAKE_AWAY / point.orderCount) * totalH : 0;
+            const delivH = totalH - dineH - takeH;
+            const baseY = paddingTop + innerHeight;
+
+            return (
+              <g
+                key={`bar-${point.hour}`}
+                onMouseEnter={() => setHoveredHour(index)}
+                onMouseLeave={() => setHoveredHour(null)}
+              >
+                <rect
+                  x={paddingLeft + index * barSpacing}
+                  y={paddingTop}
+                  width={barSpacing}
+                  height={innerHeight}
+                  fill="transparent"
+                />
+
+                {totalH > 0 && (
+                  <>
+                    {delivH > 0 && (
+                      <rect
+                        x={barX}
+                        y={baseY - totalH}
+                        width={barWidth}
+                        height={Math.max(delivH, 1)}
+                        fill={isPeak ? '#8B6040' : '#9B7A5A'}
+                      />
+                    )}
+                    {takeH > 0 && (
+                      <rect
+                        x={barX}
+                        y={baseY - dineH - takeH}
+                        width={barWidth}
+                        height={Math.max(takeH, 1)}
+                        fill={isPeak ? '#C4862A' : '#B8924A'}
+                      />
+                    )}
+                    {dineH > 0 && (
+                      <rect
+                        x={barX}
+                        y={baseY - dineH}
+                        width={barWidth}
+                        height={Math.max(dineH, 1)}
+                        fill={isPeak ? '#2C1A12' : '#4A3728'}
+                      />
+                    )}
+                    {/* Rounded top cap */}
+                    <rect
+                      x={barX}
+                      y={baseY - totalH}
+                      width={barWidth}
+                      height={Math.min(3, totalH)}
+                      fill={isPeak ? '#C4862A' : '#9B7A5A'}
+                      rx={2}
+                      ry={2}
+                    />
+                  </>
+                )}
+
+                {totalH === 0 && (
+                  <rect x={barX} y={baseY - 3} width={barWidth} height={3} fill="#E8E5E1" rx={1} ry={1} />
+                )}
+
+                {isPeak && (
+                  <text
+                    x={barX + barWidth / 2}
+                    y={baseY - totalH - 6}
+                    textAnchor="middle"
+                    className="fill-amber-600 text-[9px] font-bold"
+                  >
+                    ▲
+                  </text>
+                )}
+
+                {xLabelHours.has(point.hour) && (
+                  <text
+                    x={barX + barWidth / 2}
+                    y={svgHeight - 4}
+                    textAnchor="middle"
+                    className="fill-stone-500 text-[9px] font-medium"
+                  >
+                    {point.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+
+          {hoveredPoint !== null && hoveredHour !== null && (
+            <g>
+              <line
+                x1={hoveredBarX}
+                y1={paddingTop}
+                x2={hoveredBarX}
+                y2={paddingTop + innerHeight}
+                stroke="#C4862A"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                strokeOpacity={0.5}
+              />
+              <rect
+                x={clamp(hoveredBarX - 80, paddingLeft + 2, paddingLeft + innerWidth - 162)}
+                y={paddingTop + 4}
+                rx={8}
+                ry={8}
+                width={160}
+                height={70}
+                fill="#1C1917"
+                fillOpacity={0.96}
+              />
+              <text
+                x={clamp(hoveredBarX - 72, paddingLeft + 10, paddingLeft + innerWidth - 154)}
+                y={paddingTop + 20}
+                className="fill-crema text-[11px] font-semibold"
+              >
+                {hoveredPoint.label}
+              </text>
+              <text
+                x={clamp(hoveredBarX - 72, paddingLeft + 10, paddingLeft + innerWidth - 154)}
+                y={paddingTop + 35}
+                className="fill-stone-300 text-[10px]"
+              >
+                {`Total: ${String(hoveredPoint.orderCount)} orders`}
+              </text>
+              <text
+                x={clamp(hoveredBarX - 72, paddingLeft + 10, paddingLeft + innerWidth - 154)}
+                y={paddingTop + 48}
+                className="fill-stone-400 text-[9px]"
+              >
+                {`DI ${String(hoveredPoint.byType.DINE_IN)} · TA ${String(hoveredPoint.byType.TAKE_AWAY)} · Del ${String(hoveredPoint.byType.DELIVERY)}`}
+              </text>
+              <text
+                x={clamp(hoveredBarX - 72, paddingLeft + 10, paddingLeft + innerWidth - 154)}
+                y={paddingTop + 61}
+                className="fill-stone-500 text-[9px]"
+              >
+                {totalOrders > 0
+                  ? `${String(Math.round((hoveredPoint.orderCount / totalOrders) * 100))}% of day`
+                  : '0% of day'}
+              </text>
+            </g>
+          )}
+        </svg>
+      </div>
+
+      {showDow && <DowBars points={data.dowPoints} />}
     </section>
   );
 }

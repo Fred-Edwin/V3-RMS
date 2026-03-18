@@ -8,6 +8,7 @@ import {
   DirectorPulseQuerySchema,
   DirectorTrendsQuerySchema,
   ExportQuerySchema,
+  HourlyHeatmapQuerySchema,
   MyPerformanceQuerySchema,
   StaffPerformanceQuerySchema,
 } from '../validators/report-schemas';
@@ -112,6 +113,17 @@ export const reportController = {
     const actor = requireActor(req);
     const report = await reportService.getOutstandingBalances(actor);
     res.status(200).json({ success: true, data: report });
+  },
+
+  getHourlyHeatmap: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = HourlyHeatmapQuerySchema.parse(req.query);
+    const report = await reportService.getHourlyHeatmap(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
   },
 };
 

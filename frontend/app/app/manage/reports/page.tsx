@@ -15,12 +15,12 @@ import {
   Table,
   type TableColumn,
 } from '@/components/ui';
-import { LineTrendChart } from '@/components/dashboard/PremiumChart';
+import { HourlyBarsChart, LineTrendChart } from '@/components/dashboard/PremiumChart';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchTrendsReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
+import type { BranchTrendsReport, HourlyHeatmapReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
 
 const toYmd = (value: Date): string => {
   const year = value.getFullYear();
@@ -44,6 +44,12 @@ const formatDisplayDate = (ymd: string): string => {
   return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const daysBetween = (start: string, end: string): number => {
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000));
+};
+
 const formatCurrency = (value: string | number): string => {
   const num = typeof value === 'string' ? Number.parseFloat(value) : value;
   if (Number.isNaN(num)) return 'KES 0.00';
@@ -63,6 +69,7 @@ export default function ManagerReportsPage(): JSX.Element {
   const [isExporting, setIsExporting] = useState(false);
   const [report, setReport] = useState<StaffPerformancePeriod | null>(null);
   const [branchTrends, setBranchTrends] = useState<BranchTrendsReport | null>(null);
+  const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const runReport = useCallback(async (): Promise<void> => {
@@ -72,7 +79,7 @@ export default function ManagerReportsPage(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [staffData, trendData] = await Promise.all([
+      const [staffData, trendData, heatmapData] = await Promise.all([
         reportService.getStaffPerformance(accessToken, {
           startDate,
           endDate,
@@ -82,9 +89,14 @@ export default function ManagerReportsPage(): JSX.Element {
           startDate,
           endDate,
         }),
+        reportService.getHourlyHeatmap(accessToken, {
+          startDate,
+          endDate,
+        }),
       ]);
       setReport(staffData);
       setBranchTrends(trendData);
+      setHourlyData(heatmapData);
       setLastUpdated(new Date());
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load staff performance report.';
@@ -95,6 +107,7 @@ export default function ManagerReportsPage(): JSX.Element {
       });
       setReport(null);
       setBranchTrends(null);
+      setHourlyData(null);
     } finally {
       setIsLoading(false);
     }
@@ -383,6 +396,36 @@ export default function ManagerReportsPage(): JSX.Element {
               summaryLabel="Avg Prep"
             />
           </div>
+        )}
+      </section>
+
+      {/* ── Order Volume by Time of Day ───────────────────────────── */}
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-heading-md font-semibold text-stone-900">Order Volume by Time of Day</h3>
+            <p className="mt-1 text-body-sm text-stone-500">
+              {hourlyData
+                ? `When are customers most active? · ${periodLabel}`
+                : 'Run the report to see peak hours.'}
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <SkeletonTable rows={4} columns={4} />
+        ) : !hourlyData ? (
+          <EmptyState
+            icon={<TrendingUp size={24} />}
+            heading="No hourly data"
+            body="Run the report to see order volume by time of day."
+            className="mt-4"
+          />
+        ) : (
+          <HourlyBarsChart
+            data={hourlyData}
+            showDow={daysBetween(startDate, endDate) >= 14}
+          />
         )}
       </section>
 
