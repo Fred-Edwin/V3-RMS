@@ -107,5 +107,11 @@ export const reportController = {
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
     res.status(200).send(result.buffer);
   },
+
+  getOutstandingBalances: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const report = await reportService.getOutstandingBalances(actor);
+    res.status(200).json({ success: true, data: report });
+  },
 };
 

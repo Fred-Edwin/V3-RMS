@@ -29,9 +29,10 @@ model Organization {
   orders          Order[]
   orderCounters   OrderCounter[]
   prepTickets     PrepTicket[]
-  incidentLogs    IncidentLog[]
-  printJobs       PrintJob[]
-  printStations   PrintStation[]
+  incidentLogs          IncidentLog[]
+  printJobs             PrintJob[]
+  printStations         PrintStation[]
+  customerCreditAccounts CustomerCreditAccount[]
 
   @@map("organizations")
 }
@@ -73,8 +74,15 @@ model User {
   refreshTokens        RefreshToken[]
   modRequestsCreated   OrderModificationRequest[] @relation("ModRequestedBy")
   modRequestsReviewed  OrderModificationRequest[] @relation("ModReviewedBy")
-  incidentsActed       IncidentLog[]     @relation("IncidentActor")
-  printJobsRequested   PrintJob[]        @relation("PrintJobRequester")
+  incidentsActed              IncidentLog[]           @relation("IncidentActor")
+  printJobsRequested          PrintJob[]              @relation("PrintJobRequester")
+  houseAccount                HouseAccount?           @relation("HouseAccountHolder")
+  houseAccountsGranted        HouseAccount[]          @relation("HouseAccountGrantedBy")
+  houseAccountSettlements     HouseAccountSettlement[] @relation("HouseAccountSettledBy")
+  corporateAccountsCreated    CorporateAccount[]      @relation("CorporateAccountCreatedBy")
+  corporateSettlements        CorporateAccountSettlement[] @relation("CorporateAccountSettledBy")
+  customerCreditAccountsCreated CustomerCreditAccount[] @relation("CustomerCreditAccountCreatedBy")
+  customerCreditSettlements   CustomerCreditSettlement[] @relation("CustomerCreditSettledBy")
 
   @@index([organizationId])
   @@index([email])
@@ -229,27 +237,34 @@ model Order {
   subtotal       Decimal        @db.Decimal(10, 2)
   deliveryFee    Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
   total          Decimal        @db.Decimal(10, 2)
-  paymentMethod  PaymentMethod? @map("payment_method")
-  mpesaCode      String?        @map("mpesa_code")
-  mpesaAmount    Decimal?       @db.Decimal(10, 2) @map("mpesa_amount")
-  cashAmount     Decimal?       @db.Decimal(10, 2) @map("cash_amount")
-  paidAt         DateTime?      @map("paid_at")
-  cancelReason   String?        @map("cancel_reason")
-  cancelledById  String?        @map("cancelled_by_id")
-  deliveryZoneId String?        @map("delivery_zone_id")
-  createdById    String         @map("created_by_id")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  closedAt       DateTime?      @map("closed_at")
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  deliveryZone   DeliveryZone?  @relation(fields: [deliveryZoneId], references: [id])
-  createdBy      User           @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  cancelledBy    User?          @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
-  items          OrderItem[]
-  prepTickets    PrepTicket[]
-  modificationRequests OrderModificationRequest[]
-  incidents      IncidentLog[]
-  printJobs      PrintJob[]
+  paymentMethod           PaymentMethod?        @map("payment_method")
+  mpesaCode               String?               @map("mpesa_code")
+  mpesaAmount             Decimal?              @db.Decimal(10, 2) @map("mpesa_amount")
+  cashAmount              Decimal?              @db.Decimal(10, 2) @map("cash_amount")
+  paidAt                  DateTime?             @map("paid_at")
+  cancelReason            String?               @map("cancel_reason")
+  cancelledById           String?               @map("cancelled_by_id")
+  deliveryZoneId          String?               @map("delivery_zone_id")
+  houseAccountId          String?               @map("house_account_id")
+  corporateAccountId      String?               @map("corporate_account_id")
+  corporateEmployeeRef    String?               @map("corporate_employee_ref")
+  customerCreditAccountId String?               @map("customer_credit_account_id")
+  createdById             String                @map("created_by_id")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+  closedAt                DateTime?             @map("closed_at")
+  organization            Organization          @relation(fields: [organizationId], references: [id])
+  deliveryZone            DeliveryZone?         @relation(fields: [deliveryZoneId], references: [id])
+  houseAccount            HouseAccount?         @relation(fields: [houseAccountId], references: [id])
+  corporateAccount        CorporateAccount?     @relation(fields: [corporateAccountId], references: [id])
+  customerCreditAccount   CustomerCreditAccount? @relation(fields: [customerCreditAccountId], references: [id])
+  createdBy               User                  @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  cancelledBy             User?                 @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
+  items                   OrderItem[]
+  prepTickets             PrepTicket[]
+  modificationRequests    OrderModificationRequest[]
+  incidents               IncidentLog[]
+  printJobs               PrintJob[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -345,6 +360,9 @@ enum PaymentMethod {
   CASH
   CARD
   SPLIT
+  HOUSE_ACCOUNT
+  CORPORATE_ACCOUNT
+  CUSTOMER_CREDIT
 }
 
 enum ClockMethod {
@@ -481,4 +499,116 @@ enum ReceiptType {
   RECEIPT
 }
 
+// ─── Credit Account Models ────────────────────────────────────────────────────
 
+model HouseAccount {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  creditLimit    Decimal? @db.Decimal(10, 2) @map("credit_limit")
+  currentBalance Decimal  @default(0) @db.Decimal(10, 2) @map("current_balance")
+  isActive       Boolean  @default(true) @map("is_active")
+  grantedById    String   @map("granted_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user        User                     @relation("HouseAccountHolder", fields: [userId], references: [id])
+  grantedBy   User                     @relation("HouseAccountGrantedBy", fields: [grantedById], references: [id])
+  settlements HouseAccountSettlement[]
+  orders      Order[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("house_accounts")
+}
+
+model HouseAccountSettlement {
+  id             String       @id @default(uuid())
+  houseAccountId String       @map("house_account_id")
+  amount         Decimal      @db.Decimal(10, 2)
+  note           String?
+  settledById    String       @map("settled_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  houseAccount HouseAccount @relation(fields: [houseAccountId], references: [id])
+  settledBy    User         @relation("HouseAccountSettledBy", fields: [settledById], references: [id])
+
+  @@index([houseAccountId])
+  @@map("house_account_settlements")
+}
+
+model CorporateAccount {
+  id              String   @id @default(uuid())
+  companyName     String   @map("company_name")
+  contactName     String   @map("contact_name")
+  contactPhone    String   @map("contact_phone")
+  contactEmail    String?  @map("contact_email")
+  creditLimit     Decimal? @db.Decimal(10, 2) @map("credit_limit")
+  currentBalance  Decimal  @default(0) @db.Decimal(10, 2) @map("current_balance")
+  billingCycleDay Int      @default(1) @map("billing_cycle_day")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  createdBy   User                         @relation("CorporateAccountCreatedBy", fields: [createdById], references: [id])
+  settlements CorporateAccountSettlement[]
+  orders      Order[]
+
+  @@index([isActive])
+  @@index([companyName])
+  @@map("corporate_accounts")
+}
+
+model CorporateAccountSettlement {
+  id                 String           @id @default(uuid())
+  corporateAccountId String           @map("corporate_account_id")
+  amount             Decimal          @db.Decimal(10, 2)
+  note               String?
+  settledById        String           @map("settled_by_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id])
+  settledBy        User             @relation("CorporateAccountSettledBy", fields: [settledById], references: [id])
+
+  @@index([corporateAccountId])
+  @@map("corporate_account_settlements")
+}
+
+model CustomerCreditAccount {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  customerName   String       @map("customer_name")
+  customerPhone  String       @map("customer_phone")
+  creditLimit    Decimal      @db.Decimal(10, 2) @map("credit_limit")
+  currentBalance Decimal      @default(0) @db.Decimal(10, 2) @map("current_balance")
+  notes          String?
+  isActive       Boolean      @default(true) @map("is_active")
+  createdById    String       @map("created_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization Organization               @relation(fields: [organizationId], references: [id])
+  createdBy    User                       @relation("CustomerCreditAccountCreatedBy", fields: [createdById], references: [id])
+  settlements  CustomerCreditSettlement[]
+  orders       Order[]
+
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([customerPhone])
+  @@map("customer_credit_accounts")
+}
+
+model CustomerCreditSettlement {
+  id                      String                @id @default(uuid())
+  customerCreditAccountId String                @map("customer_credit_account_id")
+  amount                  Decimal               @db.Decimal(10, 2)
+  note                    String?
+  settledById             String                @map("settled_by_id")
+  createdAt               DateTime              @default(now()) @map("created_at")
+
+  customerCreditAccount CustomerCreditAccount @relation(fields: [customerCreditAccountId], references: [id])
+  settledBy             User                 @relation("CustomerCreditSettledBy", fields: [settledById], references: [id])
+
+  @@index([customerCreditAccountId])
+  @@map("customer_credit_settlements")
+}

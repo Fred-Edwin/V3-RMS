@@ -1,4 +1,4 @@
-﻿import { OrderStatus, type PaymentMethod, Prisma, type PrepStation, PrepTicketStatus } from '@prisma/client';
+﻿import { OrderStatus, PaymentMethod, Prisma, type PrepStation, PrepTicketStatus } from '@prisma/client';
 import { prisma } from '../config/database';
 import type { CreateOrderWithTicketsDto, CreateOrderItemWithPriceDto, PrepTicketItemSnapshot } from '../types/order.types';
 
@@ -541,10 +541,100 @@ export const orderRepository = {
       mpesaCode: string | null;
       mpesaAmount: number | null;
       cashAmount: number | null;
+      houseAccountId?: string | null;
+      corporateAccountId?: string | null;
+      corporateEmployeeRef?: string | null;
+      customerCreditAccountId?: string | null;
     },
   ): Promise<FullOrderPrismaRecord | null> => {
     const paidAt = new Date();
+    const creditMethods: PaymentMethod[] = [
+      PaymentMethod.HOUSE_ACCOUNT,
+      PaymentMethod.CORPORATE_ACCOUNT,
+      PaymentMethod.CUSTOMER_CREDIT,
+    ];
+    const isCreditPayment = creditMethods.includes(payment.paymentMethod);
 
+    if (isCreditPayment) {
+      return prisma.$transaction(async (tx) => {
+        const updated = await tx.order.updateMany({
+          where: { id: orderId, organizationId, status: OrderStatus.READY },
+          data: {
+            status: OrderStatus.CLOSED,
+            paymentMethod: payment.paymentMethod,
+            houseAccountId: payment.houseAccountId ?? null,
+            corporateAccountId: payment.corporateAccountId ?? null,
+            corporateEmployeeRef: payment.corporateEmployeeRef ?? null,
+            customerCreditAccountId: payment.customerCreditAccountId ?? null,
+            paidAt,
+            closedAt: paidAt,
+          },
+        });
+
+        if (updated.count === 0) return null;
+
+        const orderRecord = await tx.order.findFirst({
+          where: { id: orderId },
+          select: { total: true },
+        });
+        if (!orderRecord) return null;
+
+        // Atomic balance increment — definitive credit limit check inside transaction
+        if (payment.houseAccountId) {
+          const account = await tx.houseAccount.findFirst({
+            where: { id: payment.houseAccountId },
+            select: { currentBalance: true, creditLimit: true },
+          });
+          if (account?.creditLimit !== null && account?.creditLimit !== undefined) {
+            const newBalance = account.currentBalance.add(orderRecord.total);
+            if (newBalance.greaterThan(account.creditLimit)) {
+              throw new Error('CREDIT_LIMIT_EXCEEDED');
+            }
+          }
+          await tx.houseAccount.update({
+            where: { id: payment.houseAccountId },
+            data: { currentBalance: { increment: orderRecord.total } },
+          });
+        } else if (payment.corporateAccountId) {
+          const account = await tx.corporateAccount.findFirst({
+            where: { id: payment.corporateAccountId },
+            select: { currentBalance: true, creditLimit: true },
+          });
+          if (account?.creditLimit !== null && account?.creditLimit !== undefined) {
+            const newBalance = account.currentBalance.add(orderRecord.total);
+            if (newBalance.greaterThan(account.creditLimit)) {
+              throw new Error('CREDIT_LIMIT_EXCEEDED');
+            }
+          }
+          await tx.corporateAccount.update({
+            where: { id: payment.corporateAccountId },
+            data: { currentBalance: { increment: orderRecord.total } },
+          });
+        } else if (payment.customerCreditAccountId) {
+          const account = await tx.customerCreditAccount.findFirst({
+            where: { id: payment.customerCreditAccountId },
+            select: { currentBalance: true, creditLimit: true },
+          });
+          if (account) {
+            const newBalance = account.currentBalance.add(orderRecord.total);
+            if (newBalance.greaterThan(account.creditLimit)) {
+              throw new Error('CREDIT_LIMIT_EXCEEDED');
+            }
+          }
+          await tx.customerCreditAccount.update({
+            where: { id: payment.customerCreditAccountId },
+            data: { currentBalance: { increment: orderRecord.total } },
+          });
+        }
+
+        return tx.order.findFirst({
+          where: { id: orderId, organizationId },
+          include: orderInclude,
+        });
+      });
+    }
+
+    // Non-credit payment path (unchanged)
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,

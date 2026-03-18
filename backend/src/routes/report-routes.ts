@@ -67,5 +67,12 @@ reportRoutes.get(
   reportController.exportReport,
 );
 
+reportRoutes.get(
+  '/reports/outstanding-balances',
+  authenticate,
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'),
+  reportController.getOutstandingBalances,
+);
+
 export default reportRoutes;
 

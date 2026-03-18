@@ -13,6 +13,7 @@ import type {
   ExportReportQuery,
   MyPerformance,
   MyPerformanceQuery,
+  OutstandingBalancesReport,
   StaffPerformancePeriod,
   StaffPerformanceQuery,
 } from '@/types/report';
@@ -166,5 +167,8 @@ export const reportService = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+
+  getOutstandingBalances: (token: string): Promise<OutstandingBalancesReport> =>
+    apiClient.get('/reports/outstanding-balances', token),
 };
 

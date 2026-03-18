@@ -484,7 +484,16 @@ describe('orderService.recordPayment', () => {
     expect(orderRepository.recordPayment).toHaveBeenCalledWith(
       '33333333-3333-4333-8333-333333333333',
       organizationId,
-      { paymentMethod: PaymentMethod.MPESA, mpesaCode: null, mpesaAmount: null, cashAmount: null },
+      {
+        paymentMethod: PaymentMethod.MPESA,
+        mpesaCode: null,
+        mpesaAmount: null,
+        cashAmount: null,
+        houseAccountId: null,
+        corporateAccountId: null,
+        corporateEmployeeRef: null,
+        customerCreditAccountId: null,
+      },
     );
     expect(result.status).toBe('CLOSED');
     expect(result.paymentMethod).toBe('MPESA');

@@ -3,16 +3,18 @@
 import { useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  AlertTriangle,
   BarChart2,
   Bike,
+  Building2,
   Calendar,
   ChefHat,
   ClipboardList,
   Clock,
   Coffee,
+  CreditCard,
   LayoutDashboard,
   LogOut,
-  AlertTriangle,
   Printer,
   Settings2,
   ShoppingCart,
@@ -22,6 +24,18 @@ import {
 } from 'lucide-react';
 import { BottomNav, ConfirmDialog, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
 import { env } from '@/lib/env';
+
+// Paths that belong to the Phase 7 credit accounts feature.
+// When env.creditAccounts is false these are stripped from nav and their pages redirect away.
+const CREDIT_PATHS = new Set([
+  '/app/admin/house-accounts',
+  '/app/admin/corporate-accounts',
+  '/app/director/corporate-accounts',
+  '/app/director/outstanding-balances',
+  '/app/manage/customer-credit',
+  '/app/manage/outstanding-balances',
+  '/app/manage/my-tab',
+]);
 import { performLogout } from '@/lib/logout';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
@@ -52,12 +66,18 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
       { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
       { label: 'Settings', href: '/app/manage/settings', icon: Printer },
+      { label: 'Customer Credit', href: '/app/manage/customer-credit', icon: CreditCard },
+      { label: 'Outstanding', href: '/app/manage/outstanding-balances', icon: AlertTriangle },
+      { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
   DIRECTOR: {
     tabs: [
       { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
+      { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
+      { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
+      { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [],
@@ -66,6 +86,8 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Branches', href: '/app/admin', icon: Settings2 },
       { label: 'Menu', href: '/app/admin/menu', icon: UtensilsCrossed },
+      { label: 'House Accts', href: '/app/admin/house-accounts', icon: CreditCard },
+      { label: 'Corporate', href: '/app/admin/corporate-accounts', icon: Building2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [],
@@ -130,6 +152,14 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
     {
+      label: 'Credit',
+      items: [
+        { label: 'Customer Credit', href: '/app/manage/customer-credit', icon: CreditCard },
+        { label: 'Outstanding Balances', href: '/app/manage/outstanding-balances', icon: AlertTriangle },
+        { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      ],
+    },
+    {
       items: [
         { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
         { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
@@ -146,6 +176,14 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [{ label: 'Dashboard', href: '/app/director', icon: LayoutDashboard }],
     },
     {
+      label: 'Credit',
+      items: [
+        { label: 'Corporate Accounts', href: '/app/director/corporate-accounts', icon: Building2 },
+        { label: 'Outstanding Balances', href: '/app/director/outstanding-balances', icon: AlertTriangle },
+        { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      ],
+    },
+    {
       items: [{ label: 'Reports', href: '/app/director', icon: BarChart2 }],
     },
     {
@@ -159,6 +197,8 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Branches & Users', href: '/app/admin', icon: Settings2 },
         { label: 'Menu', href: '/app/admin/menu', icon: UtensilsCrossed },
+        { label: 'House Accounts', href: '/app/admin/house-accounts', icon: CreditCard },
+        { label: 'Corporate Accounts', href: '/app/admin/corporate-accounts', icon: Building2 },
       ],
     },
     {
@@ -220,11 +260,23 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const isDisplayOnlyRole = role === 'KITCHEN_DISPLAY' || role === 'BARISTA_DISPLAY';
   const isDesktopPreviewEnabled = env.roleDesktopPreview && process.env.NODE_ENV !== 'production';
 
-  const sidebarSections = useMemo(() => (role ? sidebarSectionsByRole[role] ?? [] : []), [role]);
-  const mobileNavConfig = useMemo(
-    () => (role && role in mobileRoleTabs ? mobileRoleTabs[role as MobileRole] : null),
-    [role],
-  );
+  const sidebarSections = useMemo(() => {
+    const sections = role ? (sidebarSectionsByRole[role] ?? []) : [];
+    if (env.creditAccounts) return sections;
+    return sections
+      .map((section) => ({ ...section, items: section.items.filter((item) => !CREDIT_PATHS.has(item.href)) }))
+      .filter((section) => section.items.length > 0);
+  }, [role]);
+
+  const mobileNavConfig = useMemo(() => {
+    if (!role || !(role in mobileRoleTabs)) return null;
+    const config = mobileRoleTabs[role as MobileRole];
+    if (env.creditAccounts) return config;
+    return {
+      tabs: config.tabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+      overflowTabs: config.overflowTabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+    };
+  }, [role]);
 
   const handleConfirmLogout = async (): Promise<void> => {
     setIsLoggingOut(true);

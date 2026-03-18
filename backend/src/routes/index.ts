@@ -13,6 +13,9 @@ import clockRoutes from './clock-routes';
 import reportRoutes from './report-routes';
 import incidentRoutes from './incident-routes';
 import printRoutes from './print-routes';
+import houseAccountRoutes from './house-account-routes';
+import corporateAccountRoutes from './corporate-account-routes';
+import customerCreditRoutes from './customer-credit-routes';
 
 const apiRouter = Router();
 
@@ -30,5 +33,8 @@ apiRouter.use(clockRoutes);
 apiRouter.use(reportRoutes);
 apiRouter.use(incidentRoutes);
 apiRouter.use(printRoutes);
+apiRouter.use(houseAccountRoutes);
+apiRouter.use(corporateAccountRoutes);
+apiRouter.use(customerCreditRoutes);
 
 export default apiRouter;

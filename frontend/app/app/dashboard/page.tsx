@@ -10,6 +10,10 @@ import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
 import { getTodayYmdInTimeZone } from '@/lib/date';
+import { env } from '@/lib/env';
+import { corporateAccountService, type CorporateAccountDropdownItem } from '@/services/corporateAccountService';
+import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
+import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { orderService } from '@/services/orderService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
@@ -91,6 +95,9 @@ export default function DashboardPage(): JSX.Element {
 
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [houseAccounts, setHouseAccounts] = useState<HouseAccountDropdownItem[]>([]);
+  const [corporateAccounts, setCorporateAccounts] = useState<CorporateAccountDropdownItem[]>([]);
+  const [customerCreditAccounts, setCustomerCreditAccounts] = useState<CustomerCreditDropdownItem[]>([]);
   const [todayOrderCount, setTodayOrderCount] = useState(0);
   const [todayTotalValue, setTodayTotalValue] = useState(0);
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
@@ -238,6 +245,17 @@ export default function DashboardPage(): JSX.Element {
     void loadTodayShiftAssignments();
   }, [loadTodayShiftAssignments]);
 
+  useEffect(() => {
+    if (!accessToken || !env.creditAccounts) return;
+    void houseAccountService.listActive(accessToken).then(setHouseAccounts).catch(() => { /* non-critical */ });
+    void corporateAccountService.list(accessToken).then((data) => {
+      setCorporateAccounts(data as CorporateAccountDropdownItem[]);
+    }).catch(() => { /* non-critical */ });
+    void customerCreditService.list(accessToken).then((data) => {
+      setCustomerCreditAccounts(data as CustomerCreditDropdownItem[]);
+    }).catch(() => { /* non-critical */ });
+  }, [accessToken]);
+
   const handleClockUpdated = useCallback((assignmentId: string, record: ShiftAssignmentClockRecord) => {
     setTodayShiftAssignments((current) =>
       current.map((assignment) =>
@@ -289,6 +307,16 @@ export default function DashboardPage(): JSX.Element {
         title: message,
       });
     }
+  };
+
+  const handleCreateCustomerCredit = async (name: string, phone: string, creditLimit: string): Promise<string> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    const account = await customerCreditService.createAccount({ customerName: name, customerPhone: phone, creditLimit }, accessToken);
+    setCustomerCreditAccounts((prev) => [
+      ...prev,
+      { id: account.id, customerName: account.customerName, customerPhone: account.customerPhone, creditLimit: account.creditLimit, currentBalance: account.currentBalance },
+    ]);
+    return account.id;
   };
 
   if (role === 'WAITER') {
@@ -373,6 +401,10 @@ export default function DashboardPage(): JSX.Element {
           order={selectedOrder}
           onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
           onPayment={(orderId, payload) => void handlePayment(orderId, payload)}
+          houseAccounts={houseAccounts}
+          corporateAccounts={corporateAccounts}
+          customerCreditAccounts={customerCreditAccounts}
+          onCreateCustomerCredit={(name, phone, limit) => handleCreateCustomerCredit(name, phone, limit)}
         />
       </PageLayout>
     );

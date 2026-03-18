@@ -24,6 +24,10 @@ export interface DailySummary {
     MPESA: string;
     CASH: string;
     CARD: string;
+    SPLIT: string;
+    HOUSE_ACCOUNT: string;
+    CORPORATE_ACCOUNT: string;
+    CUSTOMER_CREDIT: string;
   };
   topItems: DailySummaryTopItem[];
   averagePrepTimeMinutes: {
@@ -179,6 +183,46 @@ export interface DirectorPulseReport {
   totalActiveOrders: number;
   totalClockedIn: number;
   branches: DirectorPulseBranchRow[];
+}
+
+export interface OutstandingHouseAccountRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  currentBalance: string;
+  creditLimit: string | null;
+}
+
+export interface OutstandingCorporateAccountRow {
+  id: string;
+  companyName: string;
+  contactName: string;
+  contactPhone: string;
+  currentBalance: string;
+  creditLimit: string | null;
+}
+
+export interface OutstandingCustomerCreditRow {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  customerName: string;
+  customerPhone: string;
+  currentBalance: string;
+  creditLimit: string;
+}
+
+export interface OutstandingBalancesReport {
+  houseAccounts: OutstandingHouseAccountRow[];
+  corporateAccounts: OutstandingCorporateAccountRow[];
+  customerCreditAccounts: OutstandingCustomerCreditRow[];
+  totals: {
+    houseAccounts: string;
+    corporateAccounts: string;
+    customerCreditAccounts: string;
+    grandTotal: string;
+  };
 }
 
 export interface StaffPerformanceQuery {

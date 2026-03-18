@@ -7,6 +7,10 @@ import { CancelOrderSheet } from '@/components/orders/CancelOrderSheet';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { getSocket } from '@/lib/socket';
+import { env } from '@/lib/env';
+import { corporateAccountService, type CorporateAccountDropdownItem } from '@/services/corporateAccountService';
+import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
+import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { orderService } from '@/services/orderService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
@@ -58,6 +62,9 @@ export default function OrdersPage(): JSX.Element {
 
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [houseAccounts, setHouseAccounts] = useState<HouseAccountDropdownItem[]>([]);
+  const [corporateAccounts, setCorporateAccounts] = useState<CorporateAccountDropdownItem[]>([]);
+  const [customerCreditAccounts, setCustomerCreditAccounts] = useState<CustomerCreditDropdownItem[]>([]);
   const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
@@ -81,6 +88,23 @@ export default function OrdersPage(): JSX.Element {
     window.addEventListener('popstate', syncFiltersFromUrl);
     return () => window.removeEventListener('popstate', syncFiltersFromUrl);
   }, [syncFiltersFromUrl]);
+
+  useEffect(() => {
+    if (!accessToken || !env.creditAccounts) return;
+    void houseAccountService.listActive(accessToken).then((data) => {
+      setHouseAccounts(data);
+    }).catch(() => { /* non-critical */ });
+    void corporateAccountService.list(accessToken).then((data) => {
+      setCorporateAccounts(
+        (data as CorporateAccountDropdownItem[]).filter((a) => (a as { isActive?: boolean }).isActive !== false),
+      );
+    }).catch(() => { /* non-critical */ });
+    void customerCreditService.list(accessToken).then((data) => {
+      setCustomerCreditAccounts(
+        (data as CustomerCreditDropdownItem[]).filter((a) => (a as { isActive?: boolean }).isActive !== false),
+      );
+    }).catch(() => { /* non-critical */ });
+  }, [accessToken]);
 
   const sortedOrders = useMemo(
     () => [...activeOrders].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
@@ -234,6 +258,16 @@ export default function OrdersPage(): JSX.Element {
     } finally {
       setIsPrintSubmitting(false);
     }
+  };
+
+  const handleCreateCustomerCredit = async (name: string, phone: string, creditLimit: string): Promise<string> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    const account = await customerCreditService.createAccount({ customerName: name, customerPhone: phone, creditLimit }, accessToken);
+    setCustomerCreditAccounts((prev) => [
+      ...prev,
+      { id: account.id, customerName: account.customerName, customerPhone: account.customerPhone, creditLimit: account.creditLimit, currentBalance: account.currentBalance },
+    ]);
+    return account.id;
   };
 
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
@@ -404,6 +438,10 @@ export default function OrdersPage(): JSX.Element {
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
+        houseAccounts={houseAccounts}
+        corporateAccounts={corporateAccounts}
+        customerCreditAccounts={customerCreditAccounts}
+        onCreateCustomerCredit={(name, phone, limit) => handleCreateCustomerCredit(name, phone, limit)}
       />
 
       <CancelOrderSheet

@@ -52,6 +52,11 @@ export const RecordPaymentSchema = z
     // Split payment amounts — required when paymentMethod is SPLIT
     mpesaAmount: z.number().positive().optional(),
     cashAmount: z.number().positive().optional(),
+    // Credit account IDs — one required when using a credit payment method
+    houseAccountId: z.string().uuid().optional(),
+    corporateAccountId: z.string().uuid().optional(),
+    corporateEmployeeRef: z.string().max(200).optional(),
+    customerCreditAccountId: z.string().uuid().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.paymentMethod === PaymentMethod.SPLIT) {
@@ -61,6 +66,15 @@ export const RecordPaymentSchema = z
       if (data.cashAmount === undefined) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cashAmount is required for split payment', path: ['cashAmount'] });
       }
+    }
+    if (data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT && !data.houseAccountId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'houseAccountId is required for house account payment', path: ['houseAccountId'] });
+    }
+    if (data.paymentMethod === PaymentMethod.CORPORATE_ACCOUNT && !data.corporateAccountId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'corporateAccountId is required for corporate account payment', path: ['corporateAccountId'] });
+    }
+    if (data.paymentMethod === PaymentMethod.CUSTOMER_CREDIT && !data.customerCreditAccountId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'customerCreditAccountId is required for customer credit payment', path: ['customerCreditAccountId'] });
     }
   });
 

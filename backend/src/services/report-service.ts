@@ -11,6 +11,7 @@ import type {
   DirectorPulseReport,
   DirectorTrendsReport,
   MyPerformanceReport,
+  OutstandingBalancesReport,
   ReportType,
   StaffPerformanceReport,
 } from '../types/report.types';
@@ -314,6 +315,64 @@ export const reportService = {
       useCache: false,
       cacheTtlSeconds,
     });
+  },
+
+  getOutstandingBalances: async (actor: Request['user']): Promise<OutstandingBalancesReport> => {
+    if (!actor) throw new ForbiddenError('Authentication required');
+
+    // MANAGER sees only their branch customer credits; others see all
+    const orgId = actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined;
+
+    const { houseAccounts, corporateAccounts, customerCreditAccounts } =
+      await reportRepository.getOutstandingBalances(orgId);
+
+    const sumDecimals = (rows: { currentBalance: { toFixed: (n: number) => string } }[]): string => {
+      const total = rows.reduce((sum, r) => sum + Number.parseFloat(r.currentBalance.toFixed(2)), 0);
+      return total.toFixed(2);
+    };
+
+    const houseTotal = sumDecimals(houseAccounts);
+    const corporateTotal = sumDecimals(corporateAccounts);
+    const creditTotal = sumDecimals(customerCreditAccounts);
+    const grandTotal = (
+      Number.parseFloat(houseTotal) +
+      Number.parseFloat(corporateTotal) +
+      Number.parseFloat(creditTotal)
+    ).toFixed(2);
+
+    return {
+      houseAccounts: houseAccounts.map((a) => ({
+        id: a.id,
+        userId: a.userId,
+        userName: a.user.name,
+        userRole: a.user.role,
+        currentBalance: a.currentBalance.toFixed(2),
+        creditLimit: a.creditLimit ? a.creditLimit.toFixed(2) : null,
+      })),
+      corporateAccounts: corporateAccounts.map((a) => ({
+        id: a.id,
+        companyName: a.companyName,
+        contactName: a.contactName,
+        contactPhone: a.contactPhone,
+        currentBalance: a.currentBalance.toFixed(2),
+        creditLimit: a.creditLimit ? a.creditLimit.toFixed(2) : null,
+      })),
+      customerCreditAccounts: customerCreditAccounts.map((a) => ({
+        id: a.id,
+        organizationId: a.organizationId,
+        organizationName: a.organization.name,
+        customerName: a.customerName,
+        customerPhone: a.customerPhone,
+        currentBalance: a.currentBalance.toFixed(2),
+        creditLimit: a.creditLimit.toFixed(2),
+      })),
+      totals: {
+        houseAccounts: houseTotal,
+        corporateAccounts: corporateTotal,
+        customerCreditAccounts: creditTotal,
+        grandTotal,
+      },
+    };
   },
 };
 

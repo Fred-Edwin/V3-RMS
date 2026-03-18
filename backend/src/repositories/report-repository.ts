@@ -197,6 +197,9 @@ export const reportRepository = {
       CASH: '0.00',
       CARD: '0.00',
       SPLIT: '0.00',
+      HOUSE_ACCOUNT: '0.00',
+      CORPORATE_ACCOUNT: '0.00',
+      CUSTOMER_CREDIT: '0.00',
     };
 
     for (const row of paymentRows) {
@@ -1230,6 +1233,53 @@ export const reportRepository = {
         readyAt: true,
       },
     });
+  },
+
+  getOutstandingBalances: async (organizationId?: string) => {
+    const [houseAccounts, corporateAccounts, customerCreditAccounts] = await Promise.all([
+      prisma.houseAccount.findMany({
+        where: { isActive: true, currentBalance: { gt: 0 } },
+        select: {
+          id: true,
+          userId: true,
+          currentBalance: true,
+          creditLimit: true,
+          user: { select: { name: true, role: true } },
+        },
+        orderBy: { currentBalance: 'desc' },
+      }),
+      prisma.corporateAccount.findMany({
+        where: { isActive: true, currentBalance: { gt: 0 } },
+        select: {
+          id: true,
+          companyName: true,
+          contactName: true,
+          contactPhone: true,
+          currentBalance: true,
+          creditLimit: true,
+        },
+        orderBy: { currentBalance: 'desc' },
+      }),
+      prisma.customerCreditAccount.findMany({
+        where: {
+          isActive: true,
+          currentBalance: { gt: 0 },
+          ...(organizationId ? { organizationId } : {}),
+        },
+        select: {
+          id: true,
+          organizationId: true,
+          customerName: true,
+          customerPhone: true,
+          currentBalance: true,
+          creditLimit: true,
+          organization: { select: { name: true } },
+        },
+        orderBy: { currentBalance: 'desc' },
+      }),
+    ]);
+
+    return { houseAccounts, corporateAccounts, customerCreditAccounts };
   },
 };
 

@@ -1,6 +1,9 @@
 ﻿import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
+import { houseAccountRepository } from '../repositories/house-account-repository';
+import { corporateAccountRepository } from '../repositories/corporate-account-repository';
+import { customerCreditRepository } from '../repositories/customer-credit-repository';
 import { menuRepository, type MenuItemWithCategoryRecord } from '../repositories/menu-repository';
 import {
   orderRepository,
@@ -724,6 +727,44 @@ export const orderService = {
       throw new ValidationError('Delivery orders only accept MPESA payment');
     }
 
+    // Validate credit accounts exist, are active, and won't exceed credit limit (fast-fail check)
+    if (data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT) {
+      const account = await houseAccountRepository.findById(data.houseAccountId!);
+      if (!account || !account.isActive) {
+        throw new NotFoundError('House account not found or inactive');
+      }
+      if (account.creditLimit !== null) {
+        const newBalance = new Prisma.Decimal(account.currentBalance).add(new Prisma.Decimal(order.total));
+        if (newBalance.greaterThan(new Prisma.Decimal(account.creditLimit))) {
+          throw new ConflictError(`Credit limit of KES ${account.creditLimit} would be exceeded`);
+        }
+      }
+    }
+
+    if (data.paymentMethod === PaymentMethod.CORPORATE_ACCOUNT) {
+      const account = await corporateAccountRepository.findById(data.corporateAccountId!);
+      if (!account || !account.isActive) {
+        throw new NotFoundError('Corporate account not found or inactive');
+      }
+      if (account.creditLimit !== null) {
+        const newBalance = new Prisma.Decimal(account.currentBalance).add(new Prisma.Decimal(order.total));
+        if (newBalance.greaterThan(new Prisma.Decimal(account.creditLimit))) {
+          throw new ConflictError(`Credit limit of KES ${account.creditLimit} would be exceeded`);
+        }
+      }
+    }
+
+    if (data.paymentMethod === PaymentMethod.CUSTOMER_CREDIT) {
+      const account = await customerCreditRepository.findById(data.customerCreditAccountId!, organizationId);
+      if (!account || !account.isActive) {
+        throw new NotFoundError('Customer credit account not found or inactive');
+      }
+      const newBalance = new Prisma.Decimal(account.currentBalance).add(new Prisma.Decimal(order.total));
+      if (newBalance.greaterThan(new Prisma.Decimal(account.creditLimit))) {
+        throw new ConflictError(`Credit limit of KES ${account.creditLimit} would be exceeded`);
+      }
+    }
+
     // For split payment, validate that amounts sum to the order total
     if (data.paymentMethod === PaymentMethod.SPLIT) {
       const orderTotal = Number(order.total);
@@ -736,12 +777,24 @@ export const orderService = {
       }
     }
 
-    const updated = await orderRepository.recordPayment(orderId, organizationId, {
-      paymentMethod: data.paymentMethod,
-      mpesaCode: data.mpesaCode ?? null,
-      mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
-      cashAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cashAmount ?? null) : null,
-    });
+    let updated;
+    try {
+      updated = await orderRepository.recordPayment(orderId, organizationId, {
+        paymentMethod: data.paymentMethod,
+        mpesaCode: data.mpesaCode ?? null,
+        mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
+        cashAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cashAmount ?? null) : null,
+        houseAccountId: data.houseAccountId ?? null,
+        corporateAccountId: data.corporateAccountId ?? null,
+        corporateEmployeeRef: data.corporateEmployeeRef ?? null,
+        customerCreditAccountId: data.customerCreditAccountId ?? null,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'CREDIT_LIMIT_EXCEEDED') {
+        throw new ConflictError('Credit limit would be exceeded by this order');
+      }
+      throw err;
+    }
     if (!updated) {
       throw new NotFoundError('Order not found');
     }

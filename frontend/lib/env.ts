@@ -3,6 +3,7 @@ export const env = {
   socketUrl: process.env.NEXT_PUBLIC_SOCKET_URL ?? 'http://localhost:4000',
   roleDesktopPreview: process.env.NEXT_PUBLIC_ROLE_DESKTOP_PREVIEW === 'true',
   notificationsV2: process.env.NEXT_PUBLIC_NOTIFICATIONS_V2 !== 'false',
+  creditAccounts: process.env.NEXT_PUBLIC_CREDIT_ACCOUNTS_ENABLED === 'true',
   cookieDomain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN ?? '',
   firebaseApiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
   firebaseAuthDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '',

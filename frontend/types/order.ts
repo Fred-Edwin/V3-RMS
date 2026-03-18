@@ -1,6 +1,6 @@
 ﻿export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANCELLED';
-export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT';
+export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT' | 'HOUSE_ACCOUNT' | 'CORPORATE_ACCOUNT' | 'CUSTOMER_CREDIT';
 export type PrepStation = 'KITCHEN' | 'BARISTA';
 export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED';
 export type OrderListView = 'full' | 'summary';
@@ -55,10 +55,19 @@ export interface DeliveryZoneSummary {
   fee: string;
 }
 
+export interface CreditAccountSummary {
+  id: string;
+  name: string; // user name for house, company name for corporate, customer name for credit
+}
+
 export interface OrderDetail extends OrderSummary {
   items: OrderItemDetail[];
   closedAt: string | null;
   deliveryZone: DeliveryZoneSummary | null;
+  houseAccountId: string | null;
+  corporateAccountId: string | null;
+  corporateEmployeeRef: string | null;
+  customerCreditAccountId: string | null;
 }
 
 export interface CreateOrderItem {
