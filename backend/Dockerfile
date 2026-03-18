@@ -13,17 +13,12 @@ COPY prisma ./prisma/
 # Install all dependencies (including devDependencies for TypeScript build)
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma client
-RUN pnpm prisma:generate
-
-# Copy source and compile TypeScript
+# Copy source and compile TypeScript (pnpm build runs prisma:generate + tsc)
 COPY . .
 RUN pnpm build
 
 # ── Stage 2: Production image ────────────────────────────────────────────────
 FROM node:22-alpine AS production
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 

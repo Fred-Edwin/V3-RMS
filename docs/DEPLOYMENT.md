@@ -402,7 +402,37 @@ nano ~/wendo-rms/.env
 
 ---
 
-## 6. First Deployment
+## 6. One-Time Server Setup for Image Pulling
+
+The server no longer builds Docker images. It pulls pre-built images from GitHub Container Registry (ghcr.io). This one-time setup is required after provisioning a new server.
+
+### Authenticate Docker to ghcr.io
+
+1. Create a GitHub Personal Access Token (PAT):
+   - GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Scopes required: `read:packages`
+   - Name: `wendo-server-ghcr-pull`
+
+2. SSH into the server and log in:
+
+```bash
+echo "YOUR_PAT_VALUE" | docker login ghcr.io -u fred-edwin --password-stdin
+# Expected: Login Succeeded
+```
+
+This writes credentials to `~/.docker/config.json` and persists until you explicitly log out. Docker will use these credentials for all subsequent `docker pull ghcr.io/fred-edwin/*` operations.
+
+### GitHub Actions — Required Repository Setting
+
+Go to: GitHub → Fred-Edwin/V3-RMS → Settings → Actions → General → Workflow permissions
+
+Set to: **Read and write permissions**
+
+This allows the `GITHUB_TOKEN` (auto-provided by GitHub Actions) to push packages to ghcr.io without a separate PAT.
+
+---
+
+## 6a. First Deployment
 
 ```bash
 cd ~/wendo-rms
@@ -413,8 +443,13 @@ docker compose up -d postgres redis
 # Wait for both to be healthy
 docker compose ps
 
-# Start api and worker (this builds the Docker images — takes ~4 minutes on first run)
-docker compose up -d api worker
+# IMAGE_TAG must be set before starting api/worker.
+# Get the SHA tag from the first GitHub Actions build run, then:
+echo "IMAGE_TAG=sha-<first-commit-sha>" >> .env
+
+# Pull and start api and worker (fast — no compilation on server)
+IMAGE_TAG=sha-<first-commit-sha> docker compose pull api worker
+IMAGE_TAG=sha-<first-commit-sha> docker compose up -d api worker
 
 # Check all 4 containers are running
 docker compose ps
@@ -449,13 +484,17 @@ vercel --prod
 
 ### Automated (recommended)
 
-Every push to `main` triggers a GitHub Actions workflow that automatically:
-1. Runs `prisma migrate deploy` (no-op if no new migrations)
-2. Pulls latest code on the server
-3. Rebuilds `api` and `worker` images
-4. Restarts containers — `postgres` and `redis` keep running, no data risk
-5. Health checks `/api/v1/health` — fails the deploy if the API doesn't come up
-6. Cleans up old Docker images
+Every push to `main` triggers a GitHub Actions workflow (`validate` → `build` → `deploy`):
+
+1. **validate** — installs dependencies, compiles TypeScript, runs tests and frontend typecheck
+2. **build** — builds the Docker image on the GitHub Actions runner (not the server), pushes to `ghcr.io/fred-edwin/v3-rms-backend:sha-<commit>` using BuildKit layer cache
+3. **deploy** — SSHs into the Droplet, calls `bash deploy.sh <image-tag>`:
+   - Pulls latest repo files (`git pull`)
+   - Pulls the pre-built image from ghcr.io
+   - Runs `prisma migrate deploy` as a one-off container from the **new** image (before swapping live containers)
+   - Restarts `api` and `worker` — `postgres` and `redis` keep running, no data risk
+   - Health checks `/api/v1/health` — fails the deploy if the API doesn't come up
+   - Cleans up dangling image layers
 
 Monitor runs at: GitHub → repo → **Actions** tab.
 
@@ -465,8 +504,10 @@ SSH in and run:
 
 ```bash
 cd ~/wendo-rms
-bash deploy.sh
+bash deploy.sh sha-<commit-sha>
 ```
+
+Find the tag from: `docker images ghcr.io/fred-edwin/v3-rms-backend` or GitHub Actions run history.
 
 **Important:** Never edit files in `~/wendo-rms` directly on the server. All changes go through git. The only files safe to edit on the server are `.env` files (gitignored).
 
@@ -757,24 +798,21 @@ NEXT_PUBLIC_SOCKET_URL=https://api.wendo-rms.co.ke
 
 ### Application Rollback
 
+Images for every deploy are stored in ghcr.io and tagged by git SHA. Rollback is instant — no rebuild required.
+
 ```bash
+# SSH into the server
 cd ~/wendo-rms
 
-# Find the last working commit
-git log --oneline -10
+# Find the previous working SHA tag (either from GitHub Actions history
+# or by listing locally cached images)
+docker images ghcr.io/fred-edwin/v3-rms-backend
 
-# Check out that commit
-git checkout COMMIT_HASH
-
-# Rebuild and restart
-docker compose build api worker
-docker compose up -d --no-deps api worker
-
-# Verify
-curl http://localhost:4000/api/v1/auth/login \
-  -X POST -H "Content-Type: application/json" \
-  -d '{"email":"test","password":"test"}'
+# Roll back to that tag
+bash deploy.sh sha-<previous-sha>
 ```
+
+The deploy script will pull the old image (already cached if it was recently used), run migrations (no-op if schema is unchanged), and restart containers.
 
 ### Database Rollback
 

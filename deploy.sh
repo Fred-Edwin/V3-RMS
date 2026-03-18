@@ -1,28 +1,45 @@
 #!/usr/bin/env bash
 # Wendo RMS — Production Deploy Script
-# Run from ~/wendo-rms on the server
-# Usage: ./deploy.sh
+# Called by GitHub Actions after the image is built and pushed to ghcr.io.
+# Usage: bash deploy.sh <image-tag>
+# Example: bash deploy.sh sha-a1b2c3d
 
-set -e  # Exit immediately on any error
+set -e
+
+IMAGE_TAG="${1:?ERROR: image tag argument is required. Usage: bash deploy.sh <sha-tag>}"
 
 echo "=== Wendo RMS Deploy ==="
 echo "Started at: $(date)"
+echo "Image: ghcr.io/fred-edwin/v3-rms-backend:$IMAGE_TAG"
 
-# Pull the latest code from main
-echo "--- Pulling latest code..."
+# Pull latest code (docker-compose.yml, deploy.sh — not the app itself, that's in the image)
+echo "--- Pulling latest repo files..."
 git pull origin main
 
-# Run any pending database migrations (uses the already-running api container)
+# Write IMAGE_TAG into the root .env so docker-compose.yml can substitute ${IMAGE_TAG}
+# Updates the line if it already exists, appends it if not
+if grep -q "^IMAGE_TAG=" .env 2>/dev/null; then
+  sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=$IMAGE_TAG|" .env
+else
+  echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+fi
+
+# Pull the pre-built image from ghcr.io (no compilation on the server)
+echo "--- Pulling image..."
+IMAGE_TAG="$IMAGE_TAG" docker compose pull api worker
+
+# Run database migrations using a one-off container from the NEW image
+# Runs BEFORE replacing the live containers so the schema is ready for the new code
 echo "--- Running database migrations..."
-docker compose exec api npx prisma migrate deploy
+IMAGE_TAG="$IMAGE_TAG" docker compose run --rm --no-deps \
+  -e START_BULLMQ_WORKERS=false \
+  api \
+  npx prisma migrate deploy
 
-# Rebuild only the application images (postgres and redis are not rebuilt)
-echo "--- Building new images..."
-docker compose build api worker
-
-# Restart only the application containers (databases keep running — no data risk)
+# Swap api and worker to the new image (postgres and redis keep running — no data risk)
+# --pull never: image was already pulled above; skip redundant pull attempt
 echo "--- Restarting API and worker..."
-docker compose up -d --no-deps api worker
+IMAGE_TAG="$IMAGE_TAG" docker compose up -d --no-deps --pull never api worker
 
 # Wait for the API health check to pass
 echo "--- Waiting for API health check..."
@@ -39,20 +56,21 @@ done
 
 if [ "$HEALTHY" = false ]; then
   echo ""
-  echo "!!! API failed to start after 60 seconds. Last logs:"
+  echo "!!! API failed health check after 60 seconds. Last logs:"
   docker compose logs api --tail=50
   echo ""
-  echo "!!! Deploy FAILED. Fix the issue and re-run ./deploy.sh"
+  echo "To rollback to the previous image, run:"
+  echo "  bash deploy.sh <previous-sha-tag>"
+  echo "(Find previous tags in: GitHub Actions history or \`docker images ghcr.io/fred-edwin/v3-rms-backend\`)"
   exit 1
 fi
 
 echo "--- API is healthy."
 
-# Remove dangling images and build cache older than 24h to free disk space
-# Keeps recent cache so the next deploy stays fast
-echo "--- Cleaning up old Docker images and build cache..."
+# Remove dangling image layers (unreferenced by any tag or running container)
+# Do NOT prune builder cache — there is no builder on this server anymore
+echo "--- Cleaning up dangling images..."
 docker image prune -f
-docker builder prune -f --filter "until=24h"
 
 echo ""
 echo "=== Deploy complete at $(date) ==="

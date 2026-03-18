@@ -39,10 +39,11 @@ services:
       - wendo-network
 
   # ── API Server ─────────────────────────────────────────────────────────────
+  # Production: IMAGE_TAG is set by deploy.sh (git SHA, e.g. sha-a1b2c3d)
+  # Local dev:  use `docker compose build` with the build override file, or
+  #             set IMAGE_TAG=local and build manually.
   api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/fred-edwin/v3-rms-backend:${IMAGE_TAG}
     container_name: wendo-api
     restart: unless-stopped
     ports:
@@ -61,10 +62,9 @@ services:
       - wendo-network
 
   # ── BullMQ Worker ──────────────────────────────────────────────────────────
+  # Same image as api — differentiated only by START_BULLMQ_WORKERS env var
   worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/fred-edwin/v3-rms-backend:${IMAGE_TAG}
     container_name: wendo-worker
     restart: unless-stopped
     env_file:
