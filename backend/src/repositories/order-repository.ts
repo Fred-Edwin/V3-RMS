@@ -405,6 +405,7 @@ export const orderRepository = {
       creates: Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }>;
       actorId: string;
       reopenOrder: boolean;
+      orderNotes?: string;
     },
   ): Promise<FullOrderPrismaRecord | null> => {
     return prisma.$transaction(async (tx) => {
@@ -449,6 +450,7 @@ export const orderRepository = {
           subtotal: newTotals.subtotal,
           total: newTotals.total,
           ...(ticketPlan.reopenOrder ? { status: OrderStatus.IN_PROGRESS } : {}),
+          ...(ticketPlan.orderNotes !== undefined ? { notes: ticketPlan.orderNotes || null } : {}),
         },
       });
       for (const update of ticketPlan.updates) {

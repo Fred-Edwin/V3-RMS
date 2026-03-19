@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { Minus, Plus, Trash2 } from 'lucide-react';
-import { BottomSheet, Button, IconButton, PriceDisplay } from '@/components/ui';
+import { BottomSheet, Button, IconButton, PriceDisplay, Textarea } from '@/components/ui';
 import { selectCartCount, selectCartTotal, useOrderStore } from '@/store/orderStore';
 import type { PrepStation } from '@/types/order';
 
@@ -9,6 +9,8 @@ interface EditCheckoutSheetProps {
   isOpen: boolean;
   isSubmitting: boolean;
   lockedStations?: PrepStation[];
+  notes: string;
+  onNotesChange: (value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
 }
@@ -17,6 +19,8 @@ export function EditCheckoutSheet({
   isOpen,
   isSubmitting,
   lockedStations = [],
+  notes,
+  onNotesChange,
   onClose,
   onSubmit,
 }: EditCheckoutSheetProps): JSX.Element {
@@ -30,6 +34,14 @@ export function EditCheckoutSheet({
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Review Changes">
       <div className="space-y-4">
+        <Textarea
+          label="Customer Instructions"
+          value={notes}
+          onChange={(event) => onNotesChange(event.target.value)}
+          placeholder="Optional instructions..."
+          disabled={isSubmitting}
+        />
+
         <div className="space-y-3 rounded-md border border-stone-200 bg-white p-3">
           <p className="text-label-sm text-stone-500">Items ({cartItemCount})</p>
           {cart.length === 0 ? (

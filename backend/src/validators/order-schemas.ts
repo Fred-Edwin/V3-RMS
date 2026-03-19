@@ -42,6 +42,7 @@ export const CreateOrderSchema = z.discriminatedUnion('type', [
 
 export const UpdateOrderItemsSchema = z.object({
   items: z.array(OrderItemInputSchema).min(1),
+  notes: z.string().max(1000).optional(),
 });
 
 export const RecordPaymentSchema = z

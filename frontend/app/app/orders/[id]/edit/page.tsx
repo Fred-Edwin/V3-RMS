@@ -35,6 +35,7 @@ export default function EditOrderPage(): JSX.Element {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (!accessToken || !params.id) {
@@ -44,6 +45,7 @@ export default function EditOrderPage(): JSX.Element {
     Promise.all([orderService.getById(params.id, accessToken), menuService.getMenu(accessToken)])
       .then(([loadedOrder, menu]) => {
         setOrder(loadedOrder);
+        setNotes(loadedOrder.notes ?? '');
         setCategories(menu.categories);
         setSelectedCategoryId(menu.categories[0]?.id ?? null);
         const prepStationByItemId = new Map<string, PrepStation>();
@@ -145,6 +147,7 @@ export default function EditOrderPage(): JSX.Element {
             quantity: item.quantity,
             notes: item.notes,
           })),
+          notes,
         },
         accessToken,
       );
@@ -271,6 +274,8 @@ export default function EditOrderPage(): JSX.Element {
         isOpen={isCheckoutOpen}
         isSubmitting={isSubmitting}
         lockedStations={lockedStations}
+        notes={notes}
+        onNotesChange={setNotes}
         onClose={() => {
           if (!isSubmitting) {
             setIsCheckoutOpen(false);

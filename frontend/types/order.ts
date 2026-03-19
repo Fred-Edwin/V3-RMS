@@ -100,6 +100,7 @@ export type CreateOrderDto = CreateOrderDineIn | CreateOrderTakeAway | CreateOrd
 
 export interface UpdateOrderItemsDto {
   items: CreateOrderItem[];
+  notes?: string;
 }
 
 export interface PrepTicketItemSnapshot {

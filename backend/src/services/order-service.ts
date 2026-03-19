@@ -683,6 +683,7 @@ export const orderService = {
         creates: ticketCreates,
         actorId: actor.id,
         reopenOrder,
+        orderNotes: data.notes,
       },
     );
 
