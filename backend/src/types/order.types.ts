@@ -70,6 +70,8 @@ export interface OrderSummaryRecord {
   mpesaCode: string | null;
   mpesaAmount: string | null;
   cashAmount: string | null;
+  cardAmount: string | null;
+  splitType: string | null;
   paidAt: Date | null;
   cancelReason: string | null;
   cancelledBy: { id: string; name: string } | null;
@@ -97,6 +99,8 @@ export interface OrderRecord {
   mpesaCode: string | null;
   mpesaAmount: string | null;
   cashAmount: string | null;
+  cardAmount: string | null;
+  splitType: string | null;
   paidAt: Date | null;
   cancelReason: string | null;
   cancelledBy: { id: string; name: string } | null;

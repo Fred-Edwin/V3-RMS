@@ -489,6 +489,8 @@ describe('orderService.recordPayment', () => {
         mpesaCode: null,
         mpesaAmount: null,
         cashAmount: null,
+        cardAmount: null,
+        splitType: null,
         houseAccountId: null,
         corporateAccountId: null,
         corporateEmployeeRef: null,

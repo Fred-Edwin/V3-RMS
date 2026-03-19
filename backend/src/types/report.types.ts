@@ -34,6 +34,16 @@ export interface DailySummaryReport {
   };
 }
 
+export interface WaiterPaymentBreakdown {
+  mpesa: string;
+  cash: string;
+  card: string;
+  houseAccount: string;
+  corporateAccount: string;
+  customerCredit: string;
+  total: string;
+}
+
 export interface StaffPerformanceRow {
   id: string;
   name: string;
@@ -43,6 +53,7 @@ export interface StaffPerformanceRow {
   averagePrepTimeMinutes: number | null;
   scheduledHours: number;
   actualHours: number;
+  paymentBreakdown: WaiterPaymentBreakdown | null;
 }
 
 export interface StaffPerformanceReport {
@@ -146,6 +157,7 @@ export interface WaiterMyPerformanceReport {
     name: string;
     quantitySold: number;
   }>;
+  paymentBreakdown: WaiterPaymentBreakdown;
 }
 
 export interface PrepMyPerformanceReport {

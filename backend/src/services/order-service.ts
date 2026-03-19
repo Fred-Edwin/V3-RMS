@@ -196,6 +196,8 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
     mpesaCode: order.mpesaCode,
     mpesaAmount: order.mpesaAmount?.toString() ?? null,
     cashAmount: order.cashAmount?.toString() ?? null,
+    cardAmount: order.cardAmount?.toString() ?? null,
+    splitType: order.splitType ?? null,
     paidAt: order.paidAt,
     cancelReason: order.cancelReason,
     cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
@@ -242,6 +244,8 @@ const serializeOrderSummary = (order: SummaryOrderPrismaRecord): OrderSummaryRec
     mpesaCode: order.mpesaCode,
     mpesaAmount: order.mpesaAmount?.toString() ?? null,
     cashAmount: order.cashAmount?.toString() ?? null,
+    cardAmount: order.cardAmount?.toString() ?? null,
+    splitType: order.splitType ?? null,
     paidAt: order.paidAt,
     cancelReason: order.cancelReason,
     cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
@@ -769,7 +773,7 @@ export const orderService = {
     // For split payment, validate that amounts sum to the order total
     if (data.paymentMethod === PaymentMethod.SPLIT) {
       const orderTotal = Number(order.total);
-      const splitTotal = (data.mpesaAmount ?? 0) + (data.cashAmount ?? 0);
+      const splitTotal = (data.mpesaAmount ?? 0) + (data.cashAmount ?? 0) + (data.cardAmount ?? 0);
       // Allow a 1 KES tolerance for decimal rounding
       if (Math.abs(splitTotal - orderTotal) > 1) {
         throw new ValidationError(
@@ -785,6 +789,8 @@ export const orderService = {
         mpesaCode: data.mpesaCode ?? null,
         mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
         cashAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cashAmount ?? null) : null,
+        cardAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cardAmount ?? null) : null,
+        splitType: data.paymentMethod === PaymentMethod.SPLIT ? (data.splitType ?? null) : null,
         houseAccountId: data.houseAccountId ?? null,
         corporateAccountId: data.corporateAccountId ?? null,
         corporateEmployeeRef: data.corporateEmployeeRef ?? null,

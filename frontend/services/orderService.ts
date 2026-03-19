@@ -87,6 +87,8 @@ export const orderService = {
       mpesaCode?: string;
       mpesaAmount?: number;
       cashAmount?: number;
+      cardAmount?: number;
+      splitType?: string;
     },
     accessToken: string,
   ): Promise<OrderDetail> => {

@@ -15,6 +15,7 @@ import type {
   StaffPerformanceReport,
   StaffPerformanceRow,
   WaiterMyPerformanceReport,
+  WaiterPaymentBreakdown,
 } from '../types/report.types';
 
 const roleOrder: Record<StaffPerformanceRow['role'], number> = {
@@ -30,6 +31,58 @@ const roleToStation: Record<'CHEF' | 'BARISTA', PrepStation> = {
 
 const toCurrencyString = (value: Prisma.Decimal | null | undefined): string => {
   return (value ?? new Prisma.Decimal(0)).toFixed(2);
+};
+
+type PaymentOrderRow = {
+  paymentMethod: string | null;
+  total: Prisma.Decimal;
+  mpesaAmount: Prisma.Decimal | null;
+  cashAmount: Prisma.Decimal | null;
+  cardAmount: Prisma.Decimal | null;
+  splitType: string | null;
+};
+
+const computePaymentBreakdown = (orders: PaymentOrderRow[]): WaiterPaymentBreakdown => {
+  let mpesa = new Prisma.Decimal(0);
+  let cash = new Prisma.Decimal(0);
+  let card = new Prisma.Decimal(0);
+  let houseAccount = new Prisma.Decimal(0);
+  let corporateAccount = new Prisma.Decimal(0);
+  let customerCredit = new Prisma.Decimal(0);
+
+  for (const order of orders) {
+    const method = order.paymentMethod;
+    if (!method) continue;
+    if (method === 'MPESA') {
+      mpesa = mpesa.add(order.total);
+    } else if (method === 'CASH') {
+      cash = cash.add(order.total);
+    } else if (method === 'CARD') {
+      card = card.add(order.total);
+    } else if (method === 'HOUSE_ACCOUNT') {
+      houseAccount = houseAccount.add(order.total);
+    } else if (method === 'CORPORATE_ACCOUNT') {
+      corporateAccount = corporateAccount.add(order.total);
+    } else if (method === 'CUSTOMER_CREDIT') {
+      customerCredit = customerCredit.add(order.total);
+    } else if (method === 'SPLIT') {
+      if (order.mpesaAmount) mpesa = mpesa.add(order.mpesaAmount);
+      if (order.cashAmount) cash = cash.add(order.cashAmount);
+      if (order.cardAmount) card = card.add(order.cardAmount);
+    }
+  }
+
+  const total = mpesa.add(cash).add(card).add(houseAccount).add(corporateAccount).add(customerCredit);
+
+  return {
+    mpesa: mpesa.toFixed(2),
+    cash: cash.toFixed(2),
+    card: card.toFixed(2),
+    houseAccount: houseAccount.toFixed(2),
+    corporateAccount: corporateAccount.toFixed(2),
+    customerCredit: customerCredit.toFixed(2),
+    total: total.toFixed(2),
+  };
 };
 
 const toNextDate = (date: Date): Date => {
@@ -322,7 +375,7 @@ export const reportRepository = {
       .filter((user) => user.role === 'CHEF' || user.role === 'BARISTA')
       .map((user) => user.id);
 
-    const [waiterRows, prepRows, assignmentRows, clockRows] = await Promise.all([
+    const [waiterRows, prepRows, assignmentRows, clockRows, waiterPaymentOrders] = await Promise.all([
       waiterIds.length === 0
         ? Promise.resolve([])
         : prisma.order.groupBy({
@@ -414,6 +467,25 @@ export const reportRepository = {
           clockOutAt: true,
         },
       }),
+      waiterIds.length === 0
+        ? Promise.resolve([])
+        : prisma.order.findMany({
+            where: {
+              organizationId,
+              status: OrderStatus.CLOSED,
+              createdById: { in: waiterIds },
+              orderDate: { gte: start, lt: endExclusive },
+            },
+            select: {
+              createdById: true,
+              paymentMethod: true,
+              total: true,
+              mpesaAmount: true,
+              cashAmount: true,
+              cardAmount: true,
+              splitType: true,
+            },
+          }),
     ]);
 
     const waiterStats = new Map<
@@ -460,6 +532,13 @@ export const reportRepository = {
       actualByUser.set(clock.userId, current);
     }
 
+    const paymentOrdersByWaiter = new Map<string, PaymentOrderRow[]>();
+    for (const order of waiterPaymentOrders) {
+      const current = paymentOrdersByWaiter.get(order.createdById) ?? [];
+      current.push(order);
+      paymentOrdersByWaiter.set(order.createdById, current);
+    }
+
     const staff: StaffPerformanceRow[] = users.map((user) => {
       const scheduledHours = computeScheduledHours(
         (scheduledByUser.get(user.id) ?? []).map((assignment) => ({
@@ -485,6 +564,7 @@ export const reportRepository = {
           averagePrepTimeMinutes: null,
           scheduledHours,
           actualHours,
+          paymentBreakdown: computePaymentBreakdown(paymentOrdersByWaiter.get(user.id) ?? []),
         };
       }
 
@@ -500,6 +580,7 @@ export const reportRepository = {
         averagePrepTimeMinutes: computeAveragePrepMinutes(userTickets),
         scheduledHours,
         actualHours,
+        paymentBreakdown: null,
       };
     });
 
@@ -966,6 +1047,11 @@ export const reportRepository = {
         select: {
           orderDate: true,
           total: true,
+          paymentMethod: true,
+          mpesaAmount: true,
+          cashAmount: true,
+          cardAmount: true,
+          splitType: true,
           items: {
             select: {
               quantity: true,
@@ -1033,6 +1119,7 @@ export const reportRepository = {
         busiestDay,
         ordersOverTime,
         topItems,
+        paymentBreakdown: computePaymentBreakdown(orders),
       };
 
       return waiterReport;

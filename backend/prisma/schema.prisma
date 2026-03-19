@@ -241,6 +241,8 @@ model Order {
   mpesaCode               String?               @map("mpesa_code")
   mpesaAmount             Decimal?              @db.Decimal(10, 2) @map("mpesa_amount")
   cashAmount              Decimal?              @db.Decimal(10, 2) @map("cash_amount")
+  cardAmount              Decimal?              @db.Decimal(10, 2) @map("card_amount")
+  splitType               String?               @map("split_type")
   paidAt                  DateTime?             @map("paid_at")
   cancelReason            String?               @map("cancel_reason")
   cancelledById           String?               @map("cancelled_by_id")

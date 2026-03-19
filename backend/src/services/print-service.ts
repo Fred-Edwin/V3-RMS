@@ -36,6 +36,12 @@ interface ReceiptData {
   // Only present on RECEIPT type (payment confirmed)
   paymentMethod?: string;
   paidAt?: string;
+  // Payment detail fields — present when relevant on confirmed receipts
+  mpesaCode?: string;
+  mpesaAmount?: number;
+  cashAmount?: number;
+  cardAmount?: number;
+  splitType?: string;
 }
 
 const getFirstName = (fullName: string): string =>
@@ -126,7 +132,19 @@ export const printService = {
       total: toDecimalNumber(order.total),
       // Payment fields only included on confirmed receipts
       ...(receiptType === 'RECEIPT' && order.paymentMethod
-        ? { paymentMethod: order.paymentMethod, paidAt: timestampRef.toISOString() }
+        ? {
+            paymentMethod: order.paymentMethod,
+            paidAt: timestampRef.toISOString(),
+            ...(order.mpesaCode ? { mpesaCode: order.mpesaCode } : {}),
+            ...(order.paymentMethod === 'SPLIT'
+              ? {
+                  ...(order.splitType ? { splitType: order.splitType } : {}),
+                  ...(order.mpesaAmount ? { mpesaAmount: toDecimalNumber(order.mpesaAmount) } : {}),
+                  ...(order.cashAmount ? { cashAmount: toDecimalNumber(order.cashAmount) } : {}),
+                  ...(order.cardAmount ? { cardAmount: toDecimalNumber(order.cardAmount) } : {}),
+                }
+              : {}),
+          }
         : {}),
     };
 

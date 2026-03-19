@@ -31,6 +31,8 @@ export interface OrderSummary {
   mpesaCode: string | null;
   mpesaAmount: string | null;
   cashAmount: string | null;
+  cardAmount: string | null;
+  splitType: string | null;
   paidAt: string | null;
   createdAt: string;
   cancelReason: string | null;

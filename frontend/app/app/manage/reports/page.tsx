@@ -228,6 +228,36 @@ export default function ManagerReportsPage(): JSX.Element {
           ),
       },
       {
+        key: 'paymentMpesa',
+        label: 'Mpesa Collected',
+        render: (_value, row) =>
+          row.paymentBreakdown ? (
+            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.mpesa)}</span>
+          ) : (
+            <span className="text-stone-400">—</span>
+          ),
+      },
+      {
+        key: 'paymentCash',
+        label: 'Cash Collected',
+        render: (_value, row) =>
+          row.paymentBreakdown ? (
+            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.cash)}</span>
+          ) : (
+            <span className="text-stone-400">—</span>
+          ),
+      },
+      {
+        key: 'paymentCard',
+        label: 'Card Collected',
+        render: (_value, row) =>
+          row.paymentBreakdown ? (
+            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.card)}</span>
+          ) : (
+            <span className="text-stone-400">—</span>
+          ),
+      },
+      {
         key: 'scheduledHours',
         label: 'Scheduled Hrs',
         render: (value) => <span className="tabular-nums">{Number(value).toFixed(2)}</span>,

@@ -14,6 +14,8 @@ export interface PaymentPayload {
   mpesaCode?: string;
   mpesaAmount?: number;
   cashAmount?: number;
+  cardAmount?: number;
+  splitType?: string;
   houseAccountId?: string;
   corporateAccountId?: string;
   corporateEmployeeRef?: string;
@@ -40,11 +42,16 @@ interface OrderDetailBottomSheetProps {
   onCreateCustomerCredit?: (name: string, phone: string, creditLimit: string) => Promise<string>;
 }
 
-const BASE_PAYMENT_OPTIONS = [
+// UI-level split type options — all resolve to paymentMethod: SPLIT on submit
+type UiPaymentValue = PaymentMethod | 'SPLIT_MPESA_CASH' | 'SPLIT_MPESA_CARD' | 'SPLIT_CASH_CARD';
+
+const BASE_PAYMENT_OPTIONS: Array<{ value: UiPaymentValue; label: string }> = [
   { value: 'MPESA', label: 'Mpesa' },
   { value: 'CASH', label: 'Cash' },
   { value: 'CARD', label: 'Card' },
-  { value: 'SPLIT', label: 'Split (Mpesa + Cash)' },
+  { value: 'SPLIT_MPESA_CASH', label: 'Split: Mpesa + Cash' },
+  { value: 'SPLIT_MPESA_CARD', label: 'Split: Mpesa + Card' },
+  { value: 'SPLIT_CASH_CARD', label: 'Split: Cash + Card' },
 ];
 
 const CREDIT_PAYMENT_OPTIONS = [
@@ -72,10 +79,11 @@ export function OrderDetailBottomSheet({
   customerCreditAccounts = [],
   onCreateCustomerCredit,
 }: OrderDetailBottomSheetProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('MPESA');
+  const [uiPaymentMethod, setUiPaymentMethod] = useState<UiPaymentValue>('MPESA');
   const [mpesaCode, setMpesaCode] = useState('');
   const [mpesaAmount, setMpesaAmount] = useState('');
   const [cashAmount, setCashAmount] = useState('');
+  const [cardAmount, setCardAmount] = useState('');
   const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
 
   // Credit account selectors
@@ -250,12 +258,13 @@ export function OrderDetailBottomSheet({
                   <Select
                     label="Payment method"
                     options={env.creditAccounts ? [...BASE_PAYMENT_OPTIONS, ...CREDIT_PAYMENT_OPTIONS] : BASE_PAYMENT_OPTIONS}
-                    value={paymentMethod}
+                    value={uiPaymentMethod}
                     onChange={(event) => {
-                      setPaymentMethod(event.target.value as PaymentMethod);
+                      setUiPaymentMethod(event.target.value as UiPaymentValue);
                       setMpesaCode('');
                       setMpesaAmount('');
                       setCashAmount('');
+                      setCardAmount('');
                       setSelectedHouseAccountId('');
                       setSelectedCorporateAccountId('');
                       setCorporateEmployeeRef('');
@@ -264,8 +273,8 @@ export function OrderDetailBottomSheet({
                     }}
                   />
 
-                  {/* Mpesa transaction code — shown for MPESA and SPLIT */}
-                  {(paymentMethod === 'MPESA' || paymentMethod === 'SPLIT') && (
+                  {/* Mpesa transaction code — shown for MPESA and split types that include Mpesa */}
+                  {(uiPaymentMethod === 'MPESA' || uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD') && (
                     <Input
                       label="Mpesa transaction code"
                       placeholder="e.g. QHG3KL9XPO"
@@ -275,7 +284,7 @@ export function OrderDetailBottomSheet({
                   )}
 
                   {/* Split payment amount inputs */}
-                  {paymentMethod === 'SPLIT' && (
+                  {(uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD' || uiPaymentMethod === 'SPLIT_CASH_CARD') && (
                     <div className="rounded-md border border-stone-200 p-3 space-y-3">
                       <p className="text-label-sm font-medium text-stone-700">
                         Split amounts must total{' '}
@@ -284,41 +293,81 @@ export function OrderDetailBottomSheet({
                         </span>
                       </p>
                       <div className="grid grid-cols-2 gap-3">
-                        <Input
-                          label="Mpesa amount (KES)"
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="0"
-                          value={mpesaAmount}
-                          onChange={(e) => {
-                            setMpesaAmount(e.target.value);
-                            // Auto-fill cash remainder
-                            const total = Number.parseFloat(order.total);
-                            const mpesa = Number.parseFloat(e.target.value) || 0;
-                            const remainder = total - mpesa;
-                            if (remainder >= 0) setCashAmount(remainder.toFixed(2));
-                          }}
-                        />
-                        <Input
-                          label="Cash amount (KES)"
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="0"
-                          value={cashAmount}
-                          onChange={(e) => setCashAmount(e.target.value)}
-                        />
+                        {/* First amount field */}
+                        {(uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD') && (
+                          <Input
+                            label="Mpesa amount (KES)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={mpesaAmount}
+                            onChange={(e) => {
+                              setMpesaAmount(e.target.value);
+                              const total = Number.parseFloat(order.total);
+                              const first = Number.parseFloat(e.target.value) || 0;
+                              const remainder = (total - first).toFixed(2);
+                              if (total - first >= 0) {
+                                if (uiPaymentMethod === 'SPLIT_MPESA_CASH') setCashAmount(remainder);
+                                else setCardAmount(remainder);
+                              }
+                            }}
+                          />
+                        )}
+                        {uiPaymentMethod === 'SPLIT_CASH_CARD' && (
+                          <Input
+                            label="Cash amount (KES)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={cashAmount}
+                            onChange={(e) => {
+                              setCashAmount(e.target.value);
+                              const total = Number.parseFloat(order.total);
+                              const first = Number.parseFloat(e.target.value) || 0;
+                              const remainder = total - first;
+                              if (remainder >= 0) setCardAmount(remainder.toFixed(2));
+                            }}
+                          />
+                        )}
+                        {/* Second amount field */}
+                        {uiPaymentMethod === 'SPLIT_MPESA_CASH' && (
+                          <Input
+                            label="Cash amount (KES)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={cashAmount}
+                            onChange={(e) => setCashAmount(e.target.value)}
+                          />
+                        )}
+                        {(uiPaymentMethod === 'SPLIT_MPESA_CARD' || uiPaymentMethod === 'SPLIT_CASH_CARD') && (
+                          <Input
+                            label="Card amount (KES)"
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="0"
+                            value={cardAmount}
+                            onChange={(e) => setCardAmount(e.target.value)}
+                          />
+                        )}
                       </div>
                       {(() => {
                         const total = Number.parseFloat(order.total);
-                        const mpesa = Number.parseFloat(mpesaAmount) || 0;
-                        const cash = Number.parseFloat(cashAmount) || 0;
-                        const diff = Math.abs(mpesa + cash - total);
-                        if ((mpesa > 0 || cash > 0) && diff > 1) {
+                        const a1 = uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD'
+                          ? (Number.parseFloat(mpesaAmount) || 0)
+                          : (Number.parseFloat(cashAmount) || 0);
+                        const a2 = uiPaymentMethod === 'SPLIT_MPESA_CASH'
+                          ? (Number.parseFloat(cashAmount) || 0)
+                          : (Number.parseFloat(cardAmount) || 0);
+                        const diff = Math.abs(a1 + a2 - total);
+                        if ((a1 > 0 || a2 > 0) && diff > 1) {
                           return (
                             <p className="text-caption text-red-600">
-                              Amounts total KES {(mpesa + cash).toFixed(2)} — must equal KES {total.toFixed(2)}
+                              Amounts total KES {(a1 + a2).toFixed(2)} — must equal KES {total.toFixed(2)}
                             </p>
                           );
                         }
@@ -328,7 +377,7 @@ export function OrderDetailBottomSheet({
                   )}
 
                   {/* House Account selector */}
-                  {paymentMethod === 'HOUSE_ACCOUNT' && (
+                  {uiPaymentMethod === 'HOUSE_ACCOUNT' && (
                     <div>
                       <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Account Holder</label>
                       <select
@@ -348,7 +397,7 @@ export function OrderDetailBottomSheet({
                   )}
 
                   {/* Corporate Account selector */}
-                  {paymentMethod === 'CORPORATE_ACCOUNT' && (
+                  {uiPaymentMethod === 'CORPORATE_ACCOUNT' && (
                     <>
                       <div>
                         <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Company</label>
@@ -378,7 +427,7 @@ export function OrderDetailBottomSheet({
                   )}
 
                   {/* Customer Credit selector */}
-                  {paymentMethod === 'CUSTOMER_CREDIT' && (
+                  {uiPaymentMethod === 'CUSTOMER_CREDIT' && (
                     <div className="space-y-2">
                       {!showNewCustomerForm && (
                         <>
@@ -482,39 +531,59 @@ export function OrderDetailBottomSheet({
                     className="w-full"
                     isLoading={isPaymentSubmitting}
                     disabled={
-                      (paymentMethod === 'SPLIT' &&
+                      ((uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD' || uiPaymentMethod === 'SPLIT_CASH_CARD') &&
                         (() => {
                           const total = Number.parseFloat(order.total);
-                          const mpesa = Number.parseFloat(mpesaAmount) || 0;
-                          const cash = Number.parseFloat(cashAmount) || 0;
-                          return mpesa <= 0 || cash <= 0 || Math.abs(mpesa + cash - total) > 1;
+                          const a1 = uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD'
+                            ? (Number.parseFloat(mpesaAmount) || 0)
+                            : (Number.parseFloat(cashAmount) || 0);
+                          const a2 = uiPaymentMethod === 'SPLIT_MPESA_CASH'
+                            ? (Number.parseFloat(cashAmount) || 0)
+                            : (Number.parseFloat(cardAmount) || 0);
+                          return a1 <= 0 || a2 <= 0 || Math.abs(a1 + a2 - total) > 1;
                         })()) ||
-                      (paymentMethod === 'HOUSE_ACCOUNT' && !selectedHouseAccountId) ||
-                      (paymentMethod === 'CORPORATE_ACCOUNT' && !selectedCorporateAccountId) ||
-                      (paymentMethod === 'CUSTOMER_CREDIT' && !selectedCustomerCreditId)
+                      (uiPaymentMethod === 'HOUSE_ACCOUNT' && !selectedHouseAccountId) ||
+                      (uiPaymentMethod === 'CORPORATE_ACCOUNT' && !selectedCorporateAccountId) ||
+                      (uiPaymentMethod === 'CUSTOMER_CREDIT' && !selectedCustomerCreditId)
                     }
                     onClick={() => {
-                      if (paymentMethod === 'SPLIT') {
+                      if (uiPaymentMethod === 'SPLIT_MPESA_CASH') {
                         onPayment(order.id, {
                           paymentMethod: 'SPLIT',
+                          splitType: 'MPESA_CASH',
                           mpesaCode: mpesaCode.trim() || undefined,
                           mpesaAmount: Number.parseFloat(mpesaAmount),
                           cashAmount: Number.parseFloat(cashAmount),
                         });
-                      } else if (paymentMethod === 'HOUSE_ACCOUNT') {
+                      } else if (uiPaymentMethod === 'SPLIT_MPESA_CARD') {
+                        onPayment(order.id, {
+                          paymentMethod: 'SPLIT',
+                          splitType: 'MPESA_CARD',
+                          mpesaCode: mpesaCode.trim() || undefined,
+                          mpesaAmount: Number.parseFloat(mpesaAmount),
+                          cardAmount: Number.parseFloat(cardAmount),
+                        });
+                      } else if (uiPaymentMethod === 'SPLIT_CASH_CARD') {
+                        onPayment(order.id, {
+                          paymentMethod: 'SPLIT',
+                          splitType: 'CASH_CARD',
+                          cashAmount: Number.parseFloat(cashAmount),
+                          cardAmount: Number.parseFloat(cardAmount),
+                        });
+                      } else if (uiPaymentMethod === 'HOUSE_ACCOUNT') {
                         onPayment(order.id, { paymentMethod: 'HOUSE_ACCOUNT', houseAccountId: selectedHouseAccountId });
-                      } else if (paymentMethod === 'CORPORATE_ACCOUNT') {
+                      } else if (uiPaymentMethod === 'CORPORATE_ACCOUNT') {
                         onPayment(order.id, {
                           paymentMethod: 'CORPORATE_ACCOUNT',
                           corporateAccountId: selectedCorporateAccountId,
                           corporateEmployeeRef: corporateEmployeeRef.trim() || undefined,
                         });
-                      } else if (paymentMethod === 'CUSTOMER_CREDIT') {
+                      } else if (uiPaymentMethod === 'CUSTOMER_CREDIT') {
                         onPayment(order.id, { paymentMethod: 'CUSTOMER_CREDIT', customerCreditAccountId: selectedCustomerCreditId });
                       } else {
                         onPayment(order.id, {
-                          paymentMethod,
-                          mpesaCode: paymentMethod === 'MPESA' ? (mpesaCode.trim() || undefined) : undefined,
+                          paymentMethod: uiPaymentMethod as PaymentMethod,
+                          mpesaCode: uiPaymentMethod === 'MPESA' ? (mpesaCode.trim() || undefined) : undefined,
                         });
                       }
                     }}

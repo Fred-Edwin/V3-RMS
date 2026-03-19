@@ -45,14 +45,20 @@ export const UpdateOrderItemsSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 
+export const SPLIT_TYPES = ['MPESA_CASH', 'MPESA_CARD', 'CASH_CARD'] as const;
+export type SplitType = (typeof SPLIT_TYPES)[number];
+
 export const RecordPaymentSchema = z
   .object({
     paymentMethod: z.nativeEnum(PaymentMethod),
-    // Optional Mpesa transaction code — required when paymentMethod is MPESA or SPLIT
+    // Optional Mpesa transaction code — required when paymentMethod is MPESA or SPLIT with Mpesa
     mpesaCode: z.string().min(1).max(20).optional(),
-    // Split payment amounts — required when paymentMethod is SPLIT
+    // Split payment amounts — required pair depends on splitType
     mpesaAmount: z.number().positive().optional(),
     cashAmount: z.number().positive().optional(),
+    cardAmount: z.number().positive().optional(),
+    // Split type discriminator — required when paymentMethod is SPLIT
+    splitType: z.enum(SPLIT_TYPES).optional(),
     // Credit account IDs — one required when using a credit payment method
     houseAccountId: z.string().uuid().optional(),
     corporateAccountId: z.string().uuid().optional(),
@@ -61,11 +67,24 @@ export const RecordPaymentSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.paymentMethod === PaymentMethod.SPLIT) {
-      if (data.mpesaAmount === undefined) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaAmount is required for split payment', path: ['mpesaAmount'] });
+      if (!data.splitType) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'splitType is required for split payment', path: ['splitType'] });
+        return;
       }
-      if (data.cashAmount === undefined) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cashAmount is required for split payment', path: ['cashAmount'] });
+      const needsMpesa = data.splitType.includes('MPESA');
+      const needsCash = data.splitType.includes('CASH');
+      const needsCard = data.splitType.includes('CARD');
+      if (needsMpesa && data.mpesaAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaAmount is required for this split type', path: ['mpesaAmount'] });
+      }
+      if (needsCash && data.cashAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cashAmount is required for this split type', path: ['cashAmount'] });
+      }
+      if (needsCard && data.cardAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cardAmount is required for this split type', path: ['cardAmount'] });
+      }
+      if (needsMpesa && !data.mpesaCode) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required when Mpesa is part of the split', path: ['mpesaCode'] });
       }
     }
     if (data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT && !data.houseAccountId) {

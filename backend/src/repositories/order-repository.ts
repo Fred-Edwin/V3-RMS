@@ -543,6 +543,8 @@ export const orderRepository = {
       mpesaCode: string | null;
       mpesaAmount: number | null;
       cashAmount: number | null;
+      cardAmount: number | null;
+      splitType: string | null;
       houseAccountId?: string | null;
       corporateAccountId?: string | null;
       corporateEmployeeRef?: string | null;
@@ -649,6 +651,8 @@ export const orderRepository = {
         mpesaCode: payment.mpesaCode,
         mpesaAmount: payment.mpesaAmount ?? undefined,
         cashAmount: payment.cashAmount ?? undefined,
+        cardAmount: payment.cardAmount ?? undefined,
+        splitType: payment.splitType ?? undefined,
         paidAt,
         closedAt: paidAt,
       },

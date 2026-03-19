@@ -58,6 +58,11 @@ export interface OrderForReceipt {
   deliveryFee: Prisma.Decimal;
   total: Prisma.Decimal;
   paymentMethod: string | null;
+  mpesaCode: string | null;
+  mpesaAmount: Prisma.Decimal | null;
+  cashAmount: Prisma.Decimal | null;
+  cardAmount: Prisma.Decimal | null;
+  splitType: string | null;
   paidAt: Date | null;
   createdAt: Date;
   organization: {
@@ -296,6 +301,11 @@ export const printRepository = {
         deliveryFee: true,
         total: true,
         paymentMethod: true,
+        mpesaCode: true,
+        mpesaAmount: true,
+        cashAmount: true,
+        cardAmount: true,
+        splitType: true,
         paidAt: true,
         createdAt: true,
         organization: {

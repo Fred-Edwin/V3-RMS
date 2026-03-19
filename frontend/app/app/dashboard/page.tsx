@@ -100,6 +100,9 @@ export default function DashboardPage(): JSX.Element {
   const [customerCreditAccounts, setCustomerCreditAccounts] = useState<CustomerCreditDropdownItem[]>([]);
   const [todayOrderCount, setTodayOrderCount] = useState(0);
   const [todayTotalValue, setTodayTotalValue] = useState(0);
+  const [todayMpesa, setTodayMpesa] = useState(0);
+  const [todayCash, setTodayCash] = useState(0);
+  const [todayCard, setTodayCard] = useState(0);
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
   const [ticketsCompletedToday, setTicketsCompletedToday] = useState(0);
   const [avgPrepMinutesToday, setAvgPrepMinutesToday] = useState(0);
@@ -150,6 +153,28 @@ export default function DashboardPage(): JSX.Element {
     setTodayTotalValue(
       collectedOrders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
     );
+
+    // Compute today's payment collection breakdown
+    let mpesaTotal = 0;
+    let cashTotal = 0;
+    let cardTotal = 0;
+    for (const order of collectedOrders) {
+      if (order.paymentMethod === 'MPESA') {
+        mpesaTotal += Number.parseFloat(order.total);
+      } else if (order.paymentMethod === 'CASH') {
+        cashTotal += Number.parseFloat(order.total);
+      } else if (order.paymentMethod === 'CARD') {
+        cardTotal += Number.parseFloat(order.total);
+      } else if (order.paymentMethod === 'SPLIT') {
+        mpesaTotal += order.mpesaAmount ? Number.parseFloat(order.mpesaAmount) : 0;
+        cashTotal += order.cashAmount ? Number.parseFloat(order.cashAmount) : 0;
+        cardTotal += order.cardAmount ? Number.parseFloat(order.cardAmount) : 0;
+      }
+    }
+    setTodayMpesa(mpesaTotal);
+    setTodayCash(cashTotal);
+    setTodayCard(cardTotal);
+
     setLatestOrders(collectedOrders.slice(0, 5));
   }, [accessToken, role]);
 
@@ -372,6 +397,40 @@ export default function DashboardPage(): JSX.Element {
             valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
           />
         </div>
+
+        {todayTotalValue > 0 && (
+          <div className="rounded-lg border border-stone-200 p-4">
+            <p className="mb-3 text-label-sm font-semibold uppercase tracking-wide text-stone-500">Today&apos;s Collections</p>
+            <div className="space-y-2">
+              {todayMpesa > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-stone-700">Mpesa</span>
+                  <span className="text-body-sm font-semibold tabular-nums text-stone-900">KES {todayMpesa.toFixed(2)}</span>
+                </div>
+              )}
+              {todayCash > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-stone-700">Cash</span>
+                  <span className="text-body-sm font-semibold tabular-nums text-stone-900">KES {todayCash.toFixed(2)}</span>
+                </div>
+              )}
+              {todayCard > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-stone-700">Card</span>
+                  <span className="text-body-sm font-semibold tabular-nums text-stone-900">KES {todayCard.toFixed(2)}</span>
+                </div>
+              )}
+              {todayTotalValue - todayMpesa - todayCash - todayCard > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-body-sm text-stone-700">Other (Credit / House)</span>
+                  <span className="text-body-sm font-semibold tabular-nums text-stone-900">
+                    KES {(todayTotalValue - todayMpesa - todayCash - todayCard).toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 
