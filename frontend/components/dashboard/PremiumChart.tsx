@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { DowHeatmapPoint, HourlyHeatmapPoint, HourlyHeatmapReport } from '@/types/report';
+import type { DowHeatmapPoint, HourlyHeatmapReport } from '@/types/report';
 import { cn } from '@/lib/cn';
 
 function useContainerWidth(fallback = 320): [React.RefObject<HTMLDivElement>, number] {

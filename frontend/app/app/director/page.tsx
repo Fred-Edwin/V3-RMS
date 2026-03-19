@@ -316,6 +316,7 @@ export default function DirectorDashboardPage(): JSX.Element {
   const [summaryDate, setSummaryDate] = useState<string>(todayInNairobi);
   const [branchSummaries, setBranchSummaries] = useState<DailySummary[]>([]);
   const [isLoadingSummaries, setIsLoadingSummaries] = useState(false);
+  const [dailyHourlyData, setDailyHourlyData] = useState<HourlyHeatmapReport | null>(null);
 
   // ── Trend / Branch Performance ────────────────────────────────────────────
   const [branchStartDate, setBranchStartDate] = useState<string>(() => toYmd(getMonthStart(new Date())));
@@ -419,19 +420,24 @@ export default function DirectorDashboardPage(): JSX.Element {
     if (!accessToken || branchList.length === 0) return;
     setIsLoadingSummaries(true);
     try {
-      const results = await Promise.all(
-        branchList.map((branch) =>
-          reportService.getDailySummary(accessToken, {
-            date: summaryDate,
-            organizationId: branch.id,
-          }),
+      const [results, hourly] = await Promise.all([
+        Promise.all(
+          branchList.map((branch) =>
+            reportService.getDailySummary(accessToken, {
+              date: summaryDate,
+              organizationId: branch.id,
+            }),
+          ),
         ),
-      );
+        reportService.getHourlyHeatmap(accessToken, { startDate: summaryDate, endDate: summaryDate }),
+      ]);
       setBranchSummaries(results);
+      setDailyHourlyData(hourly);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load branch summaries.';
       toast({ variant: 'error', title: 'Daily summaries failed', message });
       setBranchSummaries([]);
+      setDailyHourlyData(null);
     } finally {
       setIsLoadingSummaries(false);
     }
@@ -996,17 +1002,25 @@ export default function DirectorDashboardPage(): JSX.Element {
             body="Select a date and click Load to see per-branch breakdowns."
           />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {branchSummaries.map((summary) => {
-              const branch = branches.find((b) => b.id === summary.organizationId);
-              return (
-                <DailySummaryPanel
-                  key={summary.organizationId}
-                  summary={summary}
-                  branchName={branch?.name ?? summary.organizationName}
-                />
-              );
-            })}
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              {branchSummaries.map((summary) => {
+                const branch = branches.find((b) => b.id === summary.organizationId);
+                return (
+                  <DailySummaryPanel
+                    key={summary.organizationId}
+                    summary={summary}
+                    branchName={branch?.name ?? summary.organizationName}
+                  />
+                );
+              })}
+            </div>
+            {dailyHourlyData && (
+              <div className="rounded-xl border border-stone-200 bg-white p-4">
+                <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Orders by Hour — All Branches</h4>
+                <HourlyBarsChart data={dailyHourlyData} showDow={false} />
+              </div>
+            )}
           </div>
         )}
       </section>

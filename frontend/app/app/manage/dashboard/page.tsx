@@ -11,14 +11,14 @@ import {
   SkeletonTable,
   StatCard,
 } from '@/components/ui';
-import { ComparisonBars } from '@/components/dashboard/PremiumChart';
+import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { DailySummary } from '@/types/report';
+import type { DailySummary, HourlyHeatmapReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
 
 const formatDisplayDate = (ymd: string): string => {
@@ -104,6 +104,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [selectedDate, setSelectedDate] = useState<string>(todayDate);
 
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
+  const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
@@ -115,14 +116,22 @@ export default function ManagerDashboardPage(): JSX.Element {
 
     setIsLoadingSummary(true);
     try {
-      const summary = await reportService.getDailySummary(accessToken, { date: selectedDate });
+      const [summary, hourly] = await Promise.all([
+        reportService.getDailySummary(accessToken, { date: selectedDate }),
+        reportService.getHourlyHeatmap(accessToken, { startDate: selectedDate, endDate: selectedDate }),
+      ]);
+
       if (selectedDate === todayDate && summary.orderCount === 0) {
         for (let dayOffset = 1; dayOffset <= 7; dayOffset += 1) {
           const fallbackDate = shiftYmd(todayDate, -dayOffset);
-          const fallbackSummary = await reportService.getDailySummary(accessToken, { date: fallbackDate });
+          const [fallbackSummary, fallbackHourly] = await Promise.all([
+            reportService.getDailySummary(accessToken, { date: fallbackDate }),
+            reportService.getHourlyHeatmap(accessToken, { startDate: fallbackDate, endDate: fallbackDate }),
+          ]);
           if (fallbackSummary.orderCount > 0) {
             setSelectedDate(fallbackDate);
             setDailySummary(fallbackSummary);
+            setHourlyData(fallbackHourly);
             toast({
               variant: 'info',
               title: 'Showing latest sales day',
@@ -134,6 +143,7 @@ export default function ManagerDashboardPage(): JSX.Element {
       }
 
       setDailySummary(summary);
+      setHourlyData(hourly);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load daily summary.';
       toast({
@@ -142,6 +152,7 @@ export default function ManagerDashboardPage(): JSX.Element {
         message,
       });
       setDailySummary(null);
+      setHourlyData(null);
     } finally {
       setIsLoadingSummary(false);
     }
@@ -431,6 +442,13 @@ export default function ManagerDashboardPage(): JSX.Element {
                 valueFormatter={(value) => `KES ${value.toFixed(2)}`}
               />
             </div>
+
+            {hourlyData && (
+              <div>
+                <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Orders by Hour</h4>
+                <HourlyBarsChart data={hourlyData} showDow={false} />
+              </div>
+            )}
 
             <div>
               <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Top 5 Selling Items</h4>
