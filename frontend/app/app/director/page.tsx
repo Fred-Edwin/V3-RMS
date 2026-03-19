@@ -420,7 +420,7 @@ export default function DirectorDashboardPage(): JSX.Element {
     if (!accessToken || branchList.length === 0) return;
     setIsLoadingSummaries(true);
     try {
-      const [results, hourly] = await Promise.all([
+      const [results, hourlyPerBranch] = await Promise.all([
         Promise.all(
           branchList.map((branch) =>
             reportService.getDailySummary(accessToken, {
@@ -429,10 +429,33 @@ export default function DirectorDashboardPage(): JSX.Element {
             }),
           ),
         ),
-        reportService.getHourlyHeatmap(accessToken, { startDate: summaryDate, endDate: summaryDate }),
+        Promise.all(
+          branchList.map((branch) =>
+            reportService.getHourlyHeatmap(accessToken, {
+              startDate: summaryDate,
+              endDate: summaryDate,
+              organizationId: branch.id,
+            }),
+          ),
+        ),
       ]);
+      // Merge hourly counts across all branches
+      const mergedHourly: HourlyHeatmapReport | null = hourlyPerBranch.length > 0
+        ? {
+            ...hourlyPerBranch[0],
+            hourlyPoints: hourlyPerBranch[0].hourlyPoints.map((pt, i) => ({
+              ...pt,
+              orderCount: hourlyPerBranch.reduce((sum, h) => sum + (h.hourlyPoints[i]?.orderCount ?? 0), 0),
+              byType: {
+                DINE_IN: hourlyPerBranch.reduce((sum, h) => sum + (h.hourlyPoints[i]?.byType.DINE_IN ?? 0), 0),
+                TAKE_AWAY: hourlyPerBranch.reduce((sum, h) => sum + (h.hourlyPoints[i]?.byType.TAKE_AWAY ?? 0), 0),
+                DELIVERY: hourlyPerBranch.reduce((sum, h) => sum + (h.hourlyPoints[i]?.byType.DELIVERY ?? 0), 0),
+              },
+            })),
+          }
+        : null;
       setBranchSummaries(results);
-      setDailyHourlyData(hourly);
+      setDailyHourlyData(mergedHourly);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load branch summaries.';
       toast({ variant: 'error', title: 'Daily summaries failed', message });
