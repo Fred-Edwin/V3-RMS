@@ -70,6 +70,7 @@ export interface OrderForReceipt {
     phone: string | null;
     mpesaPaybill: string | null;
     accountNumber: string | null;
+    googleReviewUrl: string | null;
   };
   createdBy: {
     name: string;
@@ -309,7 +310,7 @@ export const printRepository = {
         paidAt: true,
         createdAt: true,
         organization: {
-          select: { name: true, phone: true, mpesaPaybill: true, accountNumber: true },
+          select: { name: true, phone: true, mpesaPaybill: true, accountNumber: true, googleReviewUrl: true },
         },
         createdBy: {
           select: { name: true },

@@ -17,6 +17,7 @@ model Organization {
   phone           String?          @map("phone")
   mpesaPaybill    String?          @map("mpesa_paybill")
   accountNumber   String?          @map("account_number")
+  googleReviewUrl String?          @map("google_review_url")
   isHub           Boolean          @default(false)
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now()) @map("created_at")

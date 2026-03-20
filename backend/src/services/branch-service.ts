@@ -46,7 +46,7 @@ export const branchService = {
   updateBranchProfile: async (
     id: string,
     requestingOrgId: string,
-    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string }>,
+    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string }>,
   ) => {
     if (id !== requestingOrgId) {
       throw new ForbiddenError('You can only edit your own branch');

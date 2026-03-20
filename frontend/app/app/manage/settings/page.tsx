@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy, Hash, Pencil, Phone, Printer, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Check, Copy, ExternalLink, Hash, Pencil, Phone, Printer, QrCode, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { env } from '@/lib/env';
 import {
@@ -59,6 +59,7 @@ export default function BranchSettingsPage(): JSX.Element {
       phone: profile?.phone ?? '',
       mpesaPaybill: profile?.mpesaPaybill ?? '',
       accountNumber: profile?.accountNumber ?? '',
+      googleReviewUrl: profile?.googleReviewUrl ?? '',
     });
     setIsEditModalOpen(true);
   };
@@ -72,6 +73,7 @@ export default function BranchSettingsPage(): JSX.Element {
       if (editForm.phone?.trim()) payload.phone = editForm.phone.trim();
       if (editForm.mpesaPaybill?.trim()) payload.mpesaPaybill = editForm.mpesaPaybill.trim();
       if (editForm.accountNumber?.trim()) payload.accountNumber = editForm.accountNumber.trim();
+      if (editForm.googleReviewUrl?.trim()) payload.googleReviewUrl = editForm.googleReviewUrl.trim();
 
       const updated = await branchService.updateBranchProfile(organizationId, payload, accessToken);
       setProfile(updated);
@@ -98,6 +100,9 @@ export default function BranchSettingsPage(): JSX.Element {
 
   const [stationPendingRemove, setStationPendingRemove] = useState<PrintStation | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+
+  const [stationPendingRepair, setStationPendingRepair] = useState<PrintStation | null>(null);
+  const [isRepairing, setIsRepairing] = useState(false);
 
   const loadStations = useCallback(async () => {
     if (!accessToken) return;
@@ -162,6 +167,38 @@ export default function BranchSettingsPage(): JSX.Element {
     } finally {
       setIsRemoving(false);
       setStationPendingRemove(null);
+    }
+  };
+
+  const handleRepairStation = async () => {
+    if (!accessToken || !stationPendingRepair) return;
+    setIsRepairing(true);
+    try {
+      const created: CreatedPrintStation = await printService.createPrintStation(
+        stationPendingRepair.name,
+        accessToken,
+      );
+      await printService.deactivatePrintStation(stationPendingRepair.id, accessToken);
+      setStations((prev) => [
+        ...prev.filter((s) => s.id !== stationPendingRepair.id),
+        {
+          id: created.id,
+          organizationId: created.organizationId,
+          name: created.name,
+          isActive: created.isActive,
+          isOnline: false,
+          lastSeenAt: null,
+          createdAt: created.createdAt,
+          updatedAt: created.updatedAt,
+        },
+      ]);
+      setStationPendingRepair(null);
+      setTokenModal({ stationName: created.name, token: created.token });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to re-pair print station.';
+      toast({ variant: 'error', title: 'Re-pair failed', message });
+    } finally {
+      setIsRepairing(false);
     }
   };
 
@@ -233,6 +270,12 @@ export default function BranchSettingsPage(): JSX.Element {
               value={profile.accountNumber}
               placeholder="Not set"
             />
+            <ProfileRow
+              icon={<ExternalLink size={14} />}
+              label="Google Review Link"
+              value={profile.googleReviewUrl}
+              placeholder="Not set"
+            />
           </div>
         )}
       </section>
@@ -297,13 +340,22 @@ export default function BranchSettingsPage(): JSX.Element {
                     </div>
                   </div>
                 </div>
-                <IconButton
-                  icon={<Trash2 size={16} />}
-                  label="Remove station"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setStationPendingRemove(station)}
-                />
+                <div className="flex items-center gap-1">
+                  <IconButton
+                    icon={<QrCode size={16} />}
+                    label="Re-pair printer"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStationPendingRepair(station)}
+                  />
+                  <IconButton
+                    icon={<Trash2 size={16} />}
+                    label="Remove station"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setStationPendingRemove(station)}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -348,6 +400,12 @@ export default function BranchSettingsPage(): JSX.Element {
             value={editForm.accountNumber ?? ''}
             onChange={(e) => setEditForm((prev) => ({ ...prev, accountNumber: e.target.value }))}
             placeholder="e.g. King'ong'o"
+          />
+          <Input
+            label="Google Review Link"
+            value={editForm.googleReviewUrl ?? ''}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, googleReviewUrl: e.target.value }))}
+            placeholder="https://g.page/r/..."
           />
         </div>
       </Modal>
@@ -452,6 +510,17 @@ export default function BranchSettingsPage(): JSX.Element {
           </div>
         </div>
       </Modal>
+
+      {/* Re-pair confirm dialog */}
+      <ConfirmDialog
+        isOpen={stationPendingRepair !== null}
+        onClose={() => setStationPendingRepair(null)}
+        title="Re-pair Print Station"
+        description={`This will generate a new token for "${stationPendingRepair?.name}" and invalidate the current one. The Wendo Printer app will need to be re-configured by scanning the new QR code.`}
+        confirmLabel="Re-pair"
+        isLoading={isRepairing}
+        onConfirm={() => void handleRepairStation()}
+      />
 
       {/* Remove confirm dialog */}
       <ConfirmDialog

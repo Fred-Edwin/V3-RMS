@@ -89,6 +89,7 @@ describe('clockService', () => {
       phone: null,
       mpesaPaybill: null,
       accountNumber: null,
+      googleReviewUrl: null,
       isActive: true,
       isHub: false,
       createdAt: new Date('2026-03-01T00:00:00.000Z'),

@@ -21,6 +21,7 @@ interface ReceiptData {
   branchPhone: string | null;
   mpesaPaybill: string | null;
   accountNumber: string | null;
+  googleReviewUrl: string | null;
   orderNumber: string;
   dailyNumber: number;
   orderDate: string;
@@ -113,6 +114,7 @@ export const printService = {
       branchPhone: order.organization.phone ?? null,
       mpesaPaybill: order.organization.mpesaPaybill ?? null,
       accountNumber: order.organization.accountNumber ?? null,
+      googleReviewUrl: order.organization.googleReviewUrl ?? null,
       orderNumber: `WCB-${String(order.dailyNumber).padStart(4, '0')}`,
       dailyNumber: order.dailyNumber,
       orderDate: formatDate(orderDate),
