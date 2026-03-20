@@ -273,6 +273,11 @@ export default function OrdersPage(): JSX.Element {
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
   const isManager = role === 'MANAGER' || role === 'DIRECTOR';
 
+  const myReadyOrderCount = useMemo(() => {
+    if (role !== 'WAITER' || !userId) return 0;
+    return sortedOrders.filter((o) => o.status === 'READY' && o.createdBy.id === userId).length;
+  }, [role, userId, sortedOrders]);
+
   const typeFilterLabel = typeFilter === 'ALL' ? null : typeOptions.find((o) => o.value === typeFilter)?.label;
 
   return (
@@ -316,6 +321,23 @@ export default function OrdersPage(): JSX.Element {
             <span className="text-crema/60 leading-none">×</span>
           </button>
         </div>
+      )}
+
+      {/* READY-order nudge banner — waiter only */}
+      {myReadyOrderCount > 0 && (
+        <button
+          type="button"
+          onClick={() => updateQueryParam('status', 'READY')}
+          className="w-full flex items-center gap-3 rounded-xl border border-amber/40 bg-amber/10 px-4 py-3 text-left transition-colors hover:bg-amber/15"
+        >
+          <span className="size-2 shrink-0 rounded-full bg-amber" />
+          <span className="text-body-sm font-medium text-[#92400E]">
+            {myReadyOrderCount === 1
+              ? '1 order is ready and awaiting payment'
+              : `${myReadyOrderCount} orders are ready and awaiting payment`}
+          </span>
+          <span className="ml-auto shrink-0 text-caption text-[#92400E]/70">Tap to review →</span>
+        </button>
       )}
 
       {/* Status pill filters — borderless, single scrollable row */}

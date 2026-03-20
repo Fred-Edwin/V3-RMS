@@ -371,7 +371,7 @@ export const orderRepository = {
   findStaleOrders: async (
     organizationId: string,
     beforeDate: Date,
-  ): Promise<Array<{ id: string; dailyNumber: number; status: OrderStatus; orderDate: Date; _count: { items: number } }>> => {
+  ): Promise<Array<{ id: string; dailyNumber: number; status: OrderStatus; orderDate: Date; _count: { items: number }; createdBy: { id: string; name: string } }>> => {
     return prisma.order.findMany({
       where: {
         organizationId,
@@ -384,8 +384,30 @@ export const orderRepository = {
         status: true,
         orderDate: true,
         _count: { select: { items: true } },
+        createdBy: { select: { id: true, name: true } },
       },
       orderBy: { orderDate: 'asc' },
+    });
+  },
+
+  findIdleReadyOrders: async (
+    organizationId: string,
+    idleSince: Date,
+    orderDate: Date,
+  ): Promise<Array<{ id: string; dailyNumber: number; createdById: string }>> => {
+    return prisma.order.findMany({
+      where: {
+        organizationId,
+        orderDate,
+        status: OrderStatus.READY,
+        updatedAt: { lt: idleSince },
+      },
+      select: {
+        id: true,
+        dailyNumber: true,
+        createdById: true,
+      },
+      orderBy: { updatedAt: 'asc' },
     });
   },
   updateItems: async (

@@ -192,6 +192,37 @@ export const fcmService = {
     }
   },
 
+  sendReadyOrderReminderPush: async (waiterId: string, count: number): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const fcmToken = await authRepository.findFcmToken(waiterId);
+      if (!fcmToken) {
+        return;
+      }
+
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: 'Orders awaiting payment',
+            body: `${count} order${count > 1 ? 's are' : ' is'} ready and waiting to be closed`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `ready-reminder-${waiterId}`,
+            renotify: true,
+          },
+          fcmOptions: { link: '/app/orders?status=READY' },
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, waiterId }, 'Failed to send ready order reminder FCM push');
+    }
+  },
+
   sendShiftReminderPush: async (userId: string, payload: ShiftReminderPushPayload): Promise<void> => {
     try {
       if (!firebaseMessaging) {

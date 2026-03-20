@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Printer, ShoppingBag, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Printer, ShoppingBag, Users } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -248,6 +248,13 @@ export default function ManagerDashboardPage(): JSX.Element {
   const formattedSelectedDate = formatDisplayDate(selectedDate);
   const hasClosedOrdersForSelectedDate = (dailySummary?.orderCount ?? 0) > 0;
 
+  const idleReadyOrders = useMemo(() => {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    return activeOrders.filter(
+      (o) => o.status === 'READY' && new Date(o.createdAt) < thirtyMinutesAgo,
+    );
+  }, [activeOrders]);
+
   return (
     <PageLayout className="animate-fade-up space-y-6 print:space-y-4">
       {/* ── Print header (hidden on screen) ───────────────────────── */}
@@ -308,6 +315,40 @@ export default function ManagerDashboardPage(): JSX.Element {
           <p className="text-body-sm text-stone-700">
             No closed orders for <span className="font-medium">{formattedSelectedDate}</span>. Totals reflect closed orders only.
           </p>
+        </div>
+      )}
+
+      {/* Idle READY orders alert — only shown when waiters have forgotten to close */}
+      {idleReadyOrders.length > 0 && (
+        <div className="rounded-xl border border-amber/40 bg-amber/8 p-4 print:hidden">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />
+            <div className="min-w-0 flex-1">
+              <p className="text-body-sm font-semibold text-[#92400E]">
+                {idleReadyOrders.length === 1
+                  ? '1 order has been ready for over 30 minutes'
+                  : `${idleReadyOrders.length} orders have been ready for over 30 minutes`}
+              </p>
+              <p className="mt-0.5 text-caption text-stone-500">A waiter may have forgotten to record payment.</p>
+              <div className="mt-3 space-y-1.5">
+                {idleReadyOrders.map((order) => {
+                  const minutesAgo = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
+                  const elapsed = minutesAgo >= 60
+                    ? `${Math.floor(minutesAgo / 60)}h ${minutesAgo % 60}m ago`
+                    : `${minutesAgo}m ago`;
+                  return (
+                    <div key={order.id} className="flex items-center gap-2 text-body-sm">
+                      <span className="font-medium text-stone-800">#{order.dailyNumber}</span>
+                      <span className="text-stone-400">·</span>
+                      <span className="text-stone-600">{order.createdBy.name}</span>
+                      <span className="text-stone-400">·</span>
+                      <span className="text-stone-400">{elapsed}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

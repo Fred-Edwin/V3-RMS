@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button, EmptyState, Input, PageHeader, PageLayout, Select, SkeletonTable } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -38,7 +38,7 @@ const incidentTypeColor: Record<IncidentType, string> = {
   MODIFICATION_APPROVED: 'bg-[#EDFAF1] text-[#1A6B3C] border-[#86EFAC]',
   MODIFICATION_REJECTED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
   TICKET_UNCLAIMED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  ORDER_STALE: 'bg-[#F4F4F5] text-[#71717A] border-[#D4D4D8]',
+  ORDER_STALE: 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]',
 };
 
 const toYmd = (date: Date): string => {
@@ -58,7 +58,44 @@ const formatTimestamp = (iso: string): string => {
   });
 };
 
-const formatDetails = (details: Record<string, unknown>): string => {
+const formatDetails = (type: IncidentType, details: Record<string, unknown>): React.ReactNode => {
+  if (type === 'ORDER_STALE') {
+    return (
+      <div className="space-y-1.5">
+        {Boolean(details.waiterName) && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Waiter</span>
+            <span className="font-semibold text-stone-900">{String(details.waiterName)}</span>
+          </div>
+        )}
+        {Boolean(details.dailyNumber) && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Order</span>
+            <span className="text-stone-700">#{String(details.dailyNumber)}</span>
+          </div>
+        )}
+        {Boolean(details.orderDate) && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Date</span>
+            <span className="text-stone-700">{String(details.orderDate)}</span>
+          </div>
+        )}
+        {Boolean(details.status) && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Status</span>
+            <span className="text-stone-700">{String(details.status).replace('_', ' ')}</span>
+          </div>
+        )}
+        {details.itemCount !== undefined && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Items</span>
+            <span className="text-stone-700">{String(details.itemCount)}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const parts: string[] = [];
   if (details.reason) parts.push(`Reason: ${String(details.reason)}`);
   if (details.description) parts.push(`Description: ${String(details.description)}`);
@@ -196,13 +233,16 @@ export default function IncidentsPage(): JSX.Element {
               onClick={() => setExpandedId(expandedId === incident.id ? null : incident.id)}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-label-sm font-medium ${incidentTypeColor[incident.type]}`}
                   >
                     {incidentTypeLabel[incident.type]}
                   </span>
                   <span className="text-body-sm text-stone-600">{incident.actor?.name ?? 'System'}</span>
+                  {incident.type === 'ORDER_STALE' && Boolean(incident.details.dailyNumber) && (
+                    <span className="text-caption text-stone-400">· Order #{String(incident.details.dailyNumber)}</span>
+                  )}
                 </div>
                 <span className="shrink-0 text-caption text-stone-400">
                   {formatTimestamp(incident.createdAt)}
@@ -211,7 +251,7 @@ export default function IncidentsPage(): JSX.Element {
 
               {expandedId === incident.id && (
                 <div className="mt-2 rounded-md bg-stone-50 p-2 text-body-sm text-stone-700">
-                  {formatDetails(incident.details)}
+                  {formatDetails(incident.type, incident.details)}
                 </div>
               )}
             </button>

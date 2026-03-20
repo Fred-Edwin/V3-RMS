@@ -25,12 +25,13 @@ export const flagStaleOrders = async (): Promise<number> => {
         organizationId: org.id,
         orderId: order.id,
         type: 'ORDER_STALE',
-        // actorId intentionally omitted — this incident is system-generated
+        actorId: order.createdBy.id,
         details: {
           dailyNumber: order.dailyNumber,
           status: order.status,
           orderDate: order.orderDate.toISOString().split('T')[0],
           itemCount: order._count.items,
+          waiterName: order.createdBy.name,
         },
       });
     }

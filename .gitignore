@@ -32,3 +32,5 @@ local_before_seed_cleanup.sql
 # TypeScript
 **/*.tsbuildinfo
 .vercel
+
+/receipt-printing-app/
