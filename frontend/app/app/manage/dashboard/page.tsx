@@ -18,8 +18,14 @@ import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { DailySummary, HourlyHeatmapReport } from '@/types/report';
+import type { DailySummary, HourlyHeatmapReport, StaffPerformancePeriod } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
+
+const formatCurrency = (value: string | number): string => {
+  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (Number.isNaN(num)) return 'KES 0.00';
+  return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const formatDisplayDate = (ymd: string): string => {
   const parsed = new Date(`${ymd}T00:00:00`);
@@ -105,6 +111,7 @@ export default function ManagerDashboardPage(): JSX.Element {
 
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
+  const [waiterBreakdown, setWaiterBreakdown] = useState<StaffPerformancePeriod | null>(null);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
@@ -116,22 +123,25 @@ export default function ManagerDashboardPage(): JSX.Element {
 
     setIsLoadingSummary(true);
     try {
-      const [summary, hourly] = await Promise.all([
+      const [summary, hourly, waiters] = await Promise.all([
         reportService.getDailySummary(accessToken, { date: selectedDate }),
         reportService.getHourlyHeatmap(accessToken, { startDate: selectedDate, endDate: selectedDate }),
+        reportService.getStaffPerformance(accessToken, { startDate: selectedDate, endDate: selectedDate, role: 'WAITER' }),
       ]);
 
       if (selectedDate === todayDate && summary.orderCount === 0) {
         for (let dayOffset = 1; dayOffset <= 7; dayOffset += 1) {
           const fallbackDate = shiftYmd(todayDate, -dayOffset);
-          const [fallbackSummary, fallbackHourly] = await Promise.all([
+          const [fallbackSummary, fallbackHourly, fallbackWaiters] = await Promise.all([
             reportService.getDailySummary(accessToken, { date: fallbackDate }),
             reportService.getHourlyHeatmap(accessToken, { startDate: fallbackDate, endDate: fallbackDate }),
+            reportService.getStaffPerformance(accessToken, { startDate: fallbackDate, endDate: fallbackDate, role: 'WAITER' }),
           ]);
           if (fallbackSummary.orderCount > 0) {
             setSelectedDate(fallbackDate);
             setDailySummary(fallbackSummary);
             setHourlyData(fallbackHourly);
+            setWaiterBreakdown(fallbackWaiters);
             toast({
               variant: 'info',
               title: 'Showing latest sales day',
@@ -144,6 +154,7 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       setDailySummary(summary);
       setHourlyData(hourly);
+      setWaiterBreakdown(waiters);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load daily summary.';
       toast({
@@ -153,6 +164,7 @@ export default function ManagerDashboardPage(): JSX.Element {
       });
       setDailySummary(null);
       setHourlyData(null);
+      setWaiterBreakdown(null);
     } finally {
       setIsLoadingSummary(false);
     }
@@ -483,6 +495,46 @@ export default function ManagerDashboardPage(): JSX.Element {
                 valueFormatter={(value) => `KES ${value.toFixed(2)}`}
               />
             </div>
+
+            {waiterBreakdown && waiterBreakdown.staff.some((r) => r.paymentBreakdown && Number.parseFloat(r.paymentBreakdown.total) > 0) && (
+              <div>
+                <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Collections by Waiter</h4>
+                <div className="overflow-x-auto rounded-xl border border-stone-200">
+                  <table className="w-full text-left text-body-sm">
+                    <thead>
+                      <tr className="border-b border-stone-200 bg-stone-50">
+                        <th className="px-4 py-2.5 font-semibold text-stone-600">Waiter</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">M-Pesa</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Cash</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Card</th>
+                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {waiterBreakdown.staff
+                        .filter((r) => r.paymentBreakdown && Number.parseFloat(r.paymentBreakdown.total) > 0)
+                        .map((r) => (
+                          <tr key={r.id} className="transition-colors hover:bg-stone-50/60">
+                            <td className="px-4 py-2.5 font-medium text-stone-800">{r.name}</td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                              {Number.parseFloat(r.paymentBreakdown!.mpesa) > 0 ? formatCurrency(r.paymentBreakdown!.mpesa) : <span className="text-stone-400">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                              {Number.parseFloat(r.paymentBreakdown!.cash) > 0 ? formatCurrency(r.paymentBreakdown!.cash) : <span className="text-stone-400">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                              {Number.parseFloat(r.paymentBreakdown!.card) > 0 ? formatCurrency(r.paymentBreakdown!.card) : <span className="text-stone-400">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
+                              {formatCurrency(r.paymentBreakdown!.total)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {hourlyData && (
               <div>
