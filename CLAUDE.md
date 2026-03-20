@@ -124,6 +124,24 @@ pnpm build
 
 ### Local DB - Migrations and Seed
 
+**MIGRATION WORKFLOW — ALWAYS follow this order:**
+
+1. Edit `backend/prisma/schema.prisma` locally
+2. Generate the migration SQL file locally:
+   ```powershell
+   Set-Location "d:\AI applications\web\V3-RMS\backend"
+   npx prisma migrate dev --name describe_your_change
+   ```
+3. Commit the generated migration file in `backend/prisma/migrations/`
+4. Push to GitHub
+5. On production server, apply with:
+   ```bash
+   docker compose exec api npx prisma migrate deploy
+   ```
+
+**Never run `prisma migrate dev` on production — it will prompt to reset (wipe) the database.**
+**Never run `prisma migrate deploy` without a committed migration file — it will report "No pending migrations" and the schema change won't apply.**
+
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS"
 docker compose exec api npx prisma migrate deploy
