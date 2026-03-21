@@ -47,6 +47,9 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     return role === 'SYSTEM_ADMIN' || role === 'DIRECTOR';
   }
 
+  if (pathname === '/app/manage/my-tab') {
+    return role === 'MANAGER' || role === 'DIRECTOR';
+  }
   if (pathname.startsWith('/app/manage')) {
     return role === 'MANAGER';
   }
