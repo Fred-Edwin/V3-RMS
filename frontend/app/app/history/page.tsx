@@ -7,6 +7,7 @@ import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomShe
 import { useOrderHistory } from '@/hooks/useOrderHistory';
 import { useToast } from '@/hooks/useToast';
 import { orderService } from '@/services/orderService';
+import { printService } from '@/services/printService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -34,6 +35,7 @@ export default function HistoryPage(): JSX.Element {
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
 
   // Staff filter — only loaded and shown for MANAGER/DIRECTOR
   const isManagerOrDirector = role === 'MANAGER' || role === 'DIRECTOR';
@@ -73,6 +75,25 @@ export default function HistoryPage(): JSX.Element {
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
+
+  const handlePrintReceipt = async (orderId: string) => {
+    if (!accessToken || isPrintSubmitting) return;
+    setIsPrintSubmitting(true);
+    try {
+      await printService.createPrintJob(orderId, accessToken);
+      toast({ variant: 'success', title: 'Receipt sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintSubmitting(false);
+    }
+  };
 
   const openOrder = async (orderId: string) => {
     if (!accessToken) return;
@@ -203,6 +224,8 @@ export default function HistoryPage(): JSX.Element {
         order={selectedOrder}
         onEdit={() => {/* read-only in history */}}
         onPayment={() => {/* read-only in history */}}
+        onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}
+        isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
       />
