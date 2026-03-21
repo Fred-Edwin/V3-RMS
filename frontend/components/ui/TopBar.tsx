@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ConnectionIndicator } from './ConnectionIndicator'
 import type { ConnectionStatus } from './ConnectionIndicator'
@@ -11,6 +12,7 @@ interface TopBarProps {
   connectionStatus: ConnectionStatus
   tone?: 'dark' | 'light'
   className?: string
+  onLogout?: () => void
 }
 
 function formatClock(date: Date): string {
@@ -22,7 +24,7 @@ function formatClock(date: Date): string {
   })
 }
 
-export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dark', className }: TopBarProps) {
+export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dark', className, onLogout }: TopBarProps) {
   const [time, setTime] = useState<string | null>(null)
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dar
       >
         {time ?? '--:--:--'}
       </span>
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
         <ConnectionIndicator
           status={connectionStatus}
           className={
@@ -70,6 +72,21 @@ export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dar
               : 'text-stone-700 [&>span:not(.sr-only)]:text-stone-700'
           }
         />
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            aria-label="Log out"
+            className={cn(
+              'rounded p-1.5 transition-colors',
+              tone === 'dark'
+                ? 'text-crema/60 hover:bg-stone-700 hover:text-crema'
+                : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900',
+            )}
+          >
+            <LogOut size={18} />
+          </button>
+        )}
       </div>
     </header>
   )

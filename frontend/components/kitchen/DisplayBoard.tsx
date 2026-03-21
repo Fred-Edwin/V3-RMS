@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FullscreenLayout, KDSCard, TopBar, Button } from '@/components/ui';
+import { useRouter } from 'next/navigation';
+import { FullscreenLayout, KDSCard, TopBar, Button, ConfirmDialog } from '@/components/ui';
 import { usePrepTickets } from '@/hooks/usePrepTickets';
 import { useToast } from '@/hooks/useToast';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { dispatchNotificationEvent } from '@/lib/notifications/dispatcher';
 import { notificationSoundPlayer } from '@/lib/notifications/sound-player';
 import { env } from '@/lib/env';
+import { performLogout } from '@/lib/logout';
 import { prepTicketService } from '@/services/prepTicketService';
 import { staffService } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -29,6 +31,7 @@ const roleByStation: Record<PrepStation, 'CHEF' | 'BARISTA'> = {
 export function DisplayBoard({ station }: DisplayBoardProps) {
   const { pendingTickets, inProgressTickets, readyTickets, isLoading, station: activeStation, reload } = usePrepTickets();
   const { toast } = useToast();
+  const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
   const organizationName = useAuthStore((state) => state.user?.organizationName ?? 'Branch');
   const role = useAuthStore((state) => state.role);
@@ -48,6 +51,15 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   const [markingReadyTicketIds, setMarkingReadyTicketIds] = useState<Record<string, boolean>>({});
   const [rejectingTicket, setRejectingTicket] = useState<PrepTicketDetail | null>(null);
   const [isRejectSubmitting, setIsRejectSubmitting] = useState(false);
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await performLogout();
+    router.replace('/login');
+  };
 
   // Tablet KDS/BDS: track whether the browser has granted audio autoplay.
   // Chrome blocks audio until a user gesture occurs on the page. We show a
@@ -403,6 +415,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         stationLabel={station === 'KITCHEN' ? 'Kitchen Display' : 'Barista Display'}
         connectionStatus={connectionStatus}
         tone="light"
+        onLogout={() => setShowLogoutConfirm(true)}
       />
       {connectionStatus === 'disconnected' && (
         <div className="bg-[#FDF2F0] px-4 py-2 text-body-sm text-[#9B3A2A]">Offline. Reconnecting...</div>
@@ -459,6 +472,16 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           if (rejectingTicket) void handleReject(rejectingTicket.id, reason);
         }}
         isSubmitting={isRejectSubmitting}
+      />
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={() => void handleLogout()}
+        title="Log out?"
+        description="This will end the session on this screen."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        isLoading={isLoggingOut}
       />
     </FullscreenLayout>
   );
