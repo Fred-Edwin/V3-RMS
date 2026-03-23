@@ -1,4 +1,5 @@
 import type { PrepStation, PrepTicketDetail } from './order';
+import type { StocktakeVariancePayload } from './inventory';
 
 export interface ServerToClientEvents {
   'joined:branch': (payload: { room: string }) => void;
@@ -46,6 +47,9 @@ export interface ServerToClientEvents {
     details: Record<string, unknown>;
     createdAt: string;
   }) => void;
+  'inventory:low_stock': (payload: { organizationId: string; menuItemId: string; currentQty: number }) => void;
+  'inventory:out_of_stock': (payload: { organizationId: string; menuItemId: string }) => void;
+  'inventory:stocktake_variance': (payload: StocktakeVariancePayload) => void;
 }
 
 export interface ClientToServerEvents {

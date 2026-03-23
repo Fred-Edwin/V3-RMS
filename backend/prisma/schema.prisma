@@ -34,6 +34,10 @@ model Organization {
   printJobs             PrintJob[]
   printStations         PrintStation[]
   customerCreditAccounts CustomerCreditAccount[]
+  requisitions           Requisition[]
+  branchStock            BranchStock[]
+  consumableStock        ConsumableStock[]
+  stocktakeSessions      StocktakeSession[]
 
   @@map("organizations")
 }
@@ -84,6 +88,9 @@ model User {
   corporateSettlements        CorporateAccountSettlement[] @relation("CorporateAccountSettledBy")
   customerCreditAccountsCreated CustomerCreditAccount[] @relation("CustomerCreditAccountCreatedBy")
   customerCreditSettlements   CustomerCreditSettlement[] @relation("CustomerCreditSettledBy")
+  supplierDeliveries          SupplierDelivery[]
+  requisitionsSubmitted       Requisition[]           @relation("RequisitionSubmittedBy")
+  stocktakeSessions           StocktakeSession[]
 
   @@index([organizationId])
   @@index([email])
@@ -131,6 +138,10 @@ model MenuItem {
   category        MenuCategory     @relation(fields: [categoryId], references: [id])
   branchOverrides BranchMenuItem[]
   orderItems      OrderItem[]
+  conversions     IngredientConversion[]
+  requisitionItems RequisitionItem[]
+  branchStock     BranchStock[]
+  stocktakeEntries StocktakeEntry[]
 
   @@index([categoryId])
   @@index([isActive])
@@ -325,11 +336,26 @@ enum UserRole {
   SYSTEM_ADMIN
   DIRECTOR
   MANAGER
+  STORE_MANAGER
   WAITER
   CHEF
   BARISTA
   KITCHEN_DISPLAY
   BARISTA_DISPLAY
+}
+
+enum RequisitionStatus {
+  PENDING
+  APPROVED
+  DISPATCHED
+  RECEIVED
+  PARTIAL
+}
+
+enum StocktakeStation {
+  KITCHEN
+  BARISTA
+  WAITER
 }
 
 enum PrepStation {
@@ -614,4 +640,194 @@ model CustomerCreditSettlement {
 
   @@index([customerCreditAccountId])
   @@map("customer_credit_settlements")
+}
+
+// ─── Inventory Models (V2.1) ──────────────────────────────────────────────────
+
+model Supplier {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String?
+  email      String?
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  deliveries SupplierDelivery[]
+
+  @@map("suppliers")
+}
+
+model RawIngredient {
+  id               String   @id @default(uuid())
+  name             String   @unique
+  unit             String
+  currentStockCk   Decimal  @default(0) @db.Decimal(10, 3) @map("current_stock_ck")
+  reorderThreshold Decimal  @default(0) @db.Decimal(10, 3) @map("reorder_threshold")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  deliveries  SupplierDelivery[]
+  conversions IngredientConversion[]
+
+  @@map("raw_ingredients")
+}
+
+model IngredientConversion {
+  id                 String   @id @default(uuid())
+  menuItemId         String   @map("menu_item_id")
+  ingredientId       String   @map("ingredient_id")
+  quantityPerPortion Decimal  @db.Decimal(10, 4) @map("quantity_per_portion")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  menuItem   MenuItem      @relation(fields: [menuItemId], references: [id])
+  ingredient RawIngredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([menuItemId, ingredientId])
+  @@map("ingredient_conversions")
+}
+
+model SupplierDelivery {
+  id           String   @id @default(uuid())
+  ingredientId String   @map("ingredient_id")
+  supplierId   String   @map("supplier_id")
+  quantity     Decimal  @db.Decimal(10, 3)
+  deliveredAt  DateTime @default(now()) @map("delivered_at")
+  loggedById   String   @map("logged_by_id")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ingredient RawIngredient @relation(fields: [ingredientId], references: [id])
+  supplier   Supplier      @relation(fields: [supplierId], references: [id])
+  loggedBy   User          @relation(fields: [loggedById], references: [id])
+
+  @@index([ingredientId])
+  @@index([supplierId])
+  @@index([deliveredAt])
+  @@map("supplier_deliveries")
+}
+
+model Requisition {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  submittedById  String            @map("submitted_by_id")
+  status         RequisitionStatus @default(PENDING)
+  notes          String?
+  isMidDay       Boolean           @default(false) @map("is_mid_day")
+  submittedAt    DateTime          @default(now()) @map("submitted_at")
+  dispatchedAt   DateTime?         @map("dispatched_at")
+  receivedAt     DateTime?         @map("received_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  submittedBy  User             @relation("RequisitionSubmittedBy", fields: [submittedById], references: [id])
+  items        RequisitionItem[]
+
+  @@index([organizationId, status])
+  @@index([status, submittedAt])
+  @@map("requisitions")
+}
+
+model RequisitionItem {
+  id             String   @id @default(uuid())
+  requisitionId  String   @map("requisition_id")
+  menuItemId     String   @map("menu_item_id")
+  requestedQty   Int      @map("requested_qty")
+  dispatchedQty  Int?     @map("dispatched_qty")
+  receivedQty    Int?     @map("received_qty")
+  hasDiscrepancy Boolean  @default(false) @map("has_discrepancy")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  requisition Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem    @relation(fields: [menuItemId], references: [id])
+
+  @@index([requisitionId])
+  @@map("requisition_items")
+}
+
+model BranchStock {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  menuItemId       String   @map("menu_item_id")
+  currentQty       Int      @default(0) @map("current_qty")
+  lowStockThreshold Int     @default(5) @map("low_stock_threshold")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  menuItem     MenuItem      @relation(fields: [menuItemId], references: [id])
+
+  @@unique([organizationId, menuItemId])
+  @@index([organizationId])
+  @@map("branch_stock")
+}
+
+model Consumable {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  unit      String
+  station   StocktakeStation
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  branchStocks   ConsumableStock[]
+  stocktakeEntries StocktakeEntry[]
+
+  @@map("consumables")
+}
+
+model ConsumableStock {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  consumableId   String   @map("consumable_id")
+  currentQty     Decimal  @default(0) @db.Decimal(10, 2) @map("current_qty")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  consumable   Consumable   @relation(fields: [consumableId], references: [id])
+
+  @@unique([organizationId, consumableId])
+  @@index([organizationId])
+  @@map("consumable_stock")
+}
+
+model StocktakeSession {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  conductedById  String    @map("conducted_by_id")
+  date           DateTime  @db.Date
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  conductedBy  User             @relation(fields: [conductedById], references: [id])
+  entries      StocktakeEntry[]
+
+  @@unique([organizationId, date])
+  @@index([organizationId])
+  @@map("stocktake_sessions")
+}
+
+model StocktakeEntry {
+  id           String           @id @default(uuid())
+  sessionId    String           @map("session_id")
+  station      StocktakeStation
+  menuItemId   String?          @map("menu_item_id")
+  consumableId String?          @map("consumable_id")
+  expectedQty  Decimal          @db.Decimal(10, 2) @map("expected_qty")
+  actualQty    Decimal          @db.Decimal(10, 2) @map("actual_qty")
+  variance     Decimal          @db.Decimal(10, 2)
+  note         String?
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  session    StocktakeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?        @relation(fields: [menuItemId], references: [id])
+  consumable Consumable?      @relation(fields: [consumableId], references: [id])
+
+  @@index([sessionId])
+  @@map("stocktake_entries")
 }

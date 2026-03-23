@@ -9,7 +9,9 @@ Stack: Next.js + TypeScript (frontend), Node.js + Express + TypeScript
 
 ## Project Documents — Read THE SPECIFIED SECTION of the document Before Acting - Do not read the whole document to avoid wasting tokens.
 
-Before implementing anything, read the document(s) specific sections/lines relevant to your task:
+### V1 Documents (Phases 0–7 — complete, do not modify)
+
+Before implementing anything in V1 context, read the document(s) specific sections/lines relevant to your task:
 
 | Document                   | Read When                                      |
 | -------------------------- | ---------------------------------------------- |
@@ -21,6 +23,21 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/BUILD_ORDER.md`      | Understanding what phase is being built        |
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
 | `docs/context`             | Getting context for the previous phases        |
+
+### V2 Documents (V2.1 onwards — active development)
+
+For any V2 feature, read the V2 documents instead of (or in addition to) the V1 docs above:
+
+| Document                              | Read When                                          |
+| ------------------------------------- | -------------------------------------------------- |
+| `docs/V2/PRD.md`                      | Understanding what a V2 feature is supposed to do  |
+| `docs/V2/DATA_MODEL_ADDENDUM.md`      | Writing any new Prisma model or query for V2       |
+| `docs/V2/TDD.md`                      | Making any V2 architectural decision               |
+| `docs/V2/API_CONTRACT_ADDENDUM.md`    | Implementing any new V2 API endpoint               |
+| `docs/DESIGN_SYSTEM.md`              | Building any UI — unchanged from V1                |
+| `docs/V2/BUILD_ORDER.md`             | Understanding what V2 phase is being built         |
+| `docs/V2/CODING_STANDARDS.md`        | Writing any V2 code — always (extends V1 standards)|
+| `docs/V2/features/`                   | Deep feature context for the specific V2 feature   |
 
 ## Non-Negotiables (Read These Now)
 
@@ -79,9 +96,13 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 7
-Status: Complete
-Context file: docs/context/PHASE_7_CONTEXT.md
+V1 Phase: 7
+V1 Status: Complete
+V1 Context file: docs/context/PHASE_7_CONTEXT.md
+
+V2 Phase: V2.1 — Inventory Management
+V2 Status: Planning — documentation complete, development not started
+V2 Build Order: docs/V2/BUILD_ORDER.md
 
 ## Current Deployment Model (Authoritative)
 

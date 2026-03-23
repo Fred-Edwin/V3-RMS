@@ -15,9 +15,13 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  Package,
+  PackageCheck,
   Printer,
   Settings2,
   ShoppingCart,
+  Store,
+  Truck,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -132,6 +136,28 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
 };
 
 const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
+  STORE_MANAGER: [
+    {
+      label: 'Overview',
+      items: [
+        { label: 'Dashboard', href: '/app/store/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      label: 'Inventory',
+      items: [
+        { label: 'Ingredients', href: '/app/store/ingredients', icon: Package },
+        { label: 'Suppliers', href: '/app/store/suppliers', icon: Store },
+        { label: 'Deliveries', href: '/app/store/deliveries/new', icon: Truck },
+        { label: 'Requisitions', href: '/app/store/requisitions', icon: PackageCheck },
+        { label: 'Stocktake', href: '/app/store/stocktake', icon: ClipboardList },
+      ],
+    },
+    {
+      label: 'Account',
+      items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+    },
+  ],
   MANAGER: [
     {
       label: 'Operations',
@@ -139,6 +165,14 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
         { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
         { label: 'History', href: '/app/history', icon: Clock },
+      ],
+    },
+    {
+      label: 'Inventory',
+      items: [
+        { label: 'Stock', href: '/app/manage/inventory', icon: Package },
+        { label: 'Requisitions', href: '/app/manage/requisitions', icon: PackageCheck },
+        { label: 'Stocktake', href: '/app/manage/stocktake', icon: ClipboardList },
       ],
     },
     {
@@ -174,6 +208,12 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     {
       label: 'Overview',
       items: [{ label: 'Dashboard', href: '/app/director', icon: LayoutDashboard }],
+    },
+    {
+      label: 'Inventory',
+      items: [
+        { label: 'Inventory', href: '/app/admin/inventory', icon: Package },
+      ],
     },
     {
       label: 'Credit',
@@ -324,7 +364,8 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const usesDualShell =
     role === 'MANAGER' ||
     role === 'DIRECTOR' ||
-    role === 'SYSTEM_ADMIN';
+    role === 'SYSTEM_ADMIN' ||
+    role === 'STORE_MANAGER';
 
   const useSidebarOnlyShell =
     !usesDualShell &&

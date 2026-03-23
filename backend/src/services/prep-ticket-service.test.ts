@@ -55,6 +55,23 @@ vi.mock('./incident-service', () => ({
   },
 }));
 
+vi.mock('./inventory-service', () => ({
+  inventoryService: {
+    deductStockForPrepTicket: vi.fn().mockResolvedValue({ newQty: 10, isLowStock: false, isOutOfStock: false }),
+  },
+}));
+
+vi.mock('../config/database', () => ({
+  prisma: {
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
+  },
+}));
+
+vi.mock('../sockets/socket', () => ({
+  getSocketServer: vi.fn(() => ({ to: vi.fn(() => ({ emit: vi.fn() })) })),
+  branchRoomName: vi.fn((id: string) => `org:${id}`),
+}));
+
 const organizationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const chefActor = {
@@ -128,7 +145,7 @@ describe('prepTicketService ownership enforcement', () => {
     const result = await prepTicketService.markReady(ticket.id, chefActor);
 
     expect(result.status).toBe('READY');
-    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId);
+    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId, {});
     expect(socketService.emitOrderReady).toHaveBeenCalled();
     expect(socketService.emitOrderAllReady).toHaveBeenCalled();
     expect(fcmService.sendOrderReadyPush).toHaveBeenCalled();
@@ -165,6 +182,6 @@ describe('prepTicketService ownership enforcement', () => {
     const result = await prepTicketService.markReady(ticket.id, kitchenDisplayActor);
 
     expect(result.status).toBe('READY');
-    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId);
+    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId, {});
   });
 });
