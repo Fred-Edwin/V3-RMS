@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, ChevronRight, FlaskConical, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, FlaskConical, Plus } from 'lucide-react';
 import {
   Button,
   Card,

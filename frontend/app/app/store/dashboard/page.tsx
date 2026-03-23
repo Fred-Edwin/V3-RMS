@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Package, Truck } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Package, Truck } from 'lucide-react';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader, PageLayout, SkeletonTable } from '@/components/ui';
 import { inventoryService } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -83,7 +83,7 @@ export default function StoreDashboardPage() {
               <CardBody className="flex items-center gap-3 p-4">
                 <Truck size={24} className="text-stone-600" />
                 <div>
-                  <p className="text-label-sm text-stone-500">Today's Requisitions</p>
+                  <p className="text-label-sm text-stone-500">Today&apos;s Requisitions</p>
                   <p className="text-display-sm font-semibold text-stone-900">{requisitions.length}</p>
                 </div>
               </CardBody>
@@ -104,7 +104,7 @@ export default function StoreDashboardPage() {
           {/* Branch Requisitions */}
           <Card className="bg-parchment shadow-md">
             <CardHeader>
-              <h2 className="font-display text-xl text-stone-900">Today's Branch Requisitions</h2>
+              <h2 className="font-display text-xl text-stone-900">Today&apos;s Branch Requisitions</h2>
             </CardHeader>
             <CardBody>
               {requisitions.length === 0 ? (

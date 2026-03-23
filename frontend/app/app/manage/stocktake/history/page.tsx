@@ -53,7 +53,6 @@ export default function StocktakeHistoryPage() {
       ) : (
         <div className="space-y-4">
           {sessions.map((session) => {
-            const totalVariance = session.entries.reduce((sum, e) => sum + e.variance, 0);
             const hasNegative = session.entries.some((e) => e.variance < 0);
             const isOpen = expanded === session.id;
             return (
