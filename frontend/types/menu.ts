@@ -1,4 +1,4 @@
-export type PrepStation = 'KITCHEN' | 'BARISTA';
+export type PrepStation = 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY';
 
 export interface MenuItemWithAvailability {
   id: string;

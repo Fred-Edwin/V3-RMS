@@ -43,6 +43,17 @@ describe('order-utils', () => {
 
       expect(stations).toEqual(['KITCHEN', 'BARISTA']);
     });
+
+    it('returns PIZZA and PASTRY as distinct stations alongside KITCHEN', () => {
+      const stations = deriveStationsFromItems([
+        { category: { prepStation: 'KITCHEN' } },
+        { category: { prepStation: 'PIZZA' } },
+        { category: { prepStation: 'PASTRY' } },
+        { category: { prepStation: 'PIZZA' } }, // duplicate — should be deduplicated
+      ]);
+
+      expect(stations).toEqual(['KITCHEN', 'PIZZA', 'PASTRY']);
+    });
   });
 
   describe('buildPrepTicketItemsSnapshot', () => {
@@ -68,6 +79,19 @@ describe('order-utils', () => {
       );
 
       expect(snapshot).toEqual([{ menuItemId: 'latte-id', name: 'Latte', quantity: 2, notes: 'Extra hot' }]);
+    });
+
+    it('filters only PIZZA items when station is PIZZA', () => {
+      const snapshot = buildPrepTicketItemsSnapshot(
+        [
+          { menuItemId: 'burger-id', name: 'Burger', quantity: 1, notes: null, category: { prepStation: 'KITCHEN' } },
+          { menuItemId: 'pizza-id', name: 'Margherita Pizza', quantity: 1, notes: 'Thin crust', category: { prepStation: 'PIZZA' } },
+          { menuItemId: 'croissant-id', name: 'Croissant', quantity: 2, notes: null, category: { prepStation: 'PASTRY' } },
+        ],
+        'PIZZA',
+      );
+
+      expect(snapshot).toEqual([{ menuItemId: 'pizza-id', name: 'Margherita Pizza', quantity: 1, notes: 'Thin crust' }]);
     });
   });
 

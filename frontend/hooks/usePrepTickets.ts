@@ -5,21 +5,27 @@ import { useAuthStore } from '@/store/authStore';
 import { useKitchenStore } from '@/store/kitchenStore';
 import type { PrepStation, PrepTicketStatus } from '@/types/order';
 
-const stationFromRole = (role: string | null): PrepStation | null => {
+// Returns all stations this role can manage. Kitchen-family roles see KITCHEN,
+// PIZZA, and PASTRY tickets on the same display.
+const stationsFromRole = (role: string | null): PrepStation[] => {
   if (role === 'CHEF' || role === 'KITCHEN_DISPLAY') {
-    return 'KITCHEN';
+    return ['KITCHEN', 'PIZZA', 'PASTRY'];
   }
   if (role === 'BARISTA' || role === 'BARISTA_DISPLAY') {
-    return 'BARISTA';
+    return ['BARISTA'];
   }
-  return null;
+  return [];
 };
 
 export function usePrepTickets() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const organizationId = useAuthStore((state) => state.organizationId);
   const role = useAuthStore((state) => state.role);
-  const station = stationFromRole(role);
+  const stations = stationsFromRole(role);
+  // Primary station used as a guard value by DisplayBoard (backward compat)
+  const station = stations[0] ?? null;
+  // Stable string for useCallback dependency — avoids new array reference on each render
+  const stationsKey = stations.join(',');
 
   const pendingTickets = useKitchenStore((state) => state.pendingTickets);
   const inProgressTickets = useKitchenStore((state) => state.inProgressTickets);
@@ -27,14 +33,13 @@ export function usePrepTickets() {
   const isLoading = useKitchenStore((state) => state.isLoading);
   const error = useKitchenStore((state) => state.error);
   const setTickets = useKitchenStore((state) => state.setTickets);
-  const addTicketRealTime = useKitchenStore((state) => state.addTicketRealTime);
   const updateTicketRealTime = useKitchenStore((state) => state.updateTicketRealTime);
   const removeOrderTickets = useKitchenStore((state) => state.removeOrderTickets);
   const setLoading = useKitchenStore((state) => state.setLoading);
   const setError = useKitchenStore((state) => state.setError);
 
   const loadTickets = useCallback(async () => {
-    if (!accessToken || !station) {
+    if (!accessToken || stations.length === 0) {
       return;
     }
 
@@ -49,19 +54,22 @@ export function usePrepTickets() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, setError, setLoading, setTickets, station]);
+  // stationsKey is a stable string derived from the stations array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, setError, setLoading, setTickets, stationsKey]);
 
   useEffect(() => {
     void loadTickets();
   }, [loadTickets]);
 
   useEffect(() => {
-    if (!accessToken || !organizationId || !station) {
+    if (!accessToken || !organizationId || stations.length === 0) {
       return;
     }
 
     connectSocket(accessToken);
-    joinStationRoom(organizationId, station);
+    // Join a socket room for every station this role manages
+    stations.forEach((s) => joinStationRoom(organizationId, s));
 
     const socket = getSocket();
     if (!socket) {
@@ -69,14 +77,14 @@ export function usePrepTickets() {
     }
 
     const handleNewOrder = (ticket: { id: string; station: PrepStation }) => {
-      if (ticket.station !== station) {
+      if (!stations.includes(ticket.station)) {
         return;
       }
       void loadTickets();
     };
 
     const handleOrderModified = (ticket: { id: string; station: PrepStation; status: PrepTicketStatus }) => {
-      if (ticket.station !== station) {
+      if (!stations.includes(ticket.station)) {
         return;
       }
       updateTicketRealTime(ticket.id, { status: ticket.status });
@@ -92,12 +100,12 @@ export function usePrepTickets() {
     };
 
     const handleOrderClaimed = (payload: { ticketId: string; station: PrepStation }) => {
-      if (payload.station !== station) return;
+      if (!stations.includes(payload.station)) return;
       updateTicketRealTime(payload.ticketId, { status: 'IN_PROGRESS' });
     };
 
     const handleTicketUnclaimed = (payload: { ticketId: string; station: PrepStation }) => {
-      if (payload.station !== station) return;
+      if (!stations.includes(payload.station)) return;
       updateTicketRealTime(payload.ticketId, { status: 'PENDING' });
     };
 
@@ -115,7 +123,7 @@ export function usePrepTickets() {
     socket.on('order:force_cancelled', handleForceCancelled);
 
     const offReconnect = onReconnect(() => {
-      joinStationRoom(organizationId, station);
+      stations.forEach((s) => joinStationRoom(organizationId, s));
       void loadTickets();
     });
 
@@ -129,12 +137,14 @@ export function usePrepTickets() {
       socket.off('order:force_cancelled', handleForceCancelled);
       offReconnect();
     };
+  // stationsKey is a stable string derived from the stations array
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     accessToken,
     loadTickets,
     organizationId,
     removeOrderTickets,
-    station,
+    stationsKey,
     updateTicketRealTime,
   ]);
 

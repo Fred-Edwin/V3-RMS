@@ -361,6 +361,8 @@ enum StocktakeStation {
 enum PrepStation {
   KITCHEN
   BARISTA
+  PIZZA
+  PASTRY
 }
 
 enum OrderType {

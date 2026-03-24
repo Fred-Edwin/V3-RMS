@@ -24,9 +24,11 @@ const ticketStatusDot: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', 
   REJECTED: 'bg-red-400',
 };
 
-const stationLabels: Record<'KITCHEN' | 'BARISTA', string> = {
+const stationLabels: Record<'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY', string> = {
   KITCHEN: 'Kitchen',
   BARISTA: 'Barista',
+  PIZZA: 'Pizza',
+  PASTRY: 'Pastry',
 };
 
 const formatOrderType = (type: OrderSummary['type']): string => {

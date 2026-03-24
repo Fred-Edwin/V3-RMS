@@ -184,4 +184,47 @@ describe('prepTicketService ownership enforcement', () => {
     expect(result.status).toBe('READY');
     expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId, {});
   });
+
+  it('allows a CHEF to mark a PIZZA ticket ready', async () => {
+    const pizzaTicket = buildTicket({ station: 'PIZZA' });
+    const readyPizzaTicket = buildTicket({ station: 'PIZZA', status: 'READY', readyAt: new Date() }, 'READY');
+
+    vi.mocked(prepTicketRepository.findByIdAndOrg).mockResolvedValue(pizzaTicket);
+    vi.mocked(prepTicketRepository.markReady).mockResolvedValue(readyPizzaTicket);
+    vi.mocked(prepTicketRepository.findAllByOrder).mockResolvedValue([readyPizzaTicket]);
+    vi.mocked(orderRepository.updateStatus).mockResolvedValue(null);
+
+    const result = await prepTicketService.markReady(pizzaTicket.id, chefActor);
+
+    expect(result.status).toBe('READY');
+    expect(result.station).toBe('PIZZA');
+  });
+
+  it('allows a KITCHEN_DISPLAY actor to mark a PASTRY ticket ready', async () => {
+    const pastryTicket = buildTicket({ station: 'PASTRY', claimedById: null, claimedBy: null });
+    const readyPastryTicket = buildTicket({ station: 'PASTRY', status: 'READY', readyAt: new Date() }, 'READY');
+
+    vi.mocked(prepTicketRepository.findByIdAndOrg).mockResolvedValue(pastryTicket);
+    vi.mocked(prepTicketRepository.markReady).mockResolvedValue(readyPastryTicket);
+    vi.mocked(prepTicketRepository.findAllByOrder).mockResolvedValue([readyPastryTicket]);
+    vi.mocked(orderRepository.updateStatus).mockResolvedValue(null);
+
+    const result = await prepTicketService.markReady(pastryTicket.id, kitchenDisplayActor);
+
+    expect(result.status).toBe('READY');
+    expect(result.station).toBe('PASTRY');
+  });
+
+  it('blocks a CHEF from marking a BARISTA ticket ready', async () => {
+    const baristaTicket = buildTicket({ station: 'BARISTA' });
+
+    vi.mocked(prepTicketRepository.findByIdAndOrg).mockResolvedValue(baristaTicket);
+
+    await expect(prepTicketService.markReady(baristaTicket.id, chefActor)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Cannot update a ticket from another station',
+    });
+
+    expect(prepTicketRepository.markReady).not.toHaveBeenCalled();
+  });
 });
