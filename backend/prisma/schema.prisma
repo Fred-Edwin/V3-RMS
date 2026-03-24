@@ -335,6 +335,8 @@ enum UserRole {
 enum PrepStation {
   KITCHEN
   BARISTA
+  PIZZA
+  PASTRY
 }
 
 enum OrderType {

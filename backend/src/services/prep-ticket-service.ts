@@ -54,12 +54,12 @@ const resolveOrganizationId = (actor: Actor): string => {
   return actor.organizationId;
 };
 
-const resolveStation = (role: UserRole): PrepStation => {
+const resolveStations = (role: UserRole): PrepStation[] => {
   if (kitchenRoles.includes(role)) {
-    return 'KITCHEN';
+    return ['KITCHEN', 'PIZZA', 'PASTRY'];
   }
   if (baristaRoles.includes(role)) {
-    return 'BARISTA';
+    return ['BARISTA'];
   }
 
   throw new ForbiddenError('Role cannot access prep tickets');
@@ -164,7 +164,7 @@ export const prepTicketService = {
     query: PrepTicketQueryInput,
   ): Promise<{ tickets: PrepTicketResponse[]; pagination: PaginationMeta }> => {
     const organizationId = resolveOrganizationId(actor);
-    const station = resolveStation(actor.role);
+    const stations = resolveStations(actor.role);
     // For history queries (activeOnly=false), personal roles (CHEF/BARISTA) only see
     // tickets they personally claimed. For active/live queries, all pending tickets
     // remain visible so they can be claimed.
@@ -174,7 +174,7 @@ export const prepTicketService = {
         ? actor.id
         : undefined;
 
-    const result = await prepTicketRepository.findByStation(organizationId, station, {
+    const result = await prepTicketRepository.findByStation(organizationId, stations, {
       status: query.status,
       startDate: query.startDate ? parseDateOnlyStart(query.startDate) : undefined,
       endDate: query.endDate ? parseDateOnlyEnd(query.endDate) : undefined,
@@ -201,14 +201,14 @@ export const prepTicketService = {
     actor: Actor,
   ): Promise<PrepTicketResponse> => {
     const organizationId = resolveOrganizationId(actor);
-    const station = resolveStation(actor.role);
+    const stations = resolveStations(actor.role);
 
     const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
 
-    if (ticket.station !== station) {
+    if (!stations.includes(ticket.station)) {
       throw new ForbiddenError('Cannot claim a ticket from another station');
     }
 
@@ -216,7 +216,7 @@ export const prepTicketService = {
       throw new ConflictError('This order has already been claimed.');
     }
 
-    const allowedRoles: UserRole[] = station === 'KITCHEN' ? ['CHEF'] : ['BARISTA'];
+    const allowedRoles: UserRole[] = ['KITCHEN', 'PIZZA', 'PASTRY'].includes(ticket.station) ? ['CHEF'] : ['BARISTA'];
     let claimedByName: string;
 
     if (env.SKIP_SHIFT_VALIDATION) {
@@ -259,14 +259,14 @@ export const prepTicketService = {
 
   markReady: async (ticketId: string, actor: Actor): Promise<PrepTicketResponse> => {
     const organizationId = resolveOrganizationId(actor);
-    const station = resolveStation(actor.role);
+    const stations = resolveStations(actor.role);
 
     const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
 
-    if (ticket.station !== station) {
+    if (!stations.includes(ticket.station)) {
       throw new ForbiddenError('Cannot update a ticket from another station');
     }
 
@@ -308,14 +308,14 @@ export const prepTicketService = {
 
   reject: async (ticketId: string, reason: string, actor: Actor): Promise<PrepTicketResponse> => {
     const organizationId = resolveOrganizationId(actor);
-    const station = resolveStation(actor.role);
+    const stations = resolveStations(actor.role);
 
     const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
 
-    if (ticket.station !== station) {
+    if (!stations.includes(ticket.station)) {
       throw new ForbiddenError('Cannot reject a ticket from another station');
     }
 
@@ -335,7 +335,7 @@ export const prepTicketService = {
       actorId: actor.id,
       details: {
         ticketId,
-        station,
+        station: ticket.station,
         dailyNumber: ticket.order.dailyNumber,
         reason,
       },
@@ -362,14 +362,14 @@ export const prepTicketService = {
 
   unclaim: async (ticketId: string, actor: Actor): Promise<PrepTicketResponse> => {
     const organizationId = resolveOrganizationId(actor);
-    const station = resolveStation(actor.role);
+    const stations = resolveStations(actor.role);
 
     const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
 
-    if (ticket.station !== station) {
+    if (!stations.includes(ticket.station)) {
       throw new ForbiddenError('Cannot unclaim a ticket from another station');
     }
 
@@ -404,7 +404,7 @@ export const prepTicketService = {
       actorId: actor.id,
       details: {
         ticketId,
-        station,
+        station: ticket.station,
         dailyNumber: ticket.order.dailyNumber,
       },
     });

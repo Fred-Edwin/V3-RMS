@@ -23,7 +23,7 @@ export const resolveNotificationPolicy = (
       toast: {
         variant: 'info',
         title: `New order #${event.payload.dailyNumber}`,
-        message: event.payload.station === 'KITCHEN' ? 'Sent to kitchen queue.' : 'Sent to barista queue.',
+        message: ({ KITCHEN: 'Sent to kitchen queue.', PIZZA: 'Sent to pizza queue.', PASTRY: 'Sent to pastry queue.', BARISTA: 'Sent to barista queue.' } as Record<string, string>)[event.payload.station] ?? `Sent to ${event.payload.station.toLowerCase()} queue.`,
       },
       dedupeKey: `${event.type}:${event.payload.orderId}:${event.payload.station}`,
       dedupeWindowMs: 3000,
@@ -74,7 +74,7 @@ export const resolveNotificationPolicy = (
       toast: {
         variant: 'info',
         title: `Station ready — Order #${event.payload.dailyNumber}`,
-        message: event.payload.station === 'KITCHEN' ? 'Kitchen done, awaiting barista.' : 'Barista done, awaiting kitchen.',
+        message: `${(event.payload.station as string).charAt(0) + (event.payload.station as string).slice(1).toLowerCase()} station done.`,
       },
       dedupeKey: `${event.type}:${event.payload.ticketId}`,
       dedupeWindowMs: 5000,

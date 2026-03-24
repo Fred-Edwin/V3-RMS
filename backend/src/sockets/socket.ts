@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'http';
-import type { UserRole } from '@prisma/client';
+import type { PrepStation, UserRole } from '@prisma/client';
 import { Server } from 'socket.io';
 import { z } from 'zod';
 import { env } from '../config/env';
@@ -12,7 +12,7 @@ const joinBranchSchema = z.object({
 
 const joinStationSchema = z.object({
   organizationId: z.string().uuid(),
-  station: z.enum(['KITCHEN', 'BARISTA']),
+  station: z.enum(['KITCHEN', 'BARISTA', 'PIZZA', 'PASTRY']),
 });
 
 const joinUserSchema = z.object({
@@ -20,7 +20,7 @@ const joinUserSchema = z.object({
 });
 
 export const branchRoomName = (organizationId: string): string => `branch:${organizationId}`;
-export const stationRoomName = (organizationId: string, station: 'KITCHEN' | 'BARISTA'): string =>
+export const stationRoomName = (organizationId: string, station: PrepStation): string =>
   `branch:${organizationId}:${station.toLowerCase()}`;
 export const userRoomName = (userId: string): string => `user:${userId}`;
 
@@ -39,8 +39,8 @@ let socketServer: Server | null = null;
 const kitchenRoles: UserRole[] = ['CHEF', 'KITCHEN_DISPLAY'];
 const baristaRoles: UserRole[] = ['BARISTA', 'BARISTA_DISPLAY'];
 
-const isRoleAllowedForStation = (role: UserRole, station: 'KITCHEN' | 'BARISTA'): boolean => {
-  if (station === 'KITCHEN') {
+const isRoleAllowedForStation = (role: UserRole, station: PrepStation): boolean => {
+  if (station === 'KITCHEN' || station === 'PIZZA' || station === 'PASTRY') {
     return kitchenRoles.includes(role);
   }
 

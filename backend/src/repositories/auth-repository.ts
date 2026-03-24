@@ -102,10 +102,10 @@ export const authRepository = {
 
   findFcmTokensByStation: async (
     organizationId: string,
-    station: 'KITCHEN' | 'BARISTA',
+    station: 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY',
   ): Promise<string[]> => {
     const roles =
-      station === 'KITCHEN'
+      station === 'KITCHEN' || station === 'PIZZA' || station === 'PASTRY'
         ? (['CHEF', 'KITCHEN_DISPLAY'] as const)
         : (['BARISTA', 'BARISTA_DISPLAY'] as const);
 
