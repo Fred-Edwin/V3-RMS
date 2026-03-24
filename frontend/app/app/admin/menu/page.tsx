@@ -84,6 +84,15 @@ const initialItemForm: ItemFormState = {
 const prepStationBadgeClass: Record<PrepStation, string> = {
   KITCHEN: 'bg-[#FEF0E0] text-[#A04F0A] border border-[#F5B87A]',
   BARISTA: 'bg-[#EDFAF1] text-[#1A6B3C] border border-[#86EFAC]',
+  PIZZA: 'bg-[#FEE2E2] text-[#991B1B] border border-[#FCA5A5]',
+  PASTRY: 'bg-[#FEF9C3] text-[#854D0E] border border-[#FDE047]',
+};
+
+const prepStationLabel: Record<PrepStation, string> = {
+  KITCHEN: 'Kitchen',
+  BARISTA: 'Barista',
+  PIZZA: 'Pizza',
+  PASTRY: 'Pastry',
 };
 
 export default function Page(): JSX.Element {
@@ -515,6 +524,8 @@ export default function Page(): JSX.Element {
                     { value: 'ALL', label: 'All stations' },
                     { value: 'KITCHEN', label: 'Kitchen' },
                     { value: 'BARISTA', label: 'Barista' },
+                    { value: 'PIZZA', label: 'Pizza' },
+                    { value: 'PASTRY', label: 'Pastry' },
                   ]}
                 />
                 <Select
@@ -568,7 +579,7 @@ export default function Page(): JSX.Element {
                     <div>
                       <h2 className="text-heading-md font-semibold text-stone-900">{category.name}</h2>
                       <p className="text-body-sm text-stone-400">
-                        {category.prepStation === 'KITCHEN' ? 'Kitchen' : 'Barista'} · {visibleItems.length} item{visibleItems.length === 1 ? '' : 's'}
+                        {prepStationLabel[category.prepStation]} · {visibleItems.length} item{visibleItems.length === 1 ? '' : 's'}
                       </p>
                     </div>
                     <Button
@@ -723,6 +734,8 @@ export default function Page(): JSX.Element {
               options={[
                 { value: 'KITCHEN', label: 'Kitchen' },
                 { value: 'BARISTA', label: 'Barista' },
+                { value: 'PIZZA', label: 'Pizza' },
+                { value: 'PASTRY', label: 'Pastry' },
               ]}
             />
           </FormField>

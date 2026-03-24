@@ -82,12 +82,12 @@ export const prepTicketRepository = {
 
   findByStation: async (
     organizationId: string,
-    station: PrepStation,
+    station: PrepStation | PrepStation[],
     filters: PrepTicketFilters,
   ): Promise<{ tickets: PrepTicketWithOrderRecord[]; total: number }> => {
     const where: Prisma.PrepTicketWhereInput = {
       organizationId,
-      station,
+      station: Array.isArray(station) ? { in: station } : station,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.activeOnly
         ? {

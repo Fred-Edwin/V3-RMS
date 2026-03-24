@@ -26,6 +26,22 @@ interface DisplayBoardProps {
 const roleByStation: Record<PrepStation, 'CHEF' | 'BARISTA'> = {
   KITCHEN: 'CHEF',
   BARISTA: 'BARISTA',
+  PIZZA: 'CHEF',
+  PASTRY: 'CHEF',
+};
+
+const stationLabels: Record<PrepStation, string> = {
+  KITCHEN: 'Kitchen',
+  BARISTA: 'Barista',
+  PIZZA: 'Pizza',
+  PASTRY: 'Pastry',
+};
+
+const stationDisplayLabels: Record<PrepStation, string> = {
+  KITCHEN: 'Kitchen Display',
+  BARISTA: 'Barista Display',
+  PIZZA: 'Pizza Display',
+  PASTRY: 'Pastry Display',
 };
 
 export function DisplayBoard({ station }: DisplayBoardProps) {
@@ -347,7 +363,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           </div>
         )}
         <header className="mb-4">
-          <h1 className="font-display text-display-lg text-espresso">{station === 'KITCHEN' ? 'Kitchen' : 'Barista'}</h1>
+          <h1 className="font-display text-display-lg text-espresso">{stationLabels[station]}</h1>
           <p className="text-body-sm text-stone-600">{isLoading ? 'Loading tickets...' : 'Live ticket queue'}</p>
         </header>
 
@@ -412,7 +428,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
       )}
       <TopBar
         branchName={organizationName ?? 'Branch'}
-        stationLabel={station === 'KITCHEN' ? 'Kitchen Display' : 'Barista Display'}
+        stationLabel={stationDisplayLabels[station]}
         connectionStatus={connectionStatus}
         tone="light"
         onLogout={() => setShowLogoutConfirm(true)}

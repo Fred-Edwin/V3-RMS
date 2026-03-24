@@ -9,7 +9,7 @@ export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'CLOSED' | 'CANC
 export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY'
 
 interface PrepTicketStaff {
-  station: 'KITCHEN' | 'BARISTA'
+  station: 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY'
   claimedBy: { id: string; name: string } | null
   status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED'
 }
@@ -50,9 +50,11 @@ const typeLabels: Record<OrderType, string> = {
   DELIVERY: 'Delivery',
 }
 
-const stationLabels: Record<'KITCHEN' | 'BARISTA', string> = {
+const stationLabels: Record<'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY', string> = {
   KITCHEN: 'Kitchen',
   BARISTA: 'Barista',
+  PIZZA: 'Pizza',
+  PASTRY: 'Pastry',
 }
 
 const ticketStatusDot: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', string> = {

@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 interface NewOrderPushPayload {
   orderId: string;
   dailyNumber: number;
-  station: 'KITCHEN' | 'BARISTA';
+  station: 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY';
 }
 
 interface OrderReadyPushPayload {
@@ -45,8 +45,14 @@ export const fcmService = {
         return;
       }
 
-      const stationLabel = payload.station === 'KITCHEN' ? 'Kitchen' : 'Barista';
-      const link = payload.station === 'KITCHEN' ? '/app/kitchen' : '/app/barista';
+      const stationLabels: Record<string, string> = {
+        KITCHEN: 'Kitchen', PIZZA: 'Pizza', PASTRY: 'Pastry', BARISTA: 'Barista',
+      };
+      const stationLabel = stationLabels[payload.station] ?? payload.station;
+      const link =
+        payload.station === 'KITCHEN' || payload.station === 'PIZZA' || payload.station === 'PASTRY'
+          ? '/app/kitchen'
+          : '/app/barista';
 
       // sendEachForMulticast sends one message per token and handles
       // per-token failures gracefully — invalid tokens don't fail the batch.
