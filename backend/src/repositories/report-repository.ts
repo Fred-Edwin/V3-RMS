@@ -150,6 +150,7 @@ export const reportRepository = {
             gte: start,
             lt: endExclusive,
           },
+          createdBy: { isTestUser: false },
         },
         _sum: {
           total: true,
@@ -167,6 +168,7 @@ export const reportRepository = {
             gte: start,
             lt: endExclusive,
           },
+          createdBy: { isTestUser: false },
         },
         _count: {
           _all: true,
@@ -184,6 +186,7 @@ export const reportRepository = {
           paymentMethod: {
             not: null,
           },
+          createdBy: { isTestUser: false },
         },
         _sum: {
           total: true,
@@ -348,6 +351,7 @@ export const reportRepository = {
           role: {
             in: selectedRoles,
           },
+          isTestUser: false,
         },
         select: {
           id: true,
@@ -390,6 +394,7 @@ export const reportRepository = {
                 gte: start,
                 lt: endExclusive,
               },
+              createdBy: { isTestUser: false },
             },
             _count: {
               _all: true,
@@ -475,6 +480,7 @@ export const reportRepository = {
               status: OrderStatus.CLOSED,
               createdById: { in: waiterIds },
               orderDate: { gte: start, lt: endExclusive },
+              createdBy: { isTestUser: false },
             },
             select: {
               createdById: true,
@@ -630,6 +636,7 @@ export const reportRepository = {
                 gte: start,
                 lt: endExclusive,
               },
+              createdBy: { isTestUser: false },
             },
             _sum: {
               total: true,
@@ -728,6 +735,7 @@ export const reportRepository = {
             gte: start,
             lt: endExclusive,
           },
+          createdBy: { isTestUser: false },
         },
         select: {
           orderDate: true,
@@ -866,6 +874,7 @@ export const reportRepository = {
             gte: start,
             lt: endExclusive,
           },
+          createdBy: { isTestUser: false },
         },
         select: {
           organizationId: true,
@@ -1043,6 +1052,7 @@ export const reportRepository = {
             gte: start,
             lt: endExclusive,
           },
+          createdBy: { isTestUser: false },
         },
         select: {
           orderDate: true,
@@ -1341,6 +1351,7 @@ export const reportRepository = {
           organizationId,
           createdAt: { gte: start, lt: endExclusive },
           status: { not: 'CANCELLED' },
+          createdBy: { isTestUser: false },
         },
         select: { createdAt: true, type: true },
       }),

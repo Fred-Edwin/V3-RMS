@@ -62,6 +62,7 @@ model User {
   fcmToken           String?           @map("fcm_token")
   role               UserRole
   isActive           Boolean           @default(true) @map("is_active")
+  isTestUser         Boolean           @default(false) @map("is_test_user")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   deletedAt          DateTime?         @map("deleted_at")

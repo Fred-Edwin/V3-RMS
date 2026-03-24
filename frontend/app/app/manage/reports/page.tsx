@@ -202,6 +202,27 @@ export default function ManagerReportsPage(): JSX.Element {
     );
   }, [branchTrends]);
 
+  const waiterCollections = useMemo(() => {
+    if (!report) return null;
+    const waiters = report.staff.filter(
+      (s) => s.role === 'WAITER' && s.paymentBreakdown !== null,
+    );
+    if (waiters.length === 0) return null;
+    const totals = waiters.reduce(
+      (acc, s) => {
+        const b = s.paymentBreakdown!;
+        return {
+          mpesa: acc.mpesa + Number.parseFloat(b.mpesa),
+          cash: acc.cash + Number.parseFloat(b.cash),
+          card: acc.card + Number.parseFloat(b.card),
+          total: acc.total + Number.parseFloat(b.total),
+        };
+      },
+      { mpesa: 0, cash: 0, card: 0, total: 0 },
+    );
+    return { waiters, totals };
+  }, [report]);
+
   const columns: Array<TableColumn<StaffRow>> = useMemo(
     () => [
       {
@@ -456,6 +477,86 @@ export default function ManagerReportsPage(): JSX.Element {
             data={hourlyData}
             showDow={daysBetween(startDate, endDate) >= 14}
           />
+        )}
+      </section>
+
+      {/* ── Waiter Collections ────────────────────────────────────── */}
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-heading-md font-semibold text-stone-900">Waiter Collections</h3>
+            <p className="mt-1 text-body-sm text-stone-500">
+              {report
+                ? `Cash, M-Pesa and Card collected per waiter · ${periodLabel}`
+                : 'Run the report to view waiter collections.'}
+            </p>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <SkeletonTable rows={4} columns={4} />
+        ) : !waiterCollections ? (
+          <EmptyState
+            icon={<Users size={24} />}
+            heading="No waiter collection data"
+            body="Run the report, or ensure the date range includes closed orders assigned to waiters."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-stone-200">
+            <table className="w-full text-left text-body-sm">
+              <thead>
+                <tr className="border-b border-stone-200 bg-stone-50">
+                  <th className="px-4 py-2.5 font-semibold text-stone-600">Waiter</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">M-Pesa</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Cash</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Card</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {waiterCollections.waiters.map((s) => (
+                  <tr key={s.id} className="transition-colors hover:bg-stone-50/60">
+                    <td className="px-4 py-2.5 font-medium text-stone-800">{s.name}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                      {Number.parseFloat(s.paymentBreakdown!.mpesa) > 0
+                        ? formatCurrency(s.paymentBreakdown!.mpesa)
+                        : <span className="text-stone-400">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                      {Number.parseFloat(s.paymentBreakdown!.cash) > 0
+                        ? formatCurrency(s.paymentBreakdown!.cash)
+                        : <span className="text-stone-400">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
+                      {Number.parseFloat(s.paymentBreakdown!.card) > 0
+                        ? formatCurrency(s.paymentBreakdown!.card)
+                        : <span className="text-stone-400">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
+                      {formatCurrency(s.paymentBreakdown!.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-stone-200 bg-stone-50/60">
+                  <td className="px-4 py-2.5 font-semibold text-stone-700">Total</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
+                    {formatCurrency(waiterCollections.totals.mpesa)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
+                    {formatCurrency(waiterCollections.totals.cash)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
+                    {formatCurrency(waiterCollections.totals.card)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-espresso">
+                    {formatCurrency(waiterCollections.totals.total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         )}
       </section>
 
