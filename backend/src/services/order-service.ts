@@ -48,6 +48,7 @@ interface PaginationMeta {
 interface OrderListResult {
   orders: Array<OrderRecord | OrderSummaryRecord>;
   pagination: PaginationMeta;
+  totalValue: number;
 }
 
 interface ResolvedOrderItem {
@@ -469,6 +470,7 @@ export const orderService = {
           perPage: query.perPage,
           totalPages: Math.max(1, Math.ceil(result.total / query.perPage)),
         },
+        totalValue: result.totalValue,
       };
     }
 
@@ -481,6 +483,7 @@ export const orderService = {
         perPage: query.perPage,
         totalPages: Math.max(1, Math.ceil(result.total / query.perPage)),
       },
+      totalValue: result.totalValue,
     };
   },
 

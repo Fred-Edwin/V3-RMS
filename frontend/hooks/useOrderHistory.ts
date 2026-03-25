@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { orderService } from '@/services/orderService';
 import { useAuthStore } from '@/store/authStore';
 import type { OrderStatus, OrderSummary, PaginationMeta } from '@/types/order';
@@ -21,6 +21,7 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
     perPage: 20,
     totalPages: 1,
   });
+  const [totalValue, setTotalValue] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,7 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
         }
         setOrders(result.orders);
         setPagination(result.pagination);
+        setTotalValue(result.totalValue);
       })
       .catch((historyError) => {
         if (!mounted) {
@@ -69,11 +71,6 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
       mounted = false;
     };
   }, [accessToken, filters.createdById, filters.endDate, filters.page, filters.prepTicketClaimedById, filters.startDate, filters.status]);
-
-  const totalValue = useMemo(
-    () => orders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
-    [orders],
-  );
 
   return { orders, pagination, isLoading, error, totalValue };
 }

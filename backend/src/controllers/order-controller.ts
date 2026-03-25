@@ -49,6 +49,7 @@ export const orderController = {
       success: true,
       data: result.orders,
       pagination: result.pagination,
+      totalValue: result.totalValue,
     });
   },
 

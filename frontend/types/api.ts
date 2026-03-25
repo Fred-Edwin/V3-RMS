@@ -15,6 +15,7 @@ export interface ApiResponseEnvelope<T> {
     perPage: number;
     totalPages: number;
   };
+  totalValue?: number;
 }
 
 export class ApiError extends Error {

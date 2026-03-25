@@ -285,11 +285,12 @@ export const orderRepository = {
   findMany: async (
     organizationId: string,
     filters: OrderFilters,
-  ): Promise<{ orders: FullOrderPrismaRecord[]; total: number }> => {
+  ): Promise<{ orders: FullOrderPrismaRecord[]; total: number; totalValue: number }> => {
     const where = buildWhere(organizationId, filters);
 
-    const [total, orders] = await prisma.$transaction([
+    const [total, aggregate, orders] = await prisma.$transaction([
       prisma.order.count({ where }),
+      prisma.order.aggregate({ where, _sum: { total: true } }),
       prisma.order.findMany({
         where,
         include: orderInclude,
@@ -303,6 +304,7 @@ export const orderRepository = {
 
     return {
       total,
+      totalValue: aggregate._sum.total?.toNumber() ?? 0,
       orders,
     };
   },
@@ -310,11 +312,12 @@ export const orderRepository = {
   findManySummary: async (
     organizationId: string,
     filters: OrderFilters,
-  ): Promise<{ orders: SummaryOrderPrismaRecord[]; total: number }> => {
+  ): Promise<{ orders: SummaryOrderPrismaRecord[]; total: number; totalValue: number }> => {
     const where = buildWhere(organizationId, filters);
 
-    const [total, orders] = await prisma.$transaction([
+    const [total, aggregate, orders] = await prisma.$transaction([
       prisma.order.count({ where }),
+      prisma.order.aggregate({ where, _sum: { total: true } }),
       prisma.order.findMany({
         where,
         include: orderSummaryInclude,
@@ -328,6 +331,7 @@ export const orderRepository = {
 
     return {
       total,
+      totalValue: aggregate._sum.total?.toNumber() ?? 0,
       orders,
     };
   },

@@ -50,7 +50,7 @@ export const orderService = {
   getMany: async (
     params: GetOrdersParams,
     accessToken: string,
-  ): Promise<{ orders: OrderSummary[]; pagination: PaginationMeta }> => {
+  ): Promise<{ orders: OrderSummary[]; pagination: PaginationMeta; totalValue: number }> => {
     const response = await apiClient.getWithEnvelope<OrderSummary[]>(
       `/orders${toQueryString(params)}`,
       accessToken,
@@ -64,6 +64,7 @@ export const orderService = {
         perPage: params.perPage ?? 20,
         totalPages: 1,
       },
+      totalValue: response.totalValue ?? 0,
     };
   },
 
