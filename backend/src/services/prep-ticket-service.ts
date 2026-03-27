@@ -4,11 +4,8 @@ import { orderRepository } from '../repositories/order-repository';
 import { prepTicketRepository, type PrepTicketWithOrderRecord } from '../repositories/prep-ticket-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { socketService } from '../sockets/socket-service';
-import { getSocketServer, branchRoomName } from '../sockets/socket';
 import { fcmService } from './fcm-service';
 import { incidentService } from './incident-service';
-import { inventoryService } from './inventory-service';
-import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type { ClaimPrepTicketInput, PrepTicketQueryInput } from '../validators/order-schemas';
@@ -39,7 +36,6 @@ interface PrepTicketResponse {
   claimedAt: Date | null;
   readyAt: Date | null;
   items: Array<{
-    menuItemId?: string;
     name: string;
     quantity: number;
     notes: string | null;
@@ -280,52 +276,17 @@ export const prepTicketService = {
 
     assertPersonalActorOwnsTicket(actor, ticket);
 
-    type StockResult = { menuItemId: string; newQty: number; isLowStock: boolean; isOutOfStock: boolean };
-    const stockResults: StockResult[] = [];
-
-    const result = await prisma.$transaction(async (tx) => {
-      const readyTicket = await prepTicketRepository.markReady(ticketId, organizationId, tx);
-      if (!readyTicket) return null;
-
-      const items = parsePrepTicketItems(readyTicket.items);
-      for (const item of items) {
-        if (!item.menuItemId) continue; // guard: untracked items in snapshot
-        const stockResult = await inventoryService.deductStockForPrepTicket(
-          organizationId,
-          item.menuItemId,
-          item.quantity,
-          tx,
-        );
-        stockResults.push({ menuItemId: item.menuItemId, ...stockResult });
-      }
-
-      return readyTicket;
-    });
-
-    if (!result) {
+    const readyTicket = await prepTicketRepository.markReady(ticketId, organizationId);
+    if (!readyTicket) {
       throw new ConflictError('This ticket is not in progress.');
     }
 
-    const readyTicket = result;
-
-    // Emit socket events AFTER transaction commits
     socketService.emitOrderReady(ticket.order.createdById, {
       orderId: readyTicket.orderId,
       ticketId: readyTicket.id,
       station: readyTicket.station,
       dailyNumber: ticket.order.dailyNumber,
     });
-
-    // Emit inventory stock events
-    const io = getSocketServer();
-    for (const r of stockResults) {
-      const room = branchRoomName(organizationId);
-      if (r.isOutOfStock) {
-        io.to(room).emit('inventory:out_of_stock', { organizationId, menuItemId: r.menuItemId });
-      } else if (r.isLowStock) {
-        io.to(room).emit('inventory:low_stock', { organizationId, menuItemId: r.menuItemId, currentQty: r.newQty });
-      }
-    }
 
     const allOrderTickets = await prepTicketRepository.findAllByOrder(readyTicket.orderId, organizationId);
     const allReady = allOrderTickets.every((entry) => entry.status === PrepTicketStatus.READY);

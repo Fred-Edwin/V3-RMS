@@ -41,7 +41,7 @@ menuRoutes.get(
   '/menu/categories',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   menuController.getCategories,
 );
 

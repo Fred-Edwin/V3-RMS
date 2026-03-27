@@ -16,7 +16,6 @@
         "prisma:migrate": "prisma migrate dev",
         "prisma:studio": "prisma studio",
         "seed:admin": "tsx src/scripts/seed-admin.ts",
-        "seed:ck-org": "tsx src/scripts/seed-ck-org.ts",
         "seed:reports": "tsx src/scripts/seed-report-orders.ts",
         "menu:import": "tsx src/scripts/import-menu.ts",
         "menu:import-images": "tsx src/scripts/import-menu-images.ts",

@@ -25,7 +25,6 @@ const roleLabels: Record<AppRole, string> = {
   BARISTA: 'Barista',
   KITCHEN_DISPLAY: 'Kitchen Display',
   BARISTA_DISPLAY: 'Barista Display',
-  STORE_MANAGER: 'Store Manager',
 };
 
 function InfoRow({ label, value }: { label: string; value: string }) {

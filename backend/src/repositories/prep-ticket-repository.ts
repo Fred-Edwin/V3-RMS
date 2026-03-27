@@ -164,10 +164,9 @@ export const prepTicketRepository = {
     });
   },
 
-  markReady: async (id: string, organizationId: string, tx?: Prisma.TransactionClient): Promise<PrepTicketWithOrderRecord | null> => {
-    const client = tx ?? prisma;
+  markReady: async (id: string, organizationId: string): Promise<PrepTicketWithOrderRecord | null> => {
     const readyAt = new Date();
-    const updated = await client.prepTicket.updateMany({
+    const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
         organizationId,
@@ -183,7 +182,7 @@ export const prepTicketRepository = {
       return null;
     }
 
-    return client.prepTicket.findFirst({
+    return prisma.prepTicket.findFirst({
       where: {
         id,
         organizationId,

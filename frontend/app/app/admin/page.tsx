@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { ApiError } from '@/types/api';
 
-type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'STORE_MANAGER' | 'MANAGER'>;
+type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER'>;
 
 type BranchRow = Record<string, unknown> & {
   id: string;
@@ -107,8 +107,6 @@ export default function Page(): JSX.Element {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState<UserFormState>(initialUserForm);
   const [toggleUserTarget, setToggleUserTarget] = useState<StaffDto | null>(null);
-  const [editUserTarget, setEditUserTarget] = useState<StaffDto | null>(null);
-  const [editUserForm, setEditUserForm] = useState({ name: '', email: '', phone: '' });
 
   useEffect(() => {
     if (!accessToken) {
@@ -123,14 +121,13 @@ export default function Page(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [branchData, managers, storeManagers, directors] = await Promise.all([
+      const [branchData, managers, directors] = await Promise.all([
         branchService.listBranches(accessToken),
         staffService.listStaff(accessToken, { role: 'MANAGER' }),
-        staffService.listStaff(accessToken, { role: 'STORE_MANAGER' }),
         staffService.listStaff(accessToken, { role: 'DIRECTOR' }),
       ]);
       setBranches(branchData);
-      setUsers([...directors, ...storeManagers, ...managers]);
+      setUsers([...directors, ...managers]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -292,31 +289,6 @@ export default function Page(): JSX.Element {
     }
   };
 
-  const handleEditUser = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    if (!accessToken || !editUserTarget) return;
-    setIsSubmitting(true);
-    try {
-      const updated = await staffService.updateStaff(
-        editUserTarget.id,
-        {
-          name: editUserForm.name.trim() || undefined,
-          email: editUserForm.email.trim() || undefined,
-          phone: editUserForm.phone.trim() || undefined,
-        },
-        accessToken,
-      );
-      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-      setEditUserTarget(null);
-      toast({ variant: 'success', title: 'Account updated' });
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : 'Failed to update account.';
-      toast({ variant: 'error', title: 'Update failed', message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleConfirmToggleUser = async (): Promise<void> => {
     if (!accessToken || !toggleUserTarget) return;
 
@@ -442,22 +414,9 @@ export default function Page(): JSX.Element {
       label: '',
       className: 'w-[120px]',
       render: (_value, row) => (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setEditUserTarget(row.user);
-              setEditUserForm({ name: row.user.name, email: row.user.email, phone: row.user.phone ?? '' });
-            }}
-          >
-            Edit
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
-            {row.user.isActive ? 'Deactivate' : 'Reactivate'}
-          </Button>
-        </div>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
+          {row.user.isActive ? 'Deactivate' : 'Reactivate'}
+        </Button>
       ),
     },
   ];
@@ -724,7 +683,6 @@ export default function Page(): JSX.Element {
               }
               options={[
                 { value: 'MANAGER', label: 'Manager' },
-                { value: 'STORE_MANAGER', label: 'Store Manager' },
                 { value: 'DIRECTOR', label: 'Director' },
               ]}
             />
@@ -749,49 +707,6 @@ export default function Page(): JSX.Element {
               type="password"
               value={userForm.temporaryPassword}
               onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
-            />
-          </FormField>
-        </form>
-      </Modal>
-
-      {/* Edit User Modal */}
-      <Modal
-        isOpen={!!editUserTarget}
-        onClose={() => { if (!isSubmitting) setEditUserTarget(null); }}
-        title="Edit Leadership Account"
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setEditUserTarget(null)} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" form="edit-user-form" isLoading={isSubmitting}>
-              Save Changes
-            </Button>
-          </div>
-        }
-      >
-        <form id="edit-user-form" className="space-y-4" onSubmit={(event) => void handleEditUser(event)}>
-          <FormField label="Full Name" htmlFor="edit-user-name" required>
-            <Input
-              id="edit-user-name"
-              value={editUserForm.name}
-              onChange={(event) => setEditUserForm((prev) => ({ ...prev, name: event.target.value }))}
-            />
-          </FormField>
-          <FormField label="Email" htmlFor="edit-user-email" required>
-            <Input
-              id="edit-user-email"
-              type="email"
-              value={editUserForm.email}
-              onChange={(event) => setEditUserForm((prev) => ({ ...prev, email: event.target.value }))}
-            />
-          </FormField>
-          <FormField label="Phone" htmlFor="edit-user-phone">
-            <Input
-              id="edit-user-phone"
-              value={editUserForm.phone}
-              onChange={(event) => setEditUserForm((prev) => ({ ...prev, phone: event.target.value }))}
-              placeholder="+254 700 000 000"
             />
           </FormField>
         </form>

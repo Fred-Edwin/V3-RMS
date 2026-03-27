@@ -7,7 +7,6 @@ interface BadgeProps {
   variant: BadgeVariant
   size?: BadgeSize
   className?: string
-  label?: string
 }
 
 // Full class strings written out — no interpolation (Tailwind JIT requirement)
@@ -32,7 +31,7 @@ const sizeClasses: Record<BadgeSize, string> = {
   lg: 'text-label-md px-3 py-1',
 }
 
-export function Badge({ variant, size = 'default', className, label }: BadgeProps) {
+export function Badge({ variant, size = 'default', className }: BadgeProps) {
   return (
     <span
       className={cn(
@@ -42,7 +41,7 @@ export function Badge({ variant, size = 'default', className, label }: BadgeProp
         className
       )}
     >
-      {label ?? variantLabels[variant]}
+      {variantLabels[variant]}
     </span>
   )
 }
