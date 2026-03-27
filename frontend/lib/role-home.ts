@@ -9,4 +9,5 @@ export const roleHome: Record<AppRole, string> = {
   MANAGER: '/app/manage/dashboard',
   DIRECTOR: '/app/director',
   SYSTEM_ADMIN: '/app/admin',
+  STORE_MANAGER: '/app/store/dashboard',
 };

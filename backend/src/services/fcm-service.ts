@@ -229,6 +229,32 @@ export const fcmService = {
     }
   },
 
+  /**
+   * Sends a push notification to a specific FCM token with a custom title and body.
+   * Used for inventory notifications (dispatch, discrepancy alerts).
+   */
+  sendGenericPush: async (fcmToken: string, payload: { title: string; body: string }): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: payload.title,
+            body: payload.body,
+            icon: '/android-chrome-192x192.png',
+          },
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send generic FCM push');
+    }
+  },
+
   sendShiftReminderPush: async (userId: string, payload: ShiftReminderPushPayload): Promise<void> => {
     try {
       if (!firebaseMessaging) {
