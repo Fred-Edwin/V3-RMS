@@ -8,7 +8,6 @@ interface StatCardProps {
   className?: string
   valueClassName?: string
   labelClassName?: string
-  onClick?: () => void
 }
 
 export function StatCard({
@@ -19,10 +18,9 @@ export function StatCard({
   className,
   valueClassName,
   labelClassName,
-  onClick,
 }: StatCardProps) {
   return (
-    <div onClick={onClick} className={cn('relative overflow-hidden rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+    <div className={cn('relative overflow-hidden rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
       {/* Top row: label left, icon right */}
       <div className="flex items-center justify-between gap-2">
         <p className={cn('text-label-sm font-semibold uppercase tracking-wider text-stone-400', labelClassName)}>
