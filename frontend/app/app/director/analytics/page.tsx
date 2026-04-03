@@ -16,7 +16,6 @@ import {
   Button,
   EmptyState,
   Input,
-  PageHeader,
   PageLayout,
   Popover,
   Select,
