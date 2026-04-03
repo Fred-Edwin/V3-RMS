@@ -1258,6 +1258,11 @@ export const reportRepository = {
     const branchResults = await Promise.all(
       organizations.map(async (organization) => {
         const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        // Start of today in Africa/Nairobi (UTC+3)
+        const startOfTodayNairobi = new Date(now);
+        startOfTodayNairobi.setUTCHours(startOfTodayNairobi.getUTCHours() - 3); // shift to Nairobi local
+        startOfTodayNairobi.setUTCHours(0, 0, 0, 0); // midnight local
+        const startOfTodayUtc = new Date(startOfTodayNairobi.getTime() + 3 * 60 * 60 * 1000); // back to UTC
 
         const [activeOrders, tickets, clockedInRecords, lateOrderRows] = await Promise.all([
           prisma.order.count({
@@ -1284,11 +1289,12 @@ export const reportRepository = {
               user: { select: { name: true, role: true } },
             },
           }),
-          // READY orders that have been unclosed for more than 2 hours
+          // READY orders created today that have been unclosed for more than 2 hours
           prisma.order.findMany({
             where: {
               organizationId: organization.id,
               status: 'READY',
+              createdAt: { gte: startOfTodayUtc },
               updatedAt: { lt: twoHoursAgo },
             },
             select: {
@@ -1299,7 +1305,6 @@ export const reportRepository = {
               createdBy: { select: { name: true } },
             },
             orderBy: { updatedAt: 'asc' },
-            take: 20,
           }),
         ]);
 
