@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, DollarSign, Printer, ShoppingBag, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, Printer, Users } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -18,14 +18,8 @@ import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { DailySummary, HourlyHeatmapReport, StaffPerformancePeriod } from '@/types/report';
+import type { DailySummary, HourlyHeatmapReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
-
-const formatCurrency = (value: string | number): string => {
-  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
-  if (Number.isNaN(num)) return 'KES 0.00';
-  return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
 
 const formatDisplayDate = (ymd: string): string => {
   const parsed = new Date(`${ymd}T00:00:00`);
@@ -111,7 +105,6 @@ export default function ManagerDashboardPage(): JSX.Element {
 
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
-  const [waiterBreakdown, setWaiterBreakdown] = useState<StaffPerformancePeriod | null>(null);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
@@ -123,25 +116,22 @@ export default function ManagerDashboardPage(): JSX.Element {
 
     setIsLoadingSummary(true);
     try {
-      const [summary, hourly, waiters] = await Promise.all([
+      const [summary, hourly] = await Promise.all([
         reportService.getDailySummary(accessToken, { date: selectedDate }),
         reportService.getHourlyHeatmap(accessToken, { startDate: selectedDate, endDate: selectedDate }),
-        reportService.getStaffPerformance(accessToken, { startDate: selectedDate, endDate: selectedDate, role: 'WAITER' }),
       ]);
 
       if (selectedDate === todayDate && summary.orderCount === 0) {
         for (let dayOffset = 1; dayOffset <= 7; dayOffset += 1) {
           const fallbackDate = shiftYmd(todayDate, -dayOffset);
-          const [fallbackSummary, fallbackHourly, fallbackWaiters] = await Promise.all([
+          const [fallbackSummary, fallbackHourly] = await Promise.all([
             reportService.getDailySummary(accessToken, { date: fallbackDate }),
             reportService.getHourlyHeatmap(accessToken, { startDate: fallbackDate, endDate: fallbackDate }),
-            reportService.getStaffPerformance(accessToken, { startDate: fallbackDate, endDate: fallbackDate, role: 'WAITER' }),
           ]);
           if (fallbackSummary.orderCount > 0) {
             setSelectedDate(fallbackDate);
             setDailySummary(fallbackSummary);
             setHourlyData(fallbackHourly);
-            setWaiterBreakdown(fallbackWaiters);
             toast({
               variant: 'info',
               title: 'Showing latest sales day',
@@ -154,7 +144,6 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       setDailySummary(summary);
       setHourlyData(hourly);
-      setWaiterBreakdown(waiters);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load daily summary.';
       toast({
@@ -164,7 +153,6 @@ export default function ManagerDashboardPage(): JSX.Element {
       });
       setDailySummary(null);
       setHourlyData(null);
-      setWaiterBreakdown(null);
     } finally {
       setIsLoadingSummary(false);
     }
@@ -216,21 +204,6 @@ export default function ManagerDashboardPage(): JSX.Element {
     );
   }, [dailySummary]);
 
-  const summaryAvgOrderValue = useMemo(() => {
-    if (!dailySummary || dailySummary.orderCount === 0) return 'KES 0.00';
-    const total = Number.parseFloat(dailySummary.totalRevenue);
-    if (Number.isNaN(total)) return 'KES 0.00';
-    const avg = total / dailySummary.orderCount;
-    return `KES ${avg.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }, [dailySummary]);
-
-  const formattedTotalRevenue = useMemo(() => {
-    if (!dailySummary) return 'KES 0.00';
-    const num = Number.parseFloat(dailySummary.totalRevenue);
-    if (Number.isNaN(num)) return 'KES 0.00';
-    return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }, [dailySummary]);
-
   const orderTypeBars = useMemo(() => {
     if (!dailySummary) {
       return [];
@@ -240,18 +213,6 @@ export default function ManagerDashboardPage(): JSX.Element {
       { label: 'Dine-In', value: dailySummary.ordersByType.DINE_IN },
       { label: 'Take-Away', value: dailySummary.ordersByType.TAKE_AWAY },
       { label: 'Delivery', value: dailySummary.ordersByType.DELIVERY },
-    ];
-  }, [dailySummary]);
-
-  const paymentMethodBars = useMemo(() => {
-    if (!dailySummary) {
-      return [];
-    }
-
-    return [
-      { label: 'MPESA', value: Number.parseFloat(dailySummary.revenueByPaymentMethod.MPESA) || 0 },
-      { label: 'Cash', value: Number.parseFloat(dailySummary.revenueByPaymentMethod.CASH) || 0 },
-      { label: 'Card', value: Number.parseFloat(dailySummary.revenueByPaymentMethod.CARD) || 0 },
     ];
   }, [dailySummary]);
 
@@ -293,7 +254,7 @@ export default function ManagerDashboardPage(): JSX.Element {
         </Button>
       </div>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard
           label="Closed Orders"
           value={dailySummary?.orderCount ?? 0}
@@ -301,23 +262,10 @@ export default function ManagerDashboardPage(): JSX.Element {
           icon={<Activity size={18} />}
         />
         <StatCard
-          label="Revenue"
-          value={formattedTotalRevenue}
-          caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
-          icon={<DollarSign size={18} />}
-        />
-        <StatCard
-          label="Avg Order Value"
-          value={summaryAvgOrderValue}
-          caption="Closed orders"
-          icon={<ShoppingBag size={18} />}
-        />
-        <StatCard
           label="Avg Prep"
           value={`${summaryAvgPrep} min`}
           caption={isTodaySelected ? 'Today' : topCardLabelSuffix}
           icon={<Clock3 size={18} />}
-          className="col-span-2 sm:col-span-1"
         />
       </section>
 
@@ -436,7 +384,7 @@ export default function ManagerDashboardPage(): JSX.Element {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-display text-display-lg font-semibold text-espresso">Daily Summary</h3>
-            <p className="mt-0.5 text-body-sm text-stone-500">Revenue, order mix, top items, and payment breakdown.</p>
+            <p className="mt-0.5 text-body-sm text-stone-500">Order mix, top items, and prep performance.</p>
           </div>
           <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-label-sm font-medium text-stone-700 shadow-sm transition-colors hover:bg-stone-100">
             <CalendarDays size={14} className="shrink-0 text-stone-500" />
@@ -468,8 +416,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                 No closed orders were recorded for {formattedSelectedDate}. Active orders still appear in the Live Operations panel.
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              <StatCard label="Total Revenue" value={formattedTotalRevenue} icon={<DollarSign size={16} />} />
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
               <StatCard label="Closed Orders" value={dailySummary.orderCount} icon={<Activity size={16} />} />
               <StatCard
                 label="Top Item"
@@ -484,57 +431,10 @@ export default function ManagerDashboardPage(): JSX.Element {
               />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <ComparisonBars
-                title="Order Count by Type"
-                data={orderTypeBars}
-              />
-              <ComparisonBars
-                title="Revenue by Payment Method"
-                data={paymentMethodBars}
-                valueFormatter={(value) => `KES ${value.toFixed(2)}`}
-              />
-            </div>
-
-            {waiterBreakdown && waiterBreakdown.staff.some((r) => r.paymentBreakdown && Number.parseFloat(r.paymentBreakdown.total) > 0) && (
-              <div>
-                <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Collections by Waiter</h4>
-                <div className="overflow-x-auto rounded-xl border border-stone-200">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b border-stone-200 bg-stone-50">
-                        <th className="px-4 py-2.5 font-semibold text-stone-600">Waiter</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">M-Pesa</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Cash</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Card</th>
-                        <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {waiterBreakdown.staff
-                        .filter((r) => r.paymentBreakdown && Number.parseFloat(r.paymentBreakdown.total) > 0)
-                        .map((r) => (
-                          <tr key={r.id} className="transition-colors hover:bg-stone-50/60">
-                            <td className="px-4 py-2.5 font-medium text-stone-800">{r.name}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                              {Number.parseFloat(r.paymentBreakdown!.mpesa) > 0 ? formatCurrency(r.paymentBreakdown!.mpesa) : <span className="text-stone-400">—</span>}
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                              {Number.parseFloat(r.paymentBreakdown!.cash) > 0 ? formatCurrency(r.paymentBreakdown!.cash) : <span className="text-stone-400">—</span>}
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                              {Number.parseFloat(r.paymentBreakdown!.card) > 0 ? formatCurrency(r.paymentBreakdown!.card) : <span className="text-stone-400">—</span>}
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
-                              {formatCurrency(r.paymentBreakdown!.total)}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            <ComparisonBars
+              title="Order Count by Type"
+              data={orderTypeBars}
+            />
 
             {hourlyData && (
               <div>

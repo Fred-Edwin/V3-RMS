@@ -33,4 +33,4 @@ local_before_seed_cleanup.sql
 **/*.tsbuildinfo
 .vercel
 
-/receipt-printing-app/
+#/receipt-printing-app/

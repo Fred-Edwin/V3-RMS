@@ -22,7 +22,7 @@ import {
   Users,
   UtensilsCrossed,
 } from 'lucide-react';
-import { BottomNav, ConfirmDialog, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
+import { BottomNav, ConfirmDialog, DirectorSidebarNav, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
 import { env } from '@/lib/env';
 
 // Paths that belong to the Phase 7 credit accounts feature.
@@ -75,12 +75,14 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
   DIRECTOR: {
     tabs: [
       { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
+      { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
-      { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
-    overflowTabs: [],
   },
   SYSTEM_ADMIN: {
     tabs: [
@@ -173,7 +175,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
   DIRECTOR: [
     {
       label: 'Overview',
-      items: [{ label: 'Dashboard', href: '/app/director', icon: LayoutDashboard }],
+      items: [
+        { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
+        { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
+      ],
     },
     {
       label: 'Credit',
@@ -305,21 +310,24 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     return <>{children}</>;
   }
 
-  const sidebar = (
-    <div className="flex h-full flex-col">
-      <SidebarNav sections={sidebarSections} activeHref={pathname} />
-      <div className="border-t border-stone-200 p-3">
-        <button
-          type="button"
-          onClick={() => setLogoutOpen(true)}
-          className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-label-md font-medium text-stone-700 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-900"
-        >
-          <LogOut size={18} className="text-stone-500" />
-          Logout
-        </button>
+  const sidebar =
+    role === 'DIRECTOR' ? (
+      <DirectorSidebarNav onLogout={() => setLogoutOpen(true)} />
+    ) : (
+      <div className="flex h-full flex-col">
+        <SidebarNav sections={sidebarSections} activeHref={pathname} />
+        <div className="border-t border-stone-200 p-3">
+          <button
+            type="button"
+            onClick={() => setLogoutOpen(true)}
+            className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-label-md font-medium text-stone-700 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-900"
+          >
+            <LogOut size={18} className="text-stone-500" />
+            Logout
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const usesDualShell =
     role === 'MANAGER' ||

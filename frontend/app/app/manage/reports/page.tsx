@@ -50,12 +50,6 @@ const daysBetween = (start: string, end: string): number => {
   return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000));
 };
 
-const formatCurrency = (value: string | number): string => {
-  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
-  if (Number.isNaN(num)) return 'KES 0.00';
-  return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
-
 type StaffRow = Record<string, unknown> & StaffPerformanceRow;
 
 export default function ManagerReportsPage(): JSX.Element {
@@ -154,11 +148,6 @@ export default function ManagerReportsPage(): JSX.Element {
     if (!report || report.staff.length === 0) return null;
 
     const totalOrders = report.staff.reduce((sum, s) => sum + s.ordersHandled, 0);
-    const waiters = report.staff.filter((s) => s.role === 'WAITER');
-    const avgOrderValue =
-      waiters.length > 0
-        ? waiters.reduce((sum, s) => sum + Number.parseFloat(s.averageOrderValue ?? '0'), 0) / waiters.length
-        : 0;
     const prepStaff = report.staff.filter((s) => s.role === 'CHEF' || s.role === 'BARISTA');
     const avgPrepTime =
       prepStaff.length > 0
@@ -169,7 +158,7 @@ export default function ManagerReportsPage(): JSX.Element {
     const actualTotal = report.staff.reduce((sum, s) => sum + s.actualHours, 0);
     const attendanceRate = scheduledTotal > 0 ? (actualTotal / scheduledTotal) * 100 : 0;
 
-    return { totalOrders, avgOrderValue, avgPrepTime, attendanceRate };
+    return { totalOrders, avgPrepTime, attendanceRate };
   }, [report]);
 
   const ordersTrendData = useMemo(() => {
@@ -177,16 +166,6 @@ export default function ManagerReportsPage(): JSX.Element {
       branchTrends?.points.map((point) => ({
         label: formatDay(point.date),
         value: point.orders,
-        date: point.date,
-      })) ?? []
-    );
-  }, [branchTrends]);
-
-  const revenueTrendData = useMemo(() => {
-    return (
-      branchTrends?.points.map((point) => ({
-        label: formatDay(point.date),
-        value: Number.parseFloat(point.revenue) || 0,
         date: point.date,
       })) ?? []
     );
@@ -201,27 +180,6 @@ export default function ManagerReportsPage(): JSX.Element {
       })) ?? []
     );
   }, [branchTrends]);
-
-  const waiterCollections = useMemo(() => {
-    if (!report) return null;
-    const waiters = report.staff.filter(
-      (s) => s.role === 'WAITER' && s.paymentBreakdown !== null,
-    );
-    if (waiters.length === 0) return null;
-    const totals = waiters.reduce(
-      (acc, s) => {
-        const b = s.paymentBreakdown!;
-        return {
-          mpesa: acc.mpesa + Number.parseFloat(b.mpesa),
-          cash: acc.cash + Number.parseFloat(b.cash),
-          card: acc.card + Number.parseFloat(b.card),
-          total: acc.total + Number.parseFloat(b.total),
-        };
-      },
-      { mpesa: 0, cash: 0, card: 0, total: 0 },
-    );
-    return { waiters, totals };
-  }, [report]);
 
   const columns: Array<TableColumn<StaffRow>> = useMemo(
     () => [
@@ -240,43 +198,10 @@ export default function ManagerReportsPage(): JSX.Element {
       },
       {
         key: 'averageOrderValue',
-        label: 'Avg Value / Prep',
-        render: (_value, row) =>
-          row.role === 'WAITER' ? (
-            <span className="tabular-nums">{formatCurrency(row.averageOrderValue ?? '0.00')}</span>
-          ) : (
-            <span className="tabular-nums">{row.averagePrepTimeMinutes ?? 0} min</span>
-          ),
-      },
-      {
-        key: 'paymentMpesa',
-        label: 'Mpesa Collected',
-        render: (_value, row) =>
-          row.paymentBreakdown ? (
-            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.mpesa)}</span>
-          ) : (
-            <span className="text-stone-400">—</span>
-          ),
-      },
-      {
-        key: 'paymentCash',
-        label: 'Cash Collected',
-        render: (_value, row) =>
-          row.paymentBreakdown ? (
-            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.cash)}</span>
-          ) : (
-            <span className="text-stone-400">—</span>
-          ),
-      },
-      {
-        key: 'paymentCard',
-        label: 'Card Collected',
-        render: (_value, row) =>
-          row.paymentBreakdown ? (
-            <span className="tabular-nums text-stone-700">{formatCurrency(row.paymentBreakdown.card)}</span>
-          ) : (
-            <span className="text-stone-400">—</span>
-          ),
+        label: 'Avg Prep',
+        render: (_value, row) => (
+          <span className="tabular-nums">{row.averagePrepTimeMinutes ?? 0} min</span>
+        ),
       },
       {
         key: 'scheduledHours',
@@ -366,18 +291,12 @@ export default function ManagerReportsPage(): JSX.Element {
               ))}
             </div>
           ) : kpiStats ? (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               <StatCard
                 label="Total Orders / Tickets"
                 value={kpiStats.totalOrders}
                 icon={<Users size={18} />}
                 caption={periodLabel}
-              />
-              <StatCard
-                label="Avg Order Value (Waiters)"
-                value={formatCurrency(kpiStats.avgOrderValue)}
-                icon={<TrendingUp size={18} />}
-                caption="Closed orders only"
               />
               <StatCard
                 label="Avg Prep Time"
@@ -431,14 +350,6 @@ export default function ManagerReportsPage(): JSX.Element {
               summaryLabel="Total Orders"
             />
             <LineTrendChart
-              title="Total Revenue (KES)"
-              subtitle="Daily closed revenue"
-              data={revenueTrendData}
-              valueFormatter={(value) => `KES ${value.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`}
-              tooltipUnit="KES"
-              summaryLabel="Total Revenue"
-            />
-            <LineTrendChart
               title="Avg Prep Time (min)"
               subtitle="Daily average prep time — kitchen + barista combined"
               data={prepTrendData}
@@ -477,86 +388,6 @@ export default function ManagerReportsPage(): JSX.Element {
             data={hourlyData}
             showDow={daysBetween(startDate, endDate) >= 14}
           />
-        )}
-      </section>
-
-      {/* ── Waiter Collections ────────────────────────────────────── */}
-      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-heading-md font-semibold text-stone-900">Waiter Collections</h3>
-            <p className="mt-1 text-body-sm text-stone-500">
-              {report
-                ? `Cash, M-Pesa and Card collected per waiter · ${periodLabel}`
-                : 'Run the report to view waiter collections.'}
-            </p>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <SkeletonTable rows={4} columns={4} />
-        ) : !waiterCollections ? (
-          <EmptyState
-            icon={<Users size={24} />}
-            heading="No waiter collection data"
-            body="Run the report, or ensure the date range includes closed orders assigned to waiters."
-          />
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-stone-200">
-            <table className="w-full text-left text-body-sm">
-              <thead>
-                <tr className="border-b border-stone-200 bg-stone-50">
-                  <th className="px-4 py-2.5 font-semibold text-stone-600">Waiter</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">M-Pesa</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Cash</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Card</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-stone-600">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {waiterCollections.waiters.map((s) => (
-                  <tr key={s.id} className="transition-colors hover:bg-stone-50/60">
-                    <td className="px-4 py-2.5 font-medium text-stone-800">{s.name}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                      {Number.parseFloat(s.paymentBreakdown!.mpesa) > 0
-                        ? formatCurrency(s.paymentBreakdown!.mpesa)
-                        : <span className="text-stone-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                      {Number.parseFloat(s.paymentBreakdown!.cash) > 0
-                        ? formatCurrency(s.paymentBreakdown!.cash)
-                        : <span className="text-stone-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-700">
-                      {Number.parseFloat(s.paymentBreakdown!.card) > 0
-                        ? formatCurrency(s.paymentBreakdown!.card)
-                        : <span className="text-stone-400">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
-                      {formatCurrency(s.paymentBreakdown!.total)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-stone-200 bg-stone-50/60">
-                  <td className="px-4 py-2.5 font-semibold text-stone-700">Total</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
-                    {formatCurrency(waiterCollections.totals.mpesa)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
-                    {formatCurrency(waiterCollections.totals.cash)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-stone-900">
-                    {formatCurrency(waiterCollections.totals.card)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-espresso">
-                    {formatCurrency(waiterCollections.totals.total)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
         )}
       </section>
 

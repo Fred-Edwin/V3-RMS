@@ -36,6 +36,7 @@ export { BottomNav } from './BottomNav'
 export type { NavTab } from './BottomNav'
 export { SidebarNav } from './SidebarNav'
 export type { NavSection, NavItem } from './SidebarNav'
+export { DirectorSidebarNav } from './DirectorSidebarNav'
 export { TopBar } from './TopBar'
 
 // Wave 6 — Cards
