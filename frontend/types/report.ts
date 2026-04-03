@@ -180,6 +180,14 @@ export interface PrepPerformance {
 
 export type MyPerformance = WaiterPerformance | PrepPerformance;
 
+export interface DirectorPulseLateOrder {
+  id: string;
+  dailyNumber: number;
+  total: string;
+  ageMinutes: number;
+  waiterName: string;
+}
+
 export interface DirectorPulseBranchRow {
   id: string;
   name: string;
@@ -188,6 +196,8 @@ export interface DirectorPulseBranchRow {
   inProgressTickets: number;
   clockedInCount: number;
   clockedInStaff: Array<{ name: string; role: string }>;
+  lateOrderCount: number;
+  lateOrders: DirectorPulseLateOrder[];
 }
 
 export interface DirectorPulseReport {

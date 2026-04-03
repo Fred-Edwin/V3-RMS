@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   BarChart2,
   Building2,
@@ -14,7 +15,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import { Button, EmptyState, PageLayout, SkeletonBlock } from '@/components/ui';
+import { Button, EmptyState, Modal, PageLayout, SkeletonBlock } from '@/components/ui';
 import { LineTrendChart } from '@/components/dashboard/PremiumChart';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
@@ -25,6 +26,7 @@ import { ApiError } from '@/types/api';
 import type {
   BranchOverview,
   DirectorPulseBranchRow,
+  DirectorPulseLateOrder,
   DirectorPulseReport,
   DirectorTrendsReport,
 } from '@/types/report';
@@ -134,17 +136,70 @@ function BranchRowSkeleton(): JSX.Element {
   );
 }
 
+const formatAge = (minutes: number): string => {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+};
+
+interface LateOrdersModalProps {
+  branchName: string;
+  orders: DirectorPulseLateOrder[];
+  onClose: () => void;
+}
+
+function LateOrdersModal({ branchName, orders, onClose }: LateOrdersModalProps): JSX.Element {
+  return (
+    <Modal isOpen onClose={onClose} title={`Late Unclosed Orders — ${branchName}`}>
+      <div className="space-y-1">
+        <p className="mb-4 text-body-sm text-stone-500">
+          Orders in READY status for more than 2 hours. Waiter has not closed payment.
+        </p>
+        <div className="overflow-x-auto rounded-lg border border-stone-200">
+          <table className="w-full text-left text-body-sm">
+            <thead>
+              <tr className="border-b-2 border-stone-200 bg-stone-50">
+                <th className="px-4 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Order #</th>
+                <th className="px-4 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Waiter</th>
+                <th className="px-4 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Total</th>
+                <th className="px-4 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Open for</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {orders.map((order) => (
+                <tr key={order.id} className="hover:bg-stone-50">
+                  <td className="px-4 py-3 font-semibold text-stone-900">#{order.dailyNumber}</td>
+                  <td className="px-4 py-3 text-stone-700">{order.waiterName}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-stone-700">
+                    KES {Number.parseFloat(order.total).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-amber">
+                    {formatAge(order.ageMinutes)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 interface BranchStatusRowProps {
   branch: BranchDto;
   pulse: DirectorPulseBranchRow | undefined;
   todayRevenue: string;
   todayOrders: number;
+  onLateClick: (branchName: string, orders: DirectorPulseLateOrder[]) => void;
 }
 
-function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders }: BranchStatusRowProps): JSX.Element {
+function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders, onLateClick }: BranchStatusRowProps): JSX.Element {
   const hasClockedIn = (pulse?.clockedInCount ?? 0) > 0;
   const hasActiveOrders = (pulse?.activeOrders ?? 0) > 0;
   const isActive = hasClockedIn || hasActiveOrders;
+  const lateCount = pulse?.lateOrderCount ?? 0;
 
   const dotClass = hasClockedIn
     ? 'bg-status-ready-text'
@@ -153,23 +208,37 @@ function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders }: BranchSta
     : 'bg-stone-300';
 
   return (
-    <Link
-      href={`/app/director/branches/${branch.id}`}
-      className="flex h-[52px] items-center gap-3 border-b border-stone-100 px-4 transition-colors duration-fast last:border-0 hover:bg-stone-50"
-    >
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
-      <span className={`flex-1 text-body-sm font-medium ${isActive ? 'text-stone-900' : 'text-stone-500'}`}>
-        {branch.name}
-      </span>
-      <span className="tabular-nums text-body-sm text-stone-700">{formatCurrency(todayRevenue)}</span>
-      <span className="w-14 text-right tabular-nums text-body-sm text-stone-500">{todayOrders} orders</span>
-      {hasActiveOrders && (
-        <span className="rounded-full bg-espresso/10 px-2 py-0.5 text-caption font-medium text-espresso">
-          {pulse?.activeOrders} live
+    <div className="flex min-h-[52px] items-center gap-3 border-b border-stone-100 px-4 transition-colors duration-fast last:border-0 hover:bg-stone-50">
+      <Link
+        href={`/app/director/branches/${branch.id}`}
+        className="flex flex-1 items-center gap-3"
+      >
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
+        <span className={`flex-1 text-body-sm font-medium ${isActive ? 'text-stone-900' : 'text-stone-500'}`}>
+          {branch.name}
         </span>
+        <span className="tabular-nums text-body-sm text-stone-700">{formatCurrency(todayRevenue)}</span>
+        <span className="tabular-nums text-body-sm text-stone-500">{todayOrders} orders</span>
+        {hasActiveOrders && (
+          <span className="rounded-full bg-espresso/10 px-2 py-0.5 text-caption font-medium text-espresso">
+            {pulse?.activeOrders} live
+          </span>
+        )}
+      </Link>
+      {lateCount > 0 && (
+        <button
+          type="button"
+          onClick={() => onLateClick(branch.name, pulse?.lateOrders ?? [])}
+          className="flex items-center gap-1 rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 text-caption font-medium text-amber transition-colors hover:bg-amber/20"
+        >
+          <AlertTriangle size={11} />
+          {lateCount} late
+        </button>
       )}
-      <ChevronRight size={14} className="shrink-0 text-stone-400" />
-    </Link>
+      <Link href={`/app/director/branches/${branch.id}`}>
+        <ChevronRight size={14} className="shrink-0 text-stone-400" />
+      </Link>
+    </div>
   );
 }
 
@@ -361,6 +430,9 @@ export default function DirectorCommandCentrePage(): JSX.Element {
     [overviewToday],
   );
 
+  // ── Late orders modal state ───────────────────────────────────────────────
+  const [lateModal, setLateModal] = useState<{ branchName: string; orders: DirectorPulseLateOrder[] } | null>(null);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -516,6 +588,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                     pulse={pulseMap.get(branch.id)}
                     todayRevenue={today?.revenue ?? '0'}
                     todayOrders={today?.orders ?? 0}
+                    onLateClick={(name, orders) => setLateModal({ branchName: name, orders })}
                   />
                 );
               })}
@@ -601,6 +674,15 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           </div>
         )}
       </div>
+
+      {/* ── Late Orders Modal ─────────────────────────────────────────────── */}
+      {lateModal && (
+        <LateOrdersModal
+          branchName={lateModal.branchName}
+          orders={lateModal.orders}
+          onClose={() => setLateModal(null)}
+        />
+      )}
 
     </PageLayout>
   );

@@ -1257,7 +1257,9 @@ export const reportRepository = {
 
     const branchResults = await Promise.all(
       organizations.map(async (organization) => {
-        const [activeOrders, tickets, clockedInRecords] = await Promise.all([
+        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+        const [activeOrders, tickets, clockedInRecords, lateOrderRows] = await Promise.all([
           prisma.order.count({
             where: {
               organizationId: organization.id,
@@ -1282,6 +1284,23 @@ export const reportRepository = {
               user: { select: { name: true, role: true } },
             },
           }),
+          // READY orders that have been unclosed for more than 2 hours
+          prisma.order.findMany({
+            where: {
+              organizationId: organization.id,
+              status: 'READY',
+              updatedAt: { lt: twoHoursAgo },
+            },
+            select: {
+              id: true,
+              dailyNumber: true,
+              total: true,
+              updatedAt: true,
+              createdBy: { select: { name: true } },
+            },
+            orderBy: { updatedAt: 'asc' },
+            take: 20,
+          }),
         ]);
 
         const pendingTickets =
@@ -1299,6 +1318,14 @@ export const reportRepository = {
           clockedInStaff: clockedInRecords.map((record) => ({
             name: record.user.name,
             role: record.user.role,
+          })),
+          lateOrderCount: lateOrderRows.length,
+          lateOrders: lateOrderRows.map((order) => ({
+            id: order.id,
+            dailyNumber: order.dailyNumber,
+            total: order.total.toString(),
+            ageMinutes: Math.floor((now.getTime() - order.updatedAt.getTime()) / 60_000),
+            waiterName: order.createdBy.name,
           })),
         };
       }),
