@@ -1269,6 +1269,7 @@ export const reportRepository = {
             where: {
               organizationId: organization.id,
               status: { in: ['PENDING', 'IN_PROGRESS', 'READY'] },
+              createdAt: { gte: startOfTodayUtc },
             },
           }),
           prisma.prepTicket.groupBy({
