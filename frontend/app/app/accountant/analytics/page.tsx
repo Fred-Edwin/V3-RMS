@@ -13,7 +13,6 @@ import type {
   BranchOverview,
   DirectorTrendsReport,
   StaffPerformancePeriod,
-  WaiterPaymentBreakdown,
 } from '@/types/report';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
