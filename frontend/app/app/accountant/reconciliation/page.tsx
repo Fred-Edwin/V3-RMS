@@ -8,7 +8,7 @@ import { branchService, type BranchDto } from '@/services/branchService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { AccountantReconciliationReport, WaiterPaymentBreakdown } from '@/types/report';
+import type { AccountantReconciliationReport } from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -86,41 +86,6 @@ function SummaryStatCard({
     <div className={`rounded-xl border px-4 py-4 ${bg}`}>
       <p className={`text-label-sm font-medium uppercase tracking-wider ${text} opacity-80`}>{label}</p>
       <p className={`mt-1 font-display text-display-lg font-semibold leading-tight ${text}`}>{value}</p>
-    </div>
-  );
-}
-
-function PaymentBreakdownPill({ breakdown }: { breakdown: WaiterPaymentBreakdown }) {
-  const mpesa = Number.parseFloat(breakdown.mpesa);
-  const cash = Number.parseFloat(breakdown.cash);
-  const card = Number.parseFloat(breakdown.card);
-  const credit =
-    Number.parseFloat(breakdown.houseAccount) +
-    Number.parseFloat(breakdown.corporateAccount) +
-    Number.parseFloat(breakdown.customerCredit);
-
-  return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1">
-      {mpesa > 0 && (
-        <span className="text-body-sm text-stone-700">
-          <span className="font-medium text-[#1A6B3C]">M-Pesa</span> {formatCurrency(mpesa)}
-        </span>
-      )}
-      {cash > 0 && (
-        <span className="text-body-sm text-stone-700">
-          <span className="font-medium text-stone-600">Cash</span> {formatCurrency(cash)}
-        </span>
-      )}
-      {card > 0 && (
-        <span className="text-body-sm text-stone-700">
-          <span className="font-medium text-[#1D4ED8]">Card</span> {formatCurrency(card)}
-        </span>
-      )}
-      {credit > 0 && (
-        <span className="text-body-sm text-stone-700">
-          <span className="font-medium text-[#92650A]">Credit</span> {formatCurrency(credit)}
-        </span>
-      )}
     </div>
   );
 }

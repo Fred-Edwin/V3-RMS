@@ -550,15 +550,6 @@ function StaffTab({
     }
   }, [branches, branchId]);
 
-  const formatBreakdown = (pb: WaiterPaymentBreakdown | null): string => {
-    if (!pb) return '—';
-    const parts: string[] = [];
-    if (Number.parseFloat(pb.mpesa) > 0) parts.push(`M-Pesa ${formatCurrency(pb.mpesa)}`);
-    if (Number.parseFloat(pb.cash) > 0) parts.push(`Cash ${formatCurrency(pb.cash)}`);
-    if (Number.parseFloat(pb.card) > 0) parts.push(`Card ${formatCurrency(pb.card)}`);
-    return parts.join(' · ') || '—';
-  };
-
   return (
     <div className="space-y-6">
       <DateRangeControls
