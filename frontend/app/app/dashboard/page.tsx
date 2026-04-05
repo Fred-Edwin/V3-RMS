@@ -146,9 +146,11 @@ export default function DashboardPage(): JSX.Element {
       page += 1;
     } while (page <= totalPages);
 
-    setTodayOrderCount(collectedOrders.length);
+    const nonCancelledOrders = collectedOrders.filter((order) => order.status !== 'CANCELLED');
+
+    setTodayOrderCount(nonCancelledOrders.length);
     setTodayTotalValue(
-      collectedOrders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
+      nonCancelledOrders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
     );
 
     setLatestOrders(collectedOrders.slice(0, 5));
