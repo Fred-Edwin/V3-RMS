@@ -275,6 +275,33 @@ export interface HourlyHeatmapReport {
   dowPoints: DowHeatmapPoint[];
 }
 
+export interface ItemPerformanceRow {
+  menuItemId: string;
+  name: string;
+  categoryName: string;
+  quantitySold: number;
+  revenue: string;
+}
+
+export interface ItemsPerformanceReport {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  organizationId: string;
+  organizationName: string;
+  topItems: ItemPerformanceRow[];
+  bottomItems: ItemPerformanceRow[];
+  limit: number;
+}
+
+export interface ItemsPerformanceQuery {
+  startDate: string;
+  endDate: string;
+  organizationId?: string;
+  limit?: number;
+}
+
 export interface HourlyHeatmapQuery {
   startDate: string;
   endDate: string;

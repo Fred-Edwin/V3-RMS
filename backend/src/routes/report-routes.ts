@@ -10,7 +10,7 @@ reportRoutes.get(
   '/reports/daily-summary',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
   reportController.getDailySummary,
 );
 
@@ -18,14 +18,14 @@ reportRoutes.get(
   '/reports/staff-performance',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
   reportController.getStaffPerformance,
 );
 
 reportRoutes.get(
   '/reports/branch-overview',
   authenticate,
-  requireRole('DIRECTOR'),
+  requireRole('DIRECTOR', 'ACCOUNTANT'),
   reportController.getBranchOverview,
 );
 
@@ -33,21 +33,21 @@ reportRoutes.get(
   '/reports/branch-trends',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
   reportController.getBranchTrends,
 );
 
 reportRoutes.get(
   '/reports/director-trends',
   authenticate,
-  requireRole('DIRECTOR'),
+  requireRole('DIRECTOR', 'ACCOUNTANT'),
   reportController.getDirectorTrends,
 );
 
 reportRoutes.get(
   '/reports/director-pulse',
   authenticate,
-  requireRole('DIRECTOR'),
+  requireRole('DIRECTOR', 'ACCOUNTANT'),
   reportController.getDirectorPulse,
 );
 
@@ -63,14 +63,14 @@ reportRoutes.get(
   '/reports/export',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
   reportController.exportReport,
 );
 
 reportRoutes.get(
   '/reports/outstanding-balances',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER', 'ACCOUNTANT'),
   reportController.getOutstandingBalances,
 );
 
@@ -78,8 +78,16 @@ reportRoutes.get(
   '/reports/hourly-heatmap',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
   reportController.getHourlyHeatmap,
+);
+
+reportRoutes.get(
+  '/reports/items-performance',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'DIRECTOR', 'ACCOUNTANT'),
+  reportController.getItemsPerformance,
 );
 
 export default reportRoutes;

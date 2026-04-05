@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, BarChart2, CalendarDays, Clock3, ClipboardList, CreditCard, Printer, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, CalendarDays, ChevronUp, Clock3, ClipboardList, CreditCard, Printer, TrendingDown, Users } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -18,7 +18,7 @@ import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { DailySummary, HourlyHeatmapReport } from '@/types/report';
+import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
 
 const formatDisplayDate = (ymd: string): string => {
@@ -105,6 +105,7 @@ export default function ManagerDashboardPage(): JSX.Element {
 
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
+  const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
@@ -116,22 +117,25 @@ export default function ManagerDashboardPage(): JSX.Element {
 
     setIsLoadingSummary(true);
     try {
-      const [summary, hourly] = await Promise.all([
+      const [summary, hourly, items] = await Promise.all([
         reportService.getDailySummary(accessToken, { date: selectedDate }),
         reportService.getHourlyHeatmap(accessToken, { startDate: selectedDate, endDate: selectedDate }),
+        reportService.getItemsPerformance(accessToken, { startDate: selectedDate, endDate: selectedDate, limit: 5 }),
       ]);
 
       if (selectedDate === todayDate && summary.orderCount === 0) {
         for (let dayOffset = 1; dayOffset <= 7; dayOffset += 1) {
           const fallbackDate = shiftYmd(todayDate, -dayOffset);
-          const [fallbackSummary, fallbackHourly] = await Promise.all([
+          const [fallbackSummary, fallbackHourly, fallbackItems] = await Promise.all([
             reportService.getDailySummary(accessToken, { date: fallbackDate }),
             reportService.getHourlyHeatmap(accessToken, { startDate: fallbackDate, endDate: fallbackDate }),
+            reportService.getItemsPerformance(accessToken, { startDate: fallbackDate, endDate: fallbackDate, limit: 5 }),
           ]);
           if (fallbackSummary.orderCount > 0) {
             setSelectedDate(fallbackDate);
             setDailySummary(fallbackSummary);
             setHourlyData(fallbackHourly);
+            setItemsData(fallbackItems);
             toast({
               variant: 'info',
               title: 'Showing latest sales day',
@@ -144,6 +148,7 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       setDailySummary(summary);
       setHourlyData(hourly);
+      setItemsData(items);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load daily summary.';
       toast({
@@ -153,6 +158,7 @@ export default function ManagerDashboardPage(): JSX.Element {
       });
       setDailySummary(null);
       setHourlyData(null);
+      setItemsData(null);
     } finally {
       setIsLoadingSummary(false);
     }
@@ -443,29 +449,57 @@ export default function ManagerDashboardPage(): JSX.Element {
               </div>
             )}
 
-            <div>
-              <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Top 5 Selling Items</h4>
-              {dailySummary.topItems.length === 0 ? (
-                <p className="text-body-sm text-stone-500">No sales data for this date.</p>
-              ) : (
-                <div className="divide-y divide-stone-100">
-                  {dailySummary.topItems.map((item, index) => (
-                    <div
-                      key={item.menuItemId}
-                      className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">
-                          {index + 1}
-                        </span>
-                        <span className="text-body-sm text-stone-800">{item.name}</span>
+            {/* Item Performance — top + bottom */}
+            {itemsData && (itemsData.topItems.length > 0 || itemsData.bottomItems.length > 0) && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <ChevronUp size={14} className="text-status-ready-text" />
+                    <h4 className="text-heading-sm font-semibold text-stone-900">Top 5 Items</h4>
+                  </div>
+                  <div className="divide-y divide-stone-100">
+                    {itemsData.topItems.map((item, i) => (
+                      <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
+                          <div>
+                            <span className="text-body-sm text-stone-800">{item.name}</span>
+                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-label-sm font-semibold text-espresso">{item.quantitySold} sold</p>
+                          <p className="text-caption text-stone-400">KES {Number.parseFloat(item.revenue).toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                        </div>
                       </div>
-                      <span className="text-label-sm font-semibold text-espresso">{item.quantitySold} sold</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <TrendingDown size={14} className="text-red-400" />
+                    <h4 className="text-heading-sm font-semibold text-stone-900">Bottom 5 Items</h4>
+                  </div>
+                  <div className="divide-y divide-stone-100">
+                    {itemsData.bottomItems.map((item, i) => (
+                      <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
+                          <div>
+                            <span className="text-body-sm text-stone-800">{item.name}</span>
+                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-label-sm font-semibold text-stone-700">{item.quantitySold} sold</p>
+                          <p className="text-caption text-stone-400">KES {Number.parseFloat(item.revenue).toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>

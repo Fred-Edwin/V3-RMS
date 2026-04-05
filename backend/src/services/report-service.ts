@@ -11,6 +11,7 @@ import type {
   DirectorPulseReport,
   DirectorTrendsReport,
   HourlyHeatmapReport,
+  ItemsPerformanceReport,
   MyPerformanceReport,
   OutstandingBalancesReport,
   ReportType,
@@ -23,6 +24,7 @@ import type {
   DirectorTrendsQueryInput,
   ExportQueryInput,
   HourlyHeatmapQueryInput,
+  ItemsPerformanceQueryInput,
   MyPerformanceQueryInput,
   StaffPerformanceQueryInput,
 } from '../validators/report-schemas';
@@ -384,6 +386,15 @@ export const reportService = {
         grandTotal,
       },
     };
+  },
+
+  getItemsPerformance: async (
+    actor: Actor,
+    query: ItemsPerformanceQueryInput,
+  ): Promise<ItemsPerformanceReport> => {
+    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const { start, end } = ensureValidRange(query.startDate, query.endDate);
+    return reportRepository.getItemsPerformance(organizationId, start, end, query.limit);
   },
 };
 

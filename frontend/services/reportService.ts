@@ -13,6 +13,8 @@ import type {
   ExportReportQuery,
   HourlyHeatmapQuery,
   HourlyHeatmapReport,
+  ItemsPerformanceQuery,
+  ItemsPerformanceReport,
   MyPerformance,
   MyPerformanceQuery,
   OutstandingBalancesReport,
@@ -179,6 +181,17 @@ export const reportService = {
         startDate: query.startDate,
         endDate: query.endDate,
         organizationId: query.organizationId,
+      })}`,
+      token,
+    ),
+
+  getItemsPerformance: (token: string, query: ItemsPerformanceQuery): Promise<ItemsPerformanceReport> =>
+    apiClient.get(
+      `/reports/items-performance${toQueryString({
+        startDate: query.startDate,
+        endDate: query.endDate,
+        organizationId: query.organizationId,
+        limit: query.limit !== undefined ? String(query.limit) : undefined,
       })}`,
       token,
     ),

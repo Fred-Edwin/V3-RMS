@@ -273,6 +273,26 @@ export interface HourlyHeatmapReport {
   dowPoints: DowHeatmapPoint[];
 }
 
+export interface ItemPerformanceRow {
+  menuItemId: string;
+  name: string;
+  categoryName: string;
+  quantitySold: number;
+  revenue: string;
+}
+
+export interface ItemsPerformanceReport {
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+  organizationId: string;
+  organizationName: string;
+  topItems: ItemPerformanceRow[];
+  bottomItems: ItemPerformanceRow[];
+  limit: number;
+}
+
 export type ReportType = 'daily_summary' | 'staff_performance' | 'branch_overview';
 export type ReportFormat = 'csv' | 'pdf';
 

@@ -9,8 +9,10 @@ import {
   BarChart2,
   Building2,
   ChevronRight,
+  ChevronUp,
   Clock,
   RefreshCw,
+  ShoppingBag,
   TrendingDown,
   TrendingUp,
   Users,
@@ -29,6 +31,7 @@ import type {
   DirectorPulseLateOrder,
   DirectorPulseReport,
   DirectorTrendsReport,
+  ItemsPerformanceReport,
 } from '@/types/report';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -288,6 +291,10 @@ export default function DirectorCommandCentrePage(): JSX.Element {
   const [sparklineTrends, setSparklineTrends] = useState<DirectorTrendsReport | null>(null);
   const [isLoadingSparklines, setIsLoadingSparklines] = useState(true);
 
+  // ── Today's items performance (system-wide) ───────────────────────────────
+  const [todayItems, setTodayItems] = useState<ItemsPerformanceReport | null>(null);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+
   // ── Data loaders ──────────────────────────────────────────────────────────
 
   const loadBranches = useCallback(async (): Promise<void> => {
@@ -353,12 +360,30 @@ export default function DirectorCommandCentrePage(): JSX.Element {
     }
   }, [accessToken, sevenDaysAgo, todayInNairobi, toast]);
 
+  const loadTodayItems = useCallback(async (): Promise<void> => {
+    if (!accessToken) return;
+    setIsLoadingItems(true);
+    try {
+      const data = await reportService.getItemsPerformance(accessToken, {
+        startDate: todayInNairobi,
+        endDate: todayInNairobi,
+        limit: 5,
+      });
+      setTodayItems(data);
+    } catch {
+      // Non-critical — section stays hidden
+    } finally {
+      setIsLoadingItems(false);
+    }
+  }, [accessToken, todayInNairobi]);
+
   // ── Effects — all fire in parallel on mount ───────────────────────────────
 
   useEffect(() => { void loadBranches(); }, [loadBranches]);
   useEffect(() => { void loadPulse(); }, [loadPulse]);
   useEffect(() => { void loadOverview(); }, [loadOverview]);
   useEffect(() => { void loadSparklines(); }, [loadSparklines]);
+  useEffect(() => { void loadTodayItems(); }, [loadTodayItems]);
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -624,6 +649,78 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           </div>
         )}
       </div>
+
+      {/* ── Today's Item Performance ─────────────────────────────────────── */}
+      {(isLoadingItems || todayItems) && (
+        <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <h2 className="text-heading-sm font-semibold text-stone-900">Today&apos;s Item Performance</h2>
+              <p className="text-caption text-stone-500">Top and bottom 5 items across all branches</p>
+            </div>
+            <Link href="/app/director/analytics" className="flex items-center gap-1 text-label-sm font-medium text-amber hover:underline">
+              Full report <ArrowRight size={12} />
+            </Link>
+          </div>
+          {isLoadingItems ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="h-40 animate-shimmer rounded-md bg-gradient-to-r from-stone-100 via-stone-50 to-stone-100 bg-[length:200%_100%]" />
+              <div className="h-40 animate-shimmer rounded-md bg-gradient-to-r from-stone-100 via-stone-50 to-stone-100 bg-[length:200%_100%]" />
+            </div>
+          ) : todayItems && (todayItems.topItems.length > 0 || todayItems.bottomItems.length > 0) ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <div className="mb-2 flex items-center gap-1.5">
+                  <ChevronUp size={14} className="text-status-ready-text" />
+                  <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Top 5</span>
+                </div>
+                <div className="divide-y divide-stone-100">
+                  {todayItems.topItems.map((item, i) => (
+                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
+                        <div>
+                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
+                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center gap-1.5">
+                  <TrendingDown size={14} className="text-red-400" />
+                  <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom 5</span>
+                </div>
+                <div className="divide-y divide-stone-100">
+                  {todayItems.bottomItems.map((item, i) => (
+                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
+                        <div>
+                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
+                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon={<ShoppingBag size={18} />} heading="No sales yet today" body="Items will appear once orders are closed." />
+          )}
+        </div>
+      )}
 
       {/* ── 7-day Sparklines ─────────────────────────────────────────────── */}
       <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">

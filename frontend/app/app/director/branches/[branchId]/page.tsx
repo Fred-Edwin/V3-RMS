@@ -7,11 +7,13 @@ import {
   AlertTriangle,
   ArrowLeft,
   CalendarDays,
+  ChevronUp,
   Clock3,
   DollarSign,
   Download,
   FileText,
   ShoppingBag,
+  TrendingDown,
   Users,
 } from 'lucide-react';
 import {
@@ -37,6 +39,7 @@ import type {
   BranchTrendsReport,
   DailySummary,
   HourlyHeatmapReport,
+  ItemsPerformanceReport,
   StaffPerformancePeriod,
 } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
@@ -155,6 +158,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
   const [periodTrends, setPeriodTrends] = useState<BranchTrendsReport | null>(null);
   const [periodStaff, setPeriodStaff] = useState<StaffPerformancePeriod | null>(null);
   const [periodHourly, setPeriodHourly] = useState<HourlyHeatmapReport | null>(null);
+  const [periodItems, setPeriodItems] = useState<ItemsPerformanceReport | null>(null);
   const [isLoadingPeriod, setIsLoadingPeriod] = useState(false);
   const [isExportingBranch, setIsExportingBranch] = useState(false);
   const [isExportingStaff, setIsExportingStaff] = useState(false);
@@ -240,11 +244,12 @@ export default function DirectorBranchDetailPage(): JSX.Element {
     if (!accessToken || !branchId) return;
     setIsLoadingPeriod(true);
     try {
-      const [overview, trends, staff, hourly] = await Promise.all([
+      const [overview, trends, staff, hourly, items] = await Promise.all([
         reportService.getBranchOverview(accessToken, { startDate: start, endDate: end }),
         reportService.getBranchTrends(accessToken, { startDate: start, endDate: end, organizationId: branchId }),
         reportService.getStaffPerformance(accessToken, { startDate: start, endDate: end, organizationId: branchId }),
         reportService.getHourlyHeatmap(accessToken, { startDate: start, endDate: end, organizationId: branchId }),
+        reportService.getItemsPerformance(accessToken, { startDate: start, endDate: end, organizationId: branchId, limit: 10 }),
       ]);
       // getBranchOverview is system-wide — find this branch's row
       const branchRow = overview.branches.find((b) => b.id === branchId) ?? null;
@@ -252,6 +257,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       setPeriodTrends(trends);
       setPeriodStaff(staff);
       setPeriodHourly(hourly);
+      setPeriodItems(items);
       setHasRunPeriod(true);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load period report.';
@@ -260,6 +266,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       setPeriodTrends(null);
       setPeriodStaff(null);
       setPeriodHourly(null);
+      setPeriodItems(null);
     } finally {
       setIsLoadingPeriod(false);
     }
@@ -569,7 +576,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                 )}
 
                 <div>
-                  <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Top 5 Selling Items</h4>
+                  <h4 className="mb-3 text-heading-sm font-semibold text-stone-900">Top Selling Items</h4>
                   {dailySummary.topItems.length === 0 ? (
                     <p className="text-body-sm text-stone-500">No sales data for this date.</p>
                   ) : (
@@ -582,7 +589,10 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                             </span>
                             <span className="text-body-sm text-stone-800">{item.name}</span>
                           </div>
-                          <span className="text-label-sm font-semibold text-espresso">{item.quantitySold} sold</span>
+                          <div className="text-right">
+                            <p className="text-label-sm font-semibold text-espresso">{formatCurrency(item.revenue)}</p>
+                            <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -728,6 +738,61 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Item Performance */}
+              {periodItems && (periodItems.topItems.length > 0 || periodItems.bottomItems.length > 0) && (
+                <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+                  <h3 className="mb-4 text-heading-sm font-semibold text-stone-900">Item Performance</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <ChevronUp size={14} className="text-status-ready-text" />
+                        <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Top {periodItems.limit}</span>
+                      </div>
+                      <div className="divide-y divide-stone-100">
+                        {periodItems.topItems.map((item, i) => (
+                          <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                            <div className="flex items-center gap-2.5">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
+                              <div>
+                                <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
+                                <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="tabular-nums text-label-sm font-semibold text-espresso">{formatCurrency(item.revenue)}</p>
+                              <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <TrendingDown size={14} className="text-red-400" />
+                        <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom {periodItems.limit}</span>
+                      </div>
+                      <div className="divide-y divide-stone-100">
+                        {periodItems.bottomItems.map((item, i) => (
+                          <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                            <div className="flex items-center gap-2.5">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
+                              <div>
+                                <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
+                                <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="tabular-nums text-label-sm font-semibold text-stone-700">{formatCurrency(item.revenue)}</p>
+                              <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

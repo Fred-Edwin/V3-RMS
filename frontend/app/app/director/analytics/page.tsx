@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   BarChart2,
+  ChevronUp,
   Clock,
   Download,
   FileText,
   Globe,
   LayoutDashboard,
+  ShoppingBag,
+  TrendingDown,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -35,6 +38,7 @@ import type {
   BranchOverview,
   DirectorTrendsReport,
   HourlyHeatmapReport,
+  ItemsPerformanceReport,
   StaffPerformancePeriod,
   StaffPerformanceRow,
 } from '@/types/report';
@@ -120,6 +124,12 @@ export default function DirectorAnalyticsPage(): JSX.Element {
   const [isExportingStaffReport, setIsExportingStaffReport] = useState(false);
   const [staffReportUpdatedAt, setStaffReportUpdatedAt] = useState<Date | null>(null);
 
+  // ── Items performance ─────────────────────────────────────────────────────
+  const [itemsBranchId, setItemsBranchId] = useState<string>('');
+  const [itemsLimit, setItemsLimit] = useState<number>(10);
+  const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
+
   // ── Data loaders ──────────────────────────────────────────────────────────
 
   const loadBranches = useCallback(async (): Promise<void> => {
@@ -130,6 +140,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       setBranches(active);
       setStaffBranchId((current) => current || active[0]?.id || '');
       setHourlyBranchId((current) => current || active[0]?.id || '');
+      setItemsBranchId((current) => current || active[0]?.id || '');
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load branches.';
       toast({ variant: 'error', title: 'Branch lookup failed', message });
@@ -202,6 +213,26 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       setIsLoadingHourly(false);
     }
   }, [accessToken, committedEnd, committedStart, hourlyBranchId, toast]);
+
+  const runItemsReport = useCallback(async (): Promise<void> => {
+    if (!accessToken) return;
+    setIsLoadingItems(true);
+    try {
+      const data = await reportService.getItemsPerformance(accessToken, {
+        startDate: committedStart,
+        endDate: committedEnd,
+        organizationId: itemsBranchId || undefined,
+        limit: itemsLimit,
+      });
+      setItemsData(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load items performance.';
+      toast({ variant: 'error', title: 'Items report failed', message });
+      setItemsData(null);
+    } finally {
+      setIsLoadingItems(false);
+    }
+  }, [accessToken, committedEnd, committedStart, itemsBranchId, itemsLimit, toast]);
 
   const exportBranchReport = useCallback(async (format: 'csv' | 'pdf'): Promise<void> => {
     if (!accessToken) return;
@@ -771,6 +802,130 @@ export default function DirectorAnalyticsPage(): JSX.Element {
         ) : (
           <div className="overflow-x-auto">
             <Table columns={staffColumns} data={staffRows} keyField="id" />
+          </div>
+        )}
+      </section>
+
+      {/* ── Item Performance ──────────────────────────────────────────────── */}
+      <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-heading-md font-semibold text-stone-900">Item Performance</h2>
+            <p className="mt-0.5 text-body-sm text-stone-500">
+              {itemsData ? `${itemsData.organizationName} · ${periodLabel}` : 'Best and worst selling items for the period.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <Select
+              label="Branch"
+              value={itemsBranchId}
+              options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              placeholder="All branches"
+              onChange={(e) => setItemsBranchId(e.target.value)}
+            />
+            <div className="flex flex-col gap-1">
+              <span className="text-label-sm text-stone-500">Show top / bottom</span>
+              <select
+                value={itemsLimit}
+                onChange={(e) => setItemsLimit(Number(e.target.value))}
+                className="rounded-md border border-stone-200 bg-white px-2 py-1.5 text-body-sm text-stone-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber"
+              >
+                {[5, 10, 15, 20].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button size="sm" onClick={() => void runItemsReport()} isLoading={isLoadingItems}>
+                Load Report
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {isLoadingItems ? (
+          <SkeletonTable rows={5} columns={4} />
+        ) : !itemsData ? (
+          <EmptyState
+            icon={<ShoppingBag size={22} />}
+            heading="No items data"
+            body="Select a branch and click Load Report."
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Top items */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <ChevronUp size={16} className="text-status-ready-text" />
+                <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                  Top {itemsData.limit} Items
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200">
+                <table className="w-full text-left text-body-sm">
+                  <thead>
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Qty</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {itemsData.topItems.map((item, i) => (
+                      <tr key={item.menuItemId} className="hover:bg-stone-50">
+                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-stone-700">{item.quantitySold}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">
+                          {formatCurrency(item.revenue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom items */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <TrendingDown size={16} className="text-red-400" />
+                <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                  Bottom {itemsData.limit} Items
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200">
+                <table className="w-full text-left text-body-sm">
+                  <thead>
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Qty</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {itemsData.bottomItems.map((item, i) => (
+                      <tr key={item.menuItemId} className="hover:bg-stone-50">
+                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-stone-700">{item.quantitySold}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">
+                          {formatCurrency(item.revenue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </section>

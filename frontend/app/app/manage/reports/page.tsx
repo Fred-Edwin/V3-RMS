@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Clock, Download, FileText, Printer, TrendingUp, Users } from 'lucide-react';
+import { ChevronUp, Clock, Download, FileText, Printer, ShoppingBag, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchTrendsReport, HourlyHeatmapReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
+import type { BranchTrendsReport, HourlyHeatmapReport, ItemsPerformanceReport, StaffPerformancePeriod, StaffPerformanceRow } from '@/types/report';
 
 const toYmd = (value: Date): string => {
   const year = value.getFullYear();
@@ -64,6 +64,8 @@ export default function ManagerReportsPage(): JSX.Element {
   const [report, setReport] = useState<StaffPerformancePeriod | null>(null);
   const [branchTrends, setBranchTrends] = useState<BranchTrendsReport | null>(null);
   const [hourlyData, setHourlyData] = useState<HourlyHeatmapReport | null>(null);
+  const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
+  const [itemsLimit, setItemsLimit] = useState<number>(10);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const runReport = useCallback(async (): Promise<void> => {
@@ -73,7 +75,7 @@ export default function ManagerReportsPage(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [staffData, trendData, heatmapData] = await Promise.all([
+      const [staffData, trendData, heatmapData, itemsPerfData] = await Promise.all([
         reportService.getStaffPerformance(accessToken, {
           startDate,
           endDate,
@@ -87,10 +89,16 @@ export default function ManagerReportsPage(): JSX.Element {
           startDate,
           endDate,
         }),
+        reportService.getItemsPerformance(accessToken, {
+          startDate,
+          endDate,
+          limit: itemsLimit,
+        }),
       ]);
       setReport(staffData);
       setBranchTrends(trendData);
       setHourlyData(heatmapData);
+      setItemsData(itemsPerfData);
       setLastUpdated(new Date());
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load staff performance report.';
@@ -102,10 +110,11 @@ export default function ManagerReportsPage(): JSX.Element {
       setReport(null);
       setBranchTrends(null);
       setHourlyData(null);
+      setItemsData(null);
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, endDate, role, startDate, toast]);
+  }, [accessToken, endDate, itemsLimit, role, startDate, toast]);
 
   const handleExport = useCallback(
     async (format: 'csv' | 'pdf'): Promise<void> => {
@@ -468,6 +477,118 @@ export default function ManagerReportsPage(): JSX.Element {
               </div>
             )}
           </>
+        )}
+      </section>
+      {/* ── Items Performance ─────────────────────────────────────── */}
+      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-heading-md font-semibold text-stone-900">Item Performance</h3>
+            <p className="mt-1 text-body-sm text-stone-500">
+              {itemsData
+                ? `${itemsData.organizationName} · ${periodLabel}`
+                : 'Run the report to see top and bottom selling items.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-label-sm text-stone-500">Show top / bottom</span>
+            <select
+              value={itemsLimit}
+              onChange={(e) => setItemsLimit(Number(e.target.value))}
+              className="rounded-md border border-stone-200 bg-white px-2 py-1 text-body-sm text-stone-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber"
+            >
+              {[5, 10, 15, 20].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <SkeletonTable rows={5} columns={4} />
+        ) : !itemsData ? (
+          <EmptyState
+            icon={<ShoppingBag size={24} />}
+            heading="No items data"
+            body="Run the report to see item performance."
+            className="mt-4"
+          />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Top items */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <ChevronUp size={16} className="text-status-ready-text" />
+                <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                  Top {itemsData.limit} Items
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200">
+                <table className="w-full text-left text-body-sm">
+                  <thead>
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Qty</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {itemsData.topItems.map((item, i) => (
+                      <tr key={item.menuItemId} className="hover:bg-stone-50">
+                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-stone-700">{item.quantitySold}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">
+                          KES {Number.parseFloat(item.revenue).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bottom items */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <TrendingDown size={16} className="text-red-400" />
+                <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                  Bottom {itemsData.limit} Items
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200">
+                <table className="w-full text-left text-body-sm">
+                  <thead>
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Qty</th>
+                      <th className="px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {itemsData.bottomItems.map((item, i) => (
+                      <tr key={item.menuItemId} className="hover:bg-stone-50">
+                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="font-medium text-stone-900">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-stone-700">{item.quantitySold}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">
+                          KES {Number.parseFloat(item.revenue).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         )}
       </section>
     </PageLayout>

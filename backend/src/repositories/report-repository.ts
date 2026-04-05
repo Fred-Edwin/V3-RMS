@@ -9,6 +9,7 @@ import type {
   DirectorTrendsReport,
   DowHeatmapPoint,
   HourlyHeatmapReport,
+  ItemsPerformanceReport,
   MyPerformanceReport,
   NamedSeries,
   PrepMyPerformanceReport,
@@ -1524,6 +1525,94 @@ export const reportRepository = {
     ]);
 
     return { houseAccounts, corporateAccounts, customerCreditAccounts };
+  },
+
+  getItemsPerformance: async (
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+    limit: number,
+  ): Promise<ItemsPerformanceReport> => {
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+
+    const [organization, orderItems] = await Promise.all([
+      prisma.organization.findFirst({
+        where: { id: organizationId },
+        select: { id: true, name: true },
+      }),
+      prisma.orderItem.findMany({
+        where: {
+          order: {
+            organizationId,
+            createdAt: { gte: start, lt: endExclusive },
+            status: { not: 'CANCELLED' },
+            createdBy: { isTestUser: false },
+          },
+        },
+        select: {
+          quantity: true,
+          unitPrice: true,
+          menuItem: {
+            select: {
+              id: true,
+              name: true,
+              category: { select: { name: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Aggregate by menuItemId
+    const map = new Map<string, { menuItemId: string; name: string; categoryName: string; quantity: number; revenue: Prisma.Decimal }>();
+
+    for (const item of orderItems) {
+      const id = item.menuItem.id;
+      const existing = map.get(id);
+      const lineRevenue = item.unitPrice.mul(item.quantity);
+      if (existing) {
+        existing.quantity += item.quantity;
+        existing.revenue = existing.revenue.add(lineRevenue);
+      } else {
+        map.set(id, {
+          menuItemId: id,
+          name: item.menuItem.name,
+          categoryName: item.menuItem.category?.name ?? 'Uncategorised',
+          quantity: item.quantity,
+          revenue: lineRevenue,
+        });
+      }
+    }
+
+    const sorted = [...map.values()].sort((a, b) => b.quantity - a.quantity);
+
+    const toRow = (entry: (typeof sorted)[number]) => ({
+      menuItemId: entry.menuItemId,
+      name: entry.name,
+      categoryName: entry.categoryName,
+      quantitySold: entry.quantity,
+      revenue: entry.revenue.toFixed(2),
+    });
+
+    const topItems = sorted.slice(0, limit).map(toRow);
+    // Bottom items: items with at least 1 sale, sorted ascending, exclude items already in top
+    const bottomItems = [...sorted]
+      .reverse()
+      .filter((e) => !topItems.some((t) => t.menuItemId === e.menuItemId))
+      .slice(0, limit)
+      .map(toRow);
+
+    return {
+      period: {
+        startDate: formatDateOnly(startDate),
+        endDate: formatDateOnly(endDate),
+      },
+      organizationId,
+      organizationName: organization?.name ?? 'Unknown Branch',
+      topItems,
+      bottomItems,
+      limit,
+    };
   },
 };
 
