@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { ApiError } from '@/types/api';
 
-type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER'>;
+type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT'>;
 
 type BranchRow = Record<string, unknown> & {
   id: string;
@@ -684,6 +684,7 @@ export default function Page(): JSX.Element {
               options={[
                 { value: 'MANAGER', label: 'Manager' },
                 { value: 'DIRECTOR', label: 'Director' },
+                { value: 'ACCOUNTANT', label: 'Accountant' },
               ]}
             />
           </FormField>

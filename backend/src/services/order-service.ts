@@ -105,7 +105,7 @@ const resolveOrganizationId = (actor: Actor, requestedBranchId?: string): string
 };
 
 const assertOwnership = (order: FullOrderPrismaRecord, actor: Actor): void => {
-  if (actor.role === 'MANAGER' || actor.role === 'DIRECTOR') {
+  if (actor.role === 'MANAGER' || actor.role === 'DIRECTOR' || actor.role === 'ACCOUNTANT') {
     return;
   }
   if (order.createdById !== actor.id) {

@@ -628,7 +628,7 @@ export const reportRepository = {
 
     const branchResults = await Promise.all(
       organizations.map(async (organization) => {
-        const [orderAggregate, prepRows] = await Promise.all([
+        const [orderAggregate, prepRows, paymentOrders] = await Promise.all([
           prisma.order.aggregate({
             where: {
               organizationId: organization.id,
@@ -669,6 +669,25 @@ export const reportRepository = {
               readyAt: true,
             },
           }),
+          prisma.order.findMany({
+            where: {
+              organizationId: organization.id,
+              status: OrderStatus.CLOSED,
+              orderDate: {
+                gte: start,
+                lt: endExclusive,
+              },
+              createdBy: { isTestUser: false },
+            },
+            select: {
+              paymentMethod: true,
+              total: true,
+              mpesaAmount: true,
+              cashAmount: true,
+              cardAmount: true,
+              splitType: true,
+            },
+          }),
         ]);
 
         const revenueDecimal = orderAggregate._sum.total ?? new Prisma.Decimal(0);
@@ -687,6 +706,7 @@ export const reportRepository = {
               KITCHEN: computeAveragePrepMinutes(kitchenTickets),
               BARISTA: computeAveragePrepMinutes(baristaTickets),
             },
+            paymentBreakdown: computePaymentBreakdown(paymentOrders),
           },
         };
       }),
@@ -1612,6 +1632,105 @@ export const reportRepository = {
       topItems,
       bottomItems,
       limit,
+    };
+  },
+
+  getAccountantReconciliation: async (
+    organizationId: string,
+    date: Date,
+  ): Promise<import('../types/report.types').AccountantReconciliationReport> => {
+    const { start, endExclusive } = getOrderDateBounds(date);
+
+    const [organization, orders] = await Promise.all([
+      prisma.organization.findFirst({
+        where: { id: organizationId },
+        select: { id: true, name: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: { gte: start, lt: endExclusive },
+          createdBy: { isTestUser: false },
+        },
+        select: {
+          id: true,
+          dailyNumber: true,
+          orderDate: true,
+          total: true,
+          paymentMethod: true,
+          mpesaCode: true,
+          mpesaAmount: true,
+          cashAmount: true,
+          cardAmount: true,
+          splitType: true,
+          createdBy: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { orderDate: 'asc' },
+      }),
+    ]);
+
+    // Waiter-level breakdown
+    const waiterMap = new Map<string, { id: string; name: string; paymentOrders: PaymentOrderRow[] }>();
+    for (const order of orders) {
+      const waiterId = order.createdBy.id;
+      const existing = waiterMap.get(waiterId) ?? {
+        id: waiterId,
+        name: order.createdBy.name,
+        paymentOrders: [],
+      };
+      existing.paymentOrders.push({
+        paymentMethod: order.paymentMethod,
+        total: order.total,
+        mpesaAmount: order.mpesaAmount,
+        cashAmount: order.cashAmount,
+        cardAmount: order.cardAmount,
+        splitType: order.splitType,
+      });
+      waiterMap.set(waiterId, existing);
+    }
+
+    const waiters = Array.from(waiterMap.values())
+      .map((w) => ({
+        id: w.id,
+        name: w.name,
+        ordersHandled: w.paymentOrders.length,
+        paymentBreakdown: computePaymentBreakdown(w.paymentOrders),
+      }))
+      .sort((a, b) => b.ordersHandled - a.ordersHandled);
+
+    const allPaymentRows: PaymentOrderRow[] = orders.map((o) => ({
+      paymentMethod: o.paymentMethod,
+      total: o.total,
+      mpesaAmount: o.mpesaAmount,
+      cashAmount: o.cashAmount,
+      cardAmount: o.cardAmount,
+      splitType: o.splitType,
+    }));
+
+    const reconciliationOrders = orders.map((o) => ({
+      id: o.id,
+      dailyNumber: o.dailyNumber,
+      time: o.orderDate.toISOString(),
+      waiterName: o.createdBy.name,
+      total: o.total.toFixed(2),
+      paymentMethod: o.paymentMethod ?? 'UNKNOWN',
+      mpesaCode: o.mpesaCode ?? null,
+      mpesaAmount: o.mpesaAmount?.toFixed(2) ?? null,
+      cashAmount: o.cashAmount?.toFixed(2) ?? null,
+      cardAmount: o.cardAmount?.toFixed(2) ?? null,
+      splitType: o.splitType ?? null,
+    }));
+
+    return {
+      date: formatDateOnly(date),
+      organizationId,
+      organizationName: organization?.name ?? 'Unknown Branch',
+      summary: computePaymentBreakdown(allPaymentRows),
+      waiters,
+      orders: reconciliationOrders,
     };
   },
 };

@@ -10,7 +10,7 @@ const corporateAccountRoutes = Router();
 corporateAccountRoutes.get(
   '/corporate-accounts',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER', 'WAITER'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER', 'WAITER', 'ACCOUNTANT'),
   corporateAccountController.list,
 );
 
@@ -31,14 +31,14 @@ corporateAccountRoutes.patch(
 corporateAccountRoutes.get(
   '/corporate-accounts/:id/orders',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),
   corporateAccountController.getOrderHistory,
 );
 
 corporateAccountRoutes.post(
   '/corporate-accounts/:id/settlements',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),
   corporateAccountController.recordSettlement,
 );
 

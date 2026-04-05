@@ -22,7 +22,8 @@ const paginationSchema = z.object({
 export const customerCreditController = {
   list: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const accounts = await customerCreditService.list(actor);
+    const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+    const accounts = await customerCreditService.list(actor, branchId);
     res.status(200).json({ success: true, data: accounts });
   },
 
@@ -53,7 +54,8 @@ export const customerCreditController = {
     const actor = requireActor(req);
     const { id } = CustomerCreditIdParamSchema.parse(req.params);
     const data = RecordCustomerCreditSettlementSchema.parse(req.body);
-    await customerCreditService.recordSettlement(actor, id, data);
+    const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+    await customerCreditService.recordSettlement(actor, id, data, branchId);
     res.status(200).json({
       success: true,
       message: 'Settlement recorded successfully',
@@ -64,7 +66,8 @@ export const customerCreditController = {
     const actor = requireActor(req);
     const { id } = CustomerCreditIdParamSchema.parse(req.params);
     const { page, perPage } = paginationSchema.parse(req.query);
-    const result = await customerCreditService.getOrderHistory(actor, id, page, perPage);
+    const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : undefined;
+    const result = await customerCreditService.getOrderHistory(actor, id, page, perPage, branchId);
     res.status(200).json({
       success: true,
       data: result.orders,

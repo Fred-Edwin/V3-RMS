@@ -59,4 +59,12 @@ export const corporateAccountService = {
 
   recordSettlement: (id: string, data: RecordCorporateSettlementInput, token: string): Promise<void> =>
     apiClient.post(`/corporate-accounts/${id}/settlements`, data, token),
+
+  getOrderHistory: (
+    id: string,
+    token: string,
+    page = 1,
+    perPage = 50,
+  ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string }>; total: number }> =>
+    apiClient.get(`/corporate-accounts/${id}/orders?page=${page}&perPage=${perPage}`, token),
 };

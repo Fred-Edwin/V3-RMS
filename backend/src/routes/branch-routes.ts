@@ -10,7 +10,7 @@ branchRoutes.get(
   '/branches',
   authenticate,
   branchScope,
-  requireRole('DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   branchController.list,
 );
 branchRoutes.post(

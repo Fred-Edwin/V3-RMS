@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { BarChart2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
-import { Button, PageHeader, PageLayout, SkeletonBlock, StatCard } from '@/components/ui';
+import { RefreshCw, TrendingUp, TrendingDown, Wallet, AlertCircle, ArrowDownCircle } from 'lucide-react';
+import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
+import { Button, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchOverview } from '@/types/report';
+import type { BranchOverview, OutstandingBalancesReport } from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -33,25 +33,71 @@ const getGreeting = (hour: number): string => {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function KpiSkeleton(): JSX.Element {
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  icon: React.ReactNode;
+  accent?: 'amber' | 'red' | 'green';
+}) {
+  const accentBg =
+    accent === 'red'
+      ? 'bg-[#FEF2F2]'
+      : accent === 'green'
+        ? 'bg-[#EDFAF1]'
+        : 'bg-parchment';
+  const accentText =
+    accent === 'red'
+      ? 'text-[#991B1B]'
+      : accent === 'green'
+        ? 'text-[#1A6B3C]'
+        : 'text-stone-600';
+
   return (
-    <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-      <SkeletonBlock className="mb-3 h-3 w-24 rounded" />
-      <SkeletonBlock className="mb-2 h-9 w-32 rounded" />
-      <SkeletonBlock className="h-3 w-20 rounded" />
+    <div className="flex items-start gap-4 rounded-xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+      <span className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${accentBg} ${accentText}`}>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-label-sm uppercase tracking-wider text-stone-400">{label}</p>
+        <p className="mt-0.5 font-display text-display-lg font-semibold leading-tight text-stone-900">{value}</p>
+        {sub && <p className="mt-0.5 text-caption text-stone-500">{sub}</p>}
+      </div>
     </div>
   );
 }
 
-function BranchRowSkeleton(): JSX.Element {
+function KpiSkeleton() {
   return (
-    <div className="flex h-[52px] items-center gap-3 border-b border-stone-100 px-4 last:border-0">
-      <SkeletonBlock className="h-4 w-32 rounded" />
-      <div className="ml-auto flex items-center gap-6">
-        <SkeletonBlock className="h-4 w-20 rounded" />
-        <SkeletonBlock className="h-4 w-12 rounded" />
+    <div className="flex items-start gap-4 rounded-xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+      <SkeletonBlock className="size-10 shrink-0 rounded-lg" />
+      <div className="flex-1">
+        <SkeletonBlock className="mb-2 h-3 w-28 rounded" />
+        <SkeletonBlock className="h-8 w-36 rounded" />
       </div>
     </div>
+  );
+}
+
+function PaymentMethodBadge({ method }: { method: 'mpesa' | 'cash' | 'card' | 'credit' | 'total' }) {
+  const styles = {
+    mpesa: 'bg-[#EDFAF1] text-[#1A6B3C]',
+    cash: 'bg-parchment text-stone-700',
+    card: 'bg-[#EFF6FF] text-[#1D4ED8]',
+    credit: 'bg-[#FDF3DC] text-[#92650A]',
+    total: 'bg-espresso/10 text-espresso',
+  };
+  const labels = { mpesa: 'M-Pesa', cash: 'Cash', card: 'Card', credit: 'Credit', total: 'Total' };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-label-sm font-medium ${styles[method]}`}>
+      {labels[method]}
+    </span>
   );
 }
 
@@ -68,21 +114,34 @@ export default function AccountantDashboardPage(): JSX.Element {
     return toYmd(new Date(d.getFullYear(), d.getMonth(), 1));
   }, []);
   const greeting = useMemo(() => getGreeting(new Date().getHours()), []);
+  const dateLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [],
+  );
 
   const [todayReport, setTodayReport] = useState<BranchOverview | null>(null);
   const [mtdReport, setMtdReport] = useState<BranchOverview | null>(null);
+  const [outstanding, setOutstanding] = useState<OutstandingBalancesReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
     setIsLoading(true);
     try {
-      const [todayData, mtdData] = await Promise.all([
+      const [todayData, mtdData, outstandingData] = await Promise.all([
         reportService.getBranchOverview(accessToken, { startDate: today, endDate: today }),
         reportService.getBranchOverview(accessToken, { startDate: monthStart, endDate: today }),
+        reportService.getOutstandingBalances(accessToken),
       ]);
       setTodayReport(todayData);
       setMtdReport(mtdData);
+      setOutstanding(outstandingData);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load dashboard.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -95,10 +154,6 @@ export default function AccountantDashboardPage(): JSX.Element {
     void load();
   }, [load]);
 
-  const todayRevenue = todayReport?.totalRevenue ?? '0';
-  const todayOrders = todayReport?.totalOrders ?? 0;
-  const mtdRevenue = mtdReport?.totalRevenue ?? '0';
-
   const sortedBranches = useMemo(() => {
     if (!todayReport) return [];
     return [...todayReport.branches].sort(
@@ -106,12 +161,37 @@ export default function AccountantDashboardPage(): JSX.Element {
     );
   }, [todayReport]);
 
+  // Aggregate payment totals across all branches (today)
+  const paymentTotals = useMemo(() => {
+    if (!todayReport) return null;
+    let mpesa = 0; let cash = 0; let card = 0; let credit = 0;
+    for (const b of todayReport.branches) {
+      mpesa += Number.parseFloat(b.paymentBreakdown.mpesa);
+      cash += Number.parseFloat(b.paymentBreakdown.cash);
+      card += Number.parseFloat(b.paymentBreakdown.card);
+      credit +=
+        Number.parseFloat(b.paymentBreakdown.houseAccount) +
+        Number.parseFloat(b.paymentBreakdown.corporateAccount) +
+        Number.parseFloat(b.paymentBreakdown.customerCredit);
+    }
+    return { mpesa, cash, card, credit };
+  }, [todayReport]);
+
+  const outstandingTotal = outstanding
+    ? Number.parseFloat(outstanding.totals.grandTotal)
+    : null;
+
+  const mtdRevenue = Number.parseFloat(mtdReport?.totalRevenue ?? '0');
+  const todayRevenue = Number.parseFloat(todayReport?.totalRevenue ?? '0');
+  const todayOrders = todayReport?.totalOrders ?? 0;
+
   return (
-    <PageLayout className="space-y-6">
+    <PageLayout className="space-y-6 animate-fade-up">
+      {/* Header */}
       <div className="flex items-start justify-between">
         <PageHeader
           title="Dashboard"
-          subtitle={`${greeting}, ${userName.split(' ')[0] ?? userName} — ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+          subtitle={`${greeting}, ${userName.split(' ')[0] ?? userName} — ${dateLabel}`}
         />
         <Button
           variant="ghost"
@@ -126,101 +206,175 @@ export default function AccountantDashboardPage(): JSX.Element {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {isLoading ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
           </>
         ) : (
           <>
-            <StatCard
+            <KpiCard
               label="Today's Revenue"
               value={formatCurrency(todayRevenue)}
-              icon={<TrendingUp size={18} className="text-amber-700" />}
+              sub={`${todayOrders} orders`}
+              icon={<TrendingUp size={20} />}
+              accent="amber"
             />
-            <StatCard
-              label="Today's Orders"
-              value={String(todayOrders)}
-              icon={<BarChart2 size={18} className="text-amber-700" />}
-            />
-            <StatCard
+            <KpiCard
               label="Month-to-Date Revenue"
               value={formatCurrency(mtdRevenue)}
-              icon={<TrendingUp size={18} className="text-amber-700" />}
+              icon={<Wallet size={20} />}
+            />
+            <KpiCard
+              label="Outstanding Credit"
+              value={outstandingTotal !== null ? formatCurrency(outstandingTotal) : '—'}
+              sub="Across all accounts"
+              icon={<AlertCircle size={20} />}
+              accent={outstandingTotal !== null && outstandingTotal > 0 ? 'red' : 'green'}
+            />
+            <KpiCard
+              label="Today's Cash Collected"
+              value={paymentTotals ? formatCurrency(paymentTotals.cash) : '—'}
+              sub="Cash orders only"
+              icon={<ArrowDownCircle size={20} />}
+              accent="green"
             />
           </>
         )}
       </div>
 
-      {/* Revenue by Branch */}
-      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-          <h2 className="text-label-md font-semibold text-stone-800">Today&apos;s Revenue by Branch</h2>
-          <Link
-            href="/app/director/analytics"
-            className="text-label-sm font-medium text-amber-700 hover:text-amber-800"
-          >
-            Full Analytics →
-          </Link>
+      {/* Payment Method Breakdown by Branch */}
+      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+        <div className="border-b border-stone-100 px-5 py-4">
+          <h2 className="text-heading-sm font-semibold text-stone-900">Today&apos;s Collections by Branch</h2>
+          <p className="mt-0.5 text-caption text-stone-500">
+            Reconcile each branch against M-Pesa statements and cash totals
+          </p>
         </div>
 
         {isLoading ? (
           <div className="divide-y divide-stone-100">
             {[1, 2, 3].map((i) => (
-              <BranchRowSkeleton key={i} />
+              <div key={i} className="flex h-14 items-center gap-4 px-5">
+                <SkeletonBlock className="h-4 w-32 rounded" />
+                <div className="ml-auto flex gap-6">
+                  {[1, 2, 3, 4, 5].map((j) => (
+                    <SkeletonBlock key={j} className="h-4 w-20 rounded" />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : sortedBranches.length === 0 ? (
-          <p className="px-4 py-6 text-center text-body-sm text-stone-400">No branch data for today.</p>
+          <p className="px-5 py-8 text-center text-body-sm text-stone-400">No branch data for today.</p>
         ) : (
-          <div className="divide-y divide-stone-100">
-            {/* Header */}
-            <div className="grid grid-cols-[1fr_160px_80px] gap-3 px-4 py-2 text-label-sm font-medium text-stone-500">
-              <span>Branch</span>
-              <span className="text-right">Revenue</span>
-              <span className="text-right">Orders</span>
-            </div>
-            {sortedBranches.map((branch, idx) => {
-              const revenue = Number.parseFloat(branch.revenue);
-              const totalRev = Number.parseFloat(todayRevenue);
-              const pct = totalRev > 0 ? Math.round((revenue / totalRev) * 100) : 0;
-              const isTop = idx === 0 && sortedBranches.length > 1;
-              const isBottom = idx === sortedBranches.length - 1 && sortedBranches.length > 1;
-              return (
-                <div
-                  key={branch.id}
-                  className="grid grid-cols-[1fr_160px_80px] items-center gap-3 px-4 py-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-body-sm font-medium text-stone-800">{branch.name}</span>
-                    {isTop && (
-                      <span className="flex items-center gap-0.5 text-caption font-medium text-status-ready-text">
-                        <TrendingUp size={11} />
-                        Top
-                      </span>
-                    )}
-                    {isBottom && (
-                      <span className="flex items-center gap-0.5 text-caption font-medium text-red-500">
-                        <TrendingDown size={11} />
-                        Low
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <span className="text-body-sm font-semibold text-stone-900">
-                      {formatCurrency(branch.revenue)}
-                    </span>
-                    <span className="ml-1.5 text-caption text-stone-400">{pct}%</span>
-                  </div>
-                  <div className="text-right text-body-sm text-stone-600">{branch.orderCount}</div>
-                </div>
-              );
-            })}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px]">
+              <thead>
+                <tr className="border-b border-stone-100 bg-stone-50/60">
+                  <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
+                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
+                    <PaymentMethodBadge method="mpesa" />
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
+                    <PaymentMethodBadge method="cash" />
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
+                    <PaymentMethodBadge method="card" />
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
+                    <PaymentMethodBadge method="credit" />
+                  </th>
+                  <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">
+                    <PaymentMethodBadge method="total" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {sortedBranches.map((branch, idx) => {
+                  const pb = branch.paymentBreakdown;
+                  const creditTotal =
+                    Number.parseFloat(pb.houseAccount) +
+                    Number.parseFloat(pb.corporateAccount) +
+                    Number.parseFloat(pb.customerCredit);
+                  const isTop = idx === 0 && sortedBranches.length > 1;
+                  const isBottom = idx === sortedBranches.length - 1 && sortedBranches.length > 1;
+
+                  return (
+                    <tr key={branch.id} className="transition-colors hover:bg-stone-50/60">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-body-sm font-medium text-stone-900">{branch.name}</span>
+                          {isTop && (
+                            <span className="flex items-center gap-0.5 text-caption font-medium text-[#1A6B3C]">
+                              <TrendingUp size={11} /> Top
+                            </span>
+                          )}
+                          {isBottom && (
+                            <span className="flex items-center gap-0.5 text-caption font-medium text-red-500">
+                              <TrendingDown size={11} /> Low
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-caption text-stone-400">{branch.orderCount} orders</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
+                        {formatCurrency(pb.mpesa)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
+                        {formatCurrency(pb.cash)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
+                        {formatCurrency(pb.card)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
+                        {formatCurrency(creditTotal)}
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
+                        {formatCurrency(branch.revenue)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {/* Totals row */}
+              {paymentTotals && (
+                <tfoot>
+                  <tr className="border-t-2 border-stone-200 bg-stone-50">
+                    <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">All Branches</td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
+                      {formatCurrency(paymentTotals.mpesa)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
+                      {formatCurrency(paymentTotals.cash)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
+                      {formatCurrency(paymentTotals.card)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
+                      {formatCurrency(paymentTotals.credit)}
+                    </td>
+                    <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
+                      {formatCurrency(todayRevenue)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
         )}
       </div>
+
+      {/* Revenue Allocation — MTD */}
+      {!isLoading && mtdRevenue > 0 && (
+        <RevenueBreakdownCard
+          totalRevenue={mtdRevenue}
+          period={`Month-to-date · ${monthStart} – ${today}`}
+        />
+      )}
     </PageLayout>
   );
 }

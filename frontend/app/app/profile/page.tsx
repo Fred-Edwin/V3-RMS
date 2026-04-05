@@ -20,6 +20,7 @@ const roleLabels: Record<AppRole, string> = {
   SYSTEM_ADMIN: 'System Admin',
   DIRECTOR: 'Director',
   MANAGER: 'Manager',
+  ACCOUNTANT: 'Accountant',
   WAITER: 'Waiter',
   CHEF: 'Chef',
   BARISTA: 'Barista',

@@ -8,5 +8,6 @@ export const roleHome: Record<AppRole, string> = {
   BARISTA_DISPLAY: '/app/barista',
   MANAGER: '/app/manage/dashboard',
   DIRECTOR: '/app/director',
+  ACCOUNTANT: '/app/accountant',
   SYSTEM_ADMIN: '/app/admin',
 };

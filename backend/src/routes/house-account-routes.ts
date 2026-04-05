@@ -10,21 +10,21 @@ const houseAccountRoutes = Router();
 houseAccountRoutes.get(
   '/house-accounts/active',
   authenticate,
-  requireRole('MANAGER', 'WAITER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'WAITER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   houseAccountController.listActive,
 );
 
 houseAccountRoutes.get(
   '/house-accounts/my',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   houseAccountController.getOwn,
 );
 
 houseAccountRoutes.get(
   '/house-accounts',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),
   houseAccountController.list,
 );
 
@@ -45,14 +45,14 @@ houseAccountRoutes.patch(
 houseAccountRoutes.get(
   '/house-accounts/:id/orders',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),
   houseAccountController.getOrderHistory,
 );
 
 houseAccountRoutes.post(
   '/house-accounts/:id/settlements',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER', 'ACCOUNTANT'),
   houseAccountController.recordSettlement,
 );
 

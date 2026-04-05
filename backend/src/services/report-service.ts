@@ -5,6 +5,7 @@ import { ForbiddenError, ValidationError } from '../utils/errors';
 import { formatDateOnly, parseDateOnly } from '../utils/date-only';
 import { toCsv, toPdf } from '../utils/report-formatters';
 import type {
+  AccountantReconciliationReport,
   BranchTrendsReport,
   BranchOverviewReport,
   DailySummaryReport,
@@ -18,6 +19,7 @@ import type {
   StaffPerformanceReport,
 } from '../types/report.types';
 import type {
+  AccountantReconciliationQueryInput,
   BranchTrendsQueryInput,
   BranchOverviewQueryInput,
   DailySummaryQueryInput,
@@ -59,9 +61,9 @@ const resolveBranchScopedOrganizationId = (
   actor: Actor,
   requestedOrganizationId?: string,
 ): string => {
-  if (actor.role === 'DIRECTOR') {
+  if (actor.role === 'DIRECTOR' || actor.role === 'ACCOUNTANT') {
     if (!requestedOrganizationId) {
-      throw new ValidationError('organizationId query param is required for directors');
+      throw new ValidationError('organizationId query param is required for this role');
     }
 
     return requestedOrganizationId;
@@ -204,7 +206,7 @@ export const reportService = {
     actor: Actor,
     query: BranchOverviewQueryInput,
   ): Promise<BranchOverviewReport> => {
-    if (actor.role !== 'DIRECTOR') {
+    if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
       throw new ForbiddenError('Only directors can access branch overview reports');
     }
 
@@ -225,7 +227,7 @@ export const reportService = {
     actor: Actor,
     query: DirectorTrendsQueryInput,
   ): Promise<DirectorTrendsReport> => {
-    if (actor.role !== 'DIRECTOR') {
+    if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
       throw new ForbiddenError('Only directors can access trend analytics reports');
     }
 
@@ -280,7 +282,7 @@ export const reportService = {
       reportData = staffReport;
       filenameStem = `staff-performance-${query.startDate}-to-${query.endDate}`;
     } else {
-      if (actor.role !== 'DIRECTOR') {
+      if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
         throw new ForbiddenError('Only directors can export branch overview reports');
       }
 
@@ -395,6 +397,17 @@ export const reportService = {
     const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
     return reportRepository.getItemsPerformance(organizationId, start, end, query.limit);
+  },
+
+  getAccountantReconciliation: async (
+    actor: Actor,
+    query: AccountantReconciliationQueryInput,
+  ): Promise<AccountantReconciliationReport> => {
+    if (actor.role !== 'ACCOUNTANT' && actor.role !== 'SYSTEM_ADMIN') {
+      throw new ForbiddenError('Only accountants can access reconciliation reports');
+    }
+    const date = parseDateOnly(query.date);
+    return reportRepository.getAccountantReconciliation(query.organizationId, date);
   },
 };
 

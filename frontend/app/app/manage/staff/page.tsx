@@ -19,6 +19,7 @@ const roleLabel: Record<string, string> = {
   BARISTA_DISPLAY: 'Barista Display',
   MANAGER: 'Manager',
   DIRECTOR: 'Director',
+  ACCOUNTANT: 'Accountant',
   SYSTEM_ADMIN: 'System Admin',
 };
 

@@ -11,21 +11,21 @@ const printRoutes = Router();
 printRoutes.post(
   '/print-jobs',
   authenticate,
-  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   printController.createPrintJob,
 );
 
 printRoutes.get(
   '/print-jobs',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   printController.getPrintJobs,
 );
 
 printRoutes.get(
   '/print-jobs/:id',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   printController.getPrintJobById,
 );
 

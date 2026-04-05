@@ -44,8 +44,10 @@ export interface RecordCustomerCreditSettlementInput {
 }
 
 export const customerCreditService = {
-  list: (token: string): Promise<CustomerCreditAccount[] | CustomerCreditDropdownItem[]> =>
-    apiClient.get('/customer-credit-accounts', token),
+  list: (token: string, params?: { branchId?: string }): Promise<CustomerCreditAccount[] | CustomerCreditDropdownItem[]> => {
+    const query = params?.branchId ? `?branchId=${encodeURIComponent(params.branchId)}` : '';
+    return apiClient.get(`/customer-credit-accounts${query}`, token);
+  },
 
   createAccount: (data: CreateCustomerCreditInput, token: string): Promise<CustomerCreditAccount> =>
     apiClient.post('/customer-credit-accounts', data, token),
@@ -53,6 +55,25 @@ export const customerCreditService = {
   updateAccount: (id: string, data: UpdateCustomerCreditInput, token: string): Promise<CustomerCreditAccount> =>
     apiClient.patch(`/customer-credit-accounts/${id}`, data, token),
 
-  recordSettlement: (id: string, data: RecordCustomerCreditSettlementInput, token: string): Promise<void> =>
-    apiClient.post(`/customer-credit-accounts/${id}/settlements`, data, token),
+  recordSettlement: (
+    id: string,
+    data: RecordCustomerCreditSettlementInput,
+    token: string,
+    branchId?: string,
+  ): Promise<void> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+    return apiClient.post(`/customer-credit-accounts/${id}/settlements${query}`, data, token);
+  },
+
+  getOrderHistory: (
+    id: string,
+    token: string,
+    page = 1,
+    perPage = 50,
+    branchId?: string,
+  ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string }>; total: number }> => {
+    const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+    if (branchId) params.set('branchId', branchId);
+    return apiClient.get(`/customer-credit-accounts/${id}/orders?${params.toString()}`, token);
+  },
 };

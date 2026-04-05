@@ -115,13 +115,15 @@ export const staffService = {
     }
 
     const passwordHash = await hashPassword(data.temporaryPassword);
+    // Org-level roles (DIRECTOR, ACCOUNTANT) have no branch assignment
+    const isOrgLevelRole = data.role === 'DIRECTOR' || data.role === 'ACCOUNTANT';
     const created = await staffRepository.create({
       name: data.name,
       email: data.email,
       phone: data.phone,
       role: data.role,
       organizationId:
-        actor.role === 'MANAGER' ? actor.organizationId : data.role === 'DIRECTOR' ? null : data.organizationId ?? null,
+        actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null,
       passwordHash,
     });
 

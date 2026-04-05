@@ -90,5 +90,12 @@ reportRoutes.get(
   reportController.getItemsPerformance,
 );
 
+reportRoutes.get(
+  '/reports/accountant-reconciliation',
+  authenticate,
+  requireRole('ACCOUNTANT', 'SYSTEM_ADMIN'),
+  reportController.getAccountantReconciliation,
+);
+
 export default reportRoutes;
 

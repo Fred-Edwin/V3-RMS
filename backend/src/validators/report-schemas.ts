@@ -59,6 +59,11 @@ export type DirectorPulseQueryInput = z.infer<typeof DirectorPulseQuerySchema>;
 export type HourlyHeatmapQueryInput = z.infer<typeof HourlyHeatmapQuerySchema>;
 export type ItemsPerformanceQueryInput = z.infer<typeof ItemsPerformanceQuerySchema>;
 
+export const AccountantReconciliationQuerySchema = z.object({
+  date: isoDateSchema,
+  organizationId: z.string().uuid(),
+});
+
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;
 export type BranchOverviewQueryInput = z.infer<typeof BranchOverviewQuerySchema>;
@@ -66,4 +71,5 @@ export type BranchTrendsQueryInput = z.infer<typeof BranchTrendsQuerySchema>;
 export type DirectorTrendsQueryInput = z.infer<typeof DirectorTrendsQuerySchema>;
 export type MyPerformanceQueryInput = z.infer<typeof MyPerformanceQuerySchema>;
 export type ExportQueryInput = z.infer<typeof ExportQuerySchema>;
+export type AccountantReconciliationQueryInput = z.infer<typeof AccountantReconciliationQuerySchema>;
 

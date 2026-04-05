@@ -2,6 +2,7 @@ export type AppRole =
   | 'SYSTEM_ADMIN'
   | 'DIRECTOR'
   | 'MANAGER'
+  | 'ACCOUNTANT'
   | 'WAITER'
   | 'CHEF'
   | 'BARISTA'

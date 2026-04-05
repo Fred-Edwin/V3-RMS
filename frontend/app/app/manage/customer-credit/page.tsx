@@ -10,6 +10,7 @@ import {
   IconButton,
   Input,
   Modal,
+  Select,
   PageHeader,
   PageLayout,
   PriceDisplay,
@@ -26,6 +27,7 @@ import {
   type UpdateCustomerCreditInput,
   type RecordCustomerCreditSettlementInput,
 } from '@/services/customerCreditService';
+import { branchService, type BranchDto } from '@/services/branchService';
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -67,6 +69,12 @@ export default function CustomerCreditPage(): JSX.Element {
   const router = useRouter();
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  const isReadOnly = role === 'ACCOUNTANT';
+
+  // Branch selector — only for ACCOUNTANT (cross-branch role)
+  const [branches, setBranches] = useState<BranchDto[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
 
   useEffect(() => {
     if (!env.creditAccounts) router.replace('/app/manage/dashboard');
@@ -87,11 +95,28 @@ export default function CustomerCreditPage(): JSX.Element {
   const [deactivateTarget, setDeactivateTarget] = useState<AccountRow | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
 
+  // Load branches for ACCOUNTANT branch selector
+  useEffect(() => {
+    if (!isReadOnly || !accessToken) return;
+    branchService
+      .listBranches(accessToken)
+      .then((data) => {
+        const active = data.filter((b) => b.isActive && !b.isHub);
+        setBranches(active);
+        setSelectedBranchId((current) => current || active[0]?.id || '');
+      })
+      .catch(() => {
+        // Non-critical
+      });
+  }, [isReadOnly, accessToken]);
+
   const loadAccounts = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
+    // ACCOUNTANT must select a branch before loading; skip if none selected yet
+    if (isReadOnly && !selectedBranchId) return;
     setIsLoading(true);
     try {
-      const list = await customerCreditService.list(accessToken);
+      const list = await customerCreditService.list(accessToken, isReadOnly ? { branchId: selectedBranchId } : undefined);
       setAccounts(list as CustomerCreditAccount[]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load customer credit accounts.';
@@ -99,7 +124,7 @@ export default function CustomerCreditPage(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, toast]);
+  }, [accessToken, isReadOnly, selectedBranchId, toast]);
 
   useEffect(() => {
     void loadAccounts();
@@ -279,12 +304,14 @@ export default function CustomerCreditPage(): JSX.Element {
       className: 'w-[140px]',
       render: (_value, row) => (
         <div className="flex items-center gap-2">
-          <IconButton
-            icon={<Pencil size={16} />}
-            label={`Edit ${row.customerName}`}
-            size="sm"
-            onClick={() => openEditModal(row)}
-          />
+          {!isReadOnly && (
+            <IconButton
+              icon={<Pencil size={16} />}
+              label={`Edit ${row.customerName}`}
+              size="sm"
+              onClick={() => openEditModal(row)}
+            />
+          )}
           {row.isActive && Number.parseFloat(String(row.currentBalance)) > 0 && (
             <IconButton
               icon={<DollarSign size={16} />}
@@ -293,7 +320,7 @@ export default function CustomerCreditPage(): JSX.Element {
               onClick={() => openSettlementModal(row)}
             />
           )}
-          {row.isActive && (
+          {!isReadOnly && row.isActive && (
             <IconButton
               icon={<span className="text-xs font-semibold">✕</span>}
               label={`Deactivate ${row.customerName}`}
@@ -313,8 +340,19 @@ export default function CustomerCreditPage(): JSX.Element {
         title="Customer Credit Accounts"
         titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Manage trusted customer credit accounts and outstanding balances."
-        action={<Button onClick={openCreateModal}>Add Account</Button>}
+        action={!isReadOnly ? <Button onClick={openCreateModal}>Add Account</Button> : undefined}
       />
+
+      {isReadOnly && branches.length > 0 && (
+        <div className="rounded-xl border border-stone-200 bg-white p-3">
+          <Select
+            label="Branch"
+            options={branches.map((b) => ({ value: b.id, label: b.name }))}
+            value={selectedBranchId}
+            onChange={(e) => setSelectedBranchId(e.target.value)}
+          />
+        </div>
+      )}
 
       <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         {isLoading ? (
@@ -324,7 +362,7 @@ export default function CustomerCreditPage(): JSX.Element {
             icon={<Users size={24} />}
             heading="No credit accounts yet"
             body="Add customer credit accounts to allow deferred payments."
-            action={<Button onClick={openCreateModal}>Add Account</Button>}
+            action={!isReadOnly ? <Button onClick={openCreateModal}>Add Account</Button> : undefined}
           />
         ) : (
           <Table columns={columns} data={tableData} keyField="id" />

@@ -150,8 +150,8 @@ export const printService = {
         : {}),
     };
 
-    // Payment receipts always print 2 copies (customer + accountant); bills print 1
-    const copies = receiptType === 'RECEIPT' ? 2 : 1;
+    // One copy for both bills and payment receipts
+    const copies = 1;
 
     const activeKey = `${orderId}:${receiptType}`;
 

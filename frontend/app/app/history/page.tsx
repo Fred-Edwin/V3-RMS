@@ -6,6 +6,7 @@ import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
 import { useToast } from '@/hooks/useToast';
+import { branchService, type BranchDto } from '@/services/branchService';
 import { orderService } from '@/services/orderService';
 import { printService } from '@/services/printService';
 import { staffService, type StaffDto } from '@/services/staffService';
@@ -22,12 +23,17 @@ const statusOptions = [
 
 const PREP_ROLES: AppRole[] = ['CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'];
 const WAITER_ROLES: AppRole[] = ['WAITER'];
+// Roles that span all branches and must select a branch to scope their query
+const CROSS_BRANCH_ROLES: AppRole[] = ['DIRECTOR', 'ACCOUNTANT'];
 
 export default function HistoryPage(): JSX.Element {
   const role = useAuthStore((state) => state.role);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
+
+  const isCrossBranchRole = Boolean(role && CROSS_BRANCH_ROLES.includes(role));
+  const isManagerLevel = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
 
   const [status, setStatus] = useState<OrderStatus | undefined>(undefined);
   const [startDate, setStartDate] = useState('');
@@ -37,23 +43,40 @@ export default function HistoryPage(): JSX.Element {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
 
-  // Staff filter — only loaded and shown for MANAGER/DIRECTOR
-  const isManagerOrDirector = role === 'MANAGER' || role === 'DIRECTOR';
+  // Branch selector — only for cross-branch roles (DIRECTOR, ACCOUNTANT)
+  const [branches, setBranches] = useState<BranchDto[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+
+  useEffect(() => {
+    if (!isCrossBranchRole || !accessToken) return;
+    branchService
+      .listBranches(accessToken)
+      .then((data) => {
+        const active = data.filter((b) => b.isActive && !b.isHub);
+        setBranches(active);
+        setSelectedBranchId((current) => current || active[0]?.id || '');
+      })
+      .catch(() => {
+        // Non-critical — branch selector just won't populate
+      });
+  }, [isCrossBranchRole, accessToken]);
+
+  // Staff filter — only loaded and shown for manager-level roles
   const [staffList, setStaffList] = useState<StaffDto[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState('');
 
   useEffect(() => {
-    if (!isManagerOrDirector || !accessToken) return;
+    if (!isManagerLevel || !accessToken) return;
     staffService
       .listStaff(accessToken, { isActive: true })
       .then((list) => {
         // Exclude display-only roles — they don't place or prep orders
-        setStaffList(list.filter((s) => s.role !== 'KITCHEN_DISPLAY' && s.role !== 'BARISTA_DISPLAY' && s.role !== 'SYSTEM_ADMIN' && s.role !== 'DIRECTOR' && s.role !== 'MANAGER'));
+        setStaffList(list.filter((s) => s.role !== 'KITCHEN_DISPLAY' && s.role !== 'BARISTA_DISPLAY' && s.role !== 'SYSTEM_ADMIN' && s.role !== 'DIRECTOR' && s.role !== 'MANAGER' && s.role !== 'ACCOUNTANT'));
       })
       .catch(() => {
         // Non-critical — staff filter just won't populate
       });
-  }, [isManagerOrDirector, accessToken]);
+  }, [isManagerLevel, accessToken]);
 
   const selectedStaff = staffList.find((s) => s.id === selectedStaffId);
   const createdById = selectedStaff && WAITER_ROLES.includes(selectedStaff.role) ? selectedStaff.id : undefined;
@@ -64,6 +87,8 @@ export default function HistoryPage(): JSX.Element {
     ...staffList.map((s) => ({ value: s.id, label: `${s.name} (${s.role.charAt(0) + s.role.slice(1).toLowerCase()})` })),
   ];
 
+  const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
+
   const { orders, pagination, isLoading, error, totalValue } = useOrderHistory({
     status,
     startDate: startDate || undefined,
@@ -71,9 +96,10 @@ export default function HistoryPage(): JSX.Element {
     page,
     createdById,
     prepTicketClaimedById,
+    branchId: isCrossBranchRole ? (selectedBranchId || undefined) : undefined,
   });
 
-  const isManager = role === 'MANAGER' || role === 'DIRECTOR';
+  const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
 
   const handlePrintReceipt = async (orderId: string) => {
@@ -97,8 +123,10 @@ export default function HistoryPage(): JSX.Element {
 
   const openOrder = async (orderId: string) => {
     if (!accessToken) return;
+    // For cross-branch roles pass the selected branchId so the backend can resolve the org scope
+    const branchIdParam = isCrossBranchRole ? selectedBranchId : undefined;
     try {
-      const detail = await orderService.getById(orderId, accessToken);
+      const detail = await orderService.getById(orderId, accessToken, branchIdParam);
       setSelectedOrder(detail);
       setIsDetailOpen(true);
     } catch (err) {
@@ -107,12 +135,20 @@ export default function HistoryPage(): JSX.Element {
     }
   };
 
+  // Grid columns: cross-branch roles show branch + staff selectors = 5 cols;
+  // manager/director without cross-branch = 4 cols; others = 3 cols
+  const filterGridCols = isCrossBranchRole
+    ? 'md:grid-cols-5'
+    : isManagerLevel
+      ? 'md:grid-cols-4'
+      : 'md:grid-cols-3';
+
   return (
     <PageLayout className="space-y-4">
       <PageHeader title="History" subtitle="Review completed and cancelled orders" />
 
       {/* Filters */}
-      <div className={`grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-3 ${isManagerOrDirector ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+      <div className={`grid grid-cols-1 gap-3 rounded-xl border border-stone-200 bg-white p-3 ${filterGridCols}`}>
         <DatePicker label="Start Date" value={startDate} onChange={(v) => { setStartDate(v); setPage(1); }} />
         <DatePicker label="End Date" value={endDate} onChange={(v) => { setEndDate(v); setPage(1); }} />
         <Select
@@ -125,7 +161,18 @@ export default function HistoryPage(): JSX.Element {
             setPage(1);
           }}
         />
-        {isManagerOrDirector && (
+        {isCrossBranchRole && (
+          <Select
+            label="Branch"
+            options={branchOptions}
+            value={selectedBranchId}
+            onChange={(e) => {
+              setSelectedBranchId(e.target.value);
+              setPage(1);
+            }}
+          />
+        )}
+        {isManagerLevel && (
           <Select
             label="Staff"
             options={staffOptions}

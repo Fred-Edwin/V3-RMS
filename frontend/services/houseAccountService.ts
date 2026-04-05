@@ -53,4 +53,12 @@ export const houseAccountService = {
 
   recordSettlement: (id: string, data: RecordHouseSettlementInput, token: string): Promise<void> =>
     apiClient.post(`/house-accounts/${id}/settlements`, data, token),
+
+  getOrderHistory: (
+    id: string,
+    token: string,
+    page = 1,
+    perPage = 50,
+  ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string }>; total: number }> =>
+    apiClient.get(`/house-accounts/${id}/orders?page=${page}&perPage=${perPage}`, token),
 };

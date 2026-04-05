@@ -22,6 +22,7 @@ interface GetOrdersParams {
   perPage?: number;
   createdById?: string;
   prepTicketClaimedById?: string;
+  branchId?: string;
 }
 
 const toQueryString = (params: GetOrdersParams): string => {
@@ -37,6 +38,7 @@ const toQueryString = (params: GetOrdersParams): string => {
   if (params.perPage) query.set('perPage', String(params.perPage));
   if (params.createdById) query.set('createdById', params.createdById);
   if (params.prepTicketClaimedById) query.set('prepTicketClaimedById', params.prepTicketClaimedById);
+  if (params.branchId) query.set('branchId', params.branchId);
 
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';
@@ -73,8 +75,9 @@ export const orderService = {
     return apiClient.get<OrderSummary[]>(`/orders/active${query}`, accessToken);
   },
 
-  getById: (id: string, accessToken: string): Promise<OrderDetail> => {
-    return apiClient.get<OrderDetail>(`/orders/${id}`, accessToken);
+  getById: (id: string, accessToken: string, branchId?: string): Promise<OrderDetail> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+    return apiClient.get<OrderDetail>(`/orders/${id}${query}`, accessToken);
   },
 
   updateItems: (id: string, data: UpdateOrderItemsDto, accessToken: string): Promise<OrderDetail> => {

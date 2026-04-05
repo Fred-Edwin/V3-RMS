@@ -72,6 +72,8 @@ export default function CorporateAccountsPage(): JSX.Element {
   const router = useRouter();
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  const isReadOnly = role === 'ACCOUNTANT';
 
   useEffect(() => {
     if (!env.creditAccounts) router.replace('/app/admin');
@@ -297,7 +299,9 @@ export default function CorporateAccountsPage(): JSX.Element {
       className: 'w-[140px]',
       render: (_value, row) => (
         <div className="flex items-center gap-2">
-          <IconButton icon={<Pencil size={16} />} label={`Edit ${row.companyName}`} size="sm" onClick={() => openEditModal(row)} />
+          {!isReadOnly && (
+            <IconButton icon={<Pencil size={16} />} label={`Edit ${row.companyName}`} size="sm" onClick={() => openEditModal(row)} />
+          )}
           {row.isActive && Number.parseFloat(String(row.currentBalance)) > 0 && (
             <IconButton
               icon={<DollarSign size={16} />}
@@ -306,7 +310,7 @@ export default function CorporateAccountsPage(): JSX.Element {
               onClick={() => openSettlementModal(row)}
             />
           )}
-          {row.isActive && (
+          {!isReadOnly && row.isActive && (
             <IconButton
               icon={<span className="text-xs font-semibold">✕</span>}
               label={`Deactivate ${row.companyName}`}
@@ -326,7 +330,7 @@ export default function CorporateAccountsPage(): JSX.Element {
         title="Corporate Accounts"
         titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Manage partner company accounts and monthly billing."
-        action={<Button onClick={openCreateModal}>Add Company</Button>}
+        action={!isReadOnly ? <Button onClick={openCreateModal}>Add Company</Button> : undefined}
       />
 
       <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
@@ -337,7 +341,7 @@ export default function CorporateAccountsPage(): JSX.Element {
             icon={<Building2 size={24} />}
             heading="No corporate accounts yet"
             body="Add partner companies to enable corporate billing."
-            action={<Button onClick={openCreateModal}>Add Company</Button>}
+            action={!isReadOnly ? <Button onClick={openCreateModal}>Add Company</Button> : undefined}
           />
         ) : (
           <Table columns={columns} data={tableData} keyField="id" />

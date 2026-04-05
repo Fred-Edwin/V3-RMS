@@ -15,7 +15,13 @@ import { prisma } from '../config/database';
 
 type Actor = NonNullable<Request['user']>;
 
-const requireOrganizationId = (actor: Actor): string => {
+const resolveOrganizationId = (actor: Actor, requestedOrgId?: string): string => {
+  if (actor.role === 'ACCOUNTANT') {
+    if (!requestedOrgId) {
+      throw new ForbiddenError('branchId query param is required for accountants');
+    }
+    return requestedOrgId;
+  }
   if (!actor.organizationId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
@@ -23,16 +29,17 @@ const requireOrganizationId = (actor: Actor): string => {
 };
 
 const requireManager = (actor: Actor): void => {
-  if (actor.role !== 'MANAGER' && actor.role !== 'SYSTEM_ADMIN') {
-    throw new ForbiddenError('Only Managers can perform this action');
+  if (actor.role !== 'MANAGER' && actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'ACCOUNTANT') {
+    throw new ForbiddenError('Only Managers and Accountants can perform this action');
   }
 };
 
 export const customerCreditService = {
   list: async (
     actor: Actor,
+    requestedOrgId?: string,
   ): Promise<CustomerCreditAccountWithCreator[] | CustomerCreditDropdownItem[]> => {
-    const organizationId = requireOrganizationId(actor);
+    const organizationId = resolveOrganizationId(actor, requestedOrgId);
     if (actor.role === 'WAITER') {
       return customerCreditRepository.findActiveByOrganization(organizationId);
     }
@@ -43,7 +50,7 @@ export const customerCreditService = {
     actor: Actor,
     input: CreateCustomerCreditInput,
   ): Promise<CustomerCreditAccountWithCreator> => {
-    const organizationId = requireOrganizationId(actor);
+    const organizationId = resolveOrganizationId(actor);
     // WAITER can create inline during payment; MANAGER can always create
     if (
       actor.role !== 'WAITER' &&
@@ -61,7 +68,7 @@ export const customerCreditService = {
     input: UpdateCustomerCreditInput,
   ): Promise<CustomerCreditAccountWithCreator> => {
     requireManager(actor);
-    const organizationId = requireOrganizationId(actor);
+    const organizationId = resolveOrganizationId(actor);
     const account = await customerCreditRepository.update(id, organizationId, input);
     if (!account) {
       throw new NotFoundError('Customer credit account not found');
@@ -73,9 +80,10 @@ export const customerCreditService = {
     actor: Actor,
     id: string,
     input: RecordCustomerCreditSettlementInput,
+    requestedOrgId?: string,
   ): Promise<void> => {
     requireManager(actor);
-    const organizationId = requireOrganizationId(actor);
+    const organizationId = resolveOrganizationId(actor, requestedOrgId);
 
     const account = await customerCreditRepository.findById(id, organizationId);
     if (!account || !account.isActive) {
@@ -108,8 +116,9 @@ export const customerCreditService = {
     id: string,
     page: number,
     perPage: number,
+    requestedOrgId?: string,
   ) => {
-    const organizationId = requireOrganizationId(actor);
+    const organizationId = resolveOrganizationId(actor, requestedOrgId);
     const account = await customerCreditRepository.findById(id, organizationId);
     if (!account) {
       throw new NotFoundError('Customer credit account not found');

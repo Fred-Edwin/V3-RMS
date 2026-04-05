@@ -8,7 +8,7 @@ import { prisma } from '../config/database';
 type Actor = NonNullable<Request['user']>;
 
 const requireDirectorOrAdmin = (actor: Actor): void => {
-  if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR') {
+  if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
     throw new ForbiddenError('Only Directors and System Admins can manage house accounts');
   }
 };
@@ -90,9 +90,10 @@ export const houseAccountService = {
     if (
       actor.role !== 'SYSTEM_ADMIN' &&
       actor.role !== 'DIRECTOR' &&
-      actor.role !== 'MANAGER'
+      actor.role !== 'MANAGER' &&
+      actor.role !== 'ACCOUNTANT'
     ) {
-      throw new ForbiddenError('Only Managers, Directors, and System Admins can record settlements');
+      throw new ForbiddenError('Only Managers, Directors, Accountants, and System Admins can record settlements');
     }
 
     const account = await houseAccountRepository.findById(id);
@@ -100,7 +101,7 @@ export const houseAccountService = {
       throw new NotFoundError('House account not found or inactive');
     }
 
-    // Managers can only settle their own account
+    // Managers can only settle their own account; Accountant can settle any
     if (actor.role === 'MANAGER' && account.userId !== actor.id) {
       throw new ForbiddenError('Managers can only record settlements on their own house account');
     }

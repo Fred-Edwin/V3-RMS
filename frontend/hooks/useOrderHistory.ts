@@ -10,6 +10,7 @@ interface OrderHistoryFilters {
   page: number;
   createdById?: string;
   prepTicketClaimedById?: string;
+  branchId?: string;
 }
 
 export function useOrderHistory(filters: OrderHistoryFilters) {
@@ -44,6 +45,7 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
           perPage: 20,
           createdById: filters.createdById,
           prepTicketClaimedById: filters.prepTicketClaimedById,
+          branchId: filters.branchId,
         },
         accessToken,
       )
@@ -70,7 +72,7 @@ export function useOrderHistory(filters: OrderHistoryFilters) {
     return () => {
       mounted = false;
     };
-  }, [accessToken, filters.createdById, filters.endDate, filters.page, filters.prepTicketClaimedById, filters.startDate, filters.status]);
+  }, [accessToken, filters.branchId, filters.createdById, filters.endDate, filters.page, filters.prepTicketClaimedById, filters.startDate, filters.status]);
 
   return { orders, pagination, isLoading, error, totalValue };
 }

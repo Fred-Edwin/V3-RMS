@@ -10,7 +10,7 @@ customerCreditRoutes.get(
   '/customer-credit-accounts',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'WAITER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'WAITER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   customerCreditController.list,
 );
 
@@ -35,7 +35,7 @@ customerCreditRoutes.get(
   '/customer-credit-accounts/:id/orders',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   customerCreditController.getOrderHistory,
 );
 
@@ -43,7 +43,7 @@ customerCreditRoutes.post(
   '/customer-credit-accounts/:id/settlements',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   customerCreditController.recordSettlement,
 );
 

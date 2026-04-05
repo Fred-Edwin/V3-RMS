@@ -67,6 +67,8 @@ export default function HouseAccountsPage(): JSX.Element {
   const router = useRouter();
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  const isReadOnly = role === 'ACCOUNTANT';
 
   useEffect(() => {
     if (!env.creditAccounts) router.replace('/app/admin');
@@ -288,7 +290,9 @@ export default function HouseAccountsPage(): JSX.Element {
       className: 'w-[140px]',
       render: (_value, row) => (
         <div className="flex items-center gap-2">
-          <IconButton icon={<Pencil size={16} />} label={`Edit ${row.userName}`} size="sm" onClick={() => openEditModal(row)} />
+          {!isReadOnly && (
+            <IconButton icon={<Pencil size={16} />} label={`Edit ${row.userName}`} size="sm" onClick={() => openEditModal(row)} />
+          )}
           {row.isActive && Number.parseFloat(String(row.currentBalance)) > 0 && (
             <IconButton
               icon={<DollarSign size={16} />}
@@ -297,7 +301,7 @@ export default function HouseAccountsPage(): JSX.Element {
               onClick={() => openSettlementModal(row)}
             />
           )}
-          {row.isActive && (
+          {!isReadOnly && row.isActive && (
             <IconButton
               icon={<span className="text-xs font-semibold">✕</span>}
               label={`Deactivate ${row.userName}`}
@@ -317,7 +321,7 @@ export default function HouseAccountsPage(): JSX.Element {
         title="House Accounts"
         titleClassName="font-display text-display-lg font-semibold text-espresso"
         subtitle="Manage staff house accounts and outstanding tabs."
-        action={<Button onClick={openGrantModal}>Grant Account</Button>}
+        action={!isReadOnly ? <Button onClick={openGrantModal}>Grant Account</Button> : undefined}
       />
 
       <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
@@ -328,7 +332,7 @@ export default function HouseAccountsPage(): JSX.Element {
             icon={<CreditCard size={24} />}
             heading="No house accounts yet"
             body="Grant house accounts to managers and directors."
-            action={<Button onClick={openGrantModal}>Grant Account</Button>}
+            action={!isReadOnly ? <Button onClick={openGrantModal}>Grant Account</Button> : undefined}
           />
         ) : (
           <Table columns={columns} data={tableData} keyField="id" />

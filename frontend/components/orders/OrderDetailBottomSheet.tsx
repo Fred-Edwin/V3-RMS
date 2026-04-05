@@ -60,6 +60,69 @@ const CREDIT_PAYMENT_OPTIONS = [
   { value: 'CUSTOMER_CREDIT', label: 'Customer Credit' },
 ];
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  MPESA: 'M-Pesa',
+  CASH: 'Cash',
+  CARD: 'Card',
+  SPLIT: 'Split',
+  HOUSE_ACCOUNT: 'House Account',
+  CORPORATE_ACCOUNT: 'Corporate Account',
+  CUSTOMER_CREDIT: 'Customer Credit',
+};
+
+function PaymentSummary({ order }: { order: OrderDetail }): JSX.Element {
+  const method = order.paymentMethod;
+  if (!method) return <></>;
+
+  const label = PAYMENT_METHOD_LABELS[method] ?? method;
+  const paidAt = order.paidAt
+    ? new Date(order.paidAt).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null;
+
+  const Row = ({ title, value }: { title: string; value: string }): JSX.Element => (
+    <div className="flex items-center justify-between">
+      <span className="text-body-sm text-stone-500">{title}</span>
+      <span className="text-body-sm font-medium text-stone-800">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-1">
+      <Row title="Method" value={label} />
+      {method === 'MPESA' && order.mpesaCode && <Row title="M-Pesa Code" value={order.mpesaCode} />}
+      {method === 'MPESA' && order.mpesaAmount && (
+        <Row title="M-Pesa Amount" value={`KES ${Number.parseFloat(order.mpesaAmount).toFixed(2)}`} />
+      )}
+      {method === 'CASH' && order.cashAmount && (
+        <Row title="Cash Amount" value={`KES ${Number.parseFloat(order.cashAmount).toFixed(2)}`} />
+      )}
+      {method === 'CARD' && order.cardAmount && (
+        <Row title="Card Amount" value={`KES ${Number.parseFloat(order.cardAmount).toFixed(2)}`} />
+      )}
+      {method === 'SPLIT' && (
+        <>
+          {order.mpesaAmount && Number.parseFloat(order.mpesaAmount) > 0 && (
+            <Row title="M-Pesa" value={`KES ${Number.parseFloat(order.mpesaAmount).toFixed(2)}`} />
+          )}
+          {order.cashAmount && Number.parseFloat(order.cashAmount) > 0 && (
+            <Row title="Cash" value={`KES ${Number.parseFloat(order.cashAmount).toFixed(2)}`} />
+          )}
+          {order.cardAmount && Number.parseFloat(order.cardAmount) > 0 && (
+            <Row title="Card" value={`KES ${Number.parseFloat(order.cardAmount).toFixed(2)}`} />
+          )}
+        </>
+      )}
+      {paidAt && <Row title="Paid at" value={paidAt} />}
+    </div>
+  );
+}
+
 export function OrderDetailBottomSheet({
   isOpen,
   onClose,
@@ -218,6 +281,13 @@ export function OrderDetailBottomSheet({
             <span className="text-body-md font-semibold text-stone-900">Total</span>
             <PriceDisplay amount={Number.parseFloat(order.total)} />
           </div>
+
+          {isPaid && order.paymentMethod && (
+            <div className="rounded-md border border-stone-200 bg-stone-50 p-3 space-y-1.5">
+              <p className="text-body-sm font-semibold text-stone-500 uppercase tracking-wide">Payment</p>
+              <PaymentSummary order={order} />
+            </div>
+          )}
 
           {canEdit && onEdit && (
             <Button variant="secondary" className="w-full" onClick={() => onEdit(order.id)}>

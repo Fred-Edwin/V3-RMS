@@ -16,7 +16,7 @@ import { prisma } from '../config/database';
 type Actor = NonNullable<Request['user']>;
 
 const requireDirectorOrAdmin = (actor: Actor): void => {
-  if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR') {
+  if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
     throw new ForbiddenError('Only Directors and System Admins can manage corporate accounts');
   }
 };
@@ -94,8 +94,8 @@ export const corporateAccountService = {
     page: number,
     perPage: number,
   ) => {
-    if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR') {
-      throw new ForbiddenError('Only Directors and System Admins can view corporate account order history');
+    if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
+      throw new ForbiddenError('Only Directors, Accountants, and System Admins can view corporate account order history');
     }
     const account = await corporateAccountRepository.findById(id);
     if (!account) {

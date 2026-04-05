@@ -2,6 +2,8 @@
 import { env } from '@/lib/env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 import type {
+  AccountantReconciliationQuery,
+  AccountantReconciliationReport,
   BranchTrendsQuery,
   BranchTrendsReport,
   BranchOverview,
@@ -192,6 +194,18 @@ export const reportService = {
         endDate: query.endDate,
         organizationId: query.organizationId,
         limit: query.limit !== undefined ? String(query.limit) : undefined,
+      })}`,
+      token,
+    ),
+
+  getAccountantReconciliation: (
+    token: string,
+    query: AccountantReconciliationQuery,
+  ): Promise<AccountantReconciliationReport> =>
+    apiClient.get(
+      `/reports/accountant-reconciliation${toQueryString({
+        date: query.date,
+        organizationId: query.organizationId,
       })}`,
       token,
     ),

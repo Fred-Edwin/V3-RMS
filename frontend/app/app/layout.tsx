@@ -44,7 +44,7 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -82,6 +82,17 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+    ],
+  },
+  ACCOUNTANT: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
+      { label: 'Reconcile', href: '/app/accountant/reconciliation', icon: Clock },
+      { label: 'Analytics', href: '/app/accountant/analytics', icon: BarChart2 },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [
+      { label: 'Credit Accounts', href: '/app/accountant/credit', icon: CreditCard },
     ],
   },
   SYSTEM_ADMIN: {
@@ -190,6 +201,26 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     },
     {
       items: [{ label: 'Reports', href: '/app/director', icon: BarChart2 }],
+    },
+    {
+      label: 'Account',
+      items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+    },
+  ],
+  ACCOUNTANT: [
+    {
+      label: 'Financials',
+      items: [
+        { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
+        { label: 'Reconciliation', href: '/app/accountant/reconciliation', icon: Clock },
+        { label: 'Analytics', href: '/app/accountant/analytics', icon: BarChart2 },
+      ],
+    },
+    {
+      label: 'Credit Accounts',
+      items: [
+        { label: 'Credit Accounts', href: '/app/accountant/credit', icon: CreditCard },
+      ],
     },
     {
       label: 'Account',
@@ -332,7 +363,8 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const usesDualShell =
     role === 'MANAGER' ||
     role === 'DIRECTOR' ||
-    role === 'SYSTEM_ADMIN';
+    role === 'SYSTEM_ADMIN' ||
+    role === 'ACCOUNTANT';
 
   const useSidebarOnlyShell =
     !usesDualShell &&

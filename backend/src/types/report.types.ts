@@ -75,6 +75,37 @@ export interface BranchOverviewRow {
     KITCHEN: number;
     BARISTA: number;
   };
+  paymentBreakdown: WaiterPaymentBreakdown;
+}
+
+export interface AccountantReconciliationOrder {
+  id: string;
+  dailyNumber: number;
+  time: string;
+  waiterName: string;
+  total: string;
+  paymentMethod: string;
+  mpesaCode: string | null;
+  mpesaAmount: string | null;
+  cashAmount: string | null;
+  cardAmount: string | null;
+  splitType: string | null;
+}
+
+export interface AccountantReconciliationWaiterRow {
+  id: string;
+  name: string;
+  ordersHandled: number;
+  paymentBreakdown: WaiterPaymentBreakdown;
+}
+
+export interface AccountantReconciliationReport {
+  date: string;
+  organizationId: string;
+  organizationName: string;
+  summary: WaiterPaymentBreakdown;
+  waiters: AccountantReconciliationWaiterRow[];
+  orders: AccountantReconciliationOrder[];
 }
 
 export interface BranchOverviewReport {

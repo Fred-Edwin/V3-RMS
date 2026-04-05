@@ -2,6 +2,7 @@
 import { UnauthorizedError } from '../utils/errors';
 import { reportService } from '../services/report-service';
 import {
+  AccountantReconciliationQuerySchema,
   BranchTrendsQuerySchema,
   BranchOverviewQuerySchema,
   DailySummaryQuerySchema,
@@ -131,6 +132,17 @@ export const reportController = {
     const actor = requireActor(req);
     const query = ItemsPerformanceQuerySchema.parse(req.query);
     const report = await reportService.getItemsPerformance(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getAccountantReconciliation: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = AccountantReconciliationQuerySchema.parse(req.query);
+    const report = await reportService.getAccountantReconciliation(actor, query);
 
     res.status(200).json({
       success: true,
