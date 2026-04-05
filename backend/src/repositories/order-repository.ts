@@ -54,7 +54,15 @@ const orderInclude = {
 
 const orderSummaryInclude = {
   prepTickets: {
-    include: {
+    select: {
+      id: true,
+      station: true,
+      status: true,
+      items: true,
+      claimedAt: true,
+      readyAt: true,
+      rejectedReason: true,
+      createdAt: true,
       claimedBy: {
         select: {
           id: true,
@@ -287,10 +295,12 @@ export const orderRepository = {
     filters: OrderFilters,
   ): Promise<{ orders: FullOrderPrismaRecord[]; total: number; totalValue: number }> => {
     const where = buildWhere(organizationId, filters);
+    // Revenue total always excludes CANCELLED regardless of the status filter
+    const revenueWhere: Prisma.OrderWhereInput = { ...where, status: { not: OrderStatus.CANCELLED } };
 
     const [total, aggregate, orders] = await prisma.$transaction([
       prisma.order.count({ where }),
-      prisma.order.aggregate({ where, _sum: { total: true } }),
+      prisma.order.aggregate({ where: revenueWhere, _sum: { total: true } }),
       prisma.order.findMany({
         where,
         include: orderInclude,
@@ -314,10 +324,12 @@ export const orderRepository = {
     filters: OrderFilters,
   ): Promise<{ orders: SummaryOrderPrismaRecord[]; total: number; totalValue: number }> => {
     const where = buildWhere(organizationId, filters);
+    // Revenue total always excludes CANCELLED regardless of the status filter
+    const revenueWhere: Prisma.OrderWhereInput = { ...where, status: { not: OrderStatus.CANCELLED } };
 
     const [total, aggregate, orders] = await prisma.$transaction([
       prisma.order.count({ where }),
-      prisma.order.aggregate({ where, _sum: { total: true } }),
+      prisma.order.aggregate({ where: revenueWhere, _sum: { total: true } }),
       prisma.order.findMany({
         where,
         include: orderSummaryInclude,
