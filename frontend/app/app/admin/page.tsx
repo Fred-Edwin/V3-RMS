@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Plus, ShieldCheck, Users } from 'lucide-react';
+import { Building2, Eye, EyeOff, KeyRound, Pencil, Plus, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
@@ -62,6 +62,17 @@ interface UserFormState {
   temporaryPassword: string;
 }
 
+interface EditUserFormState {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+interface ResetPasswordFormState {
+  newPassword: string;
+  confirmPassword: string;
+}
+
 const initialBranchForm: BranchFormState = {
   name: '',
   address: '',
@@ -107,6 +118,15 @@ export default function Page(): JSX.Element {
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState<UserFormState>(initialUserForm);
   const [toggleUserTarget, setToggleUserTarget] = useState<StaffDto | null>(null);
+  const [editUserModalOpen, setEditUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<StaffDto | null>(null);
+  const [editUserForm, setEditUserForm] = useState<EditUserFormState>({ name: '', email: '', phone: '' });
+  const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<StaffDto | null>(null);
+  const [resetPasswordForm, setResetPasswordForm] = useState<ResetPasswordFormState>({ newPassword: '', confirmPassword: '' });
+  const [showTempPassword, setShowTempPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!accessToken) {
@@ -121,13 +141,14 @@ export default function Page(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [branchData, managers, directors] = await Promise.all([
+      const [branchData, managers, directors, accountants] = await Promise.all([
         branchService.listBranches(accessToken),
         staffService.listStaff(accessToken, { role: 'MANAGER' }),
         staffService.listStaff(accessToken, { role: 'DIRECTOR' }),
+        staffService.listStaff(accessToken, { role: 'ACCOUNTANT' }),
       ]);
       setBranches(branchData);
-      setUsers([...directors, ...managers]);
+      setUsers([...directors, ...accountants, ...managers]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -289,6 +310,72 @@ export default function Page(): JSX.Element {
     }
   };
 
+  const openEditUserModal = (user: StaffDto): void => {
+    setEditingUser(user);
+    setEditUserForm({ name: user.name, email: user.email, phone: user.phone ?? '' });
+    setEditUserModalOpen(true);
+  };
+
+  const handleUpdateUser = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !editingUser) return;
+
+    setIsSubmitting(true);
+    try {
+      await staffService.updateStaff(
+        editingUser.id,
+        {
+          name: editUserForm.name.trim() || undefined,
+          email: editUserForm.email.trim() || undefined,
+          phone: editUserForm.phone.trim() || undefined,
+        },
+        accessToken,
+      );
+      setEditUserModalOpen(false);
+      setEditingUser(null);
+      toast({ variant: 'success', title: 'Account updated' });
+      await loadData();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to update account.';
+      toast({ variant: 'error', title: 'Update failed', message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openResetPasswordModal = (user: StaffDto): void => {
+    setResetPasswordTarget(user);
+    setResetPasswordForm({ newPassword: '', confirmPassword: '' });
+    setResetPasswordModalOpen(true);
+  };
+
+  const handleResetPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !resetPasswordTarget) return;
+
+    if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+      toast({ variant: 'warning', title: 'Passwords do not match', message: 'Please enter the same password in both fields.' });
+      return;
+    }
+    if (resetPasswordForm.newPassword.length < 8) {
+      toast({ variant: 'warning', title: 'Password too short', message: 'Password must be at least 8 characters.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await staffService.resetPassword(resetPasswordTarget.id, resetPasswordForm.newPassword, accessToken);
+      setResetPasswordModalOpen(false);
+      setResetPasswordTarget(null);
+      toast({ variant: 'success', title: 'Password reset', message: `Password updated for ${resetPasswordTarget.name}.` });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to reset password.';
+      toast({ variant: 'error', title: 'Reset failed', message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleConfirmToggleUser = async (): Promise<void> => {
     if (!accessToken || !toggleUserTarget) return;
 
@@ -364,6 +451,28 @@ export default function Page(): JSX.Element {
     },
   ];
 
+  const roleBadge = (role: StaffDto['role']): JSX.Element => {
+    if (role === 'DIRECTOR') {
+      return (
+        <span className="inline-flex rounded-full border border-[#C4862A]/30 bg-[#FEF0E0] px-2.5 py-0.5 text-label-sm font-semibold text-[#A04F0A]">
+          Director
+        </span>
+      );
+    }
+    if (role === 'ACCOUNTANT') {
+      return (
+        <span className="inline-flex rounded-full border border-[#7C3AED]/20 bg-[#F5F3FF] px-2.5 py-0.5 text-label-sm font-semibold text-[#5B21B6]">
+          Accountant
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-label-sm font-semibold text-stone-700">
+        Manager
+      </span>
+    );
+  };
+
   const userColumns: Array<TableColumn<UserRow>> = [
     {
       key: 'name',
@@ -378,26 +487,13 @@ export default function Page(): JSX.Element {
     {
       key: 'role',
       label: 'Role',
-      render: (_value, row) => {
-        const isDirector = row.user.role === 'DIRECTOR';
-        return (
-          <span
-            className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-semibold ${
-              isDirector
-                ? 'border border-[#C4862A]/30 bg-[#FEF0E0] text-[#A04F0A]'
-                : 'border border-stone-200 bg-stone-100 text-stone-700'
-            }`}
-          >
-            {isDirector ? 'Director' : 'Manager'}
-          </span>
-        );
-      },
+      render: (_value, row) => roleBadge(row.user.role),
     },
     {
       key: 'organizationName',
       label: 'Branch',
       render: (_value, row) => (
-        <span className="text-body-sm text-stone-600">{row.user.organizationName ?? <span className="text-stone-400">System</span>}</span>
+        <span className="text-body-sm text-stone-600">{row.user.organizationName ?? <span className="text-stone-400">System-wide</span>}</span>
       ),
     },
     {
@@ -412,11 +508,31 @@ export default function Page(): JSX.Element {
     {
       key: 'actions',
       label: '',
-      className: 'w-[120px]',
+      className: 'w-[180px]',
       render: (_value, row) => (
-        <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
-          {row.user.isActive ? 'Deactivate' : 'Reactivate'}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title="Edit account"
+            onClick={() => openEditUserModal(row.user)}
+          >
+            <Pencil size={14} />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            title="Reset password"
+            onClick={() => openResetPasswordModal(row.user)}
+          >
+            <KeyRound size={14} />
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setToggleUserTarget(row.user)}>
+            {row.user.isActive ? 'Deactivate' : 'Reactivate'}
+          </Button>
+        </div>
       ),
     },
   ];
@@ -424,6 +540,7 @@ export default function Page(): JSX.Element {
   const activeBranches = branches.filter((b) => b.isActive).length;
   const managerCount = users.filter((u) => u.role === 'MANAGER').length;
   const directorCount = users.filter((u) => u.role === 'DIRECTOR').length;
+  const accountantCount = users.filter((u) => u.role === 'ACCOUNTANT').length;
 
   return (
     <>
@@ -444,7 +561,7 @@ export default function Page(): JSX.Element {
           }
         />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             value={activeBranches}
             label="Active Branches"
@@ -452,14 +569,19 @@ export default function Page(): JSX.Element {
             caption={`${branches.length} total`}
           />
           <StatCard
-            value={managerCount}
-            label="Managers"
-            icon={<Users size={18} />}
-          />
-          <StatCard
             value={directorCount}
             label="Directors"
             icon={<ShieldCheck size={18} />}
+          />
+          <StatCard
+            value={accountantCount}
+            label="Accountants"
+            icon={<Users size={18} />}
+          />
+          <StatCard
+            value={managerCount}
+            label="Managers"
+            icon={<Users size={18} />}
             className="col-span-2 sm:col-span-1"
           />
         </div>
@@ -703,12 +825,136 @@ export default function Page(): JSX.Element {
             </FormField>
           ) : null}
           <FormField label="Temporary Password" htmlFor="user-password" required>
+            <div className="relative">
+              <Input
+                id="user-password"
+                type={showTempPassword ? 'text' : 'password'}
+                value={userForm.temporaryPassword}
+                onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
+                placeholder="Minimum 8 characters"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-stone-400 hover:text-stone-600"
+                onClick={() => setShowTempPassword((v) => !v)}
+                tabIndex={-1}
+              >
+                {showTempPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <p className="mt-1.5 text-caption text-stone-400">The user will be prompted to change this on first login.</p>
+          </FormField>
+        </form>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={editUserModalOpen}
+        onClose={() => { if (!isSubmitting) { setEditUserModalOpen(false); setEditingUser(null); } }}
+        title={`Edit — ${editingUser?.name ?? ''}`}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => { setEditUserModalOpen(false); setEditingUser(null); }} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-user-form" isLoading={isSubmitting}>
+              Save Changes
+            </Button>
+          </div>
+        }
+      >
+        <form id="edit-user-form" className="space-y-4" onSubmit={(event) => void handleUpdateUser(event)}>
+          <FormField label="Full Name" htmlFor="edit-user-name" required>
             <Input
-              id="user-password"
-              type="password"
-              value={userForm.temporaryPassword}
-              onChange={(event) => setUserForm((prev) => ({ ...prev, temporaryPassword: event.target.value }))}
+              id="edit-user-name"
+              value={editUserForm.name}
+              onChange={(event) => setEditUserForm((prev) => ({ ...prev, name: event.target.value }))}
             />
+          </FormField>
+          <FormField label="Email" htmlFor="edit-user-email" required>
+            <Input
+              id="edit-user-email"
+              type="email"
+              value={editUserForm.email}
+              onChange={(event) => setEditUserForm((prev) => ({ ...prev, email: event.target.value }))}
+            />
+          </FormField>
+          <FormField label="Phone" htmlFor="edit-user-phone">
+            <Input
+              id="edit-user-phone"
+              value={editUserForm.phone}
+              onChange={(event) => setEditUserForm((prev) => ({ ...prev, phone: event.target.value }))}
+              placeholder="+254 700 000 000"
+            />
+          </FormField>
+          <p className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-caption text-stone-500">
+            Role and branch assignment cannot be changed after account creation. To reassign, deactivate this account and create a new one.
+          </p>
+        </form>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        isOpen={resetPasswordModalOpen}
+        onClose={() => { if (!isSubmitting) { setResetPasswordModalOpen(false); setResetPasswordTarget(null); } }}
+        title={`Reset Password — ${resetPasswordTarget?.name ?? ''}`}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => { setResetPasswordModalOpen(false); setResetPasswordTarget(null); }} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="reset-password-form" isLoading={isSubmitting}>
+              Reset Password
+            </Button>
+          </div>
+        }
+      >
+        <form id="reset-password-form" className="space-y-4" onSubmit={(event) => void handleResetPassword(event)}>
+          <div className="rounded-lg border border-amber/30 bg-amber/5 px-3 py-2">
+            <p className="text-caption text-stone-600">
+              This sets a temporary password. The user will be prompted to change it on next login.
+            </p>
+          </div>
+          <FormField label="New Password" htmlFor="reset-new-password" required>
+            <div className="relative">
+              <Input
+                id="reset-new-password"
+                type={showResetPassword ? 'text' : 'password'}
+                value={resetPasswordForm.newPassword}
+                onChange={(event) => setResetPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+                placeholder="Minimum 8 characters"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-stone-400 hover:text-stone-600"
+                onClick={() => setShowResetPassword((v) => !v)}
+                tabIndex={-1}
+              >
+                {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </FormField>
+          <FormField label="Confirm Password" htmlFor="reset-confirm-password" required>
+            <div className="relative">
+              <Input
+                id="reset-confirm-password"
+                type={showResetConfirmPassword ? 'text' : 'password'}
+                value={resetPasswordForm.confirmPassword}
+                onChange={(event) => setResetPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                placeholder="Re-enter password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-stone-400 hover:text-stone-600"
+                onClick={() => setShowResetConfirmPassword((v) => !v)}
+                tabIndex={-1}
+              >
+                {showResetConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </FormField>
         </form>
       </Modal>
