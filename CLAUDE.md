@@ -22,6 +22,22 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
 | `docs/context`             | Getting context for the previous phases        |
 
+## Critical Domain Knowledge (Read Before Touching These Areas)
+
+### Prep Ticket Model — One Ticket Per Order-Item Line
+`PrepTicket` records are created **one per order-item line per station**, not one per station.
+An order with `Latte x2 + Cappuccino + Fries` produces **3 tickets** (2 BARISTA + 1 KITCHEN).
+
+- `Latte x2` → 1 ticket with `items: [{ name: "Latte", quantity: 2 }]`
+- `Cappuccino` → 1 ticket with `items: [{ name: "Cappuccino", quantity: 1 }]`
+- `Fries` → 1 ticket with `items: [{ name: "Fries", quantity: 1 }]`
+
+**Do not** revert to grouping all station items into one ticket. This was an intentional workload-fairness design. See `docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
+
+The `@@unique([orderId, station, sequence])` constraint on `PrepTicket` supports multiple tickets per station via the `sequence` field. When bulk-creating tickets with `createMany`, you **must** assign per-station sequence numbers explicitly — the default `sequence: 1` will cause a unique constraint violation for the second ticket of the same station.
+
+---
+
 ## Non-Negotiables (Read These Now)
 
 1. TypeScript strict mode is always on. No `any` types.
@@ -79,9 +95,14 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 7
+Phase: 8
 Status: Complete
-Context file: docs/context/PHASE_7_CONTEXT.md
+Context file: docs/context/PHASE_8_CONTEXT.md
+
+Previous phases:
+- Phase 7 Complete → docs/context/PHASE_7_CONTEXT.md
+- Phase 3 Enhancement (Ticket Splitting) Complete → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
+- UI/UX Refinements (cross-phase) → docs/context/REFINEMENT_CONTEXT.md
 
 ## Current Deployment Model (Authoritative)
 
@@ -110,7 +131,7 @@ pnpm install
 pnpm dev
 ```
 
-Build checks:
+Build checks (run BOTH before every push — `typecheck` alone is not sufficient):
 
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS\backend"
@@ -118,7 +139,6 @@ pnpm build
 pnpm test
 
 Set-Location "d:\AI applications\web\V3-RMS\frontend"
-pnpm typecheck
 pnpm build
 ```
 
