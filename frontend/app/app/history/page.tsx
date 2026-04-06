@@ -101,6 +101,7 @@ export default function HistoryPage(): JSX.Element {
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
+  const showFinancials = role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA';
 
   const handlePrintReceipt = async (orderId: string) => {
     if (!accessToken || isPrintSubmitting) return;
@@ -190,7 +191,7 @@ export default function HistoryPage(): JSX.Element {
         <p className="text-body-sm text-stone-600">
           <span className="font-semibold text-stone-900">{pagination.total}</span> orders
         </p>
-        {role !== 'WAITER' && <PriceDisplay amount={totalValue} />}
+        {showFinancials && <PriceDisplay amount={totalValue} />}
       </div>
 
       {/* Order list */}
@@ -202,7 +203,7 @@ export default function HistoryPage(): JSX.Element {
           <span>Type</span>
           <span>Placed By</span>
           <span>Prep Staff</span>
-          <span>Total</span>
+          <span>{showFinancials ? 'Total' : ''}</span>
           <span>Status</span>
         </div>
 
@@ -235,6 +236,7 @@ export default function HistoryPage(): JSX.Element {
             key={order.id}
             order={order}
             onTap={() => void openOrder(order.id)}
+            showPrice={showFinancials}
           />
         ))}
       </div>
@@ -275,6 +277,7 @@ export default function HistoryPage(): JSX.Element {
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
+        hideFinancials={!showFinancials}
       />
     </PageLayout>
   );

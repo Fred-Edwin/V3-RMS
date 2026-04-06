@@ -7,6 +7,7 @@ import type { OrderSummary } from '@/types/order';
 interface OrderHistoryRowProps {
   order: OrderSummary;
   onTap: () => void;
+  showPrice?: boolean;
 }
 
 const statusVariantMap = {
@@ -35,7 +36,7 @@ const formatOrderType = (type: OrderSummary['type']): string => {
   return type.replace('_', ' ');
 };
 
-export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
+export function OrderHistoryRow({ order, onTap, showPrice = true }: OrderHistoryRowProps) {
   // For the history view, show one chip per unique station (summary only)
   const uniqueStations = Object.values(
     order.prepTickets.reduce<Record<string, OrderSummary['prepTickets'][number]>>((acc, t) => {
@@ -94,9 +95,11 @@ export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
           </div>
         )}
 
-        <div className="mt-2">
-          <PriceDisplay amount={Number.parseFloat(order.total)} />
-        </div>
+        {showPrice && (
+          <div className="mt-2">
+            <PriceDisplay amount={Number.parseFloat(order.total)} />
+          </div>
+        )}
       </div>
 
       {/* ── Desktop layout ── */}
@@ -118,7 +121,7 @@ export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
             </span>
           ))}
         </span>
-        <PriceDisplay amount={Number.parseFloat(order.total)} />
+        {showPrice ? <PriceDisplay amount={Number.parseFloat(order.total)} /> : <span />}
         <Badge variant={statusVariantMap[order.status]} />
       </div>
     </button>
