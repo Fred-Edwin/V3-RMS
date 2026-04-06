@@ -103,6 +103,7 @@ Previous phases:
 - Phase 7 Complete → docs/context/PHASE_7_CONTEXT.md
 - Phase 3 Enhancement (Ticket Splitting) Complete → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
 - UI/UX Refinements (cross-phase) → docs/context/REFINEMENT_CONTEXT.md
+- ACCOUNTANT Role (cross-phase, Phase 7–8) → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
 
 ## Current Deployment Model (Authoritative)
 
