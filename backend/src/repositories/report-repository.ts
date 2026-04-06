@@ -1,5 +1,6 @@
 ﻿import { OrderStatus, PrepStation, Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
+import { otherIncomeRepository } from './other-income-repository';
 import { computeActualHours, computeAveragePrepMinutes, computeScheduledHours } from '../utils/report-utils';
 import { formatDateOnly } from '../utils/date-only';
 import type {
@@ -133,7 +134,7 @@ const toPercent = (numerator: Prisma.Decimal, denominator: Prisma.Decimal): numb
 export const reportRepository = {
   getDailySummaryByDate: async (organizationId: string, date: Date): Promise<DailySummaryReport> => {
     const { start, endExclusive } = getOrderDateBounds(date);
-    const [organization, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows] = await Promise.all([
+    const [organization, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows, otherIncomeCategoryTotals] = await Promise.all([
       prisma.organization.findFirst({
         where: {
           id: organizationId,
@@ -239,6 +240,7 @@ export const reportRepository = {
           readyAt: true,
         },
       }),
+      otherIncomeRepository.sumByCategory(organizationId, start, new Date(endExclusive.getTime() - 1)),
     ]);
 
     const ordersByType: DailySummaryReport['ordersByType'] = {
@@ -311,11 +313,18 @@ export const reportRepository = {
     const kitchenTickets = prepRows.filter((row) => row.station === PrepStation.KITCHEN);
     const baristaTickets = prepRows.filter((row) => row.station === PrepStation.BARISTA);
 
+    const otherIncomeTotal = otherIncomeCategoryTotals.reduce(
+      (acc, row) => acc.add(row.total),
+      new Prisma.Decimal(0),
+    );
+
+    const grandTotal = (aggregate._sum.total ?? new Prisma.Decimal(0)).add(otherIncomeTotal);
+
     return {
       date: formatDateOnly(date),
       organizationId,
       organizationName: organization?.name ?? 'Unknown Branch',
-      totalRevenue: toCurrencyString(aggregate._sum.total),
+      totalRevenue: grandTotal.toFixed(2),
       orderCount: aggregate._count._all,
       ordersByType,
       revenueByPaymentMethod,
@@ -324,6 +333,12 @@ export const reportRepository = {
         KITCHEN: computeAveragePrepMinutes(kitchenTickets),
         BARISTA: computeAveragePrepMinutes(baristaTickets),
       },
+      otherIncomeTotal: otherIncomeTotal.toFixed(2),
+      otherIncomeByCategory: otherIncomeCategoryTotals.map((row) => ({
+        categoryId: row.categoryId,
+        name: row.categoryName,
+        total: row.total.toFixed(2),
+      })),
     };
   },
 
@@ -628,7 +643,7 @@ export const reportRepository = {
 
     const branchResults = await Promise.all(
       organizations.map(async (organization) => {
-        const [orderAggregate, prepRows, paymentOrders] = await Promise.all([
+        const [orderAggregate, prepRows, paymentOrders, otherIncomeRows] = await Promise.all([
           prisma.order.aggregate({
             where: {
               organizationId: organization.id,
@@ -688,19 +703,27 @@ export const reportRepository = {
               splitType: true,
             },
           }),
+          otherIncomeRepository.sumByCategory(organization.id, startDate, endDate),
         ]);
 
-        const revenueDecimal = orderAggregate._sum.total ?? new Prisma.Decimal(0);
+        const orderRevenueDecimal = orderAggregate._sum.total ?? new Prisma.Decimal(0);
+        const otherIncomeDecimal = otherIncomeRows.reduce(
+          (sum, row) => sum.add(row.total),
+          new Prisma.Decimal(0),
+        );
+        const revenueDecimal = orderRevenueDecimal.add(otherIncomeDecimal);
         const kitchenTickets = prepRows.filter((ticket) => ticket.station === PrepStation.KITCHEN);
         const baristaTickets = prepRows.filter((ticket) => ticket.station === PrepStation.BARISTA);
 
         return {
           revenueDecimal,
+          otherIncomeDecimal,
           orderCount: orderAggregate._count._all,
           branch: {
             id: organization.id,
             name: organization.name,
             revenue: revenueDecimal.toFixed(2),
+            otherIncomeTotal: otherIncomeDecimal.toFixed(2),
             orderCount: orderAggregate._count._all,
             averagePrepTimeMinutes: {
               KITCHEN: computeAveragePrepMinutes(kitchenTickets),
@@ -716,6 +739,10 @@ export const reportRepository = {
       (sum, result) => sum.add(result.revenueDecimal),
       new Prisma.Decimal(0),
     );
+    const totalOtherIncomeDecimal = branchResults.reduce(
+      (sum, result) => sum.add(result.otherIncomeDecimal),
+      new Prisma.Decimal(0),
+    );
 
     const totalOrders = branchResults.reduce((sum, result) => sum + result.orderCount, 0);
 
@@ -725,6 +752,7 @@ export const reportRepository = {
         endDate: formatDateOnly(endDate),
       },
       totalRevenue: totalRevenueDecimal.toFixed(2),
+      totalOtherIncome: totalOtherIncomeDecimal.toFixed(2),
       totalOrders,
       branches: branchResults.map((result) => result.branch),
     };
@@ -884,7 +912,7 @@ export const reportRepository = {
       };
     }
 
-    const [orders, categoryRows] = await Promise.all([
+    const [orders, categoryRows, otherIncomeEntries] = await Promise.all([
       prisma.order.findMany({
         where: {
           organizationId: {
@@ -934,6 +962,17 @@ export const reportRepository = {
           },
         },
       }),
+      prisma.otherIncomeEntry.findMany({
+        where: {
+          organizationId: { in: organizationIds },
+          entryDate: { gte: start, lt: endExclusive },
+        },
+        select: {
+          organizationId: true,
+          entryDate: true,
+          amount: true,
+        },
+      }),
     ]);
 
     const dailyRevenue = new Map<string, Prisma.Decimal>();
@@ -959,6 +998,14 @@ export const reportRepository = {
       const orderMap = branchOrders.get(order.organizationId) ?? new Map<string, number>();
       orderMap.set(dateKey, (orderMap.get(dateKey) ?? 0) + 1);
       branchOrders.set(order.organizationId, orderMap);
+    }
+
+    for (const entry of otherIncomeEntries) {
+      const dateKey = formatDateOnly(entry.entryDate);
+      dailyRevenue.set(dateKey, (dailyRevenue.get(dateKey) ?? new Prisma.Decimal(0)).add(entry.amount));
+      const revenueMap = branchRevenue.get(entry.organizationId) ?? new Map<string, Prisma.Decimal>();
+      revenueMap.set(dateKey, (revenueMap.get(dateKey) ?? new Prisma.Decimal(0)).add(entry.amount));
+      branchRevenue.set(entry.organizationId, revenueMap);
     }
 
     const categoryTotals = new Map<string, Prisma.Decimal>();

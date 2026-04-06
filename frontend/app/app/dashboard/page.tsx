@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Banknote } from 'lucide-react';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
@@ -15,6 +16,7 @@ import { corporateAccountService, type CorporateAccountDropdownItem } from '@/se
 import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
 import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { orderService } from '@/services/orderService';
+import { otherIncomeService } from '@/services/otherIncomeService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -100,6 +102,7 @@ export default function DashboardPage(): JSX.Element {
   const [customerCreditAccounts, setCustomerCreditAccounts] = useState<CustomerCreditDropdownItem[]>([]);
   const [todayOrderCount, setTodayOrderCount] = useState(0);
   const [todayTotalValue, setTodayTotalValue] = useState(0);
+  const [todayOtherIncome, setTodayOtherIncome] = useState(0);
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
   const [ticketsCompletedToday, setTicketsCompletedToday] = useState(0);
   const [avgPrepMinutesToday, setAvgPrepMinutesToday] = useState(0);
@@ -154,6 +157,19 @@ export default function DashboardPage(): JSX.Element {
     );
 
     setLatestOrders(collectedOrders.slice(0, 5));
+
+    // Load today's other income recorded by this waiter
+    try {
+      const { entries } = await otherIncomeService.listEntries(
+        { startDate: todayDate, endDate: todayDate, perPage: 100 },
+        accessToken,
+      );
+      setTodayOtherIncome(
+        entries.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0),
+      );
+    } catch {
+      // non-critical — silently ignore
+    }
   }, [accessToken, role]);
 
   useEffect(() => {
@@ -361,7 +377,7 @@ export default function DashboardPage(): JSX.Element {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard
             className="p-4"
             label="Orders Today"
@@ -370,11 +386,31 @@ export default function DashboardPage(): JSX.Element {
           />
           <StatCard
             className="p-4"
-            label="Total Value Today"
+            label="Food & Drinks Today"
             value={`KES ${todayTotalValue.toFixed(2)}`}
             valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
           />
+          <StatCard
+            className="p-4"
+            label="Other Income Today"
+            value={`KES ${todayOtherIncome.toFixed(2)}`}
+            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight text-[#92650A]"
+          />
         </div>
+
+        {/* Other income quick action */}
+        <Link
+          href="/app/other-income/new"
+          className="flex items-center gap-3 rounded-xl border border-[#F0D080] bg-[#FDF3DC] px-4 py-3 transition-colors hover:bg-[#FBE9B0] focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0D080]">
+            <Banknote size={18} className="text-[#92650A]" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-label-md font-semibold text-[#92650A]">Record Other Income</p>
+            <p className="text-body-sm text-[#92650A] opacity-70">Pool table, events, merchandise…</p>
+          </div>
+        </Link>
 
         <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
 

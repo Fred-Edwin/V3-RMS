@@ -16,6 +16,7 @@ import printRoutes from './print-routes';
 import houseAccountRoutes from './house-account-routes';
 import corporateAccountRoutes from './corporate-account-routes';
 import customerCreditRoutes from './customer-credit-routes';
+import otherIncomeRoutes from './other-income-routes';
 
 const apiRouter = Router();
 
@@ -36,5 +37,6 @@ apiRouter.use(printRoutes);
 apiRouter.use(houseAccountRoutes);
 apiRouter.use(corporateAccountRoutes);
 apiRouter.use(customerCreditRoutes);
+apiRouter.use(otherIncomeRoutes);
 
 export default apiRouter;

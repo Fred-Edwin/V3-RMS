@@ -195,14 +195,16 @@ interface BranchStatusRowProps {
   pulse: DirectorPulseBranchRow | undefined;
   todayRevenue: string;
   todayOrders: number;
+  otherIncomeTotal: string;
   onLateClick: (branchName: string, orders: DirectorPulseLateOrder[]) => void;
 }
 
-function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders, onLateClick }: BranchStatusRowProps): JSX.Element {
+function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders, otherIncomeTotal, onLateClick }: BranchStatusRowProps): JSX.Element {
   const hasClockedIn = (pulse?.clockedInCount ?? 0) > 0;
   const hasActiveOrders = (pulse?.activeOrders ?? 0) > 0;
   const isActive = hasClockedIn || hasActiveOrders;
   const lateCount = pulse?.lateOrderCount ?? 0;
+  const otherIncome = Number.parseFloat(otherIncomeTotal ?? '0');
 
   const dotClass = hasClockedIn
     ? 'bg-status-ready-text'
@@ -219,6 +221,11 @@ function BranchStatusRow({ branch, pulse, todayRevenue, todayOrders, onLateClick
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotClass}`} />
         <span className={`flex-1 text-body-sm font-medium ${isActive ? 'text-stone-900' : 'text-stone-500'}`}>
           {branch.name}
+          {otherIncome > 0 && (
+            <span className="ml-2 text-caption font-normal text-amber">
+              +{formatCurrency(otherIncome)} other
+            </span>
+          )}
         </span>
         <span className="tabular-nums text-body-sm text-stone-700">{formatCurrency(todayRevenue)}</span>
         <span className="tabular-nums text-body-sm text-stone-500">{todayOrders} orders</span>
@@ -407,11 +414,11 @@ export default function DirectorCommandCentrePage(): JSX.Element {
     [overviewToday, overviewYesterday],
   );
 
-  // Build per-branch today data map (id → {revenue, orders})
+  // Build per-branch today data map (id → {revenue, orders, otherIncomeTotal})
   const branchTodayMap = useMemo(() => {
-    const map = new Map<string, { revenue: string; orders: number }>();
+    const map = new Map<string, { revenue: string; orders: number; otherIncomeTotal: string }>();
     for (const row of overviewToday?.branches ?? []) {
-      map.set(row.id, { revenue: row.revenue, orders: row.orderCount });
+      map.set(row.id, { revenue: row.revenue, orders: row.orderCount, otherIncomeTotal: row.otherIncomeTotal });
     }
     return map;
   }, [overviewToday]);
@@ -454,6 +461,13 @@ export default function DirectorCommandCentrePage(): JSX.Element {
     () => Number.parseFloat(overviewToday?.totalRevenue ?? '0') || 0,
     [overviewToday],
   );
+
+  const todayOtherIncome = useMemo(
+    () => Number.parseFloat(overviewToday?.totalOtherIncome ?? '0') || 0,
+    [overviewToday],
+  );
+
+  const todayFoodRevenue = todayTotalRevenue - todayOtherIncome;
 
   // ── Late orders modal state ───────────────────────────────────────────────
   const [lateModal, setLateModal] = useState<{ branchName: string; orders: DirectorPulseLateOrder[] } | null>(null);
@@ -521,6 +535,24 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                 {formatCurrency(overviewToday?.totalRevenue ?? '0')}
               </p>
               <DeltaBadge pct={totalRevenueDelta} />
+              {todayOtherIncome > 0 && (
+                <div className="mt-2 border-t border-stone-100 pt-2 space-y-0.5">
+                  <div className="flex items-center justify-between text-caption">
+                    <span className="flex items-center gap-1 text-stone-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-espresso" />
+                      Food &amp; Bev
+                    </span>
+                    <span className="tabular-nums text-stone-700">{formatCurrency(todayFoodRevenue)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-caption">
+                    <span className="flex items-center gap-1 text-stone-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber" />
+                      Other Income
+                    </span>
+                    <span className="tabular-nums text-amber">{formatCurrency(todayOtherIncome)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
@@ -613,6 +645,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                     pulse={pulseMap.get(branch.id)}
                     todayRevenue={today?.revenue ?? '0'}
                     todayOrders={today?.orders ?? 0}
+                    otherIncomeTotal={today?.otherIncomeTotal ?? '0'}
                     onLateClick={(name, orders) => setLateModal({ branchName: name, orders })}
                   />
                 );

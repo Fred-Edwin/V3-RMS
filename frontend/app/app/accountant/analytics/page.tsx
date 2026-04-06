@@ -1,11 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, PageHeader, PageLayout, Select, SkeletonBlock, SkeletonTable } from '@/components/ui';
+import { Banknote } from 'lucide-react';
+import { Button, EmptyState, PageHeader, PageLayout, Select, SkeletonBlock, SkeletonTable } from '@/components/ui';
 import { LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
+import { RevenueSourcesCard } from '@/components/dashboard/RevenueSourcesCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
+import { otherIncomeService } from '@/services/otherIncomeService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -14,6 +17,7 @@ import type {
   DirectorTrendsReport,
   StaffPerformancePeriod,
 } from '@/types/report';
+import type { OtherIncomeEntry } from '@/types/otherIncome';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,7 +41,7 @@ const formatDay = (dateString: string): string =>
 
 // ── Tab type ──────────────────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'payment' | 'allocation' | 'staff';
+type Tab = 'overview' | 'payment' | 'allocation' | 'staff' | 'other-income';
 
 // ── Date range controls ───────────────────────────────────────────────────────
 
@@ -210,6 +214,15 @@ function OverviewTab({
             />
           )}
 
+          {/* Revenue sources breakdown */}
+          {overview && (
+            <RevenueSourcesCard
+              foodRevenue={Number.parseFloat(overview.totalRevenue) - Number.parseFloat(overview.totalOtherIncome ?? '0')}
+              otherIncomeTotal={Number.parseFloat(overview.totalOtherIncome ?? '0')}
+              period={`${startDate} – ${endDate}`}
+            />
+          )}
+
           {/* Branch summary table */}
           {overview && (
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
@@ -225,6 +238,7 @@ function OverviewTab({
                     <tr className="border-b border-stone-100 bg-stone-50/60">
                       <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
                       <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Revenue</th>
+                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-amber">+ Other</th>
                       <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Orders</th>
                       <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Share</th>
                     </tr>
@@ -236,11 +250,15 @@ function OverviewTab({
                         const total = Number.parseFloat(overview.totalRevenue);
                         const rev = Number.parseFloat(branch.revenue);
                         const pct = total > 0 ? ((rev / total) * 100).toFixed(1) : '0.0';
+                        const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
                         return (
                           <tr key={branch.id} className="hover:bg-stone-50/60">
                             <td className="px-5 py-3 text-body-sm font-medium text-stone-900">{branch.name}</td>
                             <td className="px-5 py-3 text-right font-mono text-body-sm tabular-nums text-stone-700">
                               {formatCurrency(branch.revenue)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-mono text-body-sm tabular-nums text-amber">
+                              {otherAmt > 0 ? formatCurrency(otherAmt) : '—'}
                             </td>
                             <td className="px-5 py-3 text-right text-body-sm text-stone-600">{branch.orderCount}</td>
                             <td className="px-5 py-3 text-right text-body-sm text-stone-500">{pct}%</td>
@@ -298,7 +316,7 @@ function PaymentTab({
 
   const totals = useMemo(() => {
     if (!overview) return null;
-    let mpesa = 0; let cash = 0; let card = 0; let credit = 0;
+    let mpesa = 0; let cash = 0; let card = 0; let credit = 0; let other = 0;
     for (const b of overview.branches) {
       const pb = b.paymentBreakdown;
       mpesa += Number.parseFloat(pb.mpesa);
@@ -308,8 +326,9 @@ function PaymentTab({
         Number.parseFloat(pb.houseAccount) +
         Number.parseFloat(pb.corporateAccount) +
         Number.parseFloat(pb.customerCredit);
+      other += Number.parseFloat(b.otherIncomeTotal ?? '0');
     }
-    return { mpesa, cash, card, credit };
+    return { mpesa, cash, card, credit, other };
   }, [overview]);
 
   return (
@@ -328,12 +347,13 @@ function PaymentTab({
       ) : overview && totals ? (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             {[
               { label: 'M-Pesa', value: totals.mpesa, color: 'text-[#1A6B3C]', bg: 'bg-[#EDFAF1] border-[#86EFAC]' },
               { label: 'Cash', value: totals.cash, color: 'text-stone-700', bg: 'bg-parchment border-stone-200' },
               { label: 'Card', value: totals.card, color: 'text-[#1D4ED8]', bg: 'bg-[#EFF6FF] border-blue-200' },
               { label: 'Credit', value: totals.credit, color: 'text-[#92650A]', bg: 'bg-[#FDF3DC] border-[#F0D080]' },
+              { label: '+ Other', value: totals.other, color: 'text-amber', bg: 'bg-amber/10 border-amber/30' },
             ].map(({ label, value, color, bg }) => (
               <div key={label} className={`rounded-xl border px-4 py-4 ${bg}`}>
                 <p className={`text-label-sm font-medium uppercase tracking-wider ${color} opacity-70`}>{label}</p>
@@ -356,7 +376,7 @@ function PaymentTab({
               <p className="mt-0.5 text-caption text-stone-500">{startDate} – {endDate}</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
+              <table className="w-full min-w-[760px]">
                 <thead>
                   <tr className="border-b border-stone-100 bg-stone-50/60">
                     <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
@@ -364,6 +384,7 @@ function PaymentTab({
                     <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Cash</th>
                     <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1D4ED8]">Card</th>
                     <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#92650A]">Credit</th>
+                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-amber">+ Other</th>
                     <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-700">Total</th>
                   </tr>
                 </thead>
@@ -376,6 +397,7 @@ function PaymentTab({
                         Number.parseFloat(pb.houseAccount) +
                         Number.parseFloat(pb.corporateAccount) +
                         Number.parseFloat(pb.customerCredit);
+                      const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
                       return (
                         <tr key={branch.id} className="hover:bg-stone-50/60">
                           <td className="px-5 py-3.5 text-body-sm font-medium text-stone-900">{branch.name}</td>
@@ -390,6 +412,9 @@ function PaymentTab({
                           </td>
                           <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#92650A]">
                             {formatCurrency(creditAmt)}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-amber">
+                            {otherAmt > 0 ? formatCurrency(otherAmt) : '—'}
                           </td>
                           <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
                             {formatCurrency(branch.revenue)}
@@ -412,6 +437,9 @@ function PaymentTab({
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#92650A]">
                       {formatCurrency(totals.credit)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-amber">
+                      {totals.other > 0 ? formatCurrency(totals.other) : '—'}
                     </td>
                     <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
                       {formatCurrency(overview.totalRevenue)}
@@ -631,6 +659,231 @@ function StaffTab({
   );
 }
 
+// ── Tab: Other Income ─────────────────────────────────────────────────────────
+
+const PAYMENT_LABELS: Record<string, string> = { CASH: 'Cash', MPESA: 'M-Pesa', CARD: 'Card' };
+
+function OtherIncomeTab({
+  accessToken,
+  branches,
+  defaultStart,
+  defaultEnd,
+}: {
+  accessToken: string;
+  branches: BranchDto[];
+  defaultStart: string;
+  defaultEnd: string;
+}) {
+  const { toast } = useToast();
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(defaultEnd);
+  const [branchFilter, setBranchFilter] = useState('');
+  const [entries, setEntries] = useState<OtherIncomeEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const run = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const { entries: data } = await otherIncomeService.listEntries(
+        { startDate, endDate, branchId: branchFilter || undefined, perPage: 100 },
+        accessToken,
+      );
+      setEntries(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load other income.';
+      toast({ variant: 'error', title: 'Load failed', message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accessToken, startDate, endDate, branchFilter, toast]);
+
+  useEffect(() => {
+    void run();
+  // Run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const totalValue = useMemo(
+    () => entries.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0),
+    [entries],
+  );
+
+  // Group by category for summary
+  const byCategory = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; count: number }>();
+    for (const e of entries) {
+      const existing = map.get(e.categoryId);
+      if (existing) {
+        existing.total += Number.parseFloat(e.amount);
+        existing.count += 1;
+      } else {
+        map.set(e.categoryId, { name: e.category.name, total: Number.parseFloat(e.amount), count: 1 });
+      }
+    }
+    const values: { name: string; total: number; count: number }[] = [];
+    map.forEach((v) => values.push(v));
+    return values.sort((a, b) => b.total - a.total);
+  }, [entries]);
+
+  const branchOptions = [
+    { value: '', label: 'All Branches' },
+    ...branches.map((b) => ({ value: b.id, label: b.name })),
+  ];
+
+  return (
+    <div className="space-y-6">
+      <DateRangeControls
+        startDate={startDate}
+        endDate={endDate}
+        onStartChange={setStartDate}
+        onEndChange={setEndDate}
+        onRun={() => void run()}
+        isLoading={isLoading}
+        extraControls={
+          branches.length > 1 ? (
+            <div>
+              <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Branch</label>
+              <Select
+                options={branchOptions}
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+              />
+            </div>
+          ) : undefined
+        }
+      />
+
+      {isLoading ? (
+        <SkeletonTable rows={5} columns={5} />
+      ) : entries.length === 0 ? (
+        <EmptyState
+          icon={<Banknote size={48} className="text-stone-300" />}
+          heading="No other income recorded"
+          body="No non-food revenue entries found for the selected date range"
+        />
+      ) : (
+        <>
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border border-[#F0D080] bg-[#FDF3DC] px-4 py-4">
+              <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A] opacity-70">
+                Total Other Income
+              </p>
+              <p className="mt-1 font-display text-display-lg font-semibold leading-tight text-[#92650A]">
+                {formatCurrency(totalValue)}
+              </p>
+              <p className="mt-0.5 text-caption text-[#92650A] opacity-60">
+                {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+              </p>
+            </div>
+            {byCategory.slice(0, 2).map((cat) => (
+              <div key={cat.name} className="rounded-xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
+                <p className="truncate text-label-sm font-medium uppercase tracking-wider text-stone-500">
+                  {cat.name}
+                </p>
+                <p className="mt-1 font-sans text-heading-xl font-bold tabular-nums tracking-tight text-stone-900">
+                  {formatCurrency(cat.total)}
+                </p>
+                <p className="mt-0.5 text-caption text-stone-400">{cat.count} entries</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Category breakdown */}
+          {byCategory.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+              <div className="border-b border-stone-100 px-5 py-4">
+                <h3 className="text-heading-sm font-semibold text-stone-900">By Category</h3>
+                <p className="mt-0.5 text-caption text-stone-500">{startDate} – {endDate}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[400px]">
+                  <thead>
+                    <tr className="border-b border-stone-100 bg-stone-50/60">
+                      <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Category</th>
+                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Entries</th>
+                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Total</th>
+                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {byCategory.map((cat) => {
+                      const pct = totalValue > 0 ? ((cat.total / totalValue) * 100).toFixed(1) : '0.0';
+                      return (
+                        <tr key={cat.name} className="hover:bg-stone-50/60">
+                          <td className="px-5 py-3 text-body-sm font-medium text-stone-900">{cat.name}</td>
+                          <td className="px-4 py-3 text-right text-body-sm text-stone-600">{cat.count}</td>
+                          <td className="px-5 py-3 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
+                            {formatCurrency(cat.total)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-body-sm text-stone-500">{pct}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-stone-200 bg-stone-50">
+                      <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">Total</td>
+                      <td className="px-4 py-3 text-right text-label-sm font-semibold text-stone-700">
+                        {entries.length}
+                      </td>
+                      <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
+                        {formatCurrency(totalValue)}
+                      </td>
+                      <td className="px-4 py-3" />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Full entry list */}
+          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+            <div className="border-b border-stone-100 px-5 py-4">
+              <h3 className="text-heading-sm font-semibold text-stone-900">All Entries</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-stone-100 bg-stone-50/60">
+                    <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Date</th>
+                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Category</th>
+                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
+                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Payment</th>
+                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Recorded By</th>
+                    <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {entries.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-stone-50/60">
+                      <td className="px-5 py-3 text-body-sm text-stone-600">
+                        {new Date(`${entry.entryDate.slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short', year: 'numeric',
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-body-sm font-medium text-stone-900">{entry.category.name}</td>
+                      <td className="px-4 py-3 text-body-sm text-stone-600">{entry.branch.name}</td>
+                      <td className="px-4 py-3 text-body-sm text-stone-600">
+                        {PAYMENT_LABELS[entry.paymentMethod] ?? entry.paymentMethod}
+                      </td>
+                      <td className="px-4 py-3 text-body-sm text-stone-500">{entry.recordedBy.name}</td>
+                      <td className="px-5 py-3 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
+                        {formatCurrency(entry.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TABS: { key: Tab; label: string }[] = [
@@ -638,6 +891,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'payment', label: 'Payment Methods' },
   { key: 'allocation', label: 'Revenue Allocation' },
   { key: 'staff', label: 'Staff Collections' },
+  { key: 'other-income', label: 'Other Income' },
 ];
 
 export default function AccountantAnalyticsPage(): JSX.Element {
@@ -700,6 +954,14 @@ export default function AccountantAnalyticsPage(): JSX.Element {
         )}
         {activeTab === 'staff' && (
           <StaffTab
+            accessToken={accessToken}
+            branches={branches}
+            defaultStart={defaultStart}
+            defaultEnd={defaultEnd}
+          />
+        )}
+        {activeTab === 'other-income' && (
+          <OtherIncomeTab
             accessToken={accessToken}
             branches={branches}
             defaultStart={defaultStart}

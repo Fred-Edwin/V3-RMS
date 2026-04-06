@@ -164,7 +164,7 @@ export default function AccountantDashboardPage(): JSX.Element {
   // Aggregate payment totals across all branches (today)
   const paymentTotals = useMemo(() => {
     if (!todayReport) return null;
-    let mpesa = 0; let cash = 0; let card = 0; let credit = 0;
+    let mpesa = 0; let cash = 0; let card = 0; let credit = 0; let other = 0;
     for (const b of todayReport.branches) {
       mpesa += Number.parseFloat(b.paymentBreakdown.mpesa);
       cash += Number.parseFloat(b.paymentBreakdown.cash);
@@ -173,8 +173,9 @@ export default function AccountantDashboardPage(): JSX.Element {
         Number.parseFloat(b.paymentBreakdown.houseAccount) +
         Number.parseFloat(b.paymentBreakdown.corporateAccount) +
         Number.parseFloat(b.paymentBreakdown.customerCredit);
+      other += Number.parseFloat(b.otherIncomeTotal ?? '0');
     }
-    return { mpesa, cash, card, credit };
+    return { mpesa, cash, card, credit, other };
   }, [todayReport]);
 
   const outstandingTotal = outstanding
@@ -184,6 +185,8 @@ export default function AccountantDashboardPage(): JSX.Element {
   const mtdRevenue = Number.parseFloat(mtdReport?.totalRevenue ?? '0');
   const todayRevenue = Number.parseFloat(todayReport?.totalRevenue ?? '0');
   const todayOrders = todayReport?.totalOrders ?? 0;
+  const todayOtherIncome = Number.parseFloat(todayReport?.totalOtherIncome ?? '0');
+  const mtdOtherIncome = Number.parseFloat(mtdReport?.totalOtherIncome ?? '0');
 
   return (
     <PageLayout className="space-y-6 animate-fade-up">
@@ -219,13 +222,18 @@ export default function AccountantDashboardPage(): JSX.Element {
             <KpiCard
               label="Today's Revenue"
               value={formatCurrency(todayRevenue)}
-              sub={`${todayOrders} orders`}
+              sub={
+                todayOtherIncome > 0
+                  ? `${todayOrders} orders · ${formatCurrency(todayOtherIncome)} other income`
+                  : `${todayOrders} orders`
+              }
               icon={<TrendingUp size={20} />}
               accent="amber"
             />
             <KpiCard
               label="Month-to-Date Revenue"
               value={formatCurrency(mtdRevenue)}
+              sub={mtdOtherIncome > 0 ? `${formatCurrency(mtdOtherIncome)} other income included` : undefined}
               icon={<Wallet size={20} />}
             />
             <KpiCard
@@ -272,7 +280,7 @@ export default function AccountantDashboardPage(): JSX.Element {
           <p className="px-5 py-8 text-center text-body-sm text-stone-400">No branch data for today.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px]">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="border-b border-stone-100 bg-stone-50/60">
                   <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
@@ -288,6 +296,9 @@ export default function AccountantDashboardPage(): JSX.Element {
                   <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
                     <PaymentMethodBadge method="credit" />
                   </th>
+                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-amber">
+                    + Other
+                  </th>
                   <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">
                     <PaymentMethodBadge method="total" />
                   </th>
@@ -300,6 +311,7 @@ export default function AccountantDashboardPage(): JSX.Element {
                     Number.parseFloat(pb.houseAccount) +
                     Number.parseFloat(pb.corporateAccount) +
                     Number.parseFloat(pb.customerCredit);
+                  const otherTotal = Number.parseFloat(branch.otherIncomeTotal ?? '0');
                   const isTop = idx === 0 && sortedBranches.length > 1;
                   const isBottom = idx === sortedBranches.length - 1 && sortedBranches.length > 1;
 
@@ -333,6 +345,9 @@ export default function AccountantDashboardPage(): JSX.Element {
                       <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
                         {formatCurrency(creditTotal)}
                       </td>
+                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-amber">
+                        {otherTotal > 0 ? formatCurrency(otherTotal) : '—'}
+                      </td>
                       <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
                         {formatCurrency(branch.revenue)}
                       </td>
@@ -356,6 +371,9 @@ export default function AccountantDashboardPage(): JSX.Element {
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
                       {formatCurrency(paymentTotals.credit)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-amber">
+                      {paymentTotals.other > 0 ? formatCurrency(paymentTotals.other) : '—'}
                     </td>
                     <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
                       {formatCurrency(todayRevenue)}

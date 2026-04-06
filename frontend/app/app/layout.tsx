@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   AlertTriangle,
+  Banknote,
   BarChart2,
   Bike,
   Building2,
@@ -18,6 +19,7 @@ import {
   Printer,
   Settings2,
   ShoppingCart,
+  Tags,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -113,6 +115,8 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
     ],
     overflowTabs: [
+      { label: 'Other Income', href: '/app/other-income/new', icon: Banknote },
+      { label: 'Income History', href: '/app/other-income/history', icon: Clock },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'History', href: '/app/history', icon: Clock },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -173,6 +177,13 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
     {
+      label: 'Other Income',
+      items: [
+        { label: 'Record Income', href: '/app/other-income/new', icon: Banknote },
+        { label: 'Income Entries', href: '/app/other-income/history', icon: Clock },
+      ],
+    },
+    {
       items: [
         { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
         { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
@@ -197,6 +208,12 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Corporate Accounts', href: '/app/director/corporate-accounts', icon: Building2 },
         { label: 'Outstanding Balances', href: '/app/director/outstanding-balances', icon: AlertTriangle },
         { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      ],
+    },
+    {
+      label: 'Other Income',
+      items: [
+        { label: 'Categories & Entries', href: '/app/director/other-income', icon: Tags },
       ],
     },
     {
@@ -253,6 +270,13 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Performance', href: '/app/performance', icon: BarChart2 },
         { label: 'History', href: '/app/history', icon: Clock },
         { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      ],
+    },
+    {
+      label: 'Other Income',
+      items: [
+        { label: 'Record Income', href: '/app/other-income/new', icon: Banknote },
+        { label: 'Income History', href: '/app/other-income/history', icon: Clock },
       ],
     },
   ],

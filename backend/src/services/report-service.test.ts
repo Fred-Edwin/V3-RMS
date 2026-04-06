@@ -67,6 +67,8 @@ const sampleDailySummary = {
     KITCHEN: 10,
     BARISTA: 6,
   },
+  otherIncomeTotal: '0.00',
+  otherIncomeByCategory: [],
 };
 
 describe('reportService', () => {

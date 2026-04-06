@@ -9,6 +9,12 @@ export interface DailySummaryTopItem {
   revenue: string;
 }
 
+export interface OtherIncomeCategoryTotal {
+  categoryId: string;
+  name: string;
+  total: string;
+}
+
 export interface DailySummary {
   date: string;
   organizationId: string;
@@ -34,6 +40,8 @@ export interface DailySummary {
     KITCHEN: number;
     BARISTA: number;
   };
+  otherIncomeTotal: string;
+  otherIncomeByCategory: OtherIncomeCategoryTotal[];
 }
 
 export interface WaiterPaymentBreakdown {
@@ -72,6 +80,7 @@ export interface BranchOverviewRow {
   id: string;
   name: string;
   revenue: string;
+  otherIncomeTotal: string;
   orderCount: number;
   averagePrepTimeMinutes: {
     KITCHEN: number;
@@ -116,6 +125,7 @@ export interface BranchOverview {
     endDate: string;
   };
   totalRevenue: string;
+  totalOtherIncome: string;
   totalOrders: number;
   branches: BranchOverviewRow[];
 }
