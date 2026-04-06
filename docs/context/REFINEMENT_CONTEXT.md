@@ -62,6 +62,34 @@ Complete layout and sizing overhaul:
 - `rounded-md` → `rounded-xl`
 - Order number: `text-heading-md font-bold`
 
+### OrderCard — Per-Item Prep Ticket Rows (Ticket Splitting Enhancement)
+**File:** `frontend/components/ui/OrderCard.tsx`
+
+Replaced the single station-dot row (one dot per station, deduplication by station) with per-item coloured rows — one row per `PrepTicket`, showing item label, station, and who claimed it. Key design decisions:
+
+- `REJECTED` tickets are hidden unless all tickets are rejected (avoids cluttering the live view with noise)
+- Each row uses the full semantic background colour, not just a dot: `bg-[#FDF3DC]` for PENDING, `bg-[#FEF0E0]` for IN_PROGRESS, `bg-[#EDFAF1]` for READY, `bg-[#FDF2F0]` for REJECTED
+- Row layout: `[dot] [item label] · [station]` on the left; `[claimedBy name]` or status label on the right
+- Item label truncates with `truncate` — station label is `opacity-60 text-caption` so it steps back
+- "Action Required" chip uses `border-[#F5A898]` (warm terracotta) instead of the previous `border-red-100`
+- `PrepTicketStaff` interface now requires `itemLabel: string`
+
+### OrderDetailBottomSheet — Per-Item Preparation Section
+**File:** `frontend/components/orders/OrderDetailBottomSheet.tsx`
+
+The Preparation section was redesigned from a flat card list to a grouped table with a header row:
+
+- Outer container: `rounded-lg border border-stone-200 overflow-hidden` with `divide-y divide-stone-100` rows
+- Header: `bg-stone-50 border-b border-stone-200` label row ("Preparation")
+- Each ticket row: semantic background colour matching status; item label as primary text (`text-label-sm font-semibold text-stone-800`); station as secondary (`text-caption text-stone-400`); status + claimedBy name on the right
+- Station icon (`ChefHat` for KITCHEN/PIZZA/PASTRY, `Coffee` for BARISTA) shown at 13px alongside the item label
+- Status colours use the exact design system semantic palette values (not Tailwind `red-*`/`green-*`)
+
+### OrderHistoryRow — Station Deduplication Retained
+**File:** `frontend/components/orders/OrderHistoryRow.tsx`
+
+History rows continue to show one chip per unique station (not one per ticket). Renamed internal variable from `latestPerStation` to `uniqueStations` to reflect intent. No visual change — closed orders don't benefit from item-level granularity.
+
 ### SidebarLayout
 **File:** `frontend/components/ui/SidebarLayout.tsx`
 
