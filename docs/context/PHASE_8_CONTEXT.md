@@ -139,6 +139,45 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 
 ---
 
+## Post-Phase Addendum — Staff Financial Data Audit (2026-04-06)
+
+Following client feedback, a financial controls audit was conducted on all staff-facing screens
+(WAITER, CHEF, BARISTA). The director's concern: staff should only see what they need to do their
+job — no aggregate revenue or financial totals.
+
+### Findings
+
+| Screen | Role | Issue | Action |
+|---|---|---|---|
+| `dashboard/page.tsx` | WAITER | "Food & Drinks Today" stat card showed KES total of day's orders | Removed |
+| `dashboard/page.tsx` | WAITER | "Other Income Today" stat card showed KES total of other income | Removed |
+| `history/page.tsx` | WAITER | Summary bar showed `PriceDisplay` KES total of filtered orders | Hidden for WAITER role |
+| `performance/page.tsx` | WAITER | "Average Order Value" stat card | Removed |
+| `performance/page.tsx` | WAITER | "Revenue Generated" stat card | Removed |
+| `kitchen/page.tsx`, `barista/page.tsx` | CHEF, BARISTA | No financial data found | No change |
+| `other-income/history/page.tsx` | WAITER | Already scoped to today's own entries, no totals across staff | No change |
+
+### Files Changed
+
+- `frontend/app/app/dashboard/page.tsx` — removed `todayTotalValue` + `todayOtherIncome` state,
+  removed `otherIncomeService` import, removed two financial stat cards. Waiter stat strip now shows
+  "Orders Today" only. "Record Other Income" quick-action link retained (waiter still records income,
+  just does not see running totals).
+- `frontend/app/app/history/page.tsx` — `PriceDisplay` in summary bar now gated on
+  `role !== 'WAITER'`. Order count is still visible.
+- `frontend/app/app/performance/page.tsx` — removed "Average Order Value" and "Revenue Generated"
+  stat cards from waiter section. Removed unused `DollarSign` import. Waiter performance now shows
+  "Orders Handled" and "Busiest Day" only.
+
+### Design Rationale
+
+This implements the **principle of least privilege** for financial data. Waiters need to know their
+active orders and handle payments on individual orders — they do not need aggregate collection totals,
+which are management-level data. Chefs and baristas are unaffected as no financial data was ever
+exposed on their screens.
+
+---
+
 ## Notes for Next Phase (Phase 9)
 
 - **`BranchOverviewRow.revenue` is total revenue (food + other)**: Do not treat it as food-only. `branch.otherIncomeTotal` is available separately if a breakdown is needed.

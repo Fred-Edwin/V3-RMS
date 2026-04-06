@@ -16,7 +16,6 @@ import { corporateAccountService, type CorporateAccountDropdownItem } from '@/se
 import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
 import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { orderService } from '@/services/orderService';
-import { otherIncomeService } from '@/services/otherIncomeService';
 import { prepTicketService } from '@/services/prepTicketService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -101,8 +100,6 @@ export default function DashboardPage(): JSX.Element {
   const [corporateAccounts, setCorporateAccounts] = useState<CorporateAccountDropdownItem[]>([]);
   const [customerCreditAccounts, setCustomerCreditAccounts] = useState<CustomerCreditDropdownItem[]>([]);
   const [todayOrderCount, setTodayOrderCount] = useState(0);
-  const [todayTotalValue, setTodayTotalValue] = useState(0);
-  const [todayOtherIncome, setTodayOtherIncome] = useState(0);
   const [latestOrders, setLatestOrders] = useState<OrderSummary[]>([]);
   const [ticketsCompletedToday, setTicketsCompletedToday] = useState(0);
   const [avgPrepMinutesToday, setAvgPrepMinutesToday] = useState(0);
@@ -152,24 +149,7 @@ export default function DashboardPage(): JSX.Element {
     const nonCancelledOrders = collectedOrders.filter((order) => order.status !== 'CANCELLED');
 
     setTodayOrderCount(nonCancelledOrders.length);
-    setTodayTotalValue(
-      nonCancelledOrders.reduce((sum, order) => sum + Number.parseFloat(order.total), 0),
-    );
-
     setLatestOrders(collectedOrders.slice(0, 5));
-
-    // Load today's other income recorded by this waiter
-    try {
-      const { entries } = await otherIncomeService.listEntries(
-        { startDate: todayDate, endDate: todayDate, perPage: 100 },
-        accessToken,
-      );
-      setTodayOtherIncome(
-        entries.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0),
-      );
-    } catch {
-      // non-critical — silently ignore
-    }
   }, [accessToken, role]);
 
   useEffect(() => {
@@ -377,24 +357,12 @@ export default function DashboardPage(): JSX.Element {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-1">
           <StatCard
             className="p-4"
             label="Orders Today"
             value={String(todayOrderCount)}
             valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
-          />
-          <StatCard
-            className="p-4"
-            label="Food & Drinks Today"
-            value={`KES ${todayTotalValue.toFixed(2)}`}
-            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
-          />
-          <StatCard
-            className="p-4"
-            label="Other Income Today"
-            value={`KES ${todayOtherIncome.toFixed(2)}`}
-            valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight text-[#92650A]"
           />
         </div>
 

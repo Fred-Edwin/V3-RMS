@@ -190,7 +190,7 @@ export default function HistoryPage(): JSX.Element {
         <p className="text-body-sm text-stone-600">
           <span className="font-semibold text-stone-900">{pagination.total}</span> orders
         </p>
-        <PriceDisplay amount={totalValue} />
+        {role !== 'WAITER' && <PriceDisplay amount={totalValue} />}
       </div>
 
       {/* Order list */}

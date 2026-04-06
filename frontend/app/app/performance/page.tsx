@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BarChart2, CalendarRange, Clock, DollarSign, Flame, ListChecks, ShoppingBag, Timer } from 'lucide-react';
+import { BarChart2, CalendarRange, Clock, Flame, ListChecks, ShoppingBag, Timer } from 'lucide-react';
 import {
   EmptyState,
   Input,
@@ -209,10 +209,8 @@ export default function PerformancePage(): JSX.Element {
         </section>
       ) : report.role === 'WAITER' ? (
         <>
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-2">
             <StatCard label="Orders Handled" value={report.ordersHandled} icon={<ShoppingBag size={18} />} />
-            <StatCard label="Average Order Value" value={`KES ${report.averageOrderValue}`} icon={<DollarSign size={18} />} />
-            <StatCard label="Revenue Generated" value={`KES ${report.totalRevenueGenerated}`} icon={<ListChecks size={18} />} />
             <StatCard label="Busiest Day" value={report.busiestDay ? formatDay(report.busiestDay) : '-'} icon={<Flame size={18} />} />
           </section>
 
