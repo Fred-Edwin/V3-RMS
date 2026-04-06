@@ -101,7 +101,7 @@ export default function HistoryPage(): JSX.Element {
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
-  const showFinancials = role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA';
+  const showFinancials = role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA'; // gates summary bar total only
 
   const handlePrintReceipt = async (orderId: string) => {
     if (!accessToken || isPrintSubmitting) return;
@@ -203,7 +203,7 @@ export default function HistoryPage(): JSX.Element {
           <span>Type</span>
           <span>Placed By</span>
           <span>Prep Staff</span>
-          <span>{showFinancials ? 'Total' : ''}</span>
+          <span>Total</span>
           <span>Status</span>
         </div>
 
@@ -236,7 +236,6 @@ export default function HistoryPage(): JSX.Element {
             key={order.id}
             order={order}
             onTap={() => void openOrder(order.id)}
-            showPrice={showFinancials}
           />
         ))}
       </div>
@@ -277,7 +276,6 @@ export default function HistoryPage(): JSX.Element {
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
-        hideFinancials={!showFinancials}
       />
     </PageLayout>
   );

@@ -36,7 +36,6 @@ interface OrderDetailBottomSheetProps {
   isPrintSubmitting?: boolean;
   isOwner?: boolean;
   isManager?: boolean;
-  hideFinancials?: boolean;
   houseAccounts?: HouseAccountDropdownItem[];
   corporateAccounts?: CorporateAccountDropdownItem[];
   customerCreditAccounts?: CustomerCreditDropdownItem[];
@@ -138,7 +137,6 @@ export function OrderDetailBottomSheet({
   isPrintSubmitting = false,
   isOwner = false,
   isManager = false,
-  hideFinancials = false,
   houseAccounts = [],
   corporateAccounts = [],
   customerCreditAccounts = [],
@@ -312,12 +310,10 @@ export function OrderDetailBottomSheet({
             </div>
           )}
 
-          {!hideFinancials && (
-            <div className="flex items-center justify-between border-t border-stone-200 pt-3 mb-4">
-              <span className="text-body-md font-semibold text-stone-900">Total</span>
-              <PriceDisplay amount={Number.parseFloat(order.total)} />
-            </div>
-          )}
+          <div className="flex items-center justify-between border-t border-stone-200 pt-3 mb-4">
+            <span className="text-body-md font-semibold text-stone-900">Total</span>
+            <PriceDisplay amount={Number.parseFloat(order.total)} />
+          </div>
 
           {isPaid && order.paymentMethod && (
             <div className="rounded-md border border-stone-200 bg-stone-50 p-3 space-y-1.5">
