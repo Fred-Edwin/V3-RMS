@@ -14,6 +14,8 @@ export interface PrepTicketSummary {
   claimedAt: string | null;
   readyAt: string | null;
   rejectedReason?: string | null;
+  /** Name and quantity of the single item this ticket represents, e.g. "Latte x3" */
+  itemLabel: string;
 }
 
 export interface OrderSummary {

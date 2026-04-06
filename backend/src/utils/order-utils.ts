@@ -59,6 +59,27 @@ export const buildPrepTicketItemsSnapshot = (
     }));
 };
 
+/**
+ * Returns one snapshot array per order-item line for a given station.
+ * Each snapshot contains exactly one item — one ticket per line item.
+ * This enables parallel prep and per-item status tracking on the waiter view.
+ */
+export const buildPerItemTicketSnapshots = (
+  items: SnapshotSourceItem[],
+  station: PrepStation,
+): PrepTicketItemSnapshot[][] => {
+  return items
+    .filter((item) => item.category.prepStation === station)
+    .map((item) => ([
+      {
+        menuItemId: item.menuItemId,
+        name: item.name,
+        quantity: item.quantity,
+        notes: item.notes,
+      },
+    ]));
+};
+
 export const deriveOrderStatus = (tickets: TicketWithStatus[]): OrderStatus => {
   if (tickets.length === 0 || tickets.every((ticket) => ticket.status === 'PENDING')) {
     return OrderStatus.PENDING;

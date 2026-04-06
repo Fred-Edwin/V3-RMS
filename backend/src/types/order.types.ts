@@ -53,6 +53,8 @@ export interface PrepTicketSummaryRecord {
   claimedAt: Date | null;
   readyAt: Date | null;
   rejectedReason?: string | null;
+  /** Human-readable label derived from the single item snapshot, e.g. "Latte x3" */
+  itemLabel: string;
 }
 
 export interface OrderSummaryRecord {

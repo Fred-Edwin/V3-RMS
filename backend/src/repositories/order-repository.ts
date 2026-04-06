@@ -260,14 +260,22 @@ export const orderRepository = {
         throw new Error('Failed to allocate a unique daily order number');
       }
 
+      // Assign per-station sequence numbers so multiple tickets for the same
+      // station don't violate the @@unique([orderId, station, sequence]) constraint.
+      const stationSequence = new Map<string, number>();
       await tx.prepTicket.createMany({
-        data: data.prepTickets.map((ticket) => ({
-          organizationId: ticket.organizationId,
-          orderId: order.id,
-          station: ticket.station,
-          status: ticket.status,
-          items: ticket.items as unknown as Prisma.InputJsonValue,
-        })),
+        data: data.prepTickets.map((ticket) => {
+          const seq = (stationSequence.get(ticket.station) ?? 0) + 1;
+          stationSequence.set(ticket.station, seq);
+          return {
+            organizationId: ticket.organizationId,
+            orderId: order.id,
+            station: ticket.station,
+            sequence: seq,
+            status: ticket.status,
+            items: ticket.items as unknown as Prisma.InputJsonValue,
+          };
+        }),
       });
 
       return tx.order.findFirstOrThrow({

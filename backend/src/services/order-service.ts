@@ -22,7 +22,7 @@ import type {
   PrepTicketSummaryRecord,
 } from '../types/order.types';
 import {
-  buildPrepTicketItemsSnapshot,
+  buildPerItemTicketSnapshots,
   calculateOrderTotals,
   deriveStationsFromItems,
 } from '../utils/order-utils';
@@ -166,6 +166,13 @@ const serializePrepTicket = (
   };
 };
 
+const deriveItemLabel = (items: Prisma.JsonValue): string => {
+  const parsed = parsePrepTicketItems(items);
+  const first = parsed[0];
+  if (!first) return '';
+  return first.quantity > 1 ? `${first.name} x${first.quantity}` : first.name;
+};
+
 const serializePrepTicketSummary = (
   ticket: SummaryOrderPrismaRecord['prepTickets'][number],
 ): PrepTicketSummaryRecord => {
@@ -177,6 +184,7 @@ const serializePrepTicketSummary = (
     claimedAt: ticket.claimedAt,
     readyAt: ticket.readyAt,
     rejectedReason: ticket.rejectedReason,
+    itemLabel: deriveItemLabel(ticket.items),
   };
 };
 
@@ -300,28 +308,24 @@ const resolveOrderItems = async (
   });
 };
 
-const buildTicketSnapshotsByStation = (
+/**
+ * Builds one PrepTicket descriptor per order-item line per station.
+ * e.g. 3 Lattes + 2 Teas → 2 BARISTA tickets; 2 Fries + 1 Pizza → 2 KITCHEN tickets.
+ */
+const buildPerItemTicketDescriptors = (
   items: ResolvedOrderItem[],
   stations: PrepStation[],
-): Partial<Record<PrepStation, PrepTicketItemSnapshot[]>> => {
-  const snapshots: Partial<Record<PrepStation, PrepTicketItemSnapshot[]>> = {};
+): Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }> => {
+  const descriptors: Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }> = [];
   stations.forEach((station) => {
-    snapshots[station] = buildPrepTicketItemsSnapshot(items, station);
+    const perItemSnapshots = buildPerItemTicketSnapshots(items, station);
+    perItemSnapshots.forEach((snapshot) => {
+      descriptors.push({ station, items: snapshot });
+    });
   });
-  return snapshots;
+  return descriptors;
 };
 
-const stringifyStationItems = (items: Array<{ menuItemId: string; quantity: number; notes: string | null }>): string => {
-  return JSON.stringify(
-    [...items]
-      .sort((a, b) => a.menuItemId.localeCompare(b.menuItemId))
-      .map((item) => ({
-        menuItemId: item.menuItemId,
-        quantity: item.quantity,
-        notes: item.notes,
-      })),
-  );
-};
 
 const serializeTicketsForSocket = (order: OrderRecord): PrepTicketRecord[] => order.prepTickets;
 
@@ -359,7 +363,7 @@ export const orderService = {
 
     const totals = calculateOrderTotals(resolvedItems, deliveryFee ?? new Prisma.Decimal(0));
     const stations = deriveStationsFromItems(resolvedItems);
-    const ticketSnapshots = buildTicketSnapshotsByStation(resolvedItems, stations);
+    const ticketDescriptors = buildPerItemTicketDescriptors(resolvedItems, stations);
 
     const createOrderStart = Date.now();
     const created = await orderRepository.createWithItemsAndTickets({
@@ -381,11 +385,11 @@ export const orderService = {
         subtotal: item.subtotal,
         notes: item.notes,
       })),
-      prepTickets: stations.map((station) => ({
+      prepTickets: ticketDescriptors.map((descriptor) => ({
         organizationId,
-        station,
+        station: descriptor.station,
         status: PrepTicketStatus.PENDING,
-        items: ticketSnapshots[station] ?? [],
+        items: descriptor.items,
       })),
     });
     const createOrderMs = Date.now() - createOrderStart;
@@ -552,122 +556,121 @@ export const orderService = {
 
     const existingTicketIds = new Set(existingOrder.prepTickets.map((ticket) => ticket.id));
 
-    const buildKey = (menuItemId: string, notes: string | null): string => JSON.stringify([menuItemId, notes]);
-
-    const buildStationMap = (items: Array<{ menuItemId: string; quantity: number; notes: string | null }>): Map<string, number> => {
-      const map = new Map<string, number>();
-      items.forEach((item) => {
-        const key = buildKey(item.menuItemId, item.notes);
-        map.set(key, (map.get(key) ?? 0) + item.quantity);
-      });
-      return map;
+    // Each per-item ticket carries exactly one item in its JSON snapshot.
+    // We identify a ticket by the first (and only) item's menuItemId + notes.
+    const getTicketItemKey = (ticket: FullOrderPrismaRecord['prepTickets'][number]): string => {
+      const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+      const first = parsed[0];
+      if (!first) return ticket.id; // fallback: use ticket id as opaque key
+      return JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
     };
 
-    const getLatestEditableTicket = (station: PrepStation) => {
-      const candidates = existingOrder.prepTickets
-        .filter((ticket) => ticket.station === station)
-        .filter((ticket) => ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED)
-        .sort((a, b) => {
-          if (a.sequence !== b.sequence) {
-            return b.sequence - a.sequence;
-          }
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        });
-
-      return candidates[0] ?? null;
-    };
+    const buildItemKey = (menuItemId: string, notes: string | null): string =>
+      JSON.stringify([menuItemId, notes ?? null]);
 
     for (const station of allStations) {
       const requestedStationItems = newItemsByStation.get(station) ?? [];
 
-      const existingStationItems = existingOrder.items
-        .filter((item) => item.menuItem.category.prepStation === station)
-        .map((item) => ({
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
-          notes: item.notes ?? null,
-        }));
-
       const hasStartedTicket = existingOrder.prepTickets.some(
         (ticket) =>
-          ticket.station === station && (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
+          ticket.station === station &&
+          (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
       );
 
-      const requestedMap = buildStationMap(
-        requestedStationItems.map((item) => ({
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
-          notes: item.notes,
-        })),
-      );
-
-      const existingMap = buildStationMap(existingStationItems);
+      // Existing editable tickets for this station (PENDING or REJECTED), keyed by item
+      const editableTicketsByKey = new Map<string, FullOrderPrismaRecord['prepTickets'][number]>();
+      existingOrder.prepTickets
+        .filter(
+          (ticket) =>
+            ticket.station === station &&
+            (ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED),
+        )
+        .forEach((ticket) => {
+          editableTicketsByKey.set(getTicketItemKey(ticket), ticket);
+        });
 
       if (hasStartedTicket) {
-        // Once a station has started, we only allow additive changes for that station.
-        for (const [key, existingQty] of existingMap.entries()) {
-          const requestedQty = requestedMap.get(key) ?? 0;
-          if (requestedQty < existingQty) {
+        // Station already in progress — only allow brand-new item lines (additive only).
+        // Existing started items cannot be removed.
+        const startedItemKeys = new Set(
+          existingOrder.prepTickets
+            .filter(
+              (ticket) =>
+                ticket.station === station &&
+                (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
+            )
+            .map(getTicketItemKey),
+        );
+
+        for (const key of startedItemKeys) {
+          // Check if item still present in the new request (cannot remove started items)
+          const requestedItem = requestedStationItems.find(
+            (item) => buildItemKey(item.menuItemId, item.notes) === key,
+          );
+          if (!requestedItem) {
             throw new ConflictError(
               'Order cannot be modified. Preparation has already started at one or more stations.',
             );
           }
         }
 
-        // Create a follow-up ticket batch containing only the delta items.
-        const deltaItems: ResolvedOrderItem[] = [];
-        requestedStationItems.forEach((item) => {
-          const key = buildKey(item.menuItemId, item.notes);
-          const existingQty = existingMap.get(key) ?? 0;
-          const requestedQty = requestedMap.get(key) ?? 0;
-          const deltaQty = requestedQty - existingQty;
-          if (deltaQty > 0) {
-            deltaItems.push({ ...item, quantity: deltaQty });
-          }
-        });
+        // Create tickets only for genuinely new item lines not already present
+        const allExistingKeys = new Set(
+          existingOrder.prepTickets
+            .filter((ticket) => ticket.station === station)
+            .map(getTicketItemKey),
+        );
 
-        if (deltaItems.length > 0) {
-          ticketCreates.push({
-            station,
-            items: buildPrepTicketItemsSnapshot(deltaItems, station),
-          });
+        for (const item of requestedStationItems) {
+          const key = buildItemKey(item.menuItemId, item.notes);
+          if (!allExistingKeys.has(key)) {
+            ticketCreates.push({
+              station,
+              items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
+            });
+          }
         }
 
         continue;
       }
 
-      const latestEditable = getLatestEditableTicket(station);
+      // Station not yet started — full reconciliation per item line
+      const matchedTicketIds = new Set<string>();
 
-      if (requestedStationItems.length === 0) {
-        // No items remain for this station; reject/remove any pending ticket.
-        if (latestEditable && latestEditable.status === PrepTicketStatus.PENDING) {
+      for (const item of requestedStationItems) {
+        const key = buildItemKey(item.menuItemId, item.notes);
+        const snapshot: PrepTicketItemSnapshot[] = [
+          { menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes },
+        ];
+        const existingTicket = editableTicketsByKey.get(key);
+
+        if (existingTicket) {
+          matchedTicketIds.add(existingTicket.id);
+          // Update quantity/notes in case they changed
           ticketUpdates.push({
-            ticketId: latestEditable.id,
+            ticketId: existingTicket.id,
+            station,
+            status: PrepTicketStatus.PENDING,
+            items: snapshot,
+            clearRejection: existingTicket.status === PrepTicketStatus.REJECTED,
+          });
+        } else {
+          // New item line not previously on the order
+          ticketCreates.push({ station, items: snapshot });
+        }
+      }
+
+      // Reject editable tickets whose item line was removed from the order
+      for (const [, ticket] of editableTicketsByKey) {
+        if (!matchedTicketIds.has(ticket.id) && ticket.status === PrepTicketStatus.PENDING) {
+          ticketUpdates.push({
+            ticketId: ticket.id,
             station,
             status: PrepTicketStatus.REJECTED,
             items: [],
             rejectedReason: 'Removed from order',
           });
         }
-        continue;
-      }
-
-      const snapshot = buildPrepTicketItemsSnapshot(requestedStationItems, station);
-
-      if (latestEditable) {
-        ticketUpdates.push({
-          ticketId: latestEditable.id,
-          station,
-          status: PrepTicketStatus.PENDING,
-          items: snapshot,
-          clearRejection: latestEditable.status === PrepTicketStatus.REJECTED,
-        });
-      } else {
-        // New station added to an existing order.
-        ticketCreates.push({
-          station,
-          items: snapshot,
-        });
       }
     }
 

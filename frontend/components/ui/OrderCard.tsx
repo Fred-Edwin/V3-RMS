@@ -12,6 +12,7 @@ interface PrepTicketStaff {
   station: 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY'
   claimedBy: { id: string; name: string } | null
   status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED'
+  itemLabel: string
 }
 
 interface OrderCardProps {
@@ -64,16 +65,28 @@ const ticketStatusDot: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', 
   REJECTED: 'bg-red-400',
 }
 
+// Ticket status row background and text colours — warm semantic palette
+const ticketRowClasses: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', string> = {
+  PENDING:     'bg-[#FDF3DC] text-[#92650A]',
+  IN_PROGRESS: 'bg-[#FEF0E0] text-[#A04F0A]',
+  READY:       'bg-[#EDFAF1] text-[#1A6B3C]',
+  REJECTED:    'bg-[#FDF2F0] text-[#9B3A2A]',
+}
+
+const ticketStatusLabel: Record<'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED', string> = {
+  PENDING:     'Pending',
+  IN_PROGRESS: 'In Progress',
+  READY:       'Ready',
+  REJECTED:    'Rejected',
+}
+
 export function OrderCard({ orderNumber, status, type, tableNumber, startTime, placedBy, prepTickets, hasRejectedTickets, onTap, className }: OrderCardProps) {
-  // Deduplicate: show only the latest ticket per station
-  const latestPerStation = prepTickets
-    ? Object.values(
-        prepTickets.reduce<Record<string, PrepTicketStaff>>((acc, t) => {
-          acc[t.station] = t
-          return acc
-        }, {}),
-      )
+  // Filter out REJECTED tickets unless all are rejected (avoids cluttering the view with noise)
+  const visibleTickets = prepTickets
+    ? prepTickets.filter((t) => t.status !== 'REJECTED')
     : []
+  const allRejected = prepTickets && prepTickets.length > 0 && visibleTickets.length === 0
+  const displayTickets = allRejected ? (prepTickets ?? []) : visibleTickets
 
   return (
     <div
@@ -83,7 +96,7 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, p
       onKeyDown={onTap ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap() } } : undefined}
       className={cn(
         'bg-white border-l-[3px] shadow-sm rounded-xl p-4',
-        hasRejectedTickets ? 'border-l-red-500' : statusBorderClasses[status],
+        hasRejectedTickets ? 'border-l-[#F5A898]' : statusBorderClasses[status],
         onTap && 'cursor-pointer hover:shadow-md transition-shadow duration-fast focus-visible:outline-none focus-visible:shadow-focus',
         className
       )}
@@ -108,27 +121,37 @@ export function OrderCard({ orderNumber, status, type, tableNumber, startTime, p
       <div className="flex items-center justify-between mt-3">
         <Badge variant={statusToBadgeVariant[status]} />
         {hasRejectedTickets && (
-          <span className="text-caption text-red-600 font-medium tracking-tight bg-red-50 px-2 py-0.5 rounded-full border border-red-100 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+          <span className="text-caption text-[#9B3A2A] font-medium bg-[#FDF2F0] px-2 py-0.5 rounded-full border border-[#F5A898] flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-[#F5A898] rounded-full animate-pulse" />
             Action Required
           </span>
         )}
       </div>
 
-      {/* Prep staff summary */}
-      {latestPerStation.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {latestPerStation.map((ticket) => (
-            <span
-              key={ticket.station}
-              className="inline-flex items-center gap-1.5 rounded-full border border-stone-100 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600"
+      {/* Per-item prep status rows */}
+      {displayTickets.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {displayTickets.map((ticket) => (
+            <div
+              key={ticket.station + ticket.itemLabel}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5',
+                ticketRowClasses[ticket.status],
+              )}
             >
-              <span className={cn('size-1.5 rounded-full', ticketStatusDot[ticket.status])} />
-              <span className="text-stone-400">{stationLabels[ticket.station]}:</span>
-              <span className="font-medium">
-                {ticket.claimedBy ? ticket.claimedBy.name : '—'}
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={cn('shrink-0 size-1.5 rounded-full', ticketStatusDot[ticket.status])} />
+                <span className="text-label-sm font-medium truncate">
+                  {ticket.itemLabel || stationLabels[ticket.station]}
+                </span>
+                <span className="shrink-0 text-caption opacity-60">
+                  · {stationLabels[ticket.station]}
+                </span>
+              </div>
+              <span className="shrink-0 text-caption font-medium">
+                {ticket.claimedBy ? ticket.claimedBy.name : ticketStatusLabel[ticket.status]}
               </span>
-            </span>
+            </div>
           ))}
         </div>
       )}

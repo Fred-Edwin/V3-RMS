@@ -36,10 +36,10 @@ const formatOrderType = (type: OrderSummary['type']): string => {
 };
 
 export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
-  // Deduplicate: last ticket wins per station
-  const latestPerStation = Object.values(
+  // For the history view, show one chip per unique station (summary only)
+  const uniqueStations = Object.values(
     order.prepTickets.reduce<Record<string, OrderSummary['prepTickets'][number]>>((acc, t) => {
-      acc[t.station] = t;
+      if (!acc[t.station]) acc[t.station] = t;
       return acc;
     }, {}),
   );
@@ -76,10 +76,10 @@ export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
           by <span className="font-medium text-stone-600">{order.createdBy.name}</span>
         </p>
 
-        {/* Prep staff chips */}
-        {latestPerStation.length > 0 && (
+        {/* Station summary chips */}
+        {uniqueStations.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {latestPerStation.map((ticket) => (
+            {uniqueStations.map((ticket) => (
               <span
                 key={ticket.station}
                 className="inline-flex items-center gap-1.5 rounded-full border border-stone-100 bg-stone-50 px-2 py-0.5 text-label-sm text-stone-600"
@@ -108,7 +108,7 @@ export function OrderHistoryRow({ order, onTap }: OrderHistoryRowProps) {
         <span className="text-body-sm text-stone-600">{formatOrderType(order.type)}</span>
         <span className="text-body-sm text-stone-700">{order.createdBy.name}</span>
         <span className="flex flex-wrap gap-1">
-          {latestPerStation.map((ticket) => (
+          {uniqueStations.map((ticket) => (
             <span
               key={ticket.station}
               className="inline-flex items-center gap-1 rounded-full border border-stone-100 bg-stone-50 px-2 py-0.5 text-label-sm text-stone-600"

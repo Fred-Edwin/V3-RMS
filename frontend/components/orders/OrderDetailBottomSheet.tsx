@@ -219,53 +219,86 @@ export function OrderDetailBottomSheet({
           </div>
 
           {order.prepTickets.length > 0 && (
-            <div className="rounded-md border border-stone-200 p-3">
-              <p className="mb-2.5 text-body-sm font-semibold text-stone-500 uppercase tracking-wide">Preparation</p>
-              <div className="space-y-2">
+            <div className="rounded-lg border border-stone-200 overflow-hidden">
+              <p className="px-3 py-2 text-label-sm font-semibold text-stone-500 uppercase tracking-wide bg-stone-50 border-b border-stone-200">
+                Preparation
+              </p>
+              <div className="divide-y divide-stone-100">
                 {order.prepTickets.map((ticket) => {
                   const isRejected = ticket.status === 'REJECTED';
                   const isReady = ticket.status === 'READY';
                   const isInProgress = ticket.status === 'IN_PROGRESS';
-                  const StationIcon = ticket.station === 'KITCHEN' ? ChefHat : Coffee;
+                  const StationIcon = ticket.station === 'BARISTA' ? Coffee : ChefHat;
+
+                  const rowBg = isRejected
+                    ? 'bg-[#FDF2F0]'
+                    : isReady
+                      ? 'bg-[#EDFAF1]'
+                      : isInProgress
+                        ? 'bg-[#FEF0E0]'
+                        : 'bg-white';
+
+                  const statusTextColour = isRejected
+                    ? 'text-[#9B3A2A]'
+                    : isReady
+                      ? 'text-[#1A6B3C]'
+                      : isInProgress
+                        ? 'text-[#A04F0A]'
+                        : 'text-stone-400';
+
+                  const dotColour = isRejected
+                    ? 'bg-[#F5A898]'
+                    : isReady
+                      ? 'bg-[#86EFAC]'
+                      : isInProgress
+                        ? 'bg-[#F5B87A]'
+                        : 'bg-[#F0D080]';
+
+                  const statusLabel = isInProgress
+                    ? 'In Progress'
+                    : ticket.status.charAt(0) + ticket.status.slice(1).toLowerCase();
+
+                  const stationLabel: Record<string, string> = {
+                    KITCHEN: 'Kitchen',
+                    BARISTA: 'Barista',
+                    PIZZA: 'Pizza',
+                    PASTRY: 'Pastry',
+                  };
 
                   return (
                     <div
                       key={ticket.id}
-                      className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2.5 ${
-                        isRejected
-                          ? 'bg-red-50 border border-red-100'
-                          : isReady
-                            ? 'bg-green-50 border border-green-100'
-                            : isInProgress
-                              ? 'bg-amber-50 border border-amber-100'
-                              : 'bg-stone-50 border border-stone-100'
-                      }`}
+                      className={`flex items-center justify-between gap-3 px-3 py-2.5 ${rowBg}`}
                     >
+                      {/* Left: item label + station */}
                       <div className="flex items-center gap-2 min-w-0">
-                        <StationIcon
-                          size={14}
-                          className={`shrink-0 ${isRejected ? 'text-red-500' : isReady ? 'text-green-600' : isInProgress ? 'text-amber-600' : 'text-stone-400'}`}
-                        />
-                        <span className="text-label-sm font-medium text-stone-700">
-                          {ticket.station === 'KITCHEN' ? 'Kitchen' : 'Barista'}
-                        </span>
+                        <span className={`shrink-0 size-1.5 rounded-full ${dotColour}`} />
+                        <StationIcon size={13} className="shrink-0 text-stone-400" />
+                        <div className="min-w-0">
+                          <p className="text-label-sm font-semibold text-stone-800 truncate">
+                            {ticket.itemLabel || stationLabel[ticket.station] || ticket.station}
+                          </p>
+                          <p className="text-caption text-stone-400">
+                            {stationLabel[ticket.station] || ticket.station}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-0.5 min-w-0">
-                        <span
-                          className={`text-label-sm font-semibold ${
-                            isRejected ? 'text-red-600' : isReady ? 'text-green-700' : isInProgress ? 'text-amber-700' : 'text-stone-500'
-                          }`}
-                        >
-                          {ticket.status === 'IN_PROGRESS' ? 'In Progress' : ticket.status.replace('_', ' ').charAt(0) + ticket.status.slice(1).toLowerCase().replace('_', ' ')}
+                      {/* Right: status + who claimed it */}
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <span className={`text-label-sm font-semibold ${statusTextColour}`}>
+                          {statusLabel}
                         </span>
                         {ticket.claimedBy && (
-                          <span className="text-caption text-stone-500 truncate max-w-[120px]">
+                          <span className="text-caption text-stone-400 truncate max-w-[110px]">
                             {ticket.claimedBy.name}
                           </span>
                         )}
                         {isRejected && ticket.rejectedReason && (
-                          <span className="text-caption text-red-500 truncate max-w-[150px]" title={ticket.rejectedReason}>
+                          <span
+                            className="text-caption text-[#9B3A2A] truncate max-w-[140px]"
+                            title={ticket.rejectedReason}
+                          >
                             {ticket.rejectedReason}
                           </span>
                         )}
