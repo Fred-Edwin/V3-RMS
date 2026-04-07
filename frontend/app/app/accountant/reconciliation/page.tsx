@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, FileText, RefreshCw } from 'lucide-react';
 import { Button, PageHeader, PageLayout, Select, SkeletonBlock } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -92,7 +92,17 @@ function SummaryStatCard({
 
 type PaymentTab = 'ALL' | 'MPESA' | 'CASH' | 'CARD' | 'CREDIT';
 
-function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) {
+function OrderDrillDown({
+  report,
+  accessToken,
+  organizationId,
+  date,
+}: {
+  report: AccountantReconciliationReport;
+  accessToken: string;
+  organizationId: string;
+  date: string;
+}) {
   const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
   const [selectedWaiterId, setSelectedWaiterId] = useState<string>('ALL');
 
@@ -127,6 +137,27 @@ function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) 
     return filteredOrders.reduce((sum, o) => sum + Number.parseFloat(o.total), 0);
   }, [filteredOrders]);
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const { toast } = useToast();
+
+  const exportPdf = useCallback(async () => {
+    setIsExportingPdf(true);
+    try {
+      await reportService.exportReport(accessToken, {
+        reportType: 'accountant_reconciliation',
+        format: 'pdf',
+        startDate: date,
+        endDate: date,
+        organizationId,
+      });
+      toast({ variant: 'success', title: 'PDF download started' });
+    } catch {
+      toast({ variant: 'error', title: 'Export failed', message: 'Could not generate PDF report.' });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [accessToken, date, organizationId, toast]);
+
   const exportCsv = () => {
     const headers = ['Order #', 'Time', 'Waiter', 'Payment Method', 'Amount', 'M-Pesa Code'];
     const rows = filteredOrders.map((o) => [
@@ -154,15 +185,27 @@ function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) 
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
         <h3 className="text-heading-sm font-semibold text-stone-900">Order Detail</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 text-stone-500"
-        >
-          <Download size={14} />
-          Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={exportCsv}
+            className="flex items-center gap-1.5 text-stone-500"
+          >
+            <Download size={14} />
+            CSV
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void exportPdf()}
+            isLoading={isExportingPdf}
+            className="flex items-center gap-1.5 text-stone-500"
+          >
+            <FileText size={14} />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Waiter filter */}
@@ -505,7 +548,14 @@ export default function ReconciliationPage(): JSX.Element {
                 <ChevronRight size={18} className="shrink-0 text-stone-400" />
               )}
             </button>
-            {drillDownOpen && <OrderDrillDown report={report} />}
+            {drillDownOpen && (
+              <OrderDrillDown
+                report={report}
+                accessToken={accessToken ?? ''}
+                organizationId={selectedBranchId}
+                date={selectedDate}
+              />
+            )}
           </div>
         </>
       ) : !isLoading && selectedBranchId ? (

@@ -335,6 +335,12 @@ export interface ItemsPerformanceReport {
   limit: number;
 }
 
-export type ReportType = 'daily_summary' | 'staff_performance' | 'branch_overview';
+export type ReportType =
+  | 'daily_summary'
+  | 'staff_performance'
+  | 'branch_overview'
+  | 'director_analytics'
+  | 'manager_analytics'
+  | 'accountant_reconciliation';
 export type ReportFormat = 'csv' | 'pdf';
 

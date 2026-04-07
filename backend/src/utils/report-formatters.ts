@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import type {
+  AccountantReconciliationReport,
   BranchOverviewReport,
   DailySummaryReport,
   ReportType,
@@ -248,14 +249,20 @@ const toBranchOverviewCsv = (data: BranchOverviewReport): Buffer => {
   return Buffer.from(buildCsv(rows), 'utf-8');
 };
 
-export const toCsv = <T extends ReportType>(type: T, data: ReportDataByType[T]): Buffer => {
+// Forward declaration — full ReportDataByType is defined after the PDF builders.
+// toCsv is defined here so it can be exported alongside toPdf below.
+export const toCsv = (type: ReportType, data: unknown): Buffer => {
   if (type === 'daily_summary') {
-    return toDailySummaryCsv(data as ReportDataByType['daily_summary']);
+    return toDailySummaryCsv(data as DailySummaryReport);
   }
-  if (type === 'staff_performance') {
-    return toStaffPerformanceCsv(data as ReportDataByType['staff_performance']);
+  if (type === 'staff_performance' || type === 'manager_analytics') {
+    return toStaffPerformanceCsv(data as StaffPerformanceReport);
   }
-  return toBranchOverviewCsv(data as ReportDataByType['branch_overview']);
+  if (type === 'branch_overview' || type === 'director_analytics') {
+    return toBranchOverviewCsv(data as BranchOverviewReport);
+  }
+  // accountant_reconciliation — fallback to empty buffer (PDF-only for reconciliation)
+  return Buffer.from('', 'utf-8');
 };
 
 // ── PDF Helpers ───────────────────────────────────────────────────────────────
@@ -612,8 +619,6 @@ const drawDailySummaryPdf = (doc: PDFKit.PDFDocument, data: DailySummaryReport):
       ['Barista', formatMins(data.averagePrepTimeMinutes.BARISTA)],
     ],
   );
-
-  drawFooter(doc);
 };
 
 const drawStaffPerformancePdf = (doc: PDFKit.PDFDocument, data: StaffPerformanceReport): void => {
@@ -627,7 +632,6 @@ const drawStaffPerformancePdf = (doc: PDFKit.PDFDocument, data: StaffPerformance
   if (data.staff.length === 0) {
     doc.moveDown();
     doc.fontSize(10).font('Helvetica').fillColor(STONE_500).text('No staff metrics found for the selected period.');
-    drawFooter(doc);
     return;
   }
 
@@ -695,8 +699,6 @@ const drawStaffPerformancePdf = (doc: PDFKit.PDFDocument, data: StaffPerformance
       (v) => String(v),
     );
   }
-
-  drawFooter(doc);
 };
 
 const drawBranchOverviewPdf = (doc: PDFKit.PDFDocument, data: BranchOverviewReport): void => {
@@ -780,8 +782,313 @@ const drawBranchOverviewPdf = (doc: PDFKit.PDFDocument, data: BranchOverviewRepo
       ],
     );
   }
+};
 
-  drawFooter(doc);
+// ── Director Analytics PDF ────────────────────────────────────────────────────
+
+const drawDirectorAnalyticsPdf = (
+  doc: PDFKit.PDFDocument,
+  data: BranchOverviewReport,
+): void => {
+  drawBrandedHeader(
+    doc,
+    'Director Analytics Report',
+    `${data.period.startDate} to ${data.period.endDate}`,
+  );
+  drawPageBorder(doc);
+
+  // KPI strip
+  const totalRevenueNum = rev(data.totalRevenue);
+  const avgRevenue = data.branches.length > 0 ? totalRevenueNum / data.branches.length : 0;
+  drawKpiRow(doc, [
+    { label: 'Total Revenue', value: formatKes(data.totalRevenue) },
+    { label: 'Total Orders', value: String(data.totalOrders) },
+    { label: 'Active Branches', value: String(data.branches.length) },
+    { label: 'Avg Revenue / Branch', value: formatKes(avgRevenue) },
+  ]);
+
+  // Branch performance table
+  drawSectionLabel(doc, 'Branch Performance');
+  if (data.branches.length === 0) {
+    doc.fontSize(9).font('Helvetica').fillColor(STONE_500).text('No branch data for this period.');
+  } else {
+    const branchRevNums = data.branches.map((b) => rev(b.revenue));
+    drawTable(
+      doc,
+      [
+        { header: 'Branch', width: 130 },
+        { header: 'Revenue (KES)', width: 90, align: 'right' },
+        { header: 'Rev Share', width: 60, align: 'right' },
+        { header: 'Orders', width: 50, align: 'right' },
+        { header: 'Avg Order Val.', width: 85, align: 'right' },
+        { header: 'Kitchen Prep', width: 60, align: 'right' },
+        { header: 'Barista Prep', width: 60, align: 'right' },
+      ],
+      data.branches.map((b, i) => {
+        const branchRev = branchRevNums[i] ?? 0;
+        const revShare = totalRevenueNum > 0 ? `${((branchRev / totalRevenueNum) * 100).toFixed(1)}%` : '0%';
+        const avgOrderVal = b.orderCount > 0 ? formatKes(branchRev / b.orderCount) : '—';
+        return [
+          b.name,
+          formatKes(branchRev),
+          revShare,
+          String(b.orderCount),
+          avgOrderVal,
+          formatMins(b.averagePrepTimeMinutes.KITCHEN),
+          formatMins(b.averagePrepTimeMinutes.BARISTA),
+        ];
+      }),
+      ['ALL BRANCHES', formatKes(data.totalRevenue), '100%', String(data.totalOrders), '', '', ''],
+    );
+  }
+
+  // Revenue allocation (payment method breakdown)
+  doc.moveDown(0.5);
+  drawSectionLabel(doc, 'Revenue by Payment Method (All Branches)');
+  if (data.branches.length > 0) {
+    // Aggregate payment breakdown across all branches
+    let mpesa = 0, cash = 0, card = 0, house = 0, corporate = 0, credit = 0;
+    for (const b of data.branches) {
+      mpesa += rev(b.paymentBreakdown.mpesa);
+      cash += rev(b.paymentBreakdown.cash);
+      card += rev(b.paymentBreakdown.card);
+      house += rev(b.paymentBreakdown.houseAccount);
+      corporate += rev(b.paymentBreakdown.corporateAccount);
+      credit += rev(b.paymentBreakdown.customerCredit);
+    }
+    const payTotal = mpesa + cash + card + house + corporate + credit;
+    const payItems = [
+      { label: 'M-Pesa', value: mpesa },
+      { label: 'Cash', value: cash },
+      { label: 'Card', value: card },
+      { label: 'House Account', value: house },
+      { label: 'Corporate', value: corporate },
+      { label: 'Customer Credit', value: credit },
+    ].filter((item) => item.value > 0);
+    drawHorizontalBar(doc, payItems, payTotal, formatKes);
+
+    // Per-branch payment breakdown table
+    doc.moveDown(0.5);
+    drawSectionLabel(doc, 'Payment Breakdown by Branch');
+    drawTable(
+      doc,
+      [
+        { header: 'Branch', width: 100 },
+        { header: 'M-Pesa', width: 72, align: 'right' },
+        { header: 'Cash', width: 72, align: 'right' },
+        { header: 'Card', width: 72, align: 'right' },
+        { header: 'House', width: 66, align: 'right' },
+        { header: 'Corp.', width: 66, align: 'right' },
+        { header: 'Credit', width: 66, align: 'right' },
+        { header: 'Total', width: 61, align: 'right' },
+      ],
+      data.branches.map((b) => [
+        b.name,
+        formatKes(rev(b.paymentBreakdown.mpesa)),
+        formatKes(rev(b.paymentBreakdown.cash)),
+        formatKes(rev(b.paymentBreakdown.card)),
+        formatKes(rev(b.paymentBreakdown.houseAccount)),
+        formatKes(rev(b.paymentBreakdown.corporateAccount)),
+        formatKes(rev(b.paymentBreakdown.customerCredit)),
+        formatKes(rev(b.paymentBreakdown.total)),
+      ]),
+    );
+  }
+};
+
+// ── Manager Analytics PDF ─────────────────────────────────────────────────────
+
+const drawManagerAnalyticsPdf = (
+  doc: PDFKit.PDFDocument,
+  data: StaffPerformanceReport,
+): void => {
+  drawBrandedHeader(
+    doc,
+    'Branch Analytics Report',
+    `${data.organizationName} · ${data.period.startDate} to ${data.period.endDate}`,
+  );
+  drawPageBorder(doc);
+
+  if (data.staff.length === 0) {
+    doc.moveDown();
+    doc.fontSize(10).font('Helvetica').fillColor(STONE_500).text('No staff metrics found for the selected period.');
+    return;
+  }
+
+  // KPI strip
+  const totalOrders = data.staff.reduce((s, m) => s + (m.ordersHandled ?? 0), 0);
+  const totalScheduled = data.staff.reduce((s, m) => s + (m.scheduledHours ?? 0), 0);
+  const totalActual = data.staff.reduce((s, m) => s + (m.actualHours ?? 0), 0);
+  const attendanceRate =
+    totalScheduled > 0 ? `${Math.min(100, (totalActual / totalScheduled) * 100).toFixed(0)}%` : '—';
+
+  drawKpiRow(doc, [
+    { label: 'Staff Members', value: String(data.staff.length) },
+    { label: 'Total Orders / Tickets', value: String(totalOrders) },
+    { label: 'Total Scheduled Hours', value: formatHours(totalScheduled) },
+    { label: 'Team Attendance Rate', value: attendanceRate },
+  ]);
+
+  // Staff performance table
+  drawSectionLabel(doc, 'Staff Performance');
+  drawTable(
+    doc,
+    [
+      { header: 'Name', width: 120 },
+      { header: 'Role', width: 75 },
+      { header: 'Orders/Tickets', width: 70, align: 'right' },
+      { header: 'Avg Prep', width: 65, align: 'right' },
+      { header: 'Sched. Hrs', width: 65, align: 'right' },
+      { header: 'Actual Hrs', width: 60, align: 'right' },
+      { header: 'Attendance', width: 60, align: 'right' },
+    ],
+    data.staff.map((s) => {
+      const att =
+        s.scheduledHours > 0
+          ? `${Math.min(100, ((s.actualHours ?? 0) / s.scheduledHours) * 100).toFixed(0)}%`
+          : '—';
+      return [
+        s.name,
+        s.role,
+        String(s.ordersHandled ?? 0),
+        formatMins(s.averagePrepTimeMinutes),
+        formatHours(s.scheduledHours),
+        formatHours(s.actualHours),
+        att,
+      ];
+    }),
+    ['TEAM TOTAL', '', String(totalOrders), '', formatHours(totalScheduled), formatHours(totalActual), attendanceRate],
+  );
+
+  // Waiter collections table
+  const waiters = data.staff.filter((s) => s.role === 'WAITER' && s.paymentBreakdown);
+  if (waiters.length > 0) {
+    doc.moveDown(0.5);
+    drawSectionLabel(doc, 'Waiter Collections');
+    let totMpesa = 0, totCash = 0, totCard = 0, totTotal = 0;
+    const waiterTableRows = waiters.map((w) => {
+      const pb = w.paymentBreakdown!;
+      totMpesa += rev(pb.mpesa);
+      totCash += rev(pb.cash);
+      totCard += rev(pb.card);
+      totTotal += rev(pb.total);
+      return [w.name, String(w.ordersHandled), formatKes(rev(pb.mpesa)), formatKes(rev(pb.cash)), formatKes(rev(pb.card)), formatKes(rev(pb.total))];
+    });
+    drawTable(
+      doc,
+      [
+        { header: 'Waiter', width: 160 },
+        { header: 'Orders', width: 60, align: 'right' },
+        { header: 'M-Pesa', width: 100, align: 'right' },
+        { header: 'Cash', width: 100, align: 'right' },
+        { header: 'Card', width: 100, align: 'right' },
+        { header: 'Total', width: 95, align: 'right' },
+      ],
+      waiterTableRows,
+      ['TOTAL', String(waiters.reduce((s, w) => s + w.ordersHandled, 0)), formatKes(totMpesa), formatKes(totCash), formatKes(totCard), formatKes(totTotal)],
+    );
+  }
+};
+
+// ── Accountant Reconciliation PDF ─────────────────────────────────────────────
+
+const PAYMENT_LABEL: Record<string, string> = {
+  MPESA: 'M-Pesa',
+  CASH: 'Cash',
+  CARD: 'Card',
+  SPLIT: 'Split',
+  HOUSE_ACCOUNT: 'House Acct',
+  CORPORATE_ACCOUNT: 'Corporate',
+  CUSTOMER_CREDIT: 'Credit',
+};
+
+const drawReconciliationPdf = (
+  doc: PDFKit.PDFDocument,
+  data: AccountantReconciliationReport,
+): void => {
+  drawBrandedHeader(
+    doc,
+    'Daily Reconciliation Report',
+    `${data.organizationName} · ${data.date}`,
+  );
+  drawPageBorder(doc);
+
+  // Summary KPI strip
+  const s = data.summary;
+  drawKpiRow(doc, [
+    { label: 'Total Collected', value: formatKes(rev(s.total)) },
+    { label: 'M-Pesa', value: formatKes(rev(s.mpesa)) },
+    { label: 'Cash', value: formatKes(rev(s.cash)) },
+    { label: 'Card', value: formatKes(rev(s.card)) },
+  ]);
+
+  // By-waiter breakdown
+  if (data.waiters.length > 0) {
+    drawSectionLabel(doc, 'Collections by Waiter');
+    drawTable(
+      doc,
+      [
+        { header: 'Waiter', width: 150 },
+        { header: 'Orders', width: 55, align: 'right' },
+        { header: 'M-Pesa', width: 90, align: 'right' },
+        { header: 'Cash', width: 90, align: 'right' },
+        { header: 'Card', width: 90, align: 'right' },
+        { header: 'Total', width: 90, align: 'right' },
+      ],
+      data.waiters.map((w) => [
+        w.name,
+        String(w.ordersHandled),
+        formatKes(rev(w.paymentBreakdown.mpesa)),
+        formatKes(rev(w.paymentBreakdown.cash)),
+        formatKes(rev(w.paymentBreakdown.card)),
+        formatKes(rev(w.paymentBreakdown.total)),
+      ]),
+      [
+        'TOTAL',
+        String(data.waiters.reduce((acc, w) => acc + w.ordersHandled, 0)),
+        formatKes(rev(s.mpesa)),
+        formatKes(rev(s.cash)),
+        formatKes(rev(s.card)),
+        formatKes(rev(s.total)),
+      ],
+    );
+  }
+
+  // Order detail table
+  if (data.orders.length > 0) {
+    doc.moveDown(0.5);
+    drawSectionLabel(doc, 'Order Detail');
+    drawTable(
+      doc,
+      [
+        { header: '#', width: 30, align: 'right' },
+        { header: 'Time', width: 55 },
+        { header: 'Waiter', width: 110 },
+        { header: 'Method', width: 80 },
+        { header: 'M-Pesa Code', width: 100 },
+        { header: 'Amount (KES)', width: 100, align: 'right' },
+        { header: 'M-Pesa', width: 75, align: 'right' },
+        { header: 'Cash', width: 65, align: 'right' },
+      ],
+      data.orders.map((o) => {
+        const time = new Date(o.time).toLocaleTimeString('en-KE', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        });
+        return [
+          String(o.dailyNumber),
+          time,
+          o.waiterName,
+          PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod,
+          o.mpesaCode ?? '—',
+          formatKes(rev(o.total)),
+          o.mpesaAmount ? formatKes(rev(o.mpesaAmount)) : '—',
+          o.cashAmount ? formatKes(rev(o.cashAmount)) : '—',
+        ];
+      }),
+    );
+  }
 };
 
 // ── Type map (needed by toCsv / toPdf) ───────────────────────────────────────
@@ -790,6 +1097,9 @@ type ReportDataByType = {
   daily_summary: DailySummaryReport;
   staff_performance: StaffPerformanceReport;
   branch_overview: BranchOverviewReport;
+  director_analytics: BranchOverviewReport;
+  manager_analytics: StaffPerformanceReport;
+  accountant_reconciliation: AccountantReconciliationReport;
 };
 
 export const toPdf = async <T extends ReportType>(
@@ -800,6 +1110,7 @@ export const toPdf = async <T extends ReportType>(
     const doc = new PDFDocument({
       margin: MARGIN,
       size: 'A4',
+      bufferPages: true,
       info: {
         Title: 'Wendo RMS Report',
         Author: 'Wendo Coffee Bistro',
@@ -814,12 +1125,47 @@ export const toPdf = async <T extends ReportType>(
 
     if (type === 'daily_summary') {
       drawDailySummaryPdf(doc, data as ReportDataByType['daily_summary']);
-    } else if (type === 'staff_performance') {
+    } else if (type === 'staff_performance' || type === 'manager_analytics') {
       drawStaffPerformancePdf(doc, data as ReportDataByType['staff_performance']);
-    } else {
+    } else if (type === 'branch_overview') {
       drawBranchOverviewPdf(doc, data as ReportDataByType['branch_overview']);
+    } else if (type === 'director_analytics') {
+      drawDirectorAnalyticsPdf(doc, data as ReportDataByType['director_analytics']);
+    } else if (type === 'accountant_reconciliation') {
+      drawReconciliationPdf(doc, data as ReportDataByType['accountant_reconciliation']);
     }
 
+    // With bufferPages=true, all pages are in memory. Draw footer on every page.
+    // Table overflow can trigger an extra addPage() leaving a blank trailing page
+    // (cursor at top with nothing drawn). PDFKit has no delete-page API, so if
+    // the last page is blank we cover it with a solid white rectangle to make it
+    // invisible, then draw the footer only on the real content pages.
+    const range = doc.bufferedPageRange();
+    const lastIdx = range.start + range.count - 1;
+
+    doc.switchToPage(lastIdx);
+    const lastPageIsBlank = doc.y <= MARGIN + 2;
+
+    if (lastPageIsBlank && range.count > 1) {
+      // Draw footer on all content pages (skip the blank last page).
+      for (let i = range.start; i < lastIdx; i++) {
+        doc.switchToPage(i);
+        drawFooter(doc);
+      }
+      // Paint the blank page white so it appears truly empty.
+      doc.switchToPage(lastIdx);
+      doc.save();
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(WHITE);
+      doc.restore();
+    } else {
+      // No trailing blank page — draw footer on every page.
+      for (let i = range.start; i <= lastIdx; i++) {
+        doc.switchToPage(i);
+        drawFooter(doc);
+      }
+    }
+
+    doc.flushPages();
     doc.end();
   });
 };

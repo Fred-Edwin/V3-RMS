@@ -35,7 +35,7 @@ export const MyPerformanceQuerySchema = dateRangeSchema;
 
 export const ExportQuerySchema = dateRangeSchema
   .extend({
-    reportType: z.enum(['daily_summary', 'staff_performance', 'branch_overview']),
+    reportType: z.enum(['daily_summary', 'staff_performance', 'branch_overview', 'director_analytics', 'manager_analytics', 'accountant_reconciliation']),
     format: z.enum(['csv', 'pdf']),
     organizationId: z.string().uuid().optional(),
   })

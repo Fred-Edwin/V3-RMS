@@ -71,7 +71,7 @@ export function DirectorSidebarNav({ onLogout }: DirectorSidebarNavProps): JSX.E
         ],
       },
       {
-        items: [{ label: 'Reports', href: '/app/director', icon: BarChart2 }],
+        items: [{ label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 }],
       },
       {
         label: 'Account',

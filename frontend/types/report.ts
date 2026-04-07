@@ -379,7 +379,7 @@ export interface MyPerformanceQuery {
 }
 
 export interface ExportReportQuery {
-  reportType: 'daily_summary' | 'staff_performance' | 'branch_overview';
+  reportType: 'daily_summary' | 'staff_performance' | 'branch_overview' | 'director_analytics' | 'manager_analytics' | 'accountant_reconciliation';
   format: 'csv' | 'pdf';
   startDate: string;
   endDate: string;

@@ -59,7 +59,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
       { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
       { label: 'History', href: '/app/history', icon: Clock },
-      { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
+      { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
     ],
     overflowTabs: [
       { label: 'Staff', href: '/app/manage/staff', icon: Users },
@@ -155,6 +155,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
         { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
         { label: 'History', href: '/app/history', icon: Clock },
+        { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
       ],
     },
     {
@@ -184,7 +185,6 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     },
     {
       items: [
-        { label: 'Reports', href: '/app/manage/reports', icon: BarChart2 },
         { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
       ],
     },
@@ -214,9 +214,6 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Categories & Entries', href: '/app/director/other-income', icon: Tags },
       ],
-    },
-    {
-      items: [{ label: 'Reports', href: '/app/director', icon: BarChart2 }],
     },
     {
       label: 'Account',

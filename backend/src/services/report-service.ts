@@ -258,21 +258,24 @@ export const reportService = {
   ): Promise<{ buffer: Buffer; filename: string; contentType: string }> => {
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
 
-    let reportData: DailySummaryReport | StaffPerformanceReport | BranchOverviewReport;
+    let reportData:
+      | DailySummaryReport
+      | StaffPerformanceReport
+      | BranchOverviewReport
+      | AccountantReconciliationReport;
     let filenameStem: string;
 
     if (query.reportType === 'daily_summary') {
       if (query.startDate !== query.endDate) {
         throw new ValidationError('daily_summary export requires startDate and endDate to match');
       }
-
       const dailySummary = await reportService.getDailySummary(actor, {
         date: query.startDate,
         organizationId: query.organizationId,
       });
       reportData = dailySummary;
       filenameStem = `daily-summary-${query.startDate}`;
-    } else if (query.reportType === 'staff_performance') {
+    } else if (query.reportType === 'staff_performance' || query.reportType === 'manager_analytics') {
       const staffReport = await reportService.getStaffPerformance(actor, {
         startDate: query.startDate,
         endDate: query.endDate,
@@ -280,22 +283,35 @@ export const reportService = {
         role: undefined,
       });
       reportData = staffReport;
-      filenameStem = `staff-performance-${query.startDate}-to-${query.endDate}`;
-    } else {
+      filenameStem = `${query.reportType === 'manager_analytics' ? 'branch-analytics' : 'staff-performance'}-${query.startDate}-to-${query.endDate}`;
+    } else if (query.reportType === 'branch_overview' || query.reportType === 'director_analytics') {
       if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
         throw new ForbiddenError('Only directors can export branch overview reports');
       }
-
       const branchOverview = await reportRepository.getBranchOverview(start, end);
       reportData = branchOverview;
-      filenameStem = `branch-overview-${query.startDate}-to-${query.endDate}`;
+      filenameStem = `${query.reportType === 'director_analytics' ? 'director-analytics' : 'branch-overview'}-${query.startDate}-to-${query.endDate}`;
+    } else {
+      // accountant_reconciliation — uses startDate as the date
+      if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
+        throw new ForbiddenError('Only accountants and directors can export reconciliation reports');
+      }
+      if (!query.organizationId) {
+        throw new ValidationError('organizationId is required for reconciliation export');
+      }
+      const reconciliation = await reportRepository.getAccountantReconciliation(
+        query.organizationId,
+        parseDateOnly(query.startDate),
+      );
+      reportData = reconciliation;
+      filenameStem = `reconciliation-${query.startDate}`;
     }
 
     const reportType = query.reportType as ReportType;
     const buffer =
       query.format === 'csv'
         ? toCsv(reportType, reportData)
-        : await toPdf(reportType, reportData);
+        : await toPdf(reportType, reportData as never);
 
     return {
       buffer,
