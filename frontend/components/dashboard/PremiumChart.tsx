@@ -48,6 +48,7 @@ interface LineTrendProps {
   title: string;
   subtitle?: string;
   data: ChartDatum[];
+  accentColor?: string;
   valueFormatter?: (value: number) => string;
   tooltipUnit?: string;
   summaryLabel?: string;
@@ -93,7 +94,8 @@ interface Point {
   date?: string;
 }
 
-const seriesPalette = ['#2C1A12', '#C4862A', '#6B4E2E', '#9B6A3C', '#5A3E2B', '#7C5A3D'];
+// McKinsey-style palette: cobalt primary (Branch 1), violet secondary (Branch 2)
+const seriesPalette = ['#2563EB', '#7C3AED', '#E11D48', '#059669', '#0D9488', '#C4862A'];
 
 const getPointsPath = (points: Point[], minY: number, maxY: number): string => {
   if (points.length === 0) {
@@ -167,7 +169,7 @@ export function TrendBars({
               <span className="mb-2 text-label-sm font-semibold text-espresso">{valueFormatter(item.value)}</span>
               <div className="flex h-44 w-full items-end rounded-lg bg-gradient-to-b from-[#F7F4EF] to-[#ECE5DA] p-2">
                 <div
-                  className="w-full rounded-md bg-gradient-to-t from-[#3B3024] via-[#5B4A39] to-[#C48D4E] shadow-[0_10px_24px_rgba(59,48,36,0.28)] transition-all duration-500"
+                  className="w-full rounded-md bg-gradient-to-t from-[#92520D] via-[#C4862A] to-[#F5C26B] shadow-[0_10px_24px_rgba(196,134,42,0.35)] transition-all duration-500"
                   style={{ height: `${Math.round(heightRatio * 100)}%` }}
                 />
               </div>
@@ -206,7 +208,7 @@ export function ComparisonBars({
               </div>
               <div className="h-3.5 rounded-full bg-stone-100">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#3B3024] via-[#73522E] to-[#C48D4E] transition-all duration-500"
+                  className="h-full rounded-full bg-gradient-to-r from-[#92520D] via-[#C4862A] to-[#F5C26B] transition-all duration-500"
                   style={{ width: `${Math.round(widthRatio * 100)}%` }}
                 />
               </div>
@@ -222,6 +224,7 @@ export function LineTrendChart({
   title,
   subtitle,
   data,
+  accentColor = '#C4862A',
   valueFormatter = defaultFormatter,
   tooltipUnit = 'Orders',
   summaryLabel = 'Total Orders',
@@ -342,11 +345,11 @@ export function LineTrendChart({
   const tooltipBody = hoveredPoint ? `${valueFormatter(hoveredPoint.value)} ${tooltipUnit}` : '';
 
   return (
-    <section className={cn('rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+    <section className={cn('rounded-xl border border-stone-100 bg-white p-4 shadow-md sm:p-5', className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-heading-sm font-semibold text-stone-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-body-sm text-stone-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 text-body-sm text-stone-400">{subtitle}</p>}
         </div>
 
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -395,8 +398,8 @@ export function LineTrendChart({
         <svg width={width} height={height} role="img" aria-label={title}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#C4862A" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#C4862A" stopOpacity="0" />
+                <stop offset="0%" stopColor={accentColor} stopOpacity="0.35" />
+                <stop offset="100%" stopColor={accentColor} stopOpacity="0" />
               </linearGradient>
             </defs>
 
@@ -407,15 +410,14 @@ export function LineTrendChart({
                   y1={tick.y}
                   x2={paddingX + innerWidth}
                   y2={tick.y}
-                  stroke="#E8E5E1"
+                  stroke="#E7E5E4"
                   strokeWidth={1}
-                  strokeDasharray="4 5"
-                  strokeOpacity={0.75}
+                  strokeOpacity={0.8}
                 />
                 <text
                   x={10}
                   y={tick.y + 4}
-                  className="fill-stone-500 text-[10px] font-medium"
+                  className="fill-stone-400 text-[10px] font-medium"
                 >
                   {valueFormatter(Math.round(tick.value))}
                 </text>
@@ -427,7 +429,7 @@ export function LineTrendChart({
               <path
                 d={linePath}
                 fill="none"
-                stroke="#2C1A12"
+                stroke={accentColor}
                 strokeWidth={3}
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -461,8 +463,8 @@ export function LineTrendChart({
                   cx={hoveredPoint.x}
                   cy={hoveredPoint.y}
                   r={5}
-                  fill="#F5F0E8"
-                  stroke="#C4862A"
+                  fill="white"
+                  stroke={accentColor}
                   strokeWidth={2}
                   className="transition-opacity duration-200"
                 />
@@ -529,6 +531,7 @@ export function MultiLineTrendChart({
   const [range, setRange] = useState<RangeKey>('30d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [containerRef, containerWidth] = useContainerWidth(320);
+  const gradientBaseId = useId();
 
   useEffect(() => {
     const maxLength = Math.max(0, ...series.map((entry) => entry.data.length));
@@ -599,6 +602,11 @@ export function MultiLineTrendChart({
   );
 
   const linePaths = pointsBySeries.map((points) => getPointsPath(points, paddingY, baselineY));
+  const areaPaths = pointsBySeries.map((points, seriesIndex) => {
+    const lp = linePaths[seriesIndex];
+    if (!lp || points.length === 0) return '';
+    return `${lp} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
+  });
   const yTicks = Array.from({ length: yAxisTicks }, (_unused, index) => {
     const ratio = index / (yAxisTicks - 1);
     const value = maxValue * (1 - ratio);
@@ -659,11 +667,11 @@ export function MultiLineTrendChart({
   const tooltipHeight = 36 + tooltipSeriesValues.length * 14;
 
   return (
-    <section className={cn('rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5', className)}>
+    <section className={cn('rounded-xl border border-stone-100 bg-white p-4 shadow-md sm:p-5', className)}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-heading-sm font-semibold text-stone-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-body-sm text-stone-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 text-body-sm text-stone-400">{subtitle}</p>}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
           <div className="flex flex-wrap items-center gap-2">
@@ -716,6 +724,18 @@ export function MultiLineTrendChart({
 
       <div ref={containerRef} className="mt-4">
         <svg width={width} height={height} role="img" aria-label={title}>
+            <defs>
+              {alignedSeries.map((entry, index) => {
+                const color = getSeriesColor(index, entry.color);
+                return (
+                  <linearGradient key={`${gradientBaseId}-${entry.id}`} id={`${gradientBaseId}-grad-${index}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+                    <stop offset="100%" stopColor={color} stopOpacity="0" />
+                  </linearGradient>
+                );
+              })}
+            </defs>
+
             {yTicks.map((tick) => (
               <g key={`${tick.y}-${tick.value}`}>
                 <line
@@ -723,16 +743,25 @@ export function MultiLineTrendChart({
                   y1={tick.y}
                   x2={paddingX + innerWidth}
                   y2={tick.y}
-                  stroke="#E8E5E1"
+                  stroke="#E7E5E4"
                   strokeWidth={1}
-                  strokeDasharray="4 5"
-                  strokeOpacity={0.75}
+                  strokeOpacity={0.8}
                 />
-                <text x={10} y={tick.y + 4} className="fill-stone-500 text-[10px] font-medium">
+                <text x={10} y={tick.y + 4} className="fill-stone-400 text-[10px] font-medium">
                   {valueFormatter(Math.round(tick.value))}
                 </text>
               </g>
             ))}
+
+            {areaPaths.map((path, index) =>
+              path ? (
+                <path
+                  key={`${alignedSeries[index]?.id ?? index}-area`}
+                  d={path}
+                  fill={`url(#${gradientBaseId}-grad-${index})`}
+                />
+              ) : null,
+            )}
 
             {linePaths.map((path, index) => (
               <path
@@ -740,7 +769,7 @@ export function MultiLineTrendChart({
                 d={path}
                 fill="none"
                 stroke={getSeriesColor(index, alignedSeries[index]?.color)}
-                strokeWidth={2.5}
+                strokeWidth={2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
@@ -781,7 +810,7 @@ export function MultiLineTrendChart({
                     cx={point.x}
                     cy={point.y}
                     r={4}
-                    fill="#F5F0E8"
+                    fill="white"
                     stroke={getSeriesColor(index, alignedSeries[index]?.color)}
                     strokeWidth={2}
                   />

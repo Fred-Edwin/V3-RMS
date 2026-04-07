@@ -348,26 +348,6 @@ export default function DirectorAnalyticsPage(): JSX.Element {
     [directorTrends],
   );
 
-  const branchContributionSeries = useMemo(
-    () =>
-      directorTrends?.branchContributionSeries.map((series) => ({
-        id: series.id,
-        label: series.name,
-        data: series.points.map((point) => ({ label: formatDay(point.date), value: point.value, date: point.date })),
-      })) ?? [],
-    [directorTrends],
-  );
-
-  const itemFamilySeries = useMemo(
-    () =>
-      directorTrends?.itemFamilySeries.map((series) => ({
-        id: series.id,
-        label: series.name,
-        data: series.points.map((point) => ({ label: formatDay(point.date), value: point.value, date: point.date })),
-      })) ?? [],
-    [directorTrends],
-  );
-
   const trendPeriodTotalRevenue = useMemo(
     () =>
       directorTrends?.aggregateSeries.reduce(
@@ -538,7 +518,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
         <div className="mb-4">
           <h2 className="text-heading-md font-semibold text-stone-900">Trend Analytics</h2>
           <p className="mt-0.5 text-body-sm text-stone-500">
-            Revenue, volume, contribution share, and category drivers — {periodLabel}
+            Revenue and order volume by branch — {periodLabel}
           </p>
         </div>
 
@@ -557,6 +537,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 title="Total Revenue (KES)"
                 subtitle="Daily total revenue across all active branches"
                 data={totalRevenueTrendData}
+                accentColor="#047857"
                 valueFormatter={(value) =>
                   `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`
                 }
@@ -567,6 +548,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 title="Total Orders"
                 subtitle="Daily closed order volume across all active branches"
                 data={totalOrdersTrendData}
+                accentColor="#C4862A"
                 valueFormatter={(value) => String(Math.round(value))}
                 tooltipUnit="Orders"
                 summaryLabel="Total Orders"
@@ -598,26 +580,6 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 valueFormatter={(value) => String(Math.round(value))}
                 tooltipUnit="Orders"
                 summaryLabel="Top Branch Orders"
-              />
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <MultiLineTrendChart
-                title="Branch Contribution Share (%)"
-                subtitle="Each branch's share of total daily revenue"
-                series={branchContributionSeries}
-                valueFormatter={(value) => `${value.toFixed(1)}%`}
-                tooltipUnit="%"
-                summaryLabel="Top Branch Share"
-              />
-              <MultiLineTrendChart
-                title="Top Item Family Revenue (KES)"
-                subtitle="Top 5 menu category revenue trends across branches"
-                series={itemFamilySeries}
-                valueFormatter={(value) =>
-                  `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`
-                }
-                tooltipUnit="KES"
-                summaryLabel="Top Family Revenue"
               />
             </div>
           </div>
