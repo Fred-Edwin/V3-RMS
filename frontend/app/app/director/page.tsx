@@ -787,6 +787,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Revenue (KES)"
               subtitle="Daily total across all branches"
               data={revenueTrendData}
+              accentColor="#047857"
               valueFormatter={(value) =>
                 `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`
               }
@@ -797,6 +798,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Orders"
               subtitle="Daily closed order volume"
               data={ordersTrendData}
+              accentColor="#C4862A"
               valueFormatter={(value) => String(Math.round(value))}
               tooltipUnit="Orders"
               summaryLabel="Total Orders"

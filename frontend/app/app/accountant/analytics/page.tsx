@@ -185,6 +185,7 @@ function OverviewTab({
               title="Total Revenue (KES)"
               subtitle="Daily total revenue across all branches"
               data={revenuePoints}
+              accentColor="#047857"
               valueFormatter={(v) => `KES ${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
               tooltipUnit="KES"
               summaryLabel="Total Revenue"
@@ -193,6 +194,7 @@ function OverviewTab({
               title="Total Orders"
               subtitle="Daily closed order volume across all branches"
               data={ordersPoints}
+              accentColor="#C4862A"
               valueFormatter={(v) => String(Math.round(v))}
               tooltipUnit="Orders"
               summaryLabel="Total Orders"

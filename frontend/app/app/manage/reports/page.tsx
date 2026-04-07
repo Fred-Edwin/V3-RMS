@@ -354,6 +354,7 @@ export default function ManagerReportsPage(): JSX.Element {
               title="Total Orders"
               subtitle="Daily closed orders (count)"
               data={ordersTrendData}
+              accentColor="#C4862A"
               valueFormatter={(value) => String(Math.round(value))}
               tooltipUnit="Orders"
               summaryLabel="Total Orders"
@@ -362,6 +363,7 @@ export default function ManagerReportsPage(): JSX.Element {
               title="Avg Prep Time (min)"
               subtitle="Daily average prep time — kitchen + barista combined"
               data={prepTrendData}
+              accentColor="#64748B"
               valueFormatter={(value) => `${Math.round(value)} min`}
               tooltipUnit="min"
               summaryLabel="Avg Prep"

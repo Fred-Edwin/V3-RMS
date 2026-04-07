@@ -684,6 +684,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     title="Revenue (KES)"
                     subtitle={`Daily revenue — ${periodLabel}`}
                     data={periodRevenueTrendData}
+                    accentColor="#047857"
                     valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`}
                     tooltipUnit="KES"
                     summaryLabel="Total Revenue"
@@ -692,6 +693,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     title="Orders"
                     subtitle={`Daily order volume — ${periodLabel}`}
                     data={periodOrdersTrendData}
+                    accentColor="#C4862A"
                     valueFormatter={(value) => String(Math.round(value))}
                     tooltipUnit="Orders"
                     summaryLabel="Total Orders"

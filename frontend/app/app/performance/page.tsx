@@ -218,6 +218,7 @@ export default function PerformancePage(): JSX.Element {
             title="Orders Over Time"
             subtitle="Daily order volume for your selected period"
             data={waiterTrendData}
+            accentColor="#C4862A"
             valueFormatter={(value) => String(Math.round(value))}
             tooltipUnit="Orders"
             summaryLabel="Total Orders"
