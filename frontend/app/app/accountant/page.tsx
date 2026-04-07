@@ -1,14 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, Wallet, AlertCircle, ArrowDownCircle } from 'lucide-react';
-import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
+import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ArrowDownCircle } from 'lucide-react';
 import { Button, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchOverview, OutstandingBalancesReport } from '@/types/report';
+import type { BranchOverview, OutstandingBalancesReport } from '@/types/report'; // BranchOverview used for todayReport state
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -109,10 +108,6 @@ export default function AccountantDashboardPage(): JSX.Element {
   const userName = useAuthStore((state) => state.user?.name ?? '');
 
   const today = useMemo(() => toYmd(new Date()), []);
-  const monthStart = useMemo(() => {
-    const d = new Date();
-    return toYmd(new Date(d.getFullYear(), d.getMonth(), 1));
-  }, []);
   const greeting = useMemo(() => getGreeting(new Date().getHours()), []);
   const dateLabel = useMemo(
     () =>
@@ -126,7 +121,6 @@ export default function AccountantDashboardPage(): JSX.Element {
   );
 
   const [todayReport, setTodayReport] = useState<BranchOverview | null>(null);
-  const [mtdReport, setMtdReport] = useState<BranchOverview | null>(null);
   const [outstanding, setOutstanding] = useState<OutstandingBalancesReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -134,13 +128,11 @@ export default function AccountantDashboardPage(): JSX.Element {
     if (!accessToken) return;
     setIsLoading(true);
     try {
-      const [todayData, mtdData, outstandingData] = await Promise.all([
+      const [todayData, outstandingData] = await Promise.all([
         reportService.getBranchOverview(accessToken, { startDate: today, endDate: today }),
-        reportService.getBranchOverview(accessToken, { startDate: monthStart, endDate: today }),
         reportService.getOutstandingBalances(accessToken),
       ]);
       setTodayReport(todayData);
-      setMtdReport(mtdData);
       setOutstanding(outstandingData);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load dashboard.';
@@ -148,7 +140,7 @@ export default function AccountantDashboardPage(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, today, monthStart, toast]);
+  }, [accessToken, today, toast]);
 
   useEffect(() => {
     void load();
@@ -182,11 +174,9 @@ export default function AccountantDashboardPage(): JSX.Element {
     ? Number.parseFloat(outstanding.totals.grandTotal)
     : null;
 
-  const mtdRevenue = Number.parseFloat(mtdReport?.totalRevenue ?? '0');
   const todayRevenue = Number.parseFloat(todayReport?.totalRevenue ?? '0');
   const todayOrders = todayReport?.totalOrders ?? 0;
   const todayOtherIncome = Number.parseFloat(todayReport?.totalOtherIncome ?? '0');
-  const mtdOtherIncome = Number.parseFloat(mtdReport?.totalOtherIncome ?? '0');
 
   return (
     <PageLayout className="space-y-6 animate-fade-up">
@@ -209,10 +199,9 @@ export default function AccountantDashboardPage(): JSX.Element {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {isLoading ? (
           <>
-            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -229,12 +218,6 @@ export default function AccountantDashboardPage(): JSX.Element {
               }
               icon={<TrendingUp size={20} />}
               accent="amber"
-            />
-            <KpiCard
-              label="Month-to-Date Revenue"
-              value={formatCurrency(mtdRevenue)}
-              sub={mtdOtherIncome > 0 ? `${formatCurrency(mtdOtherIncome)} other income included` : undefined}
-              icon={<Wallet size={20} />}
             />
             <KpiCard
               label="Outstanding Credit"
@@ -386,13 +369,6 @@ export default function AccountantDashboardPage(): JSX.Element {
         )}
       </div>
 
-      {/* Revenue Allocation — MTD */}
-      {!isLoading && mtdRevenue > 0 && (
-        <RevenueBreakdownCard
-          totalRevenue={mtdRevenue}
-          period={`Month-to-date · ${monthStart} – ${today}`}
-        />
-      )}
     </PageLayout>
   );
 }

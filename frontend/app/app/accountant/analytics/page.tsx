@@ -1,6 +1,12 @@
 'use client';
 
+// NOTE: This page is intentionally inaccessible to the ACCOUNTANT role.
+// It is reserved for a future HEAD_ACCOUNTANT role. Do not delete.
+// Access is blocked via redirect below — the page code remains for future use.
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 import { Banknote } from 'lucide-react';
 import { Button, EmptyState, PageHeader, PageLayout, Select, SkeletonBlock, SkeletonTable } from '@/components/ui';
 import { LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
@@ -10,7 +16,6 @@ import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { otherIncomeService } from '@/services/otherIncomeService';
 import { reportService } from '@/services/reportService';
-import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type {
   BranchOverview,
@@ -897,7 +902,16 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function AccountantAnalyticsPage(): JSX.Element {
+  const router = useRouter();
+  const role = useAuthStore((state) => state.role);
   const accessToken = useAuthStore((state) => state.accessToken);
+
+  // Blocked for ACCOUNTANT — reserved for HEAD_ACCOUNTANT role in a future phase.
+  useEffect(() => {
+    if (role === 'ACCOUNTANT') {
+      router.replace('/app/accountant');
+    }
+  }, [role, router]);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [branches, setBranches] = useState<BranchDto[]>([]);

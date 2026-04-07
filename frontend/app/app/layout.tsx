@@ -90,7 +90,6 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
       { label: 'Reconcile', href: '/app/accountant/reconciliation', icon: Clock },
-      { label: 'Analytics', href: '/app/accountant/analytics', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [
@@ -230,7 +229,6 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
         { label: 'Reconciliation', href: '/app/accountant/reconciliation', icon: Clock },
-        { label: 'Analytics', href: '/app/accountant/analytics', icon: BarChart2 },
       ],
     },
     {
