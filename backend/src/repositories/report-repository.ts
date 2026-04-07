@@ -1703,7 +1703,7 @@ export const reportRepository = {
         select: {
           id: true,
           dailyNumber: true,
-          orderDate: true,
+          paidAt: true,
           total: true,
           paymentMethod: true,
           mpesaCode: true,
@@ -1715,7 +1715,7 @@ export const reportRepository = {
             select: { id: true, name: true },
           },
         },
-        orderBy: { orderDate: 'asc' },
+        orderBy: { paidAt: 'asc' },
       }),
     ]);
 
@@ -1760,7 +1760,8 @@ export const reportRepository = {
     const reconciliationOrders = orders.map((o) => ({
       id: o.id,
       dailyNumber: o.dailyNumber,
-      time: o.orderDate.toISOString(),
+      time: (o.paidAt ?? new Date()).toISOString(),
+      waiterId: o.createdBy.id,
       waiterName: o.createdBy.name,
       total: o.total.toFixed(2),
       paymentMethod: o.paymentMethod ?? 'UNKNOWN',

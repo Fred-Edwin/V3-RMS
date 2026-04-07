@@ -91,6 +91,7 @@ export interface AccountantReconciliationOrder {
   id: string;
   dailyNumber: number;
   time: string;
+  waiterId: string;
   waiterName: string;
   total: string;
   paymentMethod: string;

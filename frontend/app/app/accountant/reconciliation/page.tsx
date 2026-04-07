@@ -94,6 +94,7 @@ type PaymentTab = 'ALL' | 'MPESA' | 'CASH' | 'CARD' | 'CREDIT';
 
 function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) {
   const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
+  const [selectedWaiterId, setSelectedWaiterId] = useState<string>('ALL');
 
   const tabs: { key: PaymentTab; label: string }[] = [
     { key: 'ALL', label: 'All Orders' },
@@ -103,15 +104,24 @@ function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) 
     { key: 'CREDIT', label: 'Credit' },
   ];
 
+  const waiterOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Waiters' },
+    ...report.waiters.map((w) => ({ value: w.id, label: w.name })),
+  ], [report.waiters]);
+
   const filteredOrders = useMemo(() => {
-    if (activeTab === 'ALL') return report.orders;
+    let result = report.orders;
+    if (selectedWaiterId !== 'ALL') {
+      result = result.filter((o) => o.waiterId === selectedWaiterId);
+    }
+    if (activeTab === 'ALL') return result;
     if (activeTab === 'CREDIT') {
-      return report.orders.filter((o) =>
+      return result.filter((o) =>
         ['HOUSE_ACCOUNT', 'CORPORATE_ACCOUNT', 'CUSTOMER_CREDIT'].includes(o.paymentMethod),
       );
     }
-    return report.orders.filter((o) => o.paymentMethod === activeTab);
-  }, [activeTab, report.orders]);
+    return result.filter((o) => o.paymentMethod === activeTab);
+  }, [activeTab, selectedWaiterId, report.orders]);
 
   const tabTotal = useMemo(() => {
     return filteredOrders.reduce((sum, o) => sum + Number.parseFloat(o.total), 0);
@@ -132,7 +142,10 @@ function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reconciliation-${report.organizationName}-${report.date}-${activeTab.toLowerCase()}.csv`;
+    const waiterSlug = selectedWaiterId !== 'ALL'
+      ? `-${(report.waiters.find((w) => w.id === selectedWaiterId)?.name ?? '').replace(/\s+/g, '-').toLowerCase()}`
+      : '';
+    a.download = `reconciliation-${report.organizationName}-${report.date}${waiterSlug}-${activeTab.toLowerCase()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -151,6 +164,21 @@ function OrderDrillDown({ report }: { report: AccountantReconciliationReport }) 
           Export CSV
         </Button>
       </div>
+
+      {/* Waiter filter */}
+      {report.waiters.length > 1 && (
+        <div className="border-b border-stone-100 px-5 py-3">
+          <select
+            value={selectedWaiterId}
+            onChange={(e) => setSelectedWaiterId(e.target.value)}
+            className="rounded-md border border-stone-200 bg-white px-3 py-1.5 text-body-sm text-stone-700 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+          >
+            {waiterOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-stone-100 px-5 py-2">
