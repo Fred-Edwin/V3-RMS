@@ -1,6 +1,6 @@
 import { cn } from '@/lib/cn'
 
-export type BadgeVariant = 'pending' | 'inprogress' | 'ready' | 'closed' | 'cancelled'
+export type BadgeVariant = 'pending' | 'inprogress' | 'ready' | 'closed' | 'cancelled' | 'awaiting'
 type BadgeSize = 'default' | 'lg'
 
 interface BadgeProps {
@@ -16,6 +16,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   ready: 'bg-[#EDFAF1] text-[#1A6B3C] border border-[#86EFAC]',
   closed: 'bg-[#F4F4F5] text-[#71717A] border border-[#D4D4D8]',
   cancelled: 'bg-[#FDF2F0] text-[#9B3A2A] border border-[#F5A898]',
+  awaiting: 'bg-amber-50 text-amber-800 border border-amber-300',
 }
 
 const variantLabels: Record<BadgeVariant, string> = {
@@ -24,6 +25,7 @@ const variantLabels: Record<BadgeVariant, string> = {
   ready: 'Ready',
   closed: 'Closed',
   cancelled: 'Cancelled',
+  awaiting: 'Awaiting Auth',
 }
 
 const sizeClasses: Record<BadgeSize, string> = {

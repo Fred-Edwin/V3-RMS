@@ -12,6 +12,7 @@ import { env } from '@/lib/env';
 import { corporateAccountService, type CorporateAccountDropdownItem } from '@/services/corporateAccountService';
 import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
 import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
+import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { orderService } from '@/services/orderService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
@@ -29,6 +30,7 @@ const statusOptions: Array<{ value: 'ALL' | OrderStatus; label: string }> = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
   { value: 'READY', label: 'Ready' },
+  { value: 'AWAITING_AUTHORIZATION', label: 'Auth Pending' },
 ];
 
 const typeOptions: Array<{ value: 'ALL' | OrderType; label: string }> = [
@@ -40,7 +42,7 @@ const typeOptions: Array<{ value: 'ALL' | OrderType; label: string }> = [
 
 const parseStatusFilter = (value: string | null): 'ALL' | OrderStatus => {
   if (!value || value === 'ALL') return 'ALL';
-  const allowed: OrderStatus[] = ['PENDING', 'IN_PROGRESS', 'READY', 'CLOSED', 'CANCELLED'];
+  const allowed: OrderStatus[] = ['PENDING', 'IN_PROGRESS', 'READY', 'AWAITING_AUTHORIZATION', 'CLOSED', 'CANCELLED'];
   return allowed.includes(value as OrderStatus) ? (value as OrderStatus) : 'ALL';
 };
 
@@ -78,6 +80,10 @@ export default function OrdersPage(): JSX.Element {
   const [typeFilter, setTypeFilter] = useState<'ALL' | OrderType>('ALL');
   const [isManagerEditOpen, setIsManagerEditOpen] = useState(false);
   const [isManagerEditSubmitting, setIsManagerEditSubmitting] = useState(false);
+  const [pendingAuthRequestId, setPendingAuthRequestId] = useState<string | null>(null);
+  const [pendingAuthHolderName, setPendingAuthHolderName] = useState<string | null>(null);
+  const [pendingAuthExpiresAt, setPendingAuthExpiresAt] = useState<string | null>(null);
+  const [isAuthOverrideSubmitting, setIsAuthOverrideSubmitting] = useState(false);
 
   const syncFiltersFromUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -124,6 +130,7 @@ export default function OrdersPage(): JSX.Element {
     PENDING: typeFilteredOrders.filter((o) => o.status === 'PENDING').length,
     IN_PROGRESS: typeFilteredOrders.filter((o) => o.status === 'IN_PROGRESS').length,
     READY: typeFilteredOrders.filter((o) => o.status === 'READY').length,
+    AWAITING_AUTHORIZATION: typeFilteredOrders.filter((o) => o.status === 'AWAITING_AUTHORIZATION').length,
   }), [typeFilteredOrders]);
 
   const typeCounts = useMemo(() => ({
@@ -173,10 +180,22 @@ export default function OrdersPage(): JSX.Element {
 
   const handleOpenOrder = async (orderId: string) => {
     if (!accessToken) return;
+    setPendingAuthRequestId(null);
+    setPendingAuthHolderName(null);
+    setPendingAuthExpiresAt(null);
     try {
       const order = await orderService.getById(orderId, accessToken);
       setSelectedOrder(order);
       setIsDetailOpen(true);
+      if (order.status === 'AWAITING_AUTHORIZATION') {
+        houseAccountAuthService.getPendingByOrderId(orderId, accessToken)
+          .then((auth) => {
+            setPendingAuthRequestId(auth.id);
+            setPendingAuthHolderName(auth.houseAccount.user.name);
+            setPendingAuthExpiresAt(auth.expiresAt);
+          })
+          .catch(() => { /* non-critical */ });
+      }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to load order details.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -187,12 +206,19 @@ export default function OrdersPage(): JSX.Element {
     if (!accessToken || isPaymentSubmitting) return;
     setIsPaymentSubmitting(true);
     try {
-      await orderService.recordPayment(orderId, payload, accessToken);
-      // Update in-list state to CLOSED so the order remains tappable for reprinting
-      updateOrderRealTime(orderId, { status: 'CLOSED' });
-      toast({ variant: 'success', title: 'Payment recorded. Order closed.' });
-      // Keep the sheet open with paid state so Print Receipt button is immediately visible
-      setSelectedOrder((prev) => (prev ? { ...prev, paymentMethod: payload.paymentMethod, status: 'CLOSED' } : prev));
+      const updated = await orderService.recordPayment(orderId, payload, accessToken);
+      if (updated.status === 'AWAITING_AUTHORIZATION') {
+        // House account payment — order is locked pending approval, not closed yet
+        updateOrderRealTime(orderId, { status: 'AWAITING_AUTHORIZATION' });
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'AWAITING_AUTHORIZATION' } : prev));
+        toast({ variant: 'info', title: 'Authorization requested', message: 'The account holder has been notified to approve the charge.' });
+      } else {
+        // Normal payment — order closed
+        updateOrderRealTime(orderId, { status: 'CLOSED' });
+        toast({ variant: 'success', title: 'Payment recorded. Order closed.' });
+        // Keep the sheet open with paid state so Print Receipt button is immediately visible
+        setSelectedOrder((prev) => (prev ? { ...prev, paymentMethod: payload.paymentMethod, status: 'CLOSED' } : prev));
+      }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to record payment.';
       toast({ variant: 'error', title: 'Payment failed', message });
@@ -282,6 +308,49 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Edit failed', message });
     } finally {
       setIsManagerEditSubmitting(false);
+    }
+  };
+
+  const handleAuthForceExpire = async (orderId: string) => {
+    if (!accessToken || !pendingAuthRequestId || isAuthOverrideSubmitting) return;
+    setIsAuthOverrideSubmitting(true);
+    try {
+      await houseAccountAuthService.forceExpire(pendingAuthRequestId, accessToken);
+      updateOrderRealTime(orderId, { status: 'READY' });
+      setSelectedOrder((prev) => (prev ? { ...prev, status: 'READY' } : prev));
+      setPendingAuthRequestId(null);
+      setPendingAuthHolderName(null);
+      setPendingAuthExpiresAt(null);
+      toast({ variant: 'success', title: 'Order returned to Ready', message: 'The waiter can now collect payment another way.' });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not revert the order.';
+      toast({ variant: 'error', title: 'Failed', message });
+    } finally {
+      setIsAuthOverrideSubmitting(false);
+    }
+  };
+
+  const handleAuthOverride = async (orderId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || !pendingAuthRequestId || isAuthOverrideSubmitting) return;
+    setIsAuthOverrideSubmitting(true);
+    try {
+      await houseAccountAuthService.override(pendingAuthRequestId, decision, accessToken);
+      if (decision === 'APPROVED') {
+        removeOrderFromActive(orderId);
+        setIsDetailOpen(false);
+        toast({ variant: 'success', title: 'Charge approved', message: 'The order has been closed.' });
+      } else {
+        updateOrderRealTime(orderId, { status: 'READY' });
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'READY' } : prev));
+        setPendingAuthRequestId(null);
+        setPendingAuthHolderName(null);
+        toast({ variant: 'success', title: 'Charge rejected', message: 'Order returned to Ready.' });
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Override failed.';
+      toast({ variant: 'error', title: 'Override failed', message });
+    } finally {
+      setIsAuthOverrideSubmitting(false);
     }
   };
 
@@ -498,6 +567,12 @@ export default function OrdersPage(): JSX.Element {
         corporateAccounts={corporateAccounts}
         customerCreditAccounts={customerCreditAccounts}
         onCreateCustomerCredit={(name, phone, limit) => handleCreateCustomerCredit(name, phone, limit)}
+        onAuthOverride={(orderId, decision) => void handleAuthOverride(orderId, decision)}
+        onAuthForceExpire={(orderId) => void handleAuthForceExpire(orderId)}
+        isAuthOverrideSubmitting={isAuthOverrideSubmitting}
+        pendingAuthRequestId={pendingAuthRequestId ?? undefined}
+        pendingAuthHolderName={pendingAuthHolderName ?? undefined}
+        pendingAuthExpiresAt={pendingAuthExpiresAt ?? undefined}
       />
 
       <CancelOrderSheet

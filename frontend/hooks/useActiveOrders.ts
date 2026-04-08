@@ -20,7 +20,7 @@ export function useActiveOrders() {
   const removeOrderFromActive = useOrderStore((state) => state.removeOrderFromActive);
 
   const loadActiveOrders = useCallback(async () => {
-    if (!accessToken || (role !== 'WAITER' && role !== 'MANAGER')) {
+    if (!accessToken || (role !== 'WAITER' && role !== 'MANAGER' && role !== 'DIRECTOR')) {
       return;
     }
 
@@ -42,7 +42,7 @@ export function useActiveOrders() {
   }, [loadActiveOrders]);
 
   useEffect(() => {
-    if (!accessToken || !organizationId || !userId || (role !== 'WAITER' && role !== 'MANAGER')) {
+    if (!accessToken || !organizationId || !userId || (role !== 'WAITER' && role !== 'MANAGER' && role !== 'DIRECTOR')) {
       return;
     }
 
@@ -77,6 +77,24 @@ export function useActiveOrders() {
 
     socket.on('order:force_cancelled', handleForceCancelled);
 
+    // House account authorization events
+    const handleAuthPending = (payload: { orderId: string }) => {
+      updateOrderRealTime(payload.orderId, { status: 'AWAITING_AUTHORIZATION' });
+    };
+
+    const handleAuthResolved = (payload: { orderId: string; approved: boolean }) => {
+      if (payload.approved) {
+        // Order will be closed — remove from active list
+        removeOrderFromActive(payload.orderId);
+      } else {
+        // Rejected/timed out — order returns to READY
+        updateOrderRealTime(payload.orderId, { status: 'READY' });
+      }
+    };
+
+    socket.on('order:auth_pending', handleAuthPending);
+    socket.on('order:auth_resolved', handleAuthResolved);
+
     const offReconnect = onReconnect(() => {
       joinBranchRoom(organizationId);
       joinUserRoom(userId);
@@ -88,6 +106,8 @@ export function useActiveOrders() {
       socket.off('order:all_ready', handleOrderAllReady);
       socket.off('order:cancelled', handleOrderCancelled);
       socket.off('order:force_cancelled', handleForceCancelled);
+      socket.off('order:auth_pending', handleAuthPending);
+      socket.off('order:auth_resolved', handleAuthResolved);
       offReconnect();
     };
   }, [

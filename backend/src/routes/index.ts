@@ -17,6 +17,7 @@ import houseAccountRoutes from './house-account-routes';
 import corporateAccountRoutes from './corporate-account-routes';
 import customerCreditRoutes from './customer-credit-routes';
 import otherIncomeRoutes from './other-income-routes';
+import houseAccountAuthRoutes from './house-account-auth-routes';
 
 const apiRouter = Router();
 
@@ -38,5 +39,6 @@ apiRouter.use(houseAccountRoutes);
 apiRouter.use(corporateAccountRoutes);
 apiRouter.use(customerCreditRoutes);
 apiRouter.use(otherIncomeRoutes);
+apiRouter.use(houseAccountAuthRoutes);
 
 export default apiRouter;

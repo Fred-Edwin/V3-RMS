@@ -13,6 +13,7 @@ const statusVariantMap = {
   PENDING: 'pending',
   IN_PROGRESS: 'inprogress',
   READY: 'ready',
+  AWAITING_AUTHORIZATION: 'awaiting',
   CLOSED: 'closed',
   CANCELLED: 'cancelled',
 } as const;

@@ -46,6 +46,21 @@ export interface ServerToClientEvents {
     details: Record<string, unknown>;
     createdAt: string;
   }) => void;
+  'order:auth_pending': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    authRequestId: string;
+  }) => void;
+  'order:auth_resolved': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    approved: boolean;
+  }) => void;
+  'order:auth_bypassed': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    houseAccountId: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {

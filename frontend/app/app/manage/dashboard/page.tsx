@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, BarChart2, CalendarDays, ChevronUp, Clock3, ClipboardList, CreditCard, Printer, TrendingDown, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart2, CalendarDays, CheckCircle, ChevronUp, Clock, Clock3, ClipboardList, CreditCard, Printer, TrendingDown, Users, XCircle } from 'lucide-react';
 import {
   Button,
   EmptyState,
@@ -14,12 +14,15 @@ import {
 import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
+import { getSocket } from '@/lib/socket';
+import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
+import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
 
 const formatDisplayDate = (ymd: string): string => {
   const parsed = new Date(`${ymd}T00:00:00`);
@@ -109,6 +112,8 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [shiftAssignments, setShiftAssignments] = useState<ShiftAssignment[]>([]);
   const [isLoadingSummary, setIsLoadingSummary] = useState(true);
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
+  const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
+  const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
 
   const loadDailySummary = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -199,6 +204,56 @@ export default function ManagerDashboardPage(): JSX.Element {
   useEffect(() => {
     void loadShiftAssignments();
   }, [loadShiftAssignments]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    houseAccountAuthService.listPending(accessToken)
+      .then((data) => setPendingAuths(data))
+      .catch(() => { /* non-critical */ });
+  }, [accessToken]);
+
+  // Keep widget in sync via socket — add new pending auths and remove resolved ones
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleAuthPending = (payload: { orderId: string; authRequestId: string }) => {
+      if (!accessToken) return;
+      // Re-fetch the full auth record so we have holder name, amount, etc.
+      houseAccountAuthService.getById(payload.authRequestId, accessToken)
+        .then((req) => setPendingAuths((prev) => {
+          if (prev.some((r) => r.id === req.id)) return prev;
+          return [...prev, req];
+        }))
+        .catch(() => { /* non-critical */ });
+    };
+    const handleAuthResolved = (payload: { orderId: string }) => {
+      setPendingAuths((prev) => prev.filter((r) => r.orderId !== payload.orderId));
+    };
+    socket.on('order:auth_pending', handleAuthPending);
+    socket.on('order:auth_resolved', handleAuthResolved);
+    return () => {
+      socket.off('order:auth_pending', handleAuthPending);
+      socket.off('order:auth_resolved', handleAuthResolved);
+    };
+  }, [accessToken]);
+
+  const handleAuthDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || authOverrideSubmittingId) return;
+    setAuthOverrideSubmittingId(authRequestId);
+    try {
+      await houseAccountAuthService.override(authRequestId, decision, accessToken);
+      setPendingAuths((prev) => prev.filter((r) => r.id !== authRequestId));
+      toast({
+        variant: 'success',
+        title: decision === 'APPROVED' ? 'Charge approved' : 'Charge rejected',
+        message: decision === 'APPROVED' ? 'The order has been closed.' : 'Order returned to the waiter.',
+      });
+    } catch {
+      toast({ variant: 'error', title: 'Action failed', message: 'Could not process the decision.' });
+    } finally {
+      setAuthOverrideSubmittingId(null);
+    }
+  }, [accessToken, authOverrideSubmittingId, toast]);
 
   const summaryAvgPrep = useMemo(() => {
     if (!dailySummary) {
@@ -314,6 +369,72 @@ export default function ManagerDashboardPage(): JSX.Element {
                 })}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending House Account Authorizations ───────────────────── */}
+      {pendingAuths.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 print:hidden">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-amber-600 shrink-0" />
+            <p className="text-body-sm font-semibold text-amber-800">
+              {pendingAuths.length === 1
+                ? '1 house account charge awaiting your approval'
+                : `${pendingAuths.length} house account charges awaiting your approval`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {pendingAuths.map((req) => {
+              const expired = new Date(req.expiresAt) < new Date();
+              const loading = authOverrideSubmittingId === req.id;
+              return (
+                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-semibold text-stone-900">
+                      Order #{req.order.dailyNumber}
+                      <span className="ml-2 font-normal text-stone-500">
+                        KES {Number.parseFloat(req.amount).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      </span>
+                    </p>
+                    <p className="text-caption text-stone-500 mt-0.5">
+                      {req.houseAccount.user.name} · via {req.requestedBy.name}
+                      {expired && <span className="ml-1 text-red-500">· Expired</span>}
+                    </p>
+                  </div>
+                  {!expired && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        disabled={!!authOverrideSubmittingId}
+                        onClick={() => void handleAuthDecision(req.id, 'APPROVED')}
+                        className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loading ? (
+                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        ) : (
+                          <CheckCircle size={13} />
+                        )}
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!!authOverrideSubmittingId}
+                        onClick={() => void handleAuthDecision(req.id, 'REJECTED')}
+                        className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loading ? (
+                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        ) : (
+                          <XCircle size={13} />
+                        )}
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

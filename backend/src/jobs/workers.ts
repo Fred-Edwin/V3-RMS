@@ -1,10 +1,12 @@
 import { Worker } from 'bullmq';
-import { bullMqConnection, notificationQueue, reportQueue } from '../config/queues';
+import { bullMqConnection, notificationQueue, reportQueue, authQueue } from '../config/queues';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
 import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
+import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
+import type { HouseAuthTimeoutJobData } from './house-account-auth-timeout';
 import { fcmService } from '../services/fcm-service';
 import { logger } from '../utils/logger';
 
@@ -76,10 +78,31 @@ export const reportWorker = new Worker(
   },
 );
 
+export const authWorker = new Worker(
+  'auth',
+  async (job) => {
+    if (job.name === AUTH_TIMEOUT_JOB_NAME) {
+      const data = job.data as HouseAuthTimeoutJobData;
+      // Import lazily to avoid circular dependency (service → workers → service)
+      const { houseAccountAuthService } = await import('../services/house-account-auth-service');
+      await houseAccountAuthService.handleTimeout(data.authRequestId);
+      logger.info({ jobId: job.id, authRequestId: data.authRequestId }, 'House account auth timeout processed');
+      return;
+    }
+
+    logger.info({ jobId: job.id, name: job.name }, 'Auth job placeholder received');
+  },
+  {
+    connection: bullMqConnection,
+    autorun: false,
+  },
+);
+
 export const startWorkers = (): void => {
   if (process.env.START_BULLMQ_WORKERS === 'true') {
     notificationWorker.run();
     reportWorker.run();
+    authWorker.run();
     void ensureShiftReminderSchedule(notificationQueue).catch((error) => {
       logger.error({ error }, 'Failed to register shift reminder schedule');
     });

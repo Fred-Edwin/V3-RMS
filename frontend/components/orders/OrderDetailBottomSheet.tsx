@@ -41,9 +41,11 @@ interface OrderDetailBottomSheetProps {
   customerCreditAccounts?: CustomerCreditDropdownItem[];
   onCreateCustomerCredit?: (name: string, phone: string, creditLimit: string) => Promise<string>;
   onAuthOverride?: (orderId: string, decision: 'APPROVED' | 'REJECTED') => void;
+  onAuthForceExpire?: (orderId: string) => void;
   isAuthOverrideSubmitting?: boolean;
   pendingAuthHolderName?: string;
   pendingAuthRequestId?: string;
+  pendingAuthExpiresAt?: string;
 }
 
 // UI-level split type options — all resolve to paymentMethod: SPLIT on submit
@@ -146,9 +148,11 @@ export function OrderDetailBottomSheet({
   customerCreditAccounts = [],
   onCreateCustomerCredit,
   onAuthOverride,
+  onAuthForceExpire,
   isAuthOverrideSubmitting = false,
   pendingAuthHolderName,
   pendingAuthRequestId,
+  pendingAuthExpiresAt,
 }: OrderDetailBottomSheetProps) {
   const [uiPaymentMethod, setUiPaymentMethod] = useState<UiPaymentValue>('MPESA');
   const [mpesaCode, setMpesaCode] = useState('');
@@ -715,40 +719,68 @@ export function OrderDetailBottomSheet({
             </div>
           )}
 
-          {order.status === 'AWAITING_AUTHORIZATION' && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-amber-600 shrink-0" />
-                <p className="text-label-sm font-semibold text-amber-800">Awaiting Authorization</p>
-              </div>
-              <p className="text-body-sm text-amber-700">
-                A charge request has been sent to{' '}
-                <span className="font-medium">{pendingAuthHolderName ?? 'the account holder'}</span>.
-                {' '}The order will close automatically once approved.
-              </p>
-              {isManager && onAuthOverride && pendingAuthRequestId && (
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    isLoading={isAuthOverrideSubmitting}
-                    onClick={() => onAuthOverride(order.id, 'APPROVED')}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1"
-                    isLoading={isAuthOverrideSubmitting}
-                    onClick={() => onAuthOverride(order.id, 'REJECTED')}
-                  >
-                    Reject
-                  </Button>
+          {order.status === 'AWAITING_AUTHORIZATION' && (() => {
+            const isExpired = pendingAuthExpiresAt ? new Date(pendingAuthExpiresAt) < new Date() : false;
+            return (
+              <div className={`rounded-md border p-4 space-y-3 ${isExpired ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+                <div className="flex items-center gap-2">
+                  <Clock size={16} className={isExpired ? 'text-red-600 shrink-0' : 'text-amber-600 shrink-0'} />
+                  <p className={`text-label-sm font-semibold ${isExpired ? 'text-red-800' : 'text-amber-800'}`}>
+                    {isExpired ? 'Authorization Expired' : 'Awaiting Authorization'}
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
+                {isExpired ? (
+                  <p className="text-body-sm text-red-700">
+                    The charge request to <span className="font-medium">{pendingAuthHolderName ?? 'the account holder'}</span> has expired.
+                    A manager must return this order to Ready so the waiter can collect payment another way.
+                  </p>
+                ) : (
+                  <p className="text-body-sm text-amber-700">
+                    A charge request has been sent to{' '}
+                    <span className="font-medium">{pendingAuthHolderName ?? 'the account holder'}</span>.
+                    {' '}The order will close automatically once approved.
+                  </p>
+                )}
+                {isManager && pendingAuthRequestId && (
+                  isExpired ? (
+                    onAuthForceExpire && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full"
+                        isLoading={isAuthOverrideSubmitting}
+                        onClick={() => onAuthForceExpire(order.id)}
+                      >
+                        Return Order to Ready
+                      </Button>
+                    )
+                  ) : (
+                    onAuthOverride && (
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          isLoading={isAuthOverrideSubmitting}
+                          onClick={() => onAuthOverride(order.id, 'APPROVED')}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="flex-1"
+                          isLoading={isAuthOverrideSubmitting}
+                          onClick={() => onAuthOverride(order.id, 'REJECTED')}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )
+                  )
+                )}
+              </div>
+            );
+          })()}
 
           {isPaid && onPrintReceipt && (
             <Button

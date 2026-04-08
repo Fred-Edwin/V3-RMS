@@ -229,6 +229,89 @@ export const fcmService = {
     }
   },
 
+  /**
+   * Sends an authorization request push to the house account holder.
+   * The holder taps the notification to approve or reject the charge.
+   */
+  sendHouseAccountAuthPush: async (
+    holderId: string,
+    payload: { orderId: string; dailyNumber: number; amount: string; authRequestId: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const fcmToken = await authRepository.findFcmToken(holderId);
+      if (!fcmToken) {
+        return;
+      }
+
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: `Charge Request — Order #${payload.dailyNumber}`,
+            body: `KES ${payload.amount} is being charged to your house account. Tap to approve or reject.`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `house-auth-${payload.authRequestId}`,
+            renotify: true,
+          },
+          fcmOptions: {
+            link: `/app/house-account/authorize?requestId=${payload.authRequestId}`,
+          },
+        },
+        data: {
+          orderId: payload.orderId,
+          authRequestId: payload.authRequestId,
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, holderId, orderId: payload.orderId }, 'Failed to send house account auth FCM push');
+    }
+  },
+
+  /**
+   * Notifies the waiter of the authorization outcome (approved, rejected, or timed out).
+   */
+  sendAuthResolutionPush: async (
+    waiterId: string,
+    payload: { dailyNumber: number; approved: boolean; reason?: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const fcmToken = await authRepository.findFcmToken(waiterId);
+      if (!fcmToken) {
+        return;
+      }
+
+      const approved = payload.approved;
+      await firebaseMessaging.send({
+        token: fcmToken,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: approved ? 'House Account Approved' : 'House Account Rejected',
+            body: approved
+              ? `Order #${payload.dailyNumber} has been approved and closed.`
+              : `Order #${payload.dailyNumber} was rejected — please collect payment another way.`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `house-auth-resolution-${payload.dailyNumber}`,
+          },
+          fcmOptions: { link: '/app/orders' },
+        },
+      });
+    } catch (error) {
+      logger.warn({ error, waiterId }, 'Failed to send auth resolution FCM push');
+    }
+  },
+
   sendShiftReminderPush: async (userId: string, payload: ShiftReminderPushPayload): Promise<void> => {
     try {
       if (!firebaseMessaging) {

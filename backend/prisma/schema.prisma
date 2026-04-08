@@ -85,6 +85,8 @@ model User {
   houseAccount                HouseAccount?           @relation("HouseAccountHolder")
   houseAccountsGranted        HouseAccount[]          @relation("HouseAccountGrantedBy")
   houseAccountSettlements     HouseAccountSettlement[] @relation("HouseAccountSettledBy")
+  houseAuthRequestsRequested  HouseAccountAuthRequest[] @relation("HouseAuthRequestedBy")
+  houseAuthRequestsResolved   HouseAccountAuthRequest[] @relation("HouseAuthResolvedBy")
   corporateAccountsCreated    CorporateAccount[]      @relation("CorporateAccountCreatedBy")
   corporateSettlements        CorporateAccountSettlement[] @relation("CorporateAccountSettledBy")
   customerCreditAccountsCreated CustomerCreditAccount[] @relation("CustomerCreditAccountCreatedBy")
@@ -274,6 +276,7 @@ model Order {
   modificationRequests    OrderModificationRequest[]
   incidents               IncidentLog[]
   printJobs               PrintJob[]
+  houseAuthRequests       HouseAccountAuthRequest[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -356,8 +359,16 @@ enum OrderStatus {
   PENDING
   IN_PROGRESS
   READY
+  AWAITING_AUTHORIZATION
   CLOSED
   CANCELLED
+}
+
+enum HouseAccountAuthStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  TIMED_OUT
 }
 
 enum PrepTicketStatus {
@@ -390,6 +401,8 @@ enum IncidentType {
   MODIFICATION_REJECTED
   TICKET_UNCLAIMED
   ORDER_STALE
+  ORDER_ITEM_REMOVED
+  PAYMENT_REJECTED
 }
 
 enum ModificationRequestStatus {
@@ -527,6 +540,7 @@ model HouseAccount {
   grantedBy   User                     @relation("HouseAccountGrantedBy", fields: [grantedById], references: [id])
   settlements HouseAccountSettlement[]
   orders      Order[]
+  authRequests HouseAccountAuthRequest[]
 
   @@index([userId])
   @@index([isActive])
@@ -546,6 +560,33 @@ model HouseAccountSettlement {
 
   @@index([houseAccountId])
   @@map("house_account_settlements")
+}
+
+model HouseAccountAuthRequest {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  orderId        String                 @map("order_id")
+  houseAccountId String                 @map("house_account_id")
+  requestedById  String                 @map("requested_by_id")
+  amount         Decimal                @db.Decimal(10, 2)
+  status         HouseAccountAuthStatus @default(PENDING)
+  bullmqJobId    String?                @map("bullmq_job_id")
+  expiresAt      DateTime               @map("expires_at")
+  resolvedById   String?                @map("resolved_by_id")
+  resolvedAt     DateTime?              @map("resolved_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  houseAccount HouseAccount @relation(fields: [houseAccountId], references: [id])
+  requestedBy  User         @relation("HouseAuthRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("HouseAuthResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([houseAccountId])
+  @@index([status])
+  @@map("house_account_auth_requests")
 }
 
 model CorporateAccount {

@@ -101,7 +101,11 @@ export const socketService = {
   ): void => {
     emitToStations(organizationId, stations, 'order:force_cancelled', payload);
     const io = getSocketServer();
+    // Notify the waiter who owns the order
     io.to(userRoomName(waiterId)).emit('order:force_cancelled', payload);
+    // Also broadcast to the branch room so managers (who are not in station rooms)
+    // receive the event and can remove the order from their active list
+    io.to(branchRoomName(organizationId)).emit('order:force_cancelled', payload);
   },
 
   emitTicketRejected: (
@@ -143,5 +147,40 @@ export const socketService = {
   emitIncident: (organizationId: string, payload: unknown): void => {
     const io = getSocketServer();
     io.to(branchRoomName(organizationId)).emit('incident:new', payload);
+  },
+
+  /**
+   * Emits to the branch room when a house account payment bypasses authorization
+   * (account holder has no FCM token). Managers can see this in real time.
+   */
+  emitAuthBypassed: (
+    organizationId: string,
+    payload: { orderId: string; dailyNumber: number; houseAccountId: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(branchRoomName(organizationId)).emit('order:auth_bypassed', payload);
+  },
+
+  /** Notifies the waiter's session that a house account auth is pending (order locked),
+   *  and broadcasts the status change to the branch room so managers/directors update too. */
+  emitAuthPending: (
+    waiterId: string,
+    organizationId: string,
+    payload: { orderId: string; dailyNumber: number; authRequestId: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:auth_pending', payload);
+    io.to(branchRoomName(organizationId)).emit('order:auth_pending', payload);
+  },
+
+  /** Notifies the waiter and all branch members that the authorization was resolved. */
+  emitAuthResolved: (
+    waiterId: string,
+    organizationId: string,
+    payload: { orderId: string; dailyNumber: number; approved: boolean },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:auth_resolved', payload);
+    io.to(branchRoomName(organizationId)).emit('order:auth_resolved', payload);
   },
 };
