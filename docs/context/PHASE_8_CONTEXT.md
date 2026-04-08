@@ -178,6 +178,70 @@ exposed on their screens.
 
 ---
 
+## Post-Phase Addendum — Manager Order Edit & Director Incident Log (2026-04-08)
+
+### Manager Order Item Removal (commits `1312182`)
+
+Managers can remove specific items from any PENDING / IN_PROGRESS / READY order. Removing all items cancels the order instead of leaving an empty one. Every removal is logged to `IncidentLog` as `ORDER_ITEM_REMOVED` with the actor, reason, removed item list, and whether the order was cancelled as a result.
+
+**Backend:**
+- `backend/prisma/schema.prisma` — added `ORDER_ITEM_REMOVED` and `PAYMENT_REJECTED` to `IncidentType` enum
+- `backend/prisma/migrations/20260408000001_add_order_item_removed_incident_type/` — migration applied
+- `backend/src/services/order-service.ts` — `managerRemoveItems()`: validates ownership, voids affected prep tickets (status → REJECTED), recalculates totals atomically, writes incident log entry
+- `backend/src/repositories/order-repository.ts` — `removeItems()` repository method
+- `backend/src/controllers/order-controller.ts` — `managerRemoveItems` handler
+- `backend/src/routes/order-routes.ts` — `POST /orders/:id/remove-items` (MANAGER role)
+- `backend/src/validators/order-schemas.ts` — `ManagerRemoveItemsSchema`: `removeItemIds: uuid[]`, `reason: string`
+
+**Frontend:**
+- `frontend/components/orders/ManagerOrderEditSheet.tsx` — new bottom sheet: item checklist with select-all, reason textarea, submit with confirmation
+- `frontend/components/orders/OrderDetailBottomSheet.tsx` — "Edit Order" button shown to MANAGER role; opens `ManagerOrderEditSheet`
+- `frontend/app/app/orders/page.tsx` — wires up edit sheet state
+- `frontend/app/app/layout.tsx` — `MANAGER` nav updated
+- `frontend/services/orderService.ts` — `removeOrderItems(orderId, payload)`
+- `frontend/types/order.ts` — `ManagerRemoveItemsInput` type
+
+**Business rules:**
+- CLOSED and CANCELLED orders are immutable.
+- Voiding a prep ticket is forced regardless of `IN_PROGRESS` / `READY` status — manager has override authority.
+- A READY order with remaining items is reopened to `IN_PROGRESS` after the edit.
+- Role check is enforced at the service layer (`actor.role !== 'MANAGER'` throws `ForbiddenError`), not only via middleware.
+
+---
+
+### Director Cross-Branch Incident Log (commit `9936aea`)
+
+Directors can now view incidents across all branches from a dedicated page, with optional per-branch filtering. Managers continue to see only their own branch.
+
+**Backend:**
+- `backend/src/repositories/incident-repository.ts` — `getMany()` accepts optional `organizationId` (null = all branches) and `branchId` filter; joins `organization` to include branch name
+- `backend/src/services/incident-service.ts` — `getMany()` signature updated to `organizationId: string | null`; `serialize()` now includes `branchName` from the joined organization
+- `backend/src/types/incident.types.ts` — `IncidentLogRecord` gains `branchName: string`
+- `backend/src/validators/incident-schemas.ts` — `IncidentQuerySchema` gains optional `branchId: uuid`
+- `backend/src/controllers/incident-controller.ts` — passes `null` as `organizationId` for DIRECTOR/SYSTEM_ADMIN roles
+
+**Frontend:**
+- `frontend/app/app/director/incidents/page.tsx` — new page: branch selector dropdown, date range filters, paginated incident table with `branchName` column
+- `frontend/services/incidentService.ts` — `Incident` type gains `branchName: string`; `GetIncidentsParams` gains `branchId?: string`; query string builder includes it
+- `frontend/app/app/manage/incidents/page.tsx` — adds `ORDER_ITEM_REMOVED` display label + amber badge color; truncated modification type labels; `branchName: ''` placeholder for socket-pushed incidents (managers are branch-scoped, socket payload has no org name)
+- `frontend/components/ui/DirectorSidebarNav.tsx` — "Operations" section added with "Incident Log" → `/app/director/incidents`
+
+---
+
+## Bug Fixes (Post-Phase 8)
+
+### KDS Missing Ticket for Duplicate Item Lines (2026-04-08, commit `7ef34bf`)
+
+**Symptom:** When a waiter added a second instance of an already-ordered item (e.g. Beef Wrap added to an order that already had Beef Wrap), the new ticket never appeared on the KDS.
+
+**Root cause:** `orderService.updateItems` identified prep tickets by a key of `(menuItemId + notes)`. Two identical item lines produced the same key. In the PENDING path, `editableTicketsByKey` was a `Map` — the second `.set()` overwrote the first, so only one entry existed and no new ticket was created. In the IN_PROGRESS path, `allExistingKeys` was a `Set` — same deduplication, same result.
+
+**Fix:** Keys are now occurrence-indexed: `(menuItemId, notes, N)`. The Nth duplicate gets key `N`, making every line unique. The "started items cannot be removed" guard was updated to use count-comparison (multiset) instead of key-set membership.
+
+**Files changed:** `backend/src/services/order-service.ts`
+
+---
+
 ## Notes for Next Phase (Phase 9)
 
 - **`BranchOverviewRow.revenue` is total revenue (food + other)**: Do not treat it as food-only. `branch.otherIncomeTotal` is available separately if a breakdown is needed.
