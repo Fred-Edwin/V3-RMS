@@ -37,7 +37,7 @@ interface KDSCardProps {
   onClaim?: (staffId: string) => void
   /** Tablet display flow: enables the inline claim picker overlay */
   station?: PrepStation
-  staffOnShiftForPicker?: Array<{ id: string; name: string }>
+  staffOnShiftForPicker?: Array<{ id: string; name: string; inProgressCount: number }>
   pickerHelperText?: string
   claimingStaffId?: string | null
   onTabletClaim?: (staffId: string) => void

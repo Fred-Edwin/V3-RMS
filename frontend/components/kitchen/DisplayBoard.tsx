@@ -58,7 +58,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>(
     typeof navigator !== 'undefined' && navigator.onLine ? 'connected' : 'disconnected',
   );
-  const [staffOnShift, setStaffOnShift] = useState<Array<{ id: string; name: string }>>([]);
+  const [staffOnShift, setStaffOnShift] = useState<Array<{ id: string; name: string; inProgressCount: number }>>([]);
   const [isUsingStaffFallback, setIsUsingStaffFallback] = useState(false);
 
   // ticketId → staffId being claimed (one active claim at a time per ticket)
@@ -105,7 +105,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
         });
 
         if (onShiftStaff.length > 0) {
-          setStaffOnShift(onShiftStaff.map((entry) => ({ id: entry.id, name: entry.name })));
+          setStaffOnShift(onShiftStaff.map((entry) => ({ id: entry.id, name: entry.name, inProgressCount: 0 })));
           setIsUsingStaffFallback(false);
           return;
         }
@@ -114,7 +114,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           role: roleByStation[station],
           isActive: true,
         });
-        setStaffOnShift(activeStaff.map((entry) => ({ id: entry.id, name: entry.name })));
+        setStaffOnShift(activeStaff.map((entry) => ({ id: entry.id, name: entry.name, inProgressCount: 0 })));
         setIsUsingStaffFallback(activeStaff.length > 0);
       } catch {
         setStaffOnShift([]);
@@ -181,6 +181,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
+  // BARISTA phone flow: self-claim. CHEFs use the tablet KDS only.
   const handlePersonalClaim = (ticketId: string) => {
     if (!currentUserId) {
       toast({
@@ -272,7 +273,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
       placedBy={ticket.orderPlacedBy.name}
       claimedByName={ticket.claimedBy?.name}
       station={station}
-      staffOnShiftForPicker={staffOnShift}
+      staffOnShiftForPicker={staffOnShiftWithCounts}
       pickerHelperText={
         isUsingStaffFallback
           ? 'No clocked-in staff found. Showing active staff.'
@@ -290,7 +291,8 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     />
   );
 
-  // Phone (CHEF / BARISTA personal): direct self-claim flow
+  // Phone view for BARISTA personal device (self-claim flow).
+  // CHEFs no longer have access to this page — tablet KDS only.
   const renderPhoneTicket = (ticket: PrepTicketDetail) => (
     <KDSCard
       key={ticket.id}
@@ -325,7 +327,21 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     />
   );
 
-  const isPersonalRole = role === 'CHEF' || role === 'BARISTA';
+  const isPersonalRole = role === 'BARISTA';
+
+  // Keep inProgressCount up-to-date as tickets move between columns.
+  // We derive it from the live inProgressTickets list so it reacts to Socket.io updates
+  // without an extra API call.
+  const staffOnShiftWithCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const ticket of inProgressTickets) {
+      const id = ticket.claimedBy?.id;
+      if (id) {
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+    }
+    return staffOnShift.map((s) => ({ ...s, inProgressCount: counts[s.id] ?? 0 }));
+  }, [staffOnShift, inProgressTickets]);
 
   const myInProgressTickets = useMemo(() => {
     if (!currentUserId) {

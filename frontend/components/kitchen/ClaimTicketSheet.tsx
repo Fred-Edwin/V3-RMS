@@ -5,9 +5,11 @@ import { Spinner } from '@/components/ui';
 import { Check } from 'lucide-react';
 import type { PrepStation } from '@/types/order';
 
+const MAX_IN_PROGRESS = 3;
+
 interface ClaimPickerProps {
   station: PrepStation;
-  staffOnShift: Array<{ id: string; name: string }>;
+  staffOnShift: Array<{ id: string; name: string; inProgressCount: number }>;
   helperText?: string;
   isSubmitting?: boolean;
   claimingStaffId?: string | null;
@@ -70,7 +72,8 @@ export function ClaimTicketSheet({
         <div className="overflow-hidden rounded-md border border-stone-200 bg-white shadow-sm">
           {staffOnShift.map((staff, index) => {
             const isClaiming = claimingStaffId === staff.id;
-            const isDisabled = isSubmitting;
+            const atCapacity = staff.inProgressCount >= MAX_IN_PROGRESS;
+            const isDisabled = isSubmitting || atCapacity;
             const isLast = index === staffOnShift.length - 1;
 
             return (
@@ -78,40 +81,52 @@ export function ClaimTicketSheet({
                 key={staff.id}
                 type="button"
                 disabled={isDisabled}
+                title={atCapacity ? `${staff.name.split(' ')[0]} has 3 tickets in progress` : undefined}
                 onClick={() => onClaim(staff.id)}
                 className={cn(
                   'flex w-full items-center justify-between px-4 py-3 text-left transition-colors duration-100',
-                  // Divider between rows (no bottom border on last row)
                   !isLast && 'border-b border-stone-100',
-                  // Hover / focus
-                  'hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400',
-                  // Active (claiming) row
+                  !isDisabled && 'hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400',
                   isClaiming && 'bg-[#F8F4EF]',
-                  // Disabled when another row is being claimed
-                  isDisabled && !isClaiming && 'cursor-not-allowed opacity-40',
+                  isDisabled && !isClaiming && 'cursor-not-allowed opacity-50',
                 )}
               >
                 {/* Staff name */}
                 <span
                   className={cn(
                     'text-body-md font-medium',
-                    isClaiming ? 'text-espresso' : 'text-stone-800',
+                    isClaiming ? 'text-espresso' : atCapacity ? 'text-stone-400' : 'text-stone-800',
                   )}
                 >
                   {staff.name}
                 </span>
 
-                {/* Right side: spinner while claiming, checkmark affordance otherwise */}
-                <span className="ml-3 flex h-5 w-5 shrink-0 items-center justify-center">
-                  {isClaiming ? (
-                    <Spinner size="sm" />
-                  ) : !isDisabled ? (
-                    <Check
-                      size={14}
-                      className="text-stone-300 opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-hidden="true"
-                    />
-                  ) : null}
+                {/* Right side: load badge + spinner / checkmark */}
+                <span className="ml-3 flex shrink-0 items-center gap-2">
+                  {/* In-progress count badge — always shown so supervisors can see load */}
+                  {staff.inProgressCount > 0 && (
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-1.5 py-0.5 text-label-sm font-medium tabular-nums',
+                        atCapacity
+                          ? 'bg-[#FDF2F0] text-[#9B3A2A]'
+                          : 'bg-[#FEF0E0] text-[#A04F0A]',
+                      )}
+                    >
+                      {staff.inProgressCount}
+                    </span>
+                  )}
+                  <span className="flex h-5 w-5 items-center justify-center">
+                    {isClaiming ? (
+                      <Spinner size="sm" />
+                    ) : !isDisabled ? (
+                      <Check
+                        size={14}
+                        className="text-stone-300 opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </span>
                 </span>
               </button>
             );

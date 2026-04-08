@@ -233,6 +233,15 @@ export const prepTicketService = {
       claimedByName = claimedBy.name;
     }
 
+    const inProgressCount = await prepTicketRepository.countInProgressByStaff(data.claimedById, organizationId);
+    if (inProgressCount >= 3) {
+      throw new ConflictError(
+        `${claimedByName} already has 3 tickets in progress. Mark one ready before claiming another.`,
+        'STAFF_AT_CAPACITY',
+        { claimedById: data.claimedById, inProgressCount },
+      );
+    }
+
     const claimedTicket = await prepTicketRepository.claim(ticketId, organizationId, data.claimedById);
     if (!claimedTicket) {
       throw new ConflictError('This order has already been claimed.');

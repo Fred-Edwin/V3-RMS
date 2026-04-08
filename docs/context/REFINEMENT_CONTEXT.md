@@ -382,6 +382,35 @@ if (pathname.startsWith('/app/orders')) {
 
 ---
 
+## Kitchen Workflow — Director Policy Changes (2026-04-08)
+
+### CHEFs restricted to tablet KDS only (no phone claiming)
+
+**Decision:** Director requested that CHEFs cannot claim tickets from their personal phones. All claiming must happen at the shared tablet Kitchen Display Station.
+
+**Files changed:**
+- `frontend/middleware.ts` — `/app/kitchen` now permits `KITCHEN_DISPLAY` only (removed `CHEF`). CHEFs hitting this URL are redirected to `/app/dashboard` via `roleHome`.
+- `frontend/components/kitchen/DisplayBoard.tsx` — `isPersonalRole` changed from `role === 'CHEF' || role === 'BARISTA'` to `role === 'BARISTA'` only. The BARISTA phone view and `renderPhoneTicket` are retained for baristas, who still use `/app/barista` on personal devices.
+
+**To reverse:** Add `|| role === 'CHEF'` back to the `/app/kitchen` middleware guard and restore `isPersonalRole` to include `CHEF`.
+
+---
+
+### Concurrent ticket cap — max 3 in-progress per staff member
+
+**Decision:** A staff member cannot claim a new ticket if they already have 3 `IN_PROGRESS` tickets. This prevents ticket hoarding while allowing parallel prep work.
+
+**Files changed:**
+- `backend/src/repositories/prep-ticket-repository.ts` — added `countInProgressByStaff(staffId, organizationId)` using `prisma.prepTicket.count`
+- `backend/src/services/prep-ticket-service.ts` — in `claim()`, counts in-progress tickets for the target `claimedById` before the DB write. Throws `ConflictError` with code `STAFF_AT_CAPACITY` if count ≥ 3.
+- `frontend/components/kitchen/ClaimTicketSheet.tsx` — `staffOnShift` array now carries `inProgressCount`. Rows show an amber pill badge (1–2 tickets) or terracotta badge (3 tickets). Rows at capacity are disabled with a native `title` tooltip.
+- `frontend/components/ui/KDSCard.tsx` — `staffOnShiftForPicker` prop type updated to include `inProgressCount`.
+- `frontend/components/kitchen/DisplayBoard.tsx` — `staffOnShiftWithCounts` memo derives live counts from `inProgressTickets` (Socket.io-driven, no extra API call).
+
+**To reverse:** Remove the `countInProgressByStaff` call and capacity check from `prepTicketService.claim()`. Revert `staffOnShift` array shape and badge rendering in `ClaimTicketSheet`.
+
+---
+
 ## Design Tokens Reference (active)
 
 ```

@@ -263,6 +263,16 @@ export const prepTicketRepository = {
     });
   },
 
+  countInProgressByStaff: async (staffId: string, organizationId: string): Promise<number> => {
+    return prisma.prepTicket.count({
+      where: {
+        organizationId,
+        claimedById: staffId,
+        status: PrepTicketStatus.IN_PROGRESS,
+      },
+    });
+  },
+
   updateItemsSnapshot: async (
     id: string,
     organizationId: string,

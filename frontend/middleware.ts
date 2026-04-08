@@ -60,7 +60,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     return role === 'SYSTEM_ADMIN';
   }
   if (pathname.startsWith('/app/kitchen')) {
-    return role === 'KITCHEN_DISPLAY' || role === 'CHEF';
+    return role === 'KITCHEN_DISPLAY';
   }
   if (pathname.startsWith('/app/barista')) {
     return role === 'BARISTA_DISPLAY' || role === 'BARISTA';

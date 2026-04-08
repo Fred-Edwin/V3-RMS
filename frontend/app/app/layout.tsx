@@ -9,7 +9,6 @@ import {
   Bike,
   Building2,
   Calendar,
-  ChefHat,
   ClipboardList,
   Clock,
   Coffee,
@@ -126,7 +125,6 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
   CHEF: {
     tabs: [
       { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-      { label: 'Kitchen', href: '/app/kitchen', icon: ChefHat },
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
       { label: 'History', href: '/app/history', icon: Clock },
     ],
@@ -288,7 +286,6 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       label: 'Navigation',
       items: [
         { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-        { label: 'Kitchen', href: '/app/kitchen', icon: ChefHat },
         { label: 'Shifts', href: '/app/shifts', icon: Calendar },
         { label: 'Performance', href: '/app/performance', icon: BarChart2 },
         { label: 'History', href: '/app/history', icon: Clock },
