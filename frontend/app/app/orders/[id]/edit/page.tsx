@@ -57,6 +57,7 @@ export default function EditOrderPage(): JSX.Element {
 
         setCart(
           loadedOrder.items.map((item) => ({
+            lineId: crypto.randomUUID(),
             prepStation: prepStationByItemId.get(item.menuItemId) ?? 'KITCHEN',
             menuItemId: item.menuItemId,
             name: item.name,

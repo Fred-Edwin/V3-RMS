@@ -2,6 +2,7 @@
 import type { OrderSummary, PrepStation } from '@/types/order';
 
 export interface CartItem {
+  lineId: string; // unique per cart line — allows multiple lines of the same menuItemId
   prepStation: PrepStation;
   menuItemId: string;
   name: string;
@@ -19,10 +20,10 @@ interface OrderStore {
   addOrderRealTime: (order: OrderSummary) => void;
   updateOrderRealTime: (orderId: string, updates: Partial<OrderSummary>) => void;
   removeOrderFromActive: (orderId: string) => void;
-  addToCart: (item: CartItem) => void;
+  addToCart: (item: Omit<CartItem, 'lineId'>) => void;
   setCart: (items: CartItem[]) => void;
-  removeFromCart: (menuItemId: string) => void;
-  updateCartQuantity: (menuItemId: string, quantity: number) => void;
+  removeFromCart: (lineId: string) => void;
+  updateCartQuantity: (lineId: string, quantity: number) => void;
   clearCart: () => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -34,8 +35,9 @@ export const selectCartTotal = (cart: CartItem[]): number =>
 export const selectCartCount = (cart: CartItem[]): number =>
   cart.reduce((sum, item) => sum + item.quantity, 0);
 
+// Sum quantities across all lines for the same menuItemId (for tile badge display)
 export const selectCartQuantityByItem = (cart: CartItem[], menuItemId: string): number =>
-  cart.find((item) => item.menuItemId === menuItemId)?.quantity ?? 0;
+  cart.filter((item) => item.menuItemId === menuItemId).reduce((sum, item) => sum + item.quantity, 0);
 
 export const useOrderStore = create<OrderStore>((set) => ({
   activeOrders: [],
@@ -63,40 +65,25 @@ export const useOrderStore = create<OrderStore>((set) => ({
     })),
 
   addToCart: (item) =>
-    set((state) => {
-      const existing = state.cart.find((entry) => entry.menuItemId === item.menuItemId);
-
-      if (!existing) {
-        return { cart: [...state.cart, item] };
-      }
-
-      return {
-        cart: state.cart.map((entry) =>
-          entry.menuItemId === item.menuItemId
-            ? {
-                ...entry,
-                quantity: entry.quantity + item.quantity,
-                notes: item.notes ?? entry.notes,
-              }
-            : entry,
-        ),
-      };
-    }),
+    set((state) => ({
+      // Always append a new line — each tap is a separate prep ticket on the KDS
+      cart: [...state.cart, { ...item, lineId: crypto.randomUUID() }],
+    })),
 
   setCart: (items) => set({ cart: items }),
 
-  removeFromCart: (menuItemId) =>
+  removeFromCart: (lineId) =>
     set((state) => ({
-      cart: state.cart.filter((entry) => entry.menuItemId !== menuItemId),
+      cart: state.cart.filter((entry) => entry.lineId !== lineId),
     })),
 
-  updateCartQuantity: (menuItemId, quantity) =>
+  updateCartQuantity: (lineId, quantity) =>
     set((state) => ({
       cart:
         quantity <= 0
-          ? state.cart.filter((entry) => entry.menuItemId !== menuItemId)
+          ? state.cart.filter((entry) => entry.lineId !== lineId)
           : state.cart.map((entry) =>
-              entry.menuItemId === menuItemId ? { ...entry, quantity } : entry,
+              entry.lineId === lineId ? { ...entry, quantity } : entry,
             ),
     })),
 

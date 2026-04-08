@@ -158,7 +158,7 @@ export function CheckoutSheet({
             <p className="text-body-sm text-stone-500">Your cart is empty.</p>
           ) : (
             cart.map((item) => (
-              <div key={item.menuItemId} className="rounded-md border border-stone-200 p-3">
+              <div key={item.lineId} className="rounded-md border border-stone-200 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-body-md font-semibold text-stone-900">{item.name}</p>
@@ -169,7 +169,7 @@ export function CheckoutSheet({
                     label="Remove item"
                     variant="ghost"
                     size="sm"
-                    onClick={() => removeFromCart(item.menuItemId)}
+                    onClick={() => removeFromCart(item.lineId)}
                     disabled={isSubmitting}
                   />
                 </div>
@@ -180,7 +180,7 @@ export function CheckoutSheet({
                       label="Decrease quantity"
                       variant="secondary"
                       size="sm"
-                      onClick={() => updateCartQuantity(item.menuItemId, item.quantity - 1)}
+                      onClick={() => updateCartQuantity(item.lineId, item.quantity - 1)}
                       disabled={isSubmitting}
                     />
                     <span className="min-w-6 text-center text-body-sm text-stone-900">{item.quantity}</span>
@@ -189,7 +189,7 @@ export function CheckoutSheet({
                       label="Increase quantity"
                       variant="secondary"
                       size="sm"
-                      onClick={() => updateCartQuantity(item.menuItemId, item.quantity + 1)}
+                      onClick={() => updateCartQuantity(item.lineId, item.quantity + 1)}
                       disabled={isSubmitting}
                     />
                   </div>
