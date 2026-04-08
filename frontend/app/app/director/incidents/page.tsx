@@ -2,12 +2,19 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Button, EmptyState, Input, PageHeader, PageLayout, Select, SkeletonTable } from '@/components/ui';
+import {
+  Button,
+  EmptyState,
+  Input,
+  PageHeader,
+  PageLayout,
+  Select,
+  SkeletonTable,
+} from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { incidentService, type Incident, type IncidentType } from '@/services/incidentService';
+import { branchService, type BranchDto } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
-import { useIncidentStore } from '@/store/incidentStore';
-import { getSocket } from '@/lib/socket';
 import { ApiError } from '@/types/api';
 
 const INCIDENT_TYPE_OPTIONS = [
@@ -17,7 +24,7 @@ const INCIDENT_TYPE_OPTIONS = [
   { value: 'TICKET_REJECTED', label: 'Ticket Rejected' },
   { value: 'TICKET_UNCLAIMED', label: 'Ticket Unclaimed' },
   { value: 'ORDER_STALE', label: 'Order Stale' },
-] as const;
+];
 
 const incidentTypeLabel: Record<IncidentType, string> = {
   ORDER_CANCELLED: 'Order Cancelled',
@@ -61,13 +68,39 @@ const formatTimestamp = (iso: string): string => {
 const formatDetails = (type: IncidentType, details: Record<string, unknown>): React.ReactNode => {
   if (type === 'ORDER_ITEM_REMOVED') {
     const removedItems = details.removedItems as Array<{ name: string; quantity: number }> | undefined;
-    const parts: string[] = [];
-    if (details.reason) parts.push(`Reason: ${String(details.reason)}`);
-    if (removedItems && removedItems.length > 0) {
-      parts.push(`Removed: ${removedItems.map((i) => (i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name)).join(', ')}`);
-    }
-    if (details.resultedInCancellation === true) parts.push('Order cancelled as a result');
-    return parts.join(' · ') || JSON.stringify(details);
+    return (
+      <div className="space-y-1.5">
+        {Boolean(details.reason) && (
+          <div className="flex items-start gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Reason</span>
+            <span className="text-stone-700">{String(details.reason)}</span>
+          </div>
+        )}
+        {Boolean(details.dailyNumber) && (
+          <div className="flex items-center gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Order</span>
+            <span className="text-stone-700">#{String(details.dailyNumber)}</span>
+          </div>
+        )}
+        {removedItems && removedItems.length > 0 && (
+          <div className="flex items-start gap-2">
+            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0 mt-0.5">Removed</span>
+            <div className="space-y-0.5">
+              {removedItems.map((item, i) => (
+                <div key={i} className="text-stone-700">
+                  {item.name} {item.quantity > 1 ? `×${item.quantity}` : ''}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {details.resultedInCancellation === true && (
+          <div className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-caption text-red-700">
+            Order cancelled as a result
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (type === 'ORDER_STALE') {
@@ -85,54 +118,40 @@ const formatDetails = (type: IncidentType, details: Record<string, unknown>): Re
             <span className="text-stone-700">#{String(details.dailyNumber)}</span>
           </div>
         )}
-        {Boolean(details.orderDate) && (
-          <div className="flex items-center gap-2">
-            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Date</span>
-            <span className="text-stone-700">{String(details.orderDate)}</span>
-          </div>
-        )}
-        {Boolean(details.status) && (
-          <div className="flex items-center gap-2">
-            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Status</span>
-            <span className="text-stone-700">{String(details.status).replace('_', ' ')}</span>
-          </div>
-        )}
-        {details.itemCount !== undefined && (
-          <div className="flex items-center gap-2">
-            <span className="text-caption font-medium text-stone-500 uppercase tracking-wide w-20 shrink-0">Items</span>
-            <span className="text-stone-700">{String(details.itemCount)}</span>
-          </div>
-        )}
       </div>
     );
   }
 
   const parts: string[] = [];
   if (details.reason) parts.push(`Reason: ${String(details.reason)}`);
-  if (details.description) parts.push(`Description: ${String(details.description)}`);
-  if (details.reviewNote) parts.push(`Note: ${String(details.reviewNote)}`);
+  if (details.description) parts.push(String(details.description));
   if (details.dailyNumber) parts.push(`Order #${String(details.dailyNumber)}`);
   if (parts.length === 0) return JSON.stringify(details);
-  return parts.join(' | ');
+  return parts.join(' · ');
 };
 
-export default function IncidentsPage(): JSX.Element {
+export default function DirectorIncidentsPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const resetUnread = useIncidentStore((state) => state.resetUnread);
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [branches, setBranches] = useState<BranchDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
+  const [branchFilter, setBranchFilter] = useState('');
   const [startDate, setStartDate] = useState(toYmd(new Date()));
   const [endDate, setEndDate] = useState(toYmd(new Date()));
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Load branches once for the filter dropdown
   useEffect(() => {
-    resetUnread();
-  }, [resetUnread]);
+    if (!accessToken) return;
+    branchService.listBranches(accessToken).then((data) => {
+      setBranches(data.filter((b) => b.isActive && !b.isHub));
+    }).catch(() => { /* non-critical */ });
+  }, [accessToken]);
 
   const loadIncidents = useCallback(async () => {
     if (!accessToken) return;
@@ -141,10 +160,11 @@ export default function IncidentsPage(): JSX.Element {
       const result = await incidentService.getMany(
         {
           type: typeFilter ? (typeFilter as IncidentType) : undefined,
+          branchId: branchFilter || undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
           page,
-          perPage: 20,
+          perPage: 25,
         },
         accessToken,
       );
@@ -156,50 +176,41 @@ export default function IncidentsPage(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, typeFilter, startDate, endDate, page, toast]);
+  }, [accessToken, typeFilter, branchFilter, startDate, endDate, page, toast]);
 
   useEffect(() => {
     void loadIncidents();
   }, [loadIncidents]);
 
-  // Real-time: prepend new incidents
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-
-    const handleNewIncident = (payload: {
-      id: string;
-      type: string;
-      orderId?: string;
-      actor: { id: string; name: string } | null;
-      details: Record<string, unknown>;
-      createdAt: string;
-    }) => {
-      const incident: Incident = {
-        ...payload,
-        type: payload.type as IncidentType,
-        organizationId: '',
-        branchName: '',
-        orderId: payload.orderId ?? null,
-      };
-      setIncidents((prev) => [incident, ...prev]);
-    };
-
-    socket.on('incident:new', handleNewIncident);
-    return () => {
-      socket.off('incident:new', handleNewIncident);
-    };
-  }, []);
+  const branchOptions = [
+    { value: '', label: 'All Branches' },
+    ...branches.map((b) => ({ value: b.id, label: b.name })),
+  ];
 
   return (
     <PageLayout className="space-y-4">
-      <PageHeader title="Incidents" subtitle="Non-happy-path events across your branch" />
+      <PageHeader
+        title="Incident Log"
+        subtitle="All interventions and non-happy-path events across branches"
+      />
 
+      {/* Filters */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-48">
           <Select
+            label="Branch"
+            options={branchOptions}
+            value={branchFilter}
+            onChange={(e) => {
+              setBranchFilter(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className="w-52">
+          <Select
             label="Type"
-            options={INCIDENT_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            options={INCIDENT_TYPE_OPTIONS}
             value={typeFilter}
             onChange={(e) => {
               setTypeFilter(e.target.value);
@@ -231,10 +242,15 @@ export default function IncidentsPage(): JSX.Element {
         </div>
       </div>
 
+      {/* Content */}
       {isLoading ? (
-        <SkeletonTable rows={6} columns={4} />
+        <SkeletonTable rows={8} columns={4} />
       ) : incidents.length === 0 ? (
-        <EmptyState icon={<AlertTriangle size={40} />} heading="No incidents" body="No incidents match your filters." />
+        <EmptyState
+          icon={<AlertTriangle size={40} />}
+          heading="No incidents"
+          body="No incidents match your filters."
+        />
       ) : (
         <div className="space-y-2">
           {incidents.map((incident) => (
@@ -251,15 +267,20 @@ export default function IncidentsPage(): JSX.Element {
                   >
                     {incidentTypeLabel[incident.type]}
                   </span>
+                  {/* Branch */}
+                  <span className="hidden sm:inline text-label-sm font-medium text-stone-700 bg-stone-100 rounded-full px-2 py-0.5">
+                    {incident.branchName}
+                  </span>
+                  {/* Actor */}
                   <span className="text-body-sm text-stone-600">{incident.actor?.name ?? 'System'}</span>
-                  {incident.type === 'ORDER_STALE' && Boolean(incident.details.dailyNumber) && (
-                    <span className="text-caption text-stone-400">· Order #{String(incident.details.dailyNumber)}</span>
-                  )}
                 </div>
                 <span className="shrink-0 text-caption text-stone-400">
                   {formatTimestamp(incident.createdAt)}
                 </span>
               </div>
+
+              {/* Branch on mobile (below the row) */}
+              <div className="mt-1 sm:hidden text-caption text-stone-500">{incident.branchName}</div>
 
               {expandedId === incident.id && (
                 <div className="mt-2 rounded-md bg-stone-50 p-2 text-body-sm text-stone-700">

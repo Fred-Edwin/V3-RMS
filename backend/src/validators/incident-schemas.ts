@@ -10,6 +10,8 @@ export const IncidentQuerySchema = z.object({
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
   orderId: z.string().uuid().optional(),
+  /** Director-only: filter by a specific branch */
+  branchId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
 });

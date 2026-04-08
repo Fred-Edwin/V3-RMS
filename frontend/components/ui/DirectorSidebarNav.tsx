@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { AlertTriangle, BarChart2, Building2, CreditCard, GitBranch, LayoutDashboard, LineChart, LogOut, Tags, UserCircle } from 'lucide-react';
+import { AlertTriangle, BarChart2, Building2, CreditCard, GitBranch, LayoutDashboard, LineChart, LogOut, ShieldAlert, Tags, UserCircle } from 'lucide-react';
 import { env } from '@/lib/env';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -60,6 +60,12 @@ export function DirectorSidebarNav({ onLogout }: DirectorSidebarNavProps): JSX.E
         label: 'Other Income',
         items: [
           { label: 'Categories & Entries', href: '/app/director/other-income', icon: Tags },
+        ],
+      },
+      {
+        label: 'Operations',
+        items: [
+          { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
         ],
       },
       {

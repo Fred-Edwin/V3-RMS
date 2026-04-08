@@ -9,12 +9,16 @@ export const incidentController = {
       throw new UnauthorizedError('Authentication required');
     }
 
-    if (!req.user.organizationId) {
+    const isDirector = req.user.role === 'DIRECTOR';
+
+    // Directors may query across all branches (organizationId = null) or filter by branchId
+    if (!isDirector && !req.user.organizationId) {
       throw new ForbiddenError('Branch context required');
     }
 
     const query = IncidentQuerySchema.parse(req.query);
-    const result = await incidentService.getMany(req.user.organizationId, query);
+    const organizationId = isDirector ? null : (req.user.organizationId ?? null);
+    const result = await incidentService.getMany(organizationId, query);
 
     res.status(200).json({
       success: true,

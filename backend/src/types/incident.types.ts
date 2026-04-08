@@ -3,6 +3,7 @@ import type { IncidentType } from '@prisma/client';
 export interface IncidentLogRecord {
   id: string;
   organizationId: string;
+  branchName: string;
   orderId: string | null;
   type: IncidentType;
   actor: { id: string; name: string } | null;

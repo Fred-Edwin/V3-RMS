@@ -8,11 +8,13 @@ export type IncidentType =
   | 'MODIFICATION_APPROVED'
   | 'MODIFICATION_REJECTED'
   | 'TICKET_UNCLAIMED'
-  | 'ORDER_STALE';
+  | 'ORDER_STALE'
+  | 'ORDER_ITEM_REMOVED';
 
 export interface Incident {
   id: string;
   organizationId: string;
+  branchName: string;
   orderId: string | null;
   type: IncidentType;
   actor: { id: string; name: string } | null;
@@ -25,6 +27,7 @@ interface GetIncidentsParams {
   startDate?: string;
   endDate?: string;
   orderId?: string;
+  branchId?: string;
   page?: number;
   perPage?: number;
 }
@@ -35,6 +38,7 @@ const toQueryString = (params: GetIncidentsParams): string => {
   if (params.startDate) query.set('startDate', params.startDate);
   if (params.endDate) query.set('endDate', params.endDate);
   if (params.orderId) query.set('orderId', params.orderId);
+  if (params.branchId) query.set('branchId', params.branchId);
   if (params.page) query.set('page', String(params.page));
   if (params.perPage) query.set('perPage', String(params.perPage));
 

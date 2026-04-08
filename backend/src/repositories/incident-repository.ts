@@ -6,6 +6,9 @@ const incidentInclude = {
   actor: {
     select: { id: true, name: true },
   },
+  organization: {
+    select: { id: true, name: true },
+  },
 } as const;
 
 export const incidentRepository = {
@@ -23,23 +26,27 @@ export const incidentRepository = {
   },
 
   findMany: async (
-    organizationId: string,
+    organizationId: string | null,
     filters: {
       type?: IncidentType;
       startDate?: Date;
       endDate?: Date;
       orderId?: string;
+      branchId?: string;
       page: number;
       perPage: number;
     },
   ) => {
-    const where: Record<string, unknown> = { organizationId };
+    const where: Record<string, unknown> = organizationId ? { organizationId } : {};
 
     if (filters.type) {
       where.type = filters.type;
     }
     if (filters.orderId) {
       where.orderId = filters.orderId;
+    }
+    if (filters.branchId) {
+      where.organizationId = filters.branchId;
     }
     if (filters.startDate || filters.endDate) {
       const createdAt: Record<string, Date> = {};
