@@ -1,4 +1,6 @@
 ﻿import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
+import { houseAccountAuthService } from './house-account-auth-service';
+import { authRepository } from '../repositories/auth-repository';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
 import { houseAccountRepository } from '../repositories/house-account-repository';
@@ -31,6 +33,7 @@ import { logger } from '../utils/logger';
 import type {
   ActiveOrderQueryInput,
   CreateOrderInput,
+  ManagerRemoveItemsInput,
   OrderQueryInput,
   RecordPaymentInput,
   UpdateOrderItemsInput,
@@ -557,16 +560,40 @@ export const orderService = {
     const existingTicketIds = new Set(existingOrder.prepTickets.map((ticket) => ticket.id));
 
     // Each per-item ticket carries exactly one item in its JSON snapshot.
-    // We identify a ticket by the first (and only) item's menuItemId + notes.
-    const getTicketItemKey = (ticket: FullOrderPrismaRecord['prepTickets'][number]): string => {
-      const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
-      const first = parsed[0];
-      if (!first) return ticket.id; // fallback: use ticket id as opaque key
-      return JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
+    // Keys are occurrence-indexed so two lines of the same item (e.g. Beef Wrap x1, Beef Wrap x1)
+    // are distinguishable: ["id", null, 0] vs ["id", null, 1].
+    // Without the index a Map/Set would collapse both lines to the same key and the second
+    // ticket would never be created (the original bug).
+    const buildOccurrenceKeys = (
+      tickets: FullOrderPrismaRecord['prepTickets'],
+    ): Map<string, string> => {
+      // Returns ticketId → occurrence-indexed key
+      const occurrenceCounts = new Map<string, number>();
+      const result = new Map<string, string>();
+      for (const ticket of tickets) {
+        const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+        const first = parsed[0];
+        if (!first) {
+          result.set(ticket.id, ticket.id); // fallback
+          continue;
+        }
+        const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
+        const n = occurrenceCounts.get(base) ?? 0;
+        occurrenceCounts.set(base, n + 1);
+        result.set(ticket.id, JSON.stringify([first.menuItemId ?? '', first.notes ?? null, n]));
+      }
+      return result;
     };
 
-    const buildItemKey = (menuItemId: string, notes: string | null): string =>
-      JSON.stringify([menuItemId, notes ?? null]);
+    const buildItemKeys = (items: ResolvedOrderItem[]): string[] => {
+      const occurrenceCounts = new Map<string, number>();
+      return items.map((item) => {
+        const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
+        const n = occurrenceCounts.get(base) ?? 0;
+        occurrenceCounts.set(base, n + 1);
+        return JSON.stringify([item.menuItemId, item.notes ?? null, n]);
+      });
+    };
 
     for (const station of allStations) {
       const requestedStationItems = newItemsByStation.get(station) ?? [];
@@ -577,68 +604,81 @@ export const orderService = {
           (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
       );
 
-      // Existing editable tickets for this station (PENDING or REJECTED), keyed by item
+      // Existing editable tickets for this station (PENDING or REJECTED), keyed by occurrence-indexed item key
+      const stationEditableTickets = existingOrder.prepTickets.filter(
+        (ticket) =>
+          ticket.station === station &&
+          (ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED),
+      );
+      const editableOccurrenceKeys = buildOccurrenceKeys(stationEditableTickets);
+      // Map from occurrence-indexed key → ticket (safe: keys are now unique per line)
       const editableTicketsByKey = new Map<string, FullOrderPrismaRecord['prepTickets'][number]>();
-      existingOrder.prepTickets
-        .filter(
-          (ticket) =>
-            ticket.station === station &&
-            (ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED),
-        )
-        .forEach((ticket) => {
-          editableTicketsByKey.set(getTicketItemKey(ticket), ticket);
-        });
+      stationEditableTickets.forEach((ticket) => {
+        const key = editableOccurrenceKeys.get(ticket.id);
+        if (key) editableTicketsByKey.set(key, ticket);
+      });
 
       if (hasStartedTicket) {
         // Station already in progress — only allow brand-new item lines (additive only).
         // Existing started items cannot be removed.
-        const startedItemKeys = new Set(
-          existingOrder.prepTickets
-            .filter(
-              (ticket) =>
-                ticket.station === station &&
-                (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
-            )
-            .map(getTicketItemKey),
+        const startedTickets = existingOrder.prepTickets.filter(
+          (ticket) =>
+            ticket.station === station &&
+            (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
         );
+        // Build a multiset of started item base-keys (menuItemId+notes) to count how many of
+        // each are started, so we can verify the new request still covers them all.
+        const startedBaseCounts = new Map<string, number>();
+        for (const ticket of startedTickets) {
+          const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+          const first = parsed[0];
+          if (!first) continue;
+          const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
+          startedBaseCounts.set(base, (startedBaseCounts.get(base) ?? 0) + 1);
+        }
 
-        for (const key of startedItemKeys) {
-          // Check if item still present in the new request (cannot remove started items)
-          const requestedItem = requestedStationItems.find(
-            (item) => buildItemKey(item.menuItemId, item.notes) === key,
-          );
-          if (!requestedItem) {
+        const requestedBaseCounts = new Map<string, number>();
+        for (const item of requestedStationItems) {
+          const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
+          requestedBaseCounts.set(base, (requestedBaseCounts.get(base) ?? 0) + 1);
+        }
+
+        for (const [base, count] of startedBaseCounts) {
+          // Each started occurrence must still be present in the new request
+          if ((requestedBaseCounts.get(base) ?? 0) < count) {
             throw new ConflictError(
               'Order cannot be modified. Preparation has already started at one or more stations.',
             );
           }
         }
 
-        // Create tickets only for genuinely new item lines not already present
-        const allExistingKeys = new Set(
-          existingOrder.prepTickets
-            .filter((ticket) => ticket.station === station)
-            .map(getTicketItemKey),
-        );
+        // Create tickets only for genuinely new item lines not already present.
+        // Use occurrence-indexed keys across ALL existing tickets for this station.
+        const allStationTickets = existingOrder.prepTickets.filter((ticket) => ticket.station === station);
+        const allOccurrenceKeys = buildOccurrenceKeys(allStationTickets);
+        const allExistingKeySet = new Set(allOccurrenceKeys.values());
 
-        for (const item of requestedStationItems) {
-          const key = buildItemKey(item.menuItemId, item.notes);
-          if (!allExistingKeys.has(key)) {
+        const requestedKeys = buildItemKeys(requestedStationItems);
+        requestedKeys.forEach((key, idx) => {
+          if (!allExistingKeySet.has(key)) {
+            const item = requestedStationItems[idx]!;
             ticketCreates.push({
               station,
               items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
             });
           }
-        }
+        });
 
         continue;
       }
 
-      // Station not yet started — full reconciliation per item line
+      // Station not yet started — full reconciliation per item line.
+      // Use occurrence-indexed keys so two lines of the same item are treated as distinct.
       const matchedTicketIds = new Set<string>();
+      const requestedKeys = buildItemKeys(requestedStationItems);
 
-      for (const item of requestedStationItems) {
-        const key = buildItemKey(item.menuItemId, item.notes);
+      requestedKeys.forEach((key, idx) => {
+        const item = requestedStationItems[idx]!;
         const snapshot: PrepTicketItemSnapshot[] = [
           { menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes },
         ];
@@ -658,7 +698,7 @@ export const orderService = {
           // New item line not previously on the order
           ticketCreates.push({ station, items: snapshot });
         }
-      }
+      });
 
       // Reject editable tickets whose item line was removed from the order
       for (const [, ticket] of editableTicketsByKey) {
@@ -750,6 +790,31 @@ export const orderService = {
           throw new ConflictError(`Credit limit of KES ${account.creditLimit} would be exceeded`);
         }
       }
+
+      // Authorization flow — always require holder approval for house account charges.
+      // FCM notification is fire-and-forget; if the holder has no token registered,
+      // the notification silently fails but the pending state still applies.
+      // The holder (or a manager) must approve via the authorize page or the orders screen.
+      const holderFcmToken = await authRepository.findFcmToken(account.userId);
+      if (!holderFcmToken) {
+        // Warn managers that the holder won't receive a push — they must approve manually.
+        socketService.emitAuthBypassed(organizationId, {
+          orderId,
+          dailyNumber: order.dailyNumber,
+          houseAccountId: data.houseAccountId!,
+        });
+      }
+
+      await houseAccountAuthService.createAuthRequest(
+        orderId,
+        data.houseAccountId!,
+        organizationId,
+        actor,
+      );
+      // Return the order in AWAITING_AUTHORIZATION status — not yet closed
+      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      if (!pendingOrder) throw new NotFoundError('Order not found');
+      return serializeOrder(pendingOrder);
     }
 
     if (data.paymentMethod === PaymentMethod.CORPORATE_ACCOUNT) {
@@ -874,6 +939,220 @@ export const orderService = {
         previousStatus: order.status,
         reason,
         forceCancelled: wasForceCancelled,
+      },
+    });
+
+    return serialized;
+  },
+
+  /**
+   * Manager-only: remove specific order items from any PENDING / IN_PROGRESS / READY order.
+   *
+   * Rules:
+   * - CLOSED / CANCELLED orders are immutable.
+   * - Removing all items cancels the order instead of leaving an empty order.
+   * - Tickets for removed items are voided (status → REJECTED) regardless of whether
+   *   they are IN_PROGRESS or READY — manager has override authority.
+   * - A READY order is reopened to IN_PROGRESS when any unresolved tickets remain.
+   * - Totals are recalculated atomically.
+   * - Every call is logged to IncidentLog as ORDER_ITEM_REMOVED with the reason.
+   */
+  managerRemoveItems: async (
+    orderId: string,
+    data: ManagerRemoveItemsInput,
+    actor: Actor,
+  ): Promise<OrderRecord> => {
+    if (actor.role !== 'MANAGER') {
+      throw new ForbiddenError('Only managers can use this endpoint');
+    }
+
+    const organizationId = resolveOrganizationId(actor);
+    const order = await orderRepository.findById(orderId, organizationId);
+    if (!order) {
+      throw new NotFoundError('Order not found');
+    }
+
+    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
+      throw new ConflictError('Closed or cancelled orders cannot be modified.');
+    }
+
+    // Validate that every ID in removeItemIds actually belongs to this order
+    const orderItemIds = new Set(order.items.map((i) => i.id));
+    for (const id of data.removeItemIds) {
+      if (!orderItemIds.has(id)) {
+        throw new ValidationError(`Item ${id} does not belong to this order`);
+      }
+    }
+
+    const removeSet = new Set(data.removeItemIds);
+    const remainingItems = order.items.filter((i) => !removeSet.has(i.id));
+
+    // If removing everything — cancel the order instead
+    if (remainingItems.length === 0) {
+      const cancelReason = `Manager edit: all items removed — ${data.reason}`;
+      const cancelled = await orderRepository.cancel(
+        orderId,
+        organizationId,
+        [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY],
+        cancelReason,
+        actor.id,
+      );
+      if (!cancelled) {
+        throw new ConflictError('Order could not be cancelled. Please refresh and try again.');
+      }
+
+      const serialized = serializeOrder(cancelled);
+      const stations = order.prepTickets.map((t) => t.station);
+      socketService.emitOrderForceCancelled(organizationId, stations, order.createdById, {
+        orderId: serialized.id,
+        dailyNumber: serialized.dailyNumber,
+        cancelledBy: actor.id,
+      });
+      void fcmService.sendOrderForceCancelledPush(order.createdById, {
+        orderId: serialized.id,
+        dailyNumber: serialized.dailyNumber,
+      });
+
+      incidentService.log({
+        organizationId,
+        orderId,
+        type: 'ORDER_ITEM_REMOVED',
+        actorId: actor.id,
+        details: {
+          dailyNumber: serialized.dailyNumber,
+          reason: data.reason,
+          removedItems: order.items
+            .filter((i) => removeSet.has(i.id))
+            .map((i) => ({ name: i.menuItem.name, quantity: i.quantity })),
+          resultedInCancellation: true,
+        },
+      });
+
+      return serialized;
+    }
+
+    // Build the new totals from remaining items
+    const newSubtotal = remainingItems.reduce(
+      (acc, item) => acc.add(new Prisma.Decimal(item.subtotal)),
+      new Prisma.Decimal(0),
+    );
+    const newTotal = newSubtotal.add(new Prisma.Decimal(order.deliveryFee));
+
+    // Build a helper to map a ticket to its item key (same logic as updateItems)
+    const getTicketItemKey = (ticket: FullOrderPrismaRecord['prepTickets'][number]): string => {
+      const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+      const first = parsed[0];
+      if (!first) return ticket.id;
+      return JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
+    };
+
+    // For each removed item, build the key and find matching tickets to void
+    const removedItems = order.items.filter((i) => removeSet.has(i.id));
+
+    const ticketUpdates: Array<{
+      ticketId: string;
+      station: PrepStation;
+      status: PrepTicketStatus;
+      items: PrepTicketItemSnapshot[];
+      rejectedReason: string;
+    }> = [];
+
+    const voidedTicketIds = new Set<string>();
+
+    for (const removedItem of removedItems) {
+      const itemKey = JSON.stringify([removedItem.menuItemId, removedItem.notes ?? null]);
+
+      for (const ticket of order.prepTickets) {
+        if (getTicketItemKey(ticket) === itemKey && !voidedTicketIds.has(ticket.id)) {
+          // Manager can void any status except already-REJECTED tickets
+          if (ticket.status !== PrepTicketStatus.REJECTED) {
+            ticketUpdates.push({
+              ticketId: ticket.id,
+              station: ticket.station,
+              status: PrepTicketStatus.REJECTED,
+              items: [],
+              rejectedReason: `Manager removed: ${data.reason}`,
+            });
+            voidedTicketIds.add(ticket.id);
+          }
+          break;
+        }
+      }
+    }
+
+    // After voiding, determine the correct order status based on remaining tickets.
+    // A ticket is "resolved" if it is READY (not PENDING or IN_PROGRESS).
+    // Voided tickets are excluded — they no longer count toward order readiness.
+    const remainingTickets = order.prepTickets.filter((t) => !voidedTicketIds.has(t.id));
+    const hasUnresolvedTickets = remainingTickets.some(
+      (t) => t.status === PrepTicketStatus.PENDING || t.status === PrepTicketStatus.IN_PROGRESS,
+    );
+    const allRemainingReady =
+      remainingTickets.length > 0 &&
+      remainingTickets.every((t) => t.status === PrepTicketStatus.READY);
+
+    // Three outcomes:
+    // 1. All remaining tickets are READY → promote to READY (covers IN_PROGRESS orders where
+    //    the only unresolved tickets were the ones just voided by the manager)
+    // 2. Order was READY but voiding revealed unresolved tickets → reopen to IN_PROGRESS
+    // 3. Otherwise → keep current status
+    const targetStatus: OrderStatus | null = allRemainingReady
+      ? OrderStatus.READY
+      : order.status === OrderStatus.READY && hasUnresolvedTickets
+        ? OrderStatus.IN_PROGRESS
+        : null;
+
+    // Build the new item list for the repository
+    const newItemDtos = remainingItems.map((item) => ({
+      menuItemId: item.menuItemId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      subtotal: item.subtotal,
+      notes: item.notes,
+    }));
+
+    const updatedOrder = await orderRepository.managerUpdateItems(
+      orderId,
+      organizationId,
+      newItemDtos,
+      { subtotal: newSubtotal, total: newTotal },
+      { voidTicketUpdates: ticketUpdates, actorId: actor.id, targetStatus },
+    );
+
+    if (!updatedOrder) {
+      throw new ConflictError('Order could not be updated. Please refresh and try again.');
+    }
+
+    const serialized = serializeOrder(updatedOrder);
+
+    // Notify kitchen/barista of voided tickets
+    if (ticketUpdates.length > 0) {
+      const voidedSerialised = serialized.prepTickets.filter((t) => voidedTicketIds.has(t.id));
+      if (voidedSerialised.length > 0) {
+        socketService.emitOrderModified(organizationId, voidedSerialised);
+      }
+    }
+
+    // If voiding the removed tickets caused the order to become fully READY,
+    // notify waiters/managers so the order card updates to READY
+    if (targetStatus === OrderStatus.READY) {
+      socketService.emitOrderAllReady(order.createdById, {
+        orderId: serialized.id,
+        dailyNumber: serialized.dailyNumber,
+      });
+    }
+
+    incidentService.log({
+      organizationId,
+      orderId,
+      type: 'ORDER_ITEM_REMOVED',
+      actorId: actor.id,
+      details: {
+        dailyNumber: serialized.dailyNumber,
+        reason: data.reason,
+        removedItems: removedItems.map((i) => ({ name: i.menuItem.name, quantity: i.quantity })),
+        previousStatus: order.status,
+        resultedInCancellation: false,
       },
     });
 
