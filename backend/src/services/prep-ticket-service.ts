@@ -289,7 +289,9 @@ export const prepTicketService = {
     });
 
     const allOrderTickets = await prepTicketRepository.findAllByOrder(readyTicket.orderId, organizationId);
-    const allReady = allOrderTickets.every((entry) => entry.status === PrepTicketStatus.READY);
+    const allReady = allOrderTickets
+      .filter((entry) => entry.status !== PrepTicketStatus.REJECTED)
+      .every((entry) => entry.status === PrepTicketStatus.READY);
 
     if (allReady) {
       await orderRepository.updateStatus(readyTicket.orderId, organizationId, OrderStatus.READY);
