@@ -119,6 +119,7 @@ Previous phases:
 - API: Cloudflare tunnel (`https://api.wendo-rms.co.ke`) -> DigitalOcean droplet.
 - Backend services on server: `api`, `worker`, `postgres`, `redis`.
 - No dedicated staging environment is currently provisioned.
+- **Deployments are fully automated via GitHub Actions CI/CD.** Every push to `main` triggers: validate → build Docker image → push to ghcr.io → SSH into server → `git pull` + migrate + restart containers. No manual server commands needed after pushing. Monitor at: GitHub → repo → Actions tab. See `docs/DEPLOYMENT.md` §7 for full pipeline details.
 
 ## Command Quick Reference (for Coding Agents)
 
