@@ -278,14 +278,14 @@ export interface OutstandingCustomerCreditRow {
 }
 
 export interface OutstandingBalancesReport {
-  houseAccounts: OutstandingHouseAccountRow[];
+  staffBenefits: OutstandingHouseAccountRow[];
   corporateAccounts: OutstandingCorporateAccountRow[];
   customerCreditAccounts: OutstandingCustomerCreditRow[];
   totals: {
-    houseAccounts: string;
+    staffBenefits: string;
     corporateAccounts: string;
     customerCreditAccounts: string;
-    grandTotal: string;
+    grandTotal: string; // corporateAccounts + customerCreditAccounts only
   };
 }
 

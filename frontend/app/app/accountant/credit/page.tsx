@@ -180,9 +180,9 @@ function SettlementModal({
 
 function OutstandingHeader({ report, isLoading }: { report: OutstandingBalancesReport | null; isLoading: boolean }) {
   const items = [
-    { label: 'House Accounts', value: report?.totals.houseAccounts ?? '0' },
     { label: 'Corporate Accounts', value: report?.totals.corporateAccounts ?? '0' },
     { label: 'Customer Credit', value: report?.totals.customerCreditAccounts ?? '0' },
+    { label: 'Staff Benefits', value: report?.totals.staffBenefits ?? '0', isBenefit: true },
   ];
   const grandTotal = report?.totals.grandTotal ?? '0';
 
@@ -199,7 +199,7 @@ function OutstandingHeader({ report, isLoading }: { report: OutstandingBalancesR
             </span>
           )}
         </div>
-        <p className="text-caption text-stone-400">Total credit extended across all account types</p>
+        <p className="text-caption text-stone-400">Accounts receivable (Corporate + Customer Credit). Staff benefits tracked separately.</p>
       </div>
       <div className="grid grid-cols-3 divide-x divide-stone-100">
         {items.map(({ label, value }) => (

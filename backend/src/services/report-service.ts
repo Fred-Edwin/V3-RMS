@@ -362,17 +362,17 @@ export const reportService = {
       return total.toFixed(2);
     };
 
-    const houseTotal = sumDecimals(houseAccounts);
+    const staffBenefitsTotal = sumDecimals(houseAccounts);
     const corporateTotal = sumDecimals(corporateAccounts);
     const creditTotal = sumDecimals(customerCreditAccounts);
+    // grandTotal is AR only — house accounts are staff benefits, not receivables
     const grandTotal = (
-      Number.parseFloat(houseTotal) +
       Number.parseFloat(corporateTotal) +
       Number.parseFloat(creditTotal)
     ).toFixed(2);
 
     return {
-      houseAccounts: houseAccounts.map((a) => ({
+      staffBenefits: houseAccounts.map((a) => ({
         id: a.id,
         userId: a.userId,
         userName: a.user.name,
@@ -398,7 +398,7 @@ export const reportService = {
         creditLimit: a.creditLimit.toFixed(2),
       })),
       totals: {
-        houseAccounts: houseTotal,
+        staffBenefits: staffBenefitsTotal,
         corporateAccounts: corporateTotal,
         customerCreditAccounts: creditTotal,
         grandTotal,

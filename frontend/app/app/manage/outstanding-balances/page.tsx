@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Info } from 'lucide-react';
 import { EmptyState, PageHeader, PageLayout, PriceDisplay, SkeletonTable, Table, type TableColumn } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
@@ -114,9 +114,9 @@ export default function OutstandingBalancesPage(): JSX.Element {
   ];
 
   const tabs = [
-    { key: 'house' as const, label: 'House Accounts', count: report?.houseAccounts.length ?? 0 },
-    { key: 'corporate' as const, label: 'Corporate', count: report?.corporateAccounts.length ?? 0 },
-    { key: 'credit' as const, label: 'Customer Credit', count: report?.customerCreditAccounts.length ?? 0 },
+    { key: 'house' as const, label: 'House Accounts', count: report?.staffBenefits?.length ?? 0 },
+    { key: 'corporate' as const, label: 'Corporate', count: report?.corporateAccounts?.length ?? 0 },
+    { key: 'credit' as const, label: 'Customer Credit', count: report?.customerCreditAccounts?.length ?? 0 },
   ];
 
   return (
@@ -127,14 +127,13 @@ export default function OutstandingBalancesPage(): JSX.Element {
         subtitle="Credit accounts with unpaid balances across all types."
       />
 
-      {/* Summary cards */}
+      {/* Summary cards — AR only; house accounts excluded from totals */}
       {report && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {[
-            { label: 'House Accounts', value: report.totals.houseAccounts },
             { label: 'Corporate', value: report.totals.corporateAccounts },
             { label: 'Customer Credit', value: report.totals.customerCreditAccounts },
-            { label: 'Grand Total', value: report.totals.grandTotal, highlight: true },
+            { label: 'Total Owed', value: report.totals.grandTotal, highlight: true },
           ].map((card) => (
             <div
               key={card.label}
@@ -177,11 +176,19 @@ export default function OutstandingBalancesPage(): JSX.Element {
           {isLoading ? (
             <SkeletonTable columns={4} rows={5} />
           ) : !report ? null : activeTab === 'house' ? (
-            report.houseAccounts.length === 0 ? (
-              <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding house accounts" body="All house accounts are settled." />
-            ) : (
-              <Table columns={houseColumns} data={report.houseAccounts as HouseRow[]} keyField="id" />
-            )
+            <>
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <Info size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                <p className="text-body-sm text-amber-800">
+                  House account consumption is tracked for cap enforcement only — it is not included in the accounts receivable total above.
+                </p>
+              </div>
+              {(report.staffBenefits?.length ?? 0) === 0 ? (
+                <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding house accounts" body="All house accounts have a zero balance." />
+              ) : (
+                <Table columns={houseColumns} data={(report.staffBenefits ?? []) as HouseRow[]} keyField="id" />
+              )}
+            </>
           ) : activeTab === 'corporate' ? (
             report.corporateAccounts.length === 0 ? (
               <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding corporate accounts" body="All corporate accounts are settled." />

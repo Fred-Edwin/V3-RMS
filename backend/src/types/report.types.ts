@@ -276,14 +276,16 @@ export interface OutstandingCustomerCreditRow {
 }
 
 export interface OutstandingBalancesReport {
-  houseAccounts: OutstandingHouseAccountRow[];
+  // staffBenefits: house account consumption — benefit utilization, NOT accounts receivable
+  staffBenefits: OutstandingHouseAccountRow[];
   corporateAccounts: OutstandingCorporateAccountRow[];
   customerCreditAccounts: OutstandingCustomerCreditRow[];
   totals: {
-    houseAccounts: string;
+    // staffBenefits is excluded from grandTotal — it is benefit utilization, not a receivable
+    staffBenefits: string;
     corporateAccounts: string;
     customerCreditAccounts: string;
-    grandTotal: string;
+    grandTotal: string; // corporateAccounts + customerCreditAccounts only
   };
 }
 
