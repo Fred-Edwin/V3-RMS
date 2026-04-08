@@ -106,4 +106,12 @@ export const orderService = {
   ): Promise<OrderDetail> => {
     return apiClient.patch<OrderDetail>(`/orders/${id}/cancel`, data, accessToken);
   },
+
+  managerRemoveItems: (
+    id: string,
+    data: { removeItemIds: string[]; reason: string },
+    accessToken: string,
+  ): Promise<OrderDetail> => {
+    return apiClient.patch<OrderDetail>(`/orders/${id}/manager-edit`, data, accessToken);
+  },
 };

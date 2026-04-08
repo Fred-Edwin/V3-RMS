@@ -62,4 +62,12 @@ orderRoutes.patch(
   orderController.cancelOrder,
 );
 
+orderRoutes.patch(
+  '/orders/:id/manager-edit',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER'),
+  orderController.managerRemoveItems,
+);
+
 export default orderRoutes;

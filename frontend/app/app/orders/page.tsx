@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SlidersHorizontal, Check } from 'lucide-react';
 import { CancelOrderSheet } from '@/components/orders/CancelOrderSheet';
+import { ManagerOrderEditSheet } from '@/components/orders/ManagerOrderEditSheet';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { getSocket } from '@/lib/socket';
@@ -75,6 +76,8 @@ export default function OrdersPage(): JSX.Element {
   const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | OrderType>('ALL');
+  const [isManagerEditOpen, setIsManagerEditOpen] = useState(false);
+  const [isManagerEditSubmitting, setIsManagerEditSubmitting] = useState(false);
 
   const syncFiltersFromUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -260,6 +263,28 @@ export default function OrdersPage(): JSX.Element {
     }
   };
 
+  const handleManagerEditConfirm = async (orderId: string, removeItemIds: string[], reason: string): Promise<void> => {
+    if (!accessToken || isManagerEditSubmitting) return;
+    setIsManagerEditSubmitting(true);
+    try {
+      const updated = await orderService.managerRemoveItems(orderId, { removeItemIds, reason }, accessToken);
+      // If the order was cancelled as a result, remove it from active list
+      if (updated.status === 'CANCELLED') {
+        removeOrderFromActive(orderId);
+      } else {
+        updateOrderRealTime(orderId, { status: updated.status });
+        setSelectedOrder(updated);
+      }
+      setIsManagerEditOpen(false);
+      toast({ variant: 'success', title: 'Order updated' });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Unable to update order.';
+      toast({ variant: 'error', title: 'Edit failed', message });
+    } finally {
+      setIsManagerEditSubmitting(false);
+    }
+  };
+
   const handleCreateCustomerCredit = async (name: string, phone: string, creditLimit: string): Promise<string> => {
     if (!accessToken) throw new Error('Not authenticated');
     const account = await customerCreditService.createAccount({ customerName: name, customerPhone: phone, creditLimit }, accessToken);
@@ -402,7 +427,9 @@ export default function OrdersPage(): JSX.Element {
               startTime={order.createdAt}
               placedBy={order.createdBy.name}
               prepTickets={order.prepTickets}
-              hasRejectedTickets={order.prepTickets.some((t) => t.status === 'REJECTED')}
+              hasRejectedTickets={order.prepTickets.some(
+                (t) => t.status === 'REJECTED' && !t.rejectedReason?.startsWith('Manager removed:'),
+              )}
               onTap={() => void handleOpenOrder(order.id)}
             />
           ))}
@@ -450,7 +477,14 @@ export default function OrdersPage(): JSX.Element {
           setIsPaymentSubmitting(false);
         }}
         order={selectedOrder}
-        onEdit={(orderId) => router.push(`/app/orders/${orderId}/edit`)}
+        onEdit={(orderId) => {
+          if (role === 'MANAGER') {
+            setIsDetailOpen(false);
+            setIsManagerEditOpen(true);
+          } else {
+            router.push(`/app/orders/${orderId}/edit`);
+          }
+        }}
         onPayment={(orderId, payload) => void handlePayment(orderId, payload)}
         onCancel={handleOpenCancel}
         onPrintBill={(orderId) => void handlePrintBill(orderId)}
@@ -474,6 +508,14 @@ export default function OrdersPage(): JSX.Element {
         }}
         onConfirm={(reason, reasonDetail) => void handleCancelConfirm(reason, reasonDetail)}
         isSubmitting={isCancelSubmitting}
+      />
+
+      <ManagerOrderEditSheet
+        isOpen={isManagerEditOpen}
+        onClose={() => setIsManagerEditOpen(false)}
+        order={selectedOrder}
+        onConfirm={(orderId, removeItemIds, reason) => handleManagerEditConfirm(orderId, removeItemIds, reason)}
+        isSubmitting={isManagerEditSubmitting}
       />
 
     </PageLayout>

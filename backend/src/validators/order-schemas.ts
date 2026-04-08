@@ -143,6 +143,15 @@ export const OrderQuerySchema = z.object({
   perPage: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const ManagerRemoveItemsSchema = z.object({
+  /** IDs of OrderItem rows to remove */
+  removeItemIds: z.array(z.string().uuid()).min(1),
+  /** Mandatory reason for the audit log */
+  reason: z.string().min(3).max(500),
+});
+
+export type ManagerRemoveItemsInput = z.infer<typeof ManagerRemoveItemsSchema>;
+
 export const ActiveOrderQuerySchema = z.object({
   view: orderListViewSchema.default('full'),
 });

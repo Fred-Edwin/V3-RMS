@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { Printer, ChefHat, Coffee, User, Plus } from 'lucide-react';
+import { Printer, ChefHat, Coffee, User, Plus, Clock } from 'lucide-react';
 import { BottomSheet, Button, Input, PriceDisplay, Select } from '@/components/ui';
 import { env } from '@/lib/env';
 import type { OrderDetail, PaymentMethod } from '@/types/order';
@@ -40,6 +40,10 @@ interface OrderDetailBottomSheetProps {
   corporateAccounts?: CorporateAccountDropdownItem[];
   customerCreditAccounts?: CustomerCreditDropdownItem[];
   onCreateCustomerCredit?: (name: string, phone: string, creditLimit: string) => Promise<string>;
+  onAuthOverride?: (orderId: string, decision: 'APPROVED' | 'REJECTED') => void;
+  isAuthOverrideSubmitting?: boolean;
+  pendingAuthHolderName?: string;
+  pendingAuthRequestId?: string;
 }
 
 // UI-level split type options — all resolve to paymentMethod: SPLIT on submit
@@ -141,6 +145,10 @@ export function OrderDetailBottomSheet({
   corporateAccounts = [],
   customerCreditAccounts = [],
   onCreateCustomerCredit,
+  onAuthOverride,
+  isAuthOverrideSubmitting = false,
+  pendingAuthHolderName,
+  pendingAuthRequestId,
 }: OrderDetailBottomSheetProps) {
   const [uiPaymentMethod, setUiPaymentMethod] = useState<UiPaymentValue>('MPESA');
   const [mpesaCode, setMpesaCode] = useState('');
@@ -162,11 +170,15 @@ export function OrderDetailBottomSheet({
   const [newCustomerLimit, setNewCustomerLimit] = useState('');
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
-  const canEdit = isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED';
+  const canEdit =
+    (isOwner || isManager) &&
+    order?.status !== 'CLOSED' &&
+    order?.status !== 'CANCELLED' &&
+    order?.status !== 'AWAITING_AUTHORIZATION';
   const isPaid = Boolean(order?.paymentMethod);
   const canCancel =
-    (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED') ||
-    (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED');
+    (isOwner && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED' && order?.status !== 'AWAITING_AUTHORIZATION') ||
+    (isManager && order?.status !== 'CLOSED' && order?.status !== 'CANCELLED' && order?.status !== 'AWAITING_AUTHORIZATION');
 
   // Bill button visible once order is no longer pending (prep has started or is done)
   const canPrintBill =
@@ -699,6 +711,41 @@ export function OrderDetailBottomSheet({
                 <p className="text-center text-caption text-stone-500">
                   Please wait while we close the order.
                 </p>
+              )}
+            </div>
+          )}
+
+          {order.status === 'AWAITING_AUTHORIZATION' && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-amber-600 shrink-0" />
+                <p className="text-label-sm font-semibold text-amber-800">Awaiting Authorization</p>
+              </div>
+              <p className="text-body-sm text-amber-700">
+                A charge request has been sent to{' '}
+                <span className="font-medium">{pendingAuthHolderName ?? 'the account holder'}</span>.
+                {' '}The order will close automatically once approved.
+              </p>
+              {isManager && onAuthOverride && pendingAuthRequestId && (
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    isLoading={isAuthOverrideSubmitting}
+                    onClick={() => onAuthOverride(order.id, 'APPROVED')}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1"
+                    isLoading={isAuthOverrideSubmitting}
+                    onClick={() => onAuthOverride(order.id, 'REJECTED')}
+                  >
+                    Reject
+                  </Button>
+                </div>
               )}
             </div>
           )}

@@ -4,6 +4,7 @@ import {
   ActiveOrderQuerySchema,
   CancelOrderSchema,
   CreateOrderSchema,
+  ManagerRemoveItemsSchema,
   OrderQuerySchema,
   RecordPaymentSchema,
   UpdateOrderItemsSchema,
@@ -116,6 +117,19 @@ export const orderController = {
         status: order.status,
       },
       message: 'Order cancelled',
+    });
+  },
+
+  managerRemoveItems: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const data = ManagerRemoveItemsSchema.parse(req.body);
+    const order = await orderService.managerRemoveItems(id, data, actor);
+
+    res.status(200).json({
+      success: true,
+      data: order,
+      message: 'Order updated successfully',
     });
   },
 };

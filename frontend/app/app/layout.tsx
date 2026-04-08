@@ -18,6 +18,7 @@ import {
   LogOut,
   Printer,
   Settings2,
+  ShieldAlert,
   ShoppingCart,
   Tags,
   UserCircle,
@@ -78,6 +79,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
       { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
+      { label: 'Incidents', href: '/app/director/incidents', icon: ShieldAlert },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [
@@ -199,6 +201,12 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
         { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
       ],
     },
     {

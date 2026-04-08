@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "IncidentType" ADD VALUE 'ORDER_ITEM_REMOVED';

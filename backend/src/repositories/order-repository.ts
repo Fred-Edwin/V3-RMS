@@ -750,6 +750,91 @@ export const orderRepository = {
     });
   },
 
+  /**
+   * Manager override: replace order items + void specified tickets atomically.
+   * Unlike updateItems, this does NOT check whether tickets are IN_PROGRESS or
+   * READY — managers have authority to void any non-already-REJECTED ticket.
+   */
+  managerUpdateItems: async (
+    orderId: string,
+    organizationId: string,
+    newItems: Array<{
+      menuItemId: string;
+      quantity: number;
+      unitPrice: Prisma.Decimal;
+      subtotal: Prisma.Decimal;
+      notes: string | null;
+    }>,
+    newTotals: { subtotal: Prisma.Decimal; total: Prisma.Decimal },
+    plan: {
+      voidTicketUpdates: Array<{
+        ticketId: string;
+        station: PrepStation;
+        status: PrepTicketStatus;
+        items: PrepTicketItemSnapshot[];
+        rejectedReason: string;
+      }>;
+      actorId: string;
+      /** Explicit target status to apply; null = keep current status */
+      targetStatus: OrderStatus | null;
+    },
+  ): Promise<FullOrderPrismaRecord | null> => {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { id: orderId, organizationId },
+        select: { id: true },
+      });
+      if (!existing) return null;
+
+      // Replace all order items atomically
+      await tx.orderItem.deleteMany({ where: { orderId } });
+      if (newItems.length > 0) {
+        await tx.orderItem.createMany({
+          data: newItems.map((item) => ({
+            orderId,
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.subtotal,
+            notes: item.notes,
+          })),
+        });
+      }
+
+      // Update order totals and apply the computed target status if set
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          subtotal: newTotals.subtotal,
+          total: newTotals.total,
+          ...(plan.targetStatus !== null ? { status: plan.targetStatus } : {}),
+        },
+      });
+
+      // Void the matching tickets — manager can void any status
+      for (const update of plan.voidTicketUpdates) {
+        await tx.prepTicket.update({
+          where: { id: update.ticketId },
+          data: {
+            status: PrepTicketStatus.REJECTED,
+            claimedById: null,
+            claimedAt: null,
+            readyAt: null,
+            rejectedById: plan.actorId,
+            rejectedReason: update.rejectedReason,
+            rejectedAt: new Date(),
+            items: update.items as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      return tx.order.findFirst({
+        where: { id: orderId, organizationId },
+        include: orderInclude,
+      });
+    });
+  },
+
   updateStatus: async (
     orderId: string,
     organizationId: string,
