@@ -74,7 +74,8 @@ const computePaymentBreakdown = (orders: PaymentOrderRow[]): WaiterPaymentBreakd
     }
   }
 
-  const total = mpesa.add(cash).add(card).add(houseAccount).add(corporateAccount).add(customerCredit);
+  // House account consumption is a staff benefit — excluded from revenue totals
+  const total = mpesa.add(cash).add(card).add(corporateAccount).add(customerCredit);
 
   return {
     mpesa: mpesa.toFixed(2),
@@ -153,6 +154,8 @@ export const reportRepository = {
             lt: endExclusive,
           },
           createdBy: { isTestUser: false },
+          // House account orders are staff benefits — excluded from revenue
+          paymentMethod: { not: 'HOUSE_ACCOUNT' },
         },
         _sum: {
           total: true,
@@ -653,6 +656,8 @@ export const reportRepository = {
                 lt: endExclusive,
               },
               createdBy: { isTestUser: false },
+              // House account orders are staff benefits — excluded from revenue
+              paymentMethod: { not: 'HOUSE_ACCOUNT' },
             },
             _sum: {
               total: true,
@@ -785,6 +790,8 @@ export const reportRepository = {
             lt: endExclusive,
           },
           createdBy: { isTestUser: false },
+          // House account orders are staff benefits — excluded from revenue
+          paymentMethod: { not: 'HOUSE_ACCOUNT' },
         },
         select: {
           orderDate: true,
@@ -924,6 +931,8 @@ export const reportRepository = {
             lt: endExclusive,
           },
           createdBy: { isTestUser: false },
+          // House account orders are staff benefits — excluded from revenue
+          paymentMethod: { not: 'HOUSE_ACCOUNT' },
         },
         select: {
           organizationId: true,
@@ -1121,6 +1130,8 @@ export const reportRepository = {
             lt: endExclusive,
           },
           createdBy: { isTestUser: false },
+          // House account orders are staff benefits — excluded from revenue
+          paymentMethod: { not: 'HOUSE_ACCOUNT' },
         },
         select: {
           orderDate: true,
