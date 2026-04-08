@@ -608,7 +608,11 @@ export const orderRepository = {
     if (isCreditPayment) {
       return prisma.$transaction(async (tx) => {
         const updated = await tx.order.updateMany({
-          where: { id: orderId, organizationId, status: OrderStatus.READY },
+          where: {
+            id: orderId,
+            organizationId,
+            status: { in: [OrderStatus.READY, OrderStatus.AWAITING_AUTHORIZATION] },
+          },
           data: {
             status: OrderStatus.CLOSED,
             paymentMethod: payment.paymentMethod,
