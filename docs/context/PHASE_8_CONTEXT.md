@@ -125,6 +125,8 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 
 - **`perPage` max is 100**: `ListEntriesSchema` enforces `perPage` max of 100. All callers use `perPage: 100` or lower.
 
+- **House accounts excluded from all revenue surfaces** (post-phase, 2026-04-08): All revenue totals — including `totalRevenue` in daily summary, branch overview, director trends, branch trends, and waiter my-performance — exclude `HOUSE_ACCOUNT` payment orders. The `RevenueSourcesCard`, branch overview totals, director dashboard KPIs, and accountant analytics figures all derive from these repository functions and therefore reflect this exclusion automatically. The `paymentBreakdown.houseAccount` field is preserved for informational display but does not contribute to any total. See Phase 7 context for full rationale.
+
 - **`OtherIncomePaymentMethod` is separate from the order `PaymentMethod` enum**: `HOUSE_ACCOUNT`, `CORPORATE_ACCOUNT`, `CUSTOMER_CREDIT` are meaningless for incidental revenue. A separate enum enforces this at the DB level.
 
 ---

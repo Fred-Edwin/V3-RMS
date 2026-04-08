@@ -98,6 +98,11 @@ This file is updated as tasks are completed. It is the agent's source of truth a
 
 - **Manager settlement scope**: Managers can only record settlements on their own house account (`account.userId === actor.id`). Directors and System Admins can settle any account.
 
+- **House accounts are staff benefits, not accounts receivable** (post-phase, 2026-04-08): House account balances represent employment benefit consumption — staff do not pay for what they consume. Two changes were made:
+  1. `OutstandingBalancesReport.houseAccounts` renamed to `staffBenefits`; `totals.grandTotal` now sums only corporate + customer credit accounts. House accounts appear in their own tab with an info notice but are excluded from the AR total.
+  2. All revenue totals across every report exclude `HOUSE_ACCOUNT` payment orders: `getDailySummaryByDate` aggregate, `getBranchOverview` aggregate per branch, `getDirectorTrends` order loop, `getBranchTrends` order loop, `getMyPerformance` (waiter) order query, and `computePaymentBreakdown` total. The `paymentBreakdown.houseAccount` field is retained for informational display only.
+  - **Do not revert**: House account orders must never be included in `totalRevenue` or `grandTotal` (AR). They are a cost line, not income.
+
 ---
 
 ## Blockers / Issues
