@@ -240,6 +240,18 @@ Directors can now view incidents across all branches from a dedicated page, with
 
 **Files changed:** `backend/src/services/order-service.ts`
 
+### Frontend Cart Merging Duplicate Lines (2026-04-08, commit `df226e1`)
+
+**Symptom:** Adding a second Americano (or any already-carted item) on the edit order page produced one cart line with `quantity: 2` instead of two separate lines. The backend received one item, matched the existing ticket, updated its quantity — no new ticket, no BDS notification.
+
+**Root cause:** `addToCart` in `orderStore.ts` found an existing entry by `menuItemId` and incremented its quantity instead of appending a new line.
+
+**Fix:** `addToCart` always appends a new line. Each `CartItem` now has a `lineId` (UUID) generated at add time. `removeFromCart` and `updateCartQuantity` key off `lineId` instead of `menuItemId`. The tile badge still sums quantities across all lines for the same item. `setCart` (used when loading an existing order) assigns a fresh `lineId` to each line.
+
+**UX rule:** Tap once + use **+** stepper → one ticket with quantity N. Tap N times → N separate tickets of quantity 1 each.
+
+**Files changed:** `frontend/store/orderStore.ts`, `frontend/components/orders/CheckoutSheet.tsx`, `frontend/components/orders/EditCheckoutSheet.tsx`, `frontend/app/app/orders/[id]/edit/page.tsx`
+
 ---
 
 ## Notes for Next Phase (Phase 9)

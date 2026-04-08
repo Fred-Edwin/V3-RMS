@@ -36,6 +36,13 @@ An order with `Latte x2 + Cappuccino + Fries` produces **3 tickets** (2 BARISTA 
 
 The `@@unique([orderId, station, sequence])` constraint on `PrepTicket` supports multiple tickets per station via the `sequence` field. When bulk-creating tickets with `createMany`, you **must** assign per-station sequence numbers explicitly — the default `sequence: 1` will cause a unique constraint violation for the second ticket of the same station.
 
+**Duplicate item lines are distinct tickets, not quantity increments.** If a waiter taps `Cappuccino` twice, the result is **two separate cart lines → two separate tickets** on the BDS — not one ticket with `quantity: 2`. Each tap via `addToCart` always appends a new line (keyed by `lineId`). The backend reconciliation in `orderService.updateItems` uses occurrence-indexed keys `(menuItemId, notes, N)` to distinguish them.
+
+- To get **one ticket with quantity 2**: tap once, then use the **+** stepper in the cart review sheet.
+- To get **two separate tickets of quantity 1**: tap the item twice.
+
+Do not revert `addToCart` to merge by `menuItemId` — this was the root cause of the BDS missing-ticket bug (fixed 2026-04-08, commits `7ef34bf` + `df226e1`).
+
 ---
 
 ## Non-Negotiables (Read These Now)
