@@ -11,6 +11,7 @@ import type {
   Shift,
   ShiftAssignment,
   ShiftAssignmentClockRecord,
+  UndoClockOutInput,
   UpdateShiftInput,
 } from '@/types/shift';
 
@@ -94,6 +95,10 @@ export const shiftService = {
 
   clockOut: (data: ClockInOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {
     return apiClient.postWithEnvelope<ShiftAssignmentClockRecord>('/clock/out', data, accessToken);
+  },
+
+  undoClockOut: (data: UndoClockOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {
+    return apiClient.postWithEnvelope<ShiftAssignmentClockRecord>('/clock/undo-out', data, accessToken);
   },
 
   clockOverride: (

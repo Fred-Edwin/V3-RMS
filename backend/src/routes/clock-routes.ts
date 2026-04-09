@@ -23,6 +23,14 @@ clockRoutes.post(
 );
 
 clockRoutes.post(
+  '/clock/undo-out',
+  authenticate,
+  branchScope,
+  requireRole('WAITER', 'CHEF', 'BARISTA'),
+  clockController.undoClockOut,
+);
+
+clockRoutes.post(
   '/clock/override',
   authenticate,
   branchScope,

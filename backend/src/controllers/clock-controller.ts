@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { clockService } from '../services/clock-service';
 import { UnauthorizedError } from '../utils/errors';
-import { ClockInOutSchema, ClockOverrideSchema } from '../validators/shift-schemas';
+import { ClockInOutSchema, ClockOverrideSchema, UndoClockOutSchema } from '../validators/shift-schemas';
 
 const requireActor = (req: Request) => {
   if (!req.user) {
@@ -33,6 +33,18 @@ export const clockController = {
       success: true,
       data: record,
       message: 'Clocked out successfully',
+    });
+  },
+
+  undoClockOut: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = UndoClockOutSchema.parse(req.body);
+    const record = await clockService.undoClockOut(actor, data);
+
+    res.status(200).json({
+      success: true,
+      data: record,
+      message: 'Clock-out undone successfully',
     });
   },
 

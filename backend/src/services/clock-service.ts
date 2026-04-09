@@ -9,7 +9,7 @@ import { getTodayDateOnly, toIsoDateOnly } from '../utils/date-only';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { haversineDistanceMetres } from '../utils/haversine';
 import { logger } from '../utils/logger';
-import type { ClockInOutInput, ClockOverrideInput } from '../validators/shift-schemas';
+import type { ClockInOutInput, ClockOverrideInput, UndoClockOutInput } from '../validators/shift-schemas';
 
 type Actor = NonNullable<Request['user']>;
 type ClockActionName = 'clock in' | 'clock out';
@@ -286,6 +286,34 @@ export const clockService = {
       }
     }
 
+    if (input.action === 'VOID_CLOCK_OUT') {
+      const existing = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+      if (!existing || !existing.clockOutAt) {
+        throw new ConflictError('This shift does not have a clock-out to void.', 'CLOCK_NOT_OUT', {
+          assignmentId: assignment.id,
+          userId: input.userId,
+        });
+      }
+
+      const voided = await clockRecordRepository.voidClockOut(existing.id, organizationId, actor.id, input.reason);
+      if (!voided) {
+        throw new ConflictError('Attendance changed just now. Refresh and try again.', 'CLOCK_STALE_STATE', {
+          assignmentId: assignment.id,
+          userId: input.userId,
+        });
+      }
+
+      logger.info(
+        { organizationId, managerId: actor.id, staffUserId: input.userId, shiftAssignmentId: assignment.id, reason: input.reason },
+        'Clock-out voided by manager',
+      );
+
+      return {
+        record: voided,
+        message: `Clock-out voided for ${assignment.user.name}`,
+      };
+    }
+
     const record = requireActiveClockRecord(
       await clockRecordRepository.findByAssignmentId(assignment.id, organizationId),
       assignment.id,
@@ -320,5 +348,48 @@ export const clockService = {
       record: updated,
       message: `Clock-out override applied for ${assignment.user.name}`,
     };
+  },
+
+  undoClockOut: async (actor: Actor, input: UndoClockOutInput): Promise<ClockRecord> => {
+    const { assignment, organizationId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
+
+    const record = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+    if (!record || !record.clockOutAt) {
+      throw new ConflictError('This shift does not have a clock-out to undo.', 'CLOCK_NOT_OUT', {
+        assignmentId: assignment.id,
+        userId: actor.id,
+      });
+    }
+
+    const UNDO_WINDOW_MS = 60_000;
+    const msSinceClockOut = Date.now() - new Date(record.clockOutAt).getTime();
+    if (msSinceClockOut > UNDO_WINDOW_MS) {
+      throw new ConflictError(
+        'The 60-second undo window has passed. Ask your manager to void the clock-out.',
+        'CLOCK_UNDO_EXPIRED',
+        { assignmentId: assignment.id, userId: actor.id },
+      );
+    }
+
+    const voided = await clockRecordRepository.voidClockOut(
+      record.id,
+      organizationId,
+      actor.id,
+      'Self-undo within 60-second grace period',
+    );
+
+    if (!voided) {
+      throw new ConflictError('Attendance changed just now. Refresh and try again.', 'CLOCK_STALE_STATE', {
+        assignmentId: assignment.id,
+        userId: actor.id,
+      });
+    }
+
+    logger.info(
+      { organizationId, userId: actor.id, shiftAssignmentId: assignment.id },
+      'Clock-out undone within grace period',
+    );
+
+    return voided;
   },
 };

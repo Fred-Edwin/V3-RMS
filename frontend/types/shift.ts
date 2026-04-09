@@ -85,8 +85,12 @@ export interface ClockInOutInput {
 export interface ClockOverrideInput {
   userId: string;
   shiftAssignmentId: string;
-  action: 'CLOCK_IN' | 'CLOCK_OUT';
+  action: 'CLOCK_IN' | 'CLOCK_OUT' | 'VOID_CLOCK_OUT';
   reason: string;
+}
+
+export interface UndoClockOutInput {
+  shiftAssignmentId: string;
 }
 
 export interface BatchCreateAssignmentInput {

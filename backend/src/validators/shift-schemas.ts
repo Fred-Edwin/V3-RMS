@@ -53,8 +53,12 @@ export const ClockInOutSchema = z.object({
 export const ClockOverrideSchema = z.object({
   userId: z.string().uuid(),
   shiftAssignmentId: z.string().uuid(),
-  action: z.enum(['CLOCK_IN', 'CLOCK_OUT']),
+  action: z.enum(['CLOCK_IN', 'CLOCK_OUT', 'VOID_CLOCK_OUT']),
   reason: z.string().trim().min(1).max(500),
+});
+
+export const UndoClockOutSchema = z.object({
+  shiftAssignmentId: z.string().uuid(),
 });
 
 export const StaffAssignmentRoleSchema = z.enum([UserRole.WAITER, UserRole.CHEF, UserRole.BARISTA]);
@@ -72,3 +76,4 @@ export type CreateShiftAssignmentInput = z.infer<typeof CreateShiftAssignmentSch
 export type BatchCreateShiftAssignmentInput = z.infer<typeof BatchCreateShiftAssignmentSchema>;
 export type ClockInOutInput = z.infer<typeof ClockInOutSchema>;
 export type ClockOverrideInput = z.infer<typeof ClockOverrideSchema>;
+export type UndoClockOutInput = z.infer<typeof UndoClockOutSchema>;

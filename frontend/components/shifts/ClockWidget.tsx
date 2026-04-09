@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, MapPinOff } from 'lucide-react';
 import { Button, ConfirmDialog } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
@@ -148,8 +148,12 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
   const [isSubmittingAssignmentId, setIsSubmittingAssignmentId] = useState<string | null>(null);
+  const [isUndoingAssignmentId, setIsUndoingAssignmentId] = useState<string | null>(null);
   const [localAssignments, setLocalAssignments] = useState<ShiftAssignment[]>(assignments);
   const [pendingClockOutAssignment, setPendingClockOutAssignment] = useState<ShiftAssignment | null>(null);
+  // Maps assignmentId -> seconds remaining in undo window
+  const [undoCountdowns, setUndoCountdowns] = useState<Record<string, number>>({});
+  const undoTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setLocalAssignments(assignments);
@@ -199,6 +203,28 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
           title: response.message ?? (status === 'CLOCKED_IN' ? 'Clocked out successfully' : 'Clocked in successfully'),
           message: `${assignment.shift.name} (${assignment.shift.startTime} - ${assignment.shift.endTime})`,
         });
+
+        // Start 60-second undo window after a clock-out
+        if (status === 'CLOCKED_IN') {
+          const UNDO_SECONDS = 60;
+          setUndoCountdowns((cur) => ({ ...cur, [assignment.id]: UNDO_SECONDS }));
+          if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+          undoTimerRef.current = setInterval(() => {
+            setUndoCountdowns((cur) => {
+              const entries = Object.entries(cur);
+              const next: Record<string, number> = {};
+              for (const [id, secs] of entries) {
+                if (secs > 1) next[id] = secs - 1;
+                // Drop entry when it reaches 0 — undo window expired
+              }
+              if (Object.keys(next).length === 0 && undoTimerRef.current) {
+                clearInterval(undoTimerRef.current);
+                undoTimerRef.current = null;
+              }
+              return next;
+            });
+          }, 1000);
+        }
       } catch (error) {
         if (error instanceof GeolocationFailure) {
           if (error.code === 'PERMISSION_DENIED') {
@@ -285,6 +311,54 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
         }
       } finally {
         setIsSubmittingAssignmentId(null);
+      }
+    },
+    [accessToken, onUpdated, toast],
+  );
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+    };
+  }, []);
+
+  const handleUndoClockOut = useCallback(
+    async (assignment: ShiftAssignment): Promise<void> => {
+      if (!accessToken) return;
+      setIsUndoingAssignmentId(assignment.id);
+      try {
+        const response = await shiftService.undoClockOut({ shiftAssignmentId: assignment.id }, accessToken);
+        const nextRecord = response.data;
+        if (!nextRecord) throw new Error('Undo response did not include attendance data.');
+
+        setLocalAssignments((current) =>
+          current.map((item) => (item.id === assignment.id ? { ...item, clockRecord: nextRecord } : item)),
+        );
+        onUpdated?.(assignment.id, nextRecord);
+        setUndoCountdowns((cur) => {
+          const next = { ...cur };
+          delete next[assignment.id];
+          return next;
+        });
+        toast({ variant: 'success', title: 'Clock-out undone', message: 'You are clocked back in.' });
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'CLOCK_UNDO_EXPIRED') {
+          setUndoCountdowns((cur) => {
+            const next = { ...cur };
+            delete next[assignment.id];
+            return next;
+          });
+          toast({ variant: 'warning', title: 'Undo window expired', message: 'Ask your manager to void the clock-out.' });
+        } else {
+          toast({
+            variant: 'warning',
+            title: 'Undo failed',
+            message: error instanceof Error ? error.message : 'Please try again.',
+          });
+        }
+      } finally {
+        setIsUndoingAssignmentId(null);
       }
     },
     [accessToken, onUpdated, toast],
@@ -406,7 +480,19 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
                   </Button>
                 </div>
               ) : (
-                <p className="mt-4 text-body-sm text-stone-500">This shift attendance is complete.</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <p className="text-body-sm text-stone-500">This shift attendance is complete.</p>
+                  {undoCountdowns[assignment.id] !== undefined && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void handleUndoClockOut(assignment)}
+                      isLoading={isUndoingAssignmentId === assignment.id}
+                    >
+                      Undo ({undoCountdowns[assignment.id]}s)
+                    </Button>
+                  )}
+                </div>
               )}
             </article>
           );

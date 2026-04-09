@@ -488,8 +488,11 @@ export default function ShiftManagementPage(): JSX.Element {
     return trimmedNotes ? `${reasonCode}: ${trimmedNotes}` : reasonCode;
   };
 
-  const getOverrideActionLabel = (action: ClockOverrideInput['action']): string =>
-    action === 'CLOCK_IN' ? 'Clock In' : 'Clock Out';
+  const getOverrideActionLabel = (action: ClockOverrideInput['action']): string => {
+    if (action === 'CLOCK_IN') return 'Clock In';
+    if (action === 'VOID_CLOCK_OUT') return 'Void Clock-Out';
+    return 'Clock Out';
+  };
 
   const handleApplyOverride = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -571,16 +574,25 @@ export default function ShiftManagementPage(): JSX.Element {
       },
     },
     {
-      key: 'override', label: 'Override', className: 'w-[140px]',
+      key: 'override', label: 'Override', className: 'w-[200px]',
       render: (_value, row) => {
-        const isComplete = row.clockRecord?.clockInAt && row.clockRecord?.clockOutAt;
-        if (isComplete) return <span className="text-label-sm text-stone-400">Complete</span>;
+        const hasClockedIn = !!row.clockRecord?.clockInAt;
+        const hasClockedOut = !!row.clockRecord?.clockOutAt;
+        if (hasClockedIn && hasClockedOut) {
+          return (
+            <Button size="sm" variant="secondary" onClick={() => {
+              setOverrideModal({ isOpen: true, assignment: row, action: 'VOID_CLOCK_OUT', reasonCode: '', notes: '' });
+            }}>
+              Void Clock-Out
+            </Button>
+          );
+        }
         return (
           <Button size="sm" variant="secondary" onClick={() => {
-            const nextAction = row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'CLOCK_OUT' : 'CLOCK_IN';
+            const nextAction = hasClockedIn ? 'CLOCK_OUT' : 'CLOCK_IN';
             setOverrideModal({ isOpen: true, assignment: row, action: nextAction, reasonCode: '', notes: '' });
           }}>
-            {row.clockRecord?.clockInAt && !row.clockRecord.clockOutAt ? 'Override Clock Out' : 'Override Clock In'}
+            {hasClockedIn ? 'Override Clock Out' : 'Override Clock In'}
           </Button>
         );
       },
@@ -1213,7 +1225,9 @@ export default function ShiftManagementPage(): JSX.Element {
           <p className="text-body-sm text-stone-500">
             {overrideModal.action === 'CLOCK_IN'
               ? 'Use this when a staff member should be starting their shift but GPS failed.'
-              : 'Use this when a staff member already clocked in and needs help closing the shift.'}
+              : overrideModal.action === 'VOID_CLOCK_OUT'
+                ? 'Use this when a staff member accidentally clocked out. This will clear the clock-out so they can continue their shift.'
+                : 'Use this when a staff member already clocked in and needs help closing the shift.'}
           </p>
           <Select
             label="Reason"

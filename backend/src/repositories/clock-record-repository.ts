@@ -79,6 +79,34 @@ export const clockRecordRepository = {
     return result.count;
   },
 
+  voidClockOut: async (
+    id: string,
+    organizationId: string,
+    overrideById: string,
+    overrideNote: string,
+  ): Promise<ClockRecord | null> => {
+    const result = await prisma.clockRecord.updateMany({
+      where: {
+        id,
+        organizationId,
+        clockInAt: { not: null },
+        clockOutAt: { not: null },
+      },
+      data: {
+        clockOutAt: null,
+        clockOutMethod: null,
+        overrideById,
+        overrideNote,
+      },
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return prisma.clockRecord.findFirst({ where: { id, organizationId } });
+  },
+
   updateClockOut: async (
     id: string,
     organizationId: string,
