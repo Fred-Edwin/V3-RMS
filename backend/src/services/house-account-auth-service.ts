@@ -97,6 +97,13 @@ export const houseAccountAuthService = {
       authRequestId: authRequest.id,
     });
 
+    // Notify branch managers via FCM so they see it even when app is in background
+    void fcmService.sendHouseAccountAuthPushToManagers(organizationId, {
+      orderId,
+      dailyNumber: order.dailyNumber,
+      amount: order.total.toString(),
+    });
+
     // Notify all branch members via socket so order cards update immediately
     socketService.emitAuthPending(actor.id, organizationId, {
       orderId,

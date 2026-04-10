@@ -230,6 +230,49 @@ export const fcmService = {
   },
 
   /**
+   * Sends an authorization request push to all active managers at a branch.
+   * Used so managers are notified even when the app is in the background.
+   */
+  sendHouseAccountAuthPushToManagers: async (
+    organizationId: string,
+    payload: { orderId: string; dailyNumber: number; amount: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      if (tokens.length === 0) {
+        return;
+      }
+
+      await Promise.allSettled(
+        tokens.map((token) =>
+          firebaseMessaging!.send({
+            token,
+            webpush: {
+              headers: { Urgency: 'high' },
+              notification: {
+                title: `House Account Charge Pending — Order #${payload.dailyNumber}`,
+                body: `KES ${payload.amount} awaiting your approval on the dashboard.`,
+                icon: '/android-chrome-192x192.png',
+                badge: '/android-chrome-192x192.png',
+                tag: `house-auth-manager-${payload.orderId}`,
+                renotify: true,
+              },
+              fcmOptions: { link: '/app/manage/dashboard' },
+            },
+            data: { orderId: payload.orderId },
+          }),
+        ),
+      );
+    } catch (error) {
+      logger.warn({ error, organizationId }, 'Failed to send house account auth push to managers');
+    }
+  },
+
+  /**
    * Sends an authorization request push to the house account holder.
    * The holder taps the notification to approve or reject the charge.
    */
