@@ -1,11 +1,7 @@
 import { OrderStatus, PrepTicketStatus, type PrepStation, type Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
+import { getTodayDateOnly } from '../utils/date-only';
 import type { PrepTicketItemSnapshot } from '../types/order.types';
-
-const localMidnightToday = (): Date => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-};
 
 export type PrepTicketWithOrderRecord = Prisma.PrepTicketGetPayload<{
   include: {
@@ -98,7 +94,7 @@ export const prepTicketRepository = {
               status: {
                 notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
               },
-              orderDate: localMidnightToday(),
+              orderDate: getTodayDateOnly(),
             },
           }
         : {}),
@@ -269,6 +265,9 @@ export const prepTicketRepository = {
         organizationId,
         claimedById: staffId,
         status: PrepTicketStatus.IN_PROGRESS,
+        order: {
+          orderDate: getTodayDateOnly(),
+        },
       },
     });
   },
