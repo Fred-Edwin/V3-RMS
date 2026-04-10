@@ -275,3 +275,53 @@ Directors can now view incidents across all branches from a dedicated page, with
 - **`otherIncomeService.listEntries` perPage max is 100**: Do not use values above 100 — they will cause a backend 400 validation error.
 
 - **Two DB migrations for Phase 8**: Both must be applied in order. `prisma migrate deploy` on the production server will apply them sequentially. Do not skip the first migration — the second depends on the `other_income_entries` table existing.
+
+---
+
+## House Account Payment Authorization Layer (cross-phase, added 2026-04-08)
+
+### What Was Built
+A full authorization flow for House Account payments where the account holder (e.g. a director) must approve or reject a charge before the order closes.
+
+### DB Changes
+New table `house_account_auth_requests` (migration `20260408120000_add_house_account_auth_request`):
+- `id`, `orderId`, `houseAccountId`, `requestedById`, `amount`, `status` (`PENDING | APPROVED | REJECTED | TIMED_OUT`), `expiresAt` (24h, not enforced — no timeout job), `resolvedById`, `resolvedAt`, `createdAt`
+- New `OrderStatus` value: `AWAITING_AUTHORIZATION`
+
+### Flow
+1. Waiter selects House Account payment → `POST /api/v1/orders/:id/payment`
+2. If the House Account has `requiresAuthorization: true` → order set to `AWAITING_AUTHORIZATION`, auth request created, waiter sees amber "Awaiting Authorization" banner
+3. Account holder + all branch managers notified via FCM push + socket `order:auth_pending` (broadcast to both waiter user room and branch room)
+4. Manager/director sees amber widget on their dashboard with Approve/Reject buttons
+5. On **Approve**: payment recorded atomically (`recordPayment` closes the order, increments `houseAccount.currentBalance`), order status → `CLOSED`, `order:auth_resolved` broadcast to branch room + waiter user room
+6. On **Reject**: order status → `READY`, incident logged (`PAYMENT_REJECTED`), waiter notified via socket + FCM to collect payment another way
+
+### Key Implementation Details
+- `recordPayment` WHERE clause accepts `{ in: [READY, AWAITING_AUTHORIZATION] }` — required because auth-path orders are in `AWAITING_AUTHORIZATION`, not `READY`, when approval fires. **Do not revert this to `status: READY` only.**
+- `emitAuthResolved` broadcasts to **both** `branchRoom(organizationId)` and `userRoom(waiterId)` — without the branch room broadcast, managers/directors never receive the socket event and their order list stays frozen.
+- Director users have `organizationId = null` in the DB (system-level). `listPending` for directors queries by `houseAccount.userId` (their own account) instead of by `organizationId`.
+- No BullMQ timeout job — the dashboard widget persists until a human acts. `expiresAt` is set to 24h but is not enforced.
+- Manager override (approve/reject from the order bottom sheet) uses `POST /house-auth/:authRequestId/override`.
+- `forceExpire` endpoint (`POST /house-auth/:authRequestId/force-expire`) exists as an escape hatch for genuinely expired orders but is rarely needed.
+
+### New Routes
+| Method | Path | Roles | Purpose |
+|--------|------|-------|---------|
+| GET | `/house-auth` | MANAGER, DIRECTOR | List pending auth requests |
+| POST | `/house-auth/:id/override` | MANAGER, DIRECTOR | Approve or reject |
+| POST | `/house-auth/:id/force-expire` | MANAGER, DIRECTOR | Force-expire a stuck order |
+
+### New Files
+- `backend/src/services/house-account-auth-service.ts`
+- `backend/src/repositories/house-account-auth-request-repository.ts`
+- `backend/src/controllers/house-account-auth-controller.ts`
+- `backend/src/routes/house-account-auth-routes.ts`
+- `backend/src/validators/house-account-auth-schemas.ts`
+- `backend/src/types/house-account-auth.types.ts`
+- `backend/src/jobs/house-account-auth-timeout.ts` (stub, not active)
+- `frontend/services/houseAccountAuthService.ts`
+- `frontend/types/houseAccountAuth.ts`
+- `frontend/app/app/house-account/authorize/page.tsx`
+
+### Revenue vs Outstanding Balances
+House Account payments **are included in revenue** (order is CLOSED, counted in sales reports). Outstanding balances (`houseAccount.currentBalance`) are a separate receivables figure. A House Account charge appears in both: once as revenue earned, once as a debt created. These are complementary — not the same number.
