@@ -38,6 +38,7 @@ model Organization {
   otherIncomeCategoriesBranch OtherIncomeCategory[] @relation("OtherIncomeCategoryBranch")
   otherIncomeEntries     OtherIncomeEntry[]
   otherIncomeEntriesBranch OtherIncomeEntry[]    @relation("OtherIncomeEntryBranch")
+  staffDiscountAuthRequests StaffDiscountAuthRequest[]
 
   @@map("organizations")
 }
@@ -92,6 +93,9 @@ model User {
   customerCreditAccountsCreated CustomerCreditAccount[] @relation("CustomerCreditAccountCreatedBy")
   customerCreditSettlements   CustomerCreditSettlement[] @relation("CustomerCreditSettledBy")
   otherIncomeEntries          OtherIncomeEntry[]         @relation("OtherIncomeRecordedBy")
+  ordersDiscounted            Order[]                    @relation("OrderDiscountedBy")
+  staffDiscountRequestsRequested StaffDiscountAuthRequest[] @relation("StaffDiscountRequestedBy")
+  staffDiscountRequestsResolved  StaffDiscountAuthRequest[] @relation("StaffDiscountResolvedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -260,6 +264,9 @@ model Order {
   corporateAccountId      String?               @map("corporate_account_id")
   corporateEmployeeRef    String?               @map("corporate_employee_ref")
   customerCreditAccountId String?               @map("customer_credit_account_id")
+  discountPercent         Decimal?              @db.Decimal(5, 2) @map("discount_percent")
+  discountAmount          Decimal?              @db.Decimal(10, 2) @map("discount_amount")
+  discountedById          String?               @map("discounted_by_id")
   createdById             String                @map("created_by_id")
   createdAt               DateTime              @default(now()) @map("created_at")
   updatedAt               DateTime              @updatedAt @map("updated_at")
@@ -271,12 +278,14 @@ model Order {
   customerCreditAccount   CustomerCreditAccount? @relation(fields: [customerCreditAccountId], references: [id])
   createdBy               User                  @relation("OrderCreatedBy", fields: [createdById], references: [id])
   cancelledBy             User?                 @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
+  discountedBy            User?                 @relation("OrderDiscountedBy", fields: [discountedById], references: [id])
   items                   OrderItem[]
   prepTickets             PrepTicket[]
   modificationRequests    OrderModificationRequest[]
   incidents               IncidentLog[]
   printJobs               PrintJob[]
   houseAuthRequests       HouseAccountAuthRequest[]
+  staffDiscountAuthRequests StaffDiscountAuthRequest[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -721,4 +730,35 @@ model OtherIncomeEntry {
   @@index([organizationId, entryDate])
   @@index([categoryId])
   @@map("other_income_entries")
+}
+
+enum StaffDiscountAuthStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model StaffDiscountAuthRequest {
+  id              String                   @id @default(uuid())
+  organizationId  String                   @map("organization_id")
+  orderId         String                   @map("order_id")
+  requestedById   String                   @map("requested_by_id")
+  discountPercent Decimal                  @db.Decimal(5, 2)  @map("discount_percent")
+  originalAmount  Decimal                  @db.Decimal(10, 2) @map("original_amount")
+  discountAmount  Decimal                  @db.Decimal(10, 2) @map("discount_amount")
+  status          StaffDiscountAuthStatus  @default(PENDING)
+  resolvedById    String?                  @map("resolved_by_id")
+  resolvedAt      DateTime?                @map("resolved_at")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  order         Order        @relation(fields: [orderId], references: [id])
+  requestedBy   User         @relation("StaffDiscountRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy    User?        @relation("StaffDiscountResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([status])
+  @@map("staff_discount_auth_requests")
 }

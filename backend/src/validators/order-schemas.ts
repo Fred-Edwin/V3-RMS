@@ -64,8 +64,23 @@ export const RecordPaymentSchema = z
     corporateAccountId: z.string().uuid().optional(),
     corporateEmployeeRef: z.string().max(200).optional(),
     customerCreditAccountId: z.string().uuid().optional(),
+    // Staff discount flag — when true, discount auth request is created before payment is taken
+    applyStaffDiscount: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.applyStaffDiscount === true) {
+      if (
+        data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT ||
+        data.paymentMethod === PaymentMethod.CORPORATE_ACCOUNT ||
+        data.paymentMethod === PaymentMethod.CUSTOMER_CREDIT
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Staff discount cannot be combined with credit account payment methods',
+          path: ['applyStaffDiscount'],
+        });
+      }
+    }
     if (data.paymentMethod === PaymentMethod.SPLIT) {
       if (!data.splitType) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'splitType is required for split payment', path: ['splitType'] });

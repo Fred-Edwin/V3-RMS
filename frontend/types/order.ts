@@ -72,6 +72,9 @@ export interface OrderDetail extends OrderSummary {
   corporateAccountId: string | null;
   corporateEmployeeRef: string | null;
   customerCreditAccountId: string | null;
+  discountPercent: string | null;
+  discountAmount: string | null;
+  discountedById: string | null;
 }
 
 export interface CreateOrderItem {

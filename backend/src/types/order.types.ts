@@ -106,6 +106,9 @@ export interface OrderRecord {
   paidAt: Date | null;
   cancelReason: string | null;
   cancelledBy: { id: string; name: string } | null;
+  discountPercent: string | null;
+  discountAmount: string | null;
+  discountedById: string | null;
   closedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

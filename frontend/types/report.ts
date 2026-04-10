@@ -42,6 +42,8 @@ export interface DailySummary {
   };
   otherIncomeTotal: string;
   otherIncomeByCategory: OtherIncomeCategoryTotal[];
+  staffDiscountTotal: string;
+  staffDiscountOrderCount: number;
 }
 
 export interface WaiterPaymentBreakdown {
@@ -81,6 +83,7 @@ export interface BranchOverviewRow {
   name: string;
   revenue: string;
   otherIncomeTotal: string;
+  staffDiscountTotal: string;
   orderCount: number;
   averagePrepTimeMinutes: {
     KITCHEN: number;

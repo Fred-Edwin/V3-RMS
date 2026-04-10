@@ -61,6 +61,19 @@ export interface ServerToClientEvents {
     dailyNumber: number;
     houseAccountId: string;
   }) => void;
+  'order:staff_discount_pending': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    authRequestId: string;
+    originalAmount: string;
+    discountAmount: string;
+  }) => void;
+  'order:staff_discount_resolved': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    approved: boolean;
+    discountedTotal?: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {

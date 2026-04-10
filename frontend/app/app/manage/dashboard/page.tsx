@@ -16,6 +16,7 @@ import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
 import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
+import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -23,6 +24,7 @@ import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
 import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
+import type { StaffDiscountAuthRequest } from '@/types/staffDiscountAuth';
 
 const formatDisplayDate = (ymd: string): string => {
   const parsed = new Date(`${ymd}T00:00:00`);
@@ -114,6 +116,8 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
+  const [pendingDiscountAuths, setPendingDiscountAuths] = useState<StaffDiscountAuthRequest[]>([]);
+  const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
 
   const loadDailySummary = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -210,6 +214,9 @@ export default function ManagerDashboardPage(): JSX.Element {
     houseAccountAuthService.listPending(accessToken)
       .then((data) => setPendingAuths(data))
       .catch(() => { /* non-critical */ });
+    staffDiscountAuthService.listPending(accessToken)
+      .then((data) => setPendingDiscountAuths(data))
+      .catch(() => { /* non-critical */ });
   }, [accessToken]);
 
   // Keep widget in sync via socket — add new pending auths and remove resolved ones
@@ -236,6 +243,48 @@ export default function ManagerDashboardPage(): JSX.Element {
       socket.off('order:auth_resolved', handleAuthResolved);
     };
   }, [accessToken]);
+
+  // Keep staff discount widget in sync via socket
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleDiscountPending = (payload: { orderId: string; authRequestId: string }) => {
+      if (!accessToken) return;
+      staffDiscountAuthService.getById(payload.authRequestId, accessToken)
+        .then((req) => setPendingDiscountAuths((prev) => {
+          if (prev.some((r) => r.id === req.id)) return prev;
+          return [...prev, req];
+        }))
+        .catch(() => { /* non-critical */ });
+    };
+    const handleDiscountResolved = (payload: { orderId: string }) => {
+      setPendingDiscountAuths((prev) => prev.filter((r) => r.orderId !== payload.orderId));
+    };
+    socket.on('order:staff_discount_pending', handleDiscountPending);
+    socket.on('order:staff_discount_resolved', handleDiscountResolved);
+    return () => {
+      socket.off('order:staff_discount_pending', handleDiscountPending);
+      socket.off('order:staff_discount_resolved', handleDiscountResolved);
+    };
+  }, [accessToken]);
+
+  const handleDiscountDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || discountOverrideSubmittingId) return;
+    setDiscountOverrideSubmittingId(authRequestId);
+    try {
+      await staffDiscountAuthService.override(authRequestId, decision, accessToken);
+      setPendingDiscountAuths((prev) => prev.filter((r) => r.id !== authRequestId));
+      toast({
+        variant: 'success',
+        title: decision === 'APPROVED' ? 'Discount approved' : 'Discount rejected',
+        message: decision === 'APPROVED' ? 'Order returned to Ready at discounted total.' : 'Order returned to Ready at full price.',
+      });
+    } catch {
+      toast({ variant: 'error', title: 'Action failed', message: 'Could not process the decision.' });
+    } finally {
+      setDiscountOverrideSubmittingId(null);
+    }
+  }, [accessToken, discountOverrideSubmittingId, toast]);
 
   const handleAuthDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
     if (!accessToken || authOverrideSubmittingId) return;
@@ -432,6 +481,73 @@ export default function ManagerDashboardPage(): JSX.Element {
                       </button>
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Pending Staff Discount Authorizations ──────────────────── */}
+      {pendingDiscountAuths.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 print:hidden">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-amber-600 shrink-0" />
+            <p className="text-body-sm font-semibold text-amber-800">
+              {pendingDiscountAuths.length === 1
+                ? '1 staff discount awaiting your approval'
+                : `${pendingDiscountAuths.length} staff discounts awaiting your approval`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {pendingDiscountAuths.map((req) => {
+              const loading = discountOverrideSubmittingId === req.id;
+              const original = Number.parseFloat(req.originalAmount);
+              const discounted = original - Number.parseFloat(req.discountAmount);
+              return (
+                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-semibold text-stone-900">
+                      Order #{req.order.dailyNumber}
+                      <span className="ml-2 font-normal text-stone-500 line-through">
+                        KES {original.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="ml-1.5 font-semibold text-green-700">
+                        → KES {discounted.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      </span>
+                    </p>
+                    <p className="text-caption text-stone-500 mt-0.5">
+                      30% staff discount · requested by {req.requestedBy.name}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={!!discountOverrideSubmittingId}
+                      onClick={() => void handleDiscountDecision(req.id, 'APPROVED')}
+                      className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading ? (
+                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <CheckCircle size={13} />
+                      )}
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!!discountOverrideSubmittingId}
+                      onClick={() => void handleDiscountDecision(req.id, 'REJECTED')}
+                      className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading ? (
+                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <XCircle size={13} />
+                      )}
+                      Reject
+                    </button>
+                  </div>
                 </div>
               );
             })}

@@ -2,6 +2,7 @@
 import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
+import { staffDiscountAuthService } from './staff-discount-auth-service';
 import type { MenuItemWithCategoryRecord } from '../repositories/menu-repository';
 import { menuRepository } from '../repositories/menu-repository';
 import type { FullOrderPrismaRecord } from '../repositories/order-repository';
@@ -34,6 +35,12 @@ vi.mock('../repositories/order-repository', () => ({
     recordPayment: vi.fn(),
     cancel: vi.fn(),
     updateStatus: vi.fn(),
+  },
+}));
+
+vi.mock('./staff-discount-auth-service', () => ({
+  staffDiscountAuthService: {
+    createAuthRequest: vi.fn(),
   },
 }));
 
@@ -500,6 +507,32 @@ describe('orderService.recordPayment', () => {
     expect(result.status).toBe('CLOSED');
     expect(result.paymentMethod).toBe('MPESA');
   });
+
+  it('creates staff discount auth request and returns AWAITING_AUTHORIZATION when applyStaffDiscount is true', async () => {
+    const readyOrder = buildDeliveryReadyOrderRecord();
+    const pendingOrder = {
+      ...readyOrder,
+      type: 'DINE_IN',
+      status: 'AWAITING_AUTHORIZATION',
+    } as FullOrderPrismaRecord;
+
+    vi.mocked(orderRepository.findById)
+      .mockResolvedValueOnce({ ...readyOrder, type: 'DINE_IN', status: 'READY' } as FullOrderPrismaRecord)
+      .mockResolvedValueOnce(pendingOrder);
+    vi.mocked(staffDiscountAuthService.createAuthRequest).mockResolvedValue({} as ReturnType<typeof staffDiscountAuthService.createAuthRequest> extends Promise<infer T> ? T : never);
+
+    const result = await orderService.recordPayment(
+      '33333333-3333-4333-8333-333333333333',
+      { paymentMethod: PaymentMethod.CASH, applyStaffDiscount: true },
+      waiterActor,
+    );
+
+    expect(staffDiscountAuthService.createAuthRequest).toHaveBeenCalledWith(
+      '33333333-3333-4333-8333-333333333333',
+      organizationId,
+      waiterActor,
+    );
+    expect(orderRepository.recordPayment).not.toHaveBeenCalled();
+    expect(result.status).toBe('AWAITING_AUTHORIZATION');
+  });
 });
-
-

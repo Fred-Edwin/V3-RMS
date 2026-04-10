@@ -13,6 +13,7 @@ import { corporateAccountService, type CorporateAccountDropdownItem } from '@/se
 import { customerCreditService, type CustomerCreditDropdownItem } from '@/services/customerCreditService';
 import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
+import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
 import { orderService } from '@/services/orderService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
@@ -84,6 +85,8 @@ export default function OrdersPage(): JSX.Element {
   const [pendingAuthHolderName, setPendingAuthHolderName] = useState<string | null>(null);
   const [pendingAuthExpiresAt, setPendingAuthExpiresAt] = useState<string | null>(null);
   const [isAuthOverrideSubmitting, setIsAuthOverrideSubmitting] = useState(false);
+  const [pendingStaffDiscountRequestId, setPendingStaffDiscountRequestId] = useState<string | null>(null);
+  const [isStaffDiscountOverrideSubmitting, setIsStaffDiscountOverrideSubmitting] = useState(false);
 
   const syncFiltersFromUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -178,23 +181,57 @@ export default function OrdersPage(): JSX.Element {
     return () => { socket.off('order:all_ready', handleAllReady); };
   }, []);
 
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleDiscountResolved = (payload: { orderId: string; dailyNumber: number; approved: boolean; discountedTotal?: string }) => {
+      updateOrderRealTime(payload.orderId, { status: 'READY' });
+      setSelectedOrder((prev) => {
+        if (!prev || prev.id !== payload.orderId) return prev;
+        return {
+          ...prev,
+          status: 'READY',
+          ...(payload.approved && payload.discountedTotal ? { total: payload.discountedTotal } : {}),
+        };
+      });
+      setPendingStaffDiscountRequestId(null);
+      if (payload.approved) {
+        toast({ variant: 'success', title: `Order #${payload.dailyNumber} discount approved`, message: `Discounted total: ${payload.discountedTotal ?? ''}` });
+      } else {
+        toast({ variant: 'info', title: `Order #${payload.dailyNumber} discount rejected`, message: 'Order is ready at full price.' });
+      }
+    };
+    socket.on('order:staff_discount_resolved', handleDiscountResolved);
+    return () => { socket.off('order:staff_discount_resolved', handleDiscountResolved); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- toast and updateOrderRealTime are stable; no risk of loop
+  }, [updateOrderRealTime]);
+
   const handleOpenOrder = async (orderId: string) => {
     if (!accessToken) return;
     setPendingAuthRequestId(null);
     setPendingAuthHolderName(null);
     setPendingAuthExpiresAt(null);
+    setPendingStaffDiscountRequestId(null);
     try {
       const order = await orderService.getById(orderId, accessToken);
       setSelectedOrder(order);
       setIsDetailOpen(true);
       if (order.status === 'AWAITING_AUTHORIZATION') {
-        houseAccountAuthService.getPendingByOrderId(orderId, accessToken)
+        // Try staff discount path first; fall back to house account
+        staffDiscountAuthService.getPendingByOrderId(orderId, accessToken)
           .then((auth) => {
-            setPendingAuthRequestId(auth.id);
-            setPendingAuthHolderName(auth.houseAccount.user.name);
-            setPendingAuthExpiresAt(auth.expiresAt);
+            setPendingStaffDiscountRequestId(auth.id);
           })
-          .catch(() => { /* non-critical */ });
+          .catch(() => {
+            // Not a staff discount — try house account
+            houseAccountAuthService.getPendingByOrderId(orderId, accessToken)
+              .then((auth) => {
+                setPendingAuthRequestId(auth.id);
+                setPendingAuthHolderName(auth.houseAccount.user.name);
+                setPendingAuthExpiresAt(auth.expiresAt);
+              })
+              .catch(() => { /* non-critical */ });
+          });
       }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to load order details.';
@@ -208,10 +245,14 @@ export default function OrdersPage(): JSX.Element {
     try {
       const updated = await orderService.recordPayment(orderId, payload, accessToken);
       if (updated.status === 'AWAITING_AUTHORIZATION') {
-        // House account payment — order is locked pending approval, not closed yet
         updateOrderRealTime(orderId, { status: 'AWAITING_AUTHORIZATION' });
         setSelectedOrder((prev) => (prev ? { ...prev, status: 'AWAITING_AUTHORIZATION' } : prev));
-        toast({ variant: 'info', title: 'Authorization requested', message: 'The account holder has been notified to approve the charge.' });
+        if (payload.applyStaffDiscount) {
+          toast({ variant: 'info', title: 'Discount requested', message: 'A manager has been notified to approve the staff discount.' });
+        } else {
+          // House account payment — order is locked pending approval, not closed yet
+          toast({ variant: 'info', title: 'Authorization requested', message: 'The account holder has been notified to approve the charge.' });
+        }
       } else {
         // Normal payment — order closed
         updateOrderRealTime(orderId, { status: 'CLOSED' });
@@ -351,6 +392,32 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Override failed', message });
     } finally {
       setIsAuthOverrideSubmitting(false);
+    }
+  };
+
+  const handleStaffDiscountOverride = async (orderId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || !pendingStaffDiscountRequestId || isStaffDiscountOverrideSubmitting) return;
+    setIsStaffDiscountOverrideSubmitting(true);
+    try {
+      await staffDiscountAuthService.override(pendingStaffDiscountRequestId, decision, accessToken);
+      if (decision === 'APPROVED') {
+        // Order returns to READY at discounted total; re-fetch to get updated total
+        const updated = await orderService.getById(orderId, accessToken);
+        updateOrderRealTime(orderId, { status: 'READY' });
+        setSelectedOrder(updated);
+        setPendingStaffDiscountRequestId(null);
+        toast({ variant: 'success', title: 'Discount approved', message: 'Order returned to Ready at the discounted total.' });
+      } else {
+        updateOrderRealTime(orderId, { status: 'READY' });
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'READY' } : prev));
+        setPendingStaffDiscountRequestId(null);
+        toast({ variant: 'success', title: 'Discount rejected', message: 'Order returned to Ready at full price.' });
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Override failed.';
+      toast({ variant: 'error', title: 'Override failed', message });
+    } finally {
+      setIsStaffDiscountOverrideSubmitting(false);
     }
   };
 
@@ -573,6 +640,9 @@ export default function OrdersPage(): JSX.Element {
         pendingAuthRequestId={pendingAuthRequestId ?? undefined}
         pendingAuthHolderName={pendingAuthHolderName ?? undefined}
         pendingAuthExpiresAt={pendingAuthExpiresAt ?? undefined}
+        pendingStaffDiscountRequestId={pendingStaffDiscountRequestId ?? undefined}
+        onStaffDiscountOverride={(orderId, decision) => void handleStaffDiscountOverride(orderId, decision)}
+        isStaffDiscountOverrideSubmitting={isStaffDiscountOverrideSubmitting}
       />
 
       <CancelOrderSheet

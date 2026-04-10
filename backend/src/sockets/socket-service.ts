@@ -183,4 +183,33 @@ export const socketService = {
     io.to(userRoomName(waiterId)).emit('order:auth_resolved', payload);
     io.to(branchRoomName(organizationId)).emit('order:auth_resolved', payload);
   },
+
+  /** Notifies the waiter that a staff discount approval is pending, and broadcasts to branch so
+   *  managers see the order card update immediately. */
+  emitStaffDiscountAuthPending: (
+    waiterId: string,
+    organizationId: string,
+    payload: {
+      orderId: string;
+      dailyNumber: number;
+      authRequestId: string;
+      originalAmount: string;
+      discountAmount: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:staff_discount_pending', payload);
+    io.to(branchRoomName(organizationId)).emit('order:staff_discount_pending', payload);
+  },
+
+  /** Notifies the waiter and all branch members that the staff discount was approved or rejected. */
+  emitStaffDiscountAuthResolved: (
+    waiterId: string,
+    organizationId: string,
+    payload: { orderId: string; dailyNumber: number; approved: boolean; discountedTotal?: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:staff_discount_resolved', payload);
+    io.to(branchRoomName(organizationId)).emit('order:staff_discount_resolved', payload);
+  },
 };

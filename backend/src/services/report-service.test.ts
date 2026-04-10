@@ -69,6 +69,8 @@ const sampleDailySummary = {
   },
   otherIncomeTotal: '0.00',
   otherIncomeByCategory: [],
+  staffDiscountTotal: '0.00',
+  staffDiscountOrderCount: 0,
 };
 
 describe('reportService', () => {

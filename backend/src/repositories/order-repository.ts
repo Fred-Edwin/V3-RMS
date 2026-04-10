@@ -839,6 +839,47 @@ export const orderRepository = {
     });
   },
 
+  /**
+   * Applies a staff discount to an order that is in AWAITING_AUTHORIZATION status.
+   * Atomically reduces order.total by discountAmount and records the discount metadata.
+   * Does NOT change order status — the caller is responsible for that.
+   */
+  applyDiscount: async (
+    orderId: string,
+    organizationId: string,
+    discountPercent: string,
+    discountAmount: string,
+    discountedById: string,
+  ): Promise<FullOrderPrismaRecord | null> => {
+    const { Prisma } = await import('@prisma/client');
+    const discountDecimal = new Prisma.Decimal(discountAmount);
+
+    const updated = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        organizationId,
+        status: OrderStatus.AWAITING_AUTHORIZATION,
+      },
+      data: {
+        total: {
+          decrement: discountDecimal,
+        },
+        discountPercent,
+        discountAmount,
+        discountedById,
+      },
+    });
+
+    if (updated.count === 0) {
+      return null;
+    }
+
+    return prisma.order.findFirst({
+      where: { id: orderId, organizationId },
+      include: orderInclude,
+    });
+  },
+
   updateStatus: async (
     orderId: string,
     organizationId: string,

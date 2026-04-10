@@ -1,5 +1,6 @@
 ﻿import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
 import { houseAccountAuthService } from './house-account-auth-service';
+import { staffDiscountAuthService } from './staff-discount-auth-service';
 import { authRepository } from '../repositories/auth-repository';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
@@ -213,6 +214,9 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
     paidAt: order.paidAt,
     cancelReason: order.cancelReason,
     cancelledBy: order.cancelledBy ? { id: order.cancelledBy.id, name: order.cancelledBy.name } : null,
+    discountPercent: order.discountPercent?.toString() ?? null,
+    discountAmount: order.discountAmount?.toString() ?? null,
+    discountedById: order.discountedById ?? null,
     closedAt: order.closedAt,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
@@ -776,6 +780,14 @@ export const orderService = {
 
     if (order.type === OrderType.DELIVERY && data.paymentMethod !== PaymentMethod.MPESA) {
       throw new ValidationError('Delivery orders only accept MPESA payment');
+    }
+
+    // Staff discount authorization — deferred payment flow
+    if (data.applyStaffDiscount === true) {
+      await staffDiscountAuthService.createAuthRequest(orderId, organizationId, actor);
+      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      if (!pendingOrder) throw new NotFoundError('Order not found');
+      return serializeOrder(pendingOrder);
     }
 
     // Validate credit accounts exist, are active, and won't exceed credit limit (fast-fail check)
