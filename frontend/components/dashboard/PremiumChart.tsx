@@ -94,8 +94,8 @@ interface Point {
   date?: string;
 }
 
-// McKinsey-style palette: cobalt primary (Branch 1), violet secondary (Branch 2)
-const seriesPalette = ['#2563EB', '#7C3AED', '#E11D48', '#059669', '#0D9488', '#C4862A'];
+// Branch palette: red primary, blue secondary, then fallbacks
+const seriesPalette = ['#DC2626', '#2563EB', '#16A34A', '#D97706', '#0D9488', '#7C3AED'];
 
 const getPointsPath = (points: Point[], minY: number, maxY: number): string => {
   if (points.length === 0) {
@@ -729,8 +729,8 @@ export function MultiLineTrendChart({
                 const color = getSeriesColor(index, entry.color);
                 return (
                   <linearGradient key={`${gradientBaseId}-${entry.id}`} id={`${gradientBaseId}-grad-${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-                    <stop offset="100%" stopColor={color} stopOpacity="0" />
+                    <stop offset="0%" stopColor={color} stopOpacity="0.45" />
+                    <stop offset="100%" stopColor={color} stopOpacity="0.05" />
                   </linearGradient>
                 );
               })}

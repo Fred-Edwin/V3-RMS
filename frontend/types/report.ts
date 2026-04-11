@@ -336,7 +336,7 @@ export interface ItemsPerformanceReport {
     startDate: string;
     endDate: string;
   };
-  organizationId: string;
+  organizationId: string | null;
   organizationName: string;
   topItems: ItemPerformanceRow[];
   bottomItems: ItemPerformanceRow[];

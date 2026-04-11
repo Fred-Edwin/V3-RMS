@@ -1661,40 +1661,43 @@ export const reportRepository = {
   },
 
   getItemsPerformance: async (
-    organizationId: string,
+    organizationId: string | null,
     startDate: Date,
     endDate: Date,
     limit: number,
   ): Promise<ItemsPerformanceReport> => {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
 
-    const [organization, orderItems] = await Promise.all([
-      prisma.organization.findFirst({
+    const orderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          ...(organizationId ? { organizationId } : {}),
+          createdAt: { gte: start, lt: endExclusive },
+          status: { not: 'CANCELLED' },
+          createdBy: { isTestUser: false },
+        },
+      },
+      select: {
+        quantity: true,
+        unitPrice: true,
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            category: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    let organizationName = 'All Branches';
+    if (organizationId) {
+      const org = await prisma.organization.findFirst({
         where: { id: organizationId },
-        select: { id: true, name: true },
-      }),
-      prisma.orderItem.findMany({
-        where: {
-          order: {
-            organizationId,
-            createdAt: { gte: start, lt: endExclusive },
-            status: { not: 'CANCELLED' },
-            createdBy: { isTestUser: false },
-          },
-        },
-        select: {
-          quantity: true,
-          unitPrice: true,
-          menuItem: {
-            select: {
-              id: true,
-              name: true,
-              category: { select: { name: true } },
-            },
-          },
-        },
-      }),
-    ]);
+        select: { name: true },
+      });
+      organizationName = org?.name ?? 'Unknown Branch';
+    }
 
     // Aggregate by menuItemId
     const map = new Map<string, { menuItemId: string; name: string; categoryName: string; quantity: number; revenue: Prisma.Decimal }>();
@@ -1741,7 +1744,7 @@ export const reportRepository = {
         endDate: formatDateOnly(endDate),
       },
       organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      organizationName,
       topItems,
       bottomItems,
       limit,

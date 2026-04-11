@@ -412,8 +412,14 @@ export const reportService = {
     actor: Actor,
     query: ItemsPerformanceQueryInput,
   ): Promise<ItemsPerformanceReport> => {
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
+
+    // Directors/Accountants may omit organizationId to get cross-branch aggregation
+    if (actor.role === 'DIRECTOR' || actor.role === 'ACCOUNTANT') {
+      return reportRepository.getItemsPerformance(query.organizationId ?? null, start, end, query.limit);
+    }
+
+    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
     return reportRepository.getItemsPerformance(organizationId, start, end, query.limit);
   },
 
