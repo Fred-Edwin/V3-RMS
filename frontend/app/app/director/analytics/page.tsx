@@ -36,6 +36,7 @@ import { ApiError } from '@/types/api';
 import type {
   BranchOverview,
   DirectorTrendsReport,
+  DiscountUsageReport,
   HourlyHeatmapReport,
   ItemsPerformanceReport,
   StaffPerformancePeriod,
@@ -71,7 +72,7 @@ const formatCurrency = (value: string | number): string => {
   return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-const TABS = ['Overview', 'Branches', 'Revenue', 'Peak Hours', 'Staff', 'Menu Items'] as const;
+const TABS = ['Overview', 'Branches', 'Revenue', 'Peak Hours', 'Staff', 'Menu Items', 'Discounts'] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -119,6 +120,11 @@ export default function DirectorAnalyticsPage(): JSX.Element {
   const [itemsLimit, setItemsLimit] = useState<number>(10);
   const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+
+  // ── Discounts (tab 7) ─────────────────────────────────────────────────────
+  const [discountsBranchId, setDiscountsBranchId] = useState<string>('');
+  const [discountUsage, setDiscountUsage] = useState<DiscountUsageReport | null>(null);
+  const [isLoadingDiscounts, setIsLoadingDiscounts] = useState(false);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
@@ -216,10 +222,34 @@ export default function DirectorAnalyticsPage(): JSX.Element {
     }
   }, [accessToken, committedEnd, committedStart, itemsBranchId, itemsLimit, toast]);
 
+  const runDiscounts = useCallback(async (): Promise<void> => {
+    if (!accessToken) return;
+    setIsLoadingDiscounts(true);
+    try {
+      const data = await reportService.getDiscountUsage(accessToken, {
+        startDate: committedStart,
+        endDate: committedEnd,
+        organizationId: discountsBranchId || undefined,
+      });
+      setDiscountUsage(data);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load discount data.';
+      toast({ variant: 'error', title: 'Discount report failed', message });
+      setDiscountUsage(null);
+    } finally {
+      setIsLoadingDiscounts(false);
+    }
+  }, [accessToken, committedEnd, committedStart, discountsBranchId, toast]);
+
   const handleRun = useCallback((): void => {
     setCommittedStart(startDate);
     setCommittedEnd(endDate);
     setHasRun(true);
+    // Invalidate lazy-loaded tab data so it re-fetches with the new date range
+    setHourlyData(null);
+    setStaffReport(null);
+    setItemsData(null);
+    setDiscountUsage(null);
     void runAggregate(startDate, endDate);
   }, [endDate, runAggregate, startDate]);
 
@@ -264,8 +294,19 @@ export default function DirectorAnalyticsPage(): JSX.Element {
     if (activeTab === 'Menu Items' && !itemsData && !isLoadingItems) {
       void runItems();
     }
+    if (activeTab === 'Discounts' && !discountUsage && !isLoadingDiscounts) {
+      void runDiscounts();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- run only when tab changes
   }, [activeTab, hasRun]);
+
+  // Re-fetch discounts when branch filter changes (if tab is active)
+  useEffect(() => {
+    if (activeTab === 'Discounts' && hasRun && !isLoadingDiscounts) {
+      void runDiscounts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only fire on branch change
+  }, [discountsBranchId]);
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -921,6 +962,206 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 7 — DISCOUNTS
+      ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'Discounts' && (
+        <div className="space-y-5">
+          {/* Header row */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-heading-md font-semibold text-stone-900">Discount Performance</h2>
+              <p className="mt-0.5 text-body-sm text-stone-500">{periodLabel}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Select
+                value={discountsBranchId}
+                onChange={(e) => { setDiscountsBranchId(e.target.value); }}
+                className="w-44"
+                options={[
+                  { value: '', label: 'All Branches' },
+                  ...branches.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+              />
+              <Button size="sm" variant="secondary" onClick={() => void runDiscounts()} isLoading={isLoadingDiscounts}>
+                Reload
+              </Button>
+            </div>
+          </div>
+
+          {isLoadingDiscounts ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-24 animate-shimmer rounded-xl bg-gradient-to-r from-stone-100 via-stone-50 to-stone-100 bg-[length:200%_100%]" />
+                ))}
+              </div>
+              <SkeletonTable rows={4} columns={4} />
+            </div>
+          ) : !discountUsage || discountUsage.totalOrders === 0 ? (
+            <EmptyState
+              icon={<Wallet size={22} />}
+              heading="No discount usage in this period"
+              body="No customer discounts were applied in the selected date range."
+            />
+          ) : (
+            <div className="space-y-5">
+
+              {/* ── KPI cards ─────────────────────────────────────────── */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* Total Discounted */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Total Discounted</p>
+                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                    {formatCurrency(discountUsage.totalDiscounted)}
+                  </p>
+                  <p className="mt-0.5 text-caption text-stone-400">{periodLabel}</p>
+                </div>
+                {/* Orders with discount */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Discounted Orders</p>
+                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                    {discountUsage.totalOrders}
+                  </p>
+                  <p className="mt-0.5 text-caption text-stone-400">Orders with a discount applied</p>
+                </div>
+                {/* Avg per discounted order */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Avg per Order</p>
+                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                    {discountUsage.totalOrders > 0
+                      ? formatCurrency(
+                          String(Number.parseFloat(discountUsage.totalDiscounted) / discountUsage.totalOrders),
+                        )
+                      : '—'}
+                  </p>
+                  <p className="mt-0.5 text-caption text-stone-400">Average discount value</p>
+                </div>
+              </div>
+
+              {/* ── By discount type + by branch ──────────────────────── */}
+              <div className="grid gap-5 lg:grid-cols-2">
+
+                {/* By Discount Type + By Branch — consolidated */}
+                <div className="col-span-2 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                  <div className="grid grid-cols-2 divide-x divide-stone-100">
+                    {/* By Discount Type */}
+                    <div>
+                      <div className="border-b border-stone-100 px-5 py-3.5">
+                        <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Discount Type</h3>
+                      </div>
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-stone-50">
+                            {['Discount', 'Uses', 'Discounted'].map((h) => (
+                              <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {discountUsage.byDiscount
+                            .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+                            .map((row) => (
+                              <tr key={row.discountId} className="hover:bg-stone-50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <span className="text-body-sm font-medium text-stone-900">{row.name}</span>
+                                  <span className="ml-2 text-caption text-stone-400">
+                                    {row.type === 'PERCENTAGE' ? `${row.value}%` : `KES ${Number.parseFloat(row.value).toLocaleString('en-KE')}`}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-body-sm font-semibold text-espresso">
+                                  {formatCurrency(row.totalDiscounted)}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* By Branch */}
+                    <div>
+                      <div className="border-b border-stone-100 px-5 py-3.5">
+                        <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Branch</h3>
+                      </div>
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-stone-50">
+                            {['Branch', 'Uses', 'Discounted'].map((h) => (
+                              <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100">
+                          {discountUsage.byBranch
+                            .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+                            .map((row) => (
+                              <tr key={row.organizationId} className="hover:bg-stone-50 transition-colors">
+                                <td className="px-4 py-3 text-body-sm font-medium text-stone-900">{row.name}</td>
+                                <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-body-sm font-semibold text-espresso">
+                                  {formatCurrency(row.totalDiscounted)}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── By Waiter ─────────────────────────────────────────── */}
+              <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+                <div className="border-b border-stone-100 px-5 py-3.5">
+                  <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Waiter</h3>
+                  <p className="mt-0.5 text-caption text-stone-400">Waiters who applied the most discounts in this period</p>
+                </div>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-stone-50">
+                      {['#', 'Waiter', 'Uses', 'Total Discounted', 'Avg per Use'].map((h) => (
+                        <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {discountUsage.byWaiter
+                      .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+                      .map((row, i) => {
+                        const avg = row.orderCount > 0
+                          ? Number.parseFloat(row.totalDiscounted) / row.orderCount
+                          : 0;
+                        return (
+                          <tr key={row.waiterId} className="hover:bg-stone-50 transition-colors">
+                            <td className="px-4 py-3 tabular-nums text-stone-400 text-body-sm">{i + 1}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-espresso/10 text-label-sm font-bold text-espresso">
+                                  {row.name.charAt(0).toUpperCase()}
+                                </span>
+                                <span className="text-body-sm font-medium text-stone-900">{row.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
+                            <td className="px-4 py-3 tabular-nums text-body-sm font-semibold text-espresso">
+                              {formatCurrency(row.totalDiscounted)}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-body-sm text-stone-500">
+                              {formatCurrency(String(avg))}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
             </div>
           )}
         </div>

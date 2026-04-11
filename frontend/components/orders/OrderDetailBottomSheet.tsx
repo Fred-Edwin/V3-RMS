@@ -8,6 +8,7 @@ import type { OrderDetail, PaymentMethod } from '@/types/order';
 import type { HouseAccountDropdownItem } from '@/services/houseAccountService';
 import type { CorporateAccountDropdownItem } from '@/services/corporateAccountService';
 import type { CustomerCreditDropdownItem } from '@/services/customerCreditService';
+import type { Discount } from '@/types/discount';
 
 export interface PaymentPayload {
   paymentMethod: PaymentMethod;
@@ -21,6 +22,7 @@ export interface PaymentPayload {
   corporateEmployeeRef?: string;
   customerCreditAccountId?: string;
   applyStaffDiscount?: boolean;
+  applyDiscountId?: string;
 }
 
 interface OrderDetailBottomSheetProps {
@@ -51,6 +53,12 @@ interface OrderDetailBottomSheetProps {
   pendingStaffDiscountRequestId?: string;
   onStaffDiscountOverride?: (orderId: string, decision: 'APPROVED' | 'REJECTED') => void;
   isStaffDiscountOverrideSubmitting?: boolean;
+  // Customer discount props
+  availableDiscounts?: Discount[];
+  pendingCustomerDiscountRequestId?: string;
+  pendingCustomerDiscountName?: string;
+  onCustomerDiscountOverride?: (orderId: string, decision: 'APPROVED' | 'REJECTED') => void;
+  isCustomerDiscountOverrideSubmitting?: boolean;
 }
 
 // UI-level split type options — all resolve to paymentMethod: SPLIT on submit
@@ -129,9 +137,16 @@ function PaymentSummary({ order }: { order: OrderDetail }): JSX.Element {
           )}
         </>
       )}
-      {order.discountPercent && order.discountAmount && (
+      {order.discountAmount && (
         <>
-          <Row title="Staff Discount" value={`${Number.parseFloat(order.discountPercent).toFixed(0)}%`} />
+          <Row
+            title={order.discountId ? 'Customer Discount' : 'Staff Discount'}
+            value={
+              order.discountPercent
+                ? `${Number.parseFloat(order.discountPercent).toFixed(0)}%`
+                : `KES ${Number.parseFloat(order.discountAmount).toFixed(2)}`
+            }
+          />
           <Row title="Saved" value={`KES ${Number.parseFloat(order.discountAmount).toFixed(2)}`} />
         </>
       )}
@@ -167,6 +182,11 @@ export function OrderDetailBottomSheet({
   pendingStaffDiscountRequestId,
   onStaffDiscountOverride,
   isStaffDiscountOverrideSubmitting = false,
+  availableDiscounts = [],
+  pendingCustomerDiscountRequestId,
+  pendingCustomerDiscountName,
+  onCustomerDiscountOverride,
+  isCustomerDiscountOverrideSubmitting = false,
 }: OrderDetailBottomSheetProps) {
   const [uiPaymentMethod, setUiPaymentMethod] = useState<UiPaymentValue>('MPESA');
   const [mpesaCode, setMpesaCode] = useState('');
@@ -174,7 +194,8 @@ export function OrderDetailBottomSheet({
   const [cashAmount, setCashAmount] = useState('');
   const [cardAmount, setCardAmount] = useState('');
   const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
-  const [applyStaffDiscount, setApplyStaffDiscount] = useState(false);
+  // 'staff' = staff discount; a discount UUID = customer discount; null = no discount
+  const [selectedDiscountId, setSelectedDiscountId] = useState<string | null>(null);
 
   // Credit account selectors
   const [selectedHouseAccountId, setSelectedHouseAccountId] = useState('');
@@ -661,40 +682,74 @@ export function OrderDetailBottomSheet({
                     </div>
                   )}
 
-                  {/* Staff Discount Toggle — only shown for non-credit methods when discount not yet applied */}
+                  {/* Discount Picker — compact dropdown, shown when no discount applied, non-credit payment */}
                   {!order.discountAmount &&
                     uiPaymentMethod !== 'HOUSE_ACCOUNT' &&
                     uiPaymentMethod !== 'CORPORATE_ACCOUNT' &&
-                    uiPaymentMethod !== 'CUSTOMER_CREDIT' && (
-                    <div className="rounded-md border border-stone-200 p-3 flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-label-sm font-medium text-stone-700">Staff Discount (30%)</p>
-                        <p className="text-caption text-stone-500">Requires manager approval</p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={applyStaffDiscount}
-                        onChange={(e) => setApplyStaffDiscount(e.target.checked)}
-                        className="mt-0.5 h-4 w-4 accent-espresso shrink-0"
+                    uiPaymentMethod !== 'CUSTOMER_CREDIT' &&
+                    (isOwner || availableDiscounts.length > 0) && (
+                    <div className="space-y-1">
+                      <p className="text-label-sm font-medium text-stone-700">Apply Discount</p>
+                      <Select
+                        value={selectedDiscountId ?? ''}
+                        onChange={(e) => setSelectedDiscountId(e.target.value === '' ? null : e.target.value)}
+                        options={[
+                          { value: '', label: 'No discount' },
+                          ...(isOwner ? [{ value: 'staff', label: 'Staff Discount (30%) — needs approval' }] : []),
+                          ...availableDiscounts.map((d) => {
+                            const valueLabel = d.type === 'PERCENTAGE' ? `${d.value}%` : `KES ${d.value}`;
+                            const suffix = d.requiresApproval ? 'needs approval' : 'instant';
+                            return { value: d.id, label: `${d.name} (${valueLabel}) — ${suffix}` };
+                          }),
+                        ]}
                       />
                     </div>
                   )}
 
-                  {applyStaffDiscount && !order.discountAmount && (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
-                      <p className="text-label-sm font-medium text-amber-800">
-                        Discounted total: KES {(Number.parseFloat(order.total) * 0.7).toFixed(2)}
-                      </p>
-                      <p className="text-caption text-amber-700">
-                        Saving KES {(Number.parseFloat(order.total) * 0.3).toFixed(2)} — a manager must approve before you can collect payment.
-                      </p>
-                    </div>
-                  )}
+                  {/* Discount preview card — shows when a discount is selected but not yet applied */}
+                  {selectedDiscountId !== null && !order.discountAmount && (() => {
+                    const isStaff = selectedDiscountId === 'staff';
+                    const customerDiscount = isStaff
+                      ? null
+                      : availableDiscounts.find((d) => d.id === selectedDiscountId);
+                    const savedAmount = isStaff
+                      ? (Number.parseFloat(order.total) * 0.3).toFixed(2)
+                      : customerDiscount
+                      ? customerDiscount.type === 'PERCENTAGE'
+                        ? (
+                            (Number.parseFloat(order.total) * Number.parseFloat(customerDiscount.value)) /
+                            100
+                          ).toFixed(2)
+                        : Math.min(
+                            Number.parseFloat(customerDiscount.value),
+                            Number.parseFloat(order.total),
+                          ).toFixed(2)
+                      : '0.00';
+                    const discountedTotal = (
+                      Number.parseFloat(order.total) - Number.parseFloat(savedAmount)
+                    ).toFixed(2);
+                    const needsApproval =
+                      isStaff || (customerDiscount?.requiresApproval ?? false);
+                    return (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-1">
+                        <p className="text-label-sm font-medium text-amber-800">
+                          Discounted total: KES {discountedTotal}
+                        </p>
+                        <p className="text-caption text-amber-700">
+                          Saving KES {savedAmount}
+                          {needsApproval
+                            ? ' — a manager must approve before you can collect payment.'
+                            : ' — discount will be applied immediately.'}
+                        </p>
+                      </div>
+                    );
+                  })()}
 
+                  {/* Discount applied confirmation */}
                   {order.discountAmount && (
                     <div className="rounded-md border border-green-200 bg-green-50 p-3 space-y-1">
                       <p className="text-label-sm font-medium text-green-800">
-                        30% Staff Discount Applied — Total: KES {Number.parseFloat(order.total).toFixed(2)}
+                        Discount Applied — Total: KES {Number.parseFloat(order.total).toFixed(2)}
                       </p>
                       <p className="text-caption text-green-700">
                         Discount approved. Please collect payment at the discounted amount above.
@@ -722,9 +777,17 @@ export function OrderDetailBottomSheet({
                       (uiPaymentMethod === 'CUSTOMER_CREDIT' && !selectedCustomerCreditId)
                     }
                     onClick={() => {
-                      if (applyStaffDiscount && !order.discountAmount) {
+                      if (selectedDiscountId === 'staff' && !order.discountAmount) {
                         // Staff discount path — submit discount request; actual payment follows approval
                         onPayment(order.id, { paymentMethod: uiPaymentMethod as PaymentMethod, applyStaffDiscount: true });
+                        return;
+                      }
+                      if (selectedDiscountId !== null && selectedDiscountId !== 'staff' && !order.discountAmount) {
+                        // Customer discount path
+                        onPayment(order.id, {
+                          paymentMethod: uiPaymentMethod as PaymentMethod,
+                          applyDiscountId: selectedDiscountId,
+                        });
                         return;
                       }
                       if (uiPaymentMethod === 'SPLIT_MPESA_CASH') {
@@ -768,7 +831,15 @@ export function OrderDetailBottomSheet({
                       }
                     }}
                   >
-                    {applyStaffDiscount && !order.discountAmount ? 'Request Discount & Await Approval' : 'Confirm Payment'}
+                    {selectedDiscountId !== null && !order.discountAmount
+                      ? (() => {
+                          if (selectedDiscountId === 'staff') return 'Request Discount & Await Approval';
+                          const d = availableDiscounts.find((x) => x.id === selectedDiscountId);
+                          return d?.requiresApproval
+                            ? 'Request Discount & Await Approval'
+                            : 'Apply Discount & Confirm Payment';
+                        })()
+                      : 'Confirm Payment'}
                   </Button>
                 </>
               )}
@@ -814,8 +885,42 @@ export function OrderDetailBottomSheet({
             </div>
           ))()}
 
-          {/* House account pending — identified by absence of staff discount request */}
-          {order.status === 'AWAITING_AUTHORIZATION' && !pendingStaffDiscountRequestId && (() => {
+          {/* Customer discount pending */}
+          {order.status === 'AWAITING_AUTHORIZATION' && pendingCustomerDiscountRequestId && (() => (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="text-amber-600 shrink-0" />
+                <p className="text-label-sm font-semibold text-amber-800">Awaiting Discount Approval</p>
+              </div>
+              <p className="text-body-sm text-amber-700">
+                A{pendingCustomerDiscountName ? ` "${pendingCustomerDiscountName}"` : ''} discount has been requested. A manager must approve before payment can be collected.
+              </p>
+              {isManager && onCustomerDiscountOverride && (
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    isLoading={isCustomerDiscountOverrideSubmitting}
+                    onClick={() => onCustomerDiscountOverride(order.id, 'APPROVED')}
+                  >
+                    Approve Discount
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1"
+                    isLoading={isCustomerDiscountOverrideSubmitting}
+                    onClick={() => onCustomerDiscountOverride(order.id, 'REJECTED')}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))()}
+
+          {/* House account pending — identified by absence of staff or customer discount request */}
+          {order.status === 'AWAITING_AUTHORIZATION' && !pendingStaffDiscountRequestId && !pendingCustomerDiscountRequestId && (() => {
             const isExpired = pendingAuthExpiresAt ? new Date(pendingAuthExpiresAt) < new Date() : false;
             return (
               <div className={`rounded-md border p-4 space-y-3 ${isExpired ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>

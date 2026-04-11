@@ -4,6 +4,8 @@ import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 import type {
   AccountantReconciliationQuery,
   AccountantReconciliationReport,
+  DiscountUsageQuery,
+  DiscountUsageReport,
   BranchTrendsQuery,
   BranchTrendsReport,
   BranchOverview,
@@ -205,6 +207,19 @@ export const reportService = {
     apiClient.get(
       `/reports/accountant-reconciliation${toQueryString({
         date: query.date,
+        organizationId: query.organizationId,
+      })}`,
+      token,
+    ),
+
+  getDiscountUsage: (
+    token: string,
+    query: DiscountUsageQuery,
+  ): Promise<DiscountUsageReport> =>
+    apiClient.get(
+      `/reports/discount-usage${toQueryString({
+        startDate: query.startDate,
+        endDate: query.endDate,
         organizationId: query.organizationId,
       })}`,
       token,

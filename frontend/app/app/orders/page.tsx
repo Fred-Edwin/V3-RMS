@@ -14,6 +14,8 @@ import { customerCreditService, type CustomerCreditDropdownItem } from '@/servic
 import { houseAccountService, type HouseAccountDropdownItem } from '@/services/houseAccountService';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
+import { customerDiscountAuthService } from '@/services/customerDiscountAuthService';
+import { discountService } from '@/services/discountService';
 import { orderService } from '@/services/orderService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
@@ -22,6 +24,7 @@ import { useToast } from '@/hooks/useToast';
 import { BottomSheet, IconButton, OrderCard, PageHeader, PageLayout } from '@/components/ui';
 import { ApiError } from '@/types/api';
 import type { OrderDetail, OrderStatus, OrderType } from '@/types/order';
+import type { Discount } from '@/types/discount';
 import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
 
 export const dynamic = 'force-dynamic';
@@ -87,6 +90,10 @@ export default function OrdersPage(): JSX.Element {
   const [isAuthOverrideSubmitting, setIsAuthOverrideSubmitting] = useState(false);
   const [pendingStaffDiscountRequestId, setPendingStaffDiscountRequestId] = useState<string | null>(null);
   const [isStaffDiscountOverrideSubmitting, setIsStaffDiscountOverrideSubmitting] = useState(false);
+  const [availableDiscounts, setAvailableDiscounts] = useState<Discount[]>([]);
+  const [pendingCustomerDiscountRequestId, setPendingCustomerDiscountRequestId] = useState<string | null>(null);
+  const [pendingCustomerDiscountName, setPendingCustomerDiscountName] = useState<string | null>(null);
+  const [isCustomerDiscountOverrideSubmitting, setIsCustomerDiscountOverrideSubmitting] = useState(false);
 
   const syncFiltersFromUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -100,6 +107,11 @@ export default function OrdersPage(): JSX.Element {
     window.addEventListener('popstate', syncFiltersFromUrl);
     return () => window.removeEventListener('popstate', syncFiltersFromUrl);
   }, [syncFiltersFromUrl]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    void discountService.list(accessToken).then(setAvailableDiscounts).catch(() => { /* non-critical */ });
+  }, [accessToken]);
 
   useEffect(() => {
     if (!accessToken || !env.creditAccounts) return;
@@ -206,32 +218,69 @@ export default function OrdersPage(): JSX.Element {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- toast and updateOrderRealTime are stable; no risk of loop
   }, [updateOrderRealTime]);
 
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleCustomerDiscountResolved = (payload: { orderId: string; dailyNumber: number; approved: boolean; discountedTotal?: string }) => {
+      updateOrderRealTime(payload.orderId, { status: 'READY' });
+      setSelectedOrder((prev) => {
+        if (!prev || prev.id !== payload.orderId) return prev;
+        return {
+          ...prev,
+          status: 'READY',
+          ...(payload.approved && payload.discountedTotal ? { total: payload.discountedTotal } : {}),
+        };
+      });
+      setPendingCustomerDiscountRequestId(null);
+      setPendingCustomerDiscountName(null);
+      if (payload.approved) {
+        toast({ variant: 'success', title: `Order #${payload.dailyNumber} discount approved`, message: `Discounted total: ${payload.discountedTotal ?? ''}` });
+      } else {
+        toast({ variant: 'info', title: `Order #${payload.dailyNumber} discount rejected`, message: 'Order is ready at full price.' });
+      }
+    };
+    socket.on('order:customer_discount_resolved', handleCustomerDiscountResolved);
+    return () => { socket.off('order:customer_discount_resolved', handleCustomerDiscountResolved); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- toast and updateOrderRealTime are stable; no risk of loop
+  }, [updateOrderRealTime]);
+
   const handleOpenOrder = async (orderId: string) => {
     if (!accessToken) return;
     setPendingAuthRequestId(null);
     setPendingAuthHolderName(null);
     setPendingAuthExpiresAt(null);
     setPendingStaffDiscountRequestId(null);
+    setPendingCustomerDiscountRequestId(null);
+    setPendingCustomerDiscountName(null);
     try {
       const order = await orderService.getById(orderId, accessToken);
       setSelectedOrder(order);
       setIsDetailOpen(true);
       if (order.status === 'AWAITING_AUTHORIZATION') {
-        // Try staff discount path first; fall back to house account
-        staffDiscountAuthService.getPendingByOrderId(orderId, accessToken)
-          .then((auth) => {
-            setPendingStaffDiscountRequestId(auth.id);
-          })
-          .catch(() => {
-            // Not a staff discount — try house account
-            houseAccountAuthService.getPendingByOrderId(orderId, accessToken)
-              .then((auth) => {
-                setPendingAuthRequestId(auth.id);
-                setPendingAuthHolderName(auth.houseAccount.user.name);
-                setPendingAuthExpiresAt(auth.expiresAt);
-              })
-              .catch(() => { /* non-critical */ });
-          });
+        // Try customer discount first (discountId present), then staff discount, then house account
+        if (order.discountId) {
+          customerDiscountAuthService.getPendingByOrderId(orderId, accessToken)
+            .then((auth) => {
+              setPendingCustomerDiscountRequestId(auth.id);
+              setPendingCustomerDiscountName(auth.discount.name);
+            })
+            .catch(() => { /* non-critical */ });
+        } else {
+          staffDiscountAuthService.getPendingByOrderId(orderId, accessToken)
+            .then((auth) => {
+              setPendingStaffDiscountRequestId(auth.id);
+            })
+            .catch(() => {
+              // Not a staff discount — try house account
+              houseAccountAuthService.getPendingByOrderId(orderId, accessToken)
+                .then((auth) => {
+                  setPendingAuthRequestId(auth.id);
+                  setPendingAuthHolderName(auth.houseAccount.user.name);
+                  setPendingAuthExpiresAt(auth.expiresAt);
+                })
+                .catch(() => { /* non-critical */ });
+            });
+        }
       }
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to load order details.';
@@ -249,6 +298,14 @@ export default function OrdersPage(): JSX.Element {
         setSelectedOrder((prev) => (prev ? { ...prev, status: 'AWAITING_AUTHORIZATION' } : prev));
         if (payload.applyStaffDiscount) {
           toast({ variant: 'info', title: 'Discount requested', message: 'A manager has been notified to approve the staff discount.' });
+        } else if (payload.applyDiscountId) {
+          // Customer discount requiring manager approval
+          void customerDiscountAuthService.getPendingByOrderId(orderId, accessToken).then((auth) => {
+            setPendingCustomerDiscountRequestId(auth.id);
+            setPendingCustomerDiscountName(auth.discount.name);
+          }).catch(() => { /* non-critical */ });
+          const discountName = availableDiscounts.find((d) => d.id === payload.applyDiscountId)?.name ?? 'Discount';
+          toast({ variant: 'info', title: 'Discount requested', message: `A manager has been notified to approve the "${discountName}" discount.` });
         } else {
           // House account payment — order is locked pending approval, not closed yet
           toast({ variant: 'info', title: 'Authorization requested', message: 'The account holder has been notified to approve the charge.' });
@@ -418,6 +475,33 @@ export default function OrdersPage(): JSX.Element {
       toast({ variant: 'error', title: 'Override failed', message });
     } finally {
       setIsStaffDiscountOverrideSubmitting(false);
+    }
+  };
+
+  const handleCustomerDiscountOverride = async (orderId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || !pendingCustomerDiscountRequestId || isCustomerDiscountOverrideSubmitting) return;
+    setIsCustomerDiscountOverrideSubmitting(true);
+    try {
+      await customerDiscountAuthService.override(pendingCustomerDiscountRequestId, decision, accessToken);
+      if (decision === 'APPROVED') {
+        const updated = await orderService.getById(orderId, accessToken);
+        updateOrderRealTime(orderId, { status: 'READY' });
+        setSelectedOrder(updated);
+        setPendingCustomerDiscountRequestId(null);
+        setPendingCustomerDiscountName(null);
+        toast({ variant: 'success', title: 'Discount approved', message: 'Order returned to Ready at the discounted total.' });
+      } else {
+        updateOrderRealTime(orderId, { status: 'READY' });
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'READY' } : prev));
+        setPendingCustomerDiscountRequestId(null);
+        setPendingCustomerDiscountName(null);
+        toast({ variant: 'success', title: 'Discount rejected', message: 'Order returned to Ready at full price.' });
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Override failed.';
+      toast({ variant: 'error', title: 'Override failed', message });
+    } finally {
+      setIsCustomerDiscountOverrideSubmitting(false);
     }
   };
 
@@ -643,6 +727,11 @@ export default function OrdersPage(): JSX.Element {
         pendingStaffDiscountRequestId={pendingStaffDiscountRequestId ?? undefined}
         onStaffDiscountOverride={(orderId, decision) => void handleStaffDiscountOverride(orderId, decision)}
         isStaffDiscountOverrideSubmitting={isStaffDiscountOverrideSubmitting}
+        availableDiscounts={availableDiscounts}
+        pendingCustomerDiscountRequestId={pendingCustomerDiscountRequestId ?? undefined}
+        pendingCustomerDiscountName={pendingCustomerDiscountName ?? undefined}
+        onCustomerDiscountOverride={(orderId, decision) => void handleCustomerDiscountOverride(orderId, decision)}
+        isCustomerDiscountOverrideSubmitting={isCustomerDiscountOverrideSubmitting}
       />
 
       <CancelOrderSheet

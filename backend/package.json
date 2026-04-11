@@ -6,7 +6,7 @@
     "main": "dist/server.js",
     "scripts": {
         "dev": "tsx watch src/server.ts",
-        "build": "pnpm prisma:generate && tsc -p tsconfig.json",
+        "build": "pnpm prisma:generate && node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true})\" && tsc -p tsconfig.json",
         "start": "node dist/server.js",
         "lint": "eslint .",
         "format": "prettier --write .",

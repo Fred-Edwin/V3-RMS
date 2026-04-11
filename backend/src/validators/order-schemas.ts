@@ -66,8 +66,17 @@ export const RecordPaymentSchema = z
     customerCreditAccountId: z.string().uuid().optional(),
     // Staff discount flag — when true, discount auth request is created before payment is taken
     applyStaffDiscount: z.boolean().optional(),
+    // Customer discount ID — UUID of a Discount record to apply to this order
+    applyDiscountId: z.string().uuid().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.applyStaffDiscount === true && data.applyDiscountId !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cannot apply both a staff discount and a customer discount simultaneously',
+        path: ['applyDiscountId'],
+      });
+    }
     if (data.applyStaffDiscount === true) {
       if (
         data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT ||
@@ -78,6 +87,19 @@ export const RecordPaymentSchema = z
           code: z.ZodIssueCode.custom,
           message: 'Staff discount cannot be combined with credit account payment methods',
           path: ['applyStaffDiscount'],
+        });
+      }
+    }
+    if (data.applyDiscountId !== undefined) {
+      if (
+        data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT ||
+        data.paymentMethod === PaymentMethod.CORPORATE_ACCOUNT ||
+        data.paymentMethod === PaymentMethod.CUSTOMER_CREDIT
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Customer discount cannot be combined with credit account payment methods',
+          path: ['applyDiscountId'],
         });
       }
     }

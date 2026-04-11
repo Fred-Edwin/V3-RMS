@@ -75,6 +75,7 @@ export interface OrderDetail extends OrderSummary {
   discountPercent: string | null;
   discountAmount: string | null;
   discountedById: string | null;
+  discountId: string | null;
 }
 
 export interface CreateOrderItem {

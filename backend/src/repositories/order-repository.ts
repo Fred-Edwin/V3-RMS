@@ -840,7 +840,9 @@ export const orderRepository = {
   },
 
   /**
-   * Applies a staff discount to an order that is in AWAITING_AUTHORIZATION status.
+   * Applies a discount to an order.
+   * For staff discounts and approval-required customer discounts, the order must be in
+   * AWAITING_AUTHORIZATION status. For auto-apply customer discounts, it must be READY.
    * Atomically reduces order.total by discountAmount and records the discount metadata.
    * Does NOT change order status — the caller is responsible for that.
    */
@@ -850,15 +852,17 @@ export const orderRepository = {
     discountPercent: string,
     discountAmount: string,
     discountedById: string,
+    discountId?: string,
   ): Promise<FullOrderPrismaRecord | null> => {
     const { Prisma } = await import('@prisma/client');
     const discountDecimal = new Prisma.Decimal(discountAmount);
 
+    // Auto-apply discounts arrive when order is READY; approval-path when AWAITING_AUTHORIZATION
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
         organizationId,
-        status: OrderStatus.AWAITING_AUTHORIZATION,
+        status: { in: [OrderStatus.AWAITING_AUTHORIZATION, OrderStatus.READY] },
       },
       data: {
         total: {
@@ -867,6 +871,7 @@ export const orderRepository = {
         discountPercent,
         discountAmount,
         discountedById,
+        ...(discountId !== undefined ? { discountId } : {}),
       },
     });
 

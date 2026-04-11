@@ -74,6 +74,20 @@ export interface ServerToClientEvents {
     approved: boolean;
     discountedTotal?: string;
   }) => void;
+  'order:customer_discount_pending': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    authRequestId: string;
+    discountName: string;
+    originalAmount: string;
+    discountAmount: string;
+  }) => void;
+  'order:customer_discount_resolved': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    approved: boolean;
+    discountedTotal?: string;
+  }) => void;
 }
 
 export interface ClientToServerEvents {

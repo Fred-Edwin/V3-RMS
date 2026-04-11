@@ -97,5 +97,12 @@ reportRoutes.get(
   reportController.getAccountantReconciliation,
 );
 
+reportRoutes.get(
+  '/reports/discount-usage',
+  authenticate,
+  requireRole('DIRECTOR'),
+  reportController.getDiscountUsage,
+);
+
 export default reportRoutes;
 

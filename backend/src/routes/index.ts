@@ -19,6 +19,8 @@ import customerCreditRoutes from './customer-credit-routes';
 import otherIncomeRoutes from './other-income-routes';
 import houseAccountAuthRoutes from './house-account-auth-routes';
 import staffDiscountAuthRoutes from './staff-discount-auth-routes';
+import discountRoutes from './discount-routes';
+import customerDiscountAuthRoutes from './customer-discount-auth-routes';
 
 const apiRouter = Router();
 
@@ -42,5 +44,7 @@ apiRouter.use(customerCreditRoutes);
 apiRouter.use(otherIncomeRoutes);
 apiRouter.use(houseAccountAuthRoutes);
 apiRouter.use(staffDiscountAuthRoutes);
+apiRouter.use(discountRoutes);
+apiRouter.use(customerDiscountAuthRoutes);
 
 export default apiRouter;

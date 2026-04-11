@@ -11,6 +11,7 @@ import type {
   DailySummaryReport,
   DirectorPulseReport,
   DirectorTrendsReport,
+  DiscountUsageReport,
   HourlyHeatmapReport,
   ItemsPerformanceReport,
   MyPerformanceReport,
@@ -24,6 +25,7 @@ import type {
   BranchOverviewQueryInput,
   DailySummaryQueryInput,
   DirectorTrendsQueryInput,
+  DiscountUsageQueryInput,
   ExportQueryInput,
   HourlyHeatmapQueryInput,
   ItemsPerformanceQueryInput,
@@ -424,6 +426,17 @@ export const reportService = {
     }
     const date = parseDateOnly(query.date);
     return reportRepository.getAccountantReconciliation(query.organizationId, date);
+  },
+
+  getDiscountUsage: async (
+    actor: Actor,
+    query: DiscountUsageQueryInput,
+  ): Promise<DiscountUsageReport> => {
+    if (actor.role !== 'DIRECTOR') {
+      throw new ForbiddenError('Only directors can access discount usage reports');
+    }
+    const { start, end } = ensureValidRange(query.startDate, query.endDate);
+    return reportRepository.getDiscountUsage(start, end, query.organizationId);
   },
 };
 

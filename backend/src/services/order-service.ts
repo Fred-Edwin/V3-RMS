@@ -1,6 +1,7 @@
 ﻿import { OrderStatus, OrderType, PaymentMethod, PrepStation, PrepTicketStatus, Prisma, type UserRole } from '@prisma/client';
 import { houseAccountAuthService } from './house-account-auth-service';
 import { staffDiscountAuthService } from './staff-discount-auth-service';
+import { customerDiscountAuthService } from './customer-discount-auth-service';
 import { authRepository } from '../repositories/auth-repository';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
@@ -788,6 +789,30 @@ export const orderService = {
       const pendingOrder = await orderRepository.findById(orderId, organizationId);
       if (!pendingOrder) throw new NotFoundError('Order not found');
       return serializeOrder(pendingOrder);
+    }
+
+    // Customer discount — auto-apply or deferred approval depending on discount.requiresApproval
+    if (data.applyDiscountId !== undefined) {
+      const result = await customerDiscountAuthService.createAuthRequest(
+        orderId,
+        data.applyDiscountId,
+        organizationId,
+        actor,
+      );
+      const updatedOrder = await orderRepository.findById(orderId, organizationId);
+      if (!updatedOrder) throw new NotFoundError('Order not found');
+      // If approval required, order is now AWAITING_AUTHORIZATION — return early
+      if (result.requiresApproval) {
+        return serializeOrder(updatedOrder);
+      }
+      // Auto-applied — order is still READY with discount written, fall through to normal payment
+      // Re-read the updated order (total is now discounted)
+      const discountedOrder = await orderRepository.findById(orderId, organizationId);
+      if (!discountedOrder) throw new NotFoundError('Order not found');
+      // Continue with normal payment collection at the discounted total
+      // by replacing `order` reference — done by reassigning data flow below
+      // We return early so the waiter must re-submit payment after seeing the discounted total
+      return serializeOrder(discountedOrder);
     }
 
     // Validate credit accounts exist, are active, and won't exceed credit limit (fast-fail check)

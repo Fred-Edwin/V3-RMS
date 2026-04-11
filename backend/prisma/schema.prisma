@@ -39,6 +39,8 @@ model Organization {
   otherIncomeEntries     OtherIncomeEntry[]
   otherIncomeEntriesBranch OtherIncomeEntry[]    @relation("OtherIncomeEntryBranch")
   staffDiscountAuthRequests StaffDiscountAuthRequest[]
+  discounts                 Discount[]
+  customerDiscountAuthRequests CustomerDiscountAuthRequest[]
 
   @@map("organizations")
 }
@@ -96,6 +98,9 @@ model User {
   ordersDiscounted            Order[]                    @relation("OrderDiscountedBy")
   staffDiscountRequestsRequested StaffDiscountAuthRequest[] @relation("StaffDiscountRequestedBy")
   staffDiscountRequestsResolved  StaffDiscountAuthRequest[] @relation("StaffDiscountResolvedBy")
+  discountsCreated            Discount[]                 @relation("DiscountCreatedBy")
+  customerDiscountRequestsRequested CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
+  customerDiscountRequestsResolved  CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -267,6 +272,7 @@ model Order {
   discountPercent         Decimal?              @db.Decimal(5, 2) @map("discount_percent")
   discountAmount          Decimal?              @db.Decimal(10, 2) @map("discount_amount")
   discountedById          String?               @map("discounted_by_id")
+  discountId              String?               @map("discount_id")
   createdById             String                @map("created_by_id")
   createdAt               DateTime              @default(now()) @map("created_at")
   updatedAt               DateTime              @updatedAt @map("updated_at")
@@ -279,6 +285,7 @@ model Order {
   createdBy               User                  @relation("OrderCreatedBy", fields: [createdById], references: [id])
   cancelledBy             User?                 @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
   discountedBy            User?                 @relation("OrderDiscountedBy", fields: [discountedById], references: [id])
+  discount                Discount?             @relation(fields: [discountId], references: [id])
   items                   OrderItem[]
   prepTickets             PrepTicket[]
   modificationRequests    OrderModificationRequest[]
@@ -286,6 +293,7 @@ model Order {
   printJobs               PrintJob[]
   houseAuthRequests       HouseAccountAuthRequest[]
   staffDiscountAuthRequests StaffDiscountAuthRequest[]
+  customerDiscountAuthRequests CustomerDiscountAuthRequest[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -732,6 +740,40 @@ model OtherIncomeEntry {
   @@map("other_income_entries")
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum CustomerDiscountAuthStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Discount {
+  id               String       @id @default(uuid())
+  // organizationId is null when the discount is scoped to ALL branches (hub-level)
+  organizationId   String?      @map("organization_id")
+  name             String
+  type             DiscountType
+  value            Decimal      @db.Decimal(5, 2)
+  requiresApproval Boolean      @default(false) @map("requires_approval")
+  isActive         Boolean      @default(true)  @map("is_active")
+  createdById      String       @map("created_by_id")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  organization     Organization? @relation(fields: [organizationId], references: [id])
+  createdBy        User          @relation("DiscountCreatedBy", fields: [createdById], references: [id])
+  orders           Order[]
+  customerDiscountAuthRequests CustomerDiscountAuthRequest[]
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("discounts")
+}
+
 enum StaffDiscountAuthStatus {
   PENDING
   APPROVED
@@ -761,4 +803,32 @@ model StaffDiscountAuthRequest {
   @@index([orderId])
   @@index([status])
   @@map("staff_discount_auth_requests")
+}
+
+model CustomerDiscountAuthRequest {
+  id              String                      @id @default(uuid())
+  organizationId  String                      @map("organization_id")
+  orderId         String                      @map("order_id")
+  discountId      String                      @map("discount_id")
+  requestedById   String                      @map("requested_by_id")
+  discountPercent Decimal?                    @db.Decimal(5, 2)  @map("discount_percent")
+  discountFixed   Decimal?                    @db.Decimal(10, 2) @map("discount_fixed")
+  originalAmount  Decimal                     @db.Decimal(10, 2) @map("original_amount")
+  discountAmount  Decimal                     @db.Decimal(10, 2) @map("discount_amount")
+  status          CustomerDiscountAuthStatus  @default(PENDING)
+  resolvedById    String?                     @map("resolved_by_id")
+  resolvedAt      DateTime?                   @map("resolved_at")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @updatedAt @map("updated_at")
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  order         Order        @relation(fields: [orderId], references: [id])
+  discount      Discount     @relation(fields: [discountId], references: [id])
+  requestedBy   User         @relation("CustomerDiscountRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy    User?        @relation("CustomerDiscountResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([status])
+  @@map("customer_discount_auth_requests")
 }

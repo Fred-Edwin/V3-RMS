@@ -8,6 +8,7 @@ import {
   DailySummaryQuerySchema,
   DirectorPulseQuerySchema,
   DirectorTrendsQuerySchema,
+  DiscountUsageQuerySchema,
   ExportQuerySchema,
   HourlyHeatmapQuerySchema,
   ItemsPerformanceQuerySchema,
@@ -143,6 +144,17 @@ export const reportController = {
     const actor = requireActor(req);
     const query = AccountantReconciliationQuerySchema.parse(req.query);
     const report = await reportService.getAccountantReconciliation(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getDiscountUsage: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = DiscountUsageQuerySchema.parse(req.query);
+    const report = await reportService.getDiscountUsage(actor, query);
 
     res.status(200).json({
       success: true,

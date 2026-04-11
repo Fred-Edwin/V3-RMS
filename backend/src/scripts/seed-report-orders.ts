@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import {
   ClockMethod,
+  DiscountType,
   OrderStatus,
   OrderType,
   PaymentMethod,
@@ -66,6 +67,12 @@ type PreparedRows = {
   orderItems: Prisma.OrderItemCreateManyInput[];
   prepTickets: Prisma.PrepTicketCreateManyInput[];
   totalRevenue: Prisma.Decimal;
+};
+
+type SeedDiscount = {
+  id: string;
+  type: DiscountType;
+  value: Prisma.Decimal;
 };
 
 class LcgRng {
@@ -229,6 +236,35 @@ const categoryWeight = (name: string): number => {
   }
 
   return 1;
+};
+
+const loadDiscounts = async (organizationId: string): Promise<SeedDiscount[]> => {
+  const rows = await prisma.discount.findMany({
+    where: {
+      isActive: true,
+      OR: [{ organizationId }, { organizationId: null }],
+    },
+    select: { id: true, type: true, value: true },
+  });
+  return rows.map((r) => ({ id: r.id, type: r.type, value: r.value }));
+};
+
+const applyDiscount = (
+  subtotal: Prisma.Decimal,
+  discount: SeedDiscount,
+): { discountPercent: Prisma.Decimal | null; discountAmount: Prisma.Decimal; discountedTotal: Prisma.Decimal } => {
+  let discountAmount: Prisma.Decimal;
+  let discountPercent: Prisma.Decimal | null = null;
+
+  if (discount.type === DiscountType.PERCENTAGE) {
+    discountPercent = discount.value;
+    discountAmount = subtotal.mul(discount.value).div(100).toDecimalPlaces(2);
+  } else {
+    discountAmount = Prisma.Decimal.min(discount.value, subtotal);
+  }
+
+  const discountedTotal = Prisma.Decimal.max(new Prisma.Decimal(0), subtotal.sub(discountAmount));
+  return { discountPercent, discountAmount, discountedTotal };
 };
 
 const weightedPick = <T>(values: T[], getWeight: (value: T) => number, rng: LcgRng): T => {
@@ -471,6 +507,7 @@ const prepareRowsForOrganization = async (
   seedTag: string,
   userPools: BranchUserPools,
   menuPool: BranchMenuItem[],
+  discounts: SeedDiscount[],
   rng: LcgRng,
   today: Date,
 ): Promise<PreparedRows> => {
@@ -507,7 +544,16 @@ const prepareRowsForOrganization = async (
       const subtotal = generatedItems.reduce((sum, item) => sum.add(item.subtotal), new Prisma.Decimal(0));
       const deliveryFee =
         orderType === OrderType.DELIVERY ? new Prisma.Decimal(rng.pick([120, 160, 200])) : new Prisma.Decimal(0);
-      const total = subtotal.add(deliveryFee);
+
+      // Apply a customer discount to ~25% of orders when discounts are available
+      const applyDisc = discounts.length > 0 && rng.next() < 0.25;
+      const chosenDiscount = applyDisc ? rng.pick(discounts) : null;
+      const discountResult = chosenDiscount
+        ? applyDiscount(subtotal, chosenDiscount)
+        : null;
+
+      const createdById = chooseCreatedById(userPools, rng);
+      const total = (discountResult?.discountedTotal ?? subtotal).add(deliveryFee);
 
       const orderMinuteOffset = Math.round((orderIndex / Math.max(1, expectedOrders - 1)) * activeMinutes);
       const placedAt = addMinutesUtc(dayDate, dayStartMinutes + orderMinuteOffset + rng.int(0, 14));
@@ -526,11 +572,15 @@ const prepareRowsForOrganization = async (
         subtotal,
         deliveryFee,
         total,
+        discountId: chosenDiscount?.id ?? null,
+        discountPercent: discountResult?.discountPercent ?? null,
+        discountAmount: discountResult?.discountAmount ?? null,
+        discountedById: chosenDiscount ? createdById : null,
         paymentMethod: choosePaymentMethod(rng),
         paidAt,
         closedAt,
         deliveryZoneId: null,
-        createdById: chooseCreatedById(userPools, rng),
+        createdById,
         createdAt: placedAt,
         updatedAt: closedAt,
       });
@@ -773,7 +823,8 @@ const run = async (): Promise<void> => {
       continue;
     }
 
-    console.log(`Seeding ${organization.name}...`);
+    const discounts = await loadDiscounts(organization.id);
+    console.log(`Seeding ${organization.name} (${discounts.length} discounts available)...`);
 
     const prepared = await prepareRowsForOrganization(
       organization.id,
@@ -782,6 +833,7 @@ const run = async (): Promise<void> => {
       seedTag,
       userPools,
       menuPool,
+      discounts,
       rng,
       today,
     );

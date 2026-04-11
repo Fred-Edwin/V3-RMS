@@ -135,7 +135,7 @@ const toPercent = (numerator: Prisma.Decimal, denominator: Prisma.Decimal): numb
 export const reportRepository = {
   getDailySummaryByDate: async (organizationId: string, date: Date): Promise<DailySummaryReport> => {
     const { start, endExclusive } = getOrderDateBounds(date);
-    const [organization, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows, otherIncomeCategoryTotals, staffDiscountAggregate] = await Promise.all([
+    const [organization, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows, otherIncomeCategoryTotals, staffDiscountAggregate, customerDiscountAggregate] = await Promise.all([
       prisma.organization.findFirst({
         where: {
           id: organizationId,
@@ -250,6 +250,19 @@ export const reportRepository = {
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           discountAmount: { not: null },
+          discountId: null, // staff discounts have no discountId FK
+          createdBy: { isTestUser: false },
+        },
+        _sum: { discountAmount: true },
+        _count: { _all: true },
+      }),
+      prisma.order.aggregate({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: { gte: start, lt: endExclusive },
+          discountAmount: { not: null },
+          discountId: { not: null }, // customer discounts always have a discountId FK
           createdBy: { isTestUser: false },
         },
         _sum: { discountAmount: true },
@@ -355,6 +368,8 @@ export const reportRepository = {
       })),
       staffDiscountTotal: (staffDiscountAggregate._sum.discountAmount ?? new Prisma.Decimal(0)).toFixed(2),
       staffDiscountOrderCount: staffDiscountAggregate._count._all,
+      customerDiscountTotal: (customerDiscountAggregate._sum.discountAmount ?? new Prisma.Decimal(0)).toFixed(2),
+      customerDiscountOrderCount: customerDiscountAggregate._count._all,
     };
   },
 
@@ -659,7 +674,7 @@ export const reportRepository = {
 
     const branchResults = await Promise.all(
       organizations.map(async (organization) => {
-        const [orderAggregate, prepRows, paymentOrders, otherIncomeRows, staffDiscountAgg] = await Promise.all([
+        const [orderAggregate, prepRows, paymentOrders, otherIncomeRows, staffDiscountAgg, customerDiscountAgg] = await Promise.all([
           prisma.order.aggregate({
             where: {
               organizationId: organization.id,
@@ -728,6 +743,18 @@ export const reportRepository = {
               status: OrderStatus.CLOSED,
               orderDate: { gte: start, lt: endExclusive },
               discountAmount: { not: null },
+              discountId: null,
+              createdBy: { isTestUser: false },
+            },
+            _sum: { discountAmount: true },
+          }),
+          prisma.order.aggregate({
+            where: {
+              organizationId: organization.id,
+              status: OrderStatus.CLOSED,
+              orderDate: { gte: start, lt: endExclusive },
+              discountAmount: { not: null },
+              discountId: { not: null },
               createdBy: { isTestUser: false },
             },
             _sum: { discountAmount: true },
@@ -744,6 +771,7 @@ export const reportRepository = {
         const baristaTickets = prepRows.filter((ticket) => ticket.station === PrepStation.BARISTA);
 
         const staffDiscountDecimal = staffDiscountAgg._sum.discountAmount ?? new Prisma.Decimal(0);
+        const customerDiscountDecimal = customerDiscountAgg._sum.discountAmount ?? new Prisma.Decimal(0);
 
         return {
           revenueDecimal,
@@ -755,6 +783,7 @@ export const reportRepository = {
             revenue: revenueDecimal.toFixed(2),
             otherIncomeTotal: otherIncomeDecimal.toFixed(2),
             staffDiscountTotal: staffDiscountDecimal.toFixed(2),
+            customerDiscountTotal: customerDiscountDecimal.toFixed(2),
             orderCount: orderAggregate._count._all,
             averagePrepTimeMinutes: {
               KITCHEN: computeAveragePrepMinutes(kitchenTickets),
@@ -1816,6 +1845,110 @@ export const reportRepository = {
       summary: computePaymentBreakdown(allPaymentRows),
       waiters,
       orders: reconciliationOrders,
+    };
+  },
+
+  getDiscountUsage: async (
+    startDate: Date,
+    endDate: Date,
+    organizationId?: string,
+  ) => {
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+
+    const baseWhere = {
+      status: OrderStatus.CLOSED,
+      discountId: { not: null as null },
+      discountAmount: { not: null as null },
+      orderDate: { gte: start, lt: endExclusive },
+      createdBy: { isTestUser: false },
+      ...(organizationId ? { organizationId } : {}),
+    };
+
+    // Per-discount breakdown
+    const perDiscountRaw = await prisma.order.groupBy({
+      by: ['discountId'],
+      where: baseWhere,
+      _count: { _all: true },
+      _sum: { discountAmount: true },
+    });
+
+    // Resolve discount names in one query
+    const discountIds = perDiscountRaw
+      .map((r) => r.discountId)
+      .filter((id): id is string => id !== null);
+
+    const [discounts, perBranchRaw, perWaiterRaw, totals] = await Promise.all([
+      prisma.discount.findMany({
+        where: { id: { in: discountIds } },
+        select: { id: true, name: true, type: true, value: true },
+      }),
+      // Per-branch breakdown
+      prisma.order.groupBy({
+        by: ['organizationId'],
+        where: baseWhere,
+        _count: { _all: true },
+        _sum: { discountAmount: true },
+      }),
+      // Per-waiter breakdown
+      prisma.order.groupBy({
+        by: ['createdById'],
+        where: baseWhere,
+        _count: { _all: true },
+        _sum: { discountAmount: true },
+      }),
+      // Aggregate totals
+      prisma.order.aggregate({
+        where: baseWhere,
+        _count: { _all: true },
+        _sum: { discountAmount: true },
+      }),
+    ]);
+
+    // Resolve org and waiter names
+    const orgIds = perBranchRaw.map((r) => r.organizationId);
+    const waiterIds = perWaiterRaw.map((r) => r.createdById);
+
+    const [orgs, waiters] = await Promise.all([
+      prisma.organization.findMany({
+        where: { id: { in: orgIds } },
+        select: { id: true, name: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: waiterIds } },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    const orgMap = new Map(orgs.map((o) => [o.id, o.name]));
+    const waiterMap = new Map(waiters.map((w) => [w.id, w.name]));
+    const discountMap = new Map(discounts.map((d) => [d.id, d]));
+
+    return {
+      totalDiscounted: toCurrencyString(totals._sum.discountAmount),
+      totalOrders: totals._count._all,
+      byDiscount: perDiscountRaw.map((r) => {
+        const d = discountMap.get(r.discountId ?? '');
+        return {
+          discountId: r.discountId ?? '',
+          name: d?.name ?? 'Unknown',
+          type: d?.type ?? 'PERCENTAGE',
+          value: d?.value?.toString() ?? '0',
+          orderCount: r._count._all,
+          totalDiscounted: toCurrencyString(r._sum.discountAmount),
+        };
+      }),
+      byBranch: perBranchRaw.map((r) => ({
+        organizationId: r.organizationId,
+        name: orgMap.get(r.organizationId) ?? 'Unknown',
+        orderCount: r._count._all,
+        totalDiscounted: toCurrencyString(r._sum.discountAmount),
+      })),
+      byWaiter: perWaiterRaw.map((r) => ({
+        waiterId: r.createdById,
+        name: waiterMap.get(r.createdById) ?? 'Unknown',
+        orderCount: r._count._all,
+        totalDiscounted: toCurrencyString(r._sum.discountAmount),
+      })),
     };
   },
 };

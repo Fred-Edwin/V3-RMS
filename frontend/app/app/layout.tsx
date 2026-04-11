@@ -15,6 +15,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  Percent,
   Printer,
   Settings2,
   ShieldAlert,
@@ -82,6 +83,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [
+      { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
@@ -205,6 +207,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       label: 'Operations',
       items: [
         { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
+        { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
       ],
     },
     {

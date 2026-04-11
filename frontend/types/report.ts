@@ -44,6 +44,8 @@ export interface DailySummary {
   otherIncomeByCategory: OtherIncomeCategoryTotal[];
   staffDiscountTotal: string;
   staffDiscountOrderCount: number;
+  customerDiscountTotal: string;
+  customerDiscountOrderCount: number;
 }
 
 export interface WaiterPaymentBreakdown {
@@ -84,6 +86,7 @@ export interface BranchOverviewRow {
   revenue: string;
   otherIncomeTotal: string;
   staffDiscountTotal: string;
+  customerDiscountTotal: string;
   orderCount: number;
   averagePrepTimeMinutes: {
     KITCHEN: number;
@@ -392,5 +395,42 @@ export interface ExportReportQuery {
 export interface AccountantReconciliationQuery {
   date: string;
   organizationId: string;
+}
+
+export interface DiscountUsageByDiscount {
+  discountId: string;
+  name: string;
+  type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  value: string;
+  orderCount: number;
+  totalDiscounted: string;
+}
+
+export interface DiscountUsageByBranch {
+  organizationId: string;
+  name: string;
+  orderCount: number;
+  totalDiscounted: string;
+}
+
+export interface DiscountUsageByWaiter {
+  waiterId: string;
+  name: string;
+  orderCount: number;
+  totalDiscounted: string;
+}
+
+export interface DiscountUsageReport {
+  totalDiscounted: string;
+  totalOrders: number;
+  byDiscount: DiscountUsageByDiscount[];
+  byBranch: DiscountUsageByBranch[];
+  byWaiter: DiscountUsageByWaiter[];
+}
+
+export interface DiscountUsageQuery {
+  startDate: string;
+  endDate: string;
+  organizationId?: string;
 }
 
