@@ -19,13 +19,14 @@ interface SidebarNavProps {
   activeHref: string
   logo?: React.ReactNode
   className?: string
+  collapsed?: boolean
 }
 
-export function SidebarNav({ sections, activeHref, logo, className }: SidebarNavProps) {
+export function SidebarNav({ sections, activeHref, logo, className, collapsed }: SidebarNavProps) {
   return (
     <nav className={cn('flex flex-col h-full', className)}>
-      {logo && (
-        <div className="h-16 flex items-center px-4 border-b border-stone-200 shrink-0">
+      {logo && !collapsed && (
+        <div className="h-14 flex items-center px-4 border-b border-[#2C1810]/40 shrink-0">
           {logo}
         </div>
       )}
@@ -33,8 +34,8 @@ export function SidebarNav({ sections, activeHref, logo, className }: SidebarNav
       <div className="flex-1 overflow-y-auto py-3">
         {sections.map((section, sectionIdx) => (
           <div key={sectionIdx} className={sectionIdx > 0 ? 'mt-2' : ''}>
-            {section.label && (
-              <p className="text-label-sm font-semibold text-stone-400 uppercase tracking-wider px-4 mt-4 mb-1">
+            {section.label && !collapsed && (
+              <p className="text-label-sm font-semibold text-[#8B6B5A] uppercase tracking-wider px-4 mt-4 mb-1">
                 {section.label}
               </p>
             )}
@@ -43,20 +44,39 @@ export function SidebarNav({ sections, activeHref, logo, className }: SidebarNav
                 const isActive = activeHref === item.href || activeHref.startsWith(item.href + '/')
                 const Icon = item.icon
 
+                if (collapsed) {
+                  return (
+                    <li key={item.href} className="flex justify-center my-0.5">
+                      <Link
+                        href={item.href}
+                        title={item.label}
+                        className={cn(
+                          'w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-fast',
+                          isActive
+                            ? 'bg-[#2C1810] text-[#F5F0E8]'
+                            : 'text-[#8B6B5A] hover:bg-[#2C1810]/60 hover:text-[#F5F0E8]'
+                        )}
+                      >
+                        <Icon size={18} className="shrink-0" />
+                      </Link>
+                    </li>
+                  )
+                }
+
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
                       className={cn(
-                        'flex items-center gap-3 h-10 mx-2 px-4 rounded-md text-label-md font-medium transition-colors duration-fast',
+                        'flex items-center gap-3 h-10 mx-2 px-3 rounded-lg text-label-md font-medium transition-colors duration-fast',
                         isActive
-                          ? 'bg-stone-100 text-espresso border-l-2 border-espresso pl-[14px]'
-                          : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
+                          ? 'bg-[#2C1810] text-[#F5F0E8]'
+                          : 'text-[#C4B49A] hover:bg-[#2C1810]/60 hover:text-[#F5F0E8]'
                       )}
                     >
                       <Icon
                         size={18}
-                        className={cn('shrink-0', isActive ? 'text-espresso' : 'text-stone-500')}
+                        className={cn('shrink-0', isActive ? 'text-[#F5F0E8]' : 'text-[#8B6B5A]')}
                       />
                       {item.label}
                     </Link>

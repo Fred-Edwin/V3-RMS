@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { AlertTriangle, BarChart2, Building2, CreditCard, GitBranch, LayoutDashboard, LineChart, LogOut, Percent, ShieldAlert, Tags, UserCircle } from 'lucide-react';
+import { AlertTriangle, BarChart2, Building2, CreditCard, GitBranch, LayoutDashboard, LineChart, MessageSquare, Percent, ShieldAlert, Tags, UserCircle } from 'lucide-react';
 import { env } from '@/lib/env';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -17,10 +17,10 @@ const CREDIT_PATHS = new Set([
 ]);
 
 interface DirectorSidebarNavProps {
-  onLogout: () => void;
+  collapsed?: boolean;
 }
 
-export function DirectorSidebarNav({ onLogout }: DirectorSidebarNavProps): JSX.Element {
+export function DirectorSidebarNav({ collapsed }: DirectorSidebarNavProps): JSX.Element {
   const pathname = usePathname();
   const accessToken = useAuthStore((state) => state.accessToken);
   const [branches, setBranches] = useState<BranchDto[]>([]);
@@ -42,6 +42,7 @@ export function DirectorSidebarNav({ onLogout }: DirectorSidebarNavProps): JSX.E
         items: [
           { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
           { label: 'Analytics', href: '/app/director/analytics', icon: LineChart },
+          { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
         ],
       },
       ...(branches.length > 0
@@ -98,18 +99,6 @@ export function DirectorSidebarNav({ onLogout }: DirectorSidebarNavProps): JSX.E
   }, [branches]);
 
   return (
-    <div className="flex h-full flex-col">
-      <SidebarNav sections={sections} activeHref={pathname} />
-      <div className="border-t border-stone-200 p-3">
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-label-md font-medium text-stone-700 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-900"
-        >
-          <LogOut size={18} className="text-stone-500" />
-          Logout
-        </button>
-      </div>
-    </div>
+    <SidebarNav sections={sections} activeHref={pathname} collapsed={collapsed} />
   );
 }

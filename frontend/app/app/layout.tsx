@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   AlertTriangle,
@@ -9,12 +9,15 @@ import {
   Bike,
   Building2,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Clock,
   Coffee,
   CreditCard,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   Percent,
   Printer,
   Settings2,
@@ -41,6 +44,7 @@ const CREDIT_PATHS = new Set([
 ]);
 import { performLogout } from '@/lib/logout';
 import { useAuthStore } from '@/store/authStore';
+import { useCommsSocket } from '@/hooks/useCommsSocket';
 import type { AppRole } from '@/types/auth';
 
 interface AppShellLayoutProps {
@@ -60,9 +64,10 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Dashboard', href: '/app/manage/dashboard', icon: LayoutDashboard },
       { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
       { label: 'History', href: '/app/history', icon: Clock },
-      { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
     ],
     overflowTabs: [
+      { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
       { label: 'Staff', href: '/app/manage/staff', icon: Users },
       { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
@@ -80,9 +85,10 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
       { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
       { label: 'Incidents', href: '/app/director/incidents', icon: ShieldAlert },
-      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
     ],
     overflowTabs: [
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
       { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
@@ -93,6 +99,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
       { label: 'Reconcile', href: '/app/accountant/reconciliation', icon: Clock },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
     overflowTabs: [
@@ -117,6 +124,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
     ],
     overflowTabs: [
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'Other Income', href: '/app/other-income/new', icon: Banknote },
       { label: 'Income History', href: '/app/other-income/history', icon: Clock },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
@@ -131,6 +139,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'History', href: '/app/history', icon: Clock },
     ],
     overflowTabs: [
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -143,6 +152,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'History', href: '/app/history', icon: Clock },
     ],
     overflowTabs: [
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -158,6 +168,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Orders', href: '/app/orders', icon: ShoppingCart },
         { label: 'History', href: '/app/history', icon: Clock },
         { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
+        { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       ],
     },
     {
@@ -201,6 +212,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/director', icon: LayoutDashboard },
         { label: 'Analytics', href: '/app/director/analytics', icon: BarChart2 },
+        { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       ],
     },
     {
@@ -315,9 +327,25 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const pathname = usePathname();
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
+
+  // Attach comms socket listeners for real-time inbox updates
+  useCommsSocket();
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Persist sidebar collapsed state across page navigations
+  useEffect(() => {
+    const stored = localStorage.getItem('sidebar-collapsed');
+    if (stored === 'true') setSidebarCollapsed(true);
+  }, []);
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      localStorage.setItem('sidebar-collapsed', String(!prev));
+      return !prev;
+    });
+  };
 
   const isDisplayRoute = pathname.startsWith('/app/kitchen') || pathname.startsWith('/app/barista');
   const isDisplayOnlyRole = role === 'KITCHEN_DISPLAY' || role === 'BARISTA_DISPLAY';
@@ -368,22 +396,62 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     return <>{children}</>;
   }
 
+  // Top header strip with app name + collapse toggle
+  const SidebarHeader = () => (
+    <div className="h-14 shrink-0 flex items-center border-b border-[#2C1810]/40 px-2 gap-2">
+      {!sidebarCollapsed && (
+        <span className="flex-1 px-2 text-[#F5F0E8] font-bold text-sm tracking-wide truncate">
+          Wendo RMS
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        className="w-9 h-9 flex items-center justify-center rounded-lg text-[#8B6B5A] hover:bg-[#2C1810] hover:text-[#F5F0E8] transition-colors shrink-0"
+      >
+        {sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+    </div>
+  );
+
+  // Logout button at the very bottom
+  const SidebarFooter = () => (
+    <div className="border-t border-[#2C1810]/40 p-2 flex justify-center">
+      {sidebarCollapsed ? (
+        <button
+          type="button"
+          onClick={() => setLogoutOpen(true)}
+          title="Logout"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-[#8B6B5A] hover:bg-[#2C1810] hover:text-[#F5F0E8] transition-colors"
+        >
+          <LogOut size={18} />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setLogoutOpen(true)}
+          className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#C4B49A] hover:bg-[#2C1810] hover:text-[#F5F0E8] transition-colors"
+        >
+          <LogOut size={18} className="shrink-0" />
+          Logout
+        </button>
+      )}
+    </div>
+  );
+
   const sidebar =
     role === 'DIRECTOR' ? (
-      <DirectorSidebarNav onLogout={() => setLogoutOpen(true)} />
+      <div className="flex h-full flex-col">
+        <SidebarHeader />
+        <DirectorSidebarNav collapsed={sidebarCollapsed} />
+        <SidebarFooter />
+      </div>
     ) : (
       <div className="flex h-full flex-col">
-        <SidebarNav sections={sidebarSections} activeHref={pathname} />
-        <div className="border-t border-stone-200 p-3">
-          <button
-            type="button"
-            onClick={() => setLogoutOpen(true)}
-            className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-label-md font-medium text-stone-700 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-900"
-          >
-            <LogOut size={18} className="text-stone-500" />
-            Logout
-          </button>
-        </div>
+        <SidebarHeader />
+        <SidebarNav sections={sidebarSections} activeHref={pathname} collapsed={sidebarCollapsed} />
+        <SidebarFooter />
       </div>
     );
 
@@ -419,12 +487,20 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
       {usesDualShell ? (
         <>
           {/* Desktop: sidebar shell (hidden on mobile via SidebarLayout) */}
-          <SidebarLayout sidebar={sidebar}>{children}</SidebarLayout>
+          <SidebarLayout
+            sidebar={sidebar}
+            collapsedSidebar={sidebarCollapsed}
+            sidebarClassName="bg-[#1A0F0A] border-r border-[#2C1810]/40"
+          >{children}</SidebarLayout>
           {/* Mobile: bottom nav shell */}
           {mobileShell}
         </>
       ) : useSidebarOnlyShell ? (
-        <SidebarLayout sidebar={sidebar}>{children}</SidebarLayout>
+        <SidebarLayout
+          sidebar={sidebar}
+          collapsedSidebar={sidebarCollapsed}
+          sidebarClassName="bg-[#1A0F0A] border-r border-[#2C1810]/40"
+        >{children}</SidebarLayout>
       ) : (
         <MobileLayout
           bottomNav={

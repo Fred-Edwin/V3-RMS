@@ -1,11 +1,12 @@
 import { Worker } from 'bullmq';
-import { bullMqConnection, notificationQueue, reportQueue, authQueue } from '../config/queues';
+import { bullMqConnection, notificationQueue, reportQueue, authQueue, commsQueue } from '../config/queues';
 import { ensureShiftReminderSchedule, enqueueTomorrowShiftReminderDispatchJobs } from './shift-reminder';
 import { ensureDailyReportSchedule, precomputeDailyReports } from './daily-report';
 import { ensureStaleClockOutSchedule, closeStaleClockRecords } from './stale-clock-out';
 import { ensureStaleOrdersSchedule, flagStaleOrders } from './stale-orders';
 import { ensureReadyOrderReminderSchedule, sendReadyOrderReminders } from './ready-order-reminder';
 import { AUTH_TIMEOUT_JOB_NAME } from './house-account-auth-timeout';
+import { checkFormalNoticeReminders, ensureFormalNoticeReminderSchedule } from './formal-notice-reminders';
 import type { HouseAuthTimeoutJobData } from './house-account-auth-timeout';
 import { fcmService } from '../services/fcm-service';
 import { logger } from '../utils/logger';
@@ -98,11 +99,29 @@ export const authWorker = new Worker(
   },
 );
 
+export const commsWorker = new Worker(
+  'comms',
+  async (job) => {
+    if (job.name === 'formal-notice-reminders.schedule') {
+      await checkFormalNoticeReminders();
+      logger.info({ jobId: job.id }, 'Formal notice reminders job completed');
+      return;
+    }
+
+    logger.info({ jobId: job.id, name: job.name }, 'Comms job placeholder received');
+  },
+  {
+    connection: bullMqConnection,
+    autorun: false,
+  },
+);
+
 export const startWorkers = (): void => {
   if (process.env.START_BULLMQ_WORKERS === 'true') {
     notificationWorker.run();
     reportWorker.run();
     authWorker.run();
+    commsWorker.run();
     void ensureShiftReminderSchedule(notificationQueue).catch((error) => {
       logger.error({ error }, 'Failed to register shift reminder schedule');
     });
@@ -117,6 +136,9 @@ export const startWorkers = (): void => {
     });
     void ensureReadyOrderReminderSchedule(reportQueue).catch((error) => {
       logger.error({ error }, 'Failed to register ready order reminder schedule');
+    });
+    void ensureFormalNoticeReminderSchedule(commsQueue).catch((error) => {
+      logger.error({ error }, 'Failed to register formal notice reminder schedule');
     });
     logger.info('BullMQ workers started');
   }

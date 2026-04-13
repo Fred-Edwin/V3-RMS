@@ -18,3 +18,7 @@ export const reportQueue = new Queue('reports', {
 export const authQueue = new Queue('auth', {
   connection: bullMqConnection,
 });
+
+export const commsQueue = new Queue('comms', {
+  connection: bullMqConnection,
+});

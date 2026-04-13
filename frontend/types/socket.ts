@@ -88,10 +88,43 @@ export interface ServerToClientEvents {
     approved: boolean;
     discountedTotal?: string;
   }) => void;
+  'comms:dm_received': (payload: {
+    conversationId: string;
+    message: {
+      id: string;
+      senderId: string;
+      senderName: string;
+      bodyHtml: string;
+      attachmentUrl: string | null;
+      attachmentName: string | null;
+      createdAt: string;
+    };
+  }) => void;
+  'comms:broadcast_received': (payload: {
+    broadcastId: string;
+    subject: string;
+    senderName: string;
+    requiresAck: boolean;
+    createdAt: string;
+  }) => void;
+  'comms:notice_received': (payload: {
+    noticeId: string;
+    subject: string;
+    issuerName: string;
+    createdAt: string;
+  }) => void;
+  'comms:typing_start': (payload: { conversationId: string; userId: string; userName: string }) => void;
+  'comms:typing_stop': (payload: { conversationId: string; userId: string }) => void;
+  'comms:message_read': (payload: { messageId: string; conversationId: string; readAt: string }) => void;
+  'comms:broadcast_read': (payload: { broadcastId: string; userId: string; userName: string; readAt: string }) => void;
+  'comms:broadcast_acknowledged': (payload: { broadcastId: string; userId: string; userName: string; acknowledgedAt: string }) => void;
+  'comms:notice_acknowledged': (payload: { noticeId: string; userId: string; userName: string; acknowledgedAt: string }) => void;
 }
 
 export interface ClientToServerEvents {
   'join:branch': (payload: { organizationId: string }) => void;
   'join:station': (payload: { organizationId: string; station: PrepStation }) => void;
   'join:user': (payload: { userId: string }) => void;
+  'comms:typing_start': (payload: { conversationId: string }) => void;
+  'comms:typing_stop': (payload: { conversationId: string }) => void;
 }

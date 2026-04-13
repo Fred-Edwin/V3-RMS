@@ -20,12 +20,15 @@ const request = async <T>(
   const payload = (await response.json()) as ApiResponseEnvelope<T>;
 
   if (!response.ok) {
-    throw new ApiError(
+    const err = new ApiError(
       payload.error?.message ?? 'Request failed',
       response.status,
       payload.error?.code ?? 'UNKNOWN_ERROR',
       payload.error?.details,
     );
+    // Log the real error details so they appear in the browser console
+    console.error(`[apiClient] ${method} ${path} → ${response.status}`, payload.error ?? payload);
+    throw err;
   }
 
   return payload.data as T;

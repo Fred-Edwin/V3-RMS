@@ -242,4 +242,91 @@ export const socketService = {
     io.to(userRoomName(waiterId)).emit('order:customer_discount_resolved', payload);
     io.to(branchRoomName(organizationId)).emit('order:customer_discount_resolved', payload);
   },
+
+  // ─── Internal Communications ─────────────────────────────────────────────
+
+  /** Delivers a new DM in real-time to the recipient's personal room. */
+  emitNewDirectMessage: (
+    recipientUserId: string,
+    payload: {
+      conversationId: string;
+      message: {
+        id: string;
+        senderId: string;
+        senderName: string;
+        bodyHtml: string;
+        attachmentUrl: string | null;
+        attachmentName: string | null;
+        createdAt: string;
+      };
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(recipientUserId)).emit('comms:dm_received', payload);
+  },
+
+  /** Notifies the original sender that their message has been read. */
+  emitMessageRead: (
+    senderUserId: string,
+    payload: { messageId: string; conversationId: string; readAt: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(senderUserId)).emit('comms:message_read', payload);
+  },
+
+  /** Delivers a new broadcast to all connected staff in a branch room. */
+  emitNewBroadcast: (
+    organizationId: string,
+    payload: {
+      broadcastId: string;
+      subject: string;
+      senderName: string;
+      requiresAck: boolean;
+      createdAt: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(branchRoomName(organizationId)).emit('comms:broadcast_received', payload);
+  },
+
+  /** Delivers a new formal notice to all connected staff in a branch room. */
+  emitNewFormalNotice: (
+    organizationId: string,
+    payload: {
+      noticeId: string;
+      subject: string;
+      issuerName: string;
+      createdAt: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(branchRoomName(organizationId)).emit('comms:notice_received', payload);
+  },
+
+  /** Notifies the broadcast sender that a recipient has read their broadcast. */
+  emitBroadcastRead: (
+    senderUserId: string,
+    payload: { broadcastId: string; userId: string; userName: string; readAt: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(senderUserId)).emit('comms:broadcast_read', payload);
+  },
+
+  /** Notifies the broadcast sender that a recipient has acknowledged their broadcast. */
+  emitBroadcastAcknowledged: (
+    senderUserId: string,
+    payload: { broadcastId: string; userId: string; userName: string; acknowledgedAt: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(senderUserId)).emit('comms:broadcast_acknowledged', payload);
+  },
+
+  /** Notifies the notice issuer that a recipient has acknowledged their formal notice. */
+  emitNoticeAcknowledged: (
+    issuerUserId: string,
+    payload: { noticeId: string; userId: string; userName: string; acknowledgedAt: string },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(issuerUserId)).emit('comms:notice_acknowledged', payload);
+  },
 };

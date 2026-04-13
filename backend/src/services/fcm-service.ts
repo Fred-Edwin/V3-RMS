@@ -394,4 +394,143 @@ export const fcmService = {
       logger.warn({ error, userId, payload }, 'Failed to send shift reminder FCM push');
     }
   },
+
+  // ─── Internal Communications ───────────────────────────────────────────
+
+  /**
+   * Notifies a single staff member that they received a new DM.
+   * Fire-and-forget.
+   */
+  sendDirectMessagePush: async (
+    recipientId: string,
+    payload: { conversationId: string; senderName: string; preview: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const token = await authRepository.findFcmToken(recipientId);
+      if (!token) return;
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: `Message from ${payload.senderName}`,
+            body: payload.preview,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `dm-${payload.conversationId}`,
+            renotify: true,
+          },
+          fcmOptions: { link: '/app/inbox' },
+        },
+        data: { conversationId: payload.conversationId, type: 'dm' },
+      });
+    } catch (error) {
+      logger.warn({ error, recipientId }, 'Failed to send DM FCM push');
+    }
+  },
+
+  /**
+   * Notifies multiple recipients that a broadcast was sent.
+   * Batches in groups of 500 (FCM multicast limit).
+   * Fire-and-forget.
+   */
+  sendBroadcastPush: async (
+    recipientIds: string[],
+    payload: { broadcastId: string; subject: string; senderName: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY || recipientIds.length === 0) return;
+      // Fetch all tokens at once
+      const users = await Promise.all(recipientIds.map((id) => authRepository.findFcmToken(id)));
+      const tokens = users.filter((t): t is string => t !== null);
+      if (tokens.length === 0) return;
+      // Batch into chunks of 500
+      const BATCH = 500;
+      for (let i = 0; i < tokens.length; i += BATCH) {
+        const batch = tokens.slice(i, i + BATCH);
+        await firebaseMessaging.sendEachForMulticast({
+          tokens: batch,
+          webpush: {
+            headers: { Urgency: 'normal' },
+            notification: {
+              title: `Announcement: ${payload.subject}`,
+              body: `From ${payload.senderName}`,
+              icon: '/favicon.ico',
+              badge: '/favicon.ico',
+              tag: `broadcast-${payload.broadcastId}`,
+            },
+            fcmOptions: { link: '/app/inbox' },
+          },
+          data: { broadcastId: payload.broadcastId, type: 'broadcast' },
+        });
+      }
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send broadcast FCM push');
+    }
+  },
+
+  /**
+   * Sends a 24h reminder to a staff member who has not acknowledged a formal notice.
+   * Fire-and-forget.
+   */
+  sendFormalNoticePush: async (
+    recipientId: string,
+    payload: { noticeId: string; subject: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const token = await authRepository.findFcmToken(recipientId);
+      if (!token) return;
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Action required: Formal Notice',
+            body: `Please acknowledge: ${payload.subject}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `notice-${payload.noticeId}`,
+            renotify: true,
+          },
+          fcmOptions: { link: '/app/inbox' },
+        },
+        data: { noticeId: payload.noticeId, type: 'formal_notice' },
+      });
+    } catch (error) {
+      logger.warn({ error, recipientId }, 'Failed to send formal notice FCM push');
+    }
+  },
+
+  /**
+   * Sends a 48h escalation push to directors/HR when a formal notice is still unacknowledged.
+   * Fire-and-forget.
+   */
+  sendFormalNoticeEscalationPush: async (
+    directorTokens: string[],
+    payload: { noticeId: string; subject: string; recipientName: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY || directorTokens.length === 0) return;
+      await firebaseMessaging.sendEachForMulticast({
+        tokens: directorTokens,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Escalation: Unacknowledged Notice (48h)',
+            body: `${payload.recipientName} has not acknowledged: ${payload.subject}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `notice-escalation-${payload.noticeId}`,
+            renotify: true,
+          },
+          fcmOptions: { link: '/app/inbox' },
+        },
+        data: { noticeId: payload.noticeId, type: 'notice_escalation' },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send formal notice escalation FCM push');
+    }
+  },
 };

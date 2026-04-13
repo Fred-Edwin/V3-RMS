@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inbox Group B — List Views + Full-screen Detail Slide-ins</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+    gap: 32px;
+  }
+
+  h1 {
+    color: #F5F0E8;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+  }
+
+  /* ─── Phone Frame ─── */
+  .phone-frame {
+    width: 390px;
+    height: 844px;
+    background: #000;
+    border-radius: 54px;
+    position: relative;
+    box-shadow:
+      0 0 0 2px #3a3a3a,
+      0 0 0 4px #1a1a1a,
+      0 40px 80px rgba(0,0,0,0.7);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 34px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+
+  /* Screen */
+  .screen {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #F5F0E8;
+    border-radius: 54px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    background: #2C1810;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 28px 8px;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  .status-time {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .status-icons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .status-icons svg { fill: white; }
+
+  /* App header */
+  .app-header {
+    background: #2C1810;
+    padding: 10px 20px 14px;
+    flex-shrink: 0;
+  }
+  .app-header-title {
+    color: #F5F0E8;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    background: #2C1810;
+    display: flex;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 4px 11px;
+    text-align: center;
+    color: rgba(245,240,232,0.55);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab.active {
+    color: #F5F0E8;
+    border-bottom-color: #F0D080;
+  }
+
+  /* Content area */
+  .content-area {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: #F5F0E8;
+  }
+
+  .tab-panel {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+  }
+  .tab-panel.active { display: flex; }
+
+  /* Urgency banner */
+  .urgency-banner {
+    background: #FDF3DC;
+    border-bottom: 1px solid #F0D080;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #92650A;
+    font-weight: 500;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* List */
+  .list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Row */
+  .row {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border-bottom: 1px solid #E8E0D5;
+    cursor: pointer;
+    transition: background 0.12s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 72px;
+  }
+  .row:active { background: #F5F0E8; }
+
+  /* Accent bar */
+  .accent-bar {
+    width: 3px;
+    background: #2C1810;
+    flex-shrink: 0;
+    border-radius: 0 2px 2px 0;
+    margin: 6px 0;
+  }
+  .accent-bar.amber { background: #F59E0B; }
+  .accent-bar.none { background: transparent; }
+
+  /* Icon box */
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #EDE7DC;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: auto 10px auto 10px;
+    position: relative;
+  }
+  .icon-box.amber-bg { background: #FDF3DC; border: 1px solid #F0D080; }
+  .icon-box.green-bg { background: #EDFAF1; border: 1px solid #86EFAC; }
+
+  .sent-overlay {
+    position: absolute;
+    bottom: -3px;
+    right: -3px;
+    width: 16px;
+    height: 16px;
+    background: #2C1810;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #fff;
+  }
+
+  /* Avatar */
+  .avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin: auto 10px auto 12px;
+    position: relative;
+  }
+  .avatar.amber-av { background: #F6D860; color: #2C1810; }
+  .avatar.sage-av { background: #A7C4B5; color: #1a3a2a; }
+  .avatar.blue-av { background: #A7B8C4; color: #1a2a3a; }
+  .avatar.rose-av { background: #C4A7A7; color: #3a1a1a; }
+
+  .online-dot {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 11px;
+    height: 11px;
+    background: #22c55e;
+    border-radius: 50%;
+    border: 2px solid #fff;
+  }
+
+  /* Row content */
+  .row-content {
+    flex: 1;
+    padding: 12px 12px 12px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+  }
+  .row-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .row-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #1C1917;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-title.normal { font-weight: 400; color: #44403C; }
+  .row-time {
+    font-size: 11.5px;
+    color: #8B7355;
+    flex-shrink: 0;
+  }
+  .row-bottom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .row-preview {
+    font-size: 13px;
+    color: #8B7355;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-preview.bold { font-weight: 600; color: #44403C; }
+
+  /* Badges */
+  .badge {
+    flex-shrink: 0;
+    border-radius: 100px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.amber { background: #FDF3DC; color: #92650A; border: 1px solid #F0D080; }
+  .badge.green { background: #EDFAF1; color: #1A6B3C; border: 1px solid #86EFAC; }
+  .badge.unread-count {
+    background: #2C1810;
+    color: #F5F0E8;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  /* Sender stats chip */
+  .sender-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .sent-label {
+    font-size: 9.5px;
+    color: #8B7355;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .stats-chip {
+    background: #EDE7DC;
+    border-radius: 100px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #44403C;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Typing dots */
+  .typing-dots {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 0;
+  }
+  .typing-dot {
+    width: 5px;
+    height: 5px;
+    background: #8B7355;
+    border-radius: 50%;
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+  }
+
+  /* Scroll loader */
+  .scroll-loader {
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #8B7355;
+    font-size: 12px;
+  }
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #E8E0D5;
+    border-top-color: #8B7355;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: 20px;
+    right: 18px;
+    width: 52px;
+    height: 52px;
+    background: #2C1810;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(44,24,16,0.35);
+    cursor: pointer;
+    z-index: 10;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgba(44,24,16,0.3); }
+
+  /* ─── Detail slide-in ─── */
+  .detail-screen {
+    position: absolute;
+    inset: 0;
+    background: #F5F0E8;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    will-change: transform;
+  }
+  .detail-screen.visible {
+    transform: translateX(0);
+  }
+  .detail-screen.closing {
+    transition: transform 0.25s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+
+  /* Detail header */
+  .detail-header {
+    background: #2C1810;
+    padding-top: 54px; /* for status bar */
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 16px;
+    padding-bottom: 12px;
+    gap: 6px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    color: rgba(245,240,232,0.8);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .back-btn:active { background: rgba(255,255,255,0.1); }
+  .detail-header-title {
+    flex: 1;
+    text-align: center;
+    color: #F5F0E8;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .detail-header-right {
+    width: 60px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  /* Thread header variant */
+  .thread-header-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+  }
+  .thread-name {
+    color: #F5F0E8;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .thread-sub {
+    color: rgba(245,240,232,0.55);
+    font-size: 11px;
+  }
+
+  /* Detail body */
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Cards */
+  .detail-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #E8E0D5;
+  }
+  .card-header-section {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid #F0EAE0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .scope-badge {
+    background: #EDE7DC;
+    color: #8B7355;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    border-radius: 100px;
+    padding: 2px 10px;
+    align-self: flex-start;
+    text-transform: uppercase;
+  }
+  .detail-subject {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1.3;
+  }
+  .sender-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mini-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #EDE7DC;
+    color: #2C1810;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .sender-text {
+    font-size: 12.5px;
+    color: #8B7355;
+  }
+  .card-body {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #44403C;
+    line-height: 1.6;
+  }
+
+  /* Delivery stats */
+  .delivery-section {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #E8E0D5;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .section-heading {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #8B7355;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .stat-boxes {
+    display: flex;
+    gap: 8px;
+  }
+  .stat-box {
+    flex: 1;
+    background: #F5F0E8;
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2C1810;
+  }
+  .stat-label {
+    font-size: 10.5px;
+    color: #8B7355;
+    font-weight: 500;
+  }
+  .recipient-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .recipient-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .recipient-row .mini-avatar { width: 28px; height: 28px; font-size: 10px; }
+  .recipient-name { font-size: 13px; color: #1C1917; flex: 1; }
+  .recipient-status { font-size: 11.5px; color: #8B7355; }
+  .recipient-status.read { color: #1A6B3C; }
+
+  /* Ack / Notice banners */
+  .ack-banner {
+    background: #FDF3DC;
+    border: 1px solid #F0D080;
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ack-banner-text {
+    font-size: 13.5px;
+    color: #92650A;
+    line-height: 1.5;
+  }
+  .ack-btn {
+    background: #2C1810;
+    color: #F5F0E8;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.15s;
+  }
+  .ack-btn:active { opacity: 0.85; }
+  .ack-btn.green-btn {
+    background: #1A6B3C;
+  }
+
+  /* Notice top strip */
+  .notice-strip {
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .notice-strip.amber { background: #FDF3DC; border: 1px solid #F0D080; }
+  .notice-strip.green { background: #EDFAF1; border: 1px solid #86EFAC; }
+  .notice-strip-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .notice-strip.amber .notice-strip-icon { background: #F0D080; }
+  .notice-strip.green .notice-strip-icon { background: #86EFAC; }
+  .notice-strip-text { display: flex; flex-direction: column; gap: 3px; }
+  .notice-strip-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .notice-strip.amber .notice-strip-label { color: #92650A; }
+  .notice-strip.green .notice-strip-label { color: #1A6B3C; }
+  .notice-strip-sub { font-size: 12.5px; color: #8B7355; }
+
+  .green-confirmed {
+    background: #EDFAF1;
+    border: 1px solid #86EFAC;
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #1A6B3C;
+    line-height: 1.5;
+  }
+
+  /* ─── Chat thread ─── */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #F5F0E8;
+  }
+  .date-sep {
+    align-self: center;
+    background: rgba(44,24,16,0.08);
+    color: #8B7355;
+    font-size: 11.5px;
+    border-radius: 100px;
+    padding: 3px 12px;
+    margin: 4px 0;
+  }
+  .bubble-wrap {
+    display: flex;
+    flex-direction: column;
+    max-width: 78%;
+    gap: 2px;
+  }
+  .bubble-wrap.out { align-self: flex-end; align-items: flex-end; }
+  .bubble-wrap.in { align-self: flex-start; }
+  .bubble {
+    padding: 9px 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    position: relative;
+  }
+  .bubble.in {
+    background: #fff;
+    color: #1C1917;
+    border: 1px solid #E8E0D5;
+    border-top-left-radius: 4px;
+  }
+  .bubble.out {
+    background: #2C1810;
+    color: #F5F0E8;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble-time {
+    font-size: 10.5px;
+    color: #8B7355;
+    padding: 0 2px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .bubble-time.out { color: rgba(245,240,232,0.55); justify-content: flex-end; padding-right: 4px; }
+  .typing-bubble {
+    background: #fff;
+    border: 1px solid #E8E0D5;
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    padding: 11px 14px;
+    align-self: flex-start;
+  }
+
+  /* Input bar */
+  .input-bar {
+    background: #fff;
+    border-top: 1px solid #E8E0D5;
+    padding: 10px 12px 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .input-field {
+    flex: 1;
+    background: #F5F0E8;
+    border-radius: 22px;
+    padding: 9px 14px;
+    font-size: 14px;
+    color: #8B7355;
+    border: none;
+    outline: none;
+  }
+  .send-btn {
+    width: 38px;
+    height: 38px;
+    background: #2C1810;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  /* ─── Controls panel ─── */
+  .controls {
+    background: #242424;
+    border: 1px solid #383838;
+    border-radius: 16px;
+    padding: 20px;
+    width: 390px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .controls-title {
+    color: #F5F0E8;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .control-label {
+    color: #F5F0E8;
+    font-size: 11.5px;
+    font-weight: 500;
+    opacity: 0.55;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pill-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pill-btn {
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1.5px solid #4a4a4a;
+    background: transparent;
+    color: rgba(245,240,232,0.65);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill-btn.active {
+    background: #2C1810;
+    border-color: #5C3820;
+    color: #F5F0E8;
+  }
+  .pill-btn:hover:not(.active) { border-color: #888; color: #F5F0E8; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .toggle-label-text {
+    color: rgba(245,240,232,0.7);
+    font-size: 13px;
+  }
+  .toggle {
+    width: 42px;
+    height: 24px;
+    background: #444;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: #2C1810; }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 21px; }
+
+  /* Sender row visibility */
+  .row-sender-only { display: none; }
+  .row-recipient-only { display: none; }
+
+  /* Divider */
+  .list-divider {
+    padding: 7px 16px 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #8B7355;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #F5F0E8;
+  }
+</style>
+</head>
+<body>
+
+<h1>Inbox — Group B: List Views + Full-screen Detail Slide-ins</h1>
+
+<!-- Phone Frame -->
+<div class="phone-frame">
+  <div class="dynamic-island"></div>
+  <div class="screen">
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <span class="status-icons">
+        <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg>
+        <svg width="15" height="12" viewBox="0 0 15 12"><path d="M7.5 2.5C9.8 2.5 11.9 3.4 13.4 4.9L14.8 3.5C12.9 1.6 10.3 0.5 7.5 0.5C4.7 0.5 2.1 1.6 0.2 3.5L1.6 4.9C3.1 3.4 5.2 2.5 7.5 2.5Z"/><path d="M7.5 6C8.9 6 10.2 6.6 11.1 7.5L12.5 6.1C11.2 4.8 9.4 4 7.5 4C5.6 4 3.8 4.8 2.5 6.1L3.9 7.5C4.8 6.6 6.1 6 7.5 6Z"/><circle cx="7.5" cy="10" r="1.5"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="white" stroke-width="1.5" fill="none"/><rect x="22.5" y="4" width="2" height="4" rx="1" fill="white" opacity="0.5"/><rect x="1.5" y="2.5" width="16" height="7" rx="1.5" fill="white"/></svg>
+      </span>
+    </div>
+
+    <!-- App header -->
+    <div class="app-header">
+      <div class="app-header-title">Inbox</div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <div class="tab active" id="tab-broadcasts" onclick="switchTab('broadcasts')">Broadcasts</div>
+      <div class="tab" id="tab-notices" onclick="switchTab('notices')">Notices</div>
+      <div class="tab" id="tab-messages" onclick="switchTab('messages')">Messages</div>
+    </div>
+
+    <!-- Content area -->
+    <div class="content-area" id="content-area">
+
+      <!-- ═══════════════════════════════ TAB: BROADCASTS ═══════════════════════════════ -->
+      <div class="tab-panel active" id="panel-broadcasts">
+
+        <!-- Urgency banner -->
+        <div class="urgency-banner">
+          <span>⚠️</span>
+          <span>1 broadcast requires your acknowledgement</span>
+        </div>
+
+        <div class="list">
+
+          <!-- Row 1: Unread, requires ack -->
+          <div class="row" onclick="openDetail('broadcast-detail-1')">
+            <div class="accent-bar"></div>
+            <div class="icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1810" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8s-2-2-10-2S2 8 2 8v8s2 2 10 2 10-2 10-2V8z"/><path d="M2 8l10 6 10-6"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title">Updated Closing Procedure</span>
+                <span class="row-time">Today, 9:30</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">All staff are reminded that closing time has changed...</span>
+                <span class="badge amber">Ack required</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Sent by current user -->
+          <div class="row row-sender-only" id="row-sent-broadcast" onclick="openDetail('broadcast-detail-2')">
+            <div class="accent-bar none"></div>
+            <div class="icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1810" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8s-2-2-10-2S2 8 2 8v8s2 2 10 2 10-2 10-2V8z"/><path d="M2 8l10 6 10-6"/></svg>
+              <div class="sent-overlay">
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="white"><path d="M2 5l2.5 2.5 4.5-4.5" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">Weekend Shift Reminder</span>
+                <span class="row-time">Yesterday</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">Please confirm your availability for the weekend...</span>
+                <div class="sender-meta">
+                  <span class="sent-label">Sent</span>
+                  <span class="stats-chip">14 read · 2 pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2 recipient view (hidden when sender toggle is on) -->
+          <div class="row row-recipient-only" id="row-recv-broadcast" onclick="openDetail('broadcast-detail-2r')">
+            <div class="accent-bar none"></div>
+            <div class="icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1810" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8s-2-2-10-2S2 8 2 8v8s2 2 10 2 10-2 10-2V8z"/><path d="M2 8l10 6 10-6"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">Weekend Shift Reminder</span>
+                <span class="row-time">Yesterday</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">Please confirm your availability for the weekend...</span>
+                <span class="badge unread-count">1</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Acknowledged -->
+          <div class="row" onclick="openDetail('broadcast-detail-3')">
+            <div class="accent-bar none"></div>
+            <div class="icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1810" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8s-2-2-10-2S2 8 2 8v8s2 2 10 2 10-2 10-2V8z"/><path d="M2 8l10 6 10-6"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">Safety Protocol Update</span>
+                <span class="row-time">Mon, Apr 7</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">Review the updated safety procedures for all kitchens</span>
+                <span class="badge green">✓ Acked</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 4: Read, no ack -->
+          <div class="row" onclick="openDetail('broadcast-detail-3')">
+            <div class="accent-bar none"></div>
+            <div class="icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1810" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8s-2-2-10-2S2 8 2 8v8s2 2 10 2 10-2 10-2V8z"/><path d="M2 8l10 6 10-6"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">April Staff Schedule Released</span>
+                <span class="row-time">Apr 1</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">The April roster is now available. Please review your shifts...</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="scroll-loader">
+          <div class="spinner"></div>
+          <span>Loading more...</span>
+        </div>
+
+        <!-- FAB -->
+        <div class="fab" id="fab-broadcasts" title="New broadcast">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+
+      </div><!-- end panel-broadcasts -->
+
+
+      <!-- ═══════════════════════════════ TAB: NOTICES ═══════════════════════════════ -->
+      <div class="tab-panel" id="panel-notices">
+
+        <div class="urgency-banner" style="background:#FDF3DC; border-color:#F59E0B;">
+          <span>⚠️</span>
+          <span style="color:#92650A; font-weight:600;">You have 1 formal notice requiring acknowledgement</span>
+        </div>
+
+        <div class="list">
+
+          <!-- Row 1: Pending ack -->
+          <div class="row" onclick="openDetail('notice-detail-1')" style="box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <div class="accent-bar amber"></div>
+            <div class="icon-box amber-bg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92650A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title">First Written Warning — Attendance</span>
+                <span class="row-time">Apr 8</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview" style="color:#8B7355;">Issued by Edwin K.</span>
+                <span class="badge amber" style="background:#FDF3DC; border-color:#F59E0B; color:#92650A;">Pending</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Acknowledged -->
+          <div class="row" onclick="openDetail('notice-detail-2')">
+            <div class="accent-bar none"></div>
+            <div class="icon-box green-bg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A6B3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">Uniform Policy Update</span>
+                <span class="row-time">Mar 15</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview">Issued by Edwin K.</span>
+                <span class="badge green">✓ Acknowledged</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="scroll-loader">
+          <div class="spinner"></div>
+          <span>Loading more...</span>
+        </div>
+
+      </div><!-- end panel-notices -->
+
+
+      <!-- ═══════════════════════════════ TAB: MESSAGES ═══════════════════════════════ -->
+      <div class="tab-panel" id="panel-messages">
+
+        <div class="list">
+
+          <!-- Row 1: Unread 2 -->
+          <div class="row" onclick="openDetail('message-thread-1')">
+            <div class="accent-bar"></div>
+            <div class="avatar amber-av" style="margin-left:16px;">
+              MK
+              <div class="online-dot"></div>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title">Mary Kamau</span>
+                <span class="row-time">9:45</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview bold">Are you available for the evening shi...</span>
+                <span class="badge unread-count">2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Sent, read -->
+          <div class="row" onclick="openDetail('message-thread-2')">
+            <div class="accent-bar none"></div>
+            <div class="avatar sage-av" style="margin-left:16px;">JO</div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title normal">James Odhiambo</span>
+                <span class="row-time">8:22</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview" style="display:flex;align-items:center;gap:4px;">
+                  <svg width="14" height="10" viewBox="0 0 18 12" fill="none" style="flex-shrink:0;"><path d="M1 6l4 4 7-8" stroke="#1A6B3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6l4 4 7-8" stroke="#1A6B3C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Sure, I'll be there by 4pm
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Typing -->
+          <div class="row" onclick="openDetail('message-thread-3')">
+            <div class="accent-bar none"></div>
+            <div class="avatar blue-av" style="margin-left:16px;">
+              AN
+              <div class="online-dot"></div>
+            </div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title" style="font-weight:600;">Alice Njeri</span>
+                <span class="row-time">now</span>
+              </div>
+              <div class="row-bottom">
+                <div class="typing-dots">
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                  <div class="typing-dot"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 4: Offline, unread -->
+          <div class="row" onclick="openDetail('message-thread-4')">
+            <div class="accent-bar"></div>
+            <div class="avatar rose-av" style="margin-left:16px;">TM</div>
+            <div class="row-content">
+              <div class="row-top">
+                <span class="row-title">Tom Mwangi</span>
+                <span class="row-time">Yesterday</span>
+              </div>
+              <div class="row-bottom">
+                <span class="row-preview bold">Can I swap my Tuesday shift with...</span>
+                <span class="badge unread-count">1</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="scroll-loader">
+          <div class="spinner"></div>
+          <span>Loading more...</span>
+        </div>
+
+        <!-- FAB -->
+        <div class="fab" id="fab-messages" title="New message">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+
+      </div><!-- end panel-messages -->
+
+
+      <!-- ═══════════════ DETAIL SCREENS (all absolute, slide in over content) ═══════════════ -->
+
+      <!-- Broadcast Detail 1 — Unread, requires ack -->
+      <div class="detail-screen" id="broadcast-detail-1">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('broadcast-detail-1')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Broadcasts</span>
+          <div class="detail-header-right">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.7)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-card">
+            <div class="card-header-section">
+              <span class="scope-badge">Company-wide</span>
+              <div class="detail-subject">Updated Closing Procedure</div>
+              <div class="sender-line">
+                <div class="mini-avatar">EK</div>
+                <span class="sender-text">Edwin Kamau · Today at 9:30</span>
+              </div>
+            </div>
+            <div class="card-body">
+              All staff are reminded that the bistro's closing time has been updated effective immediately. The new closing time is 10:00 PM on weekdays and 11:00 PM on Fridays and Saturdays.<br><br>
+              All front-of-house staff must complete side work and cash-out procedures no later than 30 minutes before closing. Kitchen staff are to begin breakdown at 9:15 PM to ensure timely service completion.<br><br>
+              Please review the updated closing checklist pinned to the staff noticeboard and ensure compliance going forward. Failure to adhere to the new schedule will be noted in performance reviews.
+            </div>
+          </div>
+          <div class="ack-banner">
+            <div class="ack-banner-text">You must acknowledge this message to confirm you have read and understood it. Your acknowledgement will be recorded with a timestamp.</div>
+            <button class="ack-btn">I have read and understood this</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast Detail 2 — Sender view (Director) -->
+      <div class="detail-screen" id="broadcast-detail-2">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('broadcast-detail-2')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Broadcasts</span>
+          <div class="detail-header-right">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.7)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-card">
+            <div class="card-header-section">
+              <span class="scope-badge">All Branches</span>
+              <div class="detail-subject">Weekend Shift Reminder</div>
+              <div class="sender-line">
+                <div class="mini-avatar">EK</div>
+                <span class="sender-text">Edwin Kamau · Yesterday at 14:15 · <strong style="color:#2C1810;">You</strong></span>
+              </div>
+            </div>
+            <div class="card-body">
+              Please confirm your availability for the upcoming weekend shifts. We are expecting higher-than-usual footfall due to the local food festival and need full staffing on Saturday and Sunday.<br><br>
+              Kindly respond to your branch manager by 6:00 PM today to confirm attendance. Those who have already confirmed via the schedule app do not need to take further action.
+            </div>
+          </div>
+          <div class="delivery-section">
+            <div class="section-heading">Delivery</div>
+            <div class="stat-boxes">
+              <div class="stat-box"><div class="stat-number">16</div><div class="stat-label">Sent</div></div>
+              <div class="stat-box"><div class="stat-number">14</div><div class="stat-label">Read</div></div>
+              <div class="stat-box" style="background:#FDF3DC;"><div class="stat-number" style="color:#92650A;">2</div><div class="stat-label" style="color:#92650A;">Pending</div></div>
+            </div>
+            <div class="recipient-list">
+              <div class="recipient-row">
+                <div class="mini-avatar" style="background:#A7C4B5;color:#1a3a2a;">JO</div>
+                <span class="recipient-name">James Odhiambo</span>
+                <span class="recipient-status read">Read 14:18</span>
+              </div>
+              <div class="recipient-row">
+                <div class="mini-avatar" style="background:#F6D860;color:#2C1810;">MK</div>
+                <span class="recipient-name">Mary Kamau</span>
+                <span class="recipient-status read">Read 15:02</span>
+              </div>
+              <div class="recipient-row">
+                <div class="mini-avatar" style="background:#C4A7A7;color:#3a1a1a;">TM</div>
+                <span class="recipient-name">Tom Mwangi</span>
+                <span class="recipient-status">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast Detail 2r — Recipient unread view -->
+      <div class="detail-screen" id="broadcast-detail-2r">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('broadcast-detail-2r')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Broadcasts</span>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-card">
+            <div class="card-header-section">
+              <span class="scope-badge">All Branches</span>
+              <div class="detail-subject">Weekend Shift Reminder</div>
+              <div class="sender-line">
+                <div class="mini-avatar">EK</div>
+                <span class="sender-text">Edwin Kamau · Yesterday at 14:15</span>
+              </div>
+            </div>
+            <div class="card-body">
+              Please confirm your availability for the upcoming weekend shifts. We are expecting higher-than-usual footfall due to the local food festival and need full staffing on Saturday and Sunday.<br><br>
+              Kindly respond to your branch manager by 6:00 PM today to confirm attendance. Those who have already confirmed via the schedule app do not need to take further action.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast Detail 3 — Acknowledged -->
+      <div class="detail-screen" id="broadcast-detail-3">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('broadcast-detail-3')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Broadcasts</span>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="detail-body">
+          <div class="detail-card">
+            <div class="card-header-section">
+              <span class="scope-badge">Company-wide</span>
+              <div class="detail-subject">Safety Protocol Update</div>
+              <div class="sender-line">
+                <div class="mini-avatar">EK</div>
+                <span class="sender-text">Edwin Kamau · Mon, Apr 7 at 10:00</span>
+              </div>
+            </div>
+            <div class="card-body">
+              All kitchen staff must review the updated fire safety and food handling procedures that took effect this week. The new protocols include revised temperature logging intervals and updated fire extinguisher locations.<br><br>
+              A hard copy of the updated procedures is pinned in each kitchen. Please familiarise yourself and sign the physical acknowledgement sheet at your station.
+            </div>
+          </div>
+          <div class="green-confirmed">
+            ✓ You acknowledged this broadcast on Mon, Apr 7 at 10:14 AM. Your response has been recorded.
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Notice Detail 1 — Pending ack -->
+      <div class="detail-screen" id="notice-detail-1">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('notice-detail-1')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Notice</span>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="detail-body">
+          <div class="notice-strip amber">
+            <div class="notice-strip-icon">⚠️</div>
+            <div class="notice-strip-text">
+              <div class="notice-strip-label">Formal Notice</div>
+              <div class="notice-strip-sub">Issued by Edwin K. · Apr 8, 2026</div>
+            </div>
+          </div>
+          <div class="detail-card">
+            <div class="card-header-section">
+              <div class="detail-subject">First Written Warning — Attendance</div>
+            </div>
+            <div class="card-body">
+              This letter serves as a formal First Written Warning regarding your attendance record over the past 30 days. Our records show three instances of late arrival exceeding 15 minutes, on March 14, March 22, and April 2, 2026.<br><br>
+              Punctuality is a core expectation of your role at Wendo Coffee Bistro. Consistent tardiness disrupts service delivery and places additional burden on your colleagues.<br><br>
+              You are required to demonstrate immediate and sustained improvement. Should your attendance not improve over the next 30-day review period, further disciplinary action may be taken, up to and including a Final Written Warning.<br><br>
+              This notice will be retained permanently on your HR record. You have the right to appeal this decision in writing within 5 working days of receipt.
+            </div>
+          </div>
+          <div class="ack-banner">
+            <div class="ack-banner-text">By acknowledging receipt of this notice, you confirm that you have read and understood its contents. Acknowledgement does not constitute agreement with its findings.</div>
+            <button class="ack-btn" style="background:#92650A;">Acknowledge receipt</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notice Detail 2 — Acknowledged -->
+      <div class="detail-screen" id="notice-detail-2">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('notice-detail-2')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <span class="detail-header-title">Notice</span>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="detail-body">
+          <div class="notice-strip green">
+            <div class="notice-strip-icon">✅</div>
+            <div class="notice-strip-text">
+              <div class="notice-strip-label">Formal Notice</div>
+              <div class="notice-strip-sub">Acknowledged Apr 9, 2026</div>
+            </div>
+          </div>
+          <div class="detail-card">
+            <div class="card-header-section">
+              <div class="detail-subject">Uniform Policy Update</div>
+            </div>
+            <div class="card-body">
+              Please be advised that the Wendo Coffee Bistro uniform policy has been updated effective 1 April 2026. All front-of-house staff are required to wear the updated uniform, which includes the new branded apron and name badge.<br><br>
+              Staff who have not yet collected their updated uniform should see their branch manager. The updated policy document is available in the staff handbook.
+            </div>
+          </div>
+          <div class="green-confirmed">
+            ✓ You acknowledged this notice on Apr 9, 2026 · This notice is permanently retained on your HR record.
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Message Thread 1 — Mary Kamau -->
+      <div class="detail-screen" id="message-thread-1" style="display:flex;flex-direction:column;">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('message-thread-1')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <div class="thread-header-center">
+            <div class="thread-name">
+              <div style="width:28px;height:28px;border-radius:50%;background:#F6D860;color:#2C1810;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;">
+                MK
+                <div style="position:absolute;bottom:0;right:0;width:9px;height:9px;background:#22c55e;border-radius:50%;border:1.5px solid #2C1810;"></div>
+              </div>
+              Mary Kamau
+            </div>
+            <div class="thread-sub">Online</div>
+          </div>
+          <div class="detail-header-right">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.31h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.91-1.84a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.92 15z"/></svg>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="date-sep">Today</div>
+
+          <div class="bubble-wrap in">
+            <div class="bubble in">Hey! Are you free to cover the evening shift tomorrow? We're short-staffed.</div>
+            <div class="bubble-time">9:31</div>
+          </div>
+
+          <div class="bubble-wrap out">
+            <div class="bubble out">What time does it start?</div>
+            <div class="bubble-time out">
+              <svg width="14" height="10" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              9:38
+            </div>
+          </div>
+
+          <div class="bubble-wrap in">
+            <div class="bubble in">4 PM to close. It's the Friday evening rush so we really need the help.</div>
+            <div class="bubble-time">9:40</div>
+          </div>
+
+          <div class="bubble-wrap in">
+            <div class="bubble in">Are you available for the evening shift? 😊</div>
+            <div class="bubble-time">9:45</div>
+          </div>
+
+          <div class="typing-bubble">
+            <div class="typing-dots">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B7355" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <div class="input-field">Type a message...</div>
+          <div class="send-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Thread 2 — James Odhiambo -->
+      <div class="detail-screen" id="message-thread-2" style="display:flex;flex-direction:column;">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('message-thread-2')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <div class="thread-header-center">
+            <div class="thread-name">
+              <div style="width:28px;height:28px;border-radius:50%;background:#A7C4B5;color:#1a3a2a;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">JO</div>
+              James Odhiambo
+            </div>
+            <div class="thread-sub">Last seen 8:25</div>
+          </div>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="chat-area">
+          <div class="date-sep">Today</div>
+          <div class="bubble-wrap out">
+            <div class="bubble out">James, are you planning to come in early tomorrow? We need to prep for the catering order.</div>
+            <div class="bubble-time out">
+              <svg width="14" height="10" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              8:15
+            </div>
+          </div>
+          <div class="bubble-wrap in">
+            <div class="bubble in">Sure, I'll be there by 4pm</div>
+            <div class="bubble-time">8:22</div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B7355" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <div class="input-field">Type a message...</div>
+          <div class="send-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Thread 3 — Alice Njeri (typing) -->
+      <div class="detail-screen" id="message-thread-3" style="display:flex;flex-direction:column;">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('message-thread-3')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <div class="thread-header-center">
+            <div class="thread-name">
+              <div style="width:28px;height:28px;border-radius:50%;background:#A7B8C4;color:#1a2a3a;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;">
+                AN
+                <div style="position:absolute;bottom:0;right:0;width:9px;height:9px;background:#22c55e;border-radius:50%;border:1.5px solid #2C1810;"></div>
+              </div>
+              Alice Njeri
+            </div>
+            <div class="thread-sub" style="color:#22c55e;">typing...</div>
+          </div>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="chat-area">
+          <div class="date-sep">Today</div>
+          <div class="bubble-wrap out">
+            <div class="bubble out">Alice, did you get the memo about the new menu tasting on Thursday?</div>
+            <div class="bubble-time out">
+              <svg width="14" height="10" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 6l4 4 7-8" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              9:50
+            </div>
+          </div>
+          <div class="typing-bubble">
+            <div class="typing-dots">
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+              <div class="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B7355" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <div class="input-field">Type a message...</div>
+          <div class="send-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Thread 4 — Tom Mwangi -->
+      <div class="detail-screen" id="message-thread-4" style="display:flex;flex-direction:column;">
+        <div class="status-bar"><span class="status-time">9:41</span><span class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1"/><rect x="4.5" y="2" width="3" height="10" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="13.5" y="1" width="2.5" height="11" rx="1" opacity="0.3"/></svg></span></div>
+        <div class="detail-header">
+          <div class="back-btn" onclick="closeDetail('message-thread-4')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Inbox</span>
+          </div>
+          <div class="thread-header-center">
+            <div class="thread-name">
+              <div style="width:28px;height:28px;border-radius:50%;background:#C4A7A7;color:#3a1a1a;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">TM</div>
+              Tom Mwangi
+            </div>
+            <div class="thread-sub">Last seen yesterday</div>
+          </div>
+          <div class="detail-header-right"></div>
+        </div>
+        <div class="chat-area">
+          <div class="date-sep">Yesterday</div>
+          <div class="bubble-wrap in">
+            <div class="bubble in">Can I swap my Tuesday shift with someone? I have a doctor's appointment that afternoon.</div>
+            <div class="bubble-time">17:32</div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B7355" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <div class="input-field">Type a message...</div>
+          <div class="send-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F5F0E8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end content-area -->
+  </div><!-- end screen -->
+</div><!-- end phone-frame -->
+
+
+<!-- Controls Panel -->
+<div class="controls">
+  <div class="controls-title">Controls — Design Review</div>
+
+  <div class="control-group">
+    <div class="control-label">Role</div>
+    <div class="pill-group">
+      <button class="pill-btn active" id="role-director" onclick="setRole('director')">Director</button>
+      <button class="pill-btn" id="role-manager" onclick="setRole('manager')">Manager</button>
+      <button class="pill-btn" id="role-staff" onclick="setRole('staff')">Staff</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-label">Active Tab</div>
+    <div class="pill-group">
+      <button class="pill-btn active" id="ctrl-tab-broadcasts" onclick="switchTab('broadcasts')">Broadcasts</button>
+      <button class="pill-btn" id="ctrl-tab-notices" onclick="switchTab('notices')">Notices</button>
+      <button class="pill-btn" id="ctrl-tab-messages" onclick="switchTab('messages')">Messages</button>
+    </div>
+  </div>
+
+  <div class="control-group" id="ctrl-sender-view-group">
+    <div class="toggle-row">
+      <span class="toggle-label-text">Sender view (Broadcasts — Row 2)</span>
+      <div class="toggle on" id="toggle-sender" onclick="toggleSenderView()"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ─── State ───
+  let currentRole = 'director';
+  let senderViewOn = true;
+  let currentTab = 'broadcasts';
+
+  // ─── Tab switching ───
+  function switchTab(tab) {
+    currentTab = tab;
+
+    // tab bar
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    // panels
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+
+    // controls
+    document.querySelectorAll('.controls .pill-btn[id^="ctrl-tab-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('ctrl-tab-' + tab).classList.add('active');
+
+    // sender view toggle visibility
+    document.getElementById('ctrl-sender-view-group').style.display = (tab === 'broadcasts') ? '' : 'none';
+
+    applyRoleConstraints();
+  }
+
+  // ─── Detail slide-in ───
+  function openDetail(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // ensure it's rendered (display set to flex by default via style attribute or class)
+    el.classList.add('visible');
+  }
+
+  function closeDetail(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('closing');
+    el.classList.remove('visible');
+    setTimeout(() => el.classList.remove('closing'), 260);
+  }
+
+  // ─── Role ───
+  function setRole(role) {
+    currentRole = role;
+    document.querySelectorAll('.controls .pill-btn[id^="role-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('role-' + role).classList.add('active');
+    applyRoleConstraints();
+  }
+
+  function applyRoleConstraints() {
+    const fabBroadcasts = document.getElementById('fab-broadcasts');
+    const fabMessages = document.getElementById('fab-messages');
+
+    // FAB visibility
+    if (currentTab === 'broadcasts') {
+      if (fabBroadcasts) fabBroadcasts.style.display = (currentRole === 'director' || currentRole === 'manager') ? 'flex' : 'none';
+    }
+    if (currentTab === 'messages') {
+      if (fabMessages) fabMessages.style.display = 'flex';
+    }
+
+    // Sender view: only director/manager see delivery stats
+    if (currentRole === 'staff' && senderViewOn) {
+      // staff can't be sender of broadcast — hide sender row, show recipient
+      showRecipientView();
+    } else {
+      applySenderToggle();
+    }
+
+    // Notices tab — staff only sees their own notices (no FAB)
+    // (already no FAB on notices, nothing to change)
+  }
+
+  function applySenderToggle() {
+    const senderRows = document.querySelectorAll('.row-sender-only');
+    const recipientRows = document.querySelectorAll('.row-recipient-only');
+    // Only director/manager can see sender stats
+    const canSeeSender = senderViewOn && (currentRole === 'director' || currentRole === 'manager');
+    senderRows.forEach(r => r.style.display = canSeeSender ? 'flex' : 'none');
+    recipientRows.forEach(r => r.style.display = canSeeSender ? 'none' : 'flex');
+  }
+
+  function showRecipientView() {
+    document.querySelectorAll('.row-sender-only').forEach(r => r.style.display = 'none');
+    document.querySelectorAll('.row-recipient-only').forEach(r => r.style.display = 'flex');
+  }
+
+  // ─── Sender toggle ───
+  function toggleSenderView() {
+    senderViewOn = !senderViewOn;
+    const t = document.getElementById('toggle-sender');
+    t.classList.toggle('on', senderViewOn);
+    applyRoleConstraints();
+  }
+
+  // ─── Init ───
+  applySenderToggle();
+  // FABs: start on broadcasts tab
+  document.getElementById('fab-broadcasts').style.display = 'flex';
+  document.getElementById('fab-messages').style.display = 'none';
+</script>
+
+</body>
+</html>

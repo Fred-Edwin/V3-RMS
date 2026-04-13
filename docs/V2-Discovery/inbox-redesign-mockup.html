@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wendo RMS — Inbox Redesign Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a0f0a 0%, #2C1810 40%, #4a2c1a 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 40px 20px 60px;
+  }
+
+  .page-title {
+    color: #F5F0E8;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.7;
+  }
+
+  .page-subtitle {
+    color: #F5F0E8;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 32px;
+    letter-spacing: -0.02em;
+  }
+
+  /* Phone frame */
+  .phone-wrap {
+    position: relative;
+    width: 390px;
+  }
+
+  .phone-frame {
+    width: 390px;
+    background: #1a1a1a;
+    border-radius: 50px;
+    padding: 14px;
+    box-shadow:
+      0 0 0 1px #3a3a3a,
+      0 40px 80px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+    position: relative;
+  }
+
+  .phone-screen {
+    background: #F5F0E8;
+    border-radius: 38px;
+    overflow: hidden;
+    position: relative;
+    height: 760px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Notch / Dynamic island */
+  .phone-notch {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 34px;
+    background: #1a1a1a;
+    border-radius: 0 0 20px 20px;
+    z-index: 100;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 44px;
+    background: #F5F0E8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px 0 28px;
+    position: relative;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+
+  .status-time {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2C1810;
+    letter-spacing: -0.02em;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-icons svg {
+    color: #2C1810;
+    fill: #2C1810;
+  }
+
+  /* App header */
+  .app-header {
+    background: #F5F0E8;
+    padding: 4px 20px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #E8E0D5;
+  }
+
+  .app-header-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2C1810;
+    letter-spacing: -0.03em;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    background: #F5F0E8;
+    display: flex;
+    border-bottom: 1px solid #E8E0D5;
+    flex-shrink: 0;
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    cursor: pointer;
+    position: relative;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    gap: 4px;
+  }
+
+  .tab-item.active {
+    border-bottom-color: #2C1810;
+  }
+
+  .tab-icon-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .tab-icon-wrap svg {
+    width: 20px;
+    height: 20px;
+    stroke: #8B7355;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke 0.2s;
+  }
+
+  .tab-item.active .tab-icon-wrap svg {
+    stroke: #2C1810;
+  }
+
+  .tab-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #8B7355;
+    transition: color 0.2s;
+    letter-spacing: 0.01em;
+  }
+
+  .tab-item.active .tab-label {
+    color: #2C1810;
+    font-weight: 600;
+  }
+
+  .tab-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    background: #2C1810;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 10px;
+    min-width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+  }
+
+  /* Content area */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #F5F0E8;
+    position: relative;
+  }
+
+  .content-area::-webkit-scrollbar { width: 0; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Broadcast rows */
+  .list-section {
+    padding: 8px 0;
+  }
+
+  .broadcast-row {
+    background: #fff;
+    margin: 4px 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(44,24,16,0.07), 0 1px 2px rgba(44,24,16,0.04);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+
+  .broadcast-row:active,
+  .broadcast-row:hover { background: #fdfaf7; transform: scale(0.99); }
+
+  .broadcast-row.unread::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #2C1810;
+    border-radius: 0;
+  }
+
+  .broadcast-row.amber-accent::before {
+    background: #F59E0B;
+  }
+
+  .broadcast-row .row-icon-box {
+    width: 48px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin: 12px 0 12px 12px;
+    border-radius: 10px;
+    background: #F5F0E8;
+  }
+
+  .broadcast-row .row-icon-box svg {
+    width: 22px;
+    height: 22px;
+    stroke: #2C1810;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .broadcast-row .row-icon-box.amber-bg {
+    background: #FDF3DC;
+  }
+
+  .broadcast-row .row-icon-box.amber-bg svg {
+    stroke: #92650A;
+  }
+
+  .broadcast-row .row-icon-box.green-bg {
+    background: #EDFAF1;
+  }
+
+  .broadcast-row .row-icon-box.green-bg svg {
+    stroke: #1A6B3C;
+  }
+
+  .broadcast-row .row-body {
+    flex: 1;
+    padding: 12px 12px 12px 10px;
+    min-width: 0;
+  }
+
+  .row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .row-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2C1810;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .row-title.bold { font-weight: 700; }
+
+  .row-date {
+    font-size: 11px;
+    color: #8B7355;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .row-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .row-preview {
+    font-size: 12.5px;
+    color: #8B7355;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .row-preview.bold { color: #4a3020; font-weight: 500; }
+
+  /* Pill badges */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .pill-new { background: #2C1810; color: #fff; }
+  .pill-acked { background: #EDFAF1; color: #1A6B3C; border: 1px solid #86EFAC; }
+  .pill-pending { background: #FDF3DC; color: #92650A; border: 1px solid #F0D080; }
+  .pill-acknowledged { background: #EDFAF1; color: #1A6B3C; border: 1px solid #86EFAC; }
+
+  /* Notice row issuer line */
+  .row-issuer {
+    font-size: 12px;
+    color: #8B7355;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Message / conversation rows */
+  .conv-row {
+    background: #fff;
+    margin: 4px 12px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(44,24,16,0.07), 0 1px 2px rgba(44,24,16,0.04);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .conv-row:active,
+  .conv-row:hover { background: #fdfaf7; transform: scale(0.99); }
+
+  .avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 23px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .avatar-amber { background: #FEF3C7; color: #92650A; }
+  .avatar-green { background: #D1FAE5; color: #065F46; }
+  .avatar-blue { background: #DBEAFE; color: #1E40AF; }
+
+  .conv-body { flex: 1; min-width: 0; }
+
+  .conv-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+
+  .conv-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2C1810;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .conv-time {
+    font-size: 11px;
+    color: #8B7355;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .conv-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .conv-preview {
+    font-size: 12.5px;
+    color: #8B7355;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .unread-badge {
+    background: #2C1810;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 12px;
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    flex-shrink: 0;
+  }
+
+  .double-check {
+    color: #2C1810;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 54px;
+    height: 54px;
+    background: #2C1810;
+    border-radius: 27px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(44,24,16,0.3);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 90;
+  }
+
+  .fab:hover { transform: scale(1.06); box-shadow: 0 6px 18px rgba(44,24,16,0.4); }
+  .fab:active { transform: scale(0.96); }
+  .fab.hidden { display: none; }
+
+  .fab svg {
+    width: 22px;
+    height: 22px;
+    stroke: #fff;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 32px;
+    text-align: center;
+    height: 100%;
+    min-height: 300px;
+  }
+
+  .empty-icon {
+    width: 72px;
+    height: 72px;
+    background: #EDE8E0;
+    border-radius: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .empty-icon svg {
+    width: 34px;
+    height: 34px;
+    stroke: #8B7355;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .empty-heading {
+    font-size: 17px;
+    font-weight: 700;
+    color: #2C1810;
+    margin-bottom: 8px;
+  }
+
+  .empty-sub {
+    font-size: 13px;
+    color: #8B7355;
+    line-height: 1.5;
+    max-width: 220px;
+  }
+
+  .empty-arrow {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    width: 100%;
+    padding-right: 30px;
+  }
+
+  .empty-arrow svg {
+    width: 40px;
+    height: 40px;
+    stroke: #8B7355;
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.5;
+  }
+
+  /* Controls panel */
+  .controls {
+    margin-top: 28px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 20px 24px;
+    width: 390px;
+    backdrop-filter: blur(10px);
+  }
+
+  .controls-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(245,240,232,0.5);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .controls-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .ctrl-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(245,240,232,0.25);
+    background: transparent;
+    color: rgba(245,240,232,0.7);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+
+  .ctrl-btn:hover {
+    background: rgba(245,240,232,0.1);
+    color: #F5F0E8;
+    border-color: rgba(245,240,232,0.4);
+  }
+
+  .ctrl-btn.active {
+    background: #F5F0E8;
+    color: #2C1810;
+    border-color: #F5F0E8;
+    font-weight: 700;
+  }
+
+  .ctrl-btn.empty-btn {
+    border-color: rgba(245,240,232,0.15);
+    color: rgba(245,240,232,0.5);
+  }
+
+  .ctrl-btn.empty-btn.active {
+    background: rgba(245,240,232,0.15);
+    color: #F5F0E8;
+    border-color: rgba(245,240,232,0.3);
+  }
+
+  .role-indicator {
+    font-size: 12px;
+    color: rgba(245,240,232,0.6);
+    margin-top: 4px;
+  }
+
+  .role-indicator span {
+    color: #F5F0E8;
+    font-weight: 600;
+  }
+
+  /* Section divider */
+  .section-hint {
+    padding: 12px 16px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8B7355;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">Wendo RMS — UI Mockup</div>
+<div class="page-subtitle">Inbox Module Redesign</div>
+
+<div class="phone-wrap">
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <!-- Signal bars -->
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="#2C1810">
+            <rect x="0" y="8" width="3" height="4" rx="0.5"/>
+            <rect x="4.5" y="5.5" width="3" height="6.5" rx="0.5"/>
+            <rect x="9" y="3" width="3" height="9" rx="0.5"/>
+            <rect x="13.5" y="0" width="3" height="12" rx="0.5"/>
+          </svg>
+          <!-- WiFi -->
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="#2C1810" stroke-width="1.5" stroke-linecap="round">
+            <path d="M1 4.5C3.5 2 6.5 0.5 8 0.5C9.5 0.5 12.5 2 15 4.5"/>
+            <path d="M3 7C4.8 5.3 6.5 4.5 8 4.5C9.5 4.5 11.2 5.3 13 7"/>
+            <path d="M5.5 9.5C6.3 8.7 7.1 8.2 8 8.2C8.9 8.2 9.7 8.7 10.5 9.5"/>
+            <circle cx="8" cy="11.5" r="0.8" fill="#2C1810"/>
+          </svg>
+          <!-- Battery -->
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+            <rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="#2C1810" stroke-width="1.2"/>
+            <rect x="22.5" y="3.5" width="2" height="5" rx="1" fill="#2C1810"/>
+            <rect x="2" y="2" width="16" height="8" rx="2" fill="#2C1810"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- App header -->
+      <div class="app-header">
+        <div class="app-header-title">Inbox</div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar" id="tabBar">
+        <div class="tab-item active" data-tab="broadcasts" onclick="switchTab('broadcasts')">
+          <div class="tab-icon-wrap">
+            <!-- Megaphone icon -->
+            <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+            <span class="tab-badge" id="badge-broadcasts">1</span>
+          </div>
+          <span class="tab-label">Broadcasts</span>
+        </div>
+        <div class="tab-item" data-tab="notices" onclick="switchTab('notices')">
+          <div class="tab-icon-wrap">
+            <!-- FileText icon -->
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span class="tab-badge" id="badge-notices">1</span>
+          </div>
+          <span class="tab-label">Notices</span>
+        </div>
+        <div class="tab-item" data-tab="messages" onclick="switchTab('messages')">
+          <div class="tab-icon-wrap">
+            <!-- MessageCircle icon -->
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <span class="tab-badge" id="badge-messages">3</span>
+          </div>
+          <span class="tab-label">Messages</span>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <div class="content-area" id="contentArea">
+
+        <!-- BROADCASTS TAB -->
+        <div class="tab-content active" id="tab-broadcasts">
+          <div class="list-section">
+            <div class="section-hint">3 broadcasts</div>
+
+            <!-- Row 1: unread -->
+            <div class="broadcast-row unread">
+              <div class="row-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+              </div>
+              <div class="row-body">
+                <div class="row-top">
+                  <span class="row-title bold">Updated Closing Procedure</span>
+                  <span class="row-date">Today, 9:30</span>
+                </div>
+                <div class="row-bottom">
+                  <span class="row-preview bold">All staff are reminded that closing time...</span>
+                  <span class="pill pill-new">New</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: read -->
+            <div class="broadcast-row">
+              <div class="row-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+              </div>
+              <div class="row-body">
+                <div class="row-top">
+                  <span class="row-title">Weekend Shift Reminder</span>
+                  <span class="row-date">Yesterday</span>
+                </div>
+                <div class="row-bottom">
+                  <span class="row-preview">Please confirm your availability for...</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 3: acked -->
+            <div class="broadcast-row">
+              <div class="row-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+              </div>
+              <div class="row-body">
+                <div class="row-top">
+                  <span class="row-title">Safety Protocol Update</span>
+                  <span class="row-date">Mon, Apr 7</span>
+                </div>
+                <div class="row-bottom">
+                  <span class="row-preview">New fire exit procedure effective...</span>
+                  <span class="pill pill-acked">Acked</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTICES TAB -->
+        <div class="tab-content" id="tab-notices">
+          <div class="list-section">
+            <div class="section-hint">2 notices</div>
+
+            <!-- Row 1: pending amber -->
+            <div class="broadcast-row amber-accent">
+              <div class="row-icon-box amber-bg">
+                <!-- FileWarning / document icon -->
+                <svg viewBox="0 0 24 24" stroke="#92650A"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="12" y1="9" x2="12.01" y2="9"/></svg>
+              </div>
+              <div class="row-body">
+                <div class="row-top">
+                  <span class="row-title bold" style="color:#92650A;">First Written Warning — Attendance</span>
+                  <span class="row-date">Apr 8</span>
+                </div>
+                <div class="row-bottom">
+                  <span class="row-issuer">Issued by Edwin K.</span>
+                  <span class="pill pill-pending">Pending</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: acknowledged green -->
+            <div class="broadcast-row">
+              <div class="row-icon-box green-bg">
+                <svg viewBox="0 0 24 24" stroke="#1A6B3C"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 12 11 14 15 10"/></svg>
+              </div>
+              <div class="row-body">
+                <div class="row-top">
+                  <span class="row-title">Uniform Policy Update</span>
+                  <span class="row-date">Mar 15</span>
+                </div>
+                <div class="row-bottom">
+                  <span class="row-issuer">Issued by Edwin K.</span>
+                  <span class="pill pill-acknowledged">Acknowledged</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MESSAGES TAB -->
+        <div class="tab-content" id="tab-messages">
+          <div class="list-section" id="messages-list">
+            <div class="section-hint">Recent conversations</div>
+
+            <!-- Conv 1: unread 2 -->
+            <div class="conv-row">
+              <div class="avatar avatar-amber">MK</div>
+              <div class="conv-body">
+                <div class="conv-top">
+                  <span class="conv-name">Mary Kamau</span>
+                  <span class="conv-time">9:45</span>
+                </div>
+                <div class="conv-bottom">
+                  <span class="conv-preview">Are you available for the evening shi...</span>
+                  <span class="unread-badge">2</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Conv 2: sent delivered -->
+            <div class="conv-row">
+              <div class="avatar avatar-green">JO</div>
+              <div class="conv-body">
+                <div class="conv-top">
+                  <span class="conv-name">James Odhiambo</span>
+                  <span class="conv-time">8:22</span>
+                </div>
+                <div class="conv-bottom">
+                  <span class="conv-preview" style="color:#8B7355;">
+                    <span class="double-check">✓✓</span> Sure, I'll be there by 4pm
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Conv 3: unread 1 -->
+            <div class="conv-row">
+              <div class="avatar avatar-blue">AN</div>
+              <div class="conv-body">
+                <div class="conv-top">
+                  <span class="conv-name">Alice Njeri</span>
+                  <span class="conv-time">Yesterday</span>
+                </div>
+                <div class="conv-bottom">
+                  <span class="conv-preview">Can I swap my Tuesday shift with...</span>
+                  <span class="unread-badge">1</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state (hidden by default) -->
+          <div class="empty-state" id="messages-empty" style="display:none;">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </div>
+            <div class="empty-heading">No conversations yet</div>
+            <div class="empty-sub">Tap the button below to start a conversation with a team member</div>
+            <div class="empty-arrow">
+              <svg viewBox="0 0 40 40">
+                <path d="M10 4 C10 4, 30 4, 30 20 C30 32, 20 36, 20 36" stroke-dasharray="3 3"/>
+                <polyline points="14,30 20,36 26,30"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FAB -->
+      <div class="fab" id="fab" onclick="fabClick()">
+        <!-- Icon updated by JS -->
+        <svg id="fab-icon" viewBox="0 0 24 24">
+          <!-- Megaphone (default) -->
+          <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+        </svg>
+      </div>
+
+    </div><!-- /phone-screen -->
+  </div><!-- /phone-frame -->
+</div><!-- /phone-wrap -->
+
+<!-- Controls -->
+<div class="controls">
+  <div class="controls-label">Role View</div>
+  <div class="controls-row">
+    <button class="ctrl-btn active" onclick="setRole('director')">Director</button>
+    <button class="ctrl-btn" onclick="setRole('manager')">Manager</button>
+    <button class="ctrl-btn" onclick="setRole('staff')">Staff</button>
+  </div>
+  <div class="role-indicator" id="role-desc">Active role: <span>Director</span> — FAB visible on all tabs</div>
+
+  <div class="controls-label" style="margin-top:16px;">Empty State Preview</div>
+  <div class="controls-row">
+    <button class="ctrl-btn empty-btn" id="btn-empty-toggle" onclick="toggleEmpty()">Show Empty Messages</button>
+  </div>
+</div>
+
+<script>
+  let currentTab = 'broadcasts';
+  let currentRole = 'director';
+  let emptyMessages = false;
+
+  const fabIcons = {
+    broadcasts: `<path d="M3 11l19-9-9 19-2-8-8-2z"/>`,
+    notices: `<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>`,
+    messages: `<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>`
+  };
+
+  // FAB visibility rules per role per tab
+  const fabVisible = {
+    director:  { broadcasts: true,  notices: true,  messages: true },
+    manager:   { broadcasts: true,  notices: false, messages: true },
+    staff:     { broadcasts: false, notices: false, messages: true },
+  };
+
+  function switchTab(tab) {
+    // Deactivate all
+    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+
+    // Activate selected
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    currentTab = tab;
+    updateFab();
+  }
+
+  function updateFab() {
+    const fab = document.getElementById('fab');
+    const fabIcon = document.getElementById('fab-icon');
+    const visible = fabVisible[currentRole][currentTab];
+
+    if (visible) {
+      fab.classList.remove('hidden');
+      fabIcon.innerHTML = fabIcons[currentTab];
+    } else {
+      fab.classList.add('hidden');
+    }
+  }
+
+  function setRole(role) {
+    currentRole = role;
+
+    // Update buttons
+    document.querySelectorAll('.ctrl-btn:not(.empty-btn)').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const roleDesc = document.getElementById('role-desc');
+    const descs = {
+      director: 'Active role: <span>Director</span> — FAB visible on all tabs',
+      manager:  'Active role: <span>Manager</span> — FAB on Broadcasts &amp; Messages only',
+      staff:    'Active role: <span>Staff</span> — FAB on Messages tab only'
+    };
+    roleDesc.innerHTML = descs[role];
+
+    updateFab();
+  }
+
+  function toggleEmpty() {
+    emptyMessages = !emptyMessages;
+    const list = document.getElementById('messages-list');
+    const empty = document.getElementById('messages-empty');
+    const btn = document.getElementById('btn-empty-toggle');
+    const badge = document.getElementById('badge-messages');
+
+    if (emptyMessages) {
+      list.style.display = 'none';
+      empty.style.display = 'flex';
+      btn.textContent = 'Show Messages List';
+      btn.classList.add('active');
+      badge.style.display = 'none';
+      // Switch to messages tab to show it
+      switchTab('messages');
+    } else {
+      list.style.display = 'block';
+      empty.style.display = 'none';
+      btn.textContent = 'Show Empty Messages';
+      btn.classList.remove('active');
+      badge.style.display = 'flex';
+    }
+  }
+
+  function fabClick() {
+    // Visual feedback only in mockup
+    const fab = document.getElementById('fab');
+    fab.style.transform = 'scale(0.92)';
+    setTimeout(() => { fab.style.transform = ''; }, 150);
+  }
+
+  // Init
+  updateFab();
+</script>
+</body>
+</html>

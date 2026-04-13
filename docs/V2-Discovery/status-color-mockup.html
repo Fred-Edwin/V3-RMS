@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Status Color Redesign Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #111; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 32px; }
+  .phone { width: 390px; background: #F5F0E8; border-radius: 40px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); border: 8px solid #222; }
+  .notch { background:#111; height:36px; display:flex; align-items:center; justify-content:center; }
+  .notch-pill { width:120px; height:10px; background:#000; border-radius:10px; }
+  .label { color:#666; font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:600; text-align:center; margin-bottom:16px; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:8px; }
+
+  /* ── Shared status dot colors ── */
+  .dot-unread  { background: #94A3B8; } /* slate */
+  .dot-read    { background: #2563EB; } /* blue  */
+  .dot-pending { background: #D97706; } /* amber */
+  .dot-acked   { background: #16A34A; } /* green */
+</style>
+</head>
+<body>
+
+<div style="display:flex; gap:32px; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+  <!-- ════════════════════════════════
+       BROADCAST — CURRENT (dull)
+  ════════════════════════════════ -->
+  <div class="col">
+    <p class="label" style="color:#555;">Broadcast — Current</p>
+    <div class="phone">
+      <div class="notch"><div class="notch-pill"></div></div>
+      <div style="background:#2C1810; padding:12px 16px; display:flex; align-items:center; gap:12px;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span style="color:white;font-weight:600;font-size:14px;">TEST 1 - Monday</span>
+      </div>
+      <div style="padding:12px 16px; overflow-y:auto; max-height:700px; display:flex; flex-direction:column; gap:10px;">
+
+        <!-- Notice card -->
+        <div style="border-radius:10px; border:1px solid #E8E0D5; background:white; overflow:hidden;">
+          <div style="padding:10px 14px; background:#EDE7DC; border-bottom:1px solid #E8E0D5; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#44403C;">Company-wide</span>
+            <span style="font-size:11px;color:#8B7355;">· Gideon · 13 Apr 2026</span>
+          </div>
+          <div style="padding:14px;">
+            <p style="font-size:14px;font-weight:600;color:#1C1917;margin-bottom:6px;">TEST 1 - Monday</p>
+            <p style="font-size:13px;color:#44403C;">Test broadcast message body text here.</p>
+          </div>
+        </div>
+
+        <!-- Delivery Tracking — current dull -->
+        <div style="border-radius:10px; border:1px solid #E8E0D5; background:white; overflow:hidden;">
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #E8E0D5; background:#F5F0E8;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#EDE7DC;border:1px solid #D6D3D1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="13" height="13" fill="none" stroke="#8B7355" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:13px;font-weight:600;color:#44403C;">Delivery Tracking</span>
+                <span style="font-size:12px;font-weight:700;color:#44403C;">2/49</span>
+              </div>
+              <div style="margin-top:5px;height:5px;border-radius:3px;background:#E8E0D5;overflow:hidden;">
+                <div style="height:100%;width:4%;background:#78716C;border-radius:3px;"></div>
+              </div>
+              <p style="font-size:11px;color:#8B7355;margin-top:3px;">47 unread · tap to view details</p>
+            </div>
+          </div>
+          <!-- Expanded rows — current -->
+          <div style="padding:8px 14px 4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#78716C;">Unread · 47</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">manager.town</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#D6D3D1;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">Allan Ayua</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#D6D3D1;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">barista1.kingz</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#D6D3D1;flex-shrink:0;"></span>
+            </div>
+          </div>
+          <div style="padding:8px 14px 4px;border-top:1px solid #F0EBE3;margin-top:4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1A6B3C;">Read · 2</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <div>
+                <p style="font-size:13px;font-weight:500;color:#1C1917;">Rachael Wanja</p>
+                <p style="font-size:11px;color:#8B7355;margin-top:1px;">13 Apr · 09:14</p>
+              </div>
+              <svg width="13" height="13" fill="none" stroke="#1A6B3C" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
+              <div>
+                <p style="font-size:13px;font-weight:500;color:#1C1917;">Stephanie N.</p>
+                <p style="font-size:11px;color:#8B7355;margin-top:1px;">13 Apr · 09:31</p>
+              </div>
+              <svg width="13" height="13" fill="none" stroke="#1A6B3C" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       BROADCAST — REDESIGNED
+  ════════════════════════════════ -->
+  <div class="col">
+    <p class="label" style="color:#aaa;">Broadcast — Redesigned</p>
+    <div class="phone">
+      <div class="notch"><div class="notch-pill"></div></div>
+      <div style="background:#2C1810; padding:12px 16px; display:flex; align-items:center; gap:12px;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span style="color:white;font-weight:600;font-size:14px;">TEST 1 - Monday</span>
+      </div>
+      <div style="padding:12px 16px; overflow-y:auto; max-height:700px; display:flex; flex-direction:column; gap:10px;">
+
+        <!-- Broadcast card — redesigned with left accent -->
+        <div style="border-radius:10px; border:1px solid #E8E0D5; background:white; overflow:hidden; border-left:4px solid #2C1810;">
+          <div style="padding:10px 14px; border-bottom:1px solid #F0EBE3;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2C1810;background:#EDE7DC;padding:2px 7px;border-radius:99px;">Company-wide</span>
+            </div>
+            <p style="font-size:14px;font-weight:600;color:#1C1917;margin-bottom:4px;">TEST 1 - Monday</p>
+            <p style="font-size:11px;color:#8B7355;">Gideon · 13 Apr 2026</p>
+          </div>
+          <div style="padding:12px 14px;">
+            <p style="font-size:13px;color:#44403C;line-height:1.5;">Test broadcast message body text here.</p>
+          </div>
+        </div>
+
+        <!-- Delivery Tracking — redesigned -->
+        <div style="border-radius:10px; border:1px solid #E2E8F0; background:white; overflow:hidden;">
+          <!-- Collapsed header — blue tint since read is the primary metric -->
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#EFF6FF; border-bottom:1px solid #BFDBFE;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#DBEAFE;border:1px solid #93C5FD;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="13" height="13" fill="none" stroke="#2563EB" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:600;color:#1E40AF;">Delivery Tracking</span>
+                <div style="display:flex;gap:10px;">
+                  <span style="font-size:11px;color:#64748B;"><span style="font-weight:700;color:#1E3A8A;">2</span>/49 read</span>
+                  <span style="font-size:11px;color:#64748B;"><span style="font-weight:700;color:#1E3A8A;">2</span>/49 acked</span>
+                </div>
+              </div>
+              <div style="margin-top:5px;height:5px;border-radius:3px;background:#DBEAFE;overflow:hidden;">
+                <div style="height:100%;width:4%;background:#2563EB;border-radius:3px;"></div>
+              </div>
+              <p style="font-size:11px;color:#3B82F6;margin-top:3px;">47 unread · 47 pending ack · tap to view details</p>
+            </div>
+            <svg width="14" height="14" fill="none" stroke="#60A5FA" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+
+          <!-- Expanded rows — redesigned -->
+          <div style="padding:8px 14px 4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748B;">Unread · 47</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F1F5F9;">
+              <span style="font-size:13px;color:#1C1917;">manager.town</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#CBD5E1;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F1F5F9;">
+              <span style="font-size:13px;color:#1C1917;">Allan Ayua</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#CBD5E1;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F1F5F9;">
+              <span style="font-size:13px;color:#1C1917;">barista1.kingz</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#CBD5E1;flex-shrink:0;"></span>
+            </div>
+          </div>
+
+          <!-- Read section — blue -->
+          <div style="padding:8px 14px 4px;border-top:1px solid #EFF6FF;margin-top:4px;background:#F8FAFF;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2563EB;">Read · pending ack · 2</p>
+          </div>
+          <div style="background:#F8FAFF;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #EFF6FF;">
+              <div>
+                <p style="font-size:13px;font-weight:500;color:#1C1917;">Rachael Wanja</p>
+                <p style="font-size:11px;color:#64748B;margin-top:1px;">Read 13 Apr · 09:14</p>
+              </div>
+              <!-- Blue double tick -->
+              <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                <polyline points="1,5 4,8 9,1" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <polyline points="7,5 10,8 16,1" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
+              <div>
+                <p style="font-size:13px;font-weight:500;color:#1C1917;">Stephanie N.</p>
+                <p style="font-size:11px;color:#64748B;margin-top:1px;">Read 13 Apr · 09:31</p>
+              </div>
+              <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                <polyline points="1,5 4,8 9,1" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <polyline points="7,5 10,8 16,1" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       NOTICE — CURRENT (dull)
+  ════════════════════════════════ -->
+  <div class="col">
+    <p class="label" style="color:#555;">Notice — Current</p>
+    <div class="phone">
+      <div class="notch"><div class="notch-pill"></div></div>
+      <div style="background:#92650A; padding:12px 16px; display:flex; align-items:center; gap:12px;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span style="color:white;font-weight:600;font-size:14px;">TEST</span>
+      </div>
+      <div style="padding:12px 16px; overflow-y:auto; max-height:700px; display:flex; flex-direction:column; gap:10px;">
+
+        <!-- Notice card — current -->
+        <div style="border-radius:10px; overflow:hidden; border:1px solid #F0D080; box-shadow:0 1px 3px rgba(0,0,0,0.07);">
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#FDF3DC; border-bottom:1px solid #F0D080;">
+            <div style="width:34px;height:34px;border-radius:8px;background:#F0D080;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;">⚠️</div>
+            <div>
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#92650A;">Formal Notice</p>
+              <p style="font-size:11px;color:#92650A;margin-top:2px;">Issued by Gideon · 13 Apr 2026</p>
+            </div>
+          </div>
+          <div style="background:white;padding:14px;">
+            <h3 style="font-size:14px;font-weight:600;color:#1C1917;margin-bottom:6px;">TEST</h3>
+            <p style="font-size:13px;color:#44403C;">TEST</p>
+          </div>
+        </div>
+
+        <!-- Acknowledgements tracking — current -->
+        <div style="border-radius:10px; border:1px solid #E8E0D5; background:white; overflow:hidden;">
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#FDF3DC; border-bottom:1px solid #F0D080;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#FEF3C7;border:1px solid #F0D080;display:flex;align-items:center;justify-content:center;">
+              <svg width="13" height="13" fill="none" stroke="#92650A" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:13px;font-weight:600;color:#92650A;">Acknowledgements</span>
+                <span style="font-size:12px;font-weight:700;color:#92650A;">2/26</span>
+              </div>
+              <div style="margin-top:5px;height:5px;border-radius:3px;background:#F0D080;overflow:hidden;">
+                <div style="height:100%;width:7.7%;background:#92650A;border-radius:3px;"></div>
+              </div>
+              <p style="font-size:11px;color:#92650A;margin-top:3px;">24 pending · tap to view details</p>
+            </div>
+          </div>
+          <!-- Expanded rows - current -->
+          <div style="padding:8px 14px 4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#92650A;">Pending · 24</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">Allan Ayua</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#F0D080;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">barista1.kingz</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#F0D080;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <span style="font-size:13px;color:#1C1917;">Rachael Wanja</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:#F0D080;flex-shrink:0;"></span>
+            </div>
+          </div>
+          <div style="padding:8px 14px 4px;border-top:1px solid #F0EBE3;margin-top:4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1A6B3C;">Acknowledged · 2</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #F0EBE3;">
+              <div><p style="font-size:13px;font-weight:500;color:#1C1917;">Gideon K.</p><p style="font-size:11px;color:#8B7355;margin-top:1px;">13 Apr · 09:14</p></div>
+              <svg width="13" height="13" fill="none" stroke="#1A6B3C" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
+              <div><p style="font-size:13px;font-weight:500;color:#1C1917;">Evans M.</p><p style="font-size:11px;color:#8B7355;margin-top:1px;">13 Apr · 09:31</p></div>
+              <svg width="13" height="13" fill="none" stroke="#1A6B3C" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+       NOTICE — REDESIGNED
+  ════════════════════════════════ -->
+  <div class="col">
+    <p class="label" style="color:#aaa;">Notice — Redesigned</p>
+    <div class="phone">
+      <div class="notch"><div class="notch-pill"></div></div>
+      <!-- Header: richer amber-orange, not muddy brown -->
+      <div style="background:#B45309; padding:12px 16px; display:flex; align-items:center; gap:12px;">
+        <svg width="18" height="18" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        <span style="color:white;font-weight:600;font-size:14px;">TEST</span>
+      </div>
+      <div style="padding:12px 16px; overflow-y:auto; max-height:700px; display:flex; flex-direction:column; gap:10px;">
+
+        <!-- Notice card — redesigned with left accent + icon -->
+        <div style="border-radius:10px; overflow:hidden; border:1px solid #FED7AA; border-left:4px solid #EA580C; background:white; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#FFF7ED; border-bottom:1px solid #FED7AA;">
+            <!-- Icon: proper SVG, not emoji -->
+            <div style="width:34px;height:34px;border-radius:8px;background:#FFEDD5;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="16" height="16" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+              <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#EA580C;">Formal Notice</p>
+              <p style="font-size:11px;color:#9A3412;margin-top:2px;">Issued by Gideon · 13 Apr 2026</p>
+            </div>
+          </div>
+          <div style="background:white;padding:14px;">
+            <h3 style="font-size:14px;font-weight:600;color:#1C1917;margin-bottom:6px;">TEST</h3>
+            <p style="font-size:13px;color:#44403C;">TEST</p>
+          </div>
+        </div>
+
+        <!-- Ack tracking — redesigned -->
+        <div style="border-radius:10px; border:1px solid #FED7AA; background:white; overflow:hidden;">
+          <!-- Collapsed summary — orange family for pending -->
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#FFF7ED; border-bottom:1px solid #FED7AA;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#FFEDD5;border:1px solid #FED7AA;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="13" height="13" fill="none" stroke="#EA580C" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:600;color:#9A3412;">Acknowledgements</span>
+                <span style="font-size:12px;font-weight:700;color:#EA580C;">2/26</span>
+              </div>
+              <div style="margin-top:5px;height:5px;border-radius:3px;background:#FFEDD5;overflow:hidden;">
+                <div style="height:100%;width:7.7%;background:#EA580C;border-radius:3px;"></div>
+              </div>
+              <p style="font-size:11px;color:#C2410C;margin-top:3px;">24 pending · tap to view details</p>
+            </div>
+            <svg width="14" height="14" fill="none" stroke="#F97316" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+
+          <!-- Expanded: Pending section — vibrant orange dot -->
+          <div style="padding:8px 14px 4px;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#C2410C;">Pending · 24</p>
+          </div>
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #FEF3C7;">
+              <span style="font-size:13px;color:#1C1917;">Allan Ayua</span>
+              <span style="width:8px;height:8px;border-radius:50%;background:#FB923C;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #FEF3C7;">
+              <span style="font-size:13px;color:#1C1917;">barista1.kingz</span>
+              <span style="width:8px;height:8px;border-radius:50%;background:#FB923C;flex-shrink:0;"></span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #FEF3C7;">
+              <span style="font-size:13px;color:#1C1917;">Rachael Wanja</span>
+              <span style="width:8px;height:8px;border-radius:50%;background:#FB923C;flex-shrink:0;"></span>
+            </div>
+          </div>
+
+          <!-- Acknowledged section — vivid green -->
+          <div style="padding:8px 14px 4px;border-top:1px solid #DCFCE7;margin-top:4px;background:#F0FDF4;">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#15803D;">Acknowledged · 2</p>
+          </div>
+          <div style="background:#F0FDF4;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #DCFCE7;">
+              <div><p style="font-size:13px;font-weight:500;color:#1C1917;">Gideon K.</p><p style="font-size:11px;color:#16A34A;margin-top:1px;">13 Apr · 09:14</p></div>
+              <svg width="14" height="14" fill="none" stroke="#16A34A" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
+              <div><p style="font-size:13px;font-weight:500;color:#1C1917;">Evans M.</p><p style="font-size:11px;color:#16A34A;margin-top:1px;">13 Apr · 09:31</p></div>
+              <svg width="14" height="14" fill="none" stroke="#16A34A" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div style="height:8px;background:#F0FDF4;border-radius:0 0 10px 10px;"></div>
+        </div>
+
+        <!-- All acknowledged state preview -->
+        <p style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em;font-weight:600;text-align:center;padding-top:4px;">All acknowledged state</p>
+        <div style="border-radius:10px; border:1px solid #BBF7D0; background:white; overflow:hidden;">
+          <div style="padding:10px 14px; display:flex; align-items:center; gap:10px; background:#F0FDF4; border-bottom:1px solid #BBF7D0;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#DCFCE7;border:1px solid #86EFAC;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="13" height="13" fill="none" stroke="#16A34A" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:600;color:#15803D;">Acknowledgements</span>
+                <span style="font-size:12px;font-weight:700;color:#16A34A;">26/26</span>
+              </div>
+              <div style="margin-top:5px;height:5px;border-radius:3px;background:#DCFCE7;overflow:hidden;">
+                <div style="height:100%;width:100%;background:#16A34A;border-radius:3px;"></div>
+              </div>
+              <p style="font-size:11px;color:#16A34A;margin-top:3px;">All recipients acknowledged · tap to view</p>
+            </div>
+            <svg width="14" height="14" fill="none" stroke="#4ADE80" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Color legend ── -->
+<div style="margin-top:40px; max-width:600px; margin-left:auto; margin-right:auto; background:#1C1C1C; border-radius:12px; padding:24px;">
+  <p style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:16px;">Redesigned Color System</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#CBD5E1;flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#aaa;"><b style="color:#ddd;">Slate</b> — Unread / not yet seen</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#2563EB;flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#aaa;"><b style="color:#ddd;">Blue</b> — Read / seen (familiar from WhatsApp ticks)</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#FB923C;flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#aaa;"><b style="color:#ddd;">Orange</b> — Pending acknowledgement (action needed)</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:#16A34A;flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#aaa;"><b style="color:#ddd;">Green</b> — Acknowledged / complete</span>
+    </div>
+  </div>
+  <p style="font-size:11px;color:#555;margin-top:16px;">Notices use orange-family (EA580C) instead of muddy amber (#92650A) — same warmth, much higher saturation and contrast. Broadcasts use blue for read-tracking since "read receipt" = blue ticks in users' mental model.</p>
+</div>
+
+</body>
+</html>

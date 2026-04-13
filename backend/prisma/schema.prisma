@@ -41,6 +41,12 @@ model Organization {
   staffDiscountAuthRequests StaffDiscountAuthRequest[]
   discounts                 Discount[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
+  directConversations      DirectConversation[]
+  directMessages           DirectMessage[]
+  broadcasts               Broadcast[]
+  broadcastRecipients      BroadcastRecipient[]
+  formalNotices            FormalNotice[]
+  formalNoticeRecipients   FormalNoticeRecipient[]
 
   @@map("organizations")
 }
@@ -101,6 +107,13 @@ model User {
   discountsCreated            Discount[]                 @relation("DiscountCreatedBy")
   customerDiscountRequestsRequested CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
   customerDiscountRequestsResolved  CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
+  directConversationsAsA   DirectConversation[]    @relation("ConvParticipantA")
+  directConversationsAsB   DirectConversation[]    @relation("ConvParticipantB")
+  directMessagesSent       DirectMessage[]         @relation("DirectMessageSender")
+  broadcastsSent           Broadcast[]             @relation("BroadcastSender")
+  broadcastRecipients      BroadcastRecipient[]    @relation("BroadcastRecipientUser")
+  formalNoticesIssued      FormalNotice[]          @relation("FormalNoticeIssuer")
+  formalNoticeRecipients   FormalNoticeRecipient[] @relation("FormalNoticeRecipientUser")
 
   @@index([organizationId])
   @@index([email])
@@ -831,4 +844,134 @@ model CustomerDiscountAuthRequest {
   @@index([orderId])
   @@index([status])
   @@map("customer_discount_auth_requests")
+}
+
+// ─── Internal Communications ───────────────────────────────────────────────
+
+enum BroadcastScope {
+  COMPANY
+  BRANCH
+  ROLE_GROUP
+}
+
+model DirectConversation {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  participantAId String    @map("participant_a_id")
+  participantBId String    @map("participant_b_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  participantA   User            @relation("ConvParticipantA", fields: [participantAId], references: [id])
+  participantB   User            @relation("ConvParticipantB", fields: [participantBId], references: [id])
+  messages       DirectMessage[]
+
+  @@unique([organizationId, participantAId, participantBId])
+  @@index([organizationId])
+  @@index([participantAId])
+  @@index([participantBId])
+  @@map("direct_conversations")
+}
+
+model DirectMessage {
+  id             String    @id @default(uuid())
+  conversationId String    @map("conversation_id")
+  organizationId String    @map("organization_id")
+  senderId       String    @map("sender_id")
+  bodyHtml       String    @map("body_html")
+  attachmentUrl  String?   @map("attachment_url")
+  attachmentName String?   @map("attachment_name")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  conversation   DirectConversation @relation(fields: [conversationId], references: [id])
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  sender         User               @relation("DirectMessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId])
+  @@map("direct_messages")
+}
+
+model Broadcast {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  senderId       String         @map("sender_id")
+  scope          BroadcastScope
+  targetRole     UserRole?      @map("target_role")
+  subject        String
+  bodyHtml       String         @map("body_html")
+  attachmentUrl  String?        @map("attachment_url")
+  attachmentName String?        @map("attachment_name")
+  requiresAck    Boolean        @default(false) @map("requires_ack")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  sender         User                 @relation("BroadcastSender", fields: [senderId], references: [id])
+  recipients     BroadcastRecipient[]
+
+  @@index([organizationId, createdAt])
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id             String    @id @default(uuid())
+  broadcastId    String    @map("broadcast_id")
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  readAt         DateTime? @map("read_at")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  broadcast      Broadcast    @relation(fields: [broadcastId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation("BroadcastRecipientUser", fields: [userId], references: [id])
+
+  @@unique([broadcastId, userId])
+  @@index([broadcastId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("broadcast_recipients")
+}
+
+model FormalNotice {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  issuerId       String    @map("issuer_id")
+  subject        String
+  bodyHtml       String    @map("body_html")
+  attachmentUrl  String?   @map("attachment_url")
+  attachmentName String?   @map("attachment_name")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization   Organization            @relation(fields: [organizationId], references: [id])
+  issuer         User                    @relation("FormalNoticeIssuer", fields: [issuerId], references: [id])
+  recipients     FormalNoticeRecipient[]
+
+  @@index([organizationId, createdAt])
+  @@map("formal_notices")
+}
+
+model FormalNoticeRecipient {
+  id                  String    @id @default(uuid())
+  noticeId            String    @map("notice_id")
+  organizationId      String    @map("organization_id")
+  userId              String    @map("user_id")
+  acknowledgedAt      DateTime? @map("acknowledged_at")
+  reminder24SentAt    DateTime? @map("reminder_24_sent_at")
+  escalation48SentAt  DateTime? @map("escalation_48_sent_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  notice         FormalNotice @relation(fields: [noticeId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation("FormalNoticeRecipientUser", fields: [userId], references: [id])
+
+  @@unique([noticeId, userId])
+  @@index([noticeId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([acknowledgedAt, createdAt])
+  @@map("formal_notice_recipients")
 }
