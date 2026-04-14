@@ -1,0 +1,181 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { authenticate } from '../middleware/authenticate';
+import { requireRole } from '../middleware/rbac';
+import * as hrController from '../controllers/hr-controller';
+
+const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
+
+const HR_AUTHORITY = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'] as const;
+const HR_AND_MANAGER = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER'] as const;
+const ALL_STAFF = [
+  'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER',
+  'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA',
+] as const;
+
+// ─── Employee Profiles ────────────────────────────────────────────────────────
+
+router.post(
+  '/hr/profiles',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.createProfile,
+);
+
+router.get(
+  '/hr/profiles',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.listProfiles,
+);
+
+// Self-access OR management — access control handled in service
+router.get(
+  '/hr/profiles/:userId',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.getProfile,
+);
+
+router.patch(
+  '/hr/profiles/:userId',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.updateProfile,
+);
+
+// ─── Leave Balances ───────────────────────────────────────────────────────────
+
+router.get(
+  '/hr/leave/balances/my',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.getMyLeaveBalances,
+);
+
+router.get(
+  '/hr/leave/balances/:userId',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.getLeaveBalances,
+);
+
+router.put(
+  '/hr/leave/balances/:userId/:leaveType',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.updateLeaveBalance,
+);
+
+// ─── Leave Requests ───────────────────────────────────────────────────────────
+
+// Must register /my BEFORE /:id
+router.get(
+  '/hr/leave/requests/my',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.getMyLeaveRequests,
+);
+
+router.get(
+  '/hr/leave/calendar',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.getLeaveCalendar,
+);
+
+router.post(
+  '/hr/leave/request',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.submitLeaveRequest,
+);
+
+router.get(
+  '/hr/leave/requests',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.listLeaveRequests,
+);
+
+router.post(
+  '/hr/leave/requests/:id/approve',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.approveLeaveRequest,
+);
+
+router.post(
+  '/hr/leave/requests/:id/reject',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.rejectLeaveRequest,
+);
+
+router.post(
+  '/hr/leave/requests/:id/cancel',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.cancelLeaveRequest,
+);
+
+// ─── Disciplinary Records ─────────────────────────────────────────────────────
+
+router.post(
+  '/hr/disciplinary',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.createDisciplinaryRecord,
+);
+
+router.get(
+  '/hr/disciplinary/:userId',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.getDisciplinaryRecords,
+);
+
+router.post(
+  '/hr/disciplinary/:id/acknowledge',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.acknowledgeDisciplinaryRecord,
+);
+
+// ─── HR Documents ─────────────────────────────────────────────────────────────
+
+// Upload before /:userId to avoid Express matching 'upload' as a userId
+router.post(
+  '/hr/documents/upload',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  upload.single('file'),
+  hrController.uploadHrDocument,
+);
+
+router.get(
+  '/hr/documents/:userId',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.getHrDocuments,
+);
+
+// ─── HR Dashboard ─────────────────────────────────────────────────────────────
+
+router.get(
+  '/hr/dashboard',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.getHrDashboard,
+);
+
+export default router;

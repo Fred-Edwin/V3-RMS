@@ -1,0 +1,568 @@
+import { prisma } from '../config/database';
+import * as hrRepository from '../repositories/hr-repository';
+import { fcmService } from './fcm-service';
+import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
+import type { UserRole } from '@prisma/client';
+import { logger } from '../utils/logger';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface HrActor {
+  id: string;
+  role: UserRole;
+  organizationId: string | null;
+}
+
+// ─── Access helpers ───────────────────────────────────────────────────────────
+
+/** HR_MANAGER and DIRECTOR have cross-branch access. MANAGER is scoped to own branch. */
+function canManageProfile(actor: HrActor, targetOrganizationId: string | null): boolean {
+  if (actor.role === 'HR_MANAGER' || actor.role === 'DIRECTOR' || actor.role === 'SYSTEM_ADMIN') {
+    return true;
+  }
+  if (actor.role === 'MANAGER') {
+    return actor.organizationId === targetOrganizationId;
+  }
+  return false;
+}
+
+function isHrAuthority(role: UserRole): boolean {
+  return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+}
+
+// ─── Employee Profile ─────────────────────────────────────────────────────────
+
+export async function createEmployeeProfile(
+  actor: HrActor,
+  data: hrRepository.CreateEmployeeProfileData,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can create employee profiles');
+  }
+
+  const existing = await hrRepository.findProfileByUserId(data.userId);
+  if (existing) {
+    throw new ConflictError('An employee profile already exists for this user');
+  }
+
+  const profile = await hrRepository.createProfile(data);
+
+  // Seed leave balances for current calendar year
+  const currentYear = new Date().getFullYear();
+  await hrRepository.seedLeaveBalances(profile.id, currentYear);
+
+  logger.info({ profileId: profile.id, userId: data.userId }, 'Employee profile created');
+  return profile;
+}
+
+export async function getEmployeeProfile(actor: HrActor, userId: string) {
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  // Self-access: any staff member can view their own profile
+  if (actor.id === userId) return profile;
+
+  if (!canManageProfile(actor, profile.user.organizationId)) {
+    throw new ForbiddenError('Access denied to this employee profile');
+  }
+
+  return profile;
+}
+
+export async function listEmployeeProfiles(actor: HrActor) {
+  if (isHrAuthority(actor.role)) {
+    return hrRepository.listProfiles(); // all branches
+  }
+  if (actor.role === 'MANAGER') {
+    if (!actor.organizationId) throw new ForbiddenError('Manager has no branch assigned');
+    return hrRepository.listProfiles(actor.organizationId);
+  }
+  throw new ForbiddenError('Access denied');
+}
+
+export async function updateEmployeeProfile(
+  actor: HrActor,
+  userId: string,
+  data: hrRepository.UpdateEmployeeProfileData,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can update employee profiles');
+  }
+
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  return hrRepository.updateProfile(profile.id, data);
+}
+
+// ─── Leave Balances ───────────────────────────────────────────────────────────
+
+export async function getLeaveBalances(actor: HrActor, userId: string) {
+  // Self-access allowed
+  if (actor.id !== userId && !canManageProfile(actor, null)) {
+    // Need to check the actual org
+    const profile = await hrRepository.findProfileByUserId(userId);
+    if (!profile) throw new NotFoundError('Employee profile not found');
+    if (!canManageProfile(actor, profile.user.organizationId)) {
+      throw new ForbiddenError('Access denied');
+    }
+  }
+
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  const currentYear = new Date().getFullYear();
+  return hrRepository.findLeaveBalances(profile.id, currentYear);
+}
+
+export async function updateLeaveBalance(
+  actor: HrActor,
+  userId: string,
+  leaveType: import('@prisma/client').LeaveType,
+  leaveYear: number,
+  totalDays: number,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can update leave balances');
+  }
+
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  const balance = await hrRepository.findLeaveBalance(profile.id, leaveType, leaveYear);
+  if (!balance) {
+    throw new NotFoundError(`No leave balance found for type ${leaveType} in ${leaveYear}`);
+  }
+
+  return hrRepository.updateLeaveBalance(profile.id, leaveType, leaveYear, totalDays);
+}
+
+// ─── Leave Requests ───────────────────────────────────────────────────────────
+
+/** Calculate working days between two dates (excludes weekends). */
+function calculateWorkingDays(startDate: Date, endDate: Date): number {
+  let count = 0;
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+
+  while (current <= end) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+export async function submitLeaveRequest(
+  actor: HrActor,
+  input: {
+    leaveType: import('@prisma/client').LeaveType;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+  },
+) {
+  if (input.startDate > input.endDate) {
+    throw new ValidationError('Start date must be before end date');
+  }
+
+  const profile = await hrRepository.findProfileByUserId(actor.id);
+  if (!profile) {
+    throw new NotFoundError('You do not have an employee profile set up yet. Contact HR.');
+  }
+
+  const leaveYear = input.startDate.getFullYear();
+  const balance = await hrRepository.findLeaveBalance(profile.id, input.leaveType, leaveYear);
+  if (!balance) {
+    throw new NotFoundError(`No ${input.leaveType} leave balance configured for ${leaveYear}`);
+  }
+
+  const totalDays = calculateWorkingDays(input.startDate, input.endDate);
+  if (totalDays === 0) {
+    throw new ValidationError('Leave request must include at least one working day');
+  }
+
+  const available = Number(balance.totalDays) - Number(balance.usedDays) - Number(balance.pendingDays);
+  if (input.leaveType !== 'UNPAID' && totalDays > available) {
+    throw new ValidationError(
+      `Insufficient ${input.leaveType} leave balance. Available: ${available} days, requested: ${totalDays} days`,
+    );
+  }
+
+  // Overlap check
+  const overlaps = await hrRepository.findOverlappingLeaveRequests(
+    profile.id,
+    input.startDate,
+    input.endDate,
+  );
+  if (overlaps.length > 0) {
+    throw new ConflictError('You already have a pending or approved leave request overlapping these dates');
+  }
+
+  const organizationId = profile.user.organizationId;
+  if (!organizationId) throw new ForbiddenError('Your account has no branch assigned');
+
+  // Create request and increment pending days atomically
+  const [request] = await prisma.$transaction([
+    prisma.leaveRequest.create({
+      data: {
+        employeeProfileId: profile.id,
+        leaveBalanceId: balance.id,
+        organizationId,
+        leaveType: input.leaveType,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        totalDays,
+        reason: input.reason,
+      },
+      include: {
+        employeeProfile: {
+          include: { user: { select: { id: true, name: true, role: true, organizationId: true } } },
+        },
+        leaveBalance: true,
+        reviewedBy: { select: { id: true, name: true, role: true } },
+        cancelledBy: { select: { id: true, name: true, role: true } },
+      },
+    }),
+    prisma.leaveBalance.update({
+      where: { id: balance.id },
+      data: { pendingDays: { increment: totalDays } },
+    }),
+  ]);
+
+  // Notify managers of this branch + HR_MANAGER + DIRECTOR
+  void notifyManagementOfLeaveRequest(actor, request, organizationId);
+
+  logger.info(
+    { requestId: request.id, userId: actor.id, leaveType: input.leaveType, totalDays },
+    'Leave request submitted',
+  );
+
+  return request;
+}
+
+export async function approveLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
+  const request = await hrRepository.findLeaveRequestById(requestId);
+  if (!request) throw new NotFoundError('Leave request not found');
+  if (request.status !== 'PENDING') {
+    throw new ConflictError('Only pending leave requests can be approved');
+  }
+
+  const targetOrgId = request.organizationId;
+
+  // Branch manager: own branch only. HR_MANAGER/DIRECTOR: any.
+  if (actor.role === 'MANAGER' && actor.organizationId !== targetOrgId) {
+    throw new ForbiddenError('You can only approve leave for your own branch');
+  }
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('You do not have permission to approve leave requests');
+  }
+
+  // Branch manager approving their own leave must be blocked — escalate to HR/Director
+  const employeeUserId = request.employeeProfile.user.id;
+  if (actor.id === employeeUserId) {
+    throw new ForbiddenError('You cannot approve your own leave request');
+  }
+  if (actor.role === 'MANAGER' && request.employeeProfile.user.role === 'MANAGER') {
+    throw new ForbiddenError('A manager\'s leave must be approved by HR Manager or Director');
+  }
+
+  // Shift conflict check — warning only, not a blocker
+  const shiftConflicts = await hrRepository.findShiftConflicts(
+    employeeUserId,
+    request.startDate,
+    request.endDate,
+  );
+
+  const approved = await hrRepository.approveLeaveRequest(requestId, actor.id, comment);
+
+  // Decrement pending, increment used
+  await prisma.$transaction([
+    prisma.leaveBalance.update({
+      where: { id: request.leaveBalanceId },
+      data: {
+        pendingDays: { decrement: Number(request.totalDays) },
+        usedDays: { increment: Number(request.totalDays) },
+      },
+    }),
+  ]);
+
+  // Notify the staff member
+  void notifyStaffOfLeaveDecision(employeeUserId, 'APPROVED', actor, request.leaveType, comment);
+
+  logger.info({ requestId, approvedBy: actor.id, shiftConflicts: shiftConflicts.length }, 'Leave request approved');
+
+  return { ...approved, shiftConflicts };
+}
+
+export async function rejectLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
+  const request = await hrRepository.findLeaveRequestById(requestId);
+  if (!request) throw new NotFoundError('Leave request not found');
+  if (request.status !== 'PENDING') {
+    throw new ConflictError('Only pending leave requests can be rejected');
+  }
+
+  const targetOrgId = request.organizationId;
+  if (actor.role === 'MANAGER' && actor.organizationId !== targetOrgId) {
+    throw new ForbiddenError('You can only reject leave for your own branch');
+  }
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('You do not have permission to reject leave requests');
+  }
+
+  const employeeUserId = request.employeeProfile.user.id;
+  if (actor.id === employeeUserId) throw new ForbiddenError('You cannot reject your own leave request');
+
+  const rejected = await hrRepository.rejectLeaveRequest(requestId, actor.id, comment);
+
+  // Release the pending days
+  await prisma.leaveBalance.update({
+    where: { id: request.leaveBalanceId },
+    data: { pendingDays: { decrement: Number(request.totalDays) } },
+  });
+
+  void notifyStaffOfLeaveDecision(employeeUserId, 'REJECTED', actor, request.leaveType, comment);
+
+  logger.info({ requestId, rejectedBy: actor.id }, 'Leave request rejected');
+  return rejected;
+}
+
+export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
+  const request = await hrRepository.findLeaveRequestById(requestId);
+  if (!request) throw new NotFoundError('Leave request not found');
+
+  const employeeUserId = request.employeeProfile.user.id;
+
+  // Only owner (before start date) or HR authority can cancel
+  const isSelf = actor.id === employeeUserId;
+  if (!isSelf && !isHrAuthority(actor.role)) {
+    throw new ForbiddenError('You do not have permission to cancel this leave request');
+  }
+  if (isSelf && request.startDate <= new Date()) {
+    throw new ForbiddenError('You cannot cancel leave that has already started');
+  }
+  if (request.status === 'CANCELLED') {
+    throw new ConflictError('Leave request is already cancelled');
+  }
+  if (request.status === 'REJECTED') {
+    throw new ConflictError('Rejected leave requests cannot be cancelled');
+  }
+
+  const cancelled = await hrRepository.cancelLeaveRequest(requestId, actor.id);
+
+  // Release days back to balance
+  if (request.status === 'PENDING') {
+    await prisma.leaveBalance.update({
+      where: { id: request.leaveBalanceId },
+      data: { pendingDays: { decrement: Number(request.totalDays) } },
+    });
+  } else if (request.status === 'APPROVED') {
+    await prisma.leaveBalance.update({
+      where: { id: request.leaveBalanceId },
+      data: { usedDays: { decrement: Number(request.totalDays) } },
+    });
+  }
+
+  logger.info({ requestId, cancelledBy: actor.id }, 'Leave request cancelled');
+  return cancelled;
+}
+
+export async function listLeaveRequests(
+  actor: HrActor,
+  params: {
+    organizationId?: string;
+    status?: import('@prisma/client').LeaveStatus;
+    page: number;
+    limit: number;
+  },
+) {
+  if (isHrAuthority(actor.role)) {
+    return hrRepository.listLeaveRequests(params);
+  }
+  if (actor.role === 'MANAGER') {
+    return hrRepository.listLeaveRequests({ ...params, organizationId: actor.organizationId ?? undefined });
+  }
+  throw new ForbiddenError('Access denied');
+}
+
+export async function getMyLeaveRequests(actor: HrActor, page: number, limit: number) {
+  const profile = await hrRepository.findProfileByUserId(actor.id);
+  if (!profile) return { items: [], total: 0, page, limit };
+
+  return hrRepository.listLeaveRequests({ employeeProfileId: profile.id, page, limit });
+}
+
+export async function getLeaveCalendar(
+  actor: HrActor,
+  params: { organizationId?: string; year: number; month: number },
+) {
+  const startDate = new Date(params.year, params.month - 1, 1);
+  const endDate = new Date(params.year, params.month, 0);
+
+  let orgId: string | undefined;
+  if (isHrAuthority(actor.role)) {
+    orgId = params.organizationId;
+  } else if (actor.role === 'MANAGER') {
+    orgId = actor.organizationId ?? undefined;
+  } else {
+    throw new ForbiddenError('Access denied');
+  }
+
+  return hrRepository.findApprovedLeaveForCalendar({ organizationId: orgId, startDate, endDate });
+}
+
+// ─── Disciplinary Records ─────────────────────────────────────────────────────
+
+export async function createDisciplinaryRecord(
+  actor: HrActor,
+  data: hrRepository.CreateDisciplinaryRecordData,
+) {
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('You do not have permission to create disciplinary records');
+  }
+
+  const profile = await hrRepository.findProfileById(data.employeeProfileId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  if (actor.role === 'MANAGER' && actor.organizationId !== profile.user.organizationId) {
+    throw new ForbiddenError('You can only create disciplinary records for your own branch');
+  }
+
+  const record = await hrRepository.createDisciplinaryRecord({
+    ...data,
+    issuedById: actor.id,
+  });
+
+  // Send formal notice to the employee via Inbox
+  void notifyStaffOfDisciplinaryAction(
+    profile.user.id,
+    record.actionTaken,
+    data.description,
+    actor,
+  );
+
+  logger.info(
+    { recordId: record.id, employeeId: data.employeeProfileId, action: data.actionTaken },
+    'Disciplinary record created',
+  );
+
+  return record;
+}
+
+export async function getDisciplinaryRecords(actor: HrActor, userId: string) {
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  // Self-access: only own records
+  if (actor.id === userId) return hrRepository.listDisciplinaryRecords(profile.id);
+
+  if (!canManageProfile(actor, profile.user.organizationId)) {
+    throw new ForbiddenError('Access denied');
+  }
+
+  return hrRepository.listDisciplinaryRecords(profile.id);
+}
+
+export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: string) {
+  const record = await hrRepository.findDisciplinaryRecordById(recordId);
+  if (!record) throw new NotFoundError('Disciplinary record not found');
+
+  const employeeUserId = record.employeeProfile.user.id;
+  if (actor.id !== employeeUserId) {
+    throw new ForbiddenError('You can only acknowledge your own disciplinary records');
+  }
+
+  return hrRepository.acknowledgeDisciplinaryRecord(recordId);
+}
+
+// ─── HR Dashboard ─────────────────────────────────────────────────────────────
+
+export async function getHrDashboard(actor: HrActor, organizationId?: string) {
+  if (!isHrAuthority(actor.role)) throw new ForbiddenError('Access denied to HR dashboard');
+
+  const [stats, pendingRequests, onLeaveToday] = await Promise.all([
+    hrRepository.getHrDashboardStats(organizationId),
+    hrRepository.getPendingLeaveRequestsForDashboard(organizationId),
+    hrRepository.getStaffOnLeaveToday(organizationId),
+  ]);
+
+  return { stats, pendingRequests, onLeaveToday };
+}
+
+// ─── Notification helpers (fire-and-forget) ───────────────────────────────────
+
+async function notifyManagementOfLeaveRequest(
+  actor: HrActor,
+  request: { id: string; leaveType: string; startDate: Date; endDate: Date; totalDays: unknown },
+  organizationId: string,
+) {
+  try {
+    // Find all managers of this branch + HR_MANAGER + DIRECTOR (system-wide)
+    const managers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        OR: [
+          { role: 'MANAGER', organizationId },
+          { role: 'HR_MANAGER' },
+          { role: 'DIRECTOR' },
+        ],
+        id: { not: actor.id },
+      },
+      select: { id: true, fcmToken: true, name: true },
+    });
+
+    const leaveLabel = request.leaveType.replace('_', ' ').toLowerCase();
+    const startStr = request.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const endStr = request.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+    for (const manager of managers) {
+      void fcmService.sendLeaveRequestPush(manager.id, {
+        requesterName: actor.id,
+        leaveType: leaveLabel,
+        dateRange: `${startStr} – ${endStr}`,
+        requestId: request.id,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to notify management of leave request');
+  }
+}
+
+async function notifyStaffOfLeaveDecision(
+  userId: string,
+  decision: 'APPROVED' | 'REJECTED',
+  reviewer: HrActor,
+  leaveType: string,
+  comment?: string,
+) {
+  try {
+    void fcmService.sendLeaveDecisionPush(userId, {
+      decision,
+      leaveType: leaveType.replace('_', ' ').toLowerCase(),
+      reviewerName: reviewer.id,
+      comment,
+    });
+  } catch (err) {
+    logger.warn({ err, userId }, 'Failed to notify staff of leave decision');
+  }
+}
+
+async function notifyStaffOfDisciplinaryAction(
+  userId: string,
+  actionTaken: string,
+  description: string,
+  issuer: HrActor,
+) {
+  try {
+    const label = actionTaken.replace(/_/g, ' ').toLowerCase();
+    void fcmService.sendDisciplinaryNoticePush(userId, {
+      actionTaken: label,
+      issuedBy: issuer.id,
+    });
+  } catch (err) {
+    logger.warn({ err, userId }, 'Failed to notify staff of disciplinary action');
+  }
+}

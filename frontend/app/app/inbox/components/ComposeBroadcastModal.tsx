@@ -30,9 +30,11 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
   const organizationId = useAuthStore((s) => s.organizationId);
   const organizationName = useAuthStore((s) => s.user?.organizationName);
 
-  const isDirector = role === 'DIRECTOR';
+  // Both DIRECTOR and HR_MANAGER can broadcast company-wide and across branches.
+  // MANAGER is restricted to their own branch only.
+  const isMultiBranch = role === 'DIRECTOR' || role === 'HR_MANAGER';
 
-  const [scope, setScope] = useState<BroadcastScope>(isDirector ? 'COMPANY' : 'BRANCH');
+  const [scope, setScope] = useState<BroadcastScope>(isMultiBranch ? 'COMPANY' : 'BRANCH');
   const [targetBranchId, setTargetBranchId] = useState<string>('');
   const [targetRole, setTargetRole] = useState<string>('');
   const [subject, setSubject] = useState('');
@@ -44,7 +46,7 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
-    setScope(isDirector ? 'COMPANY' : 'BRANCH');
+    setScope(isMultiBranch ? 'COMPANY' : 'BRANCH');
     setTargetBranchId('');
     setTargetRole('');
     setSubject('');
@@ -52,12 +54,12 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
     setRequiresAck(false);
     setError(null);
 
-    if (isDirector && accessToken) {
+    if (isMultiBranch && accessToken) {
       branchService.listBranches(accessToken).then(setBranches).catch(() => {/* ignore */});
     }
-  }, [isOpen, isDirector, accessToken]);
+  }, [isOpen, isMultiBranch, accessToken]);
 
-  const availableScopes: { value: BroadcastScope; label: string }[] = isDirector
+  const availableScopes: { value: BroadcastScope; label: string }[] = isMultiBranch
     ? [
         { value: 'COMPANY', label: 'Company-wide' },
         { value: 'BRANCH', label: 'Branch' },
@@ -71,7 +73,7 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
   const audienceHint = (): string => {
     if (scope === 'COMPANY') return 'All active staff across all branches';
     if (scope === 'BRANCH') {
-      if (isDirector) {
+      if (isMultiBranch) {
         const b = branches.find((br) => br.id === targetBranchId);
         return b ? `All staff at ${b.name}` : 'Select a branch';
       }
@@ -79,10 +81,11 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
     }
     if (scope === 'ROLE_GROUP') {
       const rLabel = ROLE_OPTIONS.find((r) => r.value === targetRole)?.label ?? 'selected role';
-      if (isDirector && targetBranchId) {
+      if (isMultiBranch && targetBranchId) {
         const b = branches.find((br) => br.id === targetBranchId);
         return `${rLabel} at ${b?.name ?? 'selected branch'}`;
       }
+      if (isMultiBranch && !targetBranchId) return `${rLabel} across all branches`;
       return `${rLabel} at your branch`;
     }
     return '';
@@ -90,7 +93,7 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
 
   const canSend = (): boolean => {
     if (!subject.trim() || !body.trim()) return false;
-    if (scope === 'BRANCH' && isDirector && !targetBranchId) return false;
+    if (scope === 'BRANCH' && isMultiBranch && !targetBranchId) return false;
     if (scope === 'ROLE_GROUP' && !targetRole) return false;
     return true;
   };
@@ -102,9 +105,9 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
     try {
       await commsService.sendBroadcast(accessToken, {
         scope,
-        targetBranchId: (scope === 'BRANCH' || scope === 'ROLE_GROUP') && isDirector && targetBranchId
+        targetBranchId: (scope === 'BRANCH' || scope === 'ROLE_GROUP') && isMultiBranch && targetBranchId
           ? targetBranchId
-          : (scope !== 'COMPANY' && !isDirector && organizationId)
+          : (scope !== 'COMPANY' && !isMultiBranch && organizationId)
             ? organizationId
             : undefined,
         targetRole: scope === 'ROLE_GROUP' && targetRole ? targetRole : undefined,
@@ -168,13 +171,23 @@ export function ComposeBroadcastModal({ isOpen, onClose, onSent }: Props) {
           </div>
         </div>
 
-        {isDirector && (scope === 'BRANCH' || scope === 'ROLE_GROUP') && (
+        {isMultiBranch && scope === 'BRANCH' && (
           <Select
             label="Branch *"
             placeholder="Select a branch…"
             value={targetBranchId}
             onChange={(e) => setTargetBranchId(e.target.value)}
             options={branchOptions}
+          />
+        )}
+
+        {isMultiBranch && scope === 'ROLE_GROUP' && (
+          <Select
+            label="Branch (optional — leave blank for all branches)"
+            placeholder="All branches"
+            value={targetBranchId}
+            onChange={(e) => setTargetBranchId(e.target.value)}
+            options={[{ value: '', label: 'All branches' }, ...branchOptions]}
           />
         )}
 

@@ -10,6 +10,7 @@ export interface NavTab {
   label: string
   href: string
   icon: React.ElementType
+  badge?: number
 }
 
 interface BottomNavProps {
@@ -51,6 +52,7 @@ export function BottomNav({
         {tabs.map((tab) => {
           const isActive = isTabActive(activeHref, tab.href)
           const Icon = tab.icon
+          const badgeCount = tab.badge ?? 0
 
           return (
             <Link
@@ -65,10 +67,15 @@ export function BottomNav({
                 <span className="absolute top-0 left-0 right-0 h-0.5 bg-amber rounded-b-full" />
               )}
               <span className={cn(
-                'flex items-center justify-center rounded-full transition-colors duration-fast',
+                'relative flex items-center justify-center rounded-full transition-colors duration-fast',
                 isActive ? 'bg-espresso/10 px-3 py-1' : 'px-3 py-1'
               )}>
                 <Icon size={22} className="shrink-0" />
+                {badgeCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#9B3A2A] px-1 text-[10px] font-bold leading-none text-white">
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                )}
               </span>
               <span className="max-w-full truncate text-caption font-medium">
                 {tab.label}
@@ -115,6 +122,7 @@ export function BottomNav({
             {overflowTabs.map((tab) => {
               const Icon = tab.icon
               const isActive = isTabActive(activeHref, tab.href)
+              const badgeCount = tab.badge ?? 0
               return (
                 <Link
                   key={tab.href}
@@ -127,8 +135,20 @@ export function BottomNav({
                       : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-100'
                   )}
                 >
-                  <Icon size={18} className={cn(isActive ? 'text-espresso' : 'text-stone-500')} />
-                  <span>{tab.label}</span>
+                  <span className="relative shrink-0">
+                    <Icon size={18} className={cn(isActive ? 'text-espresso' : 'text-stone-500')} />
+                    {badgeCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-[#9B3A2A] px-0.5 text-[9px] font-bold leading-none text-white">
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex-1">{tab.label}</span>
+                  {badgeCount > 0 && (
+                    <span className="ml-auto rounded-full bg-[#9B3A2A] px-2 py-0.5 text-[10px] font-bold text-white">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
                 </Link>
               )
             })}

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button, EmptyState, Modal, PageLayout, SkeletonBlock } from '@/components/ui';
 import { LineTrendChart } from '@/components/dashboard/PremiumChart';
+import { InboxNudge } from '@/components/comms/InboxNudge';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -571,6 +572,8 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           </Link>
         </div>
       </div>
+
+      <InboxNudge />
 
       {/* ── Pending House Account Authorizations ─────────────────────────── */}
       {pendingAuths.length > 0 && (

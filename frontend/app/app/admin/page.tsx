@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { ApiError } from '@/types/api';
 
-type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT'>;
+type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT' | 'HR_MANAGER'>;
 
 type BranchRow = Record<string, unknown> & {
   id: string;
@@ -141,14 +141,15 @@ export default function Page(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [branchData, managers, directors, accountants] = await Promise.all([
+      const [branchData, managers, directors, accountants, hrManagers] = await Promise.all([
         branchService.listBranches(accessToken),
         staffService.listStaff(accessToken, { role: 'MANAGER' }),
         staffService.listStaff(accessToken, { role: 'DIRECTOR' }),
         staffService.listStaff(accessToken, { role: 'ACCOUNTANT' }),
+        staffService.listStaff(accessToken, { role: 'HR_MANAGER' }),
       ]);
       setBranches(branchData);
-      setUsers([...directors, ...accountants, ...managers]);
+      setUsers([...directors, ...hrManagers, ...accountants, ...managers]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -293,6 +294,7 @@ export default function Page(): JSX.Element {
           email: userForm.email.trim(),
           phone: userForm.phone.trim() || undefined,
           role: userForm.role,
+          // Only branch managers are scoped to a branch; all other roles are system-wide
           organizationId: userForm.role === 'MANAGER' ? userForm.organizationId : undefined,
           temporaryPassword: userForm.temporaryPassword,
         },
@@ -466,6 +468,13 @@ export default function Page(): JSX.Element {
         </span>
       );
     }
+    if (role === 'HR_MANAGER') {
+      return (
+        <span className="inline-flex rounded-full border border-[#0D9488]/20 bg-[#F0FDFA] px-2.5 py-0.5 text-label-sm font-semibold text-[#0F766E]">
+          HR Manager
+        </span>
+      );
+    }
     return (
       <span className="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-label-sm font-semibold text-stone-700">
         Manager
@@ -541,6 +550,7 @@ export default function Page(): JSX.Element {
   const managerCount = users.filter((u) => u.role === 'MANAGER').length;
   const directorCount = users.filter((u) => u.role === 'DIRECTOR').length;
   const accountantCount = users.filter((u) => u.role === 'ACCOUNTANT').length;
+  const hrManagerCount = users.filter((u) => u.role === 'HR_MANAGER').length;
 
   return (
     <>
@@ -574,14 +584,15 @@ export default function Page(): JSX.Element {
             icon={<ShieldCheck size={18} />}
           />
           <StatCard
-            value={accountantCount}
-            label="Accountants"
+            value={hrManagerCount}
+            label="HR Managers"
             icon={<Users size={18} />}
           />
           <StatCard
             value={managerCount}
             label="Managers"
             icon={<Users size={18} />}
+            caption={`${accountantCount} accountant${accountantCount !== 1 ? 's' : ''}`}
             className="col-span-2 sm:col-span-1"
           />
         </div>
@@ -807,6 +818,7 @@ export default function Page(): JSX.Element {
                 { value: 'MANAGER', label: 'Manager' },
                 { value: 'DIRECTOR', label: 'Director' },
                 { value: 'ACCOUNTANT', label: 'Accountant' },
+                { value: 'HR_MANAGER', label: 'HR Manager' },
               ]}
             />
           </FormField>

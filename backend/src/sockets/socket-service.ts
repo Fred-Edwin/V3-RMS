@@ -274,7 +274,8 @@ export const socketService = {
     io.to(userRoomName(senderUserId)).emit('comms:message_read', payload);
   },
 
-  /** Delivers a new broadcast to all connected staff in a branch room. */
+  /** Delivers a new broadcast to all connected staff in a branch room,
+   *  plus any system-level users (DIRECTOR, HR_MANAGER) who are online. */
   emitNewBroadcast: (
     organizationId: string,
     payload: {
@@ -287,9 +288,19 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(branchRoomName(organizationId)).emit('comms:broadcast_received', payload);
+    // Also deliver to system-level roles (DIRECTOR, HR_MANAGER) who have no branch room
+    void io.fetchSockets().then((sockets) => {
+      for (const s of sockets) {
+        const auth = (s.data as { auth?: { role?: string } }).auth;
+        if (auth?.role === 'DIRECTOR' || auth?.role === 'HR_MANAGER') {
+          s.emit('comms:broadcast_received', payload);
+        }
+      }
+    });
   },
 
-  /** Delivers a new formal notice to all connected staff in a branch room. */
+  /** Delivers a new formal notice to all connected staff in a branch room,
+   *  plus any system-level users (DIRECTOR, HR_MANAGER) who are online. */
   emitNewFormalNotice: (
     organizationId: string,
     payload: {
@@ -301,6 +312,29 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(branchRoomName(organizationId)).emit('comms:notice_received', payload);
+    // Also deliver to system-level roles (DIRECTOR, HR_MANAGER) who have no branch room
+    void io.fetchSockets().then((sockets) => {
+      for (const s of sockets) {
+        const auth = (s.data as { auth?: { role?: string } }).auth;
+        if (auth?.role === 'DIRECTOR' || auth?.role === 'HR_MANAGER') {
+          s.emit('comms:notice_received', payload);
+        }
+      }
+    });
+  },
+
+  /** Delivers a new formal notice to a single user's socket room (for individual notices). */
+  emitNewFormalNoticeToUser: (
+    userId: string,
+    payload: {
+      noticeId: string;
+      subject: string;
+      issuerName: string;
+      createdAt: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('comms:notice_received', payload);
   },
 
   /** Notifies the broadcast sender that a recipient has read their broadcast. */

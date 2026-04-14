@@ -2,8 +2,10 @@ import type { UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { authRepository } from '../repositories/auth-repository';
 import { staffRepository } from '../repositories/staff-repository';
+import * as hrRepository from '../repositories/hr-repository';
 import { hashPassword } from '../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { logger } from '../utils/logger';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -53,6 +55,22 @@ export const staffService = {
       ...item,
       organizationName: item.organization?.name ?? null,
     }));
+  },
+
+  getMessagingContacts: async (actor: Actor) => {
+    if (!actor.organizationId) {
+      // DIRECTOR / HR_MANAGER — return all active human staff across the org they were set up in,
+      // falling back to all active non-display users if no org
+      const results = await staffRepository.findMany({
+        isActive: true,
+        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'],
+      });
+      return results
+        .filter((s) => s.id !== actor.id)
+        .map((s) => ({ ...s, organizationName: s.organization?.name ?? null }));
+    }
+    const results = await staffRepository.findMessagingContacts(actor.organizationId, actor.id);
+    return results.map((s) => ({ ...s, organizationName: s.organization?.name ?? null }));
   },
 
   getStaff: async (id: string, actor: Actor) => {
@@ -126,6 +144,22 @@ export const staffService = {
         actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null,
       passwordHash,
     });
+
+    // Auto-create HR employee profile for branch-level staff
+    const rolesWithoutProfile: UserRole[] = ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN'];
+    if (!rolesWithoutProfile.includes(data.role)) {
+      try {
+        const profile = await hrRepository.createProfile({
+          userId: created.id,
+          employmentType: 'FULL_TIME',
+          startDate: new Date(),
+        });
+        await hrRepository.seedLeaveBalances(profile.id, new Date().getFullYear());
+        logger.info({ userId: created.id, profileId: profile.id }, 'Auto-created employee profile');
+      } catch (err) {
+        logger.warn({ err, userId: created.id }, 'Failed to auto-create employee profile');
+      }
+    }
 
     return {
       ...created,

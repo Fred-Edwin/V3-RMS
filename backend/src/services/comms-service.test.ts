@@ -288,7 +288,7 @@ describe('acknowledgeNotice', () => {
       escalation48SentAt: null,
       createdAt: NOW,
     });
-    vi.mocked(commsRepository.acknowledgeNotice).mockResolvedValue({ count: 1 });
+    vi.mocked(commsRepository.acknowledgeNotice).mockResolvedValue({ issuerId: 'director-1', userName: 'Test Waiter', acknowledgedAt: NOW });
 
     await commsService.acknowledgeNotice(waiterActor, 'notice-1');
 

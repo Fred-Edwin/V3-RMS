@@ -80,6 +80,32 @@ export const staffRepository = {
     });
   },
 
+  findMessagingContacts: async (organizationId: string, excludeId: string) => {
+    // Branch staff for the caller's org + system-level leadership (DIRECTOR, HR_MANAGER)
+    const [branchStaff, leadership] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          id: { not: excludeId },
+          role: { in: ['MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'] },
+        },
+        select: staffSelect,
+        orderBy: { name: 'asc' },
+      }),
+      prisma.user.findMany({
+        where: {
+          isActive: true,
+          id: { not: excludeId },
+          role: { in: ['DIRECTOR', 'HR_MANAGER'] },
+        },
+        select: staffSelect,
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    return [...leadership, ...branchStaff];
+  },
+
   findById: async (id: string, organizationId?: string, allowedRoles?: UserRole[]) => {
     return prisma.user.findFirst({
       where: {

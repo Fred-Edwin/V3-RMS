@@ -96,8 +96,8 @@ export function InboxShell() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const canSendBroadcast = role === 'MANAGER' || role === 'DIRECTOR';
-  const canIssueNotice   = role === 'DIRECTOR';
+  const canSendBroadcast = role === 'MANAGER' || role === 'DIRECTOR' || role === 'HR_MANAGER';
+  const canIssueNotice   = role === 'DIRECTOR' || role === 'HR_MANAGER';
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);

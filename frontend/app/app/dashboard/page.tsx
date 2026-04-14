@@ -21,6 +21,7 @@ import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
+import { InboxNudge } from '@/components/comms/InboxNudge';
 import { ApiError } from '@/types/api';
 import type { OrderDetail, OrderSummary } from '@/types/order';
 import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
@@ -337,6 +338,8 @@ export default function DashboardPage(): JSX.Element {
           </Link>
         </header>
 
+        <InboxNudge />
+
         {canPromptFcmPermission && (
           <div className="rounded-md border border-[#F0D080] bg-[#FDF3DC] p-3">
             <p className="text-body-sm text-[#92650A]">
@@ -435,6 +438,8 @@ export default function DashboardPage(): JSX.Element {
             <Avatar name={headerAvatarName} size="md" />
           </Link>
         </header>
+
+        <InboxNudge />
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <StatCard

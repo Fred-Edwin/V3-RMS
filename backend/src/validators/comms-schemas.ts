@@ -46,6 +46,8 @@ export const SendBroadcastSchema = z.object({
 export const IssueNoticeSchema = z.object({
   targetBranchId: z.string().uuid().optional(),
   targetRole: z.enum(USER_ROLES).optional(),
+  targetUserId: z.string().uuid().optional(),
+  allBranches: z.boolean().optional(),
   subject: z.string().min(1).max(200),
   bodyHtml: z.string().min(1).max(200_000),
   attachmentUrl: z.string().url().optional(),

@@ -22,9 +22,16 @@ const joinRoleRooms = (
   organizationId: string | null,
   userId: string | null,
 ): void => {
-  if (!role || !organizationId) {
+  if (!role) return;
+
+  // System-level roles have no organizationId — they are auto-joined to their
+  // user room server-side on connect, so no client-side join:branch is needed.
+  if (role === 'DIRECTOR' || role === 'HR_MANAGER') {
+    if (userId) joinUserRoom(userId);
     return;
   }
+
+  if (!organizationId) return;
 
   if (role === 'WAITER') {
     joinBranchRoom(organizationId);

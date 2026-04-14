@@ -10,28 +10,35 @@ staffRoutes.post(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   staffController.create,
+);
+staffRoutes.get(
+  '/staff/messaging-contacts',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'),
+  staffController.messagingContacts,
 );
 staffRoutes.get(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
   staffController.list,
 );
 staffRoutes.get(
   '/staff/:id',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   staffController.getById,
 );
 staffRoutes.patch(
   '/staff/:id',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   staffController.update,
 );
 staffRoutes.patch(

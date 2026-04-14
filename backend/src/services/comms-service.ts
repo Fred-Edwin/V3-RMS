@@ -461,6 +461,7 @@ export const commsService = {
         totalRecipients: n._count.recipients,
         ackCount: 0,
         myAcknowledgedAt: myRecipient?.acknowledgedAt?.toISOString() ?? null,
+        isRecipient: myRecipient !== null,
         createdAt: n.createdAt.toISOString(),
       };
     });
@@ -492,24 +493,54 @@ export const commsService = {
       totalRecipients: n._count.recipients,
       ackCount,
       myAcknowledgedAt: myRecipient?.acknowledgedAt?.toISOString() ?? null,
+      isRecipient: myRecipient !== null,
       createdAt: n.createdAt.toISOString(),
     };
   },
 
   issueFormalNotice: async (actor: Actor, input: IssueNoticeInput): Promise<FormalNoticeRecord> => {
-    if (!actor.organizationId && !input.targetBranchId) {
-      throw new ForbiddenError('Director must specify a target branch when issuing a formal notice');
+    let recipientIds: string[];
+    let targetOrgId: string;
+
+    if (input.targetUserId) {
+      // Individual targeting — one specific staff member
+      const userOrgId = await commsRepository.findUserOrganizationId(input.targetUserId);
+      // Use user's org, or if both are null (e.g. Director → Director), fall back to first org
+      targetOrgId = userOrgId ?? actor.organizationId ?? (await commsRepository.findFirstOrganizationId()) ?? '';
+      if (!targetOrgId) throw new ForbiddenError('Cannot determine organization for notice');
+      recipientIds = [input.targetUserId].filter((id) => id !== actor.id);
+    } else if (input.allBranches) {
+      // All-branches — company-wide notice
+      const allOrgIds = await commsRepository.findAllActiveOrganizationIds();
+      if (allOrgIds.length === 0) throw new ForbiddenError('No active branches found');
+      // Anchor organizationId to first org (same pattern as COMPANY broadcasts)
+      targetOrgId = allOrgIds[0]!;
+      const allUsers = await Promise.all(
+        allOrgIds.map((orgId) =>
+          commsRepository.findUsersForBroadcastScope(
+            input.targetRole ? 'ROLE_GROUP' : 'BRANCH',
+            orgId,
+            input.targetRole as Parameters<typeof commsRepository.findUsersForBroadcastScope>[2],
+          ),
+        ),
+      );
+      recipientIds = allUsers.flat().map((r) => r.id).filter((id) => id !== actor.id);
+      // Deduplicate (shouldn't be needed but defensive)
+      recipientIds = [...new Set(recipientIds)];
+    } else {
+      // Single branch (original behaviour)
+      if (!actor.organizationId && !input.targetBranchId) {
+        throw new ForbiddenError('Director must specify a target branch when issuing a formal notice');
+      }
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      targetOrgId = (input.targetBranchId ?? actor.organizationId)!;
+      const branchUsers = await commsRepository.findUsersForBroadcastScope(
+        input.targetRole ? 'ROLE_GROUP' : 'BRANCH',
+        targetOrgId,
+        input.targetRole as Parameters<typeof commsRepository.findUsersForBroadcastScope>[2],
+      );
+      recipientIds = branchUsers.map((r) => r.id).filter((id) => id !== actor.id);
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const targetOrgId = (input.targetBranchId ?? actor.organizationId)!;
-
-    const recipients = await commsRepository.findUsersForBroadcastScope(
-      input.targetRole ? 'ROLE_GROUP' : 'BRANCH',
-      targetOrgId,
-      input.targetRole as Parameters<typeof commsRepository.findUsersForBroadcastScope>[2],
-    );
-    const recipientIds = recipients.map((r) => r.id).filter((id) => id !== actor.id);
 
     const notice = await commsRepository.createFormalNotice(
       {
@@ -523,13 +554,22 @@ export const commsService = {
       recipientIds,
     );
 
-    // Real-time
-    socketService.emitNewFormalNotice(targetOrgId, {
+    // Real-time — emit only to recipients (individual) or the whole branch room (broadcast-style)
+    const noticePayload = {
       noticeId: notice.id,
       subject: notice.subject,
       issuerName: notice.issuer.name,
       createdAt: notice.createdAt.toISOString(),
-    });
+    };
+    if (input.targetUserId) {
+      // Individual notice — emit only to the recipient's own socket room
+      for (const recipientId of recipientIds) socketService.emitNewFormalNoticeToUser(recipientId, noticePayload);
+    } else if (input.allBranches) {
+      const allOrgIds = await commsRepository.findAllActiveOrganizationIds();
+      for (const orgId of allOrgIds) socketService.emitNewFormalNotice(orgId, noticePayload);
+    } else {
+      socketService.emitNewFormalNotice(targetOrgId, noticePayload);
+    }
 
     // FCM push (fire-and-forget) — notices are always high priority
     for (const recipientId of recipientIds) {
@@ -555,6 +595,7 @@ export const commsService = {
       totalRecipients: recipientIds.length,
       ackCount: 0,
       myAcknowledgedAt: null,
+      isRecipient: false,
       createdAt: notice.createdAt.toISOString(),
     };
   },

@@ -531,10 +531,21 @@ export const commsRepository = {
     viewerId?: string,
   ) => {
     const skip = (page - 1) * perPage;
+    // A staff member should only see notices where they are the issuer OR an explicit recipient.
+    const where = viewerId
+      ? {
+          organizationId,
+          OR: [
+            { issuerId: viewerId },
+            { recipients: { some: { userId: viewerId } } },
+          ],
+        }
+      : { organizationId };
+
     const [total, notices] = await Promise.all([
-      prisma.formalNotice.count({ where: { organizationId } }),
+      prisma.formalNotice.count({ where }),
       prisma.formalNotice.findMany({
-        where: { organizationId },
+        where,
         include: {
           issuer: { select: participantSelect },
           _count: { select: { recipients: true } },

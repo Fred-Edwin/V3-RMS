@@ -533,4 +533,91 @@ export const fcmService = {
       logger.warn({ error, payload }, 'Failed to send formal notice escalation FCM push');
     }
   },
+
+  /** Notifies management (manager/HR/director) of a new leave request. Fire-and-forget. */
+  sendLeaveRequestPush: async (
+    recipientId: string,
+    payload: { requesterName: string; leaveType: string; dateRange: string; requestId: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(recipientId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'New Leave Request',
+            body: `${payload.leaveType} leave request for ${payload.dateRange}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `leave-request-${payload.requestId}`,
+          },
+          fcmOptions: { link: '/app/hr/leave' },
+        },
+        data: { requestId: payload.requestId, type: 'leave_request' },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send leave request FCM push');
+    }
+  },
+
+  /** Notifies a staff member of a leave approval or rejection. Fire-and-forget. */
+  sendLeaveDecisionPush: async (
+    recipientId: string,
+    payload: { decision: 'APPROVED' | 'REJECTED'; leaveType: string; reviewerName: string; comment?: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(recipientId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+      const isApproved = payload.decision === 'APPROVED';
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: isApproved ? 'Leave Approved' : 'Leave Request Declined',
+            body: isApproved
+              ? `Your ${payload.leaveType} leave has been approved`
+              : `Your ${payload.leaveType} leave was not approved${payload.comment ? `: ${payload.comment}` : ''}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `leave-decision-${Date.now()}`,
+          },
+          fcmOptions: { link: '/app/hr/my-leave' },
+        },
+        data: { type: 'leave_decision', decision: payload.decision },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send leave decision FCM push');
+    }
+  },
+
+  /** Notifies a staff member of a disciplinary action. Fire-and-forget. */
+  sendDisciplinaryNoticePush: async (
+    recipientId: string,
+    payload: { actionTaken: string; issuedBy: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(recipientId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'HR Notice',
+            body: `A ${payload.actionTaken} has been recorded on your file. Please check your HR profile.`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `disciplinary-${Date.now()}`,
+          },
+          fcmOptions: { link: '/app/hr/my-leave' },
+        },
+        data: { type: 'disciplinary_notice' },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send disciplinary notice FCM push');
+    }
+  },
 };

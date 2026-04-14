@@ -63,6 +63,10 @@ export const staffService = {
     return apiClient.get(`/staff${toQueryString(filters)}`, accessToken);
   },
 
+  getMessagingContacts: (accessToken: string): Promise<StaffDto[]> => {
+    return apiClient.get('/staff/messaging-contacts', accessToken);
+  },
+
   getById: (id: string, accessToken: string): Promise<StaffDto> => {
     return apiClient.get(`/staff/${id}`, accessToken);
   },

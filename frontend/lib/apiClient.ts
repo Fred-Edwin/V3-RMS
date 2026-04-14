@@ -2,7 +2,7 @@ import { env } from './env';
 import { ApiError, type ApiResponseEnvelope } from '@/types/api';
 
 const request = async <T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
   token?: string,
@@ -72,6 +72,8 @@ export const apiClient = {
     request<T>('POST', path, body, token),
   postWithEnvelope: <T>(path: string, body: unknown, token?: string): Promise<ApiResponseEnvelope<T>> =>
     requestEnvelope<T>('POST', path, body, token),
+  put: <T>(path: string, body: unknown, token?: string): Promise<T> =>
+    request<T>('PUT', path, body, token),
   patch: <T>(path: string, body: unknown, token?: string): Promise<T> =>
     request<T>('PATCH', path, body, token),
   delete: <T>(path: string, token?: string): Promise<T> =>

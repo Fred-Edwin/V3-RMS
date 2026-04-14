@@ -7,6 +7,7 @@ export interface NavItem {
   label: string
   href: string
   icon: React.ElementType
+  badge?: number
 }
 
 export interface NavSection {
@@ -44,6 +45,8 @@ export function SidebarNav({ sections, activeHref, logo, className, collapsed }:
                 const isActive = activeHref === item.href || activeHref.startsWith(item.href + '/')
                 const Icon = item.icon
 
+                const badgeCount = item.badge ?? 0
+
                 if (collapsed) {
                   return (
                     <li key={item.href} className="flex justify-center my-0.5">
@@ -51,13 +54,16 @@ export function SidebarNav({ sections, activeHref, logo, className, collapsed }:
                         href={item.href}
                         title={item.label}
                         className={cn(
-                          'w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-fast',
+                          'relative w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-fast',
                           isActive
                             ? 'bg-[#2C1810] text-[#F5F0E8]'
                             : 'text-[#8B6B5A] hover:bg-[#2C1810]/60 hover:text-[#F5F0E8]'
                         )}
                       >
                         <Icon size={18} className="shrink-0" />
+                        {badgeCount > 0 && (
+                          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#9B3A2A]" />
+                        )}
                       </Link>
                     </li>
                   )
@@ -78,7 +84,12 @@ export function SidebarNav({ sections, activeHref, logo, className, collapsed }:
                         size={18}
                         className={cn('shrink-0', isActive ? 'text-[#F5F0E8]' : 'text-[#8B6B5A]')}
                       />
-                      {item.label}
+                      <span className="flex-1">{item.label}</span>
+                      {badgeCount > 0 && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#9B3A2A] px-1.5 text-[10px] font-bold leading-none text-white">
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )

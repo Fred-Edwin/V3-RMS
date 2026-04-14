@@ -153,6 +153,8 @@ export const commsService = {
     body: {
       targetBranchId?: string;
       targetRole?: string;
+      targetUserId?: string;
+      allBranches?: boolean;
       subject: string;
       bodyHtml: string;
       attachmentUrl?: string;

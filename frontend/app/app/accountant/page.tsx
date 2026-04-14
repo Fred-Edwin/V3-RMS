@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ArrowDownCircle } from 'lucide-react';
 import { Button, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
+import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
@@ -197,6 +198,8 @@ export default function AccountantDashboardPage(): JSX.Element {
           Refresh
         </Button>
       </div>
+
+      <InboxNudge />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -65,6 +65,7 @@ export interface FormalNoticeRecord {
   totalRecipients: number;
   ackCount: number;
   myAcknowledgedAt: string | null;
+  isRecipient: boolean;
   createdAt: string;
 }
 

@@ -9,6 +9,7 @@ import {
   Bike,
   Building2,
   Calendar,
+  CalendarOff,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -45,13 +46,15 @@ const CREDIT_PATHS = new Set([
 import { performLogout } from '@/lib/logout';
 import { useAuthStore } from '@/store/authStore';
 import { useCommsSocket } from '@/hooks/useCommsSocket';
+import { useMessageToast } from '@/hooks/useMessageToast';
+import { useCommsStore } from '@/store/commsStore';
 import type { AppRole } from '@/types/auth';
 
 interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -121,12 +124,12 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
       { label: 'New Order', href: '/app/orders/new', icon: ShoppingCart },
       { label: 'Orders', href: '/app/orders', icon: ClipboardList },
-      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
     ],
     overflowTabs: [
-      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
       { label: 'Other Income', href: '/app/other-income/new', icon: Banknote },
-      { label: 'Income History', href: '/app/other-income/history', icon: Clock },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'History', href: '/app/history', icon: Clock },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -135,11 +138,12 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
   CHEF: {
     tabs: [
       { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
-      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'History', href: '/app/history', icon: Clock },
     ],
     overflowTabs: [
-      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -148,12 +152,25 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
       { label: 'Barista', href: '/app/barista', icon: Coffee },
-      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'History', href: '/app/history', icon: Clock },
     ],
     overflowTabs: [
-      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
+  HR_MANAGER: {
+    tabs: [
+      { label: 'HR', href: '/app/hr', icon: Users },
+      { label: 'Staff', href: '/app/hr/staff', icon: UserCircle },
+      { label: 'Leave', href: '/app/hr/leave', icon: Calendar },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+    ],
+    overflowTabs: [
+      { label: 'Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -321,6 +338,22 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
   ],
+  HR_MANAGER: [
+    {
+      label: 'HR',
+      items: [
+        { label: 'HR Overview', href: '/app/hr', icon: LayoutDashboard },
+        { label: 'Staff Profiles', href: '/app/hr/staff', icon: Users },
+        { label: 'Leave Requests', href: '/app/hr/leave', icon: Calendar },
+        { label: 'Leave Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
+        { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      ],
+    },
+    {
+      label: 'Account',
+      items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+    },
+  ],
 };
 
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
@@ -330,6 +363,11 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
 
   // Attach comms socket listeners for real-time inbox updates
   useCommsSocket();
+  // Fire arrival toasts for incoming messages
+  useMessageToast();
+
+  // Total unread count for Inbox badge — derived from all three channels
+  const unreadInbox = useCommsStore((s) => s.unreadDmCount + s.unreadBroadcastCount + s.unreadNoticeCount);
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -353,21 +391,41 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
 
   const sidebarSections = useMemo(() => {
     const sections = role ? (sidebarSectionsByRole[role] ?? []) : [];
-    if (env.creditAccounts) return sections;
-    return sections
-      .map((section) => ({ ...section, items: section.items.filter((item) => !CREDIT_PATHS.has(item.href)) }))
-      .filter((section) => section.items.length > 0);
-  }, [role]);
+    const filtered = env.creditAccounts
+      ? sections
+      : sections
+          .map((section) => ({ ...section, items: section.items.filter((item) => !CREDIT_PATHS.has(item.href)) }))
+          .filter((section) => section.items.length > 0);
+    // Inject unread badge on the Inbox nav item
+    return filtered.map((section) => ({
+      ...section,
+      items: section.items.map((item) =>
+        item.href === '/app/inbox' && unreadInbox > 0
+          ? { ...item, badge: unreadInbox }
+          : item,
+      ),
+    }));
+  }, [role, unreadInbox]);
 
   const mobileNavConfig = useMemo(() => {
     if (!role || !(role in mobileRoleTabs)) return null;
     const config = mobileRoleTabs[role as MobileRole];
-    if (env.creditAccounts) return config;
+    const filtered = env.creditAccounts
+      ? config
+      : {
+          tabs: config.tabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+          overflowTabs: config.overflowTabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+        };
+    // Inject unread badge on the Inbox tab
     return {
-      tabs: config.tabs.filter((t) => !CREDIT_PATHS.has(t.href)),
-      overflowTabs: config.overflowTabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+      tabs: filtered.tabs.map((t) =>
+        t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t,
+      ),
+      overflowTabs: filtered.overflowTabs.map((t) =>
+        t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t,
+      ),
     };
-  }, [role]);
+  }, [role, unreadInbox]);
 
   const handleConfirmLogout = async (): Promise<void> => {
     setIsLoggingOut(true);
@@ -459,7 +517,8 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     role === 'MANAGER' ||
     role === 'DIRECTOR' ||
     role === 'SYSTEM_ADMIN' ||
-    role === 'ACCOUNTANT';
+    role === 'ACCOUNTANT' ||
+    role === 'HR_MANAGER';
 
   const useSidebarOnlyShell =
     !usesDualShell &&

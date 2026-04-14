@@ -47,6 +47,8 @@ model Organization {
   broadcastRecipients      BroadcastRecipient[]
   formalNotices            FormalNotice[]
   formalNoticeRecipients   FormalNoticeRecipient[]
+  leaveRequests            LeaveRequest[]
+  disciplinaryRecords      DisciplinaryRecord[]
 
   @@map("organizations")
 }
@@ -114,6 +116,12 @@ model User {
   broadcastRecipients      BroadcastRecipient[]    @relation("BroadcastRecipientUser")
   formalNoticesIssued      FormalNotice[]          @relation("FormalNoticeIssuer")
   formalNoticeRecipients   FormalNoticeRecipient[] @relation("FormalNoticeRecipientUser")
+  employeeProfile          EmployeeProfile?        @relation("EmployeeProfileUser")
+  managedEmployeeProfiles  EmployeeProfile[]       @relation("EmployeeProfileManager")
+  leaveRequestsReviewed    LeaveRequest[]          @relation("LeaveReviewedBy")
+  leaveRequestsCancelled   LeaveRequest[]          @relation("LeaveCancelledBy")
+  disciplinaryRecordsIssued DisciplinaryRecord[]   @relation("DisciplinaryIssuedBy")
+  hrDocumentsUploaded      HrDocument[]            @relation("HrDocumentUploadedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -363,6 +371,7 @@ model PrepTicket {
 enum UserRole {
   SYSTEM_ADMIN
   DIRECTOR
+  HR_MANAGER
   MANAGER
   ACCOUNTANT
   WAITER
@@ -974,4 +983,188 @@ model FormalNoticeRecipient {
   @@index([organizationId])
   @@index([acknowledgedAt, createdAt])
   @@map("formal_notice_recipients")
+}
+
+// ─── HR Module ────────────────────────────────────────────────────────────────
+
+model EmployeeProfile {
+  id                String         @id @default(uuid())
+  userId            String         @unique @map("user_id")
+  nationalId        String?        @map("national_id")
+  dateOfBirth       DateTime?      @map("date_of_birth")
+  personalPhone     String?        @map("personal_phone")
+  personalEmail     String?        @map("personal_email")
+  physicalAddress   String?        @map("physical_address")
+  emergencyName     String?        @map("emergency_name")
+  emergencyRelation String?        @map("emergency_relation")
+  emergencyPhone    String?        @map("emergency_phone")
+  employmentType    EmploymentType @map("employment_type")
+  startDate         DateTime       @map("start_date")
+  endDate           DateTime?      @map("end_date")
+  probationEndDate  DateTime?      @map("probation_end_date")
+  jobTitle          String?        @map("job_title")
+  reportingManagerId String?       @map("reporting_manager_id")
+  notes             String?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  user              User             @relation("EmployeeProfileUser", fields: [userId], references: [id])
+  reportingManager  User?            @relation("EmployeeProfileManager", fields: [reportingManagerId], references: [id])
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+  documents         HrDocument[]
+  disciplinaryRecords DisciplinaryRecord[]
+
+  @@index([userId])
+  @@map("employee_profiles")
+}
+
+model LeaveBalance {
+  id                String      @id @default(uuid())
+  employeeProfileId String      @map("employee_profile_id")
+  leaveType         LeaveType   @map("leave_type")
+  totalDays         Int         @map("total_days")
+  usedDays          Decimal     @default(0) @db.Decimal(5, 1) @map("used_days")
+  pendingDays       Decimal     @default(0) @db.Decimal(5, 1) @map("pending_days")
+  leaveYear         Int         @map("leave_year")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  leaveRequests     LeaveRequest[]
+
+  @@unique([employeeProfileId, leaveType, leaveYear])
+  @@index([employeeProfileId])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id                String      @id @default(uuid())
+  employeeProfileId String      @map("employee_profile_id")
+  leaveBalanceId    String      @map("leave_balance_id")
+  organizationId    String      @map("organization_id")
+  leaveType         LeaveType   @map("leave_type")
+  startDate         DateTime    @map("start_date")
+  endDate           DateTime    @map("end_date")
+  totalDays         Decimal     @db.Decimal(5, 1) @map("total_days")
+  reason            String
+  status            LeaveStatus @default(PENDING)
+  reviewedById      String?     @map("reviewed_by_id")
+  reviewedAt        DateTime?   @map("reviewed_at")
+  reviewComment     String?     @map("review_comment")
+  cancelledAt       DateTime?   @map("cancelled_at")
+  cancelledById     String?     @map("cancelled_by_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  leaveBalance      LeaveBalance    @relation(fields: [leaveBalanceId], references: [id])
+  organization      Organization    @relation(fields: [organizationId], references: [id])
+  reviewedBy        User?           @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
+  cancelledBy       User?           @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
+  documents         HrDocument[]
+
+  @@index([organizationId, status])
+  @@index([employeeProfileId])
+  @@map("leave_requests")
+}
+
+model DisciplinaryRecord {
+  id                String               @id @default(uuid())
+  employeeProfileId String               @map("employee_profile_id")
+  organizationId    String               @map("organization_id")
+  incidentDate      DateTime             @map("incident_date")
+  actionDate        DateTime             @map("action_date")
+  category          DisciplinaryCategory
+  description       String
+  actionTaken       DisciplinaryAction   @map("action_taken")
+  outcome           String
+  issuedById        String               @map("issued_by_id")
+  witnesses         String?
+  acknowledged      Boolean              @default(false)
+  acknowledgedAt    DateTime?            @map("acknowledged_at")
+  appealed          Boolean              @default(false)
+  appealOutcome     String?              @map("appeal_outcome")
+  expiresAt         DateTime?            @map("expires_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  organization      Organization    @relation(fields: [organizationId], references: [id])
+  issuedBy          User            @relation("DisciplinaryIssuedBy", fields: [issuedById], references: [id])
+  documents         HrDocument[]
+
+  @@index([organizationId])
+  @@index([employeeProfileId])
+  @@map("disciplinary_records")
+}
+
+model HrDocument {
+  id                    String         @id @default(uuid())
+  employeeProfileId     String         @map("employee_profile_id")
+  leaveRequestId        String?        @map("leave_request_id")
+  disciplinaryRecordId  String?        @map("disciplinary_record_id")
+  documentType          HrDocumentType @map("document_type")
+  fileName              String         @map("file_name")
+  fileUrl               String         @map("file_url")
+  uploadedById          String         @map("uploaded_by_id")
+  createdAt             DateTime       @default(now()) @map("created_at")
+
+  employeeProfile     EmployeeProfile     @relation(fields: [employeeProfileId], references: [id])
+  leaveRequest        LeaveRequest?       @relation(fields: [leaveRequestId], references: [id])
+  disciplinaryRecord  DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
+  uploadedBy          User                @relation("HrDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([employeeProfileId])
+  @@index([leaveRequestId])
+  @@index([disciplinaryRecordId])
+  @@map("hr_documents")
+}
+
+// ─── HR Enums ─────────────────────────────────────────────────────────────────
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CASUAL
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  EMERGENCY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DisciplinaryCategory {
+  INSUBORDINATION
+  ATTENDANCE
+  MISCONDUCT
+  PERFORMANCE
+  POLICY_VIOLATION
+  OTHER
+}
+
+enum DisciplinaryAction {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SUSPENSION
+  TERMINATION
+}
+
+enum HrDocumentType {
+  CONTRACT
+  ID_COPY
+  CERTIFICATE
+  MEDICAL_CERTIFICATE
+  INCIDENT_REPORT
+  WARNING_LETTER
+  OTHER
 }

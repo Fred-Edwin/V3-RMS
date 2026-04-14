@@ -18,6 +18,12 @@ const requireRouteId = (value: unknown): string => {
 };
 
 export const staffController = {
+  messagingContacts: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const contacts = await staffService.getMessagingContacts(actor);
+    res.status(200).json({ success: true, data: contacts });
+  },
+
   list: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const filters = listStaffQuerySchema.parse(req.query);

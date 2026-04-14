@@ -7,6 +7,7 @@ const commsRoutes = Router();
 
 const ALL_HUMAN_ROLES = [
   'DIRECTOR',
+  'HR_MANAGER',
   'MANAGER',
   'ACCOUNTANT',
   'WAITER',
@@ -31,9 +32,9 @@ commsRoutes.get('/comms/broadcasts/:broadcastId', authenticate, requireRole(...A
 commsRoutes.patch('/comms/broadcasts/:broadcastId/read', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.markBroadcastRead);
 commsRoutes.patch('/comms/broadcasts/:broadcastId/acknowledge', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.acknowledgeBroadcast);
 
-// Write / status: manager and director only
-commsRoutes.post('/comms/broadcasts', authenticate, requireRole('MANAGER', 'DIRECTOR'), commsController.sendBroadcast);
-commsRoutes.get('/comms/broadcasts/:broadcastId/status', authenticate, requireRole('MANAGER', 'DIRECTOR'), commsController.getBroadcastStatus);
+// Write / status: manager, HR manager, and director
+commsRoutes.post('/comms/broadcasts', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR'), commsController.sendBroadcast);
+commsRoutes.get('/comms/broadcasts/:broadcastId/status', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR'), commsController.getBroadcastStatus);
 
 // ─── Formal Notices ────────────────────────────────────────────────────────
 
@@ -42,8 +43,8 @@ commsRoutes.get('/comms/notices', authenticate, requireRole(...ALL_HUMAN_ROLES),
 commsRoutes.get('/comms/notices/:noticeId', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.getNoticeDetail);
 commsRoutes.patch('/comms/notices/:noticeId/acknowledge', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.acknowledgeNotice);
 
-// Write / status: director only
-commsRoutes.post('/comms/notices', authenticate, requireRole('DIRECTOR'), commsController.issueNotice);
-commsRoutes.get('/comms/notices/:noticeId/status', authenticate, requireRole('DIRECTOR'), commsController.getNoticeStatus);
+// Write / status: HR manager and director
+commsRoutes.post('/comms/notices', authenticate, requireRole('DIRECTOR', 'HR_MANAGER'), commsController.issueNotice);
+commsRoutes.get('/comms/notices/:noticeId/status', authenticate, requireRole('DIRECTOR', 'HR_MANAGER'), commsController.getNoticeStatus);
 
 export default commsRoutes;

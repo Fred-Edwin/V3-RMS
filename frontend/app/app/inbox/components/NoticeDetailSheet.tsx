@@ -24,7 +24,7 @@ export function NoticeDetailSheet({ notice, onClose }: Props) {
   const [trackingExpanded, setTrackingExpanded] = useState(false);
   const toggleTracking = useCallback(() => setTrackingExpanded((v) => !v), []);
 
-  const isDirector = role === 'DIRECTOR';
+  const isDirector = role === 'DIRECTOR' || role === 'HR_MANAGER';
 
   useEffect(() => {
     if (!notice || !accessToken) {
@@ -134,24 +134,24 @@ export function NoticeDetailSheet({ notice, onClose }: Props) {
             </div>
           </div>
 
-          {/* Recipient: pending ack banner — orange, never shown to issuer */}
-          {!detail.myAcknowledgedAt && detail.issuer.id !== userId && (
+          {/* Recipient: pending ack banner — orange, only shown to actual recipients who haven't acknowledged */}
+          {detail.isRecipient && !detail.myAcknowledgedAt && detail.issuer.id !== userId && (
             <div className="rounded-xl bg-[#FFF7ED] border border-[#FED7AA] px-4 py-3">
               <div className="flex items-start gap-2 mb-3">
                 <AlertTriangle size={15} className="text-[#EA580C] shrink-0 mt-0.5" strokeWidth={2} />
                 <p className="text-sm font-medium text-[#9A3412]">
-                  You must acknowledge receipt of this formal notice. Acknowledging does not mean you agree with its contents.
+                  You must acknowledge this formal notice. Acknowledging does not mean you agree with its contents.
                 </p>
               </div>
               <Button variant="primary" onClick={() => void handleAcknowledge()} disabled={acknowledging} className="w-full">
                 <Check size={14} className="mr-2" />
-                {acknowledging ? 'Acknowledging…' : 'Acknowledge receipt'}
+                {acknowledging ? 'Acknowledging…' : 'Acknowledge Notice'}
               </Button>
             </div>
           )}
 
-          {/* Recipient: acknowledged confirmation — vivid green, never shown to issuer */}
-          {detail.myAcknowledgedAt && detail.issuer.id !== userId && (
+          {/* Recipient: acknowledged confirmation — vivid green, only shown to actual recipients */}
+          {detail.isRecipient && detail.myAcknowledgedAt && detail.issuer.id !== userId && (
             <div className="rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] px-4 py-3 flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shrink-0 mt-0.5">
                 <Check size={13} className="text-[#15803D]" strokeWidth={2.5} />

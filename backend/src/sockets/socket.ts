@@ -79,6 +79,14 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
     const auth = (socket.data as SocketData).auth;
     logger.info({ socketId: socket.id, userId: auth.userId, role: auth.role }, 'Socket client connected');
 
+    // System-level roles (DIRECTOR, HR_MANAGER) have no organizationId and cannot join a branch room.
+    // Auto-join them into their personal user room so DMs, broadcasts, and notices are delivered.
+    if (auth.role === 'DIRECTOR' || auth.role === 'HR_MANAGER') {
+      const room = userRoomName(auth.userId);
+      socket.join(room);
+      logger.info({ socketId: socket.id, room, role: auth.role }, 'Auto-joined system-level user to user room');
+    }
+
     socket.on('join:branch', (payload: unknown) => {
       const parsedPayload = joinBranchSchema.safeParse(payload);
       if (!parsedPayload.success) {

@@ -12,6 +12,7 @@ import {
   StatCard,
 } from '@/components/ui';
 import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
+import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
 import { getSocket } from '@/lib/socket';
@@ -412,6 +413,8 @@ export default function ManagerDashboardPage(): JSX.Element {
           Print
         </Button>
       </div>
+
+      <InboxNudge />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard

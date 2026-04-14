@@ -14,11 +14,9 @@ interface Props {
   onClearError?: () => void;
 }
 
-// Roles that appear in the contact picker (display screens excluded)
-const ALLOWED_ROLES = new Set(['DIRECTOR', 'MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA']);
-
 const ROLE_LABELS: Record<string, string> = {
   DIRECTOR: 'Director',
+  HR_MANAGER: 'HR Manager',
   MANAGER: 'Manager',
   ACCOUNTANT: 'Accountant',
   WAITER: 'Waiter',
@@ -28,16 +26,15 @@ const ROLE_LABELS: Record<string, string> = {
 
 // Grouped sections in display order
 const SECTION_DEFS: { label: string; roles: string[] }[] = [
-  { label: 'Leadership',  roles: ['DIRECTOR', 'MANAGER'] },
+  { label: 'Leadership',  roles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] },
   { label: 'Finance',     roles: ['ACCOUNTANT'] },
-  { label: 'Floor Staff', roles: ['WAITER'] },
+  { label: 'Service',     roles: ['WAITER'] },
   { label: 'Kitchen',     roles: ['CHEF'] },
   { label: 'Barista',     roles: ['BARISTA'] },
 ];
 
 export function ContactPickerSheet({ isOpen, onClose, onSelect, error, onClearError }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,14 +47,14 @@ export function ContactPickerSheet({ isOpen, onClose, onSelect, error, onClearEr
     setLoading(true);
     setLoadError(null);
     try {
-      const results = await staffService.listStaff(accessToken, { isActive: true });
-      setStaff(results.filter((s) => s.id !== currentUserId && ALLOWED_ROLES.has(s.role)));
+      const results = await staffService.getMessagingContacts(accessToken);
+      setStaff(results);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load staff');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, currentUserId]);
+  }, [accessToken]);
 
   useEffect(() => {
     if (isOpen) {
