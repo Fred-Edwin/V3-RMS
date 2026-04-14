@@ -371,7 +371,6 @@ export default function EmployeeProfilePage(): JSX.Element {
               ]}
             />
             <Input label="Start Date" type="date" value={editForm.startDate} onChange={(e) => setEditForm((p) => ({ ...p, startDate: e.target.value }))} />
-            <Input label="Probation End Date" type="date" value={editForm.probationEndDate} onChange={(e) => setEditForm((p) => ({ ...p, probationEndDate: e.target.value }))} />
             <Input label="End Date (if applicable)" type="date" value={editForm.endDate} onChange={(e) => setEditForm((p) => ({ ...p, endDate: e.target.value }))} />
             <Select
               label="Reporting Manager"

@@ -126,14 +126,17 @@ export default function HrStaffPage(): JSX.Element {
       ]);
       setProfiles(profileList);
       const profiledUserIds = new Set(profileList.map((p) => p.userId));
+      const EXCLUDED_ROLES = new Set(['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY']);
       setStaffWithoutProfiles(
-        staffList.filter((s) => !profiledUserIds.has(s.id)).map((s) => ({
-          id: s.id,
-          name: s.name,
-          email: s.email,
-          role: s.role,
-          organizationName: s.organizationName,
-        })),
+        staffList
+          .filter((s) => s.isActive && !EXCLUDED_ROLES.has(s.role) && !profiledUserIds.has(s.id))
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            role: s.role,
+            organizationName: s.organizationName,
+          })),
       );
     } catch {
       toast({ variant: 'error', title: 'Failed to load staff profiles' });
