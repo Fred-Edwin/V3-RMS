@@ -169,6 +169,23 @@ router.get(
   hrController.getHrDocuments,
 );
 
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+router.get(
+  '/hr/attendance',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.getAttendanceSummary,
+);
+
+// Must register /attendance before /:userId to avoid Express matching 'attendance' as userId
+router.get(
+  '/hr/attendance/:userId',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.getStaffAttendanceDetail,
+);
+
 // ─── HR Dashboard ─────────────────────────────────────────────────────────────
 
 router.get(

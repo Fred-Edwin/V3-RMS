@@ -13,6 +13,9 @@ import type {
   CreateDisciplinaryRecordInput,
   CreateEmployeeProfileInput,
   LeaveType,
+  AttendanceStaffRow,
+  AttendanceDayRow,
+  AttendanceSummaryFilters,
 } from '@/types/hr';
 
 // ─── Employee Profiles ────────────────────────────────────────────────────────
@@ -208,6 +211,35 @@ export async function uploadHrDocument(
 export async function getHrDocuments(userId: string, token: string): Promise<HrDocument[]> {
   const data = await apiClient.get<{ documents: HrDocument[] }>(`/hr/documents/${userId}`, token);
   return data.documents;
+}
+
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+export async function getAttendanceSummary(
+  filters: AttendanceSummaryFilters,
+  token: string,
+): Promise<AttendanceStaffRow[]> {
+  const q = new URLSearchParams({ startDate: filters.startDate, endDate: filters.endDate });
+  if (filters.organizationId) q.set('organizationId', filters.organizationId);
+  if (filters.userId) q.set('userId', filters.userId);
+  const data = await apiClient.get<{ rows: AttendanceStaffRow[] }>(
+    `/hr/attendance?${q.toString()}`,
+    token,
+  );
+  return data.rows;
+}
+
+export async function getStaffAttendanceDetail(
+  userId: string,
+  filters: { startDate: string; endDate: string },
+  token: string,
+): Promise<AttendanceDayRow[]> {
+  const q = new URLSearchParams({ startDate: filters.startDate, endDate: filters.endDate });
+  const data = await apiClient.get<{ days: AttendanceDayRow[] }>(
+    `/hr/attendance/${userId}?${q.toString()}`,
+    token,
+  );
+  return data.days;
 }
 
 // ─── HR Dashboard ─────────────────────────────────────────────────────────────

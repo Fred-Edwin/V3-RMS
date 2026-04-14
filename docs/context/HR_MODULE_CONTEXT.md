@@ -16,6 +16,7 @@ It is the source of truth for what was built, what decisions were made, and what
 - [x] Nav wiring (HR_MANAGER role) — Complete
 - [x] System Admin: HR Manager account creation — Complete
 - [x] Inbox awareness (nudge card, arrival toast, nav badge) — Complete
+- [x] Attendance Analytics — Complete (see section below)
 - [ ] End-to-end testing & debugging — **In Progress (next session)**
 
 ---
@@ -30,12 +31,14 @@ Features implemented:
 - Leave Calendar (monthly grid view for managers/HR)
 - Disciplinary Records (with FCM notice to staff)
 - HR Documents (Cloudinary upload, linked to leave request or disciplinary record)
-- HR Dashboard (stat cards + pending requests + on-leave-today + probation alerts)
+- HR Dashboard (stat cards + pending requests + on-leave-today + probation alerts + attendance snapshot widget)
 - Staff self-service My Leave page
+- **Attendance Analytics** — cross-staff attendance report: days worked vs. days scheduled, drill-down per staff, CSV export
 
 Features explicitly deferred:
 - Maternity / paternity leave types
 - Payroll integration
+- Staff Performance Scoring
 
 ---
 
@@ -120,13 +123,14 @@ POST /hr/documents/upload           ← before /:userId
 | `frontend/types/hr.ts` | All HR TypeScript types |
 | `frontend/services/hrService.ts` | API calls using `apiClient.get/post/patch` (object syntax — NOT callable directly) |
 | `frontend/components/hr/LeaveTypeBadge.tsx` | `LeaveTypeBadge`, `LeaveStatusBadge`, `DisciplinaryActionBadge`, `formatDateRange`, `roleLabel`, `employmentTypeLabel` |
-| `frontend/app/app/hr/page.tsx` | HR Dashboard (stat cards, pending leave approval, on-leave-today, probation alerts) |
+| `frontend/app/app/hr/page.tsx` | HR Dashboard (stat cards, pending leave approval, on-leave-today, probation alerts, attendance snapshot widget) |
 | `frontend/app/app/hr/staff/page.tsx` | Staff Profiles list + create profile modal |
 | `frontend/app/app/hr/staff/[userId]/page.tsx` | Employee profile detail — 4 tabs: Overview, Leave, Disciplinary, Documents |
 | `frontend/app/app/hr/staff/[userId]/LeaveTab.tsx` | Leave balance pills + leave history |
 | `frontend/app/app/hr/my-leave/page.tsx` | Staff self-service leave page (mobile-first) |
 | `frontend/app/app/hr/leave/page.tsx` | Manager leave requests — status tabs, type filter, inline approve/reject |
 | `frontend/app/app/hr/leave/calendar/page.tsx` | Monthly calendar grid with colour-coded leave bars |
+| `frontend/app/app/hr/attendance/page.tsx` | Attendance analytics — filter bar, summary chips, staff table, drill-down drawer, CSV export |
 
 ### Modified Files
 | File | Change |
@@ -164,6 +168,42 @@ docker compose up -d --build api worker
 
 ---
 
+## Seed Script — `seed-employee-profiles.ts`
+
+Script: `backend/src/scripts/seed-employee-profiles.ts`
+
+- Creates `EmployeeProfile` records for all eligible active staff
+- **Excluded roles:** `DIRECTOR`, `HR_MANAGER`, `SYSTEM_ADMIN`, `KITCHEN_DISPLAY`, `BARISTA_DISPLAY` — these roles do not need HR profiles
+- **Excluded:** inactive users (`isActive: false`)
+- Prints a "Skipped" list before processing so excluded accounts are visible
+- Run on server post-deployment: `docker compose exec api node dist/scripts/seed-employee-profiles.js`
+
+---
+
+## HR Dashboard — Stat Card Clarifications
+
+| Card | Value | Sub-label |
+|---|---|---|
+| Total Headcount | `activeStaff` (all active users with HR profiles) | `N on leave today` |
+| At Work Today | `activeStaff - onLeaveToday` | `N away` or `Full team in` |
+| Pending Leave | `pendingLeave` (PENDING status requests) | `awaiting review` |
+| Active Warnings | `activeWarnings` (unexpired disciplinary records) | `unexpired records` |
+
+"Total Headcount" = HR-profiled staff count, not currently-clocked-in staff.
+
+---
+
+## Edit Employee Profile — Available Fields
+
+The edit modal in `frontend/app/app/hr/staff/[userId]/page.tsx` supports:
+- Employment Type, Job Title, Start Date, End Date, Probation End Date
+- Date of Birth, National ID, Personal Phone, Personal Email, Physical Address
+- Emergency contact (Name, Relation, Phone)
+- Reporting Manager (select from active MANAGER/HR_MANAGER/DIRECTOR accounts)
+- Notes
+
+---
+
 ## Known Issues / Refinements Needed (for next session)
 
 These are items identified during build but not yet tested or confirmed fixed:
@@ -193,3 +233,57 @@ These are items identified during build but not yet tested or confirmed fixed:
 | Inbox nudge on HR overview page | ✅ (`InboxNudge` rendered below `PageHeader` in `/app/hr`) |
 | Arrival toast | ✅ (mounted in app shell via `useMessageToast`) |
 | Nav badge on Inbox tab | ✅ (sidebar + mobile bottom nav show unread count) |
+
+---
+
+## Attendance Analytics
+
+Added as a post-initial-build feature. No schema changes or migrations required — queries join existing `ShiftAssignment` and `ClockRecord` tables.
+
+### Design
+
+- **Route:** `/app/hr/attendance` — top-level HR section alongside Staff Profiles and Leave
+- **Access:** `HR_MANAGER`, `DIRECTOR`, `SYSTEM_ADMIN`, `MANAGER` (MANAGER scoped to own branch in service layer)
+- **Three zones:**
+  1. **Filter bar** — preset pills (This Week / This Month / Last Month) + custom date range + Branch dropdown (multi-branch roles) + Staff dropdown + Export CSV
+  2. **Summary bar** — 4 stat chips: Days Scheduled, Days Present, Absences, Attendance Rate. Rate color: green ≥ 85%, amber ≥ 70%, red < 70%
+  3. **Staff table** — one row per staff member; `⚠` warning icon on Rate column when < 85%; click row → drill-down drawer
+- **Drill-down drawer** — slides in from right; shows per-person summary strip (Scheduled / Present / Absent / Late / Rate) + day-by-day table (Date, Shift, Clock In, Clock Out, Status badge)
+- **Status logic:** LATE = clock-in > 15 min after shift start; ABSENT = assigned shift with no clock record; rows only include scheduled days (no-shift days are not shown as absences)
+- **CSV export** — downloads `attendance_STARTDATE_ENDDATE.csv` with Name, Role, Branch, Scheduled, Present, Absent, Late, Attendance%
+- **HR Overview widget** (`/app/hr`) — "This Week's Attendance" card shows org-wide rate as large number + breakdown: ✅ N days present / ❌ N absences / 🟡 N late arrivals / "View full →" link
+
+### Late threshold
+`LATE_THRESHOLD_MINUTES = 15` — defined as a constant in `backend/src/repositories/hr-repository.ts`
+
+### Backend files changed
+| File | Change |
+|---|---|
+| `backend/src/repositories/hr-repository.ts` | Added `getAttendanceSummary()` and `getStaffAttendanceDetail()` |
+| `backend/src/services/hr-service.ts` | Added `getAttendanceSummary()` and `getStaffAttendanceDetail()` with MANAGER branch scoping |
+| `backend/src/controllers/hr-controller.ts` | Added `getAttendanceSummary` and `getStaffAttendanceDetail` handlers |
+| `backend/src/routes/hr-routes.ts` | Added `GET /hr/attendance` and `GET /hr/attendance/:userId` (both `HR_AND_MANAGER`) — registered before other parameterized routes |
+| `backend/src/validators/hr-schemas.ts` | Added `attendanceSummaryQuerySchema` and `attendanceDetailQuerySchema` |
+
+### Frontend files changed
+| File | Change |
+|---|---|
+| `frontend/types/hr.ts` | Added `AttendanceStaffRow`, `AttendanceDayRow`, `AttendanceSummaryFilters` |
+| `frontend/services/hrService.ts` | Added `getAttendanceSummary()` and `getStaffAttendanceDetail()` |
+| `frontend/app/app/hr/attendance/page.tsx` | New page — full attendance analytics UI |
+| `frontend/app/app/hr/page.tsx` | Added attendance snapshot widget + `getAttendanceSummary` call on load |
+| `frontend/app/app/layout.tsx` | Added `{ label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 }` to HR_MANAGER sidebar section and overflow tabs |
+
+### Key query logic (repository)
+```
+getAttendanceSummary: groups ShiftAssignment by userId, LEFT JOINs clockRecord
+  scheduled = COUNT(assignments)
+  present   = COUNT(assignments WHERE clockRecord.clockInAt IS NOT NULL)
+  absent    = scheduled - present
+  late      = COUNT(present WHERE clockInAt > shiftStart + 15min)
+  rate      = ROUND((present / scheduled) * 100)
+
+getStaffAttendanceDetail: returns one row per assignment for a given userId
+  includes: date, shiftId, shiftName, shiftStart, shiftEnd,
+            clockInAt, clockOutAt, status (PRESENT|LATE|ABSENT), minutesLate
+```

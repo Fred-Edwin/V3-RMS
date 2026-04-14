@@ -196,6 +196,40 @@ export interface CreateLeaveRequestInput {
   reason: string;
 }
 
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+export interface AttendanceStaffRow {
+  userId: string;
+  name: string;
+  role: string;
+  organizationId: string | null;
+  organizationName: string | null;
+  scheduled: number;
+  present: number;
+  absent: number;
+  late: number;
+  attendanceRate: number;
+}
+
+export interface AttendanceDayRow {
+  date: string;
+  shiftId: string;
+  shiftName: string;
+  shiftStart: string;
+  shiftEnd: string;
+  clockInAt: string | null;
+  clockOutAt: string | null;
+  status: 'PRESENT' | 'LATE' | 'ABSENT';
+  minutesLate: number;
+}
+
+export interface AttendanceSummaryFilters {
+  startDate: string;
+  endDate: string;
+  organizationId?: string;
+  userId?: string;
+}
+
 export interface CreateDisciplinaryRecordInput {
   employeeUserId: string;
   incidentDate: string;

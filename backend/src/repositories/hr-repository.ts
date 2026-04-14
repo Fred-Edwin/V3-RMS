@@ -601,3 +601,156 @@ export async function getStaffOnLeaveToday(organizationId?: string) {
     orderBy: { endDate: 'asc' },
   });
 }
+
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+export interface AttendanceStaffRow {
+  userId: string;
+  name: string;
+  role: string;
+  organizationId: string | null;
+  organizationName: string | null;
+  scheduled: number;
+  present: number;
+  absent: number;
+  late: number;
+  attendanceRate: number;
+}
+
+export interface AttendanceDayRow {
+  date: string;           // YYYY-MM-DD
+  shiftId: string;
+  shiftName: string;
+  shiftStart: string;     // HH:MM
+  shiftEnd: string;       // HH:MM
+  clockInAt: string | null;
+  clockOutAt: string | null;
+  status: 'PRESENT' | 'LATE' | 'ABSENT';
+  minutesLate: number;
+}
+
+// Minutes late threshold — clock-in must be within this window to count as on-time
+const LATE_THRESHOLD_MINUTES = 15;
+
+export async function getAttendanceSummary(
+  startDate: Date,
+  endDate: Date,
+  organizationId?: string,
+  userId?: string,
+): Promise<AttendanceStaffRow[]> {
+  const assignments = await prisma.shiftAssignment.findMany({
+    where: {
+      ...(organizationId ? { organizationId } : {}),
+      ...(userId ? { userId } : {}),
+      date: { gte: startDate, lte: endDate },
+      user: { isActive: true },
+    },
+    select: {
+      userId: true,
+      organizationId: true,
+      shift: { select: { startTime: true } },
+      clockRecord: { select: { clockInAt: true } },
+      user: {
+        select: {
+          name: true,
+          role: true,
+          organization: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { date: 'asc' },
+  });
+
+  // Aggregate per user
+  const map = new Map<string, AttendanceStaffRow>();
+
+  for (const a of assignments) {
+    let row = map.get(a.userId);
+    if (!row) {
+      row = {
+        userId: a.userId,
+        name: a.user.name,
+        role: a.user.role,
+        organizationId: a.organizationId,
+        organizationName: a.user.organization?.name ?? null,
+        scheduled: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        attendanceRate: 0,
+      };
+      map.set(a.userId, row);
+    }
+
+    row.scheduled++;
+
+    if (!a.clockRecord?.clockInAt) {
+      row.absent++;
+    } else {
+      row.present++;
+      // Compare clock-in time against shift start time
+      const [shiftHour, shiftMin] = a.shift.startTime.split(':').map(Number);
+      const clockIn = new Date(a.clockRecord.clockInAt);
+      const shiftStartMs =
+        new Date(clockIn).setHours(shiftHour ?? 0, shiftMin ?? 0, 0, 0);
+      const diffMinutes = Math.floor((clockIn.getTime() - shiftStartMs) / 60000);
+      if (diffMinutes > LATE_THRESHOLD_MINUTES) row.late++;
+    }
+  }
+
+  // Calculate attendance rate
+  for (const row of map.values()) {
+    row.attendanceRate =
+      row.scheduled > 0 ? Math.round((row.present / row.scheduled) * 100) : 0;
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getStaffAttendanceDetail(
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<AttendanceDayRow[]> {
+  const assignments = await prisma.shiftAssignment.findMany({
+    where: {
+      userId,
+      date: { gte: startDate, lte: endDate },
+    },
+    select: {
+      date: true,
+      shift: { select: { id: true, name: true, startTime: true, endTime: true } },
+      clockRecord: { select: { clockInAt: true, clockOutAt: true } },
+    },
+    orderBy: { date: 'asc' },
+  });
+
+  return assignments.map((a) => {
+    const dateStr = a.date.toISOString().slice(0, 10);
+    const clockInAt = a.clockRecord?.clockInAt?.toISOString() ?? null;
+    const clockOutAt = a.clockRecord?.clockOutAt?.toISOString() ?? null;
+
+    let status: AttendanceDayRow['status'] = 'ABSENT';
+    let minutesLate = 0;
+
+    if (clockInAt) {
+      const [shiftHour, shiftMin] = a.shift.startTime.split(':').map(Number);
+      const clockIn = new Date(clockInAt);
+      const shiftStartMs = new Date(clockIn).setHours(shiftHour ?? 0, shiftMin ?? 0, 0, 0);
+      minutesLate = Math.max(0, Math.floor((clockIn.getTime() - shiftStartMs) / 60000));
+      status = minutesLate > LATE_THRESHOLD_MINUTES ? 'LATE' : 'PRESENT';
+    }
+
+    return {
+      date: dateStr,
+      shiftId: a.shift.id,
+      shiftName: a.shift.name,
+      shiftStart: a.shift.startTime,
+      shiftEnd: a.shift.endTime,
+      clockInAt,
+      clockOutAt,
+      status,
+      minutesLate,
+    };
+  });
+}

@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import {
   Users, CalendarOff, Clock, AlertTriangle,
   ChevronRight, CheckCircle2, XCircle, UserCircle, Building2,
+  BarChart2,
 } from 'lucide-react';
 import { PageLayout, PageHeader, EmptyState } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
-import { getHrDashboard, approveLeaveRequest, rejectLeaveRequest } from '@/services/hrService';
-import type { HrDashboard, LeaveRequest } from '@/types/hr';
+import { getHrDashboard, approveLeaveRequest, rejectLeaveRequest, getAttendanceSummary } from '@/services/hrService';
+import type { HrDashboard, LeaveRequest, AttendanceStaffRow } from '@/types/hr';
 import { LeaveTypeBadge, formatDateRange } from '@/components/hr/LeaveTypeBadge';
 
 export default function HrDashboardPage(): JSX.Element {
@@ -21,6 +22,7 @@ export default function HrDashboardPage(): JSX.Element {
 
   const [data, setData] = useState<HrDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attendanceRows, setAttendanceRows] = useState<AttendanceStaffRow[]>([]);
   const [actionId, setActionId] = useState<string | null>(null);
   const [reviewComment, setReviewComment] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -29,8 +31,18 @@ export default function HrDashboardPage(): JSX.Element {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const result = await getHrDashboard(undefined, accessToken);
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // ISO Monday
+      const startDate = monday.toISOString().slice(0, 10);
+      const endDate = now.toISOString().slice(0, 10);
+
+      const [result, rows] = await Promise.all([
+        getHrDashboard(undefined, accessToken),
+        getAttendanceSummary({ startDate, endDate }, accessToken).catch(() => []),
+      ]);
       setData(result);
+      setAttendanceRows(rows);
     } catch {
       toast({ variant: 'error', title: 'Failed to load HR dashboard' });
     } finally {
@@ -285,6 +297,69 @@ export default function HrDashboardPage(): JSX.Element {
               </ul>
             )}
           </div>
+
+          {/* Attendance Snapshot */}
+          {(() => {
+            const totalScheduled = attendanceRows.reduce((s, r) => s + r.scheduled, 0);
+            const totalPresent = attendanceRows.reduce((s, r) => s + r.present, 0);
+            const totalAbsent = attendanceRows.reduce((s, r) => s + r.absent, 0);
+            const totalLate = attendanceRows.reduce((s, r) => s + r.late, 0);
+            const rate = totalScheduled > 0 ? Math.round((totalPresent / totalScheduled) * 100) : null;
+            const rateColor = rate === null ? '#6B7280' : rate >= 90 ? '#1A6B3C' : rate >= 75 ? '#92650A' : '#9B3A2A';
+
+            return (
+              <div className="rounded-xl border border-stone-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <BarChart2 size={16} className="text-stone-400" />
+                    <h3 className="text-heading-sm font-semibold text-stone-900">This Week&apos;s Attendance</h3>
+                  </div>
+                  <button
+                    onClick={() => router.push('/app/hr/attendance')}
+                    className="flex items-center gap-1 text-caption text-stone-400 transition-colors hover:text-espresso"
+                  >
+                    View full <ChevronRight size={12} />
+                  </button>
+                </div>
+                {loading ? (
+                  <div className="px-4 py-4 space-y-2">
+                    <div className="h-10 w-20 animate-pulse rounded bg-stone-100 mx-auto" />
+                    <div className="h-3 w-full animate-pulse rounded bg-stone-100" />
+                  </div>
+                ) : totalScheduled === 0 ? (
+                  <div className="px-4 py-4 text-center text-body-sm text-stone-400">
+                    No shifts scheduled this week.
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 space-y-3">
+                    <div className="text-center">
+                      <p
+                        className="font-display text-display-xl font-bold"
+                        style={{ color: rateColor }}
+                      >
+                        {rate !== null ? `${rate}%` : '—'}
+                      </p>
+                      <p className="text-caption text-stone-400">attendance rate</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="flex items-center gap-2 text-body-sm text-stone-700">
+                        <CheckCircle2 size={14} className="text-[#1A6B3C]" />
+                        <span><span className="font-semibold text-[#1A6B3C]">{totalPresent}</span> days present</span>
+                      </p>
+                      <p className="flex items-center gap-2 text-body-sm text-stone-700">
+                        <XCircle size={14} className="text-[#991B1B]" />
+                        <span><span className="font-semibold text-[#991B1B]">{totalAbsent}</span> {totalAbsent === 1 ? 'absence' : 'absences'}</span>
+                      </p>
+                      <p className="flex items-center gap-2 text-body-sm text-stone-700">
+                        <Clock size={14} className="text-[#92650A]" />
+                        <span><span className="font-semibold text-[#92650A]">{totalLate}</span> late {totalLate === 1 ? 'arrival' : 'arrivals'}</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Probation Ending Soon */}
           {(data?.stats.probationEnding?.length ?? 0) > 0 && (

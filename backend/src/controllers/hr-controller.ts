@@ -12,6 +12,8 @@ import {
   hrDashboardQuerySchema,
   leaveCalendarQuerySchema,
   leaveRequestsQuerySchema,
+  attendanceSummaryQuerySchema,
+  attendanceDetailQuerySchema,
 } from '../validators/hr-schemas';
 import type { UserRole } from '@prisma/client';
 
@@ -293,6 +295,34 @@ export async function getHrDocuments(req: Request, res: Response): Promise<void>
 
   const documents = await hrRepository.listHrDocuments(profile.id);
   res.json({ success: true, data: { documents } });
+}
+
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+export async function getAttendanceSummary(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const query = attendanceSummaryQuerySchema.parse(req.query);
+  const rows = await hrService.getAttendanceSummary(
+    actor,
+    new Date(query.startDate),
+    new Date(query.endDate),
+    query.organizationId,
+    query.userId,
+  );
+  res.json({ success: true, data: { rows } });
+}
+
+export async function getStaffAttendanceDetail(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const userId = param(req, 'userId');
+  const query = attendanceDetailQuerySchema.parse(req.query);
+  const days = await hrService.getStaffAttendanceDetail(
+    actor,
+    userId,
+    new Date(query.startDate),
+    new Date(query.endDate),
+  );
+  res.json({ success: true, data: { days } });
 }
 
 // ─── HR Dashboard ─────────────────────────────────────────────────────────────

@@ -477,6 +477,37 @@ export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: st
   return hrRepository.acknowledgeDisciplinaryRecord(recordId);
 }
 
+// ─── Attendance Analytics ─────────────────────────────────────────────────────
+
+export async function getAttendanceSummary(
+  actor: HrActor,
+  startDate: Date,
+  endDate: Date,
+  organizationId?: string,
+  userId?: string,
+) {
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('Access denied to attendance data');
+  }
+  // MANAGER is scoped to own branch only
+  const resolvedOrgId =
+    actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : organizationId;
+
+  return hrRepository.getAttendanceSummary(startDate, endDate, resolvedOrgId, userId);
+}
+
+export async function getStaffAttendanceDetail(
+  actor: HrActor,
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+) {
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('Access denied to attendance data');
+  }
+  return hrRepository.getStaffAttendanceDetail(userId, startDate, endDate);
+}
+
 // ─── HR Dashboard ─────────────────────────────────────────────────────────────
 
 export async function getHrDashboard(actor: HrActor, organizationId?: string) {
