@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { printService } from '../services/print-service';
 import {
+  CreateOtherIncomePrintJobSchema,
   CreatePrintJobSchema,
   CreatePrintStationSchema,
   PrintJobQuerySchema,
@@ -37,6 +38,24 @@ export const printController = {
     }
 
     const job = await printService.createPrintJob(orderId, actor.id, organizationId, receiptType);
+
+    res.status(201).json({
+      success: true,
+      data: job,
+      message: 'Print job created',
+    });
+  },
+
+  createOtherIncomePrintJob: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { entryId } = CreateOtherIncomePrintJobSchema.parse(req.body);
+
+    const organizationId = actor.organizationId;
+    if (!organizationId) {
+      throw new UnauthorizedError('User is not assigned to a branch');
+    }
+
+    const job = await printService.createOtherIncomePrintJob(entryId, organizationId, actor.id);
 
     res.status(201).json({
       success: true,

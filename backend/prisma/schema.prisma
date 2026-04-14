@@ -504,7 +504,7 @@ model IdempotencyKey {
 model PrintJob {
   id             String          @id @default(uuid())
   organizationId String          @map("organization_id")
-  orderId        String          @map("order_id")
+  orderId        String?         @map("order_id")
   activeKey      String?         @unique @map("active_key")
   receiptType    ReceiptType     @default(RECEIPT) @map("receipt_type")
   copies         Int             @default(1)
@@ -522,7 +522,7 @@ model PrintJob {
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
   organization   Organization    @relation(fields: [organizationId], references: [id])
-  order          Order           @relation(fields: [orderId], references: [id])
+  order          Order?          @relation(fields: [orderId], references: [id])
   requestedBy    User            @relation("PrintJobRequester", fields: [requestedById], references: [id])
   claimedByStation PrintStation? @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
   printedByStation PrintStation? @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])

@@ -6,7 +6,7 @@ import { prisma } from '../config/database';
 export interface PrintJobRecord {
   id: string;
   organizationId: string;
-  orderId: string;
+  orderId: string | null;
   activeKey: string | null;
   receiptType: ReceiptType;
   copies: number;
@@ -26,7 +26,7 @@ export interface PrintJobRecord {
 
 export interface PrintJobSummaryRecord {
   id: string;
-  orderId: string;
+  orderId: string | null;
   receiptType: ReceiptType;
   copies: number;
   status: PrintJobStatus;
@@ -90,7 +90,7 @@ export interface OrderForReceipt {
 export const printRepository = {
   createPrintJob: async (data: {
     organizationId: string;
-    orderId: string;
+    orderId?: string;
     requestedById: string;
     receiptType: ReceiptType;
     copies: number;
@@ -100,7 +100,7 @@ export const printRepository = {
     return prisma.printJob.create({
       data: {
         organizationId: data.organizationId,
-        orderId: data.orderId,
+        orderId: data.orderId ?? null,
         requestedById: data.requestedById,
         receiptType: data.receiptType,
         copies: data.copies,
@@ -137,6 +137,29 @@ export const printRepository = {
         orderId,
         organizationId,
         receiptType,
+        status: { in: ['PENDING', 'PRINTING'] },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        orderId: true,
+        receiptType: true,
+        copies: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  findActiveJobByActiveKey: async (
+    activeKey: string,
+    organizationId: string,
+  ): Promise<PrintJobSummaryRecord | null> => {
+    return prisma.printJob.findFirst({
+      where: {
+        activeKey,
+        organizationId,
         status: { in: ['PENDING', 'PRINTING'] },
       },
       select: {

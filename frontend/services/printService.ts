@@ -14,6 +14,9 @@ export const printService = {
   createPrintJob: (orderId: string, token: string, receiptType: ReceiptType = 'RECEIPT'): Promise<PrintJobSummary> =>
     apiClient.post<PrintJobSummary>('/print-jobs', { orderId, receiptType }, token),
 
+  createOtherIncomePrintJob: (entryId: string, token: string): Promise<PrintJobSummary> =>
+    apiClient.post<PrintJobSummary>('/print-jobs/other-income', { entryId }, token),
+
   getPrintJobs: (
     token: string,
     params?: { status?: string; page?: number; perPage?: number },

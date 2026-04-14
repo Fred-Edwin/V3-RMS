@@ -8,6 +8,14 @@ const printRoutes = Router();
 
 // ── Print Jobs (JWT auth, branch staff) ──────────────────────────────────────
 
+// IMPORTANT: /print-jobs/other-income must be registered BEFORE /print-jobs/:id
+printRoutes.post(
+  '/print-jobs/other-income',
+  authenticate,
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
+  printController.createOtherIncomePrintJob,
+);
+
 printRoutes.post(
   '/print-jobs',
   authenticate,

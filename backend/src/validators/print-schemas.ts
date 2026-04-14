@@ -41,6 +41,11 @@ export const CreatePrintStationSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
+// POST /print-jobs/other-income
+export const CreateOtherIncomePrintJobSchema = z.object({
+  entryId: z.string().uuid('entryId must be a valid UUID'),
+});
+
 // Route param
 export const routeIdParamSchema = z.object({
   id: z.string().uuid(),
@@ -52,3 +57,4 @@ export type PrintJobQueryInput = z.infer<typeof PrintJobQuerySchema>;
 export type UpdatePrintJobStatusInput = z.infer<typeof UpdatePrintJobStatusSchema>;
 export type StationJobQueryInput = z.infer<typeof StationJobQuerySchema>;
 export type CreatePrintStationInput = z.infer<typeof CreatePrintStationSchema>;
+export type CreateOtherIncomePrintJobInput = z.infer<typeof CreateOtherIncomePrintJobSchema>;

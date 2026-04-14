@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Banknote, Plus, Trash2 } from 'lucide-react';
+import { Banknote, Plus, Printer, Trash2 } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { otherIncomeService } from '@/services/otherIncomeService';
+import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
 import { getTodayYmdInTimeZone } from '@/lib/date';
 import { ApiError } from '@/types/api';
@@ -58,6 +59,7 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
 
   const [deleteTarget, setDeleteTarget] = useState<EntryRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState<string | null>(null); // entryId being printed
 
   const loadEntries = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
@@ -93,6 +95,25 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
       toast({ variant: 'error', title: message });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handlePrintReceipt = async (entryId: string): Promise<void> => {
+    if (!accessToken || isPrinting) return;
+    setIsPrinting(entryId);
+    try {
+      await printService.createOtherIncomePrintJob(entryId, accessToken);
+      toast({ variant: 'success', title: 'Receipt sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrinting(null);
     }
   };
 
@@ -159,17 +180,29 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
     {
       key: 'actions',
       label: '',
-      render: (_v, row) =>
-        canDelete(row) ? (
+      render: (_v, row) => (
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setDeleteTarget(row)}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:shadow-focus"
-            aria-label="Delete entry"
+            onClick={() => void handlePrintReceipt(row.id)}
+            disabled={isPrinting === row.id}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-40"
+            aria-label="Print receipt"
           >
-            <Trash2 size={16} />
+            <Printer size={16} />
           </button>
-        ) : null,
+          {canDelete(row) && (
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(row)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:shadow-focus"
+              aria-label="Delete entry"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 

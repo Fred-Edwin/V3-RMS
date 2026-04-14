@@ -2,6 +2,7 @@ import { randomBytes, createHash } from 'crypto';
 import type { PrintJobStatus, ReceiptType, Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { printRepository, type PrintJobRecord, type PrintJobSummaryRecord, type PrintStationRecord } from '../repositories/print-repository';
+import { otherIncomeRepository } from '../repositories/other-income-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 
 const PRINT_STATION_TOKEN_PREFIX = 'pst_';
@@ -168,6 +169,82 @@ export const printService = {
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
         const existingActive = await printRepository.findActiveJobForOrder(orderId, organizationId, receiptType);
+        if (existingActive) {
+          return existingActive;
+        }
+      }
+      throw error;
+    }
+  },
+
+  createOtherIncomePrintJob: async (
+    entryId: string,
+    organizationId: string,
+    requestedById: string,
+  ): Promise<PrintJobSummaryRecord> => {
+    const entry = await otherIncomeRepository.findEntryForReceipt(entryId, organizationId);
+    if (!entry) {
+      throw new NotFoundError('Other income entry not found');
+    }
+
+    // Idempotency: return existing PENDING/PRINTING job rather than creating a duplicate
+    const activeKey = `other-income:${entryId}`;
+    const existing = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+    if (existing) {
+      return existing;
+    }
+
+    const entryDate = new Date(entry.entryDate);
+    const receiptData: ReceiptData = {
+      branchName: entry.organization.name,
+      branchPhone: entry.organization.phone ?? null,
+      mpesaPaybill: entry.organization.mpesaPaybill ?? null,
+      accountNumber: entry.organization.accountNumber ?? null,
+      googleReviewUrl: entry.organization.googleReviewUrl ?? null,
+      orderNumber: entry.id.slice(0, 8).toUpperCase(),
+      dailyNumber: 0,
+      orderDate: formatDate(entryDate),
+      orderTime: formatTime(entry.createdAt),
+      orderType: 'Other Income',
+      tableNumber: null,
+      waiterName: entry.recordedBy.name,
+      waiterFirstName: getFirstName(entry.recordedBy.name),
+      items: [
+        {
+          name: entry.category.name,
+          quantity: 1,
+          unitPrice: toDecimalNumber(entry.amount),
+          total: toDecimalNumber(entry.amount),
+        },
+      ],
+      subtotal: toDecimalNumber(entry.amount),
+      deliveryFee: 0,
+      total: toDecimalNumber(entry.amount),
+      paymentMethod: entry.paymentMethod,
+      paidAt: entry.createdAt.toISOString(),
+      ...(entry.mpesaCode ? { mpesaCode: entry.mpesaCode } : {}),
+      ...(entry.paymentMethod === 'SPLIT'
+        ? {
+            ...(entry.splitType ? { splitType: entry.splitType } : {}),
+            ...(entry.mpesaAmount ? { mpesaAmount: toDecimalNumber(entry.mpesaAmount) } : {}),
+            ...(entry.cashAmount ? { cashAmount: toDecimalNumber(entry.cashAmount) } : {}),
+            ...(entry.cardAmount ? { cardAmount: toDecimalNumber(entry.cardAmount) } : {}),
+          }
+        : {}),
+    };
+
+    try {
+      return await printRepository.createPrintJob({
+        organizationId,
+        requestedById,
+        receiptType: 'RECEIPT',
+        copies: 1,
+        activeKey,
+        receiptData: receiptData as unknown as Prisma.InputJsonValue,
+      });
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
         if (existingActive) {
           return existingActive;
         }

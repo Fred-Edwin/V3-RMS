@@ -13,6 +13,30 @@ export type OtherIncomeEntryWithRelations = OtherIncomeEntry & {
   recordedBy: { id: string; name: string };
 };
 
+export interface OtherIncomeEntryForReceipt {
+  id: string;
+  organizationId: string;
+  amount: Prisma.Decimal;
+  paymentMethod: string;
+  mpesaCode: string | null;
+  mpesaAmount: Prisma.Decimal | null;
+  cashAmount: Prisma.Decimal | null;
+  cardAmount: Prisma.Decimal | null;
+  splitType: string | null;
+  entryDate: Date;
+  createdAt: Date;
+  category: { name: string };
+  branch: { name: string };
+  recordedBy: { name: string };
+  organization: {
+    name: string;
+    phone: string | null;
+    mpesaPaybill: string | null;
+    accountNumber: string | null;
+    googleReviewUrl: string | null;
+  };
+}
+
 export interface OtherIncomeCategoryDropdownItem {
   id: string;
   name: string;
@@ -229,6 +253,40 @@ export const otherIncomeRepository = {
     return prisma.otherIncomeEntry.findFirst({
       where: { id, ...(organizationId ? { organizationId } : {}) },
       include: entryInclude,
+    });
+  },
+
+  findEntryForReceipt: async (
+    id: string,
+    organizationId: string,
+  ): Promise<OtherIncomeEntryForReceipt | null> => {
+    return prisma.otherIncomeEntry.findFirst({
+      where: { id, organizationId },
+      select: {
+        id: true,
+        organizationId: true,
+        amount: true,
+        paymentMethod: true,
+        mpesaCode: true,
+        mpesaAmount: true,
+        cashAmount: true,
+        cardAmount: true,
+        splitType: true,
+        entryDate: true,
+        createdAt: true,
+        category: { select: { name: true } },
+        branch: { select: { name: true } },
+        recordedBy: { select: { name: true } },
+        organization: {
+          select: {
+            name: true,
+            phone: true,
+            mpesaPaybill: true,
+            accountNumber: true,
+            googleReviewUrl: true,
+          },
+        },
+      },
     });
   },
 
