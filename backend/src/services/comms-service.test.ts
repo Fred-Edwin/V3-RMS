@@ -20,6 +20,9 @@ vi.mock('../repositories/comms-repository', () => ({
     markMessageRead: vi.fn(),
     softDeleteMessage: vi.fn(),
     countUnreadInConversation: vi.fn(),
+    findUserOrganizationId: vi.fn(),
+    findFirstOrganizationId: vi.fn(),
+    findAllActiveOrganizationIds: vi.fn().mockResolvedValue(['org-1']),
     findUsersForBroadcastScope: vi.fn(),
     createBroadcast: vi.fn(),
     findBroadcastById: vi.fn(),
@@ -44,6 +47,8 @@ vi.mock('../sockets/socket-service', () => ({
     emitNewDirectMessage: vi.fn(),
     emitNewBroadcast: vi.fn(),
     emitNewFormalNotice: vi.fn(),
+    emitNewFormalNoticeToUser: vi.fn(),
+    emitNoticeAcknowledged: vi.fn(),
   },
 }));
 
@@ -145,7 +150,9 @@ describe('getOrCreateConversation', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('throws ForbiddenError when actor has no organizationId', async () => {
+  it('throws ForbiddenError when actor has no organizationId and none can be resolved', async () => {
+    vi.mocked(commsRepository.findUserOrganizationId).mockResolvedValue(null);
+    vi.mocked(commsRepository.findFirstOrganizationId).mockResolvedValue(null);
     await expect(
       commsService.getOrCreateConversation(directorActor, { recipientId: 'other-user' }),
     ).rejects.toThrow(ForbiddenError);
