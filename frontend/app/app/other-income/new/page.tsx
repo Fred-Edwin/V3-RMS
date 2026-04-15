@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote, ChevronLeft, Printer } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { otherIncomeService } from '@/services/otherIncomeService';
+import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
 import { getTodayYmdInTimeZone } from '@/lib/date';
 import { ApiError } from '@/types/api';
@@ -59,13 +60,6 @@ const formatReceiptDate = (ymd: string): string => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: 'Cash',
-  MPESA: 'M-Pesa',
-  CARD: 'Card',
-  SPLIT: 'Split',
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function RecordOtherIncomePage(): JSX.Element {
@@ -73,7 +67,6 @@ export default function RecordOtherIncomePage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
   const role = useAuthStore((state) => state.role);
-  const user = useAuthStore((state) => state.user);
 
   const todayYmd = getTodayYmdInTimeZone();
   const canChangeDate = role ? CAN_CHANGE_DATE.has(role) : false;
@@ -100,8 +93,7 @@ export default function RecordOtherIncomePage(): JSX.Element {
 
   // Recorded entry — shown after successful submission for receipt printing
   const [recordedEntry, setRecordedEntry] = useState<OtherIncomeEntry | null>(null);
-
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const loadCategories = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
@@ -239,37 +231,23 @@ export default function RecordOtherIncomePage(): JSX.Element {
     }
   };
 
-  const handlePrintReceipt = () => {
-    const el = receiptRef.current;
-    if (!el) return;
-    const printContent = el.innerHTML;
-    const win = window.open('', '_blank', 'width=400,height=600');
-    if (!win) return;
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Other Income Receipt</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Courier New', monospace; font-size: 12px; padding: 16px; width: 80mm; }
-            .receipt-title { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 4px; }
-            .receipt-sub { text-align: center; font-size: 11px; color: #555; margin-bottom: 12px; }
-            .divider { border-top: 1px dashed #999; margin: 8px 0; }
-            .row { display: flex; justify-content: space-between; margin: 3px 0; }
-            .row .label { color: #555; }
-            .row .value { font-weight: 500; text-align: right; }
-            .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin: 6px 0; }
-            .footer { text-align: center; margin-top: 12px; font-size: 10px; color: #777; }
-          </style>
-        </head>
-        <body>${printContent}</body>
-      </html>
-    `);
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
+  const handlePrintReceipt = async (): Promise<void> => {
+    if (!accessToken || !recordedEntry || isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await printService.createOtherIncomePrintJob(recordedEntry.id, accessToken);
+      toast({ variant: 'success', title: 'Receipt sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const categoryOptions: SelectOption[] = categories.map((c) => ({
@@ -283,8 +261,6 @@ export default function RecordOtherIncomePage(): JSX.Element {
 
   // ── Render: post-submission receipt view ──────────────────────────────────
   if (recordedEntry) {
-    const pm = recordedEntry.paymentMethod;
-    const isSplitEntry = pm === 'SPLIT';
     return (
       <PageLayout>
         <header className="mb-6 flex items-center gap-3 border-b border-stone-200 pb-4">
@@ -314,88 +290,10 @@ export default function RecordOtherIncomePage(): JSX.Element {
 
         {/* Print button */}
         <div className="mb-6">
-          <Button variant="secondary" onClick={handlePrintReceipt}>
+          <Button variant="secondary" onClick={() => void handlePrintReceipt()} isLoading={isPrinting} disabled={isPrinting}>
             <Printer size={16} className="mr-2" />
             Print Receipt
           </Button>
-        </div>
-
-        {/* Hidden receipt content used for printing */}
-        <div ref={receiptRef} className="hidden">
-          <div className="receipt-title">Wendo Coffee Bistro</div>
-          <div className="receipt-sub">Other Income Receipt</div>
-          <div className="divider" />
-          <div className="row">
-            <span className="label">Category</span>
-            <span className="value">{recordedCategory?.name ?? recordedEntry.category.name}</span>
-          </div>
-          <div className="row">
-            <span className="label">Date</span>
-            <span className="value">{formatReceiptDate(recordedEntry.entryDate.slice(0, 10))}</span>
-          </div>
-          <div className="row">
-            <span className="label">Recorded By</span>
-            <span className="value">{user?.name ?? '—'}</span>
-          </div>
-          <div className="divider" />
-          {isSplitEntry && (
-            <>
-              {recordedEntry.mpesaAmount && Number.parseFloat(recordedEntry.mpesaAmount) > 0 && (
-                <div className="row">
-                  <span className="label">M-Pesa</span>
-                  <span className="value">{formatCurrency(recordedEntry.mpesaAmount)}</span>
-                </div>
-              )}
-              {recordedEntry.mpesaCode && (
-                <div className="row">
-                  <span className="label">M-Pesa Code</span>
-                  <span className="value">{recordedEntry.mpesaCode}</span>
-                </div>
-              )}
-              {recordedEntry.cashAmount && Number.parseFloat(recordedEntry.cashAmount) > 0 && (
-                <div className="row">
-                  <span className="label">Cash</span>
-                  <span className="value">{formatCurrency(recordedEntry.cashAmount)}</span>
-                </div>
-              )}
-              {recordedEntry.cardAmount && Number.parseFloat(recordedEntry.cardAmount) > 0 && (
-                <div className="row">
-                  <span className="label">Card</span>
-                  <span className="value">{formatCurrency(recordedEntry.cardAmount)}</span>
-                </div>
-              )}
-            </>
-          )}
-          {!isSplitEntry && (
-            <>
-              <div className="row">
-                <span className="label">Payment</span>
-                <span className="value">{PAYMENT_LABELS[pm] ?? pm}</span>
-              </div>
-              {pm === 'MPESA' && recordedEntry.mpesaCode && (
-                <div className="row">
-                  <span className="label">M-Pesa Code</span>
-                  <span className="value">{recordedEntry.mpesaCode}</span>
-                </div>
-              )}
-            </>
-          )}
-          <div className="divider" />
-          <div className="total-row">
-            <span>TOTAL</span>
-            <span>{formatCurrency(recordedEntry.amount)}</span>
-          </div>
-          {recordedEntry.description && (
-            <>
-              <div className="divider" />
-              <div className="row">
-                <span className="label">Notes</span>
-                <span className="value">{recordedEntry.description}</span>
-              </div>
-            </>
-          )}
-          <div className="divider" />
-          <div className="footer">Thank you</div>
         </div>
 
         {/* Done button */}
