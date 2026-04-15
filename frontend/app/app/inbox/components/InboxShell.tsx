@@ -8,6 +8,7 @@ import { commsService } from '@/services/commsService';
 import type { DirectConversationRecord, BroadcastRecord, FormalNoticeRecord } from '@/types/comms';
 import type { StaffDto } from '@/services/staffService';
 
+import { useUiStore } from '@/store/uiStore';
 import { ConversationList } from './ConversationList';
 import { BroadcastList } from './BroadcastList';
 import { NoticeList } from './NoticeList';
@@ -83,6 +84,15 @@ export function InboxShell() {
   const [broadcastListKey, setBroadcastListKey]     = useState(0);
   const [noticeListKey, setNoticeListKey]           = useState(0);
   const [contactPickerError, setContactPickerError] = useState<string | null>(null);
+
+  const setHideBottomNav = useUiStore((s) => s.setHideBottomNav);
+
+  // Hide the bottom nav when any slide-in detail view is open on mobile,
+  // so it never overlaps the compose bar or full-screen sheets.
+  useEffect(() => {
+    setHideBottomNav(detailView !== null);
+    return () => setHideBottomNav(false); // restore on unmount
+  }, [detailView, setHideBottomNav]);
 
   // Use JS-based breakpoint so only ONE layout tree is mounted at a time.
   // CSS dual-DOM (md:hidden / hidden md:flex) causes shared JSX to mount in
