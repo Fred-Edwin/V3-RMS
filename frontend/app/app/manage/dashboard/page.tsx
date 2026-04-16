@@ -22,6 +22,7 @@ import { customerDiscountAuthService } from '@/services/customerDiscountAuthServ
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
+import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
@@ -123,6 +124,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
+
 
   const loadDailySummary = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -415,6 +417,11 @@ export default function ManagerDashboardPage(): JSX.Element {
       </div>
 
       <InboxNudge />
+
+      {/* ── Leave Requests Widget ───────────────────────────────────────── */}
+      <div className="print:hidden">
+        <LeaveRequestsWidget />
+      </div>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard

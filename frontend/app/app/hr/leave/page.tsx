@@ -414,6 +414,7 @@ export default function LeaveRequestsPage(): JSX.Element {
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Dates</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Days</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
                 </tr>
               </thead>
@@ -435,6 +436,13 @@ export default function LeaveRequestsPage(): JSX.Element {
                     <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
                     <td className="px-4 py-3.5 font-medium text-stone-700">{Number(req.totalDays)}d</td>
                     <td className="px-4 py-3.5"><LeaveStatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3.5">
+                      {req.reviewedBy ? (
+                        <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
+                      ) : (
+                        <span className="text-caption text-stone-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 max-w-[180px]">
                       {req.reviewComment ? (
                         <span className="truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>

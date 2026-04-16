@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BarChart2,
+  CalendarOff,
   ChevronUp,
   Clock,
   Download,
@@ -25,6 +27,7 @@ import {
 } from '@/components/ui';
 import { HourlyBarsChart, LineTrendChart } from '@/components/dashboard/PremiumChart';
 import { useToast } from '@/hooks/useToast';
+import { listLeaveRequests } from '@/services/hrService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -35,6 +38,8 @@ import type {
   StaffPerformancePeriod,
   StaffPerformanceRow,
 } from '@/types/report';
+import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/hr';
+import { LeaveTypeBadge, LeaveStatusBadge, formatDateRange, roleLabel } from '@/components/hr/LeaveTypeBadge';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -65,8 +70,24 @@ const formatCurrency = (value: string | number): string => {
   return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-const TABS = ['Overview', 'Staff', 'Peak Hours', 'Menu Items'] as const;
+const TABS = ['Overview', 'Staff', 'Peak Hours', 'Menu Items', 'Leave'] as const;
 type Tab = (typeof TABS)[number];
+
+const LEAVE_STATUS_FILTERS: { value: LeaveStatus | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'All' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+];
+
+const LEAVE_TYPE_FILTERS: { value: LeaveType | ''; label: string }[] = [
+  { value: '', label: 'All Types' },
+  { value: 'ANNUAL', label: 'Annual' },
+  { value: 'SICK', label: 'Sick' },
+  { value: 'EMERGENCY', label: 'Emergency' },
+  { value: 'UNPAID', label: 'Unpaid' },
+];
 
 type StaffRow = Record<string, unknown> & StaffPerformanceRow;
 
@@ -75,12 +96,17 @@ type StaffRow = Record<string, unknown> & StaffPerformanceRow;
 export default function ManagerAnalyticsPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const searchParams = useSearchParams();
 
   const defaultStart = useMemo(() => toYmd(getMonthStart(new Date())), []);
   const defaultEnd = useMemo(() => toYmd(new Date()), []);
 
   // ── Shared state ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<Tab>('Overview');
+  const initialTab = useMemo((): Tab => {
+    const t = searchParams.get('tab');
+    return (TABS as readonly string[]).includes(t ?? '') ? (t as Tab) : 'Overview';
+  }, [searchParams]);
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [startDate, setStartDate] = useState<string>(defaultStart);
   const [endDate, setEndDate] = useState<string>(defaultEnd);
   const [committedStart, setCommittedStart] = useState<string>(defaultStart);
@@ -106,6 +132,13 @@ export default function ManagerAnalyticsPage(): JSX.Element {
   const [itemsLimit, setItemsLimit] = useState<number>(10);
   const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+
+  // ── Leave (tab 5) ─────────────────────────────────────────────────────────
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[] | null>(null);
+  const [isLoadingLeave, setIsLoadingLeave] = useState(false);
+  const [leaveStatusFilter, setLeaveStatusFilter] = useState<LeaveStatus | 'ALL'>('ALL');
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState<LeaveType | ''>('');
+  const [leaveSearch, setLeaveSearch] = useState('');
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
@@ -185,10 +218,27 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     }
   }, [accessToken, committedEnd, committedStart, itemsLimit, toast]);
 
+  const runLeave = useCallback(async (): Promise<void> => {
+    if (!accessToken) return;
+    setIsLoadingLeave(true);
+    try {
+      const res = await listLeaveRequests({ page: 1, limit: 200 }, accessToken);
+      setLeaveRequests(res.items);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load leave data.';
+      toast({ variant: 'error', title: 'Leave report failed', message });
+      setLeaveRequests(null);
+    } finally {
+      setIsLoadingLeave(false);
+    }
+  }, [accessToken, toast]);
+
   const handleRun = useCallback((): void => {
     setCommittedStart(startDate);
     setCommittedEnd(endDate);
     setHasRun(true);
+    // Invalidate lazy-loaded tab data so it re-fetches with the new date range
+    setLeaveRequests(null);
     void runOverview(startDate, endDate);
   }, [endDate, runOverview, startDate]);
 
@@ -228,6 +278,9 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     }
     if (activeTab === 'Menu Items' && !itemsData && !isLoadingItems) {
       void runItems();
+    }
+    if (activeTab === 'Leave' && !leaveRequests && !isLoadingLeave) {
+      void runLeave();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run only when tab changes
   }, [activeTab, hasRun]);
@@ -321,6 +374,33 @@ export default function ManagerAnalyticsPage(): JSX.Element {
   ], []);
 
   const showCollections = staffRole === 'ALL' || staffRole === 'WAITER';
+
+  // ── Leave derived values ──────────────────────────────────────────────────
+
+  const leaveStats = useMemo(() => {
+    if (!leaveRequests) return null;
+    const approved = leaveRequests.filter((r) => r.status === 'APPROVED');
+    const pending = leaveRequests.filter((r) => r.status === 'PENDING');
+    const rejected = leaveRequests.filter((r) => r.status === 'REJECTED');
+    const totalDaysTaken = approved.reduce((sum, r) => sum + Number(r.totalDays), 0);
+    const byType = (['ANNUAL', 'SICK', 'EMERGENCY', 'UNPAID'] as LeaveType[]).map((t) => ({
+      type: t,
+      count: approved.filter((r) => r.leaveType === t).length,
+      days: approved.filter((r) => r.leaveType === t).reduce((s, r) => s + Number(r.totalDays), 0),
+    }));
+    return { approved: approved.length, pending: pending.length, rejected: rejected.length, totalDaysTaken, byType };
+  }, [leaveRequests]);
+
+  const filteredLeave = useMemo(() => {
+    if (!leaveRequests) return [];
+    return leaveRequests
+      .filter((r) => leaveStatusFilter === 'ALL' || r.status === leaveStatusFilter)
+      .filter((r) => !leaveTypeFilter || r.leaveType === leaveTypeFilter)
+      .filter((r) => {
+        if (!leaveSearch) return true;
+        return r.employeeProfile.user.name.toLowerCase().includes(leaveSearch.toLowerCase());
+      });
+  }, [leaveRequests, leaveStatusFilter, leaveTypeFilter, leaveSearch]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -670,6 +750,183 @@ export default function ManagerAnalyticsPage(): JSX.Element {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 5 — LEAVE
+      ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'Leave' && (
+        <div className="space-y-5">
+
+          {/* ── Summary KPI cards ─────────────────────────────────────── */}
+          {isLoadingLeave ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 animate-shimmer rounded-xl bg-gradient-to-r from-stone-100 via-stone-50 to-stone-100 bg-[length:200%_100%]" />
+              ))}
+            </div>
+          ) : leaveStats ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Approved</p>
+                <p className="mt-1.5 font-display text-display-md font-bold text-[#1A6B3C] tabular-nums">{leaveStats.approved}</p>
+                <p className="mt-0.5 text-caption text-stone-400">{leaveStats.totalDaysTaken}d total taken</p>
+              </div>
+              <div className="rounded-xl border border-[#F0D080] bg-[#FFFDF5] p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A]">Pending</p>
+                <p className="mt-1.5 font-display text-display-md font-bold text-[#92650A] tabular-nums">{leaveStats.pending}</p>
+                <p className="mt-0.5 text-caption text-[#92650A]">Awaiting HR review</p>
+              </div>
+              <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Rejected</p>
+                <p className="mt-1.5 font-display text-display-md font-bold text-[#9B3A2A] tabular-nums">{leaveStats.rejected}</p>
+                <p className="mt-0.5 text-caption text-stone-400">Declined requests</p>
+              </div>
+              <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Days Taken</p>
+                <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">{leaveStats.totalDaysTaken}</p>
+                <p className="mt-0.5 text-caption text-stone-400">Approved leave days</p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* ── By leave type breakdown ────────────────────────────────── */}
+          {!isLoadingLeave && leaveStats && (
+            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-4 text-heading-sm font-semibold text-stone-900">Approved Leave by Type</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {leaveStats.byType.map(({ type, count, days }) => (
+                  <div key={type} className="rounded-lg border border-stone-100 bg-stone-50 px-4 py-3">
+                    <div className="mb-2"><LeaveTypeBadge type={type} /></div>
+                    <p className="tabular-nums text-heading-sm font-bold text-stone-900">{count} <span className="text-caption font-normal text-stone-400">requests</span></p>
+                    <p className="tabular-nums text-caption text-stone-500">{days} days taken</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Request history table ──────────────────────────────────── */}
+          <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 py-3">
+              <p className="text-heading-sm font-semibold text-stone-900 mr-2">All Requests</p>
+              <input
+                type="search"
+                placeholder="Search by name…"
+                value={leaveSearch}
+                onChange={(e) => setLeaveSearch(e.target.value)}
+                className="h-8 w-40 rounded-lg border border-stone-200 bg-stone-50 px-3 text-body-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none"
+              />
+              <div className="flex items-center gap-1">
+                {LEAVE_STATUS_FILTERS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setLeaveStatusFilter(f.value)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                      leaveStatusFilter === f.value
+                        ? 'bg-[#2C1810] text-white'
+                        : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={leaveTypeFilter}
+                onChange={(e) => setLeaveTypeFilter(e.target.value as LeaveType | '')}
+                className="h-8 rounded-lg border border-stone-200 bg-stone-50 px-2 text-body-sm text-stone-700 focus:border-stone-400 focus:outline-none"
+              >
+                {LEAVE_TYPE_FILTERS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void runLeave()}
+                disabled={isLoadingLeave}
+                className="ml-auto flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-label-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50"
+              >
+                <CalendarOff size={13} />
+                {isLoadingLeave ? 'Loading…' : 'Refresh'}
+              </button>
+            </div>
+
+            {isLoadingLeave ? (
+              <div className="divide-y divide-stone-100">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-4 px-5 py-4">
+                    <div className="h-8 w-8 animate-pulse rounded-full bg-stone-200" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 w-36 animate-pulse rounded bg-stone-200" />
+                      <div className="h-3 w-52 animate-pulse rounded bg-stone-100" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredLeave.length === 0 ? (
+              <div className="px-5 py-12">
+                <EmptyState
+                  icon={<CalendarOff size={22} />}
+                  heading="No records found"
+                  body={leaveRequests === null ? 'Click Refresh to load leave data.' : 'No requests match the current filters.'}
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-body-sm">
+                  <thead>
+                    <tr className="border-b border-stone-100 bg-stone-50">
+                      <th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Employee</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Type</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Dates</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Days</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {filteredLeave.map((req) => (
+                      <tr key={req.id} className="transition-colors hover:bg-stone-50">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-[11px] font-bold text-[#2C1810]">
+                              {req.employeeProfile.user.name.charAt(0).toUpperCase()}
+                            </span>
+                            <div>
+                              <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
+                              <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5"><LeaveTypeBadge type={req.leaveType} /></td>
+                        <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
+                        <td className="px-4 py-3.5 tabular-nums font-medium text-stone-700">{Number(req.totalDays)}d</td>
+                        <td className="px-4 py-3.5"><LeaveStatusBadge status={req.status} /></td>
+                        <td className="px-4 py-3.5">
+                          {req.reviewedBy ? (
+                            <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
+                          ) : (
+                            <span className="text-caption text-stone-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 max-w-[160px]">
+                          {req.reviewComment ? (
+                            <span className="truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>
+                          ) : (
+                            <span className="text-caption text-stone-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

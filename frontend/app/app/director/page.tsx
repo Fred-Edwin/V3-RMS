@@ -27,6 +27,7 @@ import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
+import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
 import type {
@@ -477,6 +478,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
 
+
   useEffect(() => {
     if (!accessToken) return;
     houseAccountAuthService.listPending(accessToken)
@@ -640,6 +642,9 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           </div>
         </div>
       )}
+
+      {/* ── Leave Requests Widget ─────────────────────────────────────────── */}
+      <LeaveRequestsWidget />
 
       {/* ── System-wide KPI strip ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

@@ -80,6 +80,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Customer Credit', href: '/app/manage/customer-credit', icon: CreditCard },
       { label: 'Outstanding', href: '/app/manage/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      { label: 'Leave', href: '/app/manage/reports?tab=Leave', icon: CalendarOff },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -96,6 +97,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      { label: 'Leave', href: '/app/director/analytics?tab=Leave', icon: CalendarOff },
     ],
   },
   ACCOUNTANT: {
