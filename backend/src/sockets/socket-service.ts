@@ -323,7 +323,8 @@ export const socketService = {
     });
   },
 
-  /** Delivers a new formal notice to a single user's socket room (for individual notices). */
+  /** Delivers a new formal notice to a single user's socket room (for individual notices),
+   *  plus any DIRECTOR / HR_MANAGER who are online so they see it in their inbox. */
   emitNewFormalNoticeToUser: (
     userId: string,
     payload: {
@@ -335,6 +336,18 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('comms:notice_received', payload);
+    // Also notify system-level roles (DIRECTOR, HR_MANAGER) who are not in any branch room
+    void io.fetchSockets().then((sockets) => {
+      for (const s of sockets) {
+        const auth = (s.data as { auth?: { role?: string; userId?: string } }).auth;
+        if (
+          (auth?.role === 'DIRECTOR' || auth?.role === 'HR_MANAGER') &&
+          auth?.userId !== userId // don't double-emit if the issuer is themselves
+        ) {
+          s.emit('comms:notice_received', payload);
+        }
+      }
+    });
   },
 
   /** Notifies the broadcast sender that a recipient has read their broadcast. */

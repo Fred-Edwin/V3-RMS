@@ -43,15 +43,34 @@ const joinRoleRooms = (
 
   if (role === 'MANAGER') {
     joinBranchRoom(organizationId);
+    if (userId) joinUserRoom(userId);
     return;
   }
 
-  if (role === 'CHEF' || role === 'KITCHEN_DISPLAY') {
+  if (role === 'ACCOUNTANT') {
+    joinBranchRoom(organizationId);
+    if (userId) joinUserRoom(userId);
+    return;
+  }
+
+  if (role === 'CHEF') {
+    joinBranchRoom(organizationId);
     joinStationRoom(organizationId, 'KITCHEN');
     return;
   }
 
-  if (role === 'BARISTA' || role === 'BARISTA_DISPLAY') {
+  if (role === 'KITCHEN_DISPLAY') {
+    joinStationRoom(organizationId, 'KITCHEN');
+    return;
+  }
+
+  if (role === 'BARISTA') {
+    joinBranchRoom(organizationId);
+    joinStationRoom(organizationId, 'BARISTA');
+    return;
+  }
+
+  if (role === 'BARISTA_DISPLAY') {
     joinStationRoom(organizationId, 'BARISTA');
   }
 };

@@ -361,17 +361,17 @@ export const commsRepository = {
     return { total, broadcasts };
   },
 
-  // Used for DIRECTOR who has no organizationId — shows broadcasts sent by or received by them
+  // Used for DIRECTOR / HR_MANAGER (no organizationId) — shows ALL broadcasts company-wide,
+  // regardless of which branch sent them or who the sender was.
   findBroadcastsForDirector: async (
-    directorId: string,
+    _actorId: string,
     page: number,
     perPage: number,
   ) => {
     const skip = (page - 1) * perPage;
     const [total, broadcasts] = await Promise.all([
-      prisma.broadcast.count({ where: { senderId: directorId } }),
+      prisma.broadcast.count({}),
       prisma.broadcast.findMany({
-        where: { senderId: directorId },
         include: {
           sender: { select: participantSelect },
           _count: { select: { recipients: true } },
@@ -385,17 +385,17 @@ export const commsRepository = {
     return { total, broadcasts };
   },
 
-  // Used for DIRECTOR — shows notices they issued
+  // Used for DIRECTOR / HR_MANAGER (no organizationId) — shows ALL formal notices company-wide,
+  // regardless of which branch issued them or who the issuer was.
   findNoticesForDirector: async (
-    directorId: string,
+    _actorId: string,
     page: number,
     perPage: number,
   ) => {
     const skip = (page - 1) * perPage;
     const [total, notices] = await Promise.all([
-      prisma.formalNotice.count({ where: { issuerId: directorId } }),
+      prisma.formalNotice.count({}),
       prisma.formalNotice.findMany({
-        where: { issuerId: directorId },
         include: {
           issuer: { select: participantSelect },
           _count: { select: { recipients: true } },
