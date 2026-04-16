@@ -95,7 +95,7 @@ export function BroadcastList({ onSelect }: Props) {
     );
   }
 
-  const pendingAckCount = broadcasts.filter((b) => b.requiresAck && !b.myAcknowledgedAt && b.sender.id !== currentUserId).length;
+  const pendingAckCount = broadcasts.filter((b) => b.isRecipient && b.requiresAck && !b.myAcknowledgedAt).length;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -154,12 +154,12 @@ export function BroadcastList({ onSelect }: Props) {
                             New
                           </span>
                         )}
-                        {b.requiresAck && !b.myAcknowledgedAt && (
+                        {b.isRecipient && b.requiresAck && !b.myAcknowledgedAt && (
                           <span className="inline-flex items-center rounded-full bg-[#FFEDD5] text-[#9A3412] border border-[#FED7AA] text-[10px] font-semibold px-2 py-0.5">
                             Ack required
                           </span>
                         )}
-                        {b.requiresAck && b.myAcknowledgedAt && (
+                        {b.isRecipient && b.requiresAck && b.myAcknowledgedAt && (
                           <span className="inline-flex items-center gap-0.5 rounded-full bg-[#F0FDF4] text-[#15803D] border border-[#BBF7D0] text-[10px] font-semibold px-2 py-0.5">
                             ✓ Acknowledged
                           </span>

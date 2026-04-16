@@ -32,8 +32,8 @@ export function InboxNudge() {
         <div className="min-w-0 flex-1">
           <p className="text-body-sm font-semibold text-[#78350F]">
             {noticeCount === 1
-              ? '1 formal notice requires your acknowledgement'
-              : `${noticeCount} formal notices require your acknowledgement`}
+              ? '1 unread formal notice'
+              : `${noticeCount} unread formal notices`}
           </p>
           {(dmCount + broadcastCount) > 0 && (
             <p className="text-caption text-[#92400E]">

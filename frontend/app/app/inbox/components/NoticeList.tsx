@@ -22,7 +22,6 @@ function formatDate(isoString: string): string {
 
 export function NoticeList({ onSelect }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
   const lastReceivedNotice = useCommsStore((s) => s.lastReceivedNotice);
 
   const [notices, setNotices] = useState<FormalNoticeRecord[]>([]);
@@ -96,9 +95,9 @@ export function NoticeList({ onSelect }: Props) {
     );
   }
 
-  // Count notices issued TO the current user that are pending ack
+  // Count notices where the current user is an actual recipient and hasn't acknowledged yet
   const pendingCount = notices.filter(
-    (n) => !n.myAcknowledgedAt && n.issuer.id !== currentUserId,
+    (n) => n.isRecipient && !n.myAcknowledgedAt,
   ).length;
 
   return (
@@ -115,7 +114,7 @@ export function NoticeList({ onSelect }: Props) {
 
       <ul>
         {notices.map((n) => {
-          const isPending = !n.myAcknowledgedAt;
+          const isPending = n.isRecipient && !n.myAcknowledgedAt;
           return (
             <li key={n.id} className="border-b border-[#E8E0D5]">
               <button
