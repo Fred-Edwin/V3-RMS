@@ -149,8 +149,8 @@ export function BroadcastDetailSheet({ broadcast, onClose }: Props) {
             </div>
           </div>
 
-          {/* Recipient: pending ack banner — orange, never shown to sender */}
-          {detail.requiresAck && !detail.myAcknowledgedAt && detail.sender.id !== userId && (
+          {/* Recipient: pending ack banner — orange, only shown to actual recipients who haven't acknowledged */}
+          {detail.isRecipient && detail.requiresAck && !detail.myAcknowledgedAt && detail.sender.id !== userId && (
             <div className="rounded-xl bg-[#FFF7ED] border border-[#FED7AA] px-4 py-3">
               <p className="text-sm font-medium text-[#9A3412] mb-3">
                 You must acknowledge this message to confirm you have read and understood it.
@@ -162,8 +162,8 @@ export function BroadcastDetailSheet({ broadcast, onClose }: Props) {
             </div>
           )}
 
-          {/* Recipient: acknowledged confirmation — vivid green */}
-          {detail.requiresAck && detail.myAcknowledgedAt && detail.sender.id !== userId && (
+          {/* Recipient: acknowledged confirmation — vivid green, only shown to actual recipients */}
+          {detail.isRecipient && detail.requiresAck && detail.myAcknowledgedAt && detail.sender.id !== userId && (
             <div className="rounded-xl bg-[#F0FDF4] border border-[#BBF7D0] px-4 py-3 flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shrink-0 mt-0.5">
                 <Check size={13} className="text-[#15803D]" strokeWidth={2.5} />

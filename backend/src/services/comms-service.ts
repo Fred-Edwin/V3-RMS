@@ -256,6 +256,7 @@ export const commsService = {
         ackCount: 0,
         myReadAt: myRecipient?.readAt?.toISOString() ?? null,
         myAcknowledgedAt: myRecipient?.acknowledgedAt?.toISOString() ?? null,
+        isRecipient: myRecipient !== null,
         createdAt: b.createdAt.toISOString(),
       };
     });
@@ -292,6 +293,7 @@ export const commsService = {
       ackCount,
       myReadAt: myRecipient?.readAt?.toISOString() ?? null,
       myAcknowledgedAt: myRecipient?.acknowledgedAt?.toISOString() ?? null,
+      isRecipient: myRecipient !== null,
       createdAt: b.createdAt.toISOString(),
     };
   },
@@ -386,6 +388,7 @@ export const commsService = {
       ackCount: 0,
       myReadAt: null,
       myAcknowledgedAt: null,
+      isRecipient: false,
       createdAt: broadcast.createdAt.toISOString(),
     };
   },

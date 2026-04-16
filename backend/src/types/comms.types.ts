@@ -44,6 +44,7 @@ export interface BroadcastRecord {
   ackCount: number;
   myReadAt: string | null;
   myAcknowledgedAt: string | null;
+  isRecipient: boolean;
   createdAt: string;
 }
 
