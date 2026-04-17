@@ -957,7 +957,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
   const innerHeight = svgHeight - paddingTop - paddingBottom;
 
   const points = data.hourlyPoints;
-  const barWidth = Math.max(innerWidth / points.length - 3, 2);
+  const barWidth = Math.max(innerWidth / points.length - 5, 2);
   const barSpacing = innerWidth / points.length;
 
   const xLabelHours = new Set([0, 3, 6, 9, 12, 15, 18, 21]);
@@ -1008,9 +1008,10 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
       <div ref={containerRef} className="mt-5 select-none">
         <svg width={containerWidth} height={svgHeight} role="img" aria-label="Order volume by hour of day">
           <defs>
-            {/* Dine-In: espresso gradient */}
+            {/* Dine-In: rich espresso gradient — bright top, deep base */}
             <linearGradient id={gradientDineId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#5C2E0F" />
+              <stop offset="0%" stopColor="#A0522D" />
+              <stop offset="45%" stopColor="#5C2E0F" />
               <stop offset="100%" stopColor="#1A0A05" />
             </linearGradient>
             {/* Glow filter for peak bar */}
@@ -1048,7 +1049,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
                 x={paddingLeft - 6}
                 y={tick.y + 4}
                 textAnchor="end"
-                className="fill-stone-400 text-[9px] font-semibold"
+                className="fill-stone-600 text-[11px] font-semibold"
               >
                 {tick.value}
               </text>
@@ -1181,7 +1182,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
                     x={barX + barWidth / 2}
                     y={svgHeight - 6}
                     textAnchor="middle"
-                    className="fill-stone-400 text-[9px] font-semibold"
+                    className="fill-stone-600 text-[11px] font-semibold"
                   >
                     {point.label}
                   </text>
