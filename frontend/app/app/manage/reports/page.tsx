@@ -668,6 +668,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                   className="rounded-md border border-stone-200 bg-white px-2 py-1 text-body-sm text-stone-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber"
                 >
                   {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n}</option>)}
+                  <option value={0}>All</option>
                 </select>
               </div>
               <div className="flex items-end">
@@ -682,7 +683,40 @@ export default function ManagerAnalyticsPage(): JSX.Element {
             <SkeletonTable rows={5} columns={4} />
           ) : !itemsData ? (
             <EmptyState icon={<ShoppingBag size={22} />} heading="No items data" body="Click Load Report to see item performance." />
+          ) : itemsData.limit === 0 ? (
+            /* ── All items — single ranked table ── */
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <ChevronUp size={16} className="text-status-ready-text" />
+                <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                  All Items ({itemsData.topItems.length})
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-stone-200">
+                <table className="w-full text-left text-body-sm">
+                  <thead>
+                    <tr className="border-b-2 border-stone-200 bg-stone-50">
+                      {['#', 'Item', 'Category', 'Qty Sold', 'Revenue'].map((h) => (
+                        <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {itemsData.topItems.map((item, i) => (
+                      <tr key={item.menuItemId} className="hover:bg-stone-50">
+                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
+                        <td className="px-3 py-2.5 font-medium text-stone-900">{item.name}</td>
+                        <td className="px-3 py-2.5 text-caption text-stone-400">{item.categoryName}</td>
+                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
+            /* ── Top / bottom split view ── */
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <div className="mb-2 flex items-center gap-2">

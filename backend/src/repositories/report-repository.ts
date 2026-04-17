@@ -1730,13 +1730,16 @@ export const reportRepository = {
       revenue: entry.revenue.toFixed(2),
     });
 
-    const topItems = sorted.slice(0, limit).map(toRow);
-    // Bottom items: items with at least 1 sale, sorted ascending, exclude items already in top
-    const bottomItems = [...sorted]
-      .reverse()
-      .filter((e) => !topItems.some((t) => t.menuItemId === e.menuItemId))
-      .slice(0, limit)
-      .map(toRow);
+    // limit=0 means "return all items" as a single ranked list (topItems), bottomItems empty
+    const showAll = limit === 0;
+    const topItems = showAll ? sorted.map(toRow) : sorted.slice(0, limit).map(toRow);
+    const bottomItems = showAll
+      ? []
+      : [...sorted]
+          .reverse()
+          .filter((e) => !topItems.some((t) => t.menuItemId === e.menuItemId))
+          .slice(0, limit)
+          .map(toRow);
 
     return {
       period: {

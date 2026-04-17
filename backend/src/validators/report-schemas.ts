@@ -56,7 +56,8 @@ export const DiscountUsageQuerySchema = dateRangeSchema.extend({
 
 export const ItemsPerformanceQuerySchema = dateRangeSchema.extend({
   organizationId: z.string().uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  // limit=0 is the sentinel for "return all items"
+  limit: z.coerce.number().int().min(0).max(999).optional().default(10),
 });
 
 export type DirectorPulseQueryInput = z.infer<typeof DirectorPulseQuerySchema>;
