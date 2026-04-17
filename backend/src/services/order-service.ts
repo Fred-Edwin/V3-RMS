@@ -1119,8 +1119,10 @@ export const orderService = {
 
     // After voiding, determine the correct order status based on remaining tickets.
     // A ticket is "resolved" if it is READY (not PENDING or IN_PROGRESS).
-    // Voided tickets are excluded — they no longer count toward order readiness.
-    const remainingTickets = order.prepTickets.filter((t) => !voidedTicketIds.has(t.id));
+    // Voided and REJECTED tickets are excluded — they no longer count toward order readiness.
+    const remainingTickets = order.prepTickets.filter(
+      (t) => !voidedTicketIds.has(t.id) && t.status !== PrepTicketStatus.REJECTED,
+    );
     const hasUnresolvedTickets = remainingTickets.some(
       (t) => t.status === PrepTicketStatus.PENDING || t.status === PrepTicketStatus.IN_PROGRESS,
     );

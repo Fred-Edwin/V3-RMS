@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   BarChart2,
   CalendarOff,
   ChevronUp,
@@ -132,6 +135,8 @@ export default function ManagerAnalyticsPage(): JSX.Element {
   const [itemsLimit, setItemsLimit] = useState<number>(10);
   const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [itemsSortKey, setItemsSortKey] = useState<'revenue' | 'quantitySold'>('revenue');
+  const [itemsSortDir, setItemsSortDir] = useState<'desc' | 'asc'>('desc');
 
   // ── Leave (tab 5) ─────────────────────────────────────────────────────────
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[] | null>(null);
@@ -401,6 +406,42 @@ export default function ManagerAnalyticsPage(): JSX.Element {
         return r.employeeProfile.user.name.toLowerCase().includes(leaveSearch.toLowerCase());
       });
   }, [leaveRequests, leaveStatusFilter, leaveTypeFilter, leaveSearch]);
+
+  // ── Items sort ────────────────────────────────────────────────────────────
+
+  const sortedTopItems = useMemo(() => {
+    if (!itemsData) return [];
+    return [...itemsData.topItems].sort((a, b) => {
+      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
+      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
+      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+  }, [itemsData, itemsSortKey, itemsSortDir]);
+
+  const sortedBottomItems = useMemo(() => {
+    if (!itemsData) return [];
+    return [...itemsData.bottomItems].sort((a, b) => {
+      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
+      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
+      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
+    });
+  }, [itemsData, itemsSortKey, itemsSortDir]);
+
+  const handleItemsSort = (key: 'revenue' | 'quantitySold') => {
+    if (itemsSortKey === key) {
+      setItemsSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setItemsSortKey(key);
+      setItemsSortDir('desc');
+    }
+  };
+
+  const ItemsSortIcon = ({ col }: { col: 'revenue' | 'quantitySold' }) => {
+    if (itemsSortKey !== col) return <ArrowUpDown size={12} className="ml-1 inline opacity-30" />;
+    return itemsSortDir === 'desc'
+      ? <ArrowDown size={12} className="ml-1 inline text-espresso" />
+      : <ArrowUp size={12} className="ml-1 inline text-espresso" />;
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -689,20 +730,32 @@ export default function ManagerAnalyticsPage(): JSX.Element {
               <div className="mb-2 flex items-center gap-2">
                 <ChevronUp size={16} className="text-status-ready-text" />
                 <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
-                  All Items ({itemsData.topItems.length})
+                  All Items ({sortedTopItems.length})
                 </span>
               </div>
               <div className="overflow-x-auto rounded-lg border border-stone-200">
                 <table className="w-full text-left text-body-sm">
                   <thead>
                     <tr className="border-b-2 border-stone-200 bg-stone-50">
-                      {['#', 'Item', 'Category', 'Qty Sold', 'Revenue'].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">{h}</th>
-                      ))}
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Category</th>
+                      <th
+                        className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                        onClick={() => handleItemsSort('quantitySold')}
+                      >
+                        Qty Sold<ItemsSortIcon col="quantitySold" />
+                      </th>
+                      <th
+                        className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                        onClick={() => handleItemsSort('revenue')}
+                      >
+                        Revenue<ItemsSortIcon col="revenue" />
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
-                    {itemsData.topItems.map((item, i) => (
+                    {sortedTopItems.map((item, i) => (
                       <tr key={item.menuItemId} className="hover:bg-stone-50">
                         <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
                         <td className="px-3 py-2.5 font-medium text-stone-900">{item.name}</td>
@@ -729,13 +782,24 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                   <table className="w-full text-left text-body-sm">
                     <thead>
                       <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        {['#', 'Item', 'Qty', 'Revenue'].map((h) => (
-                          <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">{h}</th>
-                        ))}
+                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                        <th
+                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                          onClick={() => handleItemsSort('quantitySold')}
+                        >
+                          Qty<ItemsSortIcon col="quantitySold" />
+                        </th>
+                        <th
+                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                          onClick={() => handleItemsSort('revenue')}
+                        >
+                          Revenue<ItemsSortIcon col="revenue" />
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
-                      {itemsData.topItems.map((item, i) => (
+                      {sortedTopItems.map((item, i) => (
                         <tr key={item.menuItemId} className="hover:bg-stone-50">
                           <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
                           <td className="px-3 py-2.5">
@@ -761,13 +825,24 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                   <table className="w-full text-left text-body-sm">
                     <thead>
                       <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        {['#', 'Item', 'Qty', 'Revenue'].map((h) => (
-                          <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">{h}</th>
-                        ))}
+                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
+                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
+                        <th
+                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                          onClick={() => handleItemsSort('quantitySold')}
+                        >
+                          Qty<ItemsSortIcon col="quantitySold" />
+                        </th>
+                        <th
+                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
+                          onClick={() => handleItemsSort('revenue')}
+                        >
+                          Revenue<ItemsSortIcon col="revenue" />
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
-                      {itemsData.bottomItems.map((item, i) => (
+                      {sortedBottomItems.map((item, i) => (
                         <tr key={item.menuItemId} className="hover:bg-stone-50">
                           <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
                           <td className="px-3 py-2.5">
