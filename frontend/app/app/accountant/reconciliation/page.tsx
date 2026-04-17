@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Download, FileText, RefreshCw } from 'lucide-react';
 import { Button, PageHeader, PageLayout, Select, SkeletonBlock } from '@/components/ui';
+import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
+import { orderService } from '@/services/orderService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
+import type { OrderDetail } from '@/types/order';
 import type { AccountantReconciliationReport } from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -97,11 +100,13 @@ function OrderDrillDown({
   accessToken,
   organizationId,
   date,
+  onOrderClick,
 }: {
   report: AccountantReconciliationReport;
   accessToken: string;
   organizationId: string;
   date: string;
+  onOrderClick: (orderId: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
   const [selectedWaiterId, setSelectedWaiterId] = useState<string>('ALL');
@@ -184,7 +189,10 @@ function OrderDrillDown({
   return (
     <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
-        <h3 className="text-heading-sm font-semibold text-stone-900">Order Detail</h3>
+        <div>
+          <h3 className="text-heading-sm font-semibold text-stone-900">Order Detail</h3>
+          <p className="mt-0.5 text-caption text-stone-400">Tap any row to view order items</p>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -260,7 +268,12 @@ function OrderDrillDown({
             </thead>
             <tbody className="divide-y divide-stone-100">
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="transition-colors hover:bg-stone-50/60">
+                <tr
+                  key={order.id}
+                  onClick={() => onOrderClick(order.id)}
+                  className="cursor-pointer transition-colors hover:bg-amber-50/60"
+                  title="Click to view order items"
+                >
                   <td className="px-5 py-3 text-body-sm font-medium text-stone-700">#{order.dailyNumber}</td>
                   <td className="px-4 py-3 text-body-sm text-stone-600">{formatTime(order.time)}</td>
                   <td className="px-4 py-3 text-body-sm text-stone-700">{order.waiterName}</td>
@@ -307,6 +320,26 @@ export default function ReconciliationPage(): JSX.Element {
   const [report, setReport] = useState<AccountantReconciliationReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
+
+  // Order detail sheet
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+  const [isOrderDetailOpen, setIsOrderDetailOpen] = useState(false);
+  const [isOrderDetailLoading, setIsOrderDetailLoading] = useState(false);
+
+  const handleOrderClick = useCallback(async (orderId: string): Promise<void> => {
+    if (!accessToken || isOrderDetailLoading) return;
+    setIsOrderDetailLoading(true);
+    try {
+      const detail = await orderService.getById(orderId, accessToken, selectedBranchId);
+      setSelectedOrder(detail);
+      setIsOrderDetailOpen(true);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to load order details.';
+      toast({ variant: 'error', title: 'Load failed', message });
+    } finally {
+      setIsOrderDetailLoading(false);
+    }
+  }, [accessToken, isOrderDetailLoading, selectedBranchId, toast]);
 
   // Load branches on mount
   useEffect(() => {
@@ -554,6 +587,7 @@ export default function ReconciliationPage(): JSX.Element {
                 accessToken={accessToken ?? ''}
                 organizationId={selectedBranchId}
                 date={selectedDate}
+                onOrderClick={(id) => void handleOrderClick(id)}
               />
             )}
           </div>
@@ -563,6 +597,15 @@ export default function ReconciliationPage(): JSX.Element {
           <p className="text-body-md text-stone-400">Select a date and click Load Report to begin.</p>
         </div>
       ) : null}
+
+      {/* Read-only order detail — no payment/edit/cancel actions */}
+      <OrderDetailBottomSheet
+        isOpen={isOrderDetailOpen}
+        onClose={() => { setIsOrderDetailOpen(false); setSelectedOrder(null); }}
+        order={selectedOrder}
+        onEdit={() => undefined}
+        onPayment={() => undefined}
+      />
     </PageLayout>
   );
 }
