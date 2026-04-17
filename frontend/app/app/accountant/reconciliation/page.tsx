@@ -112,6 +112,8 @@ function OrderDrillDown({
   // Cache fetched order details so re-expanding doesn't re-fetch
   const detailCache = useRef<Map<string, OrderDetail>>(new Map());
   const [expandedDetail, setExpandedDetail] = useState<OrderDetail | null>(null);
+  // Ref keeps the current expandedOrderId readable inside the stable callback
+  const expandedOrderIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
   const tabs: { key: PaymentTab; label: string }[] = [
@@ -146,23 +148,28 @@ function OrderDrillDown({
   }, [filteredOrders]);
 
   const handleRowClick = useCallback(async (orderId: string): Promise<void> => {
-    // Collapse if already expanded
-    if (expandedOrderId === orderId) {
+    // Collapse if already expanded — read from ref so closure is never stale
+    if (expandedOrderIdRef.current === orderId) {
+      expandedOrderIdRef.current = null;
       setExpandedOrderId(null);
       setExpandedDetail(null);
       return;
     }
-    // Use cache if available
+    // Use cache if available — no network needed, expand immediately
     const cached = detailCache.current.get(orderId);
     if (cached) {
+      expandedOrderIdRef.current = orderId;
       setExpandedOrderId(orderId);
       setExpandedDetail(cached);
       return;
     }
+    // Show spinner, yield to let React paint it, then fetch
     setLoadingOrderId(orderId);
+    await Promise.resolve(); // flush React state before blocking fetch
     try {
       const detail = await orderService.getById(orderId, accessToken, organizationId);
       detailCache.current.set(orderId, detail);
+      expandedOrderIdRef.current = orderId;
       setExpandedOrderId(orderId);
       setExpandedDetail(detail);
     } catch (error) {
@@ -171,8 +178,6 @@ function OrderDrillDown({
     } finally {
       setLoadingOrderId(null);
     }
-  // expandedOrderId intentionally omitted — we read it via closure but don't want re-creation on every expand
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, organizationId, toast]);
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
