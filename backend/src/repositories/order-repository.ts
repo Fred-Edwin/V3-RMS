@@ -728,30 +728,45 @@ export const orderRepository = {
     cancelReason: string,
     cancelledById: string,
   ): Promise<FullOrderPrismaRecord | null> => {
-    const updated = await prisma.order.updateMany({
-      where: {
-        id: orderId,
-        organizationId,
-        status: { in: allowedStatuses },
-      },
-      data: {
-        status: OrderStatus.CANCELLED,
-        cancelReason,
-        cancelledById,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: {
+          id: orderId,
+          organizationId,
+          status: { in: allowedStatuses },
+        },
+        data: {
+          status: OrderStatus.CANCELLED,
+          cancelReason,
+          cancelledById,
+        },
+      });
+
+      if (updated.count === 0) {
+        return null;
+      }
+
+      // Release all claimed tickets so staff capacity is freed immediately
+      await tx.prepTicket.updateMany({
+        where: {
+          orderId,
+          organizationId,
+          status: { notIn: [PrepTicketStatus.REJECTED] },
+        },
+        data: {
+          status: PrepTicketStatus.REJECTED,
+          claimedById: null,
+          claimedAt: null,
+        },
+      });
+
+      return tx.order.findFirst({
+        where: { id: orderId, organizationId },
+        include: orderInclude,
+      });
     });
 
-    if (updated.count === 0) {
-      return null;
-    }
-
-    return prisma.order.findFirst({
-      where: {
-        id: orderId,
-        organizationId,
-      },
-      include: orderInclude,
-    });
+    return result;
   },
 
   /**
