@@ -74,8 +74,8 @@ export const houseAccountAuthService = {
     const account = await houseAccountRepository.findById(houseAccountId);
     if (!account || !account.isActive) throw new NotFoundError('House account not found or inactive');
 
-    // expiresAt is kept in schema but no longer enforced — set far future so UI never shows "Expired"
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // No hard expiry — managers can approve at any time. Set 1 year so UI never shows "Expired".
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     const authRequest = await houseAccountAuthRequestRepository.create({
       organizationId,
       orderId,

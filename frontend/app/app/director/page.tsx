@@ -590,7 +590,6 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           </div>
           <div className="space-y-2">
             {pendingAuths.map((req) => {
-              const expired = new Date(req.expiresAt) < new Date();
               const loading = authOverrideSubmittingId === req.id;
               return (
                 <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
@@ -603,10 +602,9 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                     </p>
                     <p className="text-caption text-stone-500 mt-0.5">
                       {req.houseAccount.user.name} · via {req.requestedBy.name}
-                      {expired && <span className="ml-1 text-red-500">· Expired</span>}
                     </p>
                   </div>
-                  {!expired && (
+                  {(
                     <div className="flex gap-1.5 shrink-0">
                       <button
                         type="button"
