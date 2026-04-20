@@ -203,7 +203,7 @@ describe('Order routes', () => {
     const response = await request(app)
       .patch(`/api/v1/orders/${orderId}/payment`)
       .set('Authorization', `Bearer ${waiterToken}`)
-      .send({ paymentMethod: 'MPESA' });
+      .send({ paymentMethod: 'MPESA', mpesaCode: 'QHG3KL9XPO' });
 
     expect(response.status).toBe(409);
   });
@@ -233,7 +233,7 @@ describe('Order routes', () => {
     const response = await request(app)
       .patch(`/api/v1/orders/${orderId}/payment`)
       .set('Authorization', `Bearer ${waiterToken}`)
-      .send({ paymentMethod: 'MPESA' });
+      .send({ paymentMethod: 'MPESA', mpesaCode: 'QHG3KL9XPO' });
 
     expect(response.status).toBe(200);
     expect(response.body.data.paymentMethod).toBe('MPESA');
