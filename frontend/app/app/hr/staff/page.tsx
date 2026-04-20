@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, UserCircle, ChevronRight, Plus, AlertTriangle } from 'lucide-react';
+import { Search, UserCircle, ChevronRight, Plus, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { PageLayout, PageHeader, EmptyState, Button, Modal, Input, Select } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { listEmployeeProfiles, createEmployeeProfile } from '@/services/hrService';
 import { staffService } from '@/services/staffService';
+import { branchService, type BranchDto } from '@/services/branchService';
+import { staffTransferService } from '@/services/staffTransferService';
 import type { EmployeeProfile, CreateEmployeeProfileInput, EmploymentType } from '@/types/hr';
 import { employmentTypeLabel, roleLabel } from '@/components/hr/LeaveTypeBadge';
 import { ApiError } from '@/types/api';
@@ -104,11 +106,18 @@ export default function HrStaffPage(): JSX.Element {
 
   const [profiles, setProfiles] = useState<EmployeeProfile[]>([]);
   const [staffWithoutProfiles, setStaffWithoutProfiles] = useState<StaffUser[]>([]);
+  const [branches, setBranches] = useState<BranchDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [profileFilter, setProfileFilter] = useState<ProfileFilter>('ALL');
   const [showCreate, setShowCreate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Transfer state ──
+  const [transferTarget, setTransferTarget] = useState<EmployeeProfile | null>(null);
+  const [transferBranchId, setTransferBranchId] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
 
   const [form, setForm] = useState<CreateEmployeeProfileInput>({
     userId: '',
@@ -147,6 +156,11 @@ export default function HrStaffPage(): JSX.Element {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    if (!accessToken) return;
+    void branchService.listBranches(accessToken).then(setBranches).catch(() => undefined);
+  }, [accessToken]);
+
   // Stats
   const activeCount = useMemo(() => profiles.filter((p) => p.user.isActive).length, [profiles]);
   const inactiveCount = useMemo(() => profiles.filter((p) => !p.user.isActive).length, [profiles]);
@@ -169,6 +183,32 @@ export default function HrStaffPage(): JSX.Element {
         );
       });
   }, [profiles, searchQuery, profileFilter]);
+
+  const openTransferModal = (profile: EmployeeProfile, e: React.MouseEvent): void => {
+    e.stopPropagation();
+    setTransferTarget(profile);
+    setTransferBranchId('');
+    setTransferNotes('');
+  };
+
+  const handleTransferSubmit = async (): Promise<void> => {
+    if (!accessToken || !transferTarget || !transferBranchId) return;
+    setTransferSubmitting(true);
+    try {
+      await staffTransferService.createTransfer(
+        { userId: transferTarget.userId, toOrganizationId: transferBranchId, notes: transferNotes || undefined },
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Transferred', message: `${transferTarget.user.name} has been transferred.` });
+      setTransferTarget(null);
+      await load();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to transfer staff member.';
+      toast({ variant: 'error', title: 'Transfer failed', message });
+    } finally {
+      setTransferSubmitting(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!accessToken || !form.userId) return;
@@ -346,7 +386,17 @@ export default function HrStaffPage(): JSX.Element {
                     </span>
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    <ChevronRight size={15} className="text-stone-300" />
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => openTransferModal(profile, e)}
+                        className="flex h-7 w-7 items-center justify-center rounded-md text-stone-300 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        aria-label={`Transfer ${profile.user.name}`}
+                      >
+                        <ArrowLeftRight size={13} />
+                      </button>
+                      <ChevronRight size={15} className="text-stone-300" />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -354,6 +404,49 @@ export default function HrStaffPage(): JSX.Element {
           </table>
         )}
       </div>
+
+      {/* ── Transfer Staff Modal ──────────────────────────────────────── */}
+      <Modal
+        isOpen={!!transferTarget}
+        onClose={() => setTransferTarget(null)}
+        title={`Transfer ${transferTarget?.user.name ?? 'Staff'}`}
+        maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={() => setTransferTarget(null)} disabled={transferSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleTransferSubmit()} isLoading={transferSubmitting} disabled={!transferBranchId}>
+              Transfer
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-body-sm text-stone-500">
+            This will move <span className="font-medium text-stone-800">{transferTarget?.user.name}</span> to the selected branch. Their home branch and all access will update immediately.
+          </p>
+          <div>
+            <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Destination Branch</label>
+            <select
+              value={transferBranchId}
+              onChange={(e) => setTransferBranchId(e.target.value)}
+              className="h-10 w-full rounded-lg border border-stone-200 bg-white px-3 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
+            >
+              <option value="">Select branch…</option>
+              {branches.filter((b) => b.id !== transferTarget?.user.organization?.id).map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Notes (optional)"
+            placeholder="Reason for transfer…"
+            value={transferNotes}
+            onChange={(e) => setTransferNotes(e.target.value)}
+          />
+        </div>
+      </Modal>
 
       {/* ── Create Profile Modal ───────────────────────────────────────── */}
       <Modal

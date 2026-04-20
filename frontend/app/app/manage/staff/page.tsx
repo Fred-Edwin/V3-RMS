@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search } from 'lucide-react';
+import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search, ArrowLeftRight } from 'lucide-react';
 import { Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
 import { ApiError } from '@/types/api';
 import { staffService, type StaffDto } from '@/services/staffService';
+import { branchService, type BranchDto } from '@/services/branchService';
+import { staffTransferService } from '@/services/staffTransferService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 
@@ -23,12 +25,16 @@ const roleLabel: Record<string, string> = {
   SYSTEM_ADMIN: 'System Admin',
 };
 
+const TRANSFER_ROLES: AppRole[] = ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN'];
+
 export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const hydrateSession = useAuthStore((state) => state.hydrateSession);
+  const role = useAuthStore((state) => state.role) as AppRole | null;
   const { toast } = useToast();
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
+  const [branches, setBranches] = useState<BranchDto[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -60,11 +66,22 @@ export default function Page(): JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<StaffDto | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
+  // ── Transfer modal state ──
+  const [transferTarget, setTransferTarget] = useState<StaffDto | null>(null);
+  const [transferBranchId, setTransferBranchId] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+
   useEffect(() => {
     if (!accessToken) {
       void hydrateSession();
     }
   }, [accessToken, hydrateSession]);
+
+  useEffect(() => {
+    if (!accessToken || !role || !TRANSFER_ROLES.includes(role)) return;
+    void branchService.listBranches(accessToken).then(setBranches).catch(() => undefined);
+  }, [accessToken, role]);
 
   const loadStaff = useCallback(async (): Promise<void> => {
     if (!accessToken) {
@@ -204,6 +221,32 @@ export default function Page(): JSX.Element {
       toast({ variant: 'error', title: 'Delete failed', message });
     } finally {
       setDeleteSubmitting(false);
+    }
+  };
+
+  const openTransferModal = (item: StaffDto): void => {
+    setTransferTarget(item);
+    setTransferBranchId('');
+    setTransferNotes('');
+  };
+
+  const handleTransferSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken || !transferTarget || !transferBranchId) return;
+    setTransferSubmitting(true);
+    try {
+      await staffTransferService.createTransfer(
+        { userId: transferTarget.id, toOrganizationId: transferBranchId, notes: transferNotes || undefined },
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Transferred', message: `${transferTarget.name} has been transferred.` });
+      setTransferTarget(null);
+      await loadStaff();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to transfer staff member.';
+      toast({ variant: 'error', title: 'Transfer failed', message });
+    } finally {
+      setTransferSubmitting(false);
     }
   };
 
@@ -357,6 +400,16 @@ export default function Page(): JSX.Element {
                   }`}>
                     {item.isActive ? 'Active' : 'Inactive'}
                   </span>
+                  {role && TRANSFER_ROLES.includes(role) && (
+                    <button
+                      type="button"
+                      onClick={() => openTransferModal(item)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-blue-50 hover:text-blue-700"
+                      aria-label={`Transfer ${item.name}`}
+                    >
+                      <ArrowLeftRight size={14} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => openEditModal(item)}
@@ -546,6 +599,50 @@ export default function Page(): JSX.Element {
         confirmLabel="Delete permanently"
         isLoading={deleteSubmitting}
       />
+
+      {/* ── Transfer Staff Modal ── */}
+      <Modal
+        isOpen={!!transferTarget}
+        onClose={() => setTransferTarget(null)}
+        title={`Transfer ${transferTarget?.name ?? 'Staff'}`}
+        maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="secondary" onClick={() => setTransferTarget(null)} disabled={transferSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" form="transfer-staff-form" isLoading={transferSubmitting} disabled={!transferBranchId}>
+              Transfer
+            </Button>
+          </div>
+        }
+      >
+        <form id="transfer-staff-form" className="space-y-4" onSubmit={(e) => void handleTransferSubmit(e)}>
+          <p className="text-body-sm text-stone-500">
+            This will move <span className="font-medium text-stone-800">{transferTarget?.name}</span> to the selected branch. Their home branch and all access will update immediately.
+          </p>
+          <div>
+            <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Destination Branch</label>
+            <select
+              value={transferBranchId}
+              onChange={(e) => setTransferBranchId(e.target.value)}
+              className="h-10 w-full rounded-lg border border-stone-200 bg-white px-3 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
+              required
+            >
+              <option value="">Select branch…</option>
+              {branches.filter((b) => b.id !== transferTarget?.organizationId).map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Notes (optional)"
+            placeholder="Reason for transfer…"
+            value={transferNotes}
+            onChange={(e) => setTransferNotes(e.target.value)}
+          />
+        </form>
+      </Modal>
     </PageLayout>
   );
 }

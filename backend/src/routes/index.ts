@@ -23,6 +23,7 @@ import discountRoutes from './discount-routes';
 import customerDiscountAuthRoutes from './customer-discount-auth-routes';
 import commsRoutes from './comms-routes';
 import hrRoutes from './hr-routes';
+import staffTransferRoutes from './staff-transfer-routes';
 
 const apiRouter = Router();
 
@@ -50,5 +51,6 @@ apiRouter.use(discountRoutes);
 apiRouter.use(customerDiscountAuthRoutes);
 apiRouter.use(commsRoutes);
 apiRouter.use(hrRoutes);
+apiRouter.use(staffTransferRoutes);
 
 export default apiRouter;

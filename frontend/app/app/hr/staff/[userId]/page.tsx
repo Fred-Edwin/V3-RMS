@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ChevronLeft, Pencil, Shield, FileText, Calendar, User,
-  AlertTriangle, Lock,
+  AlertTriangle, Lock, ArrowLeftRight,
 } from 'lucide-react';
 import { PageLayout, Button, Modal, Input, Select } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
@@ -21,9 +21,10 @@ import {
 } from '@/components/hr/LeaveTypeBadge';
 import { LeaveTab } from './LeaveTab';
 import { DisciplinaryTab } from './DisciplinaryTab';
+import { staffTransferService, type StaffTransfer } from '@/services/staffTransferService';
 import type { AppRole } from '@/types/auth';
 
-type Tab = 'overview' | 'leave' | 'disciplinary' | 'documents';
+type Tab = 'overview' | 'leave' | 'disciplinary' | 'documents' | 'transfers';
 
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
@@ -54,6 +55,7 @@ export default function EmployeeProfilePage(): JSX.Element {
   const [disciplinaryRecords, setDisciplinaryRecords] = useState<DisciplinaryRecord[]>([]);
   const [documents, setDocuments] = useState<HrDocument[]>([]);
   const [managers, setManagers] = useState<StaffDto[]>([]);
+  const [transfers, setTransfers] = useState<StaffTransfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [editOpen, setEditOpen] = useState(false);
@@ -83,15 +85,17 @@ export default function EmployeeProfilePage(): JSX.Element {
     if (!accessToken || !userId) return;
     setLoading(true);
     try {
-      const [p, d, docs, staff] = await Promise.all([
+      const [p, d, docs, staff, transferHistory] = await Promise.all([
         getEmployeeProfile(userId, accessToken),
         getDisciplinaryRecords(userId, accessToken),
         getHrDocuments(userId, accessToken),
         staffService.listStaff(accessToken, { isActive: true }),
+        staffTransferService.getTransferHistory(userId, accessToken),
       ]);
       setProfile(p);
       setDisciplinaryRecords(d);
       setDocuments(docs);
+      setTransfers(transferHistory);
       // Only roles that can be a reporting manager
       setManagers(staff.filter((s) => ['MANAGER', 'HR_MANAGER', 'DIRECTOR'].includes(s.role)));
       setEditForm({
@@ -185,6 +189,7 @@ export default function EmployeeProfilePage(): JSX.Element {
     { id: 'leave', label: 'Leave', icon: Calendar },
     { id: 'disciplinary', label: 'Disciplinary', icon: Shield },
     { id: 'documents', label: 'Documents', icon: FileText },
+    { id: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
   ];
 
   return (
@@ -339,6 +344,47 @@ export default function EmployeeProfilePage(): JSX.Element {
                 </a>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'transfers' && (
+        <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-stone-100 px-5 py-3.5">
+            <h3 className="text-heading-sm font-semibold text-stone-900">Transfer History</h3>
+            <p className="mt-0.5 text-body-sm text-stone-400">All branch transfers for this staff member.</p>
+          </div>
+          {transfers.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <ArrowLeftRight size={24} className="mx-auto mb-2 text-stone-300" />
+              <p className="text-heading-sm font-semibold text-stone-700">No transfers yet</p>
+              <p className="mt-1 text-body-sm text-stone-400">This staff member has not been transferred between branches.</p>
+            </div>
+          ) : (
+            <table className="w-full text-body-sm">
+              <thead>
+                <tr className="border-b border-stone-100 bg-stone-50">
+                  <th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">From</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">To</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Date</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Authorized By</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {transfers.map((t) => (
+                  <tr key={t.id} className="hover:bg-stone-50">
+                    <td className="px-5 py-3.5 font-medium text-stone-800">{t.fromOrganization.name}</td>
+                    <td className="px-4 py-3.5 font-medium text-stone-800">{t.toOrganization.name}</td>
+                    <td className="px-4 py-3.5 text-stone-500">
+                      {new Date(t.transferredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3.5 text-stone-500">{t.authorizedBy.name}</td>
+                    <td className="px-4 py-3.5 text-stone-400">{t.notes ?? <span className="text-stone-200">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
