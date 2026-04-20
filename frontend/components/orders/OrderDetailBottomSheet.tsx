@@ -402,12 +402,15 @@ export function OrderDetailBottomSheet({
             <div className="space-y-3">
               {order.type === 'DELIVERY' ? (
                 <div className="space-y-3">
-                  <Input
-                    label="Mpesa transaction code"
-                    placeholder="e.g. QHG3KL9XPO"
-                    value={mpesaCode}
-                    onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
-                  />
+                  <div className="space-y-1">
+                    <Input
+                      label="Mpesa transaction code *"
+                      placeholder="e.g. QHG3KL9XPO"
+                      value={mpesaCode}
+                      onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                    />
+                    <p className="text-caption text-stone-400">Enter the confirmation code from the customer&apos;s M-Pesa SMS.</p>
+                  </div>
                   <Button
                     className="w-full"
                     isLoading={isPaymentSubmitting}
@@ -437,14 +440,17 @@ export function OrderDetailBottomSheet({
                     }}
                   />
 
-                  {/* Mpesa transaction code — shown for MPESA and split types that include Mpesa */}
+                  {/* Mpesa transaction code — required for MPESA and split types that include Mpesa */}
                   {(uiPaymentMethod === 'MPESA' || uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD') && (
-                    <Input
-                      label="Mpesa transaction code"
-                      placeholder="e.g. QHG3KL9XPO"
-                      value={mpesaCode}
-                      onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
-                    />
+                    <div className="space-y-1">
+                      <Input
+                        label="Mpesa transaction code *"
+                        placeholder="e.g. QHG3KL9XPO"
+                        value={mpesaCode}
+                        onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                      />
+                      <p className="text-caption text-stone-400">Enter the confirmation code from the customer&apos;s M-Pesa SMS.</p>
+                    </div>
                   )}
 
                   {/* Split payment amount inputs */}
