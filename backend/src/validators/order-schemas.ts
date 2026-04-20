@@ -124,6 +124,9 @@ export const RecordPaymentSchema = z
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required when Mpesa is part of the split', path: ['mpesaCode'] });
       }
     }
+    if (data.paymentMethod === PaymentMethod.MPESA && !data.mpesaCode) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required for Mpesa payment', path: ['mpesaCode'] });
+    }
     if (data.paymentMethod === PaymentMethod.HOUSE_ACCOUNT && !data.houseAccountId) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'houseAccountId is required for house account payment', path: ['houseAccountId'] });
     }

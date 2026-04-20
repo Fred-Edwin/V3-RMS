@@ -401,13 +401,22 @@ export function OrderDetailBottomSheet({
           {order.status === 'READY' && (
             <div className="space-y-3">
               {order.type === 'DELIVERY' ? (
-                <Button
-                  className="w-full"
-                  isLoading={isPaymentSubmitting}
-                  onClick={() => onPayment(order.id, { paymentMethod: 'MPESA', mpesaCode: mpesaCode.trim() || undefined })}
-                >
-                  Hand to Grubba
-                </Button>
+                <div className="space-y-3">
+                  <Input
+                    label="Mpesa transaction code"
+                    placeholder="e.g. QHG3KL9XPO"
+                    value={mpesaCode}
+                    onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                  />
+                  <Button
+                    className="w-full"
+                    isLoading={isPaymentSubmitting}
+                    disabled={!mpesaCode.trim()}
+                    onClick={() => onPayment(order.id, { paymentMethod: 'MPESA', mpesaCode: mpesaCode.trim() })}
+                  >
+                    Hand to Grubba
+                  </Button>
+                </div>
               ) : (
                 <>
                   <Select
@@ -761,6 +770,8 @@ export function OrderDetailBottomSheet({
                     className="w-full"
                     isLoading={isPaymentSubmitting}
                     disabled={
+                      (uiPaymentMethod === 'MPESA' && !mpesaCode.trim()) ||
+                      ((uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD') && !mpesaCode.trim()) ||
                       ((uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD' || uiPaymentMethod === 'SPLIT_CASH_CARD') &&
                         (() => {
                           const total = Number.parseFloat(order.total);
@@ -794,7 +805,7 @@ export function OrderDetailBottomSheet({
                         onPayment(order.id, {
                           paymentMethod: 'SPLIT',
                           splitType: 'MPESA_CASH',
-                          mpesaCode: mpesaCode.trim() || undefined,
+                          mpesaCode: mpesaCode.trim(),
                           mpesaAmount: Number.parseFloat(mpesaAmount),
                           cashAmount: Number.parseFloat(cashAmount),
                         });
@@ -802,7 +813,7 @@ export function OrderDetailBottomSheet({
                         onPayment(order.id, {
                           paymentMethod: 'SPLIT',
                           splitType: 'MPESA_CARD',
-                          mpesaCode: mpesaCode.trim() || undefined,
+                          mpesaCode: mpesaCode.trim(),
                           mpesaAmount: Number.parseFloat(mpesaAmount),
                           cardAmount: Number.parseFloat(cardAmount),
                         });
@@ -826,7 +837,7 @@ export function OrderDetailBottomSheet({
                       } else {
                         onPayment(order.id, {
                           paymentMethod: uiPaymentMethod as PaymentMethod,
-                          mpesaCode: uiPaymentMethod === 'MPESA' ? (mpesaCode.trim() || undefined) : undefined,
+                          mpesaCode: uiPaymentMethod === 'MPESA' ? mpesaCode.trim() : undefined,
                         });
                       }
                     }}
