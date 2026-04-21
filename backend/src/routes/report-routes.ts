@@ -98,6 +98,13 @@ reportRoutes.get(
 );
 
 reportRoutes.get(
+  '/reports/stale-orders',
+  authenticate,
+  requireRole('ACCOUNTANT', 'SYSTEM_ADMIN'),
+  reportController.getStaleOrders,
+);
+
+reportRoutes.get(
   '/reports/discount-usage',
   authenticate,
   requireRole('DIRECTOR'),

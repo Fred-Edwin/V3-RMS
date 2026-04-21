@@ -14,6 +14,7 @@ import {
   ItemsPerformanceQuerySchema,
   MyPerformanceQuerySchema,
   StaffPerformanceQuerySchema,
+  StaleOrdersQuerySchema,
 } from '../validators/report-schemas';
 
 const requireActor = (req: Request) => {
@@ -155,6 +156,17 @@ export const reportController = {
     const actor = requireActor(req);
     const query = DiscountUsageQuerySchema.parse(req.query);
     const report = await reportService.getDiscountUsage(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getStaleOrders: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = StaleOrdersQuerySchema.parse(req.query);
+    const report = await reportService.getStaleOrders(actor, query);
 
     res.status(200).json({
       success: true,

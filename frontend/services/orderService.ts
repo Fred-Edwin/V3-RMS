@@ -114,4 +114,22 @@ export const orderService = {
   ): Promise<OrderDetail> => {
     return apiClient.patch<OrderDetail>(`/orders/${id}/manager-edit`, data, accessToken);
   },
+
+  accountOrder: (
+    id: string,
+    data: {
+      paymentMethod: string;
+      mpesaCode?: string;
+      mpesaAmount?: number;
+      cashAmount?: number;
+      cardAmount?: number;
+      splitType?: string;
+      note?: string;
+    },
+    accessToken: string,
+    branchId?: string,
+  ): Promise<OrderDetail> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
+    return apiClient.patch<OrderDetail>(`/orders/${id}/account${query}`, data, accessToken);
+  },
 };

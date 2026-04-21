@@ -138,6 +138,45 @@ export const RecordPaymentSchema = z
     }
   });
 
+export const AccountOrderSchema = z
+  .object({
+    paymentMethod: z.nativeEnum(PaymentMethod),
+    mpesaCode: z.string().min(1).max(20).optional(),
+    mpesaAmount: z.number().positive().optional(),
+    cashAmount: z.number().positive().optional(),
+    cardAmount: z.number().positive().optional(),
+    splitType: z.enum(SPLIT_TYPES).optional(),
+    note: z.string().max(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.paymentMethod === PaymentMethod.MPESA && !data.mpesaCode) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required for Mpesa payment', path: ['mpesaCode'] });
+    }
+    if (data.paymentMethod === PaymentMethod.SPLIT) {
+      if (!data.splitType) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'splitType is required for split payment', path: ['splitType'] });
+        return;
+      }
+      const needsMpesa = data.splitType.includes('MPESA');
+      const needsCash = data.splitType.includes('CASH');
+      const needsCard = data.splitType.includes('CARD');
+      if (needsMpesa && data.mpesaAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaAmount is required for this split type', path: ['mpesaAmount'] });
+      }
+      if (needsCash && data.cashAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cashAmount is required for this split type', path: ['cashAmount'] });
+      }
+      if (needsCard && data.cardAmount === undefined) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'cardAmount is required for this split type', path: ['cardAmount'] });
+      }
+      if (needsMpesa && !data.mpesaCode) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required when Mpesa is part of the split', path: ['mpesaCode'] });
+      }
+    }
+  });
+
+export type AccountOrderInput = z.infer<typeof AccountOrderSchema>;
+
 export const CANCEL_REASONS = [
   'Customer changed their mind',
   'Customer left',

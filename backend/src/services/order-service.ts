@@ -35,6 +35,7 @@ import { logger } from '../utils/logger';
 import type {
   ActiveOrderQueryInput,
   CreateOrderInput,
+  AccountOrderInput,
   ManagerRemoveItemsInput,
   OrderQueryInput,
   RecordPaymentInput,
@@ -1197,9 +1198,52 @@ export const orderService = {
 
     return serialized;
   },
+
+  accountOrder: async (
+    orderId: string,
+    data: AccountOrderInput,
+    actor: Actor,
+    branchId?: string,
+  ): Promise<OrderRecord> => {
+    if (actor.role !== 'ACCOUNTANT' && actor.role !== 'SYSTEM_ADMIN') {
+      throw new ForbiddenError('Only accountants can account for orders');
+    }
+
+    const organizationId = resolveOrganizationId(actor, branchId);
+    const order = await orderRepository.findById(orderId, organizationId);
+    if (!order) throw new NotFoundError('Order not found');
+
+    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
+      throw new ConflictError('Order is already closed or cancelled');
+    }
+
+    const accounted = await orderRepository.accountOrder(orderId, organizationId, {
+      paymentMethod: data.paymentMethod,
+      mpesaCode: data.mpesaCode ?? null,
+      mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
+      cashAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cashAmount ?? null) : null,
+      cardAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.cardAmount ?? null) : null,
+      splitType: data.paymentMethod === PaymentMethod.SPLIT ? (data.splitType ?? null) : null,
+    });
+
+    if (!accounted) throw new ConflictError('Order could not be accounted. Please refresh and try again.');
+
+    const serialized = serializeOrder(accounted);
+
+    incidentService.log({
+      organizationId,
+      orderId,
+      type: 'ORDER_STALE',
+      actorId: actor.id,
+      details: {
+        dailyNumber: serialized.dailyNumber,
+        action: 'accounted_by_accountant',
+        paymentMethod: data.paymentMethod,
+        note: data.note ?? null,
+      },
+    });
+
+    return serialized;
+  },
 };
-
-
-
-
 

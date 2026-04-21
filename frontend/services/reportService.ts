@@ -24,6 +24,7 @@ import type {
   OutstandingBalancesReport,
   StaffPerformancePeriod,
   StaffPerformanceQuery,
+  StaleOrdersReport,
 } from '@/types/report';
 
 const toQueryString = (params: Record<string, string | undefined>): string => {
@@ -224,5 +225,13 @@ export const reportService = {
       })}`,
       token,
     ),
+
+  getStaleOrders: (
+    token: string,
+    organizationId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<StaleOrdersReport> =>
+    apiClient.get(`/reports/stale-orders${toQueryString({ organizationId, startDate, endDate })}`, token),
 };
 

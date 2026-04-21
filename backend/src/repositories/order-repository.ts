@@ -721,6 +721,41 @@ export const orderRepository = {
     });
   },
 
+  accountOrder: async (
+    orderId: string,
+    organizationId: string,
+    payment: {
+      paymentMethod: PaymentMethod;
+      mpesaCode: string | null;
+      mpesaAmount: number | null;
+      cashAmount: number | null;
+      cardAmount: number | null;
+      splitType: string | null;
+    },
+  ): Promise<FullOrderPrismaRecord | null> => {
+    const paidAt = new Date();
+    const updated = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        organizationId,
+        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
+      },
+      data: {
+        status: OrderStatus.CLOSED,
+        paymentMethod: payment.paymentMethod,
+        mpesaCode: payment.mpesaCode,
+        mpesaAmount: payment.mpesaAmount ?? undefined,
+        cashAmount: payment.cashAmount ?? undefined,
+        cardAmount: payment.cardAmount ?? undefined,
+        splitType: payment.splitType ?? undefined,
+        paidAt,
+        closedAt: paidAt,
+      },
+    });
+    if (updated.count === 0) return null;
+    return prisma.order.findFirst({ where: { id: orderId, organizationId }, include: orderInclude });
+  },
+
   cancel: async (
     orderId: string,
     organizationId: string,

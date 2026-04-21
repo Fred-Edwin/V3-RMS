@@ -1854,6 +1854,72 @@ export const reportRepository = {
     };
   },
 
+  getStaleOrders: async (
+    organizationId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<import('../types/report.types').StaleOrdersReport> => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const orders = await prisma.order.findMany({
+      where: {
+        organizationId,
+        orderDate: {
+          lt: today,
+          ...(startDate ? { gte: startDate } : {}),
+          ...(endDate ? { lte: endDate } : {}),
+        },
+        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
+        createdBy: { isTestUser: false },
+      },
+      select: {
+        id: true,
+        dailyNumber: true,
+        status: true,
+        orderDate: true,
+        total: true,
+        createdBy: { select: { id: true, name: true } },
+        items: {
+          select: {
+            id: true,
+            quantity: true,
+            unitPrice: true,
+            subtotal: true,
+            notes: true,
+            menuItem: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { orderDate: 'asc' },
+    });
+
+    const totalAtRisk = orders.reduce((sum, o) => sum + o.total.toNumber(), 0);
+
+    return {
+      organizationId,
+      totalOrders: orders.length,
+      totalAtRisk: totalAtRisk.toFixed(2),
+      orders: orders.map((o) => ({
+        id: o.id,
+        dailyNumber: o.dailyNumber,
+        status: o.status,
+        placedAt: o.orderDate.toISOString(),
+        waiterId: o.createdBy.id,
+        waiterName: o.createdBy.name,
+        total: o.total.toFixed(2),
+        items: o.items.map((item) => ({
+          id: item.id,
+          name: item.menuItem.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice.toFixed(2),
+          subtotal: item.subtotal.toFixed(2),
+          notes: item.notes ?? null,
+        })),
+      })),
+    };
+  },
+
   getDiscountUsage: async (
     startDate: Date,
     endDate: Date,

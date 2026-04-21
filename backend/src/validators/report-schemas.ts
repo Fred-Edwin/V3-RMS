@@ -69,6 +69,12 @@ export const AccountantReconciliationQuerySchema = z.object({
   organizationId: z.string().uuid(),
 });
 
+export const StaleOrdersQuerySchema = z.object({
+  organizationId: z.string().uuid(),
+  startDate: isoDateSchema.optional(),
+  endDate: isoDateSchema.optional(),
+});
+
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;
 export type BranchOverviewQueryInput = z.infer<typeof BranchOverviewQuerySchema>;
@@ -78,4 +84,5 @@ export type MyPerformanceQueryInput = z.infer<typeof MyPerformanceQuerySchema>;
 export type ExportQueryInput = z.infer<typeof ExportQuerySchema>;
 export type AccountantReconciliationQueryInput = z.infer<typeof AccountantReconciliationQuerySchema>;
 export type DiscountUsageQueryInput = z.infer<typeof DiscountUsageQuerySchema>;
+export type StaleOrdersQueryInput = z.infer<typeof StaleOrdersQuerySchema>;
 

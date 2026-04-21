@@ -70,4 +70,12 @@ orderRoutes.patch(
   orderController.managerRemoveItems,
 );
 
+orderRoutes.patch(
+  '/orders/:id/account',
+  authenticate,
+  branchScope,
+  requireRole('ACCOUNTANT', 'SYSTEM_ADMIN'),
+  orderController.accountOrder,
+);
+
 export default orderRoutes;

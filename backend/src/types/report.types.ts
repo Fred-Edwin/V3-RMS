@@ -124,6 +124,33 @@ export interface AccountantReconciliationReport {
   orders: AccountantReconciliationOrder[];
 }
 
+export interface StaleOrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: string;
+  subtotal: string;
+  notes: string | null;
+}
+
+export interface StaleOrder {
+  id: string;
+  dailyNumber: number;
+  status: string;
+  placedAt: string;
+  waiterId: string;
+  waiterName: string;
+  total: string;
+  items: StaleOrderItem[];
+}
+
+export interface StaleOrdersReport {
+  organizationId: string;
+  totalOrders: number;
+  totalAtRisk: string;
+  orders: StaleOrder[];
+}
+
 export interface BranchOverviewReport {
   period: {
     startDate: string;

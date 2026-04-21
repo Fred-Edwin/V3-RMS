@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { orderService } from '../services/order-service';
 import {
+  AccountOrderSchema,
   ActiveOrderQuerySchema,
   CancelOrderSchema,
   CreateOrderSchema,
@@ -130,6 +131,20 @@ export const orderController = {
       success: true,
       data: order,
       message: 'Order updated successfully',
+    });
+  },
+
+  accountOrder: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const data = AccountOrderSchema.parse(req.body);
+    const branchId = z.string().uuid().optional().parse(req.query.branchId);
+    const order = await orderService.accountOrder(id, data, actor, branchId);
+
+    res.status(200).json({
+      success: true,
+      data: order,
+      message: 'Order accounted successfully',
     });
   },
 };

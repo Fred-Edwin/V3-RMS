@@ -18,6 +18,7 @@ import type {
   OutstandingBalancesReport,
   ReportType,
   StaffPerformanceReport,
+  StaleOrdersReport,
 } from '../types/report.types';
 import type {
   AccountantReconciliationQueryInput,
@@ -31,6 +32,7 @@ import type {
   ItemsPerformanceQueryInput,
   MyPerformanceQueryInput,
   StaffPerformanceQueryInput,
+  StaleOrdersQueryInput,
 } from '../validators/report-schemas';
 
 type Actor = NonNullable<Request['user']>;
@@ -432,6 +434,18 @@ export const reportService = {
     }
     const date = parseDateOnly(query.date);
     return reportRepository.getAccountantReconciliation(query.organizationId, date);
+  },
+
+  getStaleOrders: async (
+    actor: Actor,
+    query: StaleOrdersQueryInput,
+  ): Promise<StaleOrdersReport> => {
+    if (actor.role !== 'ACCOUNTANT' && actor.role !== 'SYSTEM_ADMIN') {
+      throw new ForbiddenError('Only accountants can access stale orders');
+    }
+    const startDate = query.startDate ? parseDateOnly(query.startDate) : undefined;
+    const endDate = query.endDate ? parseDateOnly(query.endDate) : undefined;
+    return reportRepository.getStaleOrders(query.organizationId, startDate, endDate);
   },
 
   getDiscountUsage: async (
