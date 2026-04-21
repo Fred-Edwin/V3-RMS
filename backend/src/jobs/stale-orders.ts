@@ -3,6 +3,7 @@ import { getTodayDateOnly } from '../utils/date-only';
 import { logger } from '../utils/logger';
 import { orderRepository } from '../repositories/order-repository';
 import { reportRepository } from '../repositories/report-repository';
+import { incidentRepository } from '../repositories/incident-repository';
 import { incidentService } from '../services/incident-service';
 import { fcmService } from '../services/fcm-service';
 
@@ -20,7 +21,14 @@ export const flagStaleOrders = async (): Promise<number> => {
     const staleOrders = await orderRepository.findStaleOrders(org.id, today);
     if (staleOrders.length === 0) continue;
 
-    for (const order of staleOrders) {
+    // Only log incident once per order — skip orders already flagged on a previous night
+    const alreadyLoggedIds = await incidentRepository.findStaleOrderIds(
+      org.id,
+      staleOrders.map((o) => o.id),
+    );
+    const newStaleOrders = staleOrders.filter((o) => !alreadyLoggedIds.has(o.id));
+
+    for (const order of newStaleOrders) {
       incidentService.log({
         organizationId: org.id,
         orderId: order.id,
@@ -36,14 +44,16 @@ export const flagStaleOrders = async (): Promise<number> => {
       });
     }
 
-    await fcmService.sendStaleOrdersPush(org.id, staleOrders.length);
+    if (newStaleOrders.length > 0) {
+      await fcmService.sendStaleOrdersPush(org.id, newStaleOrders.length);
+    }
 
     logger.info(
-      { organizationId: org.id, orgName: org.name, staleCount: staleOrders.length },
+      { organizationId: org.id, orgName: org.name, totalStale: staleOrders.length, newlyFlagged: newStaleOrders.length },
       'Nightly stale orders: flagged unclosed orders and notified managers',
     );
 
-    totalFlagged += staleOrders.length;
+    totalFlagged += newStaleOrders.length;
   }
 
   logger.info({ totalFlagged }, 'Nightly stale orders job completed');

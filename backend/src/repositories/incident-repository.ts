@@ -25,6 +25,14 @@ export const incidentRepository = {
     });
   },
 
+  findStaleOrderIds: async (organizationId: string, orderIds: string[]): Promise<Set<string>> => {
+    const rows = await prisma.incidentLog.findMany({
+      where: { organizationId, type: 'ORDER_STALE', orderId: { in: orderIds } },
+      select: { orderId: true },
+    });
+    return new Set(rows.map((r) => r.orderId).filter((id): id is string => id !== null));
+  },
+
   findMany: async (
     organizationId: string | null,
     filters: {
