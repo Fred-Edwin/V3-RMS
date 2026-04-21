@@ -145,7 +145,7 @@ export interface StaleOrder {
 }
 
 export interface StaleOrdersReport {
-  organizationId: string;
+  organizationId: string | null;
   totalOrders: number;
   totalAtRisk: string;
   orders: StaleOrder[];

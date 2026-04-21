@@ -228,7 +228,7 @@ export const reportService = {
 
   getStaleOrders: (
     token: string,
-    organizationId: string,
+    organizationId?: string,
     startDate?: string,
     endDate?: string,
   ): Promise<StaleOrdersReport> =>

@@ -1855,7 +1855,7 @@ export const reportRepository = {
   },
 
   getStaleOrders: async (
-    organizationId: string,
+    organizationId: string | null,
     startDate?: Date,
     endDate?: Date,
   ): Promise<import('../types/report.types').StaleOrdersReport> => {
@@ -1864,7 +1864,7 @@ export const reportRepository = {
 
     const orders = await prisma.order.findMany({
       where: {
-        organizationId,
+        ...(organizationId ? { organizationId } : {}),
         orderDate: {
           lt: today,
           ...(startDate ? { gte: startDate } : {}),
@@ -1897,7 +1897,7 @@ export const reportRepository = {
     const totalAtRisk = orders.reduce((sum, o) => sum + o.total.toNumber(), 0);
 
     return {
-      organizationId,
+      organizationId: organizationId ?? null,
       totalOrders: orders.length,
       totalAtRisk: totalAtRisk.toFixed(2),
       orders: orders.map((o) => ({

@@ -1,14 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ArrowDownCircle } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ArrowDownCircle, AlertTriangle } from 'lucide-react';
 import { Button, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type { BranchOverview, OutstandingBalancesReport } from '@/types/report'; // BranchOverview used for todayReport state
+import type { BranchOverview, OutstandingBalancesReport, StaleOrdersReport } from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -123,18 +123,21 @@ export default function AccountantDashboardPage(): JSX.Element {
 
   const [todayReport, setTodayReport] = useState<BranchOverview | null>(null);
   const [outstanding, setOutstanding] = useState<OutstandingBalancesReport | null>(null);
+  const [staleReport, setStaleReport] = useState<StaleOrdersReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const load = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
     setIsLoading(true);
     try {
-      const [todayData, outstandingData] = await Promise.all([
+      const [todayData, outstandingData, staleData] = await Promise.all([
         reportService.getBranchOverview(accessToken, { startDate: today, endDate: today }),
         reportService.getOutstandingBalances(accessToken),
+        reportService.getStaleOrders(accessToken),
       ]);
       setTodayReport(todayData);
       setOutstanding(outstandingData);
+      setStaleReport(staleData);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load dashboard.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -202,9 +205,10 @@ export default function AccountantDashboardPage(): JSX.Element {
       <InboxNudge />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isLoading ? (
           <>
+            <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
             <KpiSkeleton />
@@ -235,6 +239,19 @@ export default function AccountantDashboardPage(): JSX.Element {
               sub="Cash orders only"
               icon={<ArrowDownCircle size={20} />}
               accent="green"
+            />
+            <KpiCard
+              label="Unaccounted Orders"
+              value={staleReport ? String(staleReport.totalOrders) : '—'}
+              sub={
+                staleReport
+                  ? staleReport.totalOrders > 0
+                    ? `${formatCurrency(staleReport.totalAtRisk)} unaccounted`
+                    : 'All orders reconciled'
+                  : 'All branches'
+              }
+              icon={<AlertTriangle size={20} />}
+              accent={staleReport && staleReport.totalOrders > 0 ? 'red' : 'green'}
             />
           </>
         )}

@@ -445,7 +445,7 @@ export const reportService = {
     }
     const startDate = query.startDate ? parseDateOnly(query.startDate) : undefined;
     const endDate = query.endDate ? parseDateOnly(query.endDate) : undefined;
-    return reportRepository.getStaleOrders(query.organizationId, startDate, endDate);
+    return reportRepository.getStaleOrders(query.organizationId ?? null, startDate, endDate);
   },
 
   getDiscountUsage: async (

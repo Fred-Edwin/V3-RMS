@@ -70,7 +70,7 @@ export const AccountantReconciliationQuerySchema = z.object({
 });
 
 export const StaleOrdersQuerySchema = z.object({
-  organizationId: z.string().uuid(),
+  organizationId: z.string().uuid().optional(),
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
 });
