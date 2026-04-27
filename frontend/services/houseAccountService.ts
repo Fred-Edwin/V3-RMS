@@ -35,6 +35,37 @@ export interface RecordHouseSettlementInput {
   note?: string;
 }
 
+export interface HouseAccountOrderItem {
+  id: string;
+  quantity: number;
+  unitPrice: string;
+  subtotal: string;
+  notes: string | null;
+  menuItem: { name: string };
+}
+
+export interface HouseAccountOrder {
+  id: string;
+  dailyNumber: number;
+  total: string;
+  createdAt: string;
+  organizationId: string;
+  createdBy: { name: string };
+  items: HouseAccountOrderItem[];
+}
+
+export interface HouseAccountOrdersPagination {
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+}
+
+export interface HouseAccountOrdersResponse {
+  orders: HouseAccountOrder[];
+  pagination: HouseAccountOrdersPagination;
+}
+
 export const houseAccountService = {
   listActive: (token: string): Promise<HouseAccountDropdownItem[]> =>
     apiClient.get('/house-accounts/active', token),
@@ -54,11 +85,34 @@ export const houseAccountService = {
   recordSettlement: (id: string, data: RecordHouseSettlementInput, token: string): Promise<void> =>
     apiClient.post(`/house-accounts/${id}/settlements`, data, token),
 
-  getOrderHistory: (
+  getOwnOrderHistory: async (
+    token: string,
+    page = 1,
+    perPage = 15,
+    date?: string,
+  ): Promise<HouseAccountOrdersResponse> => {
+    const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+    if (date) params.set('date', date);
+    const envelope = await apiClient.getWithEnvelope<HouseAccountOrder[]>(`/house-accounts/my/orders?${params.toString()}`, token);
+    return {
+      orders: envelope.data ?? [],
+      pagination: (envelope.pagination as HouseAccountOrdersPagination) ?? { total: 0, page, perPage, totalPages: 0 },
+    };
+  },
+
+  getOrderHistory: async (
     id: string,
     token: string,
     page = 1,
-    perPage = 50,
-  ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string }>; total: number }> =>
-    apiClient.get(`/house-accounts/${id}/orders?page=${page}&perPage=${perPage}`, token),
+    perPage = 15,
+    date?: string,
+  ): Promise<HouseAccountOrdersResponse> => {
+    const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+    if (date) params.set('date', date);
+    const envelope = await apiClient.getWithEnvelope<HouseAccountOrder[]>(`/house-accounts/${id}/orders?${params.toString()}`, token);
+    return {
+      orders: envelope.data ?? [],
+      pagination: (envelope.pagination as HouseAccountOrdersPagination) ?? { total: 0, page, perPage, totalPages: 0 },
+    };
+  },
 };

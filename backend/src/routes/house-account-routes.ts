@@ -43,6 +43,13 @@ houseAccountRoutes.patch(
 );
 
 houseAccountRoutes.get(
+  '/house-accounts/my/orders',
+  authenticate,
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'),
+  houseAccountController.getOwnOrderHistory,
+);
+
+houseAccountRoutes.get(
   '/house-accounts/:id/orders',
   authenticate,
   requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),

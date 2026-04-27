@@ -133,16 +133,52 @@ export const houseAccountRepository = {
     id: string,
     page: number,
     perPage: number,
-  ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: Prisma.Decimal; createdAt: Date; organizationId: string }>; total: number }> => {
+    date?: string,
+  ): Promise<{
+    orders: Array<{
+      id: string;
+      dailyNumber: number;
+      total: Prisma.Decimal;
+      createdAt: Date;
+      organizationId: string;
+      createdBy: { name: string };
+      items: Array<{ id: string; quantity: number; unitPrice: Prisma.Decimal; subtotal: Prisma.Decimal; notes: string | null; menuItem: { name: string } }>;
+    }>;
+    total: number;
+  }> => {
+    const dateFilter = date
+      ? { gte: new Date(`${date}T00:00:00.000Z`), lte: new Date(`${date}T23:59:59.999Z`) }
+      : undefined;
+    const where: Prisma.OrderWhereInput = {
+      houseAccountId: id,
+      ...(dateFilter ? { createdAt: dateFilter } : {}),
+    };
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: { houseAccountId: id },
-        select: { id: true, dailyNumber: true, total: true, createdAt: true, organizationId: true },
+        where,
+        select: {
+          id: true,
+          dailyNumber: true,
+          total: true,
+          createdAt: true,
+          organizationId: true,
+          createdBy: { select: { name: true } },
+          items: {
+            select: {
+              id: true,
+              quantity: true,
+              unitPrice: true,
+              subtotal: true,
+              notes: true,
+              menuItem: { select: { name: true } },
+            },
+          },
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      prisma.order.count({ where: { houseAccountId: id } }),
+      prisma.order.count({ where }),
     ]);
     return { orders, total };
   },

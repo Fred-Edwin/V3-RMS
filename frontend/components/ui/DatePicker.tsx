@@ -13,6 +13,7 @@ interface DatePickerProps {
   max?: string
   disabled?: boolean
   className?: string
+  align?: 'left' | 'right'
 }
 
 const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
@@ -35,7 +36,7 @@ function toISO(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
-export function DatePicker({ value, onChange, label, min, max, disabled = false, className }: DatePickerProps) {
+export function DatePicker({ value, onChange, label, min, max, disabled = false, className, align = 'left' }: DatePickerProps) {
   const id = useId()
   const [open, setOpen] = useState(false)
   const today = new Date()
@@ -129,7 +130,7 @@ export function DatePicker({ value, onChange, label, min, max, disabled = false,
         </div>
 
         {open && (
-          <div className="absolute top-full left-0 mt-1 z-30 bg-white rounded-md shadow-lg border border-stone-200 p-3 w-64">
+          <div className={cn('absolute top-full mt-1 z-30 bg-white rounded-md shadow-lg border border-stone-200 p-3 w-64', align === 'right' ? 'right-0' : 'left-0')}>
             {/* Month navigation */}
             <div className="flex items-center justify-between mb-3">
               <IconButton icon={<ChevronLeft size={14} />} label="Previous month" size="sm" variant="ghost" onClick={prevMonth} />

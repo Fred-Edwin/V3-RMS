@@ -4,8 +4,15 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreditCard, DollarSign } from 'lucide-react';
 import { Button, EmptyState, Input, Modal, PageHeader, PageLayout, PriceDisplay } from '@/components/ui';
+import { TabOrderHistoryTable } from '@/components/orders/TabOrderHistoryTable';
 import { useToast } from '@/hooks/useToast';
-import { houseAccountService, type HouseAccount, type RecordHouseSettlementInput } from '@/services/houseAccountService';
+import {
+  houseAccountService,
+  type HouseAccount,
+  type HouseAccountOrder,
+  type HouseAccountOrdersPagination,
+  type RecordHouseSettlementInput,
+} from '@/services/houseAccountService';
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -25,13 +32,24 @@ export default function MyTabPage(): JSX.Element {
   useEffect(() => {
     if (!env.creditAccounts) router.replace('/app/manage/dashboard');
   }, [router]);
+
   const user = useAuthStore((state) => state.user);
 
+  // Account
   const [account, setAccount] = useState<HouseAccount | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Settlement modal
   const [settlementModalOpen, setSettlementModalOpen] = useState(false);
   const [settlementForm, setSettlementForm] = useState<SettlementFormState>(defaultSettlementForm);
   const [isSettling, setIsSettling] = useState(false);
+
+  // Order history
+  const [orders, setOrders] = useState<HouseAccountOrder[]>([]);
+  const [pagination, setPagination] = useState<HouseAccountOrdersPagination | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadAccount = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
@@ -51,9 +69,42 @@ export default function MyTabPage(): JSX.Element {
     }
   }, [accessToken, toast]);
 
+  const loadOrders = useCallback(async (page: number, date: string): Promise<void> => {
+    if (!accessToken) return;
+    setOrdersLoading(true);
+    try {
+      const result = await houseAccountService.getOwnOrderHistory(accessToken, page, 15, date || undefined);
+      setOrders(result.orders);
+      setPagination(result.pagination);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to load order history.';
+      toast({ variant: 'error', title: 'Load failed', message });
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [accessToken, toast]);
+
   useEffect(() => {
     void loadAccount();
   }, [loadAccount]);
+
+  useEffect(() => {
+    void loadOrders(currentPage, selectedDate);
+  }, [loadOrders, currentPage, selectedDate]);
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    setCurrentPage(1);
+  };
+
+  const handleClearDate = () => {
+    setSelectedDate('');
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   const handleRecordSettlement = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -93,7 +144,7 @@ export default function MyTabPage(): JSX.Element {
       <PageHeader
         title="My Tab"
         titleClassName="font-display text-display-lg font-semibold text-espresso"
-        subtitle="Your house account balance and settlement history."
+        subtitle="Your house account balance and order history."
       />
 
       {isLoading ? (
@@ -108,6 +159,7 @@ export default function MyTabPage(): JSX.Element {
         </section>
       ) : (
         <>
+          {/* ── Balance Card ── */}
           <section className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
@@ -171,6 +223,17 @@ export default function MyTabPage(): JSX.Element {
               </div>
             )}
           </section>
+
+          {/* ── Order History Table ── */}
+          <TabOrderHistoryTable
+            orders={orders}
+            pagination={pagination}
+            isLoading={ordersLoading}
+            selectedDate={selectedDate}
+            onDateChange={handleDateChange}
+            onClearDate={handleClearDate}
+            onPageChange={handlePageChange}
+          />
         </>
       )}
 

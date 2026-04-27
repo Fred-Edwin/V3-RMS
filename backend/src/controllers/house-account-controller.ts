@@ -75,7 +75,25 @@ export const houseAccountController = {
     const actor = requireActor(req);
     const { id } = HouseAccountIdParamSchema.parse(req.params);
     const { page, perPage } = paginationSchema.parse(req.query);
-    const result = await houseAccountService.getOrderHistory(actor, id, page, perPage);
+    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+    const result = await houseAccountService.getOrderHistory(actor, id, page, perPage, date);
+    res.status(200).json({
+      success: true,
+      data: result.orders,
+      pagination: {
+        total: result.total,
+        page,
+        perPage,
+        totalPages: Math.ceil(result.total / perPage),
+      },
+    });
+  },
+
+  getOwnOrderHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { page, perPage } = paginationSchema.parse(req.query);
+    const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+    const result = await houseAccountService.getOwnOrderHistory(actor, page, perPage, date);
     res.status(200).json({
       success: true,
       data: result.orders,

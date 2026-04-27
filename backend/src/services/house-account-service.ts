@@ -133,12 +133,33 @@ export const houseAccountService = {
     id: string,
     page: number,
     perPage: number,
+    date?: string,
   ) => {
     requireDirectorOrAdmin(actor);
     const account = await houseAccountRepository.findById(id);
     if (!account) {
       throw new NotFoundError('House account not found');
     }
-    return houseAccountRepository.findOrdersByAccountId(id, page, perPage);
+    return houseAccountRepository.findOrdersByAccountId(id, page, perPage, date);
+  },
+
+  getOwnOrderHistory: async (
+    actor: Actor,
+    page: number,
+    perPage: number,
+    date?: string,
+  ) => {
+    if (
+      actor.role !== 'MANAGER' &&
+      actor.role !== 'DIRECTOR' &&
+      actor.role !== 'SYSTEM_ADMIN'
+    ) {
+      throw new ForbiddenError('Only Managers, Directors, and System Admins can view their own tab history');
+    }
+    const account = await houseAccountRepository.findByUserId(actor.id);
+    if (!account || !account.isActive) {
+      throw new NotFoundError('No active house account found for your account');
+    }
+    return houseAccountRepository.findOrdersByAccountId(account.id, page, perPage, date);
   },
 };
