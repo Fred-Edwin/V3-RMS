@@ -4,7 +4,6 @@ import type { Request } from 'express';
 import { env } from '../config/env';
 import { branchRepository } from '../repositories/branch-repository';
 import { clockRecordRepository } from '../repositories/clock-record-repository';
-import { orderRepository } from '../repositories/order-repository';
 import { shiftAssignmentRepository } from '../repositories/shift-assignment-repository';
 import { getTodayDateOnly, toIsoDateOnly } from '../utils/date-only';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
@@ -213,18 +212,6 @@ export const clockService = {
     );
 
     await assertWithinGeofence(organizationId, input.latitude, input.longitude, 'clock out');
-
-    // Block clock-out if the waiter has any open orders from today's shift.
-    const today = getTodayDateOnly();
-    const openOrders = await orderRepository.findUnclosedOrdersByUserForDate(organizationId, actor.id, today);
-    if (openOrders.length > 0) {
-      const orderNumbers = openOrders.map((o) => `#${o.dailyNumber}`).join(', ');
-      throw new ConflictError(
-        `You have ${openOrders.length} open order(s): ${orderNumbers}. Close or cancel them before clocking out.`,
-        'CLOCK_HAS_OPEN_ORDERS',
-        { openOrders },
-      );
-    }
 
     return requireUpdatedClockRecord(
       await clockRecordRepository.updateClockOut(record.id, organizationId, {

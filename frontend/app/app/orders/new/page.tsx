@@ -208,10 +208,9 @@ export default function NewOrderPage(): JSX.Element {
       setNotes('');
       router.push('/app/orders');
     } catch (error) {
-      const isStaleOrders = error instanceof ApiError && error.code === 'WAITER_HAS_STALE_ORDERS';
       toast({
-        variant: isStaleOrders ? 'warning' : 'error',
-        title: isStaleOrders ? 'Close previous shift orders first' : 'Failed to create order',
+        variant: 'error',
+        title: 'Failed to create order',
         message: error instanceof Error ? error.message : 'Try again',
       });
     } finally {

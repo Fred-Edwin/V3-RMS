@@ -392,40 +392,6 @@ export const orderRepository = {
     });
   },
 
-  findUnclosedOrdersByUserForDate: async (
-    organizationId: string,
-    userId: string,
-    date: Date,
-  ): Promise<Array<{ dailyNumber: number }>> => {
-    return prisma.order.findMany({
-      where: {
-        organizationId,
-        createdById: userId,
-        orderDate: date,
-        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
-      },
-      select: { dailyNumber: true },
-      orderBy: { dailyNumber: 'asc' },
-    });
-  },
-
-  findUnclosedPreviousDayOrdersByUser: async (
-    organizationId: string,
-    userId: string,
-    beforeDate: Date,
-  ): Promise<Array<{ dailyNumber: number; orderDate: Date }>> => {
-    return prisma.order.findMany({
-      where: {
-        organizationId,
-        createdById: userId,
-        orderDate: { lt: beforeDate },
-        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
-      },
-      select: { dailyNumber: true, orderDate: true },
-      orderBy: { orderDate: 'asc' },
-    });
-  },
-
   findStaleOrders: async (
     organizationId: string,
     beforeDate: Date,
