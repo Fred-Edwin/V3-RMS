@@ -295,6 +295,12 @@ export function ClockWidget({ assignments, onUpdated }: ClockWidgetProps): JSX.E
               title: 'Attendance changed just now',
               message: error.message,
             });
+          } else if (error.code === 'CLOCK_HAS_OPEN_ORDERS') {
+            toast({
+              variant: 'warning',
+              title: 'Close your open orders first',
+              message: error.message,
+            });
           } else {
             toast({
               variant: 'warning',

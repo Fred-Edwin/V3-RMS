@@ -31,6 +31,7 @@ import {
   deriveStationsFromItems,
 } from '../utils/order-utils';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { getTodayDateOnly } from '../utils/date-only';
 import { logger } from '../utils/logger';
 import type {
   ActiveOrderQueryInput,
@@ -351,6 +352,23 @@ export const orderService = {
           return serializeOrder(existingOrder);
         }
       }
+    }
+
+    // Block new orders if the waiter has unclosed orders from a previous day.
+    // This enforces end-of-shift order closure and prevents stale order accumulation.
+    const today = getTodayDateOnly();
+    const unclosedPriorOrders = await orderRepository.findUnclosedPreviousDayOrdersByUser(
+      organizationId,
+      actor.id,
+      today,
+    );
+    if (unclosedPriorOrders.length > 0) {
+      const orderNumbers = unclosedPriorOrders.map((o) => `#${o.dailyNumber}`).join(', ');
+      throw new ConflictError(
+        `You have ${unclosedPriorOrders.length} unclosed order(s) from a previous shift: ${orderNumbers}. Close or cancel them before placing new orders.`,
+        'WAITER_HAS_STALE_ORDERS',
+        { unclosedOrders: unclosedPriorOrders },
+      );
     }
 
     const resolvedItemsStart = Date.now();
