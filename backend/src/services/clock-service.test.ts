@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { branchRepository } from '../repositories/branch-repository';
 import { clockRecordRepository } from '../repositories/clock-record-repository';
+import { orderRepository } from '../repositories/order-repository';
 import { shiftAssignmentRepository } from '../repositories/shift-assignment-repository';
 import { clockService } from './clock-service';
 
@@ -25,6 +26,12 @@ vi.mock('../repositories/clock-record-repository', () => ({
 vi.mock('../repositories/shift-assignment-repository', () => ({
   shiftAssignmentRepository: {
     findById: vi.fn(),
+  },
+}));
+
+vi.mock('../repositories/order-repository', () => ({
+  orderRepository: {
+    findUnclosedOrdersByUserForDate: vi.fn(),
   },
 }));
 
@@ -79,6 +86,7 @@ describe('clockService', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-06T08:00:00.000Z'));
     vi.mocked(shiftAssignmentRepository.findById).mockResolvedValue(todayAssignment);
+    vi.mocked(orderRepository.findUnclosedOrdersByUserForDate).mockResolvedValue([]);
     vi.mocked(branchRepository.findById).mockResolvedValue({
       id: organizationId,
       name: 'Wendo Branch',

@@ -35,6 +35,7 @@ vi.mock('../repositories/order-repository', () => ({
     recordPayment: vi.fn(),
     cancel: vi.fn(),
     updateStatus: vi.fn(),
+    findUnclosedPreviousDayOrdersByUser: vi.fn(),
   },
 }));
 
@@ -188,6 +189,7 @@ describe('orderService.create', () => {
     vi.clearAllMocks();
     vi.mocked(orderRepository.createWithItemsAndTickets).mockResolvedValue(buildCreatedOrderRecord());
     vi.mocked(deliveryZoneRepository.findActiveByIdAndOrganization).mockResolvedValue(null);
+    vi.mocked(orderRepository.findUnclosedPreviousDayOrdersByUser).mockResolvedValue([]);
   });
 
   it('snapshots menu item prices into order items', async () => {
