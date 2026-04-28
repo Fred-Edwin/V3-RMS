@@ -429,6 +429,35 @@ describe('orderService.updateItems', () => {
     expect(socketService.emitNewOrder).toHaveBeenCalledWith(organizationId, expect.any(Array));
   });
 
+  it('creates an extra ticket when a started item quantity is increased via stepper', async () => {
+    const order = buildEditableOrderRecord();
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(order);
+    vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
+      createMenuItem('kitchen-item-1', 'Burger', '500.00', 'KITCHEN'),
+      createMenuItem('barista-item-1', 'Latte', '300.00', 'BARISTA'),
+    ]);
+    vi.mocked(orderRepository.updateItems).mockResolvedValue(buildEditableOrderRecord());
+
+    await orderService.updateItems(
+      order.id,
+      {
+        items: [
+          // Burger bumped from qty 1 → 2 via stepper (single line, higher quantity)
+          { menuItemId: 'kitchen-item-1', quantity: 2, notes: null },
+          { menuItemId: 'barista-item-1', quantity: 1, notes: null },
+        ],
+      },
+      waiterActor,
+    );
+
+    const call = vi.mocked(orderRepository.updateItems).mock.calls[0];
+    // One extra ticket created for the additional Burger unit
+    expect(call?.[4].creates).toEqual([
+      { station: 'KITCHEN', items: [{ menuItemId: 'kitchen-item-1', name: 'Burger', quantity: 1, notes: null }] },
+    ]);
+  });
+
   it('rejects decreasing items for a station already in progress', async () => {
     const order = buildEditableOrderRecord();
 

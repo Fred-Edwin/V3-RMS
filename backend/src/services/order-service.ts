@@ -675,6 +675,45 @@ export const orderService = {
           }
         });
 
+        // Handle quantity increases on a single cart line (stepper use).
+        // If the waiter bumped qty 1 → 2 via the stepper, requestedStationItems has one entry
+        // with quantity 2, but only one ticket exists. The occurrence-key check above won't catch
+        // this because the key matches. We need to create one extra ticket per additional unit.
+        const allExistingBaseCounts = new Map<string, number>();
+        for (const ticket of allStationTickets) {
+          const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+          const first = parsed[0];
+          if (!first) continue;
+          const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
+          allExistingBaseCounts.set(base, (allExistingBaseCounts.get(base) ?? 0) + 1);
+        }
+
+        // Sum requested quantities per base key
+        const requestedQtyByBase = new Map<string, { item: ResolvedOrderItem; totalQty: number }>();
+        for (const item of requestedStationItems) {
+          const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
+          const existing = requestedQtyByBase.get(base);
+          requestedQtyByBase.set(base, {
+            item,
+            totalQty: (existing?.totalQty ?? 0) + item.quantity,
+          });
+        }
+
+        for (const [base, { item, totalQty }] of requestedQtyByBase) {
+          const existingCount = allExistingBaseCounts.get(base) ?? 0;
+          // Only handle items that already have tickets — new items are covered by the
+          // occurrence-key loop above. Extra units beyond existing ticket count each get
+          // their own ticket of qty 1 (consistent with the one-ticket-per-line model).
+          if (existingCount === 0) continue;
+          const extraUnits = totalQty - existingCount;
+          for (let i = 0; i < extraUnits; i++) {
+            ticketCreates.push({
+              station,
+              items: [{ menuItemId: item.menuItemId, name: item.name, quantity: 1, notes: item.notes }],
+            });
+          }
+        }
+
         continue;
       }
 
