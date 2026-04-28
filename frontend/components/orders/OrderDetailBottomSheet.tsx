@@ -404,12 +404,12 @@ export function OrderDetailBottomSheet({
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <Input
-                      label="Mpesa transaction code *"
-                      placeholder="e.g. QHG3KL9XPO"
+                      label="Mpesa transaction code(s) *"
+                      placeholder="e.g. QHG3KL9XPO or QHG3KL9XPO,AR4O8KEO"
                       value={mpesaCode}
-                      onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                      onChange={(e) => setMpesaCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
                     />
-                    <p className="text-caption text-stone-400">Enter the confirmation code from the customer&apos;s M-Pesa SMS.</p>
+                    <p className="text-caption text-stone-400">Multiple codes? Separate with commas: QHG3KL9XPO,AR4O8KEO</p>
                   </div>
                   <Button
                     className="w-full"
@@ -444,12 +444,12 @@ export function OrderDetailBottomSheet({
                   {(uiPaymentMethod === 'MPESA' || uiPaymentMethod === 'SPLIT_MPESA_CASH' || uiPaymentMethod === 'SPLIT_MPESA_CARD') && (
                     <div className="space-y-1">
                       <Input
-                        label="Mpesa transaction code *"
-                        placeholder="e.g. QHG3KL9XPO"
+                        label="Mpesa transaction code(s) *"
+                        placeholder="e.g. QHG3KL9XPO or QHG3KL9XPO,AR4O8KEO"
                         value={mpesaCode}
-                        onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+                        onChange={(e) => setMpesaCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
                       />
-                      <p className="text-caption text-stone-400">Enter the confirmation code from the customer&apos;s M-Pesa SMS.</p>
+                      <p className="text-caption text-stone-400">Multiple codes? Separate with commas: QHG3KL9XPO,AR4O8KEO</p>
                     </div>
                   )}
 

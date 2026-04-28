@@ -52,7 +52,7 @@ export const RecordPaymentSchema = z
   .object({
     paymentMethod: z.nativeEnum(PaymentMethod),
     // Optional Mpesa transaction code — required when paymentMethod is MPESA or SPLIT with Mpesa
-    mpesaCode: z.string().min(1).max(20).optional(),
+    mpesaCode: z.string().min(1).max(200).optional(),
     // Split payment amounts — required pair depends on splitType
     mpesaAmount: z.number().positive().optional(),
     cashAmount: z.number().positive().optional(),
@@ -141,7 +141,7 @@ export const RecordPaymentSchema = z
 export const AccountOrderSchema = z
   .object({
     paymentMethod: z.nativeEnum(PaymentMethod),
-    mpesaCode: z.string().min(1).max(20).optional(),
+    mpesaCode: z.string().min(1).max(200).optional(),
     mpesaAmount: z.number().positive().optional(),
     cashAmount: z.number().positive().optional(),
     cardAmount: z.number().positive().optional(),
