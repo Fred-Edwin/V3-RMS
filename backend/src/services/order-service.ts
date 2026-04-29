@@ -679,13 +679,15 @@ export const orderService = {
         // If the waiter bumped qty 1 → 2 via the stepper, requestedStationItems has one entry
         // with quantity 2, but only one ticket exists. The occurrence-key check above won't catch
         // this because the key matches. We need to create one extra ticket per additional unit.
+        // Sum existing ticket quantities (not ticket count) so the comparison is in the same
+        // units as totalQty. A single ticket for Cake qty=2 must count as 2, not 1.
         const allExistingBaseCounts = new Map<string, number>();
         for (const ticket of allStationTickets) {
           const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
           const first = parsed[0];
           if (!first) continue;
           const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
-          allExistingBaseCounts.set(base, (allExistingBaseCounts.get(base) ?? 0) + 1);
+          allExistingBaseCounts.set(base, (allExistingBaseCounts.get(base) ?? 0) + first.quantity);
         }
 
         // Sum requested quantities per base key
