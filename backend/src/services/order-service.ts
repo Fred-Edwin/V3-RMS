@@ -632,25 +632,26 @@ export const orderService = {
             ticket.station === station &&
             (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
         );
-        // Build a multiset of started item base-keys (menuItemId+notes) to count how many of
-        // each are started, so we can verify the new request still covers them all.
+        // Use the existing order items as the source of truth for what is started at this station.
+        // Tickets are not reliable for counting — Bug 1 (now fixed) could create duplicate tickets
+        // for the same item, inflating the count. Order items are always correct.
         const startedBaseCounts = new Map<string, number>();
-        for (const ticket of startedTickets) {
-          const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
-          const first = parsed[0];
-          if (!first) continue;
-          const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
-          startedBaseCounts.set(base, (startedBaseCounts.get(base) ?? 0) + 1);
+        for (const orderItem of existingOrder.items) {
+          const menuItem = orderItem.menuItem;
+          if (menuItem.category.prepStation !== station) continue;
+          const base = JSON.stringify([orderItem.menuItemId, orderItem.notes ?? null]);
+          startedBaseCounts.set(base, (startedBaseCounts.get(base) ?? 0) + orderItem.quantity);
         }
 
+        // Count requested items by total quantity across all cart lines for each base key.
         const requestedBaseCounts = new Map<string, number>();
         for (const item of requestedStationItems) {
           const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
-          requestedBaseCounts.set(base, (requestedBaseCounts.get(base) ?? 0) + 1);
+          requestedBaseCounts.set(base, (requestedBaseCounts.get(base) ?? 0) + item.quantity);
         }
 
         for (const [base, count] of startedBaseCounts) {
-          // Each started occurrence must still be present in the new request
+          // The requested quantity must cover at least what is already being prepared.
           if ((requestedBaseCounts.get(base) ?? 0) < count) {
             throw new ConflictError(
               'Order cannot be modified. Preparation has already started at one or more stations.',
@@ -708,6 +709,7 @@ export const orderService = {
           // their own ticket of qty 1 (consistent with the one-ticket-per-line model).
           if (existingCount === 0) continue;
           const extraUnits = totalQty - existingCount;
+          console.log('[stepper/started] base=%s existingCount=%d totalQty=%d extraUnits=%d', base, existingCount, totalQty, extraUnits);
           for (let i = 0; i < extraUnits; i++) {
             ticketCreates.push({
               station,
@@ -726,24 +728,34 @@ export const orderService = {
 
       requestedKeys.forEach((key, idx) => {
         const item = requestedStationItems[idx]!;
-        const snapshot: PrepTicketItemSnapshot[] = [
-          { menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes },
-        ];
         const existingTicket = editableTicketsByKey.get(key);
 
         if (existingTicket) {
           matchedTicketIds.add(existingTicket.id);
-          // Update quantity/notes in case they changed
+          const existingParsed = parsePrepTicketItems(existingTicket.items as Prisma.JsonValue);
+          const existingQty = existingParsed[0]?.quantity ?? 1;
+          // Keep the existing ticket at its current qty (one-ticket-per-line model).
+          // If the waiter bumped qty via the stepper, create one new ticket per extra unit.
           ticketUpdates.push({
             ticketId: existingTicket.id,
             station,
             status: PrepTicketStatus.PENDING,
-            items: snapshot,
+            items: [{ menuItemId: item.menuItemId, name: item.name, quantity: existingQty, notes: item.notes }],
             clearRejection: existingTicket.status === PrepTicketStatus.REJECTED,
           });
+          const extraUnits = item.quantity - existingQty;
+          for (let i = 0; i < extraUnits; i++) {
+            ticketCreates.push({
+              station,
+              items: [{ menuItemId: item.menuItemId, name: item.name, quantity: 1, notes: item.notes }],
+            });
+          }
         } else {
           // New item line not previously on the order
-          ticketCreates.push({ station, items: snapshot });
+          ticketCreates.push({
+            station,
+            items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
+          });
         }
       });
 

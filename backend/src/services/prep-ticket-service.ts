@@ -352,9 +352,12 @@ export const prepTicketService = {
       },
     });
 
-    // Revert order to PENDING if all tickets are now PENDING
+    // Revert order to PENDING if all non-rejected tickets are now PENDING.
+    // REJECTED tickets are excluded — consistent with the allReady check above.
     const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
-    const allPending = allOrderTickets.every((t) => t.status === PrepTicketStatus.PENDING);
+    const allPending = allOrderTickets
+      .filter((t) => t.status !== PrepTicketStatus.REJECTED)
+      .every((t) => t.status === PrepTicketStatus.PENDING);
 
     if (allPending) {
       await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
