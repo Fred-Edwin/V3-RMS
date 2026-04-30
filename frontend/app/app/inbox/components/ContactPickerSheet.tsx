@@ -19,6 +19,7 @@ const ROLE_LABELS: Record<string, string> = {
   HR_MANAGER: 'HR Manager',
   MANAGER: 'Manager',
   ACCOUNTANT: 'Accountant',
+  SYSTEM_ADMIN: 'System Admin',
   WAITER: 'Waiter',
   CHEF: 'Chef',
   BARISTA: 'Barista',
@@ -28,6 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
 const SECTION_DEFS: { label: string; roles: string[] }[] = [
   { label: 'Leadership',  roles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] },
   { label: 'Finance',     roles: ['ACCOUNTANT'] },
+  { label: 'System',      roles: ['SYSTEM_ADMIN'] },
   { label: 'Service',     roles: ['WAITER'] },
   { label: 'Kitchen',     roles: ['CHEF'] },
   { label: 'Barista',     roles: ['BARISTA'] },

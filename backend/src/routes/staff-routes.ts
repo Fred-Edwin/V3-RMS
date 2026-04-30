@@ -17,7 +17,7 @@ staffRoutes.get(
   '/staff/messaging-contacts',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA'),
   staffController.messagingContacts,
 );
 staffRoutes.get(

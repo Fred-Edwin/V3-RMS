@@ -58,12 +58,12 @@ export const staffService = {
   },
 
   getMessagingContacts: async (actor: Actor) => {
-    if (!actor.organizationId) {
-      // DIRECTOR / HR_MANAGER — return all active human staff across the org they were set up in,
-      // falling back to all active non-display users if no org
+    const crossBranchRoles = ['DIRECTOR', 'HR_MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN'];
+    if (!actor.organizationId || crossBranchRoles.includes(actor.role)) {
+      // Cross-branch roles see all active human staff across all branches
       const results = await staffRepository.findMany({
         isActive: true,
-        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'],
+        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA'],
       });
       return results
         .filter((s) => s.id !== actor.id)

@@ -10,6 +10,7 @@ const ALL_HUMAN_ROLES = [
   'HR_MANAGER',
   'MANAGER',
   'ACCOUNTANT',
+  'SYSTEM_ADMIN',
   'WAITER',
   'CHEF',
   'BARISTA',
@@ -32,9 +33,9 @@ commsRoutes.get('/comms/broadcasts/:broadcastId', authenticate, requireRole(...A
 commsRoutes.patch('/comms/broadcasts/:broadcastId/read', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.markBroadcastRead);
 commsRoutes.patch('/comms/broadcasts/:broadcastId/acknowledge', authenticate, requireRole(...ALL_HUMAN_ROLES), commsController.acknowledgeBroadcast);
 
-// Write / status: manager, HR manager, and director
-commsRoutes.post('/comms/broadcasts', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR'), commsController.sendBroadcast);
-commsRoutes.get('/comms/broadcasts/:broadcastId/status', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR'), commsController.getBroadcastStatus);
+// Write / status: manager, HR manager, director, and system admin
+commsRoutes.post('/comms/broadcasts', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'), commsController.sendBroadcast);
+commsRoutes.get('/comms/broadcasts/:broadcastId/status', authenticate, requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'), commsController.getBroadcastStatus);
 
 // ─── Formal Notices ────────────────────────────────────────────────────────
 

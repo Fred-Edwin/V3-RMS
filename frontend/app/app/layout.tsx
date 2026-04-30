@@ -114,11 +114,13 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Branches', href: '/app/admin', icon: Settings2 },
       { label: 'Menu', href: '/app/admin/menu', icon: UtensilsCrossed },
-      { label: 'House Accts', href: '/app/admin/house-accounts', icon: CreditCard },
-      { label: 'Corporate', href: '/app/admin/corporate-accounts', icon: Building2 },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
-    overflowTabs: [],
+    overflowTabs: [
+      { label: 'House Accts', href: '/app/admin/house-accounts', icon: CreditCard },
+      { label: 'Corporate', href: '/app/admin/corporate-accounts', icon: Building2 },
+    ],
   },
   WAITER: {
     tabs: [
@@ -275,6 +277,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
     {
+      label: 'Communications',
+      items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
+    },
+    {
       label: 'Account',
       items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
     },
@@ -288,6 +294,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'House Accounts', href: '/app/admin/house-accounts', icon: CreditCard },
         { label: 'Corporate Accounts', href: '/app/admin/corporate-accounts', icon: Building2 },
       ],
+    },
+    {
+      label: 'Communications',
+      items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
     },
     {
       label: 'Account',
