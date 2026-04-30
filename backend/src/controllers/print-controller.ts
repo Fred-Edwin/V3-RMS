@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { printService } from '../services/print-service';
 import {
+  BranchIdQuerySchema,
   CreateOtherIncomePrintJobSchema,
   CreatePrintJobSchema,
   CreatePrintStationSchema,
@@ -10,6 +11,8 @@ import {
   routeIdParamSchema,
 } from '../validators/print-schemas';
 import { UnauthorizedError } from '../utils/errors';
+
+const ELEVATED_ROLES = new Set(['DIRECTOR', 'SYSTEM_ADMIN']);
 
 const requireActor = (req: Request) => {
   if (!req.user) {
@@ -150,8 +153,10 @@ export const printController = {
   createPrintStation: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { name } = CreatePrintStationSchema.parse(req.body);
+    const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId = actor.organizationId;
+    const organizationId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
     if (!organizationId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
@@ -167,8 +172,10 @@ export const printController = {
 
   listPrintStations: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
+    const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId = actor.organizationId;
+    const organizationId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
     if (!organizationId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
@@ -184,8 +191,10 @@ export const printController = {
   deactivatePrintStation: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = routeIdParamSchema.parse(req.params);
+    const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId = actor.organizationId;
+    const organizationId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
     if (!organizationId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }

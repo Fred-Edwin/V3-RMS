@@ -20,7 +20,6 @@ import {
   LogOut,
   MessageSquare,
   Percent,
-  Printer,
   Settings2,
   ShieldAlert,
   ShoppingCart,
@@ -76,7 +75,6 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
       { label: 'Incidents', href: '/app/manage/incidents', icon: AlertTriangle },
-      { label: 'Settings', href: '/app/manage/settings', icon: Printer },
       { label: 'Customer Credit', href: '/app/manage/customer-credit', icon: CreditCard },
       { label: 'Outstanding', href: '/app/manage/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
@@ -93,6 +91,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     ],
     overflowTabs: [
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      { label: 'Branch Settings', href: '/app/director/settings', icon: Settings2 },
       { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
@@ -198,7 +197,6 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
         { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
         { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
-        { label: 'Settings', href: '/app/manage/settings', icon: Printer },
       ],
     },
     {
@@ -240,6 +238,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
         { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
+        { label: 'Branch Settings', href: '/app/director/settings', icon: Settings2 },
       ],
     },
     {

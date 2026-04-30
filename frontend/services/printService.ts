@@ -34,12 +34,18 @@ export const printService = {
 
   // ── Print Station Management ──────────────────────────────────────────────
 
-  createPrintStation: (name: string, token: string): Promise<CreatedPrintStation> =>
-    apiClient.post<CreatedPrintStation>('/print-stations', { name }, token),
+  createPrintStation: (name: string, token: string, branchId?: string): Promise<CreatedPrintStation> => {
+    const qs = branchId ? `?branchId=${branchId}` : '';
+    return apiClient.post<CreatedPrintStation>(`/print-stations${qs}`, { name }, token);
+  },
 
-  listPrintStations: (token: string): Promise<PrintStation[]> =>
-    apiClient.get<PrintStation[]>('/print-stations', token),
+  listPrintStations: (token: string, branchId?: string): Promise<PrintStation[]> => {
+    const qs = branchId ? `?branchId=${branchId}` : '';
+    return apiClient.get<PrintStation[]>(`/print-stations${qs}`, token);
+  },
 
-  deactivatePrintStation: (stationId: string, token: string): Promise<void> =>
-    apiClient.delete<void>(`/print-stations/${stationId}`, token),
+  deactivatePrintStation: (stationId: string, token: string, branchId?: string): Promise<void> => {
+    const qs = branchId ? `?branchId=${branchId}` : '';
+    return apiClient.delete<void>(`/print-stations/${stationId}${qs}`, token);
+  },
 };

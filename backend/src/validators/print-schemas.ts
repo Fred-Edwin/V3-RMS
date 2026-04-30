@@ -41,6 +41,11 @@ export const CreatePrintStationSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
+// Optional branchId query — DIRECTOR/SYSTEM_ADMIN only, to target another branch
+export const BranchIdQuerySchema = z.object({
+  branchId: z.string().uuid().optional(),
+});
+
 // POST /print-jobs/other-income
 export const CreateOtherIncomePrintJobSchema = z.object({
   entryId: z.string().uuid('entryId must be a valid UUID'),

@@ -135,7 +135,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
   const [itemsLimit, setItemsLimit] = useState<number>(10);
   const [itemsData, setItemsData] = useState<ItemsPerformanceReport | null>(null);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [itemsSortKey, setItemsSortKey] = useState<'revenue' | 'quantitySold'>('revenue');
+  const [itemsSortKey, setItemsSortKey] = useState<'quantitySold'>('quantitySold');
   const [itemsSortDir, setItemsSortDir] = useState<'desc' | 'asc'>('desc');
 
   // ── Leave (tab 5) ─────────────────────────────────────────────────────────
@@ -411,23 +411,19 @@ export default function ManagerAnalyticsPage(): JSX.Element {
 
   const sortedTopItems = useMemo(() => {
     if (!itemsData) return [];
-    return [...itemsData.topItems].sort((a, b) => {
-      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
-      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
-      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-  }, [itemsData, itemsSortKey, itemsSortDir]);
+    return [...itemsData.topItems].sort((a, b) =>
+      itemsSortDir === 'desc' ? b.quantitySold - a.quantitySold : a.quantitySold - b.quantitySold
+    );
+  }, [itemsData, itemsSortDir]);
 
   const sortedBottomItems = useMemo(() => {
     if (!itemsData) return [];
-    return [...itemsData.bottomItems].sort((a, b) => {
-      const aVal = itemsSortKey === 'revenue' ? Number.parseFloat(a.revenue) : a.quantitySold;
-      const bVal = itemsSortKey === 'revenue' ? Number.parseFloat(b.revenue) : b.quantitySold;
-      return itemsSortDir === 'desc' ? bVal - aVal : aVal - bVal;
-    });
-  }, [itemsData, itemsSortKey, itemsSortDir]);
+    return [...itemsData.bottomItems].sort((a, b) =>
+      itemsSortDir === 'desc' ? b.quantitySold - a.quantitySold : a.quantitySold - b.quantitySold
+    );
+  }, [itemsData, itemsSortDir]);
 
-  const handleItemsSort = (key: 'revenue' | 'quantitySold') => {
+  const handleItemsSort = (key: 'quantitySold') => {
     if (itemsSortKey === key) {
       setItemsSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
     } else {
@@ -436,7 +432,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     }
   };
 
-  const ItemsSortIcon = ({ col }: { col: 'revenue' | 'quantitySold' }) => {
+  const ItemsSortIcon = ({ col }: { col: 'quantitySold' }) => {
     if (itemsSortKey !== col) return <ArrowUpDown size={12} className="ml-1 inline opacity-30" />;
     return itemsSortDir === 'desc'
       ? <ArrowDown size={12} className="ml-1 inline text-espresso" />
@@ -746,12 +742,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                       >
                         Qty Sold<ItemsSortIcon col="quantitySold" />
                       </th>
-                      <th
-                        className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                        onClick={() => handleItemsSort('revenue')}
-                      >
-                        Revenue<ItemsSortIcon col="revenue" />
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -761,7 +751,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                         <td className="px-3 py-2.5 font-medium text-stone-900">{item.name}</td>
                         <td className="px-3 py-2.5 text-caption text-stone-400">{item.categoryName}</td>
                         <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -790,12 +779,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                         >
                           Qty<ItemsSortIcon col="quantitySold" />
                         </th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('revenue')}
-                        >
-                          Revenue<ItemsSortIcon col="revenue" />
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -807,7 +790,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                             <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
                           </td>
                           <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -833,12 +815,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                         >
                           Qty<ItemsSortIcon col="quantitySold" />
                         </th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('revenue')}
-                        >
-                          Revenue<ItemsSortIcon col="revenue" />
-                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -850,7 +826,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                             <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
                           </td>
                           <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
                         </tr>
                       ))}
                     </tbody>
