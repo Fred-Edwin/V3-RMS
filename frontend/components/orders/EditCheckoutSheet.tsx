@@ -9,6 +9,7 @@ interface EditCheckoutSheetProps {
   isOpen: boolean;
   isSubmitting: boolean;
   lockedStations?: PrepStation[];
+  lockedQuantities?: Map<string, number>;
   notes: string;
   onNotesChange: (value: string) => void;
   onClose: () => void;
@@ -19,6 +20,7 @@ export function EditCheckoutSheet({
   isOpen,
   isSubmitting,
   lockedStations = [],
+  lockedQuantities = new Map(),
   notes,
   onNotesChange,
   onClose,
@@ -71,7 +73,7 @@ export function EditCheckoutSheet({
                       variant="secondary"
                       size="sm"
                       onClick={() => updateCartQuantity(item.lineId, item.quantity - 1)}
-                      disabled={isSubmitting || lockedStationSet.has(item.prepStation)}
+                      disabled={isSubmitting || item.quantity <= (lockedQuantities.get(item.lineId) ?? 0)}
                     />
                     <span className="min-w-6 text-center text-body-sm text-stone-900">{item.quantity}</span>
                     <IconButton

@@ -36,6 +36,7 @@ export default function EditOrderPage(): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [notes, setNotes] = useState('');
+  const [lockedQuantities, setLockedQuantities] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!accessToken || !params.id) {
@@ -55,17 +56,31 @@ export default function EditOrderPage(): JSX.Element {
           });
         });
 
-        setCart(
-          loadedOrder.items.map((item) => ({
-            lineId: crypto.randomUUID(),
-            prepStation: prepStationByItemId.get(item.menuItemId) ?? 'KITCHEN',
-            menuItemId: item.menuItemId,
-            name: item.name,
-            price: Number.parseFloat(item.unitPrice),
-            quantity: item.quantity,
-            notes: item.notes,
-          })),
+        const lockedTicketStations = new Set(
+          loadedOrder.prepTickets
+            .filter((t) => t.status === 'IN_PROGRESS' || t.status === 'READY')
+            .map((t) => t.station),
         );
+
+        const cartLines = loadedOrder.items.map((item) => ({
+          lineId: crypto.randomUUID(),
+          prepStation: prepStationByItemId.get(item.menuItemId) ?? 'KITCHEN',
+          menuItemId: item.menuItemId,
+          name: item.name,
+          price: Number.parseFloat(item.unitPrice),
+          quantity: item.quantity,
+          notes: item.notes,
+        }));
+
+        const newLockedQuantities = new Map<string, number>();
+        cartLines.forEach((line) => {
+          if (lockedTicketStations.has(line.prepStation)) {
+            newLockedQuantities.set(line.lineId, line.quantity);
+          }
+        });
+
+        setCart(cartLines);
+        setLockedQuantities(newLockedQuantities);
 
       })
       .catch((error) => {
@@ -275,6 +290,7 @@ export default function EditOrderPage(): JSX.Element {
         isOpen={isCheckoutOpen}
         isSubmitting={isSubmitting}
         lockedStations={lockedStations}
+        lockedQuantities={lockedQuantities}
         notes={notes}
         onNotesChange={setNotes}
         onClose={() => {
