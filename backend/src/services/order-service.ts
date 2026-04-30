@@ -539,16 +539,16 @@ export const orderService = {
     }
 
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
-    const newItemsByStation = new Map<PrepStation, ResolvedOrderItem[]>();
 
-    resolvedItems.forEach((item) => {
-      const station = item.category.prepStation;
-      const current = newItemsByStation.get(station) ?? [];
-      current.push(item);
-      newItemsByStation.set(station, current);
-    });
+    // Group requested items by station
+    const requestedByStation = new Map<PrepStation, ResolvedOrderItem[]>();
+    for (const item of resolvedItems) {
+      const list = requestedByStation.get(item.category.prepStation) ?? [];
+      list.push(item);
+      requestedByStation.set(item.category.prepStation, list);
+    }
 
-    const existingStations = [...new Set(existingOrder.prepTickets.map((ticket) => ticket.station))];
+    const existingStations = [...new Set(existingOrder.prepTickets.map((t) => t.station))];
     const newStations = deriveStationsFromItems(resolvedItems);
     const allStations = [...new Set([...existingStations, ...newStations])];
 
@@ -560,161 +560,117 @@ export const orderService = {
       rejectedReason?: string;
       clearRejection?: boolean;
     }> = [];
-
     const ticketCreates: Array<{ station: PrepStation; items: PrepTicketItemSnapshot[] }> = [];
+    const existingTicketIds = new Set(existingOrder.prepTickets.map((t) => t.id));
 
-    const existingTicketIds = new Set(existingOrder.prepTickets.map((ticket) => ticket.id));
-
-    // Each per-item ticket carries exactly one item in its JSON snapshot.
-    // Keys are occurrence-indexed so two lines of the same item (e.g. Beef Wrap x1, Beef Wrap x1)
-    // are distinguishable: ["id", null, 0] vs ["id", null, 1].
-    // Without the index a Map/Set would collapse both lines to the same key and the second
-    // ticket would never be created (the original bug).
-    const buildOccurrenceKeys = (
-      tickets: FullOrderPrismaRecord['prepTickets'],
-    ): Map<string, string> => {
-      // Returns ticketId → occurrence-indexed key
-      const occurrenceCounts = new Map<string, number>();
-      const result = new Map<string, string>();
-      for (const ticket of tickets) {
-        const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
-        const first = parsed[0];
-        if (!first) {
-          result.set(ticket.id, ticket.id); // fallback
-          continue;
-        }
-        const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
-        const n = occurrenceCounts.get(base) ?? 0;
-        occurrenceCounts.set(base, n + 1);
-        result.set(ticket.id, JSON.stringify([first.menuItemId ?? '', first.notes ?? null, n]));
-      }
-      return result;
+    // Assigns occurrence-indexed keys to a list of items/tickets so that two lines of the
+    // same item (e.g. Samosa tapped twice) are distinguishable: [id,notes,0] vs [id,notes,1].
+    const occurrenceKeys = (items: Array<{ menuItemId: string; notes: string | null }>): string[] => {
+      const counts = new Map<string, number>();
+      return items.map(({ menuItemId, notes }) => {
+        const base = JSON.stringify([menuItemId, notes ?? null]);
+        const n = counts.get(base) ?? 0;
+        counts.set(base, n + 1);
+        return JSON.stringify([menuItemId, notes ?? null, n]);
+      });
     };
 
-    const buildItemKeys = (items: ResolvedOrderItem[]): string[] => {
-      const occurrenceCounts = new Map<string, number>();
-      return items.map((item) => {
-        const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
-        const n = occurrenceCounts.get(base) ?? 0;
-        occurrenceCounts.set(base, n + 1);
-        return JSON.stringify([item.menuItemId, item.notes ?? null, n]);
-      });
+    // Extract the first item from a ticket's JSON snapshot (each ticket has exactly one item).
+    const ticketItem = (ticket: FullOrderPrismaRecord['prepTickets'][number]) => {
+      const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
+      return parsed[0] ?? null;
     };
 
     for (const station of allStations) {
-      const requestedStationItems = newItemsByStation.get(station) ?? [];
+      const requested = requestedByStation.get(station) ?? [];
 
-      const hasStartedTicket = existingOrder.prepTickets.some(
-        (ticket) =>
-          ticket.station === station &&
-          (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
+      const stationTickets = existingOrder.prepTickets.filter((t) => t.station === station);
+      const startedTickets = stationTickets.filter(
+        (t) => t.status === PrepTicketStatus.IN_PROGRESS || t.status === PrepTicketStatus.READY,
+      );
+      const editableTickets = stationTickets.filter(
+        (t) => t.status === PrepTicketStatus.PENDING || t.status === PrepTicketStatus.REJECTED,
       );
 
-      // Existing editable tickets for this station (PENDING or REJECTED), keyed by occurrence-indexed item key
-      const stationEditableTickets = existingOrder.prepTickets.filter(
-        (ticket) =>
-          ticket.station === station &&
-          (ticket.status === PrepTicketStatus.PENDING || ticket.status === PrepTicketStatus.REJECTED),
+      // Build occurrence-indexed key maps for existing tickets and the incoming request.
+      // Tickets use their first item's menuItemId+notes as identity.
+      const startedKeys = occurrenceKeys(
+        startedTickets.map((t) => ({ menuItemId: ticketItem(t)?.menuItemId ?? t.id, notes: ticketItem(t)?.notes ?? null })),
       );
-      const editableOccurrenceKeys = buildOccurrenceKeys(stationEditableTickets);
-      // Map from occurrence-indexed key → ticket (safe: keys are now unique per line)
-      const editableTicketsByKey = new Map<string, FullOrderPrismaRecord['prepTickets'][number]>();
-      stationEditableTickets.forEach((ticket) => {
-        const key = editableOccurrenceKeys.get(ticket.id);
-        if (key) editableTicketsByKey.set(key, ticket);
-      });
+      const editableKeys = occurrenceKeys(
+        editableTickets.map((t) => ({ menuItemId: ticketItem(t)?.menuItemId ?? t.id, notes: ticketItem(t)?.notes ?? null })),
+      );
+      const requestedKeys = occurrenceKeys(
+        requested.map((item) => ({ menuItemId: item.menuItemId, notes: item.notes })),
+      );
 
-      if (hasStartedTicket) {
-        // Station already in progress — only allow brand-new item lines (additive only).
-        // Existing started items cannot be removed.
-        const startedTickets = existingOrder.prepTickets.filter(
-          (ticket) =>
-            ticket.station === station &&
-            (ticket.status === PrepTicketStatus.IN_PROGRESS || ticket.status === PrepTicketStatus.READY),
-        );
-        // Use the existing order items as the source of truth for what is started at this station.
-        // Tickets are not reliable for counting — Bug 1 (now fixed) could create duplicate tickets
-        // for the same item, inflating the count. Order items are always correct.
-        const startedBaseCounts = new Map<string, number>();
-        for (const orderItem of existingOrder.items) {
-          const menuItem = orderItem.menuItem;
-          if (menuItem.category.prepStation !== station) continue;
-          const base = JSON.stringify([orderItem.menuItemId, orderItem.notes ?? null]);
-          startedBaseCounts.set(base, (startedBaseCounts.get(base) ?? 0) + orderItem.quantity);
+      // Map from occurrence key → ticket for fast lookup
+      const editableByKey = new Map(editableTickets.map((t, i) => [editableKeys[i]!, t]));
+
+      if (startedTickets.length > 0) {
+        // Station has started work — only additions are allowed.
+        // Use order items (not tickets) as the source of truth for what has been committed,
+        // so corrupt duplicate tickets from historical bugs don't inflate the count.
+        const committedQty = new Map<string, number>();
+        for (const oi of existingOrder.items) {
+          if (oi.menuItem.category.prepStation !== station) continue;
+          const base = JSON.stringify([oi.menuItemId, oi.notes ?? null]);
+          committedQty.set(base, (committedQty.get(base) ?? 0) + oi.quantity);
         }
-
-        // Count requested items by total quantity across all cart lines for each base key.
-        const requestedBaseCounts = new Map<string, number>();
-        for (const item of requestedStationItems) {
+        const requestedQty = new Map<string, number>();
+        for (const item of requested) {
           const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
-          requestedBaseCounts.set(base, (requestedBaseCounts.get(base) ?? 0) + item.quantity);
+          requestedQty.set(base, (requestedQty.get(base) ?? 0) + item.quantity);
         }
-
-        for (const [base, count] of startedBaseCounts) {
-          // The requested quantity must cover at least what is already being prepared.
-          if ((requestedBaseCounts.get(base) ?? 0) < count) {
+        for (const [base, qty] of committedQty) {
+          if ((requestedQty.get(base) ?? 0) < qty) {
             throw new ConflictError(
               'Order cannot be modified. Preparation has already started at one or more stations.',
             );
           }
         }
 
-        // Create tickets only for genuinely new item lines not already present.
-        // Use occurrence-indexed keys across ALL existing tickets for this station.
-        const allStationTickets = existingOrder.prepTickets.filter((ticket) => ticket.station === station);
-        const allOccurrenceKeys = buildOccurrenceKeys(allStationTickets);
-        const allExistingKeySet = new Set(allOccurrenceKeys.values());
-
-        // Track how many new-occurrence tickets we create per base key so the stepper
-        // loop below doesn't double-count them.
-        const newOccurrenceCountByBase = new Map<string, number>();
-        const requestedKeys = buildItemKeys(requestedStationItems);
-        requestedKeys.forEach((key, idx) => {
-          if (!allExistingKeySet.has(key)) {
-            const item = requestedStationItems[idx]!;
+        // Create one ticket per requested item line that doesn't already have a ticket.
+        // "Already has a ticket" means its occurrence key matches an existing ticket key.
+        // Track new occurrences created per base key so the stepper pass below doesn't double-count.
+        const allExistingKeys = new Set([...startedKeys, ...editableKeys]);
+        const newOccurrenceQtyByBase = new Map<string, number>();
+        for (let i = 0; i < requested.length; i++) {
+          if (!allExistingKeys.has(requestedKeys[i]!)) {
+            const item = requested[i]!;
             ticketCreates.push({
               station,
               items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
             });
             const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
-            newOccurrenceCountByBase.set(base, (newOccurrenceCountByBase.get(base) ?? 0) + item.quantity);
+            newOccurrenceQtyByBase.set(base, (newOccurrenceQtyByBase.get(base) ?? 0) + item.quantity);
           }
-        });
+        }
 
-        // Handle quantity increases on a single cart line (stepper use).
-        // If the waiter bumped qty 1 → 2 via the stepper, requestedStationItems has one entry
-        // with quantity 2, but only one ticket exists. The occurrence-key check above won't catch
-        // this because the key matches. We need to create one extra ticket per additional unit.
-        // Subtract any tickets already created by the occurrence loop above to avoid double-counting.
-        const allExistingBaseCounts = new Map<string, number>();
-        for (const ticket of allStationTickets) {
-          const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
-          const first = parsed[0];
+        // Stepper case: waiter sent qty=2 on a single line for an item that already has
+        // one ticket of qty=1. The occurrence-key loop above won't create a ticket because
+        // occurrence [id,null,0] already exists. Compare total requested vs total existing
+        // qty per base key and create one extra ticket per additional unit.
+        // Subtract any qty already created by the occurrence loop to avoid double-counting.
+        const existingQtyByBase = new Map<string, number>();
+        for (const t of stationTickets) {
+          const first = ticketItem(t);
           if (!first) continue;
           const base = JSON.stringify([first.menuItemId ?? '', first.notes ?? null]);
-          allExistingBaseCounts.set(base, (allExistingBaseCounts.get(base) ?? 0) + first.quantity);
+          existingQtyByBase.set(base, (existingQtyByBase.get(base) ?? 0) + first.quantity);
         }
-
-        // Sum requested quantities per base key
-        const requestedQtyByBase = new Map<string, { item: ResolvedOrderItem; totalQty: number }>();
-        for (const item of requestedStationItems) {
+        const requestedQtyByBase = new Map<string, { item: ResolvedOrderItem; qty: number }>();
+        for (const item of requested) {
           const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
-          const existing = requestedQtyByBase.get(base);
-          requestedQtyByBase.set(base, {
-            item,
-            totalQty: (existing?.totalQty ?? 0) + item.quantity,
-          });
+          const prev = requestedQtyByBase.get(base);
+          requestedQtyByBase.set(base, { item, qty: (prev?.qty ?? 0) + item.quantity });
         }
-
-        for (const [base, { item, totalQty }] of requestedQtyByBase) {
-          const existingCount = allExistingBaseCounts.get(base) ?? 0;
-          // Only handle items that already have tickets — brand-new items are fully covered
-          // by the occurrence-key loop above.
-          if (existingCount === 0) continue;
-          // Subtract tickets already created by the occurrence loop so we don't double-create.
-          const alreadyCreated = newOccurrenceCountByBase.get(base) ?? 0;
-          const extraUnits = totalQty - existingCount - alreadyCreated;
-          for (let i = 0; i < extraUnits; i++) {
+        for (const [base, { item, qty }] of requestedQtyByBase) {
+          const existing = existingQtyByBase.get(base) ?? 0;
+          if (existing === 0) continue; // fully new item — already handled above
+          const alreadyCreated = newOccurrenceQtyByBase.get(base) ?? 0;
+          const extras = qty - existing - alreadyCreated;
+          for (let e = 0; e < extras; e++) {
             ticketCreates.push({
               station,
               items: [{ menuItemId: item.menuItemId, name: item.name, quantity: 1, notes: item.notes }],
@@ -725,21 +681,21 @@ export const orderService = {
         continue;
       }
 
-      // Station not yet started — full reconciliation per item line.
-      // Use occurrence-indexed keys so two lines of the same item are treated as distinct.
-      const matchedTicketIds = new Set<string>();
-      const requestedKeys = buildItemKeys(requestedStationItems);
+      // Station not yet started — full reconciliation.
+      // Match requested lines to editable tickets by occurrence key.
+      // Unmatched requested lines → new tickets.
+      // Unmatched editable tickets → rejected.
+      // Stepper increase (qty > existing ticket qty) → keep existing ticket + new tickets for extra units.
+      const matchedEditableIds = new Set<string>();
 
-      requestedKeys.forEach((key, idx) => {
-        const item = requestedStationItems[idx]!;
-        const existingTicket = editableTicketsByKey.get(key);
+      for (let i = 0; i < requested.length; i++) {
+        const item = requested[i]!;
+        const existingTicket = editableByKey.get(requestedKeys[i]!);
 
         if (existingTicket) {
-          matchedTicketIds.add(existingTicket.id);
-          const existingParsed = parsePrepTicketItems(existingTicket.items as Prisma.JsonValue);
-          const existingQty = existingParsed[0]?.quantity ?? 1;
-          // Keep the existing ticket at its current qty (one-ticket-per-line model).
-          // If the waiter bumped qty via the stepper, create one new ticket per extra unit.
+          matchedEditableIds.add(existingTicket.id);
+          const existingQty = ticketItem(existingTicket)?.quantity ?? 1;
+          // Existing ticket keeps its original quantity — extra units each get their own ticket.
           ticketUpdates.push({
             ticketId: existingTicket.id,
             station,
@@ -747,25 +703,23 @@ export const orderService = {
             items: [{ menuItemId: item.menuItemId, name: item.name, quantity: existingQty, notes: item.notes }],
             clearRejection: existingTicket.status === PrepTicketStatus.REJECTED,
           });
-          const extraUnits = item.quantity - existingQty;
-          for (let i = 0; i < extraUnits; i++) {
+          for (let extra = item.quantity - existingQty; extra > 0; extra--) {
             ticketCreates.push({
               station,
               items: [{ menuItemId: item.menuItemId, name: item.name, quantity: 1, notes: item.notes }],
             });
           }
         } else {
-          // New item line not previously on the order
           ticketCreates.push({
             station,
             items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
           });
         }
-      });
+      }
 
-      // Reject editable tickets whose item line was removed from the order
-      for (const [, ticket] of editableTicketsByKey) {
-        if (!matchedTicketIds.has(ticket.id) && ticket.status === PrepTicketStatus.PENDING) {
+      // Reject editable tickets whose item line was removed
+      for (const ticket of editableTickets) {
+        if (!matchedEditableIds.has(ticket.id) && ticket.status === PrepTicketStatus.PENDING) {
           ticketUpdates.push({
             ticketId: ticket.id,
             station,

@@ -510,6 +510,72 @@ describe('orderService.updateItems', () => {
 
     expect(orderRepository.updateItems).not.toHaveBeenCalled();
   });
+
+  it('creates exactly one ticket when adding a second occurrence of a started item', async () => {
+    // Reproduces the production bug: order had 1 READY Samosa ticket; waiter adds another Samosa.
+    // Two loops were both creating tickets → 2 tickets instead of 1.
+    const order = buildEditableOrderRecord({
+      status: OrderStatus.READY,
+      items: [
+        {
+          id: 'item-kitchen-1',
+          orderId: '33333333-3333-4333-8333-333333333333',
+          menuItemId: 'kitchen-item-1',
+          quantity: 1,
+          unitPrice: new Prisma.Decimal('500.00'),
+          subtotal: new Prisma.Decimal('500.00'),
+          notes: null,
+          menuItem: { id: 'kitchen-item-1', name: 'Burger', category: { prepStation: 'KITCHEN' } },
+        },
+      ],
+      prepTickets: [
+        {
+          id: 'ticket-kitchen-1',
+          organizationId,
+          orderId: '33333333-3333-4333-8333-333333333333',
+          station: 'KITCHEN',
+          sequence: 1,
+          status: 'READY',
+          claimedById: 'chef-1',
+          claimedAt: new Date(),
+          readyAt: new Date(),
+          rejectedById: null,
+          rejectedReason: null,
+          rejectedAt: null,
+          items: [{ menuItemId: 'kitchen-item-1', name: 'Burger', quantity: 1, notes: null }],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          claimedBy: { id: 'chef-1', name: 'Chef One' },
+        },
+      ],
+    });
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(order);
+    vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
+      createMenuItem('kitchen-item-1', 'Burger', '500.00', 'KITCHEN'),
+    ]);
+    vi.mocked(orderRepository.updateItems).mockResolvedValue(order);
+
+    await orderService.updateItems(
+      order.id,
+      {
+        // Original Burger + one new Burger (second tap)
+        items: [
+          { menuItemId: 'kitchen-item-1', quantity: 1, notes: null },
+          { menuItemId: 'kitchen-item-1', quantity: 1, notes: null },
+        ],
+      },
+      waiterActor,
+    );
+
+    const call = vi.mocked(orderRepository.updateItems).mock.calls[0];
+    // Exactly one new ticket for the second Burger — not two
+    expect(call?.[4].creates).toHaveLength(1);
+    expect(call?.[4].creates[0]).toEqual({
+      station: 'KITCHEN',
+      items: [{ menuItemId: 'kitchen-item-1', name: 'Burger', quantity: 1, notes: null }],
+    });
+  });
 });
 describe('orderService.recordPayment', () => {
   beforeEach(() => {
