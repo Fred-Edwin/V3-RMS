@@ -67,11 +67,7 @@ const formatDisplayDate = (ymd: string): string => {
   return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const formatCurrency = (value: string | number): string => {
-  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
-  if (Number.isNaN(num)) return 'KES 0.00';
-  return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+
 
 const TABS = ['Overview', 'Staff', 'Peak Hours', 'Menu Items', 'Leave'] as const;
 type Tab = (typeof TABS)[number];
@@ -333,23 +329,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     [staffReport],
   );
 
-  const waiterRows = useMemo<StaffRow[]>(
-    () => staffRows.filter((r) => r.role === 'WAITER'),
-    [staffRows],
-  );
-
-  const waiterCollectionTotals = useMemo(() => {
-    if (waiterRows.length === 0) return null;
-    let mpesa = 0, cash = 0, card = 0, total = 0;
-    for (const w of waiterRows) {
-      if (!w.paymentBreakdown) continue;
-      mpesa += Number.parseFloat(w.paymentBreakdown.mpesa);
-      cash += Number.parseFloat(w.paymentBreakdown.cash);
-      card += Number.parseFloat(w.paymentBreakdown.card);
-      total += Number.parseFloat(w.paymentBreakdown.total);
-    }
-    return { mpesa, cash, card, total };
-  }, [waiterRows]);
 
   const staffColumns: Array<TableColumn<StaffRow>> = useMemo(() => [
     { key: 'name', label: 'Name' },
@@ -378,7 +357,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     },
   ], []);
 
-  const showCollections = staffRole === 'ALL' || staffRole === 'WAITER';
+
 
   // ── Leave derived values ──────────────────────────────────────────────────
 
@@ -610,56 +589,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
             )}
           </div>
 
-          {/* Waiter Collections Breakdown */}
-          {!isLoadingStaff && showCollections && waiterRows.length > 0 && (
-            <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
-              <div className="mb-4">
-                <h2 className="text-heading-md font-semibold text-stone-900">Waiter Collections</h2>
-                <p className="mt-0.5 text-body-sm text-stone-500">
-                  Payment method breakdown per waiter — {staffReport?.organizationName ?? ''} · {periodLabel}
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
-                  <thead>
-                    <tr className="border-b-2 border-stone-200 bg-stone-50">
-                      {['Waiter', 'Orders', 'M-Pesa', 'Cash', 'Card', 'Total'].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {waiterRows.map((w, i) => (
-                      <tr key={w.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'}>
-                        <td className="px-3 py-2.5 font-medium text-stone-900">{w.name}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.ordersHandled}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.mpesa) : '—'}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.cash) : '—'}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.card) : '—'}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-stone-900">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.total) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {waiterCollectionTotals && (
-                    <tfoot>
-                      <tr className="border-t-2 border-stone-200 bg-stone-50">
-                        <td className="px-3 py-2.5 text-label-sm font-semibold uppercase text-stone-700">Total</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">
-                          {waiterRows.reduce((sum, w) => sum + w.ordersHandled, 0)}
-                        </td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.mpesa)}</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.cash)}</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.card)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.total)}</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DatePicker, PageHeader, PageLayout, PriceDisplay, Select } from '@/components/ui';
+import { DatePicker, PageHeader, PageLayout, Select } from '@/components/ui';
 import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
@@ -89,7 +89,7 @@ export default function HistoryPage(): JSX.Element {
 
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
 
-  const { orders, pagination, isLoading, error, totalValue } = useOrderHistory({
+  const { orders, pagination, isLoading, error } = useOrderHistory({
     status,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -101,7 +101,6 @@ export default function HistoryPage(): JSX.Element {
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
-  const showFinancials = role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA'; // gates summary bar total only
 
   const handlePrintReceipt = async (orderId: string) => {
     if (!accessToken || isPrintSubmitting) return;
@@ -187,11 +186,10 @@ export default function HistoryPage(): JSX.Element {
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3">
+      <div className="flex items-center rounded-xl border border-stone-200 bg-white px-4 py-3">
         <p className="text-body-sm text-stone-600">
           <span className="font-semibold text-stone-900">{pagination.total}</span> orders
         </p>
-        {showFinancials && <PriceDisplay amount={totalValue} />}
       </div>
 
       {/* Order list */}
