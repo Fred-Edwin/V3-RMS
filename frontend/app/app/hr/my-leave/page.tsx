@@ -351,11 +351,13 @@ function RequestSheet({
           <p className="mb-2.5 text-label-sm font-semibold text-stone-500">Reason</p>
           <textarea
             rows={3}
+            maxLength={3000}
             placeholder="Briefly describe the reason for your leave…"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="w-full resize-none rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-body-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none"
           />
+          <p className="mt-1 text-right text-xs text-stone-400">{reason.length}/3000</p>
         </div>
 
         {/* Submit */}

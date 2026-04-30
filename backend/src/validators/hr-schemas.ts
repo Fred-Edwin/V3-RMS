@@ -52,7 +52,7 @@ export const createLeaveRequestSchema = z.object({
   leaveType: z.enum(['ANNUAL', 'SICK', 'EMERGENCY', 'UNPAID']),
   startDate: z.string().datetime(),
   endDate: z.string().datetime(),
-  reason: z.string().min(1, 'Reason is required').max(1000),
+  reason: z.string().min(1, 'Reason is required').max(3000),
 });
 
 export const reviewLeaveRequestSchema = z.object({
