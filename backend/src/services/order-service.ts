@@ -665,6 +665,9 @@ export const orderService = {
         const allOccurrenceKeys = buildOccurrenceKeys(allStationTickets);
         const allExistingKeySet = new Set(allOccurrenceKeys.values());
 
+        // Track how many new-occurrence tickets we create per base key so the stepper
+        // loop below doesn't double-count them.
+        const newOccurrenceCountByBase = new Map<string, number>();
         const requestedKeys = buildItemKeys(requestedStationItems);
         requestedKeys.forEach((key, idx) => {
           if (!allExistingKeySet.has(key)) {
@@ -673,6 +676,8 @@ export const orderService = {
               station,
               items: [{ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, notes: item.notes }],
             });
+            const base = JSON.stringify([item.menuItemId, item.notes ?? null]);
+            newOccurrenceCountByBase.set(base, (newOccurrenceCountByBase.get(base) ?? 0) + item.quantity);
           }
         });
 
@@ -680,8 +685,7 @@ export const orderService = {
         // If the waiter bumped qty 1 → 2 via the stepper, requestedStationItems has one entry
         // with quantity 2, but only one ticket exists. The occurrence-key check above won't catch
         // this because the key matches. We need to create one extra ticket per additional unit.
-        // Sum existing ticket quantities (not ticket count) so the comparison is in the same
-        // units as totalQty. A single ticket for Cake qty=2 must count as 2, not 1.
+        // Subtract any tickets already created by the occurrence loop above to avoid double-counting.
         const allExistingBaseCounts = new Map<string, number>();
         for (const ticket of allStationTickets) {
           const parsed = parsePrepTicketItems(ticket.items as Prisma.JsonValue);
@@ -704,12 +708,12 @@ export const orderService = {
 
         for (const [base, { item, totalQty }] of requestedQtyByBase) {
           const existingCount = allExistingBaseCounts.get(base) ?? 0;
-          // Only handle items that already have tickets — new items are covered by the
-          // occurrence-key loop above. Extra units beyond existing ticket count each get
-          // their own ticket of qty 1 (consistent with the one-ticket-per-line model).
+          // Only handle items that already have tickets — brand-new items are fully covered
+          // by the occurrence-key loop above.
           if (existingCount === 0) continue;
-          const extraUnits = totalQty - existingCount;
-          console.log('[stepper/started] base=%s existingCount=%d totalQty=%d extraUnits=%d', base, existingCount, totalQty, extraUnits);
+          // Subtract tickets already created by the occurrence loop so we don't double-create.
+          const alreadyCreated = newOccurrenceCountByBase.get(base) ?? 0;
+          const extraUnits = totalQty - existingCount - alreadyCreated;
           for (let i = 0; i < extraUnits; i++) {
             ticketCreates.push({
               station,
