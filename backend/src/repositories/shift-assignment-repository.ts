@@ -137,12 +137,15 @@ export const shiftAssignmentRepository = {
   },
 
   deleteByIds: async (ids: string[], organizationId: string): Promise<number> => {
-    const result = await prisma.shiftAssignment.deleteMany({
-      where: {
-        id: { in: ids },
-        organizationId,
-      },
+    // Delete clock records first to satisfy the FK constraint, then the assignments
+    return prisma.$transaction(async (tx) => {
+      await tx.clockRecord.deleteMany({
+        where: { shiftAssignmentId: { in: ids } },
+      });
+      const result = await tx.shiftAssignment.deleteMany({
+        where: { id: { in: ids }, organizationId },
+      });
+      return result.count;
     });
-    return result.count;
   },
 };
