@@ -3,6 +3,8 @@ import { shiftAssignmentService } from '../services/shift-assignment-service';
 import { UnauthorizedError } from '../utils/errors';
 import {
   BatchCreateShiftAssignmentSchema,
+  BatchDeleteShiftAssignmentSchema,
+  CopyMonthSchema,
   CreateShiftAssignmentSchema,
   ShiftAssignmentIdParamSchema,
   ShiftAssignmentQuerySchema,
@@ -49,6 +51,30 @@ export const shiftAssignmentController = {
       success: true,
       data: result,
       message: `${result.created} assignment${result.created === 1 ? '' : 's'} created, ${result.skipped} skipped`,
+    });
+  },
+
+  copyMonth: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = CopyMonthSchema.parse(req.body);
+    const result = await shiftAssignmentService.copyMonth(actor, data);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: `${result.created} assignment${result.created === 1 ? '' : 's'} copied, ${result.skipped} skipped`,
+    });
+  },
+
+  batchDeleteAssignments: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = BatchDeleteShiftAssignmentSchema.parse(req.body);
+    const result = await shiftAssignmentService.batchDeleteAssignments(actor, data);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: `${result.deleted} assignment${result.deleted === 1 ? '' : 's'} deleted`,
     });
   },
 

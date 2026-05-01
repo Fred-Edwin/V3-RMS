@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, MapPin, Search, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Copy, MapPin, Search, ShieldAlert, Trash2, Users, X } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -25,6 +25,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type {
   ClockOverrideInput,
+  CopyMonthInput,
   CreateShiftAssignmentInput,
   Shift,
   ShiftAssignment,
@@ -58,6 +59,12 @@ interface OverrideModalState {
   action: ClockOverrideInput['action'];
   reasonCode: string;
   notes: string;
+}
+
+interface CopyMonthModalState {
+  isOpen: boolean;
+  sourceMonth: string; // YYYY-MM
+  targetMonth: string; // YYYY-MM
 }
 
 interface BatchModalState {
@@ -233,6 +240,20 @@ export default function ShiftManagementPage(): JSX.Element {
     isOpen: false, assignment: null, action: 'CLOCK_IN', reasonCode: '', notes: '',
   });
   const [batchModal, setBatchModal] = useState<BatchModalState>(defaultBatchModal);
+
+  const [copyMonthModal, setCopyMonthModal] = useState<CopyMonthModalState>(() => {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    return { isOpen: false, sourceMonth: prevMonth, targetMonth: thisMonth };
+  });
+  const [isCopyingMonth, setIsCopyingMonth] = useState(false);
+
+  // Batch-delete selection mode
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedAssignmentIds, setSelectedAssignmentIds] = useState<Set<string>>(new Set());
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -517,6 +538,58 @@ export default function ShiftManagementPage(): JSX.Element {
     }
   };
 
+  // ── Copy month ─────────────────────────────────────────────────────────────
+
+  const handleCopyMonth = async (): Promise<void> => {
+    if (!accessToken) return;
+    setIsCopyingMonth(true);
+    try {
+      const result = await shiftService.copyMonth(
+        { sourceMonth: copyMonthModal.sourceMonth, targetMonth: copyMonthModal.targetMonth } satisfies CopyMonthInput,
+        accessToken,
+      );
+      setCopyMonthModal((c) => ({ ...c, isOpen: false }));
+      await loadAssignments();
+      const detail = result.skipped > 0 ? ` (${result.skipped} skipped — duplicates or inactive shifts)` : '';
+      toast({ variant: result.created > 0 ? 'success' : 'warning', title: `${result.created} assignment${result.created === 1 ? '' : 's'} copied${detail}` });
+    } catch (error) {
+      toast({ variant: 'error', title: 'Copy failed', message: error instanceof ApiError ? error.message : 'Unable to copy schedule.' });
+    } finally {
+      setIsCopyingMonth(false);
+    }
+  };
+
+  // ── Batch delete ───────────────────────────────────────────────────────────
+
+  const toggleSelectMode = () => {
+    setIsSelectMode((v) => !v);
+    setSelectedAssignmentIds(new Set());
+  };
+
+  const toggleAssignmentSelection = (id: string) => {
+    setSelectedAssignmentIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBatchDelete = async (): Promise<void> => {
+    if (!accessToken || selectedAssignmentIds.size === 0) return;
+    setIsBatchDeleting(true);
+    try {
+      const result = await shiftService.batchDeleteAssignments({ ids: Array.from(selectedAssignmentIds) }, accessToken);
+      setSelectedAssignmentIds(new Set());
+      setIsSelectMode(false);
+      await loadAssignments();
+      toast({ variant: 'success', title: `${result.deleted} assignment${result.deleted === 1 ? '' : 's'} deleted` });
+    } catch (error) {
+      toast({ variant: 'error', title: 'Delete failed', message: error instanceof ApiError ? error.message : 'Unable to delete assignments.' });
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
   // ── Table columns ──────────────────────────────────────────────────────────
 
   const shiftColumns: TableColumn<ShiftRow>[] = [
@@ -609,22 +682,34 @@ export default function ShiftManagementPage(): JSX.Element {
           <div className="space-y-1.5">
             {cellAssignments.map((assignment) => {
               const color = getShiftColor(assignment.shiftId, shifts);
+              const isSelected = selectedAssignmentIds.has(assignment.id);
               return (
-                <div key={assignment.id} className={`group relative rounded-md border-l-[3px] ${color.border} ${color.bg} px-2 py-1.5 transition-shadow duration-fast hover:shadow-md`}>
+                <div
+                  key={assignment.id}
+                  className={`group relative rounded-md border-l-[3px] ${color.border} ${color.bg} px-2 py-1.5 transition-shadow duration-fast hover:shadow-md ${isSelectMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-2 ring-[#991B1B]' : ''}`}
+                  onClick={isSelectMode ? () => toggleAssignmentSelection(assignment.id) : undefined}
+                >
+                  {isSelectMode && (
+                    <span className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 ${isSelected ? 'border-[#991B1B] bg-[#991B1B]' : 'border-stone-400 bg-white'}`}>
+                      {isSelected && <span className="h-1.5 w-1.5 rounded-sm bg-white" />}
+                    </span>
+                  )}
                   <p className={`text-label-sm font-semibold ${color.text}`}>{assignment.shift.name}</p>
                   <p className="text-[10px] text-stone-500">{assignment.shift.startTime} – {assignment.shift.endTime}</p>
-                  <button
-                    type="button"
-                    className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
-                    onClick={() => setAssignmentPendingDelete(assignment)}
-                    aria-label={`Remove ${assignment.shift.name}`}
-                  >
-                    <Trash2 size={9} />
-                  </button>
+                  {!isSelectMode && (
+                    <button
+                      type="button"
+                      className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
+                      onClick={() => setAssignmentPendingDelete(assignment)}
+                      aria-label={`Remove ${assignment.shift.name}`}
+                    >
+                      <Trash2 size={9} />
+                    </button>
+                  )}
                 </div>
               );
             })}
-            {!isPastDate && (
+            {!isPastDate && !isSelectMode && (
               <button
                 type="button"
                 className={`flex w-full items-center justify-center rounded-md border border-dashed py-1 text-[10px] font-medium transition-colors duration-fast ${
@@ -639,7 +724,7 @@ export default function ShiftManagementPage(): JSX.Element {
             )}
           </div>
         ) : (
-          isPastDate ? (
+          isPastDate || isSelectMode ? (
             <div className="flex h-10 items-center justify-center">
               <span className="text-[11px] text-stone-200">—</span>
             </div>
@@ -694,18 +779,25 @@ export default function ShiftManagementPage(): JSX.Element {
           <div className="space-y-0.5">
             {cellAssignments?.map((a) => {
               const color = getShiftColor(a.shiftId, shifts);
+              const isSelected = selectedAssignmentIds.has(a.id);
               return (
-                <div key={a.id} className={`group relative flex items-center gap-1 rounded px-1 py-0.5 ${color.bg}`}>
+                <div
+                  key={a.id}
+                  className={`group relative flex items-center gap-1 rounded px-1 py-0.5 ${color.bg} ${isSelectMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-1 ring-[#991B1B]' : ''}`}
+                  onClick={isSelectMode ? () => toggleAssignmentSelection(a.id) : undefined}
+                >
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`} />
                   <span className={`truncate text-[9px] font-medium leading-tight ${color.text}`}>{a.shift.name}</span>
-                  <button
-                    type="button"
-                    className="ml-auto hidden shrink-0 text-[#991B1B] group-hover:block"
-                    onClick={() => setAssignmentPendingDelete(a)}
-                    aria-label={`Remove ${a.shift.name}`}
-                  >
-                    <Trash2 size={8} />
-                  </button>
+                  {!isSelectMode && (
+                    <button
+                      type="button"
+                      className="ml-auto hidden shrink-0 text-[#991B1B] group-hover:block"
+                      onClick={() => setAssignmentPendingDelete(a)}
+                      aria-label={`Remove ${a.shift.name}`}
+                    >
+                      <Trash2 size={8} />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -812,6 +904,17 @@ export default function ShiftManagementPage(): JSX.Element {
               />
             </div>
 
+            {/* Copy month */}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCopyMonthModal((c) => ({ ...c, isOpen: true }))}
+              disabled={shifts.length === 0 || staff.length === 0}
+            >
+              <Copy size={14} className="mr-1.5" />
+              Copy Month
+            </Button>
+
             {/* Batch assign */}
             <Button
               variant="secondary"
@@ -822,6 +925,36 @@ export default function ShiftManagementPage(): JSX.Element {
               <Users size={14} className="mr-1.5" />
               Batch Assign
             </Button>
+
+            {/* Select / batch delete */}
+            {isSelectMode ? (
+              <div className="flex items-center gap-2">
+                <span className="text-label-sm text-stone-500">{selectedAssignmentIds.size} selected</span>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => void handleBatchDelete()}
+                  isLoading={isBatchDeleting}
+                  disabled={selectedAssignmentIds.size === 0}
+                >
+                  <Trash2 size={14} className="mr-1.5" />
+                  Delete
+                </Button>
+                <Button size="sm" variant="secondary" onClick={toggleSelectMode} disabled={isBatchDeleting}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={toggleSelectMode}
+                disabled={viewAssignments.length === 0}
+              >
+                <Trash2 size={14} className="mr-1.5" />
+                Select &amp; Delete
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1242,6 +1375,51 @@ export default function ShiftManagementPage(): JSX.Element {
             placeholder={overrideModal.reasonCode === 'Other' ? 'Describe why the override is needed' : 'Optional note for the audit trail'}
           />
         </form>
+      </Modal>
+
+      {/* Copy month modal */}
+      <Modal
+        isOpen={copyMonthModal.isOpen}
+        onClose={() => { if (!isCopyingMonth) setCopyMonthModal((c) => ({ ...c, isOpen: false })); }}
+        title="Copy Schedule to Another Month"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-caption text-stone-500">Existing assignments in the target month are kept — duplicates are skipped.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => setCopyMonthModal((c) => ({ ...c, isOpen: false }))} disabled={isCopyingMonth}>Cancel</Button>
+              <Button onClick={() => void handleCopyMonth()} isLoading={isCopyingMonth} disabled={copyMonthModal.sourceMonth === copyMonthModal.targetMonth}>Copy Schedule</Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-body-sm text-stone-600">
+            All assignments from the source month will be remapped to the same day-of-week pattern in the target month.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy from</label>
+              <input
+                type="month"
+                value={copyMonthModal.sourceMonth}
+                onChange={(e) => setCopyMonthModal((c) => ({ ...c, sourceMonth: e.target.value }))}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy to</label>
+              <input
+                type="month"
+                value={copyMonthModal.targetMonth}
+                onChange={(e) => setCopyMonthModal((c) => ({ ...c, targetMonth: e.target.value }))}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
+              />
+            </div>
+          </div>
+          {copyMonthModal.sourceMonth === copyMonthModal.targetMonth && (
+            <p className="text-label-sm text-[#991B1B]">Source and target month must be different.</p>
+          )}
+        </div>
       </Modal>
 
       {/* Confirm dialogs */}

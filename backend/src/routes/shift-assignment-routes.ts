@@ -30,6 +30,22 @@ shiftAssignmentRoutes.post(
   shiftAssignmentController.batchCreateAssignments,
 );
 
+shiftAssignmentRoutes.post(
+  '/shift-assignments/copy-month',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER'),
+  shiftAssignmentController.copyMonth,
+);
+
+shiftAssignmentRoutes.post(
+  '/shift-assignments/batch-delete',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER'),
+  shiftAssignmentController.batchDeleteAssignments,
+);
+
 shiftAssignmentRoutes.delete(
   '/shift-assignments/:id',
   authenticate,

@@ -104,3 +104,21 @@ export interface BatchCreateAssignmentResult {
   skipped: number;
   errors: { userId: string; date: string; reason: string }[];
 }
+
+export interface CopyMonthInput {
+  sourceMonth: string; // YYYY-MM
+  targetMonth: string; // YYYY-MM
+}
+
+export interface CopyMonthResult {
+  created: number;
+  skipped: number;
+}
+
+export interface BatchDeleteAssignmentInput {
+  ids: string[];
+}
+
+export interface BatchDeleteAssignmentResult {
+  deleted: number;
+}

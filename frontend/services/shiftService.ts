@@ -3,8 +3,12 @@ import type { ApiResponseEnvelope } from '@/types/api';
 import type {
   BatchCreateAssignmentInput,
   BatchCreateAssignmentResult,
+  BatchDeleteAssignmentInput,
+  BatchDeleteAssignmentResult,
   ClockInOutInput,
   ClockOverrideInput,
+  CopyMonthInput,
+  CopyMonthResult,
   CreateShiftAssignmentInput,
   CreateShiftInput,
   ListShiftAssignmentsQuery,
@@ -87,6 +91,17 @@ export const shiftService = {
 
   deleteAssignment: async (id: string, accessToken: string): Promise<void> => {
     await apiClient.delete<void>(`/shift-assignments/${id}`, accessToken);
+  },
+
+  copyMonth: (data: CopyMonthInput, accessToken: string): Promise<CopyMonthResult> => {
+    return apiClient.post<CopyMonthResult>('/shift-assignments/copy-month', data, accessToken);
+  },
+
+  batchDeleteAssignments: (
+    data: BatchDeleteAssignmentInput,
+    accessToken: string,
+  ): Promise<BatchDeleteAssignmentResult> => {
+    return apiClient.post<BatchDeleteAssignmentResult>('/shift-assignments/batch-delete', data, accessToken);
   },
 
   clockIn: (data: ClockInOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {

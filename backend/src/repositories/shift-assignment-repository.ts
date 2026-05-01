@@ -118,4 +118,31 @@ export const shiftAssignmentRepository = {
 
     return result.count > 0;
   },
+
+  findByOrganizationAndMonth: async (
+    organizationId: string,
+    year: number,
+    month: number,
+  ): Promise<ShiftAssignmentWithRelations[]> => {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0); // last day of month
+    return prisma.shiftAssignment.findMany({
+      where: {
+        organizationId,
+        date: { gte: startDate, lte: endDate },
+      },
+      include: shiftAssignmentInclude,
+      orderBy: [{ date: 'asc' }, { shift: { startTime: 'asc' } }],
+    });
+  },
+
+  deleteByIds: async (ids: string[], organizationId: string): Promise<number> => {
+    const result = await prisma.shiftAssignment.deleteMany({
+      where: {
+        id: { in: ids },
+        organizationId,
+      },
+    });
+    return result.count;
+  },
 };

@@ -44,6 +44,17 @@ export const BatchCreateShiftAssignmentSchema = z.object({
   dates: z.array(isoDateSchema).min(1).max(62),
 });
 
+const yearMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM format');
+
+export const CopyMonthSchema = z.object({
+  sourceMonth: yearMonthSchema,
+  targetMonth: yearMonthSchema,
+}).refine((d) => d.sourceMonth !== d.targetMonth, { message: 'sourceMonth and targetMonth must be different' });
+
+export const BatchDeleteShiftAssignmentSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(200),
+});
+
 export const ClockInOutSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
@@ -74,6 +85,8 @@ export type ShiftListQueryInput = z.infer<typeof ShiftListQuerySchema>;
 export type ShiftAssignmentQueryInput = z.infer<typeof ShiftAssignmentQuerySchema>;
 export type CreateShiftAssignmentInput = z.infer<typeof CreateShiftAssignmentSchema>;
 export type BatchCreateShiftAssignmentInput = z.infer<typeof BatchCreateShiftAssignmentSchema>;
+export type CopyMonthInput = z.infer<typeof CopyMonthSchema>;
+export type BatchDeleteShiftAssignmentInput = z.infer<typeof BatchDeleteShiftAssignmentSchema>;
 export type ClockInOutInput = z.infer<typeof ClockInOutSchema>;
 export type ClockOverrideInput = z.infer<typeof ClockOverrideSchema>;
 export type UndoClockOutInput = z.infer<typeof UndoClockOutSchema>;
