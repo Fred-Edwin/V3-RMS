@@ -4,7 +4,7 @@ import { UnauthorizedError } from '../utils/errors';
 import {
   BatchCreateShiftAssignmentSchema,
   BatchDeleteShiftAssignmentSchema,
-  CopyMonthSchema,
+  CopyWeekSchema,
   CreateShiftAssignmentSchema,
   ShiftAssignmentIdParamSchema,
   ShiftAssignmentQuerySchema,
@@ -54,10 +54,10 @@ export const shiftAssignmentController = {
     });
   },
 
-  copyMonth: async (req: Request, res: Response): Promise<void> => {
+  copyWeek: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const data = CopyMonthSchema.parse(req.body);
-    const result = await shiftAssignmentService.copyMonth(actor, data);
+    const data = CopyWeekSchema.parse(req.body);
+    const result = await shiftAssignmentService.copyWeek(actor, data);
 
     res.status(200).json({
       success: true,

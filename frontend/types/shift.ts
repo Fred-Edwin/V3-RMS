@@ -105,12 +105,12 @@ export interface BatchCreateAssignmentResult {
   errors: { userId: string; date: string; reason: string }[];
 }
 
-export interface CopyMonthInput {
-  sourceMonth: string; // YYYY-MM
-  targetMonth: string; // YYYY-MM
+export interface CopyWeekInput {
+  sourceWeekStart: string; // YYYY-MM-DD (Monday)
+  targetWeekStart: string; // YYYY-MM-DD (Monday)
 }
 
-export interface CopyMonthResult {
+export interface CopyWeekResult {
   created: number;
   skipped: number;
 }

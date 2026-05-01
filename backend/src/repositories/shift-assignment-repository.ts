@@ -119,17 +119,16 @@ export const shiftAssignmentRepository = {
     return result.count > 0;
   },
 
-  findByOrganizationAndMonth: async (
+  findByOrganizationAndWeek: async (
     organizationId: string,
-    year: number,
-    month: number,
+    weekStart: Date,
   ): Promise<ShiftAssignmentWithRelations[]> => {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0); // last day of month
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     return prisma.shiftAssignment.findMany({
       where: {
         organizationId,
-        date: { gte: startDate, lte: endDate },
+        date: { gte: weekStart, lte: weekEnd },
       },
       include: shiftAssignmentInclude,
       orderBy: [{ date: 'asc' }, { shift: { startTime: 'asc' } }],

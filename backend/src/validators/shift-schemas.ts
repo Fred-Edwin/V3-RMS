@@ -44,12 +44,10 @@ export const BatchCreateShiftAssignmentSchema = z.object({
   dates: z.array(isoDateSchema).min(1).max(62),
 });
 
-const yearMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM format');
-
-export const CopyMonthSchema = z.object({
-  sourceMonth: yearMonthSchema,
-  targetMonth: yearMonthSchema,
-}).refine((d) => d.sourceMonth !== d.targetMonth, { message: 'sourceMonth and targetMonth must be different' });
+export const CopyWeekSchema = z.object({
+  sourceWeekStart: isoDateSchema, // Monday of the source week (YYYY-MM-DD)
+  targetWeekStart: isoDateSchema, // Monday of the target week (YYYY-MM-DD)
+}).refine((d) => d.sourceWeekStart !== d.targetWeekStart, { message: 'sourceWeekStart and targetWeekStart must be different' });
 
 export const BatchDeleteShiftAssignmentSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(200),
@@ -85,7 +83,7 @@ export type ShiftListQueryInput = z.infer<typeof ShiftListQuerySchema>;
 export type ShiftAssignmentQueryInput = z.infer<typeof ShiftAssignmentQuerySchema>;
 export type CreateShiftAssignmentInput = z.infer<typeof CreateShiftAssignmentSchema>;
 export type BatchCreateShiftAssignmentInput = z.infer<typeof BatchCreateShiftAssignmentSchema>;
-export type CopyMonthInput = z.infer<typeof CopyMonthSchema>;
+export type CopyWeekInput = z.infer<typeof CopyWeekSchema>;
 export type BatchDeleteShiftAssignmentInput = z.infer<typeof BatchDeleteShiftAssignmentSchema>;
 export type ClockInOutInput = z.infer<typeof ClockInOutSchema>;
 export type ClockOverrideInput = z.infer<typeof ClockOverrideSchema>;

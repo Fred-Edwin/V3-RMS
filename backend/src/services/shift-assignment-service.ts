@@ -6,7 +6,7 @@ import { shiftRepository } from '../repositories/shift-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { getTodayDateOnly, parseDateOnly, toIsoDateOnly } from '../utils/date-only';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
-import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, CopyMonthInput, CreateShiftAssignmentInput, ShiftAssignmentQueryInput } from '../validators/shift-schemas';
+import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, CopyWeekInput, CreateShiftAssignmentInput, ShiftAssignmentQueryInput } from '../validators/shift-schemas';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -211,32 +211,30 @@ export const shiftAssignmentService = {
     return { created, skipped, errors };
   },
 
-  copyMonth: async (
+  copyWeek: async (
     actor: Actor,
-    input: CopyMonthInput,
+    input: CopyWeekInput,
   ): Promise<{ created: number; skipped: number }> => {
     if (!actor.organizationId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
 
-    const srcParts = input.sourceMonth.split('-');
-    const tgtParts = input.targetMonth.split('-');
-    const srcYear = parseInt(srcParts[0]!, 10);
-    const srcMonth = parseInt(srcParts[1]!, 10);
-    const tgtYear = parseInt(tgtParts[0]!, 10);
-    const tgtMonth = parseInt(tgtParts[1]!, 10);
+    const sourceWeekStart = parseDateOnly(input.sourceWeekStart);
+    const targetWeekStart = parseDateOnly(input.targetWeekStart);
 
-    const sourceAssignments = await shiftAssignmentRepository.findByOrganizationAndMonth(
+    // Offset in milliseconds between the two week starts
+    const offsetMs = targetWeekStart.getTime() - sourceWeekStart.getTime();
+
+    const sourceAssignments = await shiftAssignmentRepository.findByOrganizationAndWeek(
       actor.organizationId,
-      srcYear,
-      srcMonth,
+      sourceWeekStart,
     );
 
     if (sourceAssignments.length === 0) {
       return { created: 0, skipped: 0 };
     }
 
-    // Verify all referenced shifts still exist (they should, but guard defensively)
+    // Guard: skip assignments for inactive shifts
     const shiftIds = [...new Set(sourceAssignments.map((a) => a.shiftId))];
     const shifts = await Promise.all(
       shiftIds.map((id) => shiftRepository.findById(id, actor.organizationId!)),
@@ -245,8 +243,6 @@ export const shiftAssignmentService = {
       shifts.filter((s) => s !== null && s.isActive).map((s) => s!.id),
     );
 
-    // Map each source assignment to the same day-of-week in the target month
-    const targetMonthLastDay = new Date(tgtYear, tgtMonth, 0).getDate();
     let created = 0;
     let skipped = 0;
 
@@ -256,28 +252,8 @@ export const shiftAssignmentService = {
         continue;
       }
 
-      // Find the same day-of-week in the target month
-      const srcDate = new Date(src.date);
-      const srcDow = srcDate.getUTCDay();
-      const srcDayOfMonth = srcDate.getUTCDate();
-
-      // Walk forward from the same-numbered day in the target month to find the same DOW
-      // Strategy: map the same calendar position — same week-of-month, same day-of-week.
-      // If that date falls outside the target month (e.g. Feb shorter), skip it.
-      const srcMonthLastDay = new Date(srcYear, srcMonth, 0).getDate();
-      const weekOfMonth = Math.floor((srcDayOfMonth - 1) / 7);
-      const firstDowInTarget = new Date(tgtYear, tgtMonth - 1, 1).getDay();
-      let dayOfMonth = 1 + weekOfMonth * 7 + ((srcDow - firstDowInTarget + 7) % 7);
-      if (dayOfMonth > targetMonthLastDay) {
-        // Same week-of-month doesn't exist in target (e.g. 5th Friday) — skip
-        skipped++;
-        continue;
-      }
-
-      // Suppress unused variable warning for srcMonthLastDay — it documents intent above
-      void srcMonthLastDay;
-
-      const targetDate = new Date(Date.UTC(tgtYear, tgtMonth - 1, dayOfMonth));
+      // Shift the date by the exact offset — preserves day-of-week perfectly
+      const targetDate = new Date(src.date.getTime() + offsetMs);
 
       try {
         await shiftAssignmentRepository.create(actor.organizationId, {

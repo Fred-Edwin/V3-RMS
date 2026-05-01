@@ -31,11 +31,11 @@ shiftAssignmentRoutes.post(
 );
 
 shiftAssignmentRoutes.post(
-  '/shift-assignments/copy-month',
+  '/shift-assignments/copy-week',
   authenticate,
   branchScope,
   requireRole('MANAGER'),
-  shiftAssignmentController.copyMonth,
+  shiftAssignmentController.copyWeek,
 );
 
 shiftAssignmentRoutes.post(

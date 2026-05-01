@@ -25,7 +25,7 @@ import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type {
   ClockOverrideInput,
-  CopyMonthInput,
+  CopyWeekInput,
   CreateShiftAssignmentInput,
   Shift,
   ShiftAssignment,
@@ -61,10 +61,10 @@ interface OverrideModalState {
   notes: string;
 }
 
-interface CopyMonthModalState {
+interface CopyWeekModalState {
   isOpen: boolean;
-  sourceMonth: string; // YYYY-MM
-  targetMonth: string; // YYYY-MM
+  sourceWeekStart: string; // YYYY-MM-DD (Monday)
+  targetWeekStart: string; // YYYY-MM-DD (Monday)
 }
 
 interface BatchModalState {
@@ -241,14 +241,12 @@ export default function ShiftManagementPage(): JSX.Element {
   });
   const [batchModal, setBatchModal] = useState<BatchModalState>(defaultBatchModal);
 
-  const [copyMonthModal, setCopyMonthModal] = useState<CopyMonthModalState>(() => {
-    const now = new Date();
-    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-    return { isOpen: false, sourceMonth: prevMonth, targetMonth: thisMonth };
+  const [copyWeekModal, setCopyWeekModal] = useState<CopyWeekModalState>(() => {
+    const thisMonday = dateToYmd(getMonday(new Date()));
+    const prevMonday = dateToYmd(addDays(getMonday(new Date()), -7));
+    return { isOpen: false, sourceWeekStart: prevMonday, targetWeekStart: thisMonday };
   });
-  const [isCopyingMonth, setIsCopyingMonth] = useState(false);
+  const [isCopyingWeek, setIsCopyingWeek] = useState(false);
 
   // Batch-delete selection mode
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -538,24 +536,24 @@ export default function ShiftManagementPage(): JSX.Element {
     }
   };
 
-  // ── Copy month ─────────────────────────────────────────────────────────────
+  // ── Copy week ──────────────────────────────────────────────────────────────
 
-  const handleCopyMonth = async (): Promise<void> => {
+  const handleCopyWeek = async (): Promise<void> => {
     if (!accessToken) return;
-    setIsCopyingMonth(true);
+    setIsCopyingWeek(true);
     try {
-      const result = await shiftService.copyMonth(
-        { sourceMonth: copyMonthModal.sourceMonth, targetMonth: copyMonthModal.targetMonth } satisfies CopyMonthInput,
+      const result = await shiftService.copyWeek(
+        { sourceWeekStart: copyWeekModal.sourceWeekStart, targetWeekStart: copyWeekModal.targetWeekStart } satisfies CopyWeekInput,
         accessToken,
       );
-      setCopyMonthModal((c) => ({ ...c, isOpen: false }));
+      setCopyWeekModal((c) => ({ ...c, isOpen: false }));
       await loadAssignments();
       const detail = result.skipped > 0 ? ` (${result.skipped} skipped — duplicates or inactive shifts)` : '';
       toast({ variant: result.created > 0 ? 'success' : 'warning', title: `${result.created} assignment${result.created === 1 ? '' : 's'} copied${detail}` });
     } catch (error) {
       toast({ variant: 'error', title: 'Copy failed', message: error instanceof ApiError ? error.message : 'Unable to copy schedule.' });
     } finally {
-      setIsCopyingMonth(false);
+      setIsCopyingWeek(false);
     }
   };
 
@@ -904,15 +902,15 @@ export default function ShiftManagementPage(): JSX.Element {
               />
             </div>
 
-            {/* Copy month */}
+            {/* Copy week */}
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setCopyMonthModal((c) => ({ ...c, isOpen: true }))}
+              onClick={() => setCopyWeekModal((c) => ({ ...c, isOpen: true }))}
               disabled={shifts.length === 0 || staff.length === 0}
             >
               <Copy size={14} className="mr-1.5" />
-              Copy Month
+              Copy Week
             </Button>
 
             {/* Batch assign */}
@@ -1377,47 +1375,59 @@ export default function ShiftManagementPage(): JSX.Element {
         </form>
       </Modal>
 
-      {/* Copy month modal */}
+      {/* Copy week modal */}
       <Modal
-        isOpen={copyMonthModal.isOpen}
-        onClose={() => { if (!isCopyingMonth) setCopyMonthModal((c) => ({ ...c, isOpen: false })); }}
-        title="Copy Schedule to Another Month"
+        isOpen={copyWeekModal.isOpen}
+        onClose={() => { if (!isCopyingWeek) setCopyWeekModal((c) => ({ ...c, isOpen: false })); }}
+        title="Copy Week Schedule"
         footer={
           <div className="flex items-center justify-between gap-3">
-            <p className="text-caption text-stone-500">Existing assignments in the target month are kept — duplicates are skipped.</p>
+            <p className="text-caption text-stone-500">Existing assignments in the target week are kept — duplicates are skipped.</p>
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setCopyMonthModal((c) => ({ ...c, isOpen: false }))} disabled={isCopyingMonth}>Cancel</Button>
-              <Button onClick={() => void handleCopyMonth()} isLoading={isCopyingMonth} disabled={copyMonthModal.sourceMonth === copyMonthModal.targetMonth}>Copy Schedule</Button>
+              <Button variant="secondary" onClick={() => setCopyWeekModal((c) => ({ ...c, isOpen: false }))} disabled={isCopyingWeek}>Cancel</Button>
+              <Button onClick={() => void handleCopyWeek()} isLoading={isCopyingWeek} disabled={copyWeekModal.sourceWeekStart === copyWeekModal.targetWeekStart}>Copy Schedule</Button>
             </div>
           </div>
         }
       >
         <div className="space-y-4">
           <p className="text-body-sm text-stone-600">
-            All assignments from the source month will be remapped to the same day-of-week pattern in the target month.
+            Pick a source week and a target week. Every assignment is copied to the same day of the target week.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy from</label>
               <input
-                type="month"
-                value={copyMonthModal.sourceMonth}
-                onChange={(e) => setCopyMonthModal((c) => ({ ...c, sourceMonth: e.target.value }))}
+                type="date"
+                value={copyWeekModal.sourceWeekStart}
+                onChange={(e) => {
+                  const monday = dateToYmd(getMonday(new Date(e.target.value + 'T00:00:00')));
+                  setCopyWeekModal((c) => ({ ...c, sourceWeekStart: monday }));
+                }}
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
               />
+              {copyWeekModal.sourceWeekStart && (
+                <p className="mt-1 text-caption text-stone-400">{formatWeekRange(new Date(copyWeekModal.sourceWeekStart + 'T00:00:00'))}</p>
+              )}
             </div>
             <div>
               <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy to</label>
               <input
-                type="month"
-                value={copyMonthModal.targetMonth}
-                onChange={(e) => setCopyMonthModal((c) => ({ ...c, targetMonth: e.target.value }))}
+                type="date"
+                value={copyWeekModal.targetWeekStart}
+                onChange={(e) => {
+                  const monday = dateToYmd(getMonday(new Date(e.target.value + 'T00:00:00')));
+                  setCopyWeekModal((c) => ({ ...c, targetWeekStart: monday }));
+                }}
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
               />
+              {copyWeekModal.targetWeekStart && (
+                <p className="mt-1 text-caption text-stone-400">{formatWeekRange(new Date(copyWeekModal.targetWeekStart + 'T00:00:00'))}</p>
+              )}
             </div>
           </div>
-          {copyMonthModal.sourceMonth === copyMonthModal.targetMonth && (
-            <p className="text-label-sm text-[#991B1B]">Source and target month must be different.</p>
+          {copyWeekModal.sourceWeekStart === copyWeekModal.targetWeekStart && (
+            <p className="text-label-sm text-[#991B1B]">Source and target week must be different.</p>
           )}
         </div>
       </Modal>

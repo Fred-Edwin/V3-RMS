@@ -7,8 +7,8 @@ import type {
   BatchDeleteAssignmentResult,
   ClockInOutInput,
   ClockOverrideInput,
-  CopyMonthInput,
-  CopyMonthResult,
+  CopyWeekInput,
+  CopyWeekResult,
   CreateShiftAssignmentInput,
   CreateShiftInput,
   ListShiftAssignmentsQuery,
@@ -93,8 +93,8 @@ export const shiftService = {
     await apiClient.delete<void>(`/shift-assignments/${id}`, accessToken);
   },
 
-  copyMonth: (data: CopyMonthInput, accessToken: string): Promise<CopyMonthResult> => {
-    return apiClient.post<CopyMonthResult>('/shift-assignments/copy-month', data, accessToken);
+  copyWeek: (data: CopyWeekInput, accessToken: string): Promise<CopyWeekResult> => {
+    return apiClient.post<CopyWeekResult>('/shift-assignments/copy-week', data, accessToken);
   },
 
   batchDeleteAssignments: (
