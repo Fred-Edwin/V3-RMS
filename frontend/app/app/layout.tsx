@@ -16,6 +16,7 @@ import {
   Clock,
   Coffee,
   CreditCard,
+  FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -78,6 +79,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Customer Credit', href: '/app/manage/customer-credit', icon: CreditCard },
       { label: 'Outstanding', href: '/app/manage/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      { label: 'Payslips', href: '/app/manage/payslips', icon: FileText },
       { label: 'Leave', href: '/app/manage/reports?tab=Leave', icon: CalendarOff },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -96,6 +98,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Corporate', href: '/app/director/corporate-accounts', icon: Building2 },
       { label: 'Outstanding', href: '/app/director/outstanding-balances', icon: AlertTriangle },
       { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
+      { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
       { label: 'Leave', href: '/app/director/analytics?tab=Leave', icon: CalendarOff },
     ],
   },
@@ -108,6 +111,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     ],
     overflowTabs: [
       { label: 'Credit Accounts', href: '/app/accountant/credit', icon: CreditCard },
+      { label: 'Payslips', href: '/app/accountant/payslips', icon: FileText },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
     ],
   },
@@ -134,6 +138,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
       { label: 'Other Income', href: '/app/other-income/new', icon: Banknote },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'History', href: '/app/history', icon: Clock },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -148,6 +153,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -162,6 +168,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Shifts', href: '/app/shifts', icon: Calendar },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Performance', href: '/app/performance', icon: BarChart2 },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -176,6 +183,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
       { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
+      { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -200,6 +208,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
         { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
         { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
+        { label: 'Payslips', href: '/app/manage/payslips', icon: FileText },
       ],
     },
     {
@@ -242,6 +251,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
         { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
         { label: 'Branch Settings', href: '/app/director/settings', icon: Settings2 },
+        { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
       ],
     },
     {
@@ -269,6 +279,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
         { label: 'Reconciliation', href: '/app/accountant/reconciliation', icon: Clock },
+        { label: 'Payslips', href: '/app/accountant/payslips', icon: FileText },
       ],
     },
     {
@@ -317,6 +328,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'New Order', href: '/app/orders/new', icon: ShoppingCart },
         { label: 'Orders', href: '/app/orders', icon: ClipboardList },
         { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
         { label: 'Performance', href: '/app/performance', icon: BarChart2 },
         { label: 'History', href: '/app/history', icon: Clock },
         { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -336,6 +348,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
         { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
         { label: 'Performance', href: '/app/performance', icon: BarChart2 },
         { label: 'History', href: '/app/history', icon: Clock },
         { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -349,6 +362,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
         { label: 'Barista', href: '/app/barista', icon: Coffee },
         { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
         { label: 'Performance', href: '/app/performance', icon: BarChart2 },
         { label: 'History', href: '/app/history', icon: Clock },
         { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -364,6 +378,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Leave Requests', href: '/app/hr/leave', icon: Calendar },
         { label: 'Leave Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
         { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
+        { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
         { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       ],
     },

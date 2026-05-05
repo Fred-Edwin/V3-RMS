@@ -698,7 +698,7 @@ The following features are explicitly excluded from the current system and plann
 | OQ-04 | Customer-facing features — loyalty programmes, digital menus, or order history for regular customers | Open — V3+ |
 | OQ-05 | Offline order submission — full offline-first capability (submitting orders without internet) | Open — V3+ |
 | OQ-06 | Integration with accounting software — exporting financial reports to QuickBooks or Wave | Open — V2+ |
-| OQ-07 | Payslip Visibility Module (Phase 9) — staff view their own payslips (gross pay, statutory deductions: PAYE, NSSF, SHIF, Housing Levy, HELB, net pay) and print them. Admin enters data manually. Full payroll processing is out of scope. | Planned — Phase 9 |
+| OQ-07 | Payslip Visibility Module (Phase 9) — staff view their own payslips (gross pay, statutory deductions: PAYE, SHA, Housing Levy, HELB, net pay) and print them. Admin enters data manually. Full payroll processing is out of scope. | Planned — Phase 9 |
 | OQ-08 | Inventory management — stock tracking per branch, low-stock alerts, consumption against orders | Planned — V2 |
 | OQ-09 | Mpesa STK Push — real-time payment initiation from waiter device rather than manual confirmation | Planned — V2 |
 

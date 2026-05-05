@@ -6,6 +6,7 @@ export interface SelectOption {
   value: string
   label: string
   disabled?: boolean
+  group?: string
 }
 
 interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'children'> {
@@ -38,6 +39,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const generatedId = useId()
     const id = providedId ?? generatedId
     const hasError = !!errorMessage || !!hasErrorProp
+    const ungroupedOptions = options.filter((option) => !option.group)
+    const groupedOptions = options.reduce<Map<string, SelectOption[]>>((groups, option) => {
+      if (!option.group) return groups
+      const existing = groups.get(option.group) ?? []
+      existing.push(option)
+      groups.set(option.group, existing)
+      return groups
+    }, new Map())
 
     return (
       <div className={cn('flex flex-col gap-1', className)}>
@@ -72,10 +81,19 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 {placeholder}
               </option>
             )}
-            {options.map((option) => (
+            {ungroupedOptions.map((option) => (
               <option key={option.value} value={option.value} disabled={option.disabled}>
                 {option.label}
               </option>
+            ))}
+            {Array.from(groupedOptions.entries()).map(([group, groupItems]) => (
+              <optgroup key={group} label={group}>
+                {groupItems.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.disabled}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
 

@@ -49,6 +49,7 @@ model Organization {
   formalNoticeRecipients   FormalNoticeRecipient[]
   leaveRequests            LeaveRequest[]
   disciplinaryRecords      DisciplinaryRecord[]
+  payslips                 Payslip[]
   staffTransfersFrom       StaffTransfer[]      @relation("StaffTransferFrom")
   staffTransfersTo         StaffTransfer[]      @relation("StaffTransferTo")
 
@@ -124,6 +125,8 @@ model User {
   leaveRequestsCancelled   LeaveRequest[]          @relation("LeaveCancelledBy")
   disciplinaryRecordsIssued DisciplinaryRecord[]   @relation("DisciplinaryIssuedBy")
   hrDocumentsUploaded      HrDocument[]            @relation("HrDocumentUploadedBy")
+  payslips                 Payslip[]               @relation("StaffPayslips")
+  createdPayslips          Payslip[]               @relation("PayslipsCreated")
   staffTransfers           StaffTransfer[]         @relation("StaffTransferUser")
   staffTransfersAuthorized StaffTransfer[]         @relation("StaffTransferAuthorizedBy")
 
@@ -1142,6 +1145,39 @@ model HrDocument {
   @@index([leaveRequestId])
   @@index([disciplinaryRecordId])
   @@map("hr_documents")
+}
+
+model Payslip {
+  id                  String       @id @default(cuid())
+  organizationId      String       @map("organization_id")
+  userId              String       @map("user_id")
+  payPeriod           String       @map("pay_period")
+  payDate             DateTime     @map("pay_date")
+  basicSalary         Decimal      @db.Decimal(10, 2) @map("basic_salary")
+  houseAllowance      Decimal?     @db.Decimal(10, 2) @map("house_allowance")
+  transportAllowance  Decimal?     @db.Decimal(10, 2) @map("transport_allowance")
+  otherAllowances     Json?        @map("other_allowances")
+  paye                Decimal      @db.Decimal(10, 2)
+  nssf                Decimal      @db.Decimal(10, 2)
+  housingLevy         Decimal      @db.Decimal(10, 2) @map("housing_levy")
+  helb                Decimal?     @db.Decimal(10, 2)
+  otherDeductions     Json?        @map("other_deductions")
+  grossPay            Decimal      @db.Decimal(10, 2) @map("gross_pay")
+  totalDeductions     Decimal      @db.Decimal(10, 2) @map("total_deductions")
+  netPay              Decimal      @db.Decimal(10, 2) @map("net_pay")
+  isLocked            Boolean      @default(false) @map("is_locked")
+  createdById         String       @map("created_by_id")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  user                User         @relation("StaffPayslips", fields: [userId], references: [id])
+  createdBy           User         @relation("PayslipsCreated", fields: [createdById], references: [id])
+
+  @@unique([organizationId, userId, payPeriod])
+  @@index([organizationId, payPeriod])
+  @@index([userId])
+  @@map("payslips")
 }
 
 // ─── HR Enums ─────────────────────────────────────────────────────────────────

@@ -7,6 +7,15 @@ export const branchRepository = {
     });
   },
 
+  findActiveIds: async (): Promise<string[]> => {
+    const rows = await prisma.organization.findMany({
+      where: { isActive: true },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => row.id);
+  },
+
   findById: async (id: string) => {
     return prisma.organization.findUnique({
       where: { id },

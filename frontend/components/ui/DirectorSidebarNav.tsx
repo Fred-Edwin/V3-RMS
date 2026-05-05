@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { AlertTriangle, Building2, CreditCard, GitBranch, LayoutDashboard, LineChart, MessageSquare, Percent, Settings2, ShieldAlert, Tags, UserCircle } from 'lucide-react';
+import { AlertTriangle, Building2, CreditCard, FileText, GitBranch, LayoutDashboard, LineChart, MessageSquare, Percent, Settings2, ShieldAlert, Tags, UserCircle } from 'lucide-react';
 import { env } from '@/lib/env';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
@@ -69,6 +69,7 @@ export function DirectorSidebarNav({ collapsed }: DirectorSidebarNavProps): JSX.
           { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
           { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
           { label: 'Branch Settings', href: '/app/director/settings', icon: Settings2 },
+          { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
         ],
       },
       {

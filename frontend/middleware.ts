@@ -102,6 +102,15 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     return role === 'ACCOUNTANT';
   }
 
+  if (pathname === '/app/payslips' || pathname.startsWith('/app/payslips/')) {
+    return role === 'WAITER'
+      || role === 'CHEF'
+      || role === 'BARISTA'
+      || role === 'HR_MANAGER'
+      || role === 'DIRECTOR'
+      || role === 'ACCOUNTANT';
+  }
+
   if (pathname.startsWith('/app')) {
     return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA';
   }

@@ -1,6 +1,6 @@
 # Phase 9 — Payslip Visibility Module — Plan
 
-**Status:** Planned (Not yet started)  
+**Status:** Complete  
 **Date:** 2026-05-04  
 **Author:** System Architect
 
@@ -27,12 +27,12 @@ Phase 9 adds a **Payslip Visibility Module** to the Wendo RMS. This is *not* a p
 
 | Role | Access |
 |---|---|
-| SYSTEM_ADMIN | All payslips, all staff, all periods |
-| DIRECTOR | All payslips across all branches |
-| HR_MANAGER | All payslips across all branches |
-| MANAGER | Own branch staff payslips only |
-| WAITER / CHEF / BARISTA | Own payslips only |
-| ACCOUNTANT | Read-only access to all payslips (for finance reconciliation) |
+| SYSTEM_ADMIN | All payslips via API; no dedicated UI (HR ops are Director/HR Manager responsibility) |
+| DIRECTOR | All payslips across all branches — full create/edit/lock |
+| HR_MANAGER | All payslips across all branches — full create/edit/lock |
+| MANAGER | Own branch staff payslips — read-only |
+| WAITER / CHEF / BARISTA | Own payslips only — read-only |
+| ACCOUNTANT | All payslips — read-only (finance reconciliation) |
 | KITCHEN_DISPLAY / BARISTA_DISPLAY | No access |
 
 ### Pay Periods
@@ -57,18 +57,19 @@ Each payslip record stores:
 
 **Statutory Deductions (Kenya)**
 - PAYE (Pay As You Earn) — income tax
-- NSSF (National Social Security Fund) — pension contribution
-- SHIF (Social Health Insurance Fund) — replaced NHIF in 2026
+- SHA (Social Health Authority) — manually entered statutory health deduction
 - AHL (Affordable Housing Levy) — 1.5% of gross
 - HELB (Higher Education Loans Board) — optional, for staff with student loans
 
 **Other Deductions**
 - Other deductions (KES, free-text label) — optional, multiple entries (e.g., salary advance recovery, fines)
 
-**Computed Totals** (stored, not computed on-the-fly to prevent display drift)
-- Gross pay
-- Total deductions
-- Net pay
+**Computed Totals** (server-computed and stored — not accepted from client input)
+- Gross pay = basicSalary + houseAllowance + transportAllowance + sum(otherAllowances)
+- Total deductions = paye + SHA + housingLevy + (helb ?? 0) + sum(otherDeductions)
+- Net pay = grossPay − totalDeductions
+
+These fields are excluded from the Zod create/update schema. The service computes them before writing. The frontend may show a live preview using the same formula, but the server value is authoritative.
 
 **Metadata**
 - Created by (userId of admin who entered the record)
@@ -110,7 +111,6 @@ model Payslip {
   // Statutory deductions
   paye             Decimal  @db.Decimal(10, 2)
   nssf             Decimal  @db.Decimal(10, 2)
-  shif             Decimal  @db.Decimal(10, 2)
   housingLevy      Decimal  @db.Decimal(10, 2)
   helb             Decimal? @db.Decimal(10, 2)
 
@@ -162,20 +162,42 @@ All routes under `/api/v1/payslips`.
 ## Frontend Pages
 
 ### Staff View — `/app/payslips`
+- Allows: WAITER, CHEF, BARISTA, HR_MANAGER, DIRECTOR, ACCOUNTANT (own payslips only)
+- Add explicit middleware rule — the catch-all `/app` guard currently blocks non-operational roles
 - Lists own payslips by pay period (most recent first)
-- Each row: pay period, gross pay, net pay, status (locked/draft)
+- Each card: pay period, gross pay, net pay, status (locked/draft)
 - Click to open full payslip detail modal
 - Print button (opens print-optimized layout / browser print dialog)
 
-### Admin View — `/app/admin/payslips` (Director / HR Manager)
-- Staff picker + pay period filter
-- "Add Payslip" button → opens form with all fields
+### HR/Director View — `/app/hr/payslips` (Director / HR Manager)
+- Fits the existing `/app/hr` route allowed for HR_MANAGER + DIRECTOR + SYSTEM_ADMIN + MANAGER
+- Staff picker + branch filter + pay period filter
+- "Add Payslip" button → opens form with all individual fields (computed totals shown as live preview)
 - List of all payslips with status indicators
 - Lock button per payslip
 
 ### Manager View — `/app/manage/payslips`
 - Filtered to own branch staff
-- Read-only (cannot create or lock, only view)
+- Read-only (view + print only; no create/edit/lock)
+
+### Accountant View — `/app/accountant/payslips`
+- Fits existing `/app/accountant` route (ACCOUNTANT only)
+- Read-only list with branch + period filters
+- View + print; no create/edit/lock controls
+
+### Middleware additions required
+Add to `frontend/middleware.ts` `isAllowedPath`:
+```typescript
+if (pathname.startsWith('/app/payslips')) {
+  return role === 'WAITER'
+    || role === 'CHEF'
+    || role === 'BARISTA'
+    || role === 'HR_MANAGER'
+    || role === 'DIRECTOR'
+    || role === 'ACCOUNTANT';
+}
+```
+(HR_MANAGER and DIRECTOR use `/app/hr/payslips`; MANAGER uses `/app/manage/payslips`; ACCOUNTANT uses `/app/accountant/payslips`.)
 
 ---
 
@@ -197,29 +219,34 @@ Implementation: browser `window.print()` with a print-specific CSS class. No PDF
 ## Build Tasks
 
 ### Backend
-- [ ] Add `Payslip` model to `schema.prisma`
-- [ ] Generate and apply migration
-- [ ] Create `payslip-schemas.ts` (Zod validators)
-- [ ] Create `payslip-repository.ts`
-- [ ] Create `payslip-service.ts`
-- [ ] Create `payslip-controller.ts`
-- [ ] Register routes in `routes/index.ts`
-- [ ] Write tests (repository + service)
+- [x] Add `Payslip` model to `schema.prisma`
+- [x] Generate and apply migration
+- [x] Create `payslip-schemas.ts` (Zod validators)
+- [x] Create `payslip-repository.ts`
+- [x] Create `payslip-service.ts`
+- [x] Create `payslip-controller.ts`
+- [x] Register routes in `routes/index.ts`
+- [x] Write tests (repository + service)
+- [x] Run `pnpm build` in `backend/`
+- [x] Run `pnpm test` in `backend/`
 
 ### Frontend
-- [ ] Add `Payslip` type to `frontend/types/`
-- [ ] Add `payslipService.ts` API calls
-- [ ] Staff payslip list page `/app/payslips`
-- [ ] Payslip detail modal with print layout
-- [ ] Admin create/edit payslip form
-- [ ] Admin payslip list page with lock action
-- [ ] Manager read-only payslip view
+- [x] Add `Payslip` type to `frontend/types/`
+- [x] Add `payslipService.ts` API calls
+- [x] Staff payslip list page `/app/payslips`
+- [x] Payslip detail modal with print layout
+- [x] HR/Director create/edit payslip form
+- [x] HR/Director payslip list page with lock action (`/app/hr/payslips`)
+- [x] Manager read-only payslip view (`/app/manage/payslips`)
+- [x] Accountant read-only payslip view (`/app/accountant/payslips`)
+- [x] Update middleware and navigation links
+- [x] Run `pnpm build` in `frontend/`
 
 ---
 
 ## Out of Scope for Phase 9
 
-- Automated PAYE / NSSF / SHIF calculation (manual entry only)
+- Automated PAYE / SHA calculation (manual entry only)
 - Integration with payroll provider
 - PDF download (browser print is sufficient)
 - Payslip email delivery
@@ -227,4 +254,4 @@ Implementation: browser `window.print()` with a print-specific CSS class. No PDF
 
 ---
 
-*This plan is authoritative for Phase 9. Update the status field when development begins.*
+*This plan is authoritative for Phase 9. Implementation completed and verification gates passed on 2026-05-05.*
