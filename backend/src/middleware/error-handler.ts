@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AppError } from '../utils/errors';
+import { Sentry } from '../config/sentry';
 
 interface ErrorWithStatus extends Error {
   statusCode?: number;
@@ -25,6 +27,14 @@ export const errorHandler = (
     return;
   }
 
+  if (error instanceof PrismaClientKnownRequestError && error.code === 'P2025') {
+    res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Record not found' },
+    });
+    return;
+  }
+
   if (error instanceof AppError) {
     res.status(error.statusCode).json({
       success: false,
@@ -39,6 +49,11 @@ export const errorHandler = (
 
   const statusCode = error.statusCode ?? 500;
   const code = error.code ?? 'INTERNAL_ERROR';
+
+  // Capture unexpected errors in Sentry (fire-and-forget)
+  if (statusCode === 500) {
+    Sentry.captureException(error);
+  }
 
   res.status(statusCode).json({
     success: false,

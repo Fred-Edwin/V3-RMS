@@ -201,8 +201,9 @@ export async function submitLeaveRequest(
     throw new ConflictError('You already have a pending or approved leave request overlapping these dates');
   }
 
-  const organizationId = profile.user.organizationId;
-  if (!organizationId) throw new ForbiddenError('Your account has no branch assigned');
+  // organizationId may be null for cross-branch roles (ACCOUNTANT). LeaveRequest.organizationId
+  // is nullable to support system-wide employees — HR_MANAGER/DIRECTOR are notified instead.
+  const organizationId = profile.user.organizationId ?? null;
 
   // Create request and increment pending days atomically
   const [request] = await prisma.$transaction([
@@ -210,7 +211,7 @@ export async function submitLeaveRequest(
       data: {
         employeeProfileId: profile.id,
         leaveBalanceId: balance.id,
-        organizationId,
+        ...(organizationId ? { organizationId } : {}),
         leaveType: input.leaveType,
         startDate: input.startDate,
         endDate: input.endDate,
@@ -244,7 +245,7 @@ export async function submitLeaveRequest(
 }
 
 export async function approveLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be approved');
@@ -276,10 +277,17 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
     request.endDate,
   );
 
-  const approved = await hrRepository.approveLeaveRequest(requestId, actor.id, comment);
-
-  // Decrement pending, increment used
+  // Atomically approve + update balance in one transaction
   await prisma.$transaction([
+    prisma.leaveRequest.updateMany({
+      where: { id: requestId, organizationId: targetOrgId },
+      data: {
+        status: 'APPROVED',
+        reviewedById: actor.id,
+        reviewedAt: new Date(),
+        reviewComment: comment,
+      },
+    }),
     prisma.leaveBalance.update({
       where: { id: request.leaveBalanceId },
       data: {
@@ -288,6 +296,8 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
       },
     }),
   ]);
+
+  const approved = await hrRepository.findLeaveRequestById(requestId, targetOrgId ?? undefined);
 
   // Notify the staff member
   void notifyStaffOfLeaveDecision(employeeUserId, 'APPROVED', actor, request.leaveType, comment);
@@ -298,7 +308,7 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
 }
 
 export async function rejectLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be rejected');
@@ -315,13 +325,24 @@ export async function rejectLeaveRequest(actor: HrActor, requestId: string, comm
   const employeeUserId = request.employeeProfile.user.id;
   if (actor.id === employeeUserId) throw new ForbiddenError('You cannot reject your own leave request');
 
-  const rejected = await hrRepository.rejectLeaveRequest(requestId, actor.id, comment);
+  // Atomically reject + restore pending balance in one transaction
+  await prisma.$transaction([
+    prisma.leaveRequest.updateMany({
+      where: { id: requestId, organizationId: targetOrgId },
+      data: {
+        status: 'REJECTED',
+        reviewedById: actor.id,
+        reviewedAt: new Date(),
+        reviewComment: comment,
+      },
+    }),
+    prisma.leaveBalance.update({
+      where: { id: request.leaveBalanceId },
+      data: { pendingDays: { decrement: Number(request.totalDays) } },
+    }),
+  ]);
 
-  // Release the pending days
-  await prisma.leaveBalance.update({
-    where: { id: request.leaveBalanceId },
-    data: { pendingDays: { decrement: Number(request.totalDays) } },
-  });
+  const rejected = await hrRepository.findLeaveRequestById(requestId, targetOrgId ?? undefined);
 
   void notifyStaffOfLeaveDecision(employeeUserId, 'REJECTED', actor, request.leaveType, comment);
 
@@ -330,7 +351,7 @@ export async function rejectLeaveRequest(actor: HrActor, requestId: string, comm
 }
 
 export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
 
   const employeeUserId = request.employeeProfile.user.id;
@@ -350,20 +371,22 @@ export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
     throw new ConflictError('Rejected leave requests cannot be cancelled');
   }
 
-  const cancelled = await hrRepository.cancelLeaveRequest(requestId, actor.id);
+  const targetOrgId = request.organizationId;
+  const balanceField = request.status === 'APPROVED' ? 'usedDays' : 'pendingDays';
 
-  // Release days back to balance
-  if (request.status === 'PENDING') {
-    await prisma.leaveBalance.update({
+  // Atomically cancel + restore balance in one transaction
+  await prisma.$transaction([
+    prisma.leaveRequest.updateMany({
+      where: { id: requestId, organizationId: targetOrgId },
+      data: { status: 'CANCELLED', cancelledById: actor.id, cancelledAt: new Date() },
+    }),
+    prisma.leaveBalance.update({
       where: { id: request.leaveBalanceId },
-      data: { pendingDays: { decrement: Number(request.totalDays) } },
-    });
-  } else if (request.status === 'APPROVED') {
-    await prisma.leaveBalance.update({
-      where: { id: request.leaveBalanceId },
-      data: { usedDays: { decrement: Number(request.totalDays) } },
-    });
-  }
+      data: { [balanceField]: { decrement: Number(request.totalDays) } },
+    }),
+  ]);
+
+  const cancelled = await hrRepository.findLeaveRequestById(requestId, targetOrgId ?? undefined);
 
   logger.info({ requestId, cancelledBy: actor.id }, 'Leave request cancelled');
   return cancelled;
@@ -466,7 +489,7 @@ export async function getDisciplinaryRecords(actor: HrActor, userId: string) {
 }
 
 export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: string) {
-  const record = await hrRepository.findDisciplinaryRecordById(recordId);
+  const record = await hrRepository.findDisciplinaryRecordById(recordId, actor.organizationId ?? undefined);
   if (!record) throw new NotFoundError('Disciplinary record not found');
 
   const employeeUserId = record.employeeProfile.user.id;
@@ -474,7 +497,7 @@ export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: st
     throw new ForbiddenError('You can only acknowledge your own disciplinary records');
   }
 
-  return hrRepository.acknowledgeDisciplinaryRecord(recordId);
+  return hrRepository.acknowledgeDisciplinaryRecord(recordId, record.organizationId);
 }
 
 // ─── Attendance Analytics ─────────────────────────────────────────────────────
@@ -527,16 +550,16 @@ export async function getHrDashboard(actor: HrActor, organizationId?: string) {
 async function notifyManagementOfLeaveRequest(
   actor: HrActor,
   request: { id: string; leaveType: string; startDate: Date; endDate: Date; totalDays: unknown },
-  organizationId: string,
+  organizationId: string | null,
 ) {
   try {
-    // Find all managers of this branch + HR_MANAGER + DIRECTOR (system-wide)
+    // Notify branch managers (if branch-scoped) + HR_MANAGER + DIRECTOR (always system-wide)
     const managers = await prisma.user.findMany({
       where: {
         isActive: true,
         deletedAt: null,
         OR: [
-          { role: 'MANAGER', organizationId },
+          ...(organizationId ? [{ role: 'MANAGER' as const, organizationId }] : []),
           { role: 'HR_MANAGER' },
           { role: 'DIRECTOR' },
         ],

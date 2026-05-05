@@ -290,8 +290,8 @@ export const otherIncomeRepository = {
     });
   },
 
-  deleteEntry: async (id: string): Promise<void> => {
-    await prisma.otherIncomeEntry.delete({ where: { id } });
+  deleteEntry: async (id: string, organizationId: string): Promise<void> => {
+    await prisma.otherIncomeEntry.deleteMany({ where: { id, organizationId } });
   },
 
   /** Sum other income for a given org + date range (used by report repository) */
@@ -322,5 +322,24 @@ export const otherIncomeRepository = {
       }
     }
     return [...map.values()];
+  },
+
+  /** Fetch all entries for a date range with entryDate included — caller groups by date */
+  findByDateRange: async (
+    organizationId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ entryDate: Date; amount: Prisma.Decimal; category: { id: string; name: string } }>> => {
+    return prisma.otherIncomeEntry.findMany({
+      where: {
+        organizationId,
+        entryDate: { gte: startDate, lte: endDate },
+      },
+      select: {
+        entryDate: true,
+        amount: true,
+        category: { select: { id: true, name: true } },
+      },
+    });
   },
 };

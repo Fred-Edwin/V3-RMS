@@ -1,18 +1,11 @@
 import type { Request, Response } from 'express';
 import { staffTransferService } from '../services/staff-transfer-service';
-import { createTransferSchema } from '../validators/staff-transfer-schemas';
-import { UnauthorizedError, ValidationError } from '../utils/errors';
+import { createTransferSchema, transferUserIdParamSchema } from '../validators/staff-transfer-schemas';
+import { UnauthorizedError } from '../utils/errors';
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
   return req.user;
-};
-
-const requireRouteId = (value: unknown): string => {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new ValidationError('id param is required');
-  }
-  return value;
 };
 
 export const staffTransferController = {
@@ -25,7 +18,7 @@ export const staffTransferController = {
 
   listByUser: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const userId = requireRouteId(req.params.id);
+    const { id: userId } = transferUserIdParamSchema.parse(req.params);
     const transfers = await staffTransferService.listTransfers(actor, userId);
     res.status(200).json({ success: true, data: { transfers } });
   },

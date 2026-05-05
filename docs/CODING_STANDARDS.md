@@ -79,6 +79,8 @@ This file is intentionally brief. It defines enforceable rules only.
 - Use centralized typed errors with HTTP status mapping.
 - Never leak stack traces/internal details to clients.
 - Log useful context, never secrets.
+- Use `mapPrismaError(error, { conflict?: string, notFound?: string })` from `utils/prisma-errors.ts` in service catch blocks to convert Prisma errors to domain errors. Only use inline catch logic when custom behavior is required (e.g. returning an existing record on conflict).
+- `P2025` (record not found on update) is handled globally — do not catch it per-service.
 
 ---
 
@@ -87,6 +89,8 @@ This file is intentionally brief. It defines enforceable rules only.
 - Migrations are required for schema changes.
 - Prefer transactions for multi-write operations that must be atomic.
 - Soft-delete behavior must be consistent where used.
+- Every repository mutation must include `organizationId` in the `where` clause for tenant-scoped models. Use `updateMany` (not `update`) when scoping by both `id` and `organizationId`.
+- Route params must be validated with Zod UUID schemas before reaching service layer — never use raw string extraction or custom `requireRouteId()` helpers.
 
 ---
 

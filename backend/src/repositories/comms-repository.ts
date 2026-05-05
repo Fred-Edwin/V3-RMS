@@ -121,10 +121,11 @@ export const commsRepository = {
     });
   },
 
-  countUnreadInConversation: async (conversationId: string, userId: string) => {
+  countUnreadInConversation: async (conversationId: string, userId: string, organizationId: string) => {
     return prisma.directMessage.count({
       where: {
         conversationId,
+        organizationId,
         senderId: { not: userId },
         readAt: null,
         deletedAt: null,
@@ -162,6 +163,7 @@ export const commsRepository = {
 
   findMessagesByConversation: async (
     conversationId: string,
+    organizationId: string,
     limit: number,
     beforeId?: string,
   ) => {
@@ -170,7 +172,7 @@ export const commsRepository = {
       cursor = { id: beforeId };
     }
     return prisma.directMessage.findMany({
-      where: { conversationId },
+      where: { conversationId, organizationId },
       include: { sender: { select: participantSelect } },
       orderBy: { createdAt: 'desc' },
       take: limit,

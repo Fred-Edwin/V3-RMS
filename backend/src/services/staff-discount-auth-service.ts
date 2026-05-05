@@ -59,7 +59,7 @@ export const staffDiscountAuthService = {
     orderId: string,
     organizationId: string,
   ): Promise<StaffDiscountAuthRequestRecord> => {
-    const authRequest = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId);
+    const authRequest = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
     if (!authRequest || authRequest.organizationId !== organizationId) {
       throw new NotFoundError('No pending staff discount request found for this order');
     }
@@ -176,13 +176,14 @@ export const staffDiscountAuthService = {
 
     const resolved = await staffDiscountAuthRequestRepository.resolveIfPending(
       authRequest.id,
+      organizationId,
       decision,
       resolvedById,
     );
 
     if (!resolved) {
       // Race condition: already resolved by another path
-      const current = await staffDiscountAuthRequestRepository.findById(authRequest.id);
+      const current = await staffDiscountAuthRequestRepository.findById(authRequest.id, organizationId);
       if (!current) throw new NotFoundError('Staff discount auth request not found');
       logger.info({ authRequestId: authRequest.id }, 'Staff discount resolution race: already resolved');
       return serializeAuthRequest(current);

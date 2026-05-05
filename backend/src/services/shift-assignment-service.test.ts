@@ -102,7 +102,7 @@ describe('shiftAssignmentService.createAssignment', () => {
       date: today,
     });
 
-    expect(result.date).toBe(today);
+    expect(result!.date).toBe(today);
     expect(shiftAssignmentRepository.create).toHaveBeenCalledWith(
       organizationId,
       expect.objectContaining({

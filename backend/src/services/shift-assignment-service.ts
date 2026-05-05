@@ -1,6 +1,8 @@
 import { UserRole } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { mapPrismaError } from '../utils/prisma-errors';
 import type { Request } from 'express';
+import { prisma } from '../config/database';
 import { shiftAssignmentRepository } from '../repositories/shift-assignment-repository';
 import { shiftRepository } from '../repositories/shift-repository';
 import { staffRepository } from '../repositories/staff-repository';
@@ -118,10 +120,7 @@ export const shiftAssignmentService = {
         date: toIsoDateOnly(created.date),
       };
     } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ConflictError('Staff member already assigned to this shift on this date');
-      }
-      throw error;
+      return mapPrismaError(error, { conflict: 'Staff member already assigned to this shift on this date' });
     }
   },
 
@@ -159,15 +158,15 @@ export const shiftAssignmentService = {
       }
     }
 
-    let created = 0;
     let skipped = 0;
     const errors: { userId: string; date: string; reason: string }[] = [];
+    const toCreate: Array<{ userId: string; date: Date; dateStr: string }> = [];
 
+    // Pre-validate all combinations before writing — fail fast, no partial state
     for (const userId of input.userIds) {
       for (const dateStr of input.dates) {
         const assignmentDate = parseDateOnly(dateStr);
 
-        // Check for time-range overlap with existing assignments for this user on this date
         const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
           userId,
           actor.organizationId,
@@ -187,28 +186,41 @@ export const shiftAssignmentService = {
             date: dateStr,
             reason: `Shift "${shift.name}" overlaps with an existing assignment`,
           });
-          continue;
-        }
-
-        try {
-          await shiftAssignmentRepository.create(actor.organizationId, {
-            userId,
-            shiftId: input.shiftId,
-            date: assignmentDate,
-          });
-          created++;
-        } catch (error) {
-          if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-            skipped++;
-            errors.push({ userId, date: dateStr, reason: 'Already assigned to this shift on this date' });
-          } else {
-            throw error;
-          }
+        } else {
+          toCreate.push({ userId, date: assignmentDate, dateStr });
         }
       }
     }
 
-    return { created, skipped, errors };
+    // Create all valid assignments atomically — all succeed or all roll back
+    if (toCreate.length > 0) {
+      try {
+        await prisma.$transaction(
+          toCreate.map(({ userId, date }) =>
+            prisma.shiftAssignment.create({
+              data: {
+                organizationId: actor.organizationId!,
+                userId,
+                shiftId: input.shiftId,
+                date,
+              },
+            }),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+          // Duplicate detected inside transaction — report all as skipped
+          for (const { userId, dateStr } of toCreate) {
+            skipped++;
+            errors.push({ userId, date: dateStr, reason: 'Already assigned to this shift on this date' });
+          }
+          return { created: 0, skipped, errors };
+        }
+        throw error;
+      }
+    }
+
+    return { created: toCreate.length, skipped, errors };
   },
 
   copyWeek: async (

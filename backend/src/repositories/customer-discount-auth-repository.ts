@@ -38,16 +38,16 @@ export const customerDiscountAuthRepository = {
     });
   },
 
-  findById: async (id: string) => {
-    return prisma.customerDiscountAuthRequest.findUnique({
-      where: { id },
+  findById: async (id: string, organizationId?: string) => {
+    return prisma.customerDiscountAuthRequest.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrderId: async (orderId: string) => {
+  findPendingByOrderId: async (orderId: string, organizationId?: string) => {
     return prisma.customerDiscountAuthRequest.findFirst({
-      where: { orderId, status: 'PENDING' },
+      where: { orderId, status: 'PENDING', ...(organizationId ? { organizationId } : {}) },
       include: authRequestInclude,
     });
   },
@@ -66,11 +66,12 @@ export const customerDiscountAuthRepository = {
    */
   resolveIfPending: async (
     id: string,
+    organizationId: string,
     status: Exclude<CustomerDiscountAuthStatus, 'PENDING'>,
     resolvedById: string,
   ) => {
     const result = await prisma.customerDiscountAuthRequest.updateMany({
-      where: { id, status: 'PENDING' },
+      where: { id, organizationId, status: 'PENDING' },
       data: {
         status,
         resolvedById,
@@ -80,8 +81,8 @@ export const customerDiscountAuthRepository = {
 
     if (result.count === 0) return null;
 
-    return prisma.customerDiscountAuthRequest.findUnique({
-      where: { id },
+    return prisma.customerDiscountAuthRequest.findFirst({
+      where: { id, organizationId },
       include: authRequestInclude,
     });
   },

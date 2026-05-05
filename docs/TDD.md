@@ -1,9 +1,10 @@
-﻿# Technical Design Document
-## Wendo Coffee Bistro â€” Restaurant Management System (RMS)
-**Version:** 1.0  
-**Status:** Draft  
-**Date:** 2026-02-22  
+# Technical Design Document
+## Wendo Coffee Bistro — Restaurant Management System (RMS)
+**Version:** 2.0  
+**Status:** Live — Phase 8 Complete  
+**Date:** 2026-05-04  
 **Author:** System Architect  
+**Changelog:** v2.0 — added Phase 7 (Credit Account auth flow, AWAITING_AUTHORIZATION pattern, Accountant role architecture), Phase 8 (Other Income, Discount authorization flows, HR Module, Internal Communications real-time design, BullMQ job expansion, Staff Transfers); added ADR-006 through ADR-010; updated background jobs table; updated open questions.
 
 ---
 
@@ -30,8 +31,12 @@
 19. [Performance Considerations](#19-performance-considerations)
 20. [Deployment Architecture](#20-deployment-architecture)
 21. [Observability](#21-observability)
-22. [Architecture Decision Records](#22-architecture-decision-records)
-23. [Open Questions](#23-open-questions)
+22. [Credit Account Authorization Architecture](#22-credit-account-authorization-architecture)
+23. [Discount Authorization Architecture](#23-discount-authorization-architecture)
+24. [HR Module Architecture](#24-hr-module-architecture)
+25. [Internal Communications Architecture](#25-internal-communications-architecture)
+26. [Architecture Decision Records](#26-architecture-decision-records)
+27. [Open Questions](#27-open-questions)
 
 ---
 
@@ -60,7 +65,7 @@ The Wendo RMS is a **multi-tenant, real-time restaurant management platform** bu
 - A **background job system** for scheduled tasks like shift reminders
 - A **caching layer** for high-frequency read operations
 
-All interfaces are role-aware â€” the same application serves a different view based on the authenticated user's role. A waiter sees the order-taking interface. A chef sees the Kitchen Display System. A manager sees the branch operations dashboard.
+All interfaces are role-aware — the same application serves a different view based on the authenticated user's role. A waiter sees the order-taking interface. A chef sees the Kitchen Display System. A manager sees the branch operations dashboard.
 
 ---
 
@@ -89,7 +94,7 @@ All interfaces are role-aware â€” the same application serves a different v
 â”‚  â”‚                                                          â”‚   â”‚
 â”‚  â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚   â”‚
 â”‚  â”‚  â”‚  Routes &  â”‚  â”‚  Service   â”‚  â”‚   Repository       â”‚ â”‚   â”‚
-â”‚  â”‚  â”‚Controllers â”‚â†’ â”‚   Layer    â”‚â†’ â”‚   Layer (Prisma)   â”‚ â”‚   â”‚
+â”‚  â”‚  â”‚Controllers â”‚→ â”‚   Layer    â”‚→ â”‚   Layer (Prisma)   â”‚ â”‚   â”‚
 â”‚  â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚   â”‚
 â”‚  â”‚                                                          â”‚   â”‚
 â”‚  â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚   â”‚
@@ -118,7 +123,7 @@ All interfaces are role-aware â€” the same application serves a different v
 
 ```
 â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚     Client (Next.js)        â”‚  Presentation â€” renders UI, calls API
+â”‚     Client (Next.js)        â”‚  Presentation — renders UI, calls API
 â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
 â”‚  API Layer (Express Routes) â”‚  Validates input (Zod), delegates to service
 â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
@@ -130,11 +135,11 @@ All interfaces are role-aware â€” the same application serves a different v
 â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
-**Layer rules â€” non-negotiable:**
+**Layer rules — non-negotiable:**
 - The frontend never queries the database directly
-- Controllers never contain business logic â€” they validate input and delegate to services
-- Services never write raw SQL â€” they call repositories
-- Repositories never contain business logic â€” they only query
+- Controllers never contain business logic — they validate input and delegate to services
+- Services never write raw SQL — they call repositories
+- Repositories never contain business logic — they only query
 - Each layer calls only the layer directly below it, never skips
 
 ---
@@ -163,26 +168,26 @@ All interfaces are role-aware â€” the same application serves a different v
 
 ## 5. Application Architecture
 
-### Single Unified Application â€” Role-Based Views
+### Single Unified Application — Role-Based Views
 
-The entire system is one Next.js application and one Express backend. When a user authenticates, their role determines the interface they see. This eliminates maintaining multiple codebases across what would otherwise be 4â€“5 separate applications.
+The entire system is one Next.js application and one Express backend. When a user authenticates, their role determines the interface they see. This eliminates maintaining multiple codebases across what would otherwise be 4–5 separate applications.
 
 ```
 Same URL, different experience based on role:
 
-WAITER      â†’ /app/orders         (order taking interface)
-CHEF        â†’ /app/kitchen        (KDS interface)
-BARISTA     â†’ /app/barista        (BDS interface)
-MANAGER     â†’ /app/dashboard      (branch management dashboard)
-DIRECTOR    â†’ /app/director       (cross-branch overview)
-SYSTEM_ADMIN â†’ /app/admin         (system configuration)
+WAITER      → /app/orders         (order taking interface)
+CHEF        → /app/kitchen        (KDS interface)
+BARISTA     → /app/barista        (BDS interface)
+MANAGER     → /app/dashboard      (branch management dashboard)
+DIRECTOR    → /app/director       (cross-branch overview)
+SYSTEM_ADMIN → /app/admin         (system configuration)
 ```
 
 ### Shared Tablet Accounts (KDS / BDS)
 
-Each branch has two dedicated display accounts â€” one for the Kitchen Display, one for the Barista Display. These accounts hold the `KITCHEN_DISPLAY` and `BARISTA_DISPLAY` roles respectively.
+Each branch has two dedicated display accounts — one for the Kitchen Display, one for the Barista Display. These accounts hold the `KITCHEN_DISPLAY` and `BARISTA_DISPLAY` roles respectively.
 
-The manager creates these accounts once during branch setup. The tablets stay permanently logged in. These accounts are scoped to see only their station's prep tickets â€” nothing else in the system is accessible.
+The manager creates these accounts once during branch setup. The tablets stay permanently logged in. These accounts are scoped to see only their station's prep tickets — nothing else in the system is accessible.
 
 If a tablet is compromised or lost, the manager can revoke the account from their dashboard and create a new one.
 
@@ -215,7 +220,7 @@ wendo-rms/
 â”œâ”€â”€ backend/                         # Express application
 â”‚   â”œâ”€â”€ src/
 â”‚   â”‚   â”œâ”€â”€ config/                  # DB, Redis, Firebase, Socket setup
-â”‚   â”‚   â”œâ”€â”€ controllers/             # Route handlers (thin â€” validate + delegate)
+â”‚   â”‚   â”œâ”€â”€ controllers/             # Route handlers (thin — validate + delegate)
 â”‚   â”‚   â”œâ”€â”€ services/                # Business logic
 â”‚   â”‚   â”œâ”€â”€ repositories/            # Prisma queries
 â”‚   â”‚   â”œâ”€â”€ middleware/              # Auth, RBAC, error handler, logger
@@ -242,7 +247,7 @@ wendo-rms/
 Next.js App Router. Route groups separate authenticated from unauthenticated routes. Middleware redirects unauthenticated users to login and authenticated users to their role-appropriate landing page.
 
 ```typescript
-// middleware.ts â€” runs on every request
+// middleware.ts — runs on every request
 // Checks JWT from cookie, redirects based on role
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('accessToken')
@@ -259,13 +264,13 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### State Management â€” Zustand
+### State Management — Zustand
 
 Three primary stores:
 
-**`useAuthStore`** â€” current user, role, branch, token state  
-**`useOrderStore`** â€” active orders for the waiter interface, real-time updates  
-**`useKitchenStore`** â€” prep tickets for KDS/BDS, real-time claim and status updates  
+**`useAuthStore`** — current user, role, branch, token state  
+**`useOrderStore`** — active orders for the waiter interface, real-time updates  
+**`useKitchenStore`** — prep tickets for KDS/BDS, real-time claim and status updates  
 
 Stores are updated both from API responses (initial load) and WebSocket events (real-time updates). This keeps the UI always in sync with the server.
 
@@ -304,7 +309,7 @@ socket.on('order:new', (order) => {
 
 ### API Service Layer
 
-All API calls go through typed service functions â€” never raw `fetch` calls scattered across components.
+All API calls go through typed service functions — never raw `fetch` calls scattered across components.
 
 ```typescript
 // services/orders.ts
@@ -324,20 +329,20 @@ export const orderService = {
 
 ## 7. Backend Architecture
 
-### Controller â€” Thin by Design
+### Controller — Thin by Design
 
 Controllers do exactly three things: validate the request with Zod, call the appropriate service, and return the response. No business logic ever lives here.
 
 ```typescript
 // controllers/orderController.ts
 export const createOrder = async (req: Request, res: Response) => {
-  const data = CreateOrderSchema.parse(req.body)  // Zod validation â€” throws if invalid
+  const data = CreateOrderSchema.parse(req.body)  // Zod validation — throws if invalid
   const order = await orderService.create(data, req.user)
   res.status(201).json(successResponse(order, 'Order created'))
 }
 ```
 
-### Service Layer â€” Business Logic Home
+### Service Layer — Business Logic Home
 
 All decisions, calculations, and orchestration live in services. Services call repositories for data, call other services if needed, emit socket events after state changes, and queue background jobs.
 
@@ -365,9 +370,9 @@ export const orderService = {
 }
 ```
 
-### Repository Layer â€” Database Queries Only
+### Repository Layer — Database Queries Only
 
-Repositories contain Prisma queries and nothing else. Every repository query that reads business data always includes `organizationId` in the where clause â€” no exceptions.
+Repositories contain Prisma queries and nothing else. Every repository query that reads business data always includes `organizationId` in the where clause — no exceptions.
 
 ```typescript
 // repositories/orderRepository.ts
@@ -388,7 +393,7 @@ export const orderRepository = {
 
 ### Global Error Handler
 
-A single Express error-handling middleware catches all errors thrown anywhere in the stack and formats them into the standard response envelope. Route handlers never send error responses directly â€” they throw and let the handler format.
+A single Express error-handling middleware catches all errors thrown anywhere in the stack and formats them into the standard response envelope. Route handlers never send error responses directly — they throw and let the handler format.
 
 ```typescript
 // middleware/errorHandler.ts
@@ -407,14 +412,14 @@ export const globalErrorHandler = (
     return res.status(404).json(errorResponse('NOT_FOUND', err.message))
   }
 
-  // Unknown errors â€” don't leak internals to the client
+  // Unknown errors — don't leak internals to the client
   return res.status(500).json(errorResponse('INTERNAL_ERROR', 'An unexpected error occurred'))
 }
 ```
 
 ### Standard Response Envelope
 
-Every API response â€” success or error â€” follows this structure without exception:
+Every API response — success or error — follows this structure without exception:
 
 ```json
 // Success
@@ -453,50 +458,50 @@ Every API response â€” success or error â€” follows this structure wit
 
 ### WebSocket Design (Socket.io)
 
-Every real-time event in the system flows through Socket.io. The server maintains a persistent connection with every connected client. Clients are organised into **branch rooms** â€” events for Kingz branch never reach Town branch clients.
+Every real-time event in the system flows through Socket.io. The server maintains a persistent connection with every connected client. Clients are organised into **branch rooms** — events for Kingz branch never reach Town branch clients.
 
 ### Room Structure
 
 ```
-Room: branch:{organizationId}           â€” all clients at a branch
-Room: branch:{organizationId}:kitchen   â€” KDS tablet + chefs' phones
-Room: branch:{organizationId}:barista   â€” BDS tablet + baristas' phones
-Room: branch:{organizationId}:waiters   â€” waiters at this branch
-Room: user:{userId}                     â€” direct messages to a single user
+Room: branch:{organizationId}           — all clients at a branch
+Room: branch:{organizationId}:kitchen   — KDS tablet + chefs' phones
+Room: branch:{organizationId}:barista   — BDS tablet + baristas' phones
+Room: branch:{organizationId}:waiters   — waiters at this branch
+Room: user:{userId}                     — direct messages to a single user
 ```
 
 ### Event Catalogue
 
 | Event Name | Direction | Payload | Recipients |
 |---|---|---|---|
-| `order:new` | Server â†’ Client | PrepTicket data | Kitchen or Barista room |
-| `order:claimed` | Server â†’ Client | ticketId, claimedBy | Waiter (user room) |
-| `order:ready` | Server â†’ Client | orderId, station | Waiter (user room) |
-| `order:modified` | Server â†’ Client | Updated ticket data | Affected station room |
-| `ticket:status_changed` | Server â†’ Client | ticketId, newStatus | Branch room |
-| `join:branch` | Client â†’ Server | organizationId | â€” |
+| `order:new` | Server → Client | PrepTicket data | Kitchen or Barista room |
+| `order:claimed` | Server → Client | ticketId, claimedBy | Waiter (user room) |
+| `order:ready` | Server → Client | orderId, station | Waiter (user room) |
+| `order:modified` | Server → Client | Updated ticket data | Affected station room |
+| `ticket:status_changed` | Server → Client | ticketId, newStatus | Branch room |
+| `join:branch` | Client → Server | organizationId | — |
 
 ### Connection Lifecycle
 
 ```
-1. User logs in â†’ receives JWT access token
+1. User logs in → receives JWT access token
 2. Frontend establishes WebSocket connection with token in auth header
-3. Server validates token on connection â†’ associates socket with userId and organizationId
+3. Server validates token on connection → associates socket with userId and organizationId
 4. Server adds socket to appropriate rooms based on role
-5. On disconnect â†’ Socket.io handles cleanup automatically
-6. On reconnect â†’ client re-joins rooms, fetches latest state via REST API to sync
+5. On disconnect → Socket.io handles cleanup automatically
+6. On reconnect → client re-joins rooms, fetches latest state via REST API to sync
 ```
 
 ### Why REST + WebSockets Together
 
-REST handles all **actions** (create order, claim ticket, mark ready). WebSockets handle all **reactions** (notifying other clients about state changes). This separation keeps the architecture clean â€” WebSockets are never used to perform actions, only to broadcast events.
+REST handles all **actions** (create order, claim ticket, mark ready). WebSockets handle all **reactions** (notifying other clients about state changes). This separation keeps the architecture clean — WebSockets are never used to perform actions, only to broadcast events.
 
 ```
-Waiter submits order    â†’ POST /api/v1/orders  (REST)
+Waiter submits order    → POST /api/v1/orders  (REST)
                         â†“
-Server creates order    â†’ emits order:new to kitchen room  (WebSocket)
+Server creates order    → emits order:new to kitchen room  (WebSocket)
                         â†“
-KDS receives event      â†’ updates UI instantly
+KDS receives event      → updates UI instantly
 ```
 
 ---
@@ -510,20 +515,20 @@ Login flow:
 1. POST /api/v1/auth/login with email + password
 2. Server verifies password hash (bcrypt, 12 rounds)
 3. Server issues:
-   - Access token (JWT, 15 min expiry) â€” returned in response body
-   - Refresh token (JWT, 7 days expiry) â€” set as HTTP-only cookie
-4. Client stores access token in memory (Zustand store) â€” never in localStorage
+   - Access token (JWT, 15 min expiry) — returned in response body
+   - Refresh token (JWT, 7 days expiry) — set as HTTP-only cookie
+4. Client stores access token in memory (Zustand store) — never in localStorage
 5. Every API request sends access token in Authorization header: Bearer <token>
 6. When access token expires, client calls POST /api/v1/auth/refresh
 7. Server reads refresh token from HTTP-only cookie, issues new access token
 ```
 
 **Why access token in memory, not localStorage or cookies?**
-localStorage is accessible to any JavaScript on the page â€” an XSS attack can steal it. An HTTP-only cookie is not readable by JavaScript. Access tokens in memory means they are lost on page refresh (handled by the refresh token flow) but cannot be stolen by scripts.
+localStorage is accessible to any JavaScript on the page — an XSS attack can steal it. An HTTP-only cookie is not readable by JavaScript. Access tokens in memory means they are lost on page refresh (handled by the refresh token flow) but cannot be stolen by scripts.
 
 ### Role-Based Access Control (RBAC)
 
-Authorization is enforced in middleware before the route handler runs â€” never inside the handler.
+Authorization is enforced in middleware before the route handler runs — never inside the handler.
 
 ```typescript
 // middleware/rbac.ts
@@ -543,7 +548,7 @@ router.get('/reports/daily', authenticate, requireRole('MANAGER', 'DIRECTOR'), g
 
 ### Branch Isolation Middleware
 
-In addition to role checks, every request from a branch-scoped user is verified to operate within their branch only. This is a second layer of protection â€” even if a bug in business logic forgets to filter by `organizationId`, the middleware has already attached the correct `organizationId` from the token to the request object.
+In addition to role checks, every request from a branch-scoped user is verified to operate within their branch only. This is a second layer of protection — even if a bug in business logic forgets to filter by `organizationId`, the middleware has already attached the correct `organizationId` from the token to the request object.
 
 ```typescript
 // middleware/branchScope.ts
@@ -561,14 +566,14 @@ All routes prefixed with `/api/v1/`. Breaking changes introduce `/api/v2/`. Old 
 
 ### RESTful Resource Naming
 ```
-GET    /api/v1/orders              â€” list orders (filtered by branch automatically)
-GET    /api/v1/orders/:id          â€” get specific order
-POST   /api/v1/orders              â€” create order
-PATCH  /api/v1/orders/:id          â€” update order
-DELETE /api/v1/orders/:id          â€” soft delete order
+GET    /api/v1/orders              — list orders (filtered by branch automatically)
+GET    /api/v1/orders/:id          — get specific order
+POST   /api/v1/orders              — create order
+PATCH  /api/v1/orders/:id          — update order
+DELETE /api/v1/orders/:id          — soft delete order
 
-POST   /api/v1/prep-tickets/:id/claim   â€” claim a prep ticket
-PATCH  /api/v1/prep-tickets/:id/ready   â€” mark prep ticket as ready
+POST   /api/v1/prep-tickets/:id/claim   — claim a prep ticket
+PATCH  /api/v1/prep-tickets/:id/ready   — mark prep ticket as ready
 ```
 
 ### Input Validation with Zod
@@ -601,7 +606,7 @@ class InternalError extends AppError { /* 500 */ }
 ```
 Route Handler throws ValidationError("Table number required")
         â†“
-Express catches it â†’ passes to globalErrorHandler middleware
+Express catches it → passes to globalErrorHandler middleware
         â†“
 globalErrorHandler formats standard error response envelope
         â†“
@@ -616,9 +621,9 @@ No try-catch blocks scattered across controllers. One place handles all errors.
 
 ### Two Notification Channels
 
-**In-App (WebSocket)** â€” for users who have the app open. Instant, under 500ms. Used for all operational events (order ready, order claimed).
+**In-App (WebSocket)** — for users who have the app open. Instant, under 500ms. Used for all operational events (order ready, order claimed).
 
-**Push Notification (FCM)** â€” for when the app is in the background or device is locked. Used for: order ready alerts to waiters, shift reminders to staff.
+**Push Notification (FCM)** — for when the app is in the background or device is locked. Used for: order ready alerts to waiters, shift reminders to staff.
 
 ### FCM Device Token Management
 
@@ -626,7 +631,7 @@ When a user logs in on a device, the browser requests notification permission an
 
 ### Shift Reminder Job
 
-Shift reminders (24 hours before shift start) are handled by a BullMQ scheduled job â€” not by a request handler. The job scheduler runs nightly, queues reminder notifications for all shifts starting in the next 24 hours, and the job processor sends them via FCM.
+Shift reminders (24 hours before shift start) are handled by a BullMQ scheduled job — not by a request handler. The job scheduler runs nightly, queues reminder notifications for all shifts starting in the next 24 hours, and the job processor sends them via FCM.
 
 ---
 
@@ -641,9 +646,9 @@ Shift reminders (24 hours before shift start) are handled by a BullMQ scheduled 
 4. Server retrieves branch coordinates from database (or Redis cache)
 5. Server calculates distance using Haversine formula
 6. Server enforces "one open clock record per user" before creating a new clock-in, including manager overrides
-7. If distance â‰¤ configured radius (default 50 metres) â†’ clock-in approved, record saved with method: GPS
-8. If distance > configured radius â†’ 403 error returned with structured details (`distanceMetres`, `allowedRadiusMetres`)
-9. Manager override â†’ POST /api/v1/clock/override with reason note â†’ saved with method: OVERRIDE
+7. If distance â‰¤ configured radius (default 50 metres) → clock-in approved, record saved with method: GPS
+8. If distance > configured radius → 403 error returned with structured details (`distanceMetres`, `allowedRadiusMetres`)
+9. Manager override → POST /api/v1/clock/override with reason note → saved with method: OVERRIDE
 10. Valid override action is derived from the current attendance state; the UI must not ask the manager to guess when a staff member should clock in vs clock out
 ```
 
@@ -673,7 +678,7 @@ export function getDistanceMetres(
 
 ### Security Consideration
 
-The geofence check is **server-side only**. Client-side GPS coordinates are untrusted input â€” the server validates them against the stored branch coordinates. A staff member cannot bypass geofencing by manipulating their device.
+The geofence check is **server-side only**. Client-side GPS coordinates are untrusted input — the server validates them against the stored branch coordinates. A staff member cannot bypass geofencing by manipulating their device.
 
 ### Reliability Constraints
 
@@ -705,14 +710,14 @@ POST /api/v1/orders
    â”‚       â”œâ”€â”€ Generate daily order number (count today's orders + 1)
    â”‚       â”œâ”€â”€ INSERT order record
    â”‚       â”œâ”€â”€ INSERT order_items records (with snapshotted prices)
-   â”‚       â”œâ”€â”€ INSERT prep_ticket(s) â€” one per station involved
+   â”‚       â”œâ”€â”€ INSERT prep_ticket(s) — one per station involved
    â”‚       â””â”€â”€ TRANSACTION commits (all or nothing)
    â”‚
    â”œâ”€â”€ 9. Emit socket event to relevant station room(s)
    â””â”€â”€ 10. Return order to waiter
 ```
 
-**Why a database transaction for steps 8?** If the order inserts but a prep ticket insert fails, we'd have an order with no ticket â€” it would never reach the kitchen. The transaction guarantees all records are created together or none are.
+**Why a database transaction for steps 8?** If the order inserts but a prep ticket insert fails, we'd have an order with no ticket — it would never reach the kitchen. The transaction guarantees all records are created together or none are.
 
 ### Order Number Generation
 
@@ -759,12 +764,15 @@ PATCH /api/v1/orders/:id/items
 
 ## 15. Background Jobs
 
-All long-running or scheduled operations run as BullMQ jobs â€” never inside request handlers.
+All long-running or scheduled operations run as BullMQ jobs — never inside request handlers.
 
 | Job | Trigger | Action |
 |---|---|---|
 | `shift.reminder` | Nightly scheduler (9pm) | Queues FCM push notifications for all staff with shifts the next day |
 | `report.daily` | Nightly scheduler (11pm) | Pre-computes and caches the daily sales summary for fast dashboard load |
+| `print.expire` | Scheduled (hourly) | Marks PrintJob records older than 24h as EXPIRED |
+| `formal_notice.reminder_24h` | Enqueued on FormalNotice creation | Sends FCM push to recipients who have not acknowledged after 24 hours |
+| `formal_notice.reminder_48h` | Enqueued on FormalNotice creation | Sends FCM push to recipients who have not acknowledged after 48 hours |
 
 ### BullMQ Setup
 
@@ -813,7 +821,7 @@ async getMenu(organizationId: string) {
 
 ### Input Security
 - All request bodies validated with Zod before reaching the service layer
-- SQL injection impossible â€” Prisma uses parameterized queries exclusively
+- SQL injection impossible — Prisma uses parameterized queries exclusively
 - No raw SQL unless Prisma cannot handle the query; must be documented with a comment
 
 ### Data Security
@@ -821,7 +829,7 @@ async getMenu(organizationId: string) {
 - Access tokens stored in memory only (not localStorage)
 - Refresh tokens in HTTP-only, Secure, SameSite=Strict cookies
 - `organizationId` in all business queries always sourced from the verified JWT, never from request input
-- Sensitive fields (passwordHash, tokens) never returned in API responses â€” enforced by selecting specific fields in all user queries
+- Sensitive fields (passwordHash, tokens) never returned in API responses — enforced by selecting specific fields in all user queries
 
 ### Transport Security
 - HTTPS enforced end-to-end (Vercel + Cloudflare tunnel + TLS)
@@ -856,7 +864,7 @@ Either signal going offline triggers the offline state.
 When connectivity is restored:
 1. WebSocket reconnects automatically (Socket.io handles this)
 2. Frontend detects reconnection event
-3. Frontend calls a sync endpoint â€” `GET /api/v1/sync` â€” which returns the full current state for that client's role
+3. Frontend calls a sync endpoint — `GET /api/v1/sync` — which returns the full current state for that client's role
 4. Zustand store is updated with the fresh state
 5. UI reflects the current server state
 6. Offline banner is dismissed
@@ -867,27 +875,27 @@ When connectivity is restored:
 
 ### Expected Load
 
-At launch (2 branches): approximately 20â€“30 concurrent users during peak hours. At 10 branches: 100â€“150 concurrent users. The system is designed to handle 500 concurrent users before needing horizontal scaling.
+At launch (2 branches): approximately 20–30 concurrent users during peak hours. At 10 branches: 100–150 concurrent users. The system is designed to handle 500 concurrent users before needing horizontal scaling.
 
 ### Database Performance
 
 - All foreign keys indexed (defined in Data Model)
-- The two most frequent queries â€” active orders per branch and pending prep tickets per station â€” have dedicated composite indexes
-- Pagination enforced on all list queries â€” no unbounded database reads
+- The two most frequent queries — active orders per branch and pending prep tickets per station — have dedicated composite indexes
+- Pagination enforced on all list queries — no unbounded database reads
 - N+1 queries eliminated by using Prisma's `include` for related data
 - Slow query logging enabled (queries over 200ms logged as warnings)
 
 ### API Performance
 
-- Menu data cached in Redis â€” the most frequently read, least frequently changed data
-- Daily report pre-computed nightly â€” manager dashboard load is a cache read, not a complex aggregation query
+- Menu data cached in Redis — the most frequently read, least frequently changed data
+- Daily report pre-computed nightly — manager dashboard load is a cache read, not a complex aggregation query
 - Response compression enabled (gzip) on the Express server
 
 ### Frontend Performance
 
 - Next.js serves static assets from Vercel's global CDN
-- Route-based code splitting â€” the waiter doesn't download the manager dashboard code
-- Optimistic UI updates â€” the waiter's cart clears immediately on submission without waiting for server confirmation, then corrects itself if the server returns an error
+- Route-based code splitting — the waiter doesn't download the manager dashboard code
+- Optimistic UI updates — the waiter's cart clears immediately on submission without waiting for server confirmation, then corrects itself if the server returns an error
 
 ---
 
@@ -978,7 +986,7 @@ logger.info({
 | `error` | Unexpected failures, uncaught exceptions |
 | `warn` | Slow queries (>200ms), failed geofence attempts, rate limit hits |
 | `info` | All API requests, successful auth events, order lifecycle events |
-| `debug` | Detailed flow tracing â€” development only, off in production |
+| `debug` | Detailed flow tracing — development only, off in production |
 
 ### Audit Trail
 
@@ -990,22 +998,181 @@ Sensitive operations are logged to a dedicated audit log:
 
 ### Error Tracking
 
-Unhandled errors and exceptions are captured and surfaced for review. The global error handler logs all 500-level errors with full stack traces.
+Unhandled errors are captured by **Sentry** (`@sentry/node`), initialized in `backend/src/config/sentry.ts` and activated via the `SENTRY_DSN` environment variable. The global error handler (`middleware/error-handler.ts`) calls `Sentry.captureException()` for every 500-level response. 4xx errors (validation, not found, forbidden) are not sent to Sentry — they are expected application states, not bugs.
+
+Sentry is opt-in: if `SENTRY_DSN` is not set, initialization is a no-op and nothing is captured. This means local development and CI are unaffected.
+
+Known Prisma error codes are mapped to typed domain errors before reaching the global handler:
+- `P2002` (unique constraint) → `ConflictError` (409)
+- `P2025` (record not found during update) → `NotFoundError` (404) via global handler
+- `P2003` (foreign key violation) → `ValidationError` (400)
+- `P2000` (value too long) → `ValidationError` (400)
+
+Use `mapPrismaError()` from `utils/prisma-errors.ts` in service catch blocks where a simple domain error re-throw is sufficient. For catch blocks with custom logic (returning existing records, counting skips), handle inline.
 
 ### Health Check Endpoint
 
 ```
 GET /health
-â†’ { status: "ok", db: "connected", redis: "connected", uptime: 3600 }
+→ { status: "ok", db: "connected", redis: "connected", uptime: 3600 }
 ```
 
 Used by deployment automation and uptime monitoring to verify service health after deploys and during runtime.
 
 ---
 
-## 22. Architecture Decision Records
+## 22. Credit Account Authorization Architecture *(Added Phase 7)*
 
-### ADR-001 â€” Single Unified Application Over Multiple Apps
+### The AWAITING_AUTHORIZATION Pattern
+
+When a waiter selects a payment method that requires management approval (House Account, Staff Discount, or approval-required Customer Discount), the order enters `AWAITING_AUTHORIZATION` status instead of closing immediately.
+
+```
+Waiter selects House Account / Staff Discount / Approval-Required Discount
+        ↓
+Order status → AWAITING_AUTHORIZATION
+Socket event → auth:pending (broadcast to MANAGER + DIRECTOR rooms for the branch)
+        ↓
+Manager or Director sees pending authorization in their dashboard
+        ↓
+  [APPROVE]                          [REJECT]
+     ↓                                  ↓
+Increment credit balance        Order status → PENDING (returned to waiter)
+Order status → CLOSED           Incident record created (PAYMENT_REJECTED)
+Socket event: auth:approved     Socket event: auth:rejected → waiter
+```
+
+**Why not just let managers mark orders as paid?**  
+The authorization model keeps the waiter in control of the order while giving management the approval step. The waiter does not need to find a manager physically — the approval happens asynchronously from the manager's dashboard.
+
+### Credit Account Balance Model
+
+Credit accounts are **additive ledgers** — each approved credit order increments the outstanding balance. Settlements decrement it. The current balance is always `SUM(credit orders) - SUM(settlements)` as stored in the denormalized `outstandingBalance` field (kept consistent via `prisma.$transaction`).
+
+```typescript
+// Atomic balance update on approval — order of ops matters
+await prisma.$transaction([
+  prisma.creditAccount.update({ where: { id }, data: { outstandingBalance: { increment: amount } } }),
+  prisma.order.update({ where: { id: orderId }, data: { status: 'CLOSED' } }),
+])
+```
+
+### Corporate vs Branch-Scoped Accounts
+
+`CorporateAccount` records have no `organizationId` — they are system-level. This reflects the real-world scenario: a company like a law firm may have staff at multiple branches charging to the same account. `HouseAccount` and `CustomerCreditAccount` are branch-scoped (include `organizationId`) because benefits and credit tabs are managed per branch.
+
+---
+
+## 23. Discount Authorization Architecture *(Added Phase 8)*
+
+### Two Discount Paths
+
+| Discount Type | Trigger | Authorization Required | Record Table |
+|---|---|---|---|
+| Named Customer Discount | Waiter selects a Discount record | Optional (per-discount `requiresApproval` flag) | `CustomerDiscountAuthRequest` |
+| Staff Discount | Waiter marks order as staff discount + selects beneficiary | Always | `StaffDiscountAuthRequest` |
+
+### Disambiguation in Queries
+
+A closed order may have had a discount applied. To determine which type:
+- `order.discountId IS NOT NULL` → named customer discount applied
+- `order.discountedById IS NOT NULL` → staff discount applied  
+- Both fields null → no discount on this order
+
+The discount amount itself is stored on the order (`discountAmount`, `discountedTotal`) at the time of authorization to snapshot the calculation.
+
+### Authorization Tables
+
+Separate `StaffDiscountAuthRequest` and `CustomerDiscountAuthRequest` tables are used rather than a polymorphic `AuthRequest` table. This avoids nullable polymorphic fields, keeps type-safe queries, and makes each auth flow independently queryable for reporting.
+
+---
+
+## 24. HR Module Architecture *(Added Phase 8)*
+
+### EmployeeProfile — 1:1 Extension Pattern
+
+`EmployeeProfile` is a 1:1 optional extension of `User`. The split keeps the `User` table focused on auth/session data (accessed on every request) while `EmployeeProfile` holds HR-only fields accessed rarely and only by HR-role users.
+
+```
+User (auth, role, branch) ←──── EmployeeProfile (contract, bank, emergency contacts)
+          1                               0..1
+```
+
+### Leave Day Calculation — Working Days Only
+
+Leave duration is always calculated in **working days (Monday–Friday)**. The calculation iterates each calendar day in the range and skips Saturday and Sunday. Public holidays are not currently tracked (planned future enhancement).
+
+```typescript
+function countWorkingDays(start: Date, end: Date): number {
+  let count = 0
+  const current = new Date(start)
+  while (current <= end) {
+    const day = current.getDay()
+    if (day !== 0 && day !== 6) count++ // skip Sun (0) and Sat (6)
+    current.setDate(current.getDate() + 1)
+  }
+  return count
+}
+```
+
+### Leave Balance Seeding
+
+`LeaveBalance` records are created automatically — one per `LeaveType` per active staff member per calendar year. The seeding job runs annually (or on new staff member creation). HR Manager and Director can manually adjust balances if needed.
+
+### HR Document Storage
+
+HR documents (offer letters, contracts, warning letters) are uploaded to **Cloudinary** in an `hr-documents/` folder and stored as `HrDocument` records linked to the staff member's user ID. Cloudinary handles file hosting; the database stores only the URL and metadata.
+
+---
+
+## 25. Internal Communications Architecture *(Added Phase 8)*
+
+### Three Communication Modes
+
+| Mode | Model | Delivery | Persistence |
+|---|---|---|---|
+| Direct Message | `DirectConversation` + `DirectMessage` | Real-time WebSocket | Permanent (paginated history) |
+| Broadcast | `Broadcast` + `BroadcastRecipient` | Real-time WebSocket + FCM push | Permanent per-recipient delivery status |
+| Formal Notice | `FormalNotice` + `FormalNoticeRecipient` | Real-time WebSocket + FCM push + BullMQ reminders | Permanent with acknowledgement tracking |
+
+### Real-Time Delivery
+
+```
+Sender sends DM / Broadcast / Formal Notice (REST POST)
+        ↓
+Service creates DB records
+        ↓
+Service emits Socket.io event to recipient room(s):
+  - DM:        socket.to(`user:${recipientId}`).emit('message:new', payload)
+  - Broadcast: socket.to(`org:${orgId}`).emit('broadcast:new', payload)  [scoped to branch/role if needed]
+  - Notice:    socket.to(`org:${orgId}`).emit('notice:new', payload)
+```
+
+### Formal Notice Escalation (BullMQ)
+
+When a Formal Notice is created, two delayed BullMQ jobs are enqueued immediately:
+
+```typescript
+await notificationQueue.add('notice.reminder', { noticeId }, { delay: 24 * 60 * 60 * 1000 })  // 24h
+await notificationQueue.add('notice.reminder', { noticeId }, { delay: 48 * 60 * 60 * 1000 })  // 48h
+```
+
+When the job fires, the processor queries `FormalNoticeRecipient` records where `acknowledgedAt IS NULL` and sends FCM push notifications to those specific users only. Already-acknowledged recipients receive no reminder.
+
+### Scope Filtering for Broadcasts
+
+Broadcast recipients are determined server-side based on the `scope` field:
+- `COMPANY` → all active users in the organization
+- `BRANCH` → all active users in a specific branch
+- `ROLE_GROUP` → all active users with a specific role in the organization
+
+The recipient list is materialized into `BroadcastRecipient` rows at send time so delivery status is trackable per user.
+
+---
+
+## 26. Architecture Decision Records
+
+### ADR-001 — Single Unified Application Over Multiple Apps
 
 **Date:** 2026-02-22  
 **Status:** Accepted
@@ -1014,11 +1181,11 @@ Used by deployment automation and uptime monitoring to verify service health aft
 
 **Decision:** Build one Next.js application with role-based routing rather than separate applications per role or interface type.
 
-**Consequences:** One codebase to deploy, maintain, and update. Shared components across interfaces. Simpler onboarding for new developers. Trade-off: a single deployment failure affects all interfaces simultaneously â€” mitigated by Vercel's high availability.
+**Consequences:** One codebase to deploy, maintain, and update. Shared components across interfaces. Simpler onboarding for new developers. Trade-off: a single deployment failure affects all interfaces simultaneously — mitigated by Vercel's high availability.
 
 ---
 
-### ADR-002 â€” WebSockets for Real-Time, REST for Actions
+### ADR-002 — WebSockets for Real-Time, REST for Actions
 
 **Date:** 2026-02-22  
 **Status:** Accepted
@@ -1027,11 +1194,11 @@ Used by deployment automation and uptime monitoring to verify service health aft
 
 **Decision:** Use WebSockets (Socket.io) for all real-time event broadcasting. Use REST for all state-changing actions (creating orders, claiming tickets, marking ready). Never use WebSockets to perform mutations.
 
-**Consequences:** Clean separation between actions and reactions. REST provides reliable, idempotent operations with standard error handling. WebSockets provide instant broadcast. Trade-off: two connection types to manage â€” mitigated by Socket.io's abstraction.
+**Consequences:** Clean separation between actions and reactions. REST provides reliable, idempotent operations with standard error handling. WebSockets provide instant broadcast. Trade-off: two connection types to manage — mitigated by Socket.io's abstraction.
 
 ---
 
-### ADR-003 â€” PrepTicket as Independent Routing Entity
+### ADR-003 — PrepTicket as Independent Routing Entity
 
 **Date:** 2026-02-22  
 **Status:** Accepted
@@ -1040,11 +1207,11 @@ Used by deployment automation and uptime monitoring to verify service health aft
 
 **Decision:** Create a `PrepTicket` record per prep station involved in each order. Each ticket tracks its own status independently. The `Order` presents a unified view to the waiter.
 
-**Consequences:** Clean modelling of parallel workflows. Independent prep time metrics per station. KDS/BDS queries are simple and fast. Trade-off: order status must be derived from ticket statuses â€” managed by explicit status updates in the service layer when tickets change.
+**Consequences:** Clean modelling of parallel workflows. Independent prep time metrics per station. KDS/BDS queries are simple and fast. Trade-off: order status must be derived from ticket statuses — managed by explicit status updates in the service layer when tickets change.
 
 ---
 
-### ADR-004 â€” Price Snapshotting on OrderItem
+### ADR-004 — Price Snapshotting on OrderItem
 
 **Date:** 2026-02-22  
 **Status:** Accepted
@@ -1053,11 +1220,11 @@ Used by deployment automation and uptime monitoring to verify service health aft
 
 **Decision:** Copy `unitPrice` from `MenuItem.price` into `OrderItem.unitPrice` at the moment the order is created. OrderItem prices are immutable.
 
-**Consequences:** Historical financial records are always accurate regardless of future price changes. Reports are trustworthy. Trade-off: price changes do not retroactively affect existing orders â€” this is the desired behaviour.
+**Consequences:** Historical financial records are always accurate regardless of future price changes. Reports are trustworthy. Trade-off: price changes do not retroactively affect existing orders — this is the desired behaviour.
 
 ---
 
-### ADR-005 â€” Server-Side Geofence Validation
+### ADR-005 — Server-Side Geofence Validation
 
 **Date:** 2026-02-22  
 **Status:** Accepted
@@ -1066,22 +1233,90 @@ Used by deployment automation and uptime monitoring to verify service health aft
 
 **Decision:** GPS coordinates are sent from the device to the server. The server performs the Haversine distance calculation against the stored branch coordinates. The client is untrusted for this check.
 
-**Consequences:** Geofencing cannot be bypassed by manipulating the client. Trade-off: an extra network round-trip on clock-in â€” acceptable given this is not a time-critical operation.
+**Consequences:** Geofencing cannot be bypassed by manipulating the client. Trade-off: an extra network round-trip on clock-in — acceptable given this is not a time-critical operation.
 
 ---
 
-## 23. Open Questions
+### ADR-006 — PrepTicket Splitting: One Ticket Per Order-Item Line
+
+**Date:** 2026-03-15  
+**Status:** Accepted
+
+**Context:** The original design grouped all items for a station (e.g., all drink items) into a single PrepTicket per order. This made the BDS show only one card per order regardless of how many drink items were in it, with no way to assign individual workload to individual baristas.
+
+**Decision:** Create one PrepTicket per order-item line per station. An order with `Latte x2 + Cappuccino + Fries` produces 3 tickets: two for BARISTA (one per drink line) and one for KITCHEN. The `@@unique([orderId, station, sequence])` constraint with a per-station sequence number supports multiple tickets per station.
+
+**Consequences:** Individual baristas can claim individual tickets. Workload is distributed fairly. Ticket counts are accurate per line. Trade-off: more rows in the PrepTicket table; negligible at scale. `createMany` must assign explicit per-station sequence numbers to avoid unique constraint violations.
+
+---
+
+### ADR-007 — AWAITING_AUTHORIZATION as a First-Class Order Status
+
+**Date:** 2026-03-18  
+**Status:** Accepted
+
+**Context:** House account, staff discount, and approval-required customer discount all require manager/director approval before an order is closed. Several implementation approaches were considered: a separate `PendingApproval` table; a boolean flag on `Order`; or a dedicated status value.
+
+**Decision:** Add `AWAITING_AUTHORIZATION` to the `OrderStatus` enum. The order remains in the normal order lifecycle but is held at this status until approved or rejected. No separate approval queue table is needed.
+
+**Consequences:** The existing order status progression handles the hold state natively. Managers see authorization requests in the same dashboard as order monitoring. WebSocket events reuse the existing order room structure. Trade-off: order status progression is no longer strictly linear (an order can go from AWAITING_AUTHORIZATION back to PENDING on rejection) — this is intentional and documented.
+
+---
+
+### ADR-008 — Corporate Account at System Level (No organizationId)
+
+**Date:** 2026-03-18  
+**Status:** Accepted
+
+**Context:** Corporate clients (e.g., companies, NGOs) may have staff at multiple Wendo branches all charging to the same account. If a corporate account were branch-scoped, a company would need separate accounts per branch.
+
+**Decision:** `CorporateAccount` records have no `organizationId` — they are system-level entities. Only System Admin and Director can create or view them. The Accountant role can settle them.
+
+**Consequences:** Cross-branch corporate billing works naturally. Outstanding balance is the total across all branches. Trade-off: `CorporateAccount` queries cannot use the standard `organizationId` filter — all queries must explicitly verify caller has Director or SYSTEM_ADMIN role.
+
+---
+
+### ADR-009 — Separate Auth Request Tables for Staff vs Customer Discounts
+
+**Date:** 2026-04-01  
+**Status:** Accepted
+
+**Context:** Both staff discounts and customer discounts require authorization, so a polymorphic `DiscountAuthRequest` table was considered.
+
+**Decision:** Separate `StaffDiscountAuthRequest` and `CustomerDiscountAuthRequest` tables with distinct fields for each flow. Staff auth requests include `beneficiaryId` (the staff member receiving the discount); customer discount requests include `discountId` (the named discount scheme applied).
+
+**Consequences:** Type-safe, fully typed Prisma queries for each flow. Independent reporting on each discount type. No nullable polymorphic fields. Trade-off: two tables to query when building the combined auth request dashboard — handled by fetching both and merging in the service layer.
+
+---
+
+### ADR-010 — EmployeeProfile as Optional 1:1 Extension of User
+
+**Date:** 2026-04-10  
+**Status:** Accepted
+
+**Context:** HR data (contract dates, bank details, emergency contacts, employment type) could be added directly to the `User` table or kept in a separate table.
+
+**Decision:** `EmployeeProfile` is a separate table with a 1:1 optional relation to `User`. The `User` table stays focused on auth fields accessed on every API request. `EmployeeProfile` is only loaded when the HR module explicitly fetches it.
+
+**Consequences:** Auth middleware stays fast — it never loads HR-specific fields. HR data is only queried by HR-role users. Adding new HR fields never touches the core `User` migration. Trade-off: a join is needed whenever HR profile data is required alongside user data — acceptable given the infrequency of HR queries.
+
+---
+
+## 27. Open Questions
 
 | # | Question | Impact |
 |---|---|---|
-| OQ-01 | Grubba API documentation â€” when available, a delivery tracking integration should be designed for V2 | Order lifecycle for delivery |
+| OQ-01 | Grubba API documentation — when available, a delivery tracking integration should be designed for V2 | Order lifecycle for delivery |
 | OQ-02 | What happens if the backend is unreachable during a peak service period? Should there be a fallback mechanism for order submission? | Reliability |
 | OQ-03 | As branches expand, should each branch get its own backend instance, or does the single multi-tenant backend scale sufficiently? | Scalability |
 | OQ-04 | Should manager override for clock-in require approval from the director, or is the manager's action sufficient? | Audit process |
+| OQ-05 | Public holidays for leave calculation — should the system maintain a Kenya public holiday calendar to exclude those days from leave counts? | HR Module accuracy |
+| OQ-06 | Message retention — should DirectMessage history be pruned after a period (e.g., 90 days) to control database growth? | Storage |
+| OQ-07 | Payslip Phase 9 — should payslips be stored as structured records (with individual deduction fields) or as uploaded PDF blobs? Structured records allow in-app display and calculation validation; PDFs are simpler for admin entry. | Phase 9 design |
 
 ---
 
-*This document is the authoritative technical reference for the Wendo RMS V1. All development must conform to the architecture defined here. Deviations require an ADR entry and a document update before implementation.*
+*This document is the authoritative technical reference for the Wendo RMS. All development must conform to the architecture defined here. Deviations require an ADR entry and a document update before implementation. Version 2.0 reflects the completed Phase 8 system state.*
 
 
 

@@ -14,6 +14,9 @@ import {
   leaveRequestsQuerySchema,
   attendanceSummaryQuerySchema,
   attendanceDetailQuerySchema,
+  userIdParamSchema,
+  hrRouteIdParamSchema,
+  leaveTypeParamSchema,
 } from '../validators/hr-schemas';
 import type { UserRole } from '@prisma/client';
 
@@ -25,9 +28,6 @@ function getActor(req: Request): hrService.HrActor {
   };
 }
 
-function param(req: Request, key: string): string {
-  return (req.params as Record<string, string>)[key] ?? '';
-}
 
 // ─── Employee Profiles ────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ export async function listProfiles(req: Request, res: Response): Promise<void> {
 
 export async function getProfile(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
   const profile = await hrService.getEmployeeProfile(actor, userId);
   res.json({ success: true, data: { profile } });
 }
@@ -73,7 +73,7 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
 export async function updateProfile(req: Request, res: Response): Promise<void> {
   const body = updateEmployeeProfileSchema.parse(req.body);
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
 
   const profile = await hrService.updateEmployeeProfile(actor, userId, {
     nationalId: body.nationalId,
@@ -106,14 +106,15 @@ export async function getMyLeaveBalances(req: Request, res: Response): Promise<v
 
 export async function getLeaveBalances(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
   const balances = await hrService.getLeaveBalances(actor, userId);
   res.json({ success: true, data: { balances } });
 }
 
 export async function updateLeaveBalance(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId'); const leaveType = param(req, 'leaveType');
+  const { userId } = userIdParamSchema.parse(req.params);
+  const { leaveType } = leaveTypeParamSchema.parse(req.params);
   const body = updateLeaveBalanceSchema.parse(req.body);
 
   const balance = await hrService.updateLeaveBalance(
@@ -158,7 +159,7 @@ export async function listLeaveRequests(req: Request, res: Response): Promise<vo
 
 export async function approveLeaveRequest(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const id = param(req, 'id');
+  const { id } = hrRouteIdParamSchema.parse(req.params);
   const body = reviewLeaveRequestSchema.parse(req.body);
   const result = await hrService.approveLeaveRequest(actor, id, body.comment);
   const { shiftConflicts, ...request } = result;
@@ -167,7 +168,7 @@ export async function approveLeaveRequest(req: Request, res: Response): Promise<
 
 export async function rejectLeaveRequest(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const id = param(req, 'id');
+  const { id } = hrRouteIdParamSchema.parse(req.params);
   const body = reviewLeaveRequestSchema.parse(req.body);
   const request = await hrService.rejectLeaveRequest(actor, id, body.comment);
   res.json({ success: true, data: { request } });
@@ -175,7 +176,7 @@ export async function rejectLeaveRequest(req: Request, res: Response): Promise<v
 
 export async function cancelLeaveRequest(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const id = param(req, 'id');
+  const { id } = hrRouteIdParamSchema.parse(req.params);
   const request = await hrService.cancelLeaveRequest(actor, id);
   res.json({ success: true, data: { request } });
 }
@@ -224,14 +225,14 @@ export async function createDisciplinaryRecord(req: Request, res: Response): Pro
 
 export async function getDisciplinaryRecords(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
   const records = await hrService.getDisciplinaryRecords(actor, userId);
   res.json({ success: true, data: { records } });
 }
 
 export async function acknowledgeDisciplinaryRecord(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const id = param(req, 'id');
+  const { id } = hrRouteIdParamSchema.parse(req.params);
   const record = await hrService.acknowledgeDisciplinaryRecord(actor, id);
   res.json({ success: true, data: { record } });
 }
@@ -275,7 +276,7 @@ export async function uploadHrDocument(req: Request, res: Response): Promise<voi
 
 export async function getHrDocuments(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
 
   const profile = await hrRepository.findProfileByUserId(userId);
   if (!profile) {
@@ -314,7 +315,7 @@ export async function getAttendanceSummary(req: Request, res: Response): Promise
 
 export async function getStaffAttendanceDetail(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const userId = param(req, 'userId');
+  const { userId } = userIdParamSchema.parse(req.params);
   const query = attendanceDetailQuerySchema.parse(req.query);
   const days = await hrService.getStaffAttendanceDetail(
     actor,

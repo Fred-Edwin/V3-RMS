@@ -126,7 +126,7 @@ describe('discountService.deactivate', () => {
       buildDiscountRecord({ isActive: false }),
     );
     const result = await discountService.deactivate(discountId, directorActor);
-    expect(discountRepository.deactivate).toHaveBeenCalledWith(discountId);
+    expect(discountRepository.deactivate).toHaveBeenCalledWith(discountId, directorActor.organizationId);
     expect(result.isActive).toBe(false);
   });
 

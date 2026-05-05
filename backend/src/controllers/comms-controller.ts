@@ -8,6 +8,10 @@ import {
   SendBroadcastSchema,
   IssueNoticeSchema,
   ListQuerySchema,
+  conversationIdParamSchema,
+  messageIdParamSchema,
+  broadcastIdParamSchema,
+  noticeIdParamSchema,
 } from '../validators/comms-schemas';
 import { UnauthorizedError } from '../utils/errors';
 
@@ -33,7 +37,7 @@ export const commsController = {
   /** GET /comms/conversations/:conversationId/messages */
   getMessages: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { conversationId } = req.params as { conversationId: string };
+    const { conversationId } = conversationIdParamSchema.parse(req.params);
     const query = GetMessagesQuerySchema.parse(req.query);
     const result = await commsService.getMessages(req.user, conversationId, query);
     res.status(200).json({ success: true, data: result });
@@ -42,7 +46,7 @@ export const commsController = {
   /** POST /comms/conversations/:conversationId/messages */
   sendMessage: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { conversationId } = req.params as { conversationId: string };
+    const { conversationId } = conversationIdParamSchema.parse(req.params);
     const body = SendDirectMessageSchema.parse(req.body);
     const result = await commsService.sendDirectMessage(req.user, conversationId, body);
     res.status(201).json({ success: true, data: result });
@@ -51,7 +55,7 @@ export const commsController = {
   /** PATCH /comms/messages/:messageId/read */
   markMessageRead: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { messageId } = req.params as { messageId: string };
+    const { messageId } = messageIdParamSchema.parse(req.params);
     await commsService.markMessageRead(req.user, messageId);
     res.status(200).json({ success: true, data: null });
   },
@@ -59,7 +63,7 @@ export const commsController = {
   /** DELETE /comms/messages/:messageId */
   deleteMessage: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { messageId } = req.params as { messageId: string };
+    const { messageId } = messageIdParamSchema.parse(req.params);
     await commsService.deleteMessage(req.user, messageId);
     res.status(200).json({ success: true, data: null });
   },
@@ -85,7 +89,7 @@ export const commsController = {
   /** GET /comms/broadcasts/:broadcastId */
   getBroadcastDetail: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { broadcastId } = req.params as { broadcastId: string };
+    const { broadcastId } = broadcastIdParamSchema.parse(req.params);
     const result = await commsService.getBroadcastDetail(req.user, broadcastId);
     res.status(200).json({ success: true, data: result });
   },
@@ -93,7 +97,7 @@ export const commsController = {
   /** PATCH /comms/broadcasts/:broadcastId/read */
   markBroadcastRead: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { broadcastId } = req.params as { broadcastId: string };
+    const { broadcastId } = broadcastIdParamSchema.parse(req.params);
     await commsService.markBroadcastRead(req.user, broadcastId);
     res.status(200).json({ success: true, data: null });
   },
@@ -101,7 +105,7 @@ export const commsController = {
   /** PATCH /comms/broadcasts/:broadcastId/acknowledge */
   acknowledgeBroadcast: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { broadcastId } = req.params as { broadcastId: string };
+    const { broadcastId } = broadcastIdParamSchema.parse(req.params);
     await commsService.acknowledgeBroadcast(req.user, broadcastId);
     res.status(200).json({ success: true, data: null });
   },
@@ -109,7 +113,7 @@ export const commsController = {
   /** GET /comms/broadcasts/:broadcastId/status */
   getBroadcastStatus: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { broadcastId } = req.params as { broadcastId: string };
+    const { broadcastId } = broadcastIdParamSchema.parse(req.params);
     const result = await commsService.getBroadcastRecipientStatuses(req.user, broadcastId);
     res.status(200).json({ success: true, data: result });
   },
@@ -135,7 +139,7 @@ export const commsController = {
   /** GET /comms/notices/:noticeId */
   getNoticeDetail: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { noticeId } = req.params as { noticeId: string };
+    const { noticeId } = noticeIdParamSchema.parse(req.params);
     const result = await commsService.getNoticeDetail(req.user, noticeId);
     res.status(200).json({ success: true, data: result });
   },
@@ -143,7 +147,7 @@ export const commsController = {
   /** PATCH /comms/notices/:noticeId/acknowledge */
   acknowledgeNotice: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { noticeId } = req.params as { noticeId: string };
+    const { noticeId } = noticeIdParamSchema.parse(req.params);
     await commsService.acknowledgeNotice(req.user, noticeId);
     res.status(200).json({ success: true, data: null });
   },
@@ -151,7 +155,7 @@ export const commsController = {
   /** GET /comms/notices/:noticeId/status */
   getNoticeStatus: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    const { noticeId } = req.params as { noticeId: string };
+    const { noticeId } = noticeIdParamSchema.parse(req.params);
     const result = await commsService.getNoticeRecipientStatuses(req.user, noticeId);
     res.status(200).json({ success: true, data: result });
   },

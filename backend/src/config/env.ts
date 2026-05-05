@@ -36,6 +36,7 @@ const envSchema = z.object({
   CLOCK_GEOFENCE_RADIUS_METRES: z.coerce.number().int().positive().max(1000).default(50),
   LOG_LEVEL: z.string().default('info'),
   LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 export const env = envSchema.parse(process.env);

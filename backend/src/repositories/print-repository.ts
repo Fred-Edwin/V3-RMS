@@ -275,7 +275,7 @@ export const printRepository = {
     },
   ): Promise<PrintJobRecord> => {
     return prisma.printJob.update({
-      where: { id },
+      where: { id, organizationId },
       data: {
         status: data.status,
         printedAt: data.printedAt,
@@ -418,9 +418,9 @@ export const printRepository = {
     });
   },
 
-  updateHeartbeat: async (stationId: string): Promise<{ lastSeenAt: Date | null }> => {
+  updateHeartbeat: async (stationId: string, organizationId: string): Promise<{ lastSeenAt: Date | null }> => {
     return prisma.printStation.update({
-      where: { id: stationId },
+      where: { id: stationId, organizationId },
       data: { lastSeenAt: new Date() },
       select: { lastSeenAt: true },
     });
@@ -437,14 +437,14 @@ export const printRepository = {
 
   findStationWithOrg: async (
     stationId: string,
-  ): Promise<{ id: string; organizationId: string; organization: { name: string } } | null> => {
+  ): Promise<{ id: string; organizationId: string; organization: { id: string; name: string } } | null> => {
     return prisma.printStation.findUnique({
       where: { id: stationId },
       select: {
         id: true,
         organizationId: true,
         organization: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
       },
     });

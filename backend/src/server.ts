@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { initSentry } from './config/sentry';
+initSentry();
 import { createServer } from 'http';
 import { app } from './app';
 import { env } from './config/env';

@@ -1,7 +1,10 @@
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { staffDiscountAuthService } from '../services/staff-discount-auth-service';
-import { StaffDiscountDecisionSchema } from '../validators/staff-discount-auth-schemas';
+import { StaffDiscountDecisionSchema, StaffDiscountAuthRequestIdParamSchema } from '../validators/staff-discount-auth-schemas';
 import { UnauthorizedError } from '../utils/errors';
+
+const orderIdParamSchema = z.object({ orderId: z.string().uuid('orderId param must be a valid UUID') });
 
 export const staffDiscountAuthController = {
   /** GET /staff-discount-auth — list all pending discount requests for the branch */
@@ -16,7 +19,7 @@ export const staffDiscountAuthController = {
   getById: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = StaffDiscountAuthRequestIdParamSchema.parse(req.params);
     const result = await staffDiscountAuthService.getById(authRequestId, req.user);
 
     res.status(200).json({ success: true, data: result });
@@ -27,7 +30,7 @@ export const staffDiscountAuthController = {
     if (!req.user) throw new UnauthorizedError('Authentication required');
     if (!req.user.organizationId) throw new UnauthorizedError('Branch context required');
 
-    const { orderId } = req.params as { orderId: string };
+    const { orderId } = orderIdParamSchema.parse(req.params);
     const result = await staffDiscountAuthService.getPendingByOrderId(orderId, req.user.organizationId);
 
     res.status(200).json({ success: true, data: result });
@@ -37,7 +40,7 @@ export const staffDiscountAuthController = {
   override: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = StaffDiscountAuthRequestIdParamSchema.parse(req.params);
     const { decision } = StaffDiscountDecisionSchema.parse(req.body);
     const result = await staffDiscountAuthService.managerApprove(authRequestId, decision, req.user);
 

@@ -42,3 +42,7 @@ export const listStaffQuerySchema = z.object({
       return value === 'true';
     }),
 });
+
+export const staffIdParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+});

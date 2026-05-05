@@ -83,7 +83,7 @@ export const commsService = {
       rows.map(async (row) => {
         const other =
           row.participantAId === actor.id ? row.participantB : row.participantA;
-        const unreadCount = await commsRepository.countUnreadInConversation(row.id, actor.id);
+        const unreadCount = await commsRepository.countUnreadInConversation(row.id, actor.id, row.organizationId);
         const lastMsg = row.messages[0] ?? null;
         return {
           id: row.id,
@@ -151,6 +151,7 @@ export const commsService = {
 
     const rows = await commsRepository.findMessagesByConversation(
       conversationId,
+      conv.organizationId,
       query.limit,
       query.before,
     );

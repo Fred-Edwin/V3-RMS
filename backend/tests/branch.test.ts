@@ -83,7 +83,7 @@ describe('Branch routes', () => {
     });
 
     const response = await request(app)
-      .patch('/api/v1/branches/branch-1/set-hub')
+      .patch('/api/v1/branches/11111111-1111-4111-8111-111111111111/set-hub')
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);

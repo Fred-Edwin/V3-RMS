@@ -994,6 +994,7 @@ export const reportRepository = {
           orderDate: true,
           total: true,
         },
+        take: 50000,
       }),
       prisma.orderItem.findMany({
         where: {
@@ -1025,6 +1026,7 @@ export const reportRepository = {
             },
           },
         },
+        take: 200000,
       }),
       prisma.otherIncomeEntry.findMany({
         where: {
@@ -1369,15 +1371,256 @@ export const reportRepository = {
     startDate: Date,
     endDate: Date,
   ): Promise<DailySummaryReport[]> => {
-    const summaries: DailySummaryReport[] = [];
-    const cursor = new Date(startDate);
+    const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
+    const dateKeys = buildDateRangeKeys(startDate, endDate);
 
-    while (cursor <= endDate) {
-      summaries.push(await reportRepository.getDailySummaryByDate(organizationId, cursor));
-      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    // Single parallel batch — replaces the N×9 per-day query loop
+    const [
+      organization,
+      closedOrders,
+      orderItems,
+      prepTickets,
+      staffDiscountOrders,
+      customerDiscountOrders,
+      otherIncomeEntries,
+    ] = await Promise.all([
+      prisma.organization.findFirst({
+        where: { id: organizationId },
+        select: { id: true, name: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: { gte: start, lt: endExclusive },
+          createdBy: { isTestUser: false },
+        },
+        select: {
+          orderDate: true,
+          type: true,
+          paymentMethod: true,
+          total: true,
+          mpesaAmount: true,
+          cashAmount: true,
+          cardAmount: true,
+          splitType: true,
+          discountId: true,
+          discountAmount: true,
+        },
+      }),
+      prisma.orderItem.findMany({
+        where: {
+          order: {
+            organizationId,
+            status: OrderStatus.CLOSED,
+            orderDate: { gte: start, lt: endExclusive },
+          },
+        },
+        select: {
+          quantity: true,
+          subtotal: true,
+          menuItemId: true,
+          menuItem: { select: { name: true } },
+          order: { select: { orderDate: true } },
+        },
+      }),
+      prisma.prepTicket.findMany({
+        where: {
+          organizationId,
+          status: 'READY',
+          claimedAt: { not: null },
+          readyAt: { not: null },
+          order: { organizationId, orderDate: { gte: start, lt: endExclusive } },
+        },
+        select: {
+          station: true,
+          claimedAt: true,
+          readyAt: true,
+          order: { select: { orderDate: true } },
+        },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: { gte: start, lt: endExclusive },
+          discountAmount: { not: null },
+          discountId: null,
+          createdBy: { isTestUser: false },
+        },
+        select: { orderDate: true, discountAmount: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          organizationId,
+          status: OrderStatus.CLOSED,
+          orderDate: { gte: start, lt: endExclusive },
+          discountAmount: { not: null },
+          discountId: { not: null },
+          createdBy: { isTestUser: false },
+        },
+        select: { orderDate: true, discountAmount: true },
+      }),
+      otherIncomeRepository.findByDateRange(organizationId, start, new Date(endExclusive.getTime() - 1)),
+    ]);
+
+    // Pre-index all data by date key
+    type OrderRow = (typeof closedOrders)[number];
+    const ordersByDate = new Map<string, OrderRow[]>();
+    for (const order of closedOrders) {
+      const key = formatDateOnly(order.orderDate);
+      const bucket = ordersByDate.get(key) ?? [];
+      bucket.push(order);
+      ordersByDate.set(key, bucket);
     }
 
-    return summaries;
+    type ItemRow = (typeof orderItems)[number];
+    const itemsByDate = new Map<string, ItemRow[]>();
+    for (const item of orderItems) {
+      const key = formatDateOnly(item.order.orderDate);
+      const bucket = itemsByDate.get(key) ?? [];
+      bucket.push(item);
+      itemsByDate.set(key, bucket);
+    }
+
+    type PrepRow = (typeof prepTickets)[number];
+    const prepByDate = new Map<string, PrepRow[]>();
+    for (const ticket of prepTickets) {
+      const key = formatDateOnly(ticket.order.orderDate);
+      const bucket = prepByDate.get(key) ?? [];
+      bucket.push(ticket);
+      prepByDate.set(key, bucket);
+    }
+
+    type StaffDiscRow = (typeof staffDiscountOrders)[number];
+    const staffDiscByDate = new Map<string, StaffDiscRow[]>();
+    for (const order of staffDiscountOrders) {
+      const key = formatDateOnly(order.orderDate);
+      const bucket = staffDiscByDate.get(key) ?? [];
+      bucket.push(order);
+      staffDiscByDate.set(key, bucket);
+    }
+
+    type CustDiscRow = (typeof customerDiscountOrders)[number];
+    const custDiscByDate = new Map<string, CustDiscRow[]>();
+    for (const order of customerDiscountOrders) {
+      const key = formatDateOnly(order.orderDate);
+      const bucket = custDiscByDate.get(key) ?? [];
+      bucket.push(order);
+      custDiscByDate.set(key, bucket);
+    }
+
+    type OtherIncomeRow = (typeof otherIncomeEntries)[number];
+    const otherIncomeByDate = new Map<string, OtherIncomeRow[]>();
+    for (const entry of otherIncomeEntries) {
+      const key = formatDateOnly(entry.entryDate);
+      const bucket = otherIncomeByDate.get(key) ?? [];
+      bucket.push(entry);
+      otherIncomeByDate.set(key, bucket);
+    }
+
+    const orgName = organization?.name ?? 'Unknown Branch';
+
+    return dateKeys.map((dateKey) => {
+      const dayOrders = ordersByDate.get(dateKey) ?? [];
+      const dayItems = itemsByDate.get(dateKey) ?? [];
+      const dayPrep = prepByDate.get(dateKey) ?? [];
+      const dayStaffDisc = staffDiscByDate.get(dateKey) ?? [];
+      const dayCustDisc = custDiscByDate.get(dateKey) ?? [];
+      const dayOtherIncome = otherIncomeByDate.get(dateKey) ?? [];
+
+      // Revenue excluding house account
+      const nonHouseOrders = dayOrders.filter((o) => o.paymentMethod !== 'HOUSE_ACCOUNT');
+      let orderRevenue = new Prisma.Decimal(0);
+      let orderCount = 0;
+      for (const order of nonHouseOrders) {
+        orderRevenue = orderRevenue.add(order.total);
+        orderCount++;
+      }
+
+      const ordersByType: DailySummaryReport['ordersByType'] = { DINE_IN: 0, TAKE_AWAY: 0, DELIVERY: 0 };
+      for (const order of dayOrders) {
+        ordersByType[order.type] = (ordersByType[order.type] ?? 0) + 1;
+      }
+
+      const revenueByPaymentMethod: DailySummaryReport['revenueByPaymentMethod'] = {
+        MPESA: '0.00', CASH: '0.00', CARD: '0.00', SPLIT: '0.00',
+        HOUSE_ACCOUNT: '0.00', CORPORATE_ACCOUNT: '0.00', CUSTOMER_CREDIT: '0.00',
+      };
+      const pmTotals = new Map<string, Prisma.Decimal>();
+      for (const order of dayOrders) {
+        if (!order.paymentMethod) continue;
+        pmTotals.set(order.paymentMethod, (pmTotals.get(order.paymentMethod) ?? new Prisma.Decimal(0)).add(order.total));
+      }
+      for (const [method, total] of pmTotals) {
+        (revenueByPaymentMethod as Record<string, string>)[method] = total.toFixed(2);
+      }
+
+      const topItemMap = new Map<string, { menuItemId: string; name: string; quantitySold: number; revenue: Prisma.Decimal }>();
+      for (const item of dayItems) {
+        const existing = topItemMap.get(item.menuItemId);
+        if (existing) {
+          existing.quantitySold += item.quantity;
+          existing.revenue = existing.revenue.add(item.subtotal);
+        } else {
+          topItemMap.set(item.menuItemId, { menuItemId: item.menuItemId, name: item.menuItem.name, quantitySold: item.quantity, revenue: item.subtotal });
+        }
+      }
+      const topItems = [...topItemMap.values()]
+        .sort((a, b) => b.quantitySold - a.quantitySold)
+        .slice(0, 5)
+        .map((item) => ({ menuItemId: item.menuItemId, name: item.name, quantitySold: item.quantitySold, revenue: item.revenue.toFixed(2) }));
+
+      const kitchenTickets = dayPrep.filter((t) => t.station === PrepStation.KITCHEN);
+      const baristaTickets = dayPrep.filter((t) => t.station === PrepStation.BARISTA);
+
+      // Other income aggregated by category
+      const otherIncomeCatMap = new Map<string, { categoryId: string; name: string; total: Prisma.Decimal }>();
+      for (const entry of dayOtherIncome) {
+        const existing = otherIncomeCatMap.get(entry.category.id);
+        if (existing) {
+          existing.total = existing.total.add(entry.amount);
+        } else {
+          otherIncomeCatMap.set(entry.category.id, { categoryId: entry.category.id, name: entry.category.name, total: entry.amount });
+        }
+      }
+      const otherIncomeTotal = [...otherIncomeCatMap.values()].reduce((acc, r) => acc.add(r.total), new Prisma.Decimal(0));
+      const grandTotal = orderRevenue.add(otherIncomeTotal);
+
+      let staffDiscountTotal = new Prisma.Decimal(0);
+      for (const order of dayStaffDisc) {
+        if (order.discountAmount) staffDiscountTotal = staffDiscountTotal.add(order.discountAmount);
+      }
+      let customerDiscountTotal = new Prisma.Decimal(0);
+      for (const order of dayCustDisc) {
+        if (order.discountAmount) customerDiscountTotal = customerDiscountTotal.add(order.discountAmount);
+      }
+
+      return {
+        date: dateKey,
+        organizationId,
+        organizationName: orgName,
+        totalRevenue: grandTotal.toFixed(2),
+        orderCount,
+        ordersByType,
+        revenueByPaymentMethod,
+        topItems,
+        averagePrepTimeMinutes: {
+          KITCHEN: computeAveragePrepMinutes(kitchenTickets),
+          BARISTA: computeAveragePrepMinutes(baristaTickets),
+        },
+        otherIncomeTotal: otherIncomeTotal.toFixed(2),
+        otherIncomeByCategory: [...otherIncomeCatMap.values()].map((r) => ({
+          categoryId: r.categoryId,
+          name: r.name,
+          total: r.total.toFixed(2),
+        })),
+        staffDiscountTotal: staffDiscountTotal.toFixed(2),
+        staffDiscountOrderCount: dayStaffDisc.length,
+        customerDiscountTotal: customerDiscountTotal.toFixed(2),
+        customerDiscountOrderCount: dayCustDisc.length,
+      };
+    });
   },
 
   getDirectorPulse: async (): Promise<import('../types/report.types').DirectorPulseReport> => {
@@ -1625,6 +1868,7 @@ export const reportRepository = {
           user: { select: { name: true, role: true } },
         },
         orderBy: { currentBalance: 'desc' },
+        take: 500,
       }),
       prisma.corporateAccount.findMany({
         where: { isActive: true, currentBalance: { gt: 0 } },
@@ -1637,6 +1881,7 @@ export const reportRepository = {
           creditLimit: true,
         },
         orderBy: { currentBalance: 'desc' },
+        take: 500,
       }),
       prisma.customerCreditAccount.findMany({
         where: {
@@ -1654,6 +1899,7 @@ export const reportRepository = {
           organization: { select: { name: true } },
         },
         orderBy: { currentBalance: 'desc' },
+        take: 500,
       }),
     ]);
 
@@ -1688,6 +1934,7 @@ export const reportRepository = {
           },
         },
       },
+      take: 200000,
     });
 
     let organizationName = 'All Branches';
@@ -1892,6 +2139,7 @@ export const reportRepository = {
         },
       },
       orderBy: { orderDate: 'asc' },
+      take: 1000,
     });
 
     const totalAtRisk = orders.reduce((sum, o) => sum + o.total.toNumber(), 0);

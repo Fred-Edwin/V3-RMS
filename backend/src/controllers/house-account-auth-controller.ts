@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { houseAccountAuthService } from '../services/house-account-auth-service';
-import { ResolveAuthSchema } from '../validators/house-account-auth-schemas';
+import { ResolveAuthSchema, authRequestIdParamSchema, orderIdParamSchema } from '../validators/house-account-auth-schemas';
 import { UnauthorizedError } from '../utils/errors';
 
 export const houseAccountAuthController = {
@@ -16,7 +16,7 @@ export const houseAccountAuthController = {
   getById: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = authRequestIdParamSchema.parse(req.params);
     const result = await houseAccountAuthService.getById(authRequestId, req.user);
 
     res.status(200).json({ success: true, data: result });
@@ -27,7 +27,7 @@ export const houseAccountAuthController = {
     if (!req.user) throw new UnauthorizedError('Authentication required');
     if (!req.user.organizationId) throw new UnauthorizedError('Branch context required');
 
-    const { orderId } = req.params as { orderId: string };
+    const { orderId } = orderIdParamSchema.parse(req.params);
     const result = await houseAccountAuthService.getPendingByOrderId(orderId, req.user.organizationId);
 
     res.status(200).json({ success: true, data: result });
@@ -37,7 +37,7 @@ export const houseAccountAuthController = {
   resolve: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = authRequestIdParamSchema.parse(req.params);
     const { decision } = ResolveAuthSchema.parse(req.body);
     const result = await houseAccountAuthService.resolve(authRequestId, decision, req.user);
 
@@ -48,7 +48,7 @@ export const houseAccountAuthController = {
   forceExpire: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = authRequestIdParamSchema.parse(req.params);
     await houseAccountAuthService.forceExpire(authRequestId, req.user);
 
     res.status(200).json({ success: true, message: 'Authorization request expired. Order returned to Ready.' });
@@ -58,7 +58,7 @@ export const houseAccountAuthController = {
   override: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
 
-    const { authRequestId } = req.params as { authRequestId: string };
+    const { authRequestId } = authRequestIdParamSchema.parse(req.params);
     const { decision } = ResolveAuthSchema.parse(req.body);
     const result = await houseAccountAuthService.managerOverride(authRequestId, decision, req.user);
 

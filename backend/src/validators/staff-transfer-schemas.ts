@@ -9,3 +9,7 @@ export const createTransferSchema = z.object({
 export const listTransfersQuerySchema = z.object({
   userId: z.string().uuid().optional(),
 });
+
+export const transferUserIdParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+});

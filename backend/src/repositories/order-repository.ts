@@ -666,7 +666,7 @@ export const orderRepository = {
           });
         } else if (payment.customerCreditAccountId) {
           const account = await tx.customerCreditAccount.findFirst({
-            where: { id: payment.customerCreditAccountId },
+            where: { id: payment.customerCreditAccountId, organizationId },
             select: { currentBalance: true, creditLimit: true },
           });
           if (account) {
@@ -675,8 +675,8 @@ export const orderRepository = {
               throw new Error('CREDIT_LIMIT_EXCEEDED');
             }
           }
-          await tx.customerCreditAccount.update({
-            where: { id: payment.customerCreditAccountId },
+          await tx.customerCreditAccount.updateMany({
+            where: { id: payment.customerCreditAccountId, organizationId },
             data: { currentBalance: { increment: orderRecord.total } },
           });
         }

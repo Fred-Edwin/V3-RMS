@@ -66,3 +66,9 @@ export type GetConversationsQueryInput = z.infer<typeof GetConversationsQuerySch
 export type SendBroadcastInput = z.infer<typeof SendBroadcastSchema>;
 export type IssueNoticeInput = z.infer<typeof IssueNoticeSchema>;
 export type ListQueryInput = z.infer<typeof ListQuerySchema>;
+
+const uuidParam = z.string().uuid('param must be a valid UUID');
+export const conversationIdParamSchema = z.object({ conversationId: uuidParam });
+export const messageIdParamSchema = z.object({ messageId: uuidParam });
+export const broadcastIdParamSchema = z.object({ broadcastId: uuidParam });
+export const noticeIdParamSchema = z.object({ noticeId: uuidParam });

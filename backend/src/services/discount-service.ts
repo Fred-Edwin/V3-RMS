@@ -101,7 +101,7 @@ export const discountService = {
     const updated = await discountRepository.update(discountId, {
       ...rest,
       ...(rawValue !== undefined ? { value: rawValue.toString() } : {}),
-    });
+    }, actor.organizationId);
 
     logger.info({ discountId, actorId: actor.id }, 'Discount updated');
     return serialize(updated);
@@ -118,7 +118,7 @@ export const discountService = {
     const existing = await discountRepository.findById(discountId);
     if (!existing) throw new NotFoundError('Discount not found');
 
-    const updated = await discountRepository.deactivate(discountId);
+    const updated = await discountRepository.deactivate(discountId, actor.organizationId);
     logger.info({ discountId, actorId: actor.id }, 'Discount deactivated');
     return serialize(updated);
   },

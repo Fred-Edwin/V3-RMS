@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import { prisma } from '../config/database';
 import { houseAccountAuthRequestRepository } from '../repositories/house-account-auth-request-repository';
 import { houseAccountRepository } from '../repositories/house-account-repository';
 import { orderRepository } from '../repositories/order-repository';
@@ -76,18 +77,32 @@ export const houseAccountAuthService = {
 
     // No hard expiry — managers can approve at any time. Set 1 year so UI never shows "Expired".
     const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-    const authRequest = await houseAccountAuthRequestRepository.create({
-      organizationId,
-      orderId,
-      houseAccountId,
-      requestedById: actor.id,
-      amount: order.total.toString(),
-      bullmqJobId: '',
-      expiresAt,
-    });
 
-    // Update order status to AWAITING_AUTHORIZATION
-    await orderRepository.updateStatus(orderId, organizationId, 'AWAITING_AUTHORIZATION');
+    // Atomically create auth request + set order to AWAITING_AUTHORIZATION
+    const authRequest = await prisma.$transaction(async (tx) => {
+      const created = await tx.houseAccountAuthRequest.create({
+        data: {
+          organizationId,
+          orderId,
+          houseAccountId,
+          requestedById: actor.id,
+          amount: order.total.toString(),
+          bullmqJobId: '',
+          expiresAt,
+        },
+        include: {
+          order: { select: { id: true, dailyNumber: true, total: true } },
+          houseAccount: { select: { id: true, user: { select: { id: true, name: true } } } },
+          requestedBy: { select: { id: true, name: true } },
+          resolvedBy: { select: { id: true, name: true } },
+        },
+      });
+      await tx.order.updateMany({
+        where: { id: orderId, organizationId },
+        data: { status: 'AWAITING_AUTHORIZATION' },
+      });
+      return created;
+    });
 
     // Notify the account holder via FCM (fire-and-forget)
     void fcmService.sendHouseAccountAuthPush(account.userId, {
@@ -123,7 +138,7 @@ export const houseAccountAuthService = {
     orderId: string,
     organizationId: string,
   ): Promise<HouseAccountAuthRequestRecord> => {
-    const authRequest = await houseAccountAuthRequestRepository.findPendingByOrderId(orderId);
+    const authRequest = await houseAccountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
     if (!authRequest || authRequest.organizationId !== organizationId) {
       throw new NotFoundError('No pending authorization request found for this order');
     }
@@ -226,13 +241,14 @@ export const houseAccountAuthService = {
 
     const resolved = await houseAccountAuthRequestRepository.resolveIfPending(
       authRequestId,
+      authRequest.organizationId,
       newStatus,
       resolvedById,
     );
 
     if (!resolved) {
       // Race condition: already resolved by another path — read current state
-      const current = await houseAccountAuthRequestRepository.findById(authRequestId);
+      const current = await houseAccountAuthRequestRepository.findById(authRequestId, authRequest.organizationId);
       if (!current) throw new NotFoundError('Authorization request not found');
       logger.info({ authRequestId }, 'Auth resolution race: request already resolved, returning current state');
       return serializeAuthRequest(current);

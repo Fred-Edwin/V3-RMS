@@ -109,11 +109,12 @@ export const customerCreditRepository = {
 
   incrementBalance: async (
     id: string,
+    organizationId: string,
     amount: Prisma.Decimal,
     tx: Prisma.TransactionClient,
   ): Promise<void> => {
-    await tx.customerCreditAccount.update({
-      where: { id },
+    await tx.customerCreditAccount.updateMany({
+      where: { id, organizationId },
       data: { currentBalance: { increment: amount } },
     });
   },

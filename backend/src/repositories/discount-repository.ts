@@ -68,9 +68,15 @@ export const discountRepository = {
       requiresApproval?: boolean;
       isActive?: boolean;
     },
+    actorOrganizationId?: string | null,
   ) => {
+    // Directors (null organizationId) can update any discount.
+    // Branch-scoped actors can only update discounts belonging to their org.
+    const where = actorOrganizationId
+      ? { id, OR: [{ organizationId: actorOrganizationId }, { organizationId: null }] }
+      : { id };
     return prisma.discount.update({
-      where: { id },
+      where,
       data,
       include: discountInclude,
     });
@@ -79,9 +85,12 @@ export const discountRepository = {
   /**
    * Soft-delete — sets isActive = false. Preserves audit history.
    */
-  deactivate: async (id: string) => {
+  deactivate: async (id: string, actorOrganizationId?: string | null) => {
+    const where = actorOrganizationId
+      ? { id, OR: [{ organizationId: actorOrganizationId }, { organizationId: null }] }
+      : { id };
     return prisma.discount.update({
-      where: { id },
+      where,
       data: { isActive: false },
       include: discountInclude,
     });

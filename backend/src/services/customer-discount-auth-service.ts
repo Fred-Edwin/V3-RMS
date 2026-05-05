@@ -61,7 +61,7 @@ export const customerDiscountAuthService = {
     orderId: string,
     organizationId: string,
   ): Promise<CustomerDiscountAuthRequestRecord> => {
-    const authRequest = await customerDiscountAuthRepository.findPendingByOrderId(orderId);
+    const authRequest = await customerDiscountAuthRepository.findPendingByOrderId(orderId, organizationId);
     if (!authRequest || authRequest.organizationId !== organizationId) {
       throw new NotFoundError('No pending customer discount request found for this order');
     }
@@ -218,12 +218,13 @@ export const customerDiscountAuthService = {
 
     const resolved = await customerDiscountAuthRepository.resolveIfPending(
       authRequest.id,
+      organizationId,
       decision,
       resolvedById,
     );
 
     if (!resolved) {
-      const current = await customerDiscountAuthRepository.findById(authRequest.id);
+      const current = await customerDiscountAuthRepository.findById(authRequest.id, organizationId);
       if (!current) throw new NotFoundError('Customer discount auth request not found');
       logger.info({ authRequestId: authRequest.id }, 'Customer discount resolution race: already resolved');
       return serializeAuthRequest(current);

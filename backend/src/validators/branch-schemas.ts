@@ -27,3 +27,7 @@ export const updateBranchProfileSchema = z.object({
   accountNumber: z.string().min(1).max(50).optional(),
   googleReviewUrl: z.string().url().max(500).optional(),
 });
+
+export const branchIdParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+});

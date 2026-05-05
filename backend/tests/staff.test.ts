@@ -6,6 +6,11 @@ import { authService } from '../src/services/auth-service';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 
+const STAFF_UUID = '11111111-1111-4111-8111-000000000001';
+const ORG_UUID = '11111111-1111-4111-8111-111111111111';
+const MANAGER_UUID = '22222222-2222-4222-8222-000000000001';
+const WAITER_UUID = '33333333-3333-4333-8333-000000000001';
+
 describe('Staff routes', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -13,21 +18,21 @@ describe('Staff routes', () => {
 
   it('POST /api/v1/staff allows manager to create own-branch staff', async () => {
     vi.spyOn(staffService, 'createStaff').mockResolvedValue({
-      id: 'user-1',
+      id: STAFF_UUID,
       name: 'Grace',
       email: 'grace@wendo.co.ke',
       phone: '+254700000001',
       role: 'WAITER',
       isActive: true,
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
       createdAt: new Date(),
       organization: { name: 'Wendo Kingz' },
       organizationName: 'Wendo Kingz',
     });
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -49,9 +54,9 @@ describe('Staff routes', () => {
       new ForbiddenError('Managers can only create staff in their own branch'),
     );
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -71,9 +76,9 @@ describe('Staff routes', () => {
   it('POST /api/v1/staff returns 409 for duplicate email', async () => {
     vi.spyOn(staffService, 'createStaff').mockRejectedValue(new ConflictError('Email is already in use'));
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -92,67 +97,68 @@ describe('Staff routes', () => {
   it('GET /api/v1/staff returns manager scoped data', async () => {
     vi.spyOn(staffService, 'listStaff').mockResolvedValue([
       {
-        id: 'user-1',
+        id: STAFF_UUID,
         name: 'Grace',
         email: 'grace@wendo.co.ke',
         phone: '+254700000001',
         role: 'WAITER',
         isActive: true,
-        organizationId: 'org-1',
+        organizationId: ORG_UUID,
         createdAt: new Date(),
         organization: { name: 'Wendo Kingz' },
         organizationName: 'Wendo Kingz',
       },
     ]);
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app).get('/api/v1/staff').set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
-    expect(response.body.data[0].organizationId).toBe('org-1');
+    expect(response.body.data[0].organizationId).toBe(ORG_UUID);
   });
 
   it('GET /api/v1/staff returns director cross-branch data', async () => {
     vi.spyOn(staffService, 'listStaff').mockResolvedValue([
       {
-        id: 'user-1',
+        id: STAFF_UUID,
         name: 'Grace',
         email: 'grace@wendo.co.ke',
         phone: '+254700000001',
         role: 'WAITER',
         isActive: true,
-        organizationId: 'org-1',
+        organizationId: ORG_UUID,
         createdAt: new Date(),
         organization: { name: 'Wendo Kingz' },
         organizationName: 'Wendo Kingz',
       },
       {
-        id: 'user-2',
-        name: 'James',
-        email: 'james@wendo.co.ke',
+        id: '44444444-4444-4444-8444-000000000001',
+        name: 'Diana',
+        email: 'diana@wendo.co.ke',
         phone: '+254700000002',
         role: 'CHEF',
         isActive: true,
-        organizationId: 'org-2',
+        organizationId: '55555555-5555-4555-8555-111111111111',
         createdAt: new Date(),
-        organization: { name: 'Wendo Town' },
-        organizationName: 'Wendo Town',
+        organization: { name: 'Wendo Branch 2' },
+        organizationName: 'Wendo Branch 2',
       },
     ]);
     const token = signAccessToken({
-      userId: 'director-1',
+      userId: '66666666-6666-4666-8666-000000000001',
       role: 'DIRECTOR',
       organizationId: null,
     });
 
     const response = await request(app)
-      .get('/api/v1/staff?organizationId=11111111-1111-4111-8111-111111111111')
-      .set('Authorization', `Bearer ${token}`);
+      .get('/api/v1/staff')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ organizationId: ORG_UUID });
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(2);
@@ -160,26 +166,26 @@ describe('Staff routes', () => {
 
   it('PATCH /api/v1/staff/:id/deactivate then /auth/login returns 401', async () => {
     vi.spyOn(staffService, 'deactivateStaff').mockResolvedValue({
-      id: 'user-1',
+      id: STAFF_UUID,
       name: 'Grace',
       email: 'grace@wendo.co.ke',
       phone: '+254700000001',
       role: 'WAITER',
       isActive: false,
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
       createdAt: new Date(),
       organization: { name: 'Wendo Kingz' },
       organizationName: 'Wendo Kingz',
     });
     vi.spyOn(authService, 'login').mockRejectedValue(new UnauthorizedError('Account deactivated'));
     const managerToken = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const deactivateResponse = await request(app)
-      .patch('/api/v1/staff/user-1/deactivate')
+      .patch(`/api/v1/staff/${STAFF_UUID}/deactivate`)
       .set('Authorization', `Bearer ${managerToken}`);
 
     expect(deactivateResponse.status).toBe(200);
@@ -194,25 +200,25 @@ describe('Staff routes', () => {
 
   it('PATCH /api/v1/staff/:id updates email — 200', async () => {
     vi.spyOn(staffService, 'updateStaff').mockResolvedValue({
-      id: 'user-1',
+      id: STAFF_UUID,
       name: 'Grace',
       email: 'grace.new@wendo.co.ke',
       phone: '+254700000001',
       role: 'WAITER',
       isActive: true,
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
       createdAt: new Date(),
       organization: { name: 'Wendo Kingz' },
       organizationName: 'Wendo Kingz',
     });
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .patch('/api/v1/staff/user-1')
+      .patch(`/api/v1/staff/${STAFF_UUID}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'grace.new@wendo.co.ke' });
 
@@ -225,13 +231,13 @@ describe('Staff routes', () => {
       new ConflictError('Email is already in use'),
     );
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .patch('/api/v1/staff/user-1')
+      .patch(`/api/v1/staff/${STAFF_UUID}`)
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'taken@wendo.co.ke' });
 
@@ -241,19 +247,19 @@ describe('Staff routes', () => {
   it('PATCH /api/v1/staff/:id/reset-password — 200', async () => {
     vi.spyOn(staffService, 'resetPassword').mockResolvedValue(undefined);
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .patch('/api/v1/staff/user-1/reset-password')
+      .patch(`/api/v1/staff/${STAFF_UUID}/reset-password`)
       .set('Authorization', `Bearer ${token}`)
       .send({ temporaryPassword: 'NewPass123!' });
 
     expect(response.status).toBe(200);
     expect(staffService.resetPassword).toHaveBeenCalledWith(
-      'user-1',
+      STAFF_UUID,
       'NewPass123!',
       expect.objectContaining({ role: 'MANAGER' }),
     );
@@ -261,13 +267,13 @@ describe('Staff routes', () => {
 
   it('PATCH /api/v1/staff/:id/reset-password — 403 for waiter', async () => {
     const token = signAccessToken({
-      userId: 'waiter-1',
+      userId: WAITER_UUID,
       role: 'WAITER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .patch('/api/v1/staff/user-1/reset-password')
+      .patch(`/api/v1/staff/${STAFF_UUID}/reset-password`)
       .set('Authorization', `Bearer ${token}`)
       .send({ temporaryPassword: 'NewPass123!' });
 
@@ -277,13 +283,13 @@ describe('Staff routes', () => {
   it('DELETE /api/v1/staff/:id with no dependencies — 200', async () => {
     vi.spyOn(staffService, 'hardDeleteStaff').mockResolvedValue(undefined);
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .delete('/api/v1/staff/user-1')
+      .delete(`/api/v1/staff/${STAFF_UUID}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
@@ -294,13 +300,13 @@ describe('Staff routes', () => {
       new ConflictError('Cannot delete staff account — linked to 3 order(s), 5 shift assignment(s). Deactivate instead.'),
     );
     const token = signAccessToken({
-      userId: 'manager-1',
+      userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: 'org-1',
+      organizationId: ORG_UUID,
     });
 
     const response = await request(app)
-      .delete('/api/v1/staff/user-1')
+      .delete(`/api/v1/staff/${STAFF_UUID}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(409);

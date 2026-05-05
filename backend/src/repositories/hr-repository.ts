@@ -288,9 +288,9 @@ export async function createLeaveRequest(data: CreateLeaveRequestData) {
   });
 }
 
-export async function findLeaveRequestById(id: string) {
-  return prisma.leaveRequest.findUnique({
-    where: { id },
+export async function findLeaveRequestById(id: string, organizationId?: string) {
+  return prisma.leaveRequest.findFirst({
+    where: { id, ...(organizationId ? { organizationId } : {}) },
     include: leaveRequestInclude,
   });
 }
@@ -322,41 +322,52 @@ export async function listLeaveRequests(params: {
   return { items, total, page: params.page, limit: params.limit };
 }
 
-export async function approveLeaveRequest(id: string, reviewedById: string, comment?: string) {
-  return prisma.leaveRequest.update({
-    where: { id },
+export async function approveLeaveRequest(
+  id: string,
+  organizationId: string,
+  reviewedById: string,
+  comment?: string,
+) {
+  return prisma.leaveRequest.updateMany({
+    where: { id, organizationId },
     data: {
       status: 'APPROVED',
       reviewedById,
       reviewedAt: new Date(),
       reviewComment: comment,
     },
-    include: leaveRequestInclude,
   });
 }
 
-export async function rejectLeaveRequest(id: string, reviewedById: string, comment?: string) {
-  return prisma.leaveRequest.update({
-    where: { id },
+export async function rejectLeaveRequest(
+  id: string,
+  organizationId: string,
+  reviewedById: string,
+  comment?: string,
+) {
+  return prisma.leaveRequest.updateMany({
+    where: { id, organizationId },
     data: {
       status: 'REJECTED',
       reviewedById,
       reviewedAt: new Date(),
       reviewComment: comment,
     },
-    include: leaveRequestInclude,
   });
 }
 
-export async function cancelLeaveRequest(id: string, cancelledById: string) {
-  return prisma.leaveRequest.update({
-    where: { id },
+export async function cancelLeaveRequest(
+  id: string,
+  organizationId: string,
+  cancelledById: string,
+) {
+  return prisma.leaveRequest.updateMany({
+    where: { id, organizationId },
     data: {
       status: 'CANCELLED',
       cancelledById,
       cancelledAt: new Date(),
     },
-    include: leaveRequestInclude,
   });
 }
 
@@ -441,16 +452,16 @@ export async function listDisciplinaryRecords(employeeProfileId: string) {
   });
 }
 
-export async function acknowledgeDisciplinaryRecord(id: string) {
-  return prisma.disciplinaryRecord.update({
-    where: { id },
+export async function acknowledgeDisciplinaryRecord(id: string, organizationId: string) {
+  return prisma.disciplinaryRecord.updateMany({
+    where: { id, organizationId },
     data: { acknowledged: true, acknowledgedAt: new Date() },
   });
 }
 
-export async function findDisciplinaryRecordById(id: string) {
-  return prisma.disciplinaryRecord.findUnique({
-    where: { id },
+export async function findDisciplinaryRecordById(id: string, organizationId?: string) {
+  return prisma.disciplinaryRecord.findFirst({
+    where: { id, ...(organizationId ? { organizationId } : {}) },
     include: {
       issuedBy: { select: { id: true, name: true, role: true } },
       employeeProfile: {

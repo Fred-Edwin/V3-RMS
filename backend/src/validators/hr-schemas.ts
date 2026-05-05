@@ -119,3 +119,15 @@ export const attendanceDetailQuerySchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD'),
 });
+
+export const userIdParamSchema = z.object({
+  userId: z.string().uuid('userId param must be a valid UUID'),
+});
+
+export const hrRouteIdParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+});
+
+export const leaveTypeParamSchema = z.object({
+  leaveType: z.string().min(1, 'leaveType param is required'),
+});

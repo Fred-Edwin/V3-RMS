@@ -225,6 +225,6 @@ export const otherIncomeService = {
       throw new ForbiddenError('You do not have permission to delete income entries');
     }
 
-    await otherIncomeRepository.deleteEntry(id);
+    await otherIncomeRepository.deleteEntry(id, entry.organizationId);
   },
 };

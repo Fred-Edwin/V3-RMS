@@ -39,16 +39,16 @@ export const houseAccountAuthRequestRepository = {
     });
   },
 
-  findById: async (id: string) => {
-    return prisma.houseAccountAuthRequest.findUnique({
-      where: { id },
+  findById: async (id: string, organizationId?: string) => {
+    return prisma.houseAccountAuthRequest.findFirst({
+      where: { id, ...(organizationId ? { organizationId } : {}) },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrderId: async (orderId: string) => {
+  findPendingByOrderId: async (orderId: string, organizationId?: string) => {
     return prisma.houseAccountAuthRequest.findFirst({
-      where: { orderId, status: 'PENDING' },
+      where: { orderId, status: 'PENDING', ...(organizationId ? { organizationId } : {}) },
       include: authRequestInclude,
     });
   },
@@ -60,11 +60,12 @@ export const houseAccountAuthRequestRepository = {
    */
   resolveIfPending: async (
     id: string,
+    organizationId: string,
     status: Exclude<HouseAccountAuthStatus, 'PENDING'>,
     resolvedById: string,
   ) => {
     const result = await prisma.houseAccountAuthRequest.updateMany({
-      where: { id, status: 'PENDING' },
+      where: { id, organizationId, status: 'PENDING' },
       data: {
         status,
         resolvedById,
@@ -76,8 +77,8 @@ export const houseAccountAuthRequestRepository = {
       return null;
     }
 
-    return prisma.houseAccountAuthRequest.findUnique({
-      where: { id },
+    return prisma.houseAccountAuthRequest.findFirst({
+      where: { id, organizationId },
       include: authRequestInclude,
     });
   },
@@ -102,9 +103,9 @@ export const houseAccountAuthRequestRepository = {
     });
   },
 
-  updateBullmqJobId: async (id: string, bullmqJobId: string) => {
-    return prisma.houseAccountAuthRequest.update({
-      where: { id },
+  updateBullmqJobId: async (id: string, organizationId: string, bullmqJobId: string) => {
+    return prisma.houseAccountAuthRequest.updateMany({
+      where: { id, organizationId },
       data: { bullmqJobId },
     });
   },

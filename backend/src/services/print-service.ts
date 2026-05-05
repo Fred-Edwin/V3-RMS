@@ -401,7 +401,7 @@ export const printService = {
       throw new NotFoundError('Print station not found');
     }
 
-    const { lastSeenAt } = await printRepository.updateHeartbeat(stationId);
+    const { lastSeenAt } = await printRepository.updateHeartbeat(stationId, station.organization.id);
 
     return {
       stationId: station.id,

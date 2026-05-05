@@ -23,3 +23,15 @@ export const UpdateDiscountSchema = z.object({
 export const DiscountDecisionSchema = z.object({
   decision: z.enum(['APPROVED', 'REJECTED']),
 });
+
+export const discountIdParamSchema = z.object({
+  discountId: z.string().uuid('discountId param must be a valid UUID'),
+});
+
+export const authRequestIdParamSchema = z.object({
+  authRequestId: z.string().uuid('authRequestId param must be a valid UUID'),
+});
+
+export const orderIdParamSchema = z.object({
+  orderId: z.string().uuid('orderId param must be a valid UUID'),
+});
