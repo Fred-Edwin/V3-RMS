@@ -6,6 +6,7 @@
  *
  * Excluded roles: DIRECTOR, HR_MANAGER, SYSTEM_ADMIN (org-level, no branch duties)
  *                  KITCHEN_DISPLAY, BARISTA_DISPLAY (shared display accounts, not individual staff)
+ *                  ACCOUNTANT is NOT excluded — the accountant is a branch-based employee who needs leave.
  * Inactive users are also excluded.
  *
  * Safe to run multiple times — skips users who already have a profile.

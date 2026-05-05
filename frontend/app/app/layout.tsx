@@ -108,6 +108,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     ],
     overflowTabs: [
       { label: 'Credit Accounts', href: '/app/accountant/credit', icon: CreditCard },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
     ],
   },
   SYSTEM_ADMIN: {
@@ -279,6 +280,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     {
       label: 'Communications',
       items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
+    },
+    {
+      label: 'Leave',
+      items: [{ label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff }],
     },
     {
       label: 'Account',

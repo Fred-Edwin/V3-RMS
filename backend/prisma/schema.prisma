@@ -1066,7 +1066,7 @@ model LeaveRequest {
   id                String      @id @default(uuid())
   employeeProfileId String      @map("employee_profile_id")
   leaveBalanceId    String      @map("leave_balance_id")
-  organizationId    String      @map("organization_id")
+  organizationId    String?     @map("organization_id")
   leaveType         LeaveType   @map("leave_type")
   startDate         DateTime    @map("start_date")
   endDate           DateTime    @map("end_date")
@@ -1083,7 +1083,7 @@ model LeaveRequest {
 
   employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
   leaveBalance      LeaveBalance    @relation(fields: [leaveBalanceId], references: [id])
-  organization      Organization    @relation(fields: [organizationId], references: [id])
+  organization      Organization?   @relation(fields: [organizationId], references: [id])
   reviewedBy        User?           @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
   cancelledBy       User?           @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
   documents         HrDocument[]

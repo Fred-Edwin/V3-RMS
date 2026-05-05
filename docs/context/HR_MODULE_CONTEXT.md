@@ -1,3 +1,13 @@
+> **SEALED — Phase 8 Complete (2026-05-04)**
+> This addendum file has been consolidated into the authoritative reference docs:
+> - Architecture decisions → docs/TDD.md §§22-25
+> - API endpoints → docs/API_CONTRACT.md §§13-17
+> - Data model → docs/DATA_MODEL.md
+> - Build order → docs/BUILD_ORDER.md §14
+> 
+> This file is preserved for historical context. Do not update it.
+
+---
 # HR Module — Context (Living File)
 
 This file documents the full implementation of the HR module built as a post-Phase 8 feature.
@@ -204,11 +214,39 @@ The edit modal in `frontend/app/app/hr/staff/[userId]/page.tsx` supports:
 
 ---
 
+## ACCOUNTANT Leave Support (added 2026-05-05)
+
+The ACCOUNTANT role can now access `/app/hr/my-leave` to view balances and submit leave requests.
+
+### Changes made
+
+| File | Change |
+|---|---|
+| `frontend/middleware.ts` | Added `ACCOUNTANT` and `HR_MANAGER` to `allRoles` so their JWTs decode correctly. Added explicit `/app/hr/my-leave` route guard. |
+| `frontend/app/app/layout.tsx` | Added "My Leave" to ACCOUNTANT desktop sidebar (under "Leave" section) and mobile overflow tabs. |
+| `backend/prisma/schema.prisma` | `LeaveRequest.organizationId` changed from `String` (required) to `String?` (nullable). `organization` relation made optional. |
+| `backend/prisma/migrations/20260505000000_make_leave_request_org_nullable/migration.sql` | `ALTER TABLE "leave_requests" ALTER COLUMN "organization_id" DROP NOT NULL` |
+| `backend/src/services/hr-service.ts` | `submitLeaveRequest`: removed hard throw on null `organizationId`; spreads it only when non-null. `notifyManagementOfLeaveRequest`: signature updated to `organizationId: string \| null`; MANAGER clause is conditional — for ACCOUNTANT only HR_MANAGER and DIRECTOR are notified. |
+
+### Key architectural decision
+
+ACCOUNTANT is a cross-branch role with `organizationId = null` on their user record (same as DIRECTOR). `LeaveRequest.organizationId` is now nullable to support this. Existing rows are unaffected — they all have a value. New rows created by ACCOUNTANT will have `organization_id = NULL` in the DB.
+
+### Backend route access
+
+No backend route changes were needed — `ALL_STAFF` in `hr-routes.ts` already included `ACCOUNTANT` for all self-service endpoints (`/hr/leave/balances/my`, `/hr/leave/requests/my`, `POST /hr/leave/request`, `POST /hr/leave/requests/:id/cancel`).
+
+### Employee profile requirement
+
+The ACCOUNTANT must have an `EmployeeProfile` created via HR Manager UI before they can view balances or submit leave. The `seed-employee-profiles.ts` script already includes ACCOUNTANT (it was never in `EXCLUDED_ROLES`).
+
+---
+
 ## Known Issues / Refinements Needed (for next session)
 
 These are items identified during build but not yet tested or confirmed fixed:
 
-1. **My Leave page not linked from staff mobile nav** — `/app/hr/my-leave` exists but is not in `mobileRoleTabs` for WAITER/CHEF/BARISTA. Needs a nav entry (e.g. in overflow tabs).
+1. **My Leave page not linked from staff mobile nav** — ✅ Fixed (2026-05-05): ACCOUNTANT, WAITER, CHEF, BARISTA all have "My Leave" in overflow tabs.
 2. **Leave balance update endpoint** — uses `PATCH` but the route may need `PUT`; verify against `hr-routes.ts`.
 3. **`getLeaveCalendar` API contract** — service sends `{ year, month }` as 1-indexed (Jan = 1). Backend validator needs to match this; verify `leaveCalendarQuerySchema`.
 4. **`LeaveCalendarEntry` type mismatch** — the frontend type has `employeeProfile.user.name` but the backend response shape needs to be confirmed. Check `hr-controller.ts` `getLeaveCalendar` handler response structure.
