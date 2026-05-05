@@ -1,9 +1,9 @@
 # Build Order
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 1.1  
-**Status:** Updated  
-**Date:** 2026-02-22  
-**Author:** System Architect  
+**Version:** 2.0
+**Status:** Current
+**Date:** 2026-05-04
+**Author:** System Architect
 
 ---
 
@@ -21,7 +21,9 @@
 10. [Phase 4 — Delivery Zones](#10-phase-4--delivery-zones)
 11. [Phase 5 — Staff Management](#11-phase-5--staff-management)
 12. [Phase 6 — Reporting & Dashboards](#12-phase-6--reporting--dashboards)
-13. [Dependency Map](#13-dependency-map)
+13. [Phase 7 — Credit Accounts](#13-phase-7--credit-accounts)
+14. [Phase 8 — Operations Expansion](#14-phase-8--operations-expansion)
+15. [Dependency Map](#15-dependency-map)
 
 ---
 
@@ -97,17 +99,20 @@ A phase is considered **complete** when every item in the phase checklist is sat
 
 ## 4. Phase Overview
 
-| Phase | Name | What It Delivers | Depends On |
-|---|---|---|---|
-| 0 | Project Foundation | Working skeleton — nothing functional yet, everything configured | Nothing |
-| 1 | Auth & Branch Setup | Login, role-based routing, branch and staff management, profile page | Phase 0 |
-| 1.5 | Design System & Component Library | Complete component library — used by all subsequent UI phases | Phase 1 |
-| 2 | Menu Management | Full menu CRUD, branch availability | Phase 1.5 |
-| 3 | Order Management | Complete order lifecycle. Waiter, Chef, Barista dashboards and order history | Phase 2 |
-| 3.5 | Navigation & Shell Polish | Fully wired navigation, logout, layout shells, FCM web push, premium design polish across all roles | Phase 3 |
-| 4 | Delivery Zones | Delivery zone config, delivery order flow end-to-end | Phase 3.5 |
-| 5 | Staff Management | Shift scheduling, geofencing clock-in/out, staff shifts page | Phase 1.5 |
-| 6 | Reporting & Dashboards | Manager and Director dashboards, personal performance pages, exports | Phase 3.5, Phase 5 |
+| Phase | Name | What It Delivers | Depends On | Status |
+|---|---|---|---|---|
+| 0 | Project Foundation | Working skeleton — nothing functional yet, everything configured | Nothing | ✅ Complete |
+| 1 | Auth & Branch Setup | Login, role-based routing, branch and staff management, profile page | Phase 0 | ✅ Complete |
+| 1.5 | Design System & Component Library | Complete component library — used by all subsequent UI phases | Phase 1 | ✅ Complete |
+| 2 | Menu Management | Full menu CRUD, branch availability, Cloudinary image upload | Phase 1.5 | ✅ Complete |
+| 3 | Order Management | Complete order lifecycle. Waiter, Chef, Barista dashboards and order history. Receipt printing. | Phase 2 | ✅ Complete |
+| 3.5 | Navigation & Shell Polish | Fully wired navigation, logout, layout shells, FCM web push, premium design polish across all roles | Phase 3 | ✅ Complete |
+| 4 | Delivery Zones | Delivery zone config, delivery order flow end-to-end | Phase 3.5 | ✅ Complete |
+| 5 | Staff Management | Shift scheduling, geofencing clock-in/out, staff shifts page | Phase 1.5 | ✅ Complete |
+| 6 | Reporting & Dashboards | Manager and Director dashboards, personal performance pages, exports | Phase 3.5, Phase 5 | ✅ Complete |
+| 7 | Credit Accounts | House accounts, corporate accounts, customer credit, outstanding balances report | Phase 6 | ✅ Complete |
+| 8 | Operations Expansion | Other income, HR module, internal communications, discounts (staff + customer), incident log improvements | Phase 7 | ✅ Complete |
+| 9 | Payslip Visibility | Staff payslip self-service portal, admin payslip management, PDF export | Phase 8 | 🔲 Planned |
 
 ---
 
@@ -128,13 +133,13 @@ This phase has no UI beyond placeholder pages. Its output is invisible to end us
 - [ ] Set up folder structure as defined in TDD Section 5
 
 #### Database
-- [ ] Connect Prisma to Supabase PostgreSQL
+- [ ] Connect Prisma to PostgreSQL (Docker container in local dev; DigitalOcean droplet in production)
 - [ ] Write initial schema.prisma with all models from the Data Model document
 - [ ] Run initial migration — creates all tables
-- [ ] Confirm all tables, indexes, and constraints are created correctly on Supabase
+- [ ] Confirm all tables, indexes, and constraints are created correctly
 
 #### Redis
-- [ ] Connect to Upstash Redis instance
+- [ ] Connect to Redis (Docker container in local dev; DigitalOcean droplet in production)
 - [ ] Verify connection with a simple ping test
 - [ ] Set up Redis client singleton in config/redis.ts
 
@@ -153,13 +158,13 @@ This phase has no UI beyond placeholder pages. Its output is invisible to end us
 - [ ] Verify a test client can connect and join a room
 
 #### BullMQ
-- [ ] Configure BullMQ queues (notificationQueue, reportQueue) backed by Upstash Redis
+- [ ] Configure BullMQ queues (notificationQueue, reportQueue) backed by Redis
 - [ ] Set up job processor skeleton (no actual jobs yet)
 
 #### Environment Configuration
 - [ ] Create .env.example with all required variables documented
-- [ ] Configure environment variables on Render (staging and production)
-- [ ] Confirm all connections work in the staging environment
+- [ ] Configure environment variables (local .env, DigitalOcean server, Vercel)
+- [ ] Confirm all connections work in the local Docker environment
 
 ---
 
@@ -205,10 +210,9 @@ This phase has no UI beyond placeholder pages. Its output is invisible to end us
 ---
 
 ### CI/CD
-- [ ] Connect GitHub repository to Render (backend auto-deploy on push to main)
+- [ ] Connect GitHub repository to GitHub Actions for backend CI/CD (build → push Docker image → deploy to DigitalOcean)
 - [ ] Connect GitHub repository to Vercel (frontend auto-deploy on push to main)
-- [ ] Set up staging branch — auto-deploys to staging environment
-- [ ] Verify full deploy pipeline works (push to auto build to live on staging)
+- [ ] Verify full deploy pipeline works: push to main → Actions build → server pulls and restarts containers
 
 ---
 
@@ -1145,7 +1149,167 @@ After this phase: the system is feature-complete for V1.
 
 ---
 
-## 13. Dependency Map
+## 13. Phase 7 — Credit Accounts
+
+**Goal:** The system tracks staff benefits (House Accounts), corporate client billing (Corporate Accounts), and customer credit lines (Customer Credit Accounts). The Director can view outstanding balances across all account types. The Accountant role gains access to settlement and reconciliation.
+
+**Status: ✅ Complete**
+
+---
+
+### Backend
+
+#### New Models (DB Migrations Required)
+- [x] `HouseAccount` — 1:1 with User; `creditLimit`, `currentBalance`, `requiresAuthorization`
+- [x] `HouseAccountSettlement` — balance repayment records
+- [x] `HouseAccountAuthRequest` — approval request when `requiresAuthorization = true`
+- [x] `CorporateAccount` — system-level (no `organizationId`); `companyName`, `creditLimit`, `currentBalance`
+- [x] `CorporateAccountSettlement`
+- [x] `CustomerCreditAccount` — branch-scoped; `customerName`, `customerPhone`, `creditLimit`
+- [x] `CustomerCreditSettlement`
+- [x] Extended `PaymentMethod` enum: added `HOUSE_ACCOUNT`, `CORPORATE_ACCOUNT`, `CUSTOMER_CREDIT`
+- [x] Extended `Order` model: added FK fields for all three credit account types + `corporateEmployeeRef`
+- [x] New `OrderStatus` value: `AWAITING_AUTHORIZATION`
+
+#### New Routes
+- [x] `GET/POST/PATCH /house-accounts` — Director/SA manage accounts
+- [x] `GET /house-accounts/my` — staff view own account
+- [x] `POST /house-accounts/:id/settle` — Manager/Accountant record settlement
+- [x] `GET /house-account-auth` — list pending auth requests
+- [x] `POST /house-account-auth/:id/override` — approve or reject
+- [x] `POST /house-account-auth/:id/force-expire` — escape hatch
+- [x] `GET/POST/PATCH /corporate-accounts` — Director/SA
+- [x] `POST /corporate-accounts/:id/settle`
+- [x] `GET/POST/PATCH /customer-credit` — Manager/SA
+- [x] `POST /customer-credit/:id/settle`
+- [x] `GET /reports/outstanding-balances` — Director/Accountant
+
+#### Business Rules
+- [x] Credit limit checked inside `$transaction` to prevent race conditions
+- [x] `HOUSE_ACCOUNT` orders excluded from all revenue totals (accounts receivable, not collected revenue)
+- [x] `requiresAuthorization = true` → order transitions to `AWAITING_AUTHORIZATION` → manager/director notified via FCM + Socket.io
+- [x] On approval: `recordPayment` WHERE clause accepts `{ in: [READY, AWAITING_AUTHORIZATION] }` (do not revert to `READY` only)
+
+#### New Role: ACCOUNTANT
+- [x] Cross-branch read access to all credit accounts and reports
+- [x] Settlement write access (House, Corporate, Customer Credit)
+- [x] Access to branch overview, director trends, and reconciliation reports
+- [x] No access to branch operations (orders, staff management, shifts)
+
+---
+
+### Frontend
+- [x] `/app/house-account/my` — staff view their own account and settlement history
+- [x] `/app/house-account/authorize` — manager/director approve/reject pending House Account payments (dashboard widget)
+- [x] `/app/manage/house-accounts` — Manager: manage branch staff House Accounts
+- [x] `/app/director/accounts` — Director: view all account types and outstanding balances
+- [x] `/app/accountant` — Accountant dashboard with revenue, collections, and outstanding balance KPIs
+- [x] `/app/accountant/analytics` — full analytics with branch breakdown and payment method breakdown
+- [x] Corporate and Customer Credit management pages for Director/Manager
+
+### Phase 7 Tests
+- [x] House Account payment creates auth request when `requiresAuthorization = true`
+- [x] Approval closes order and increments `currentBalance` atomically
+- [x] Rejection returns order to `READY`, logs `PAYMENT_REJECTED` incident
+- [x] Credit limit check inside transaction — concurrent requests cannot exceed limit
+- [x] `HOUSE_ACCOUNT` orders excluded from `totalRevenue` in daily summary
+- [x] Outstanding balances report aggregates all three account types correctly
+
+---
+
+## 14. Phase 8 — Operations Expansion
+
+**Goal:** The system gains Other Income recording, the HR Module (employee profiles, leave management, disciplinary records), Internal Communications (DMs, broadcasts, formal notices), staff and customer discount flows, and Director-level incident log access. The system also gains the Accountant reconciliation report.
+
+**Status: ✅ Complete**
+
+This phase was built in parallel sub-tracks that did not depend on each other (except all depending on Phase 7's schema foundation).
+
+---
+
+### Sub-track A: Other Income
+
+- [x] `OtherIncomeCategory` model — Director-defined, optionally branch-scoped
+- [x] `OtherIncomeEntry` model — recorded per transaction, supports split payments
+- [x] `OtherIncomePaymentMethod` enum: `CASH`, `MPESA`, `CARD`, `SPLIT`
+- [x] Routes: `GET/POST/PATCH /other-income/categories`, `GET/POST /other-income/entries`, `DELETE /other-income/entries/:id`
+- [x] Other income totals included in `BranchOverviewRow.revenue` and director trend sparklines
+- [x] Frontend: `/app/other-income/new` (Waiter/Manager record income), `/app/other-income/history`, `/app/director/other-income` (Director manage categories)
+- [x] Client-side receipt printing for other income entries (`window.open` pattern)
+
+---
+
+### Sub-track B: Discounts (Staff + Customer)
+
+- [x] `Discount` model — named customer discounts (PERCENTAGE or FIXED_AMOUNT), optionally branch-scoped
+- [x] `StaffDiscountAuthRequest` model — 30% staff discount requires manager approval
+- [x] `CustomerDiscountAuthRequest` model — approval-required named discounts
+- [x] Extended `Order`: `discountPercent`, `discountAmount`, `discountedById`, `discountId`
+- [x] `AWAITING_AUTHORIZATION` disambiguation: check `order.discountedById` (staff) vs `order.discountId` (customer) vs neither (house account)
+- [x] Routes: `GET/POST/PATCH/DELETE /discounts`, `GET/POST /staff-discount-auth`, `GET/POST /customer-discount-auth`
+- [x] Frontend: discount picker at checkout, Manager approval widget on dashboard
+- [x] Socket events: `order:staff_discount_pending`, `order:staff_discount_resolved`, `order:customer_discount_pending`, `order:customer_discount_resolved`
+
+---
+
+### Sub-track C: HR Module
+
+- [x] New role: `HR_MANAGER` — cross-branch, manages profiles, leave, disciplinary records
+- [x] `EmployeeProfile` model — 1:1 with User; employment type, dates, emergency contact
+- [x] `LeaveBalance` model — auto-seeded on profile creation; one per `LeaveType` per year
+- [x] `LeaveRequest` model — full approval lifecycle; working-days calculation (Mon–Fri)
+- [x] `DisciplinaryRecord` model — category, action, expiry, acknowledgement
+- [x] `HrDocument` model — Cloudinary upload, linked to profile/leave/disciplinary
+- [x] Routes: all under `/hr` prefix — profiles, leave requests, disciplinary, documents, attendance analytics
+- [x] Frontend: `/app/hr/*` pages — dashboard, staff profiles, leave calendar, disciplinary records, attendance analytics
+- [x] FCM push notifications on leave approval/rejection and disciplinary record creation
+
+---
+
+### Sub-track D: Internal Communications
+
+- [x] `DirectConversation` + `DirectMessage` models — 1:1 WhatsApp-style messaging
+- [x] `Broadcast` + `BroadcastRecipient` models — one-to-many with read/ack tracking
+- [x] `FormalNotice` + `FormalNoticeRecipient` models — HR notices with BullMQ escalation reminders
+- [x] `BroadcastScope` enum: `COMPANY`, `BRANCH`, `ROLE_GROUP`
+- [x] Routes: all under `/comms` prefix — conversations, messages, broadcasts, notices
+- [x] Real-time delivery via Socket.io: `comms:dm_received`, `comms:broadcast_received`, `comms:notice_received`, `comms:typing_start/stop`, read receipts, acknowledgement events
+- [x] BullMQ jobs: 24h reminder + 48h escalation FCM push for unacknowledged formal notices
+- [x] Frontend: unified inbox UI — mobile slide-in, desktop side pane; delivery tracking panels
+
+---
+
+### Sub-track E: Incident Log & Order Edit Improvements
+
+- [x] Manager can remove items from non-PENDING orders (`POST /orders/:id/remove-items`)
+- [x] Added `ORDER_ITEM_REMOVED` and `PAYMENT_REJECTED` to `IncidentType` enum
+- [x] Director cross-branch incident log page (`/app/director/incidents`) with branch filter
+- [x] `IncidentLog` now includes `branchName` in serialized output for Director view
+- [x] Rejected `PrepTicket` status excluded from order-ready check (prevents orders from getting stuck)
+
+---
+
+### Sub-track F: Staff Transfers
+
+- [x] `StaffTransfer` model — immutable audit record per transfer
+- [x] `POST /staff-transfers` — Director/SA moves staff member between branches (updates `user.organizationId`)
+- [x] `GET /staff-transfers` — audit history
+
+---
+
+### Phase 8 Tests
+- [x] Other income entry created and appears in daily summary totals
+- [x] Staff discount auth flow: request → manager approval → discount applied to order
+- [x] Customer discount auto-apply (no approval) vs approval-required flow
+- [x] HR leave request: submit → approve → balance updated correctly
+- [x] Leave request rejection returns pending days to available balance
+- [x] Formal notice: issued → recipient receives FCM → 24h reminder fires if unacknowledged
+- [x] Staff transfer updates `user.organizationId` and creates `StaffTransfer` audit record
+- [x] Manager item removal voids prep tickets, recalculates totals, logs incident
+
+---
+
+## 15. Dependency Map
 
 ```
 Phase 0 — Project Foundation

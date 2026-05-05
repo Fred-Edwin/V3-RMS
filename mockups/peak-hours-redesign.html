@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Peak Hours — Color Redesign Mockup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      background: #F5F0EB;
+      padding: 32px 20px;
+      min-height: 100vh;
+    }
+
+    h1 { text-align:center; font-size:18px; font-weight:800; color:#1C1208; margin-bottom:6px; }
+    .subtitle { text-align:center; font-size:13px; color:#7C5C3A; margin-bottom:28px; }
+
+    .comparison {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    @media (max-width:760px) { .comparison { grid-template-columns: 1fr; } }
+
+    .panel-label {
+      font-size:10px; font-weight:700; letter-spacing:0.1em;
+      text-transform:uppercase; margin-bottom:8px; padding:0 2px;
+    }
+    .panel-label.before { color:#A8896A; }
+    .panel-label.after  { color:#1A0A05; }
+
+    .card { border-radius:16px; padding:22px 24px; overflow:hidden; }
+    .card-before { background:#fff; border:1px solid #E8DDD0; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    .card-after  { background:#fff; border:1px solid #D6CFC8; box-shadow:0 4px 20px rgba(26,10,5,.09), 0 1px 4px rgba(0,0,0,.04); }
+
+    .card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+    .card-title  { font-size:12px; color:#9A7A5A; font-weight:500; }
+
+    .badge-before-peak { background:#FEF3C7; border:1px solid #FDE68A; color:#92400E; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+    .badge-before-total { font-size:11px; color:#9CA3AF; }
+
+    .badge-after-peak  { background:#FFFBEB; border:1px solid #FDE68A; color:#78350F; font-size:11px; font-weight:700; padding:4px 12px; border-radius:20px; display:flex; align-items:center; gap:5px; }
+    .badge-after-total { background:#FAF7F4; border:1px solid #E0D5C8; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:500; color:#7C5C3A; }
+
+    .legend { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:16px; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:500; border-radius:20px; padding:3px 9px; }
+    .legend-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+    .legend-item.before { border:1px solid #E5E7EB; color:#6B7280; background:#fff; }
+    .legend-item.after  { border:1px solid #E0D5C8; color:#1C1208; background:#FAF7F4; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+
+    /* DOW */
+    .dow-section { margin-top:18px; }
+    .dow-divider-before { border-top:1px solid #F3F4F6; padding-top:14px; margin-bottom:12px; }
+    .dow-title-before { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#CBD5E1; margin-bottom:10px; }
+
+    .dow-divider-after { display:flex; align-items:center; gap:10px; margin:18px 0 14px; }
+    .dow-rule { flex:1; height:1px; background:linear-gradient(90deg,transparent,#C8BEB4,transparent); }
+    .dow-badge { font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+                 color:#fff; background:#1A0A05; border:1px solid #3D1F0D;
+                 padding:3px 12px; border-radius:20px; white-space:nowrap; }
+
+    .dow-rows { display:flex; flex-direction:column; gap:5px; }
+    .dow-row { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:10px; }
+    .dow-row.peak-before { background:rgba(251,191,36,.07); }
+    .dow-row.peak-after  { background:#FFFBF5; box-shadow:inset 0 0 0 1px rgba(196,134,42,.18); }
+
+    .dow-rank { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; flex-shrink:0; }
+    .rk-b1 { background:#FDE68A; color:#92400E; }
+    .rk-b2 { background:#E5E7EB; color:#6B7280; }
+    .rk-bn { background:transparent; color:#D1D5DB; }
+    .rk-a1 { background:#1A0A05; color:#fff; box-shadow:0 2px 6px rgba(26,10,5,.40); }
+    .rk-an { background:#F0EAE4; color:#5C3A22; }
+
+    .dow-day { font-size:11px; font-weight:600; width:26px; flex-shrink:0; }
+    .dow-day.before { color:#9CA3AF; }
+    .dow-day.after  { color:#3D1F0D; }
+    .dow-day.after.peak { color:#1A0A05; font-weight:800; }
+
+    .dow-track { flex:1; height:9px; border-radius:999px; overflow:hidden; }
+    .dow-track.before { background:#F1F5F9; }
+    .dow-track.after  { background:#F0EAE4; }
+    .dow-fill { height:100%; }
+
+    .dow-value { font-size:11px; font-weight:700; width:50px; text-align:right; flex-shrink:0; }
+    .dow-value.before    { color:#374151; }
+    .dow-value.after     { color:#1A0A05; }
+    .dow-value.after-dim { color:#8B6A50; font-weight:600; }
+    .dow-unit { font-weight:400; font-size:10px; }
+
+    .palette-bar {
+      max-width:1080px; margin:22px auto 0; background:#fff;
+      border:1px solid #E0D5C8; border-radius:12px; padding:14px 20px;
+      display:flex; flex-wrap:wrap; gap:16px; align-items:center;
+    }
+    .palette-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#A8896A; flex-shrink:0; }
+    .palette-item  { display:flex; align-items:center; gap:7px; font-size:12px; color:#3D2B1A; }
+    .palette-swatch{ width:28px; height:10px; border-radius:2px; }
+  </style>
+</head>
+<body>
+
+<h1>Peak Hours — Color Redesign</h1>
+<p class="subtitle">Left: current &nbsp;·&nbsp; Right: Espresso · Forest Green · Yellow · Coffee gradient DOW</p>
+
+<div class="comparison">
+
+  <!-- ══ BEFORE ══ -->
+  <div>
+    <div class="panel-label before">Current</div>
+    <div class="card card-before">
+      <div class="card-header">
+        <div class="card-title">Nyeri Town</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge-before-peak">Peak: 7pm · 169 orders</span>
+          <span class="badge-before-total">1,403 total</span>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="legend-item before"><span class="legend-swatch" style="background:#4A3728"></span>Dine-In</span>
+        <span class="legend-item before"><span class="legend-swatch" style="background:#B8924A"></span>Take-Away</span>
+        <span class="legend-item before"><span class="legend-swatch" style="background:#9B7A5A"></span>Delivery</span>
+      </div>
+      <svg width="100%" viewBox="0 0 480 195" preserveAspectRatio="xMidYMid meet">
+        <line x1="36" y1="28"  x2="470" y2="28"  stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4 5"/>
+        <line x1="36" y1="65"  x2="470" y2="65"  stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4 5"/>
+        <line x1="36" y1="102" x2="470" y2="102" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4 5"/>
+        <line x1="36" y1="139" x2="470" y2="139" stroke="#F1F5F9" stroke-width="1" stroke-dasharray="4 5"/>
+        <line x1="36" y1="172" x2="470" y2="172" stroke="#E2E8F0" stroke-width="1.5"/>
+        <text x="30" y="32"  text-anchor="end" font-size="9" fill="#CBD5E1">169</text>
+        <text x="30" y="69"  text-anchor="end" font-size="9" fill="#CBD5E1">127</text>
+        <text x="30" y="106" text-anchor="end" font-size="9" fill="#CBD5E1">85</text>
+        <text x="30" y="143" text-anchor="end" font-size="9" fill="#CBD5E1">42</text>
+        <text x="52"  y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">12am</text>
+        <text x="112" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">3am</text>
+        <text x="172" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">6am</text>
+        <text x="232" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">9am</text>
+        <text x="292" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">12pm</text>
+        <text x="352" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">3pm</text>
+        <text x="412" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">6pm</text>
+        <text x="462" y="186" text-anchor="middle" font-size="9" fill="#CBD5E1">9pm</text>
+        <!-- before bars — all same muted brown -->
+        <rect x="43"  y="169" width="13" height="3"   fill="#4A3728"/>
+        <rect x="62"  y="168" width="13" height="4"   fill="#4A3728"/>
+        <rect x="82"  y="169" width="13" height="3"   fill="#4A3728"/>
+        <rect x="102" y="169" width="13" height="3"   fill="#4A3728"/>
+        <rect x="122" y="168" width="13" height="4"   fill="#4A3728"/>
+        <rect x="142" y="165" width="13" height="7"   fill="#4A3728"/>
+        <rect x="162" y="153" width="13" height="19"  fill="#4A3728"/><rect x="162" y="148" width="13" height="5"  fill="#B8924A"/>
+        <rect x="182" y="146" width="13" height="21"  fill="#4A3728"/><rect x="182" y="140" width="13" height="6"  fill="#B8924A"/><rect x="182" y="137" width="13" height="3" fill="#9B7A5A"/>
+        <rect x="202" y="138" width="13" height="29"  fill="#4A3728"/><rect x="202" y="129" width="13" height="9"  fill="#B8924A"/><rect x="202" y="125" width="13" height="4" fill="#9B7A5A"/>
+        <rect x="222" y="132" width="13" height="35"  fill="#4A3728"/><rect x="222" y="121" width="13" height="11" fill="#B8924A"/><rect x="222" y="117" width="13" height="4" fill="#9B7A5A"/>
+        <rect x="242" y="118" width="13" height="49"  fill="#4A3728"/><rect x="242" y="103" width="13" height="15" fill="#B8924A"/><rect x="242" y="99"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="262" y="108" width="13" height="59"  fill="#4A3728"/><rect x="262" y="92"  width="13" height="16" fill="#B8924A"/><rect x="262" y="88"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="282" y="98"  width="13" height="69"  fill="#4A3728"/><rect x="282" y="80"  width="13" height="18" fill="#B8924A"/><rect x="282" y="76"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="302" y="106" width="13" height="61"  fill="#4A3728"/><rect x="302" y="90"  width="13" height="16" fill="#B8924A"/><rect x="302" y="86"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="322" y="113" width="13" height="54"  fill="#4A3728"/><rect x="322" y="99"  width="13" height="14" fill="#B8924A"/><rect x="322" y="95"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="342" y="108" width="13" height="59"  fill="#4A3728"/><rect x="342" y="93"  width="13" height="15" fill="#B8924A"/><rect x="342" y="89"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="362" y="102" width="13" height="65"  fill="#4A3728"/><rect x="362" y="84"  width="13" height="18" fill="#B8924A"/><rect x="362" y="80"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="382" y="94"  width="13" height="73"  fill="#4A3728"/><rect x="382" y="75"  width="13" height="19" fill="#B8924A"/><rect x="382" y="71"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="402" y="80"  width="13" height="87"  fill="#4A3728"/><rect x="402" y="60"  width="13" height="20" fill="#B8924A"/><rect x="402" y="56"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="422" y="62"  width="13" height="105" fill="#2C1A12"/><rect x="422" y="39"  width="13" height="23" fill="#C4862A"/><rect x="422" y="34"  width="13" height="5"  fill="#8B6040"/><rect x="422" y="31" width="13" height="3" fill="#C4862A"/>
+        <text x="428.5" y="26" text-anchor="middle" font-size="9" fill="#D97706">▲</text>
+        <rect x="442" y="86"  width="13" height="81"  fill="#4A3728"/><rect x="442" y="69"  width="13" height="17" fill="#B8924A"/><rect x="442" y="65"  width="13" height="4" fill="#9B7A5A"/>
+        <rect x="462" y="108" width="13" height="59"  fill="#4A3728"/><rect x="462" y="95"  width="13" height="13" fill="#B8924A"/><rect x="462" y="91"  width="13" height="4" fill="#9B7A5A"/>
+      </svg>
+      <div class="dow-section">
+        <div class="dow-divider-before"><div class="dow-title-before">Busiest Days of the Week</div></div>
+        <div class="dow-rows">
+          <div class="dow-row peak-before"><span class="dow-rank rk-b1">1</span><span class="dow-day before">Wed</span><div class="dow-track before"><div class="dow-fill" style="width:100%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">102<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-b2">2</span><span class="dow-day before">Fri</span><div class="dow-track before"><div class="dow-fill" style="width:96%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">98<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-bn">3</span><span class="dow-day before">Tue</span><div class="dow-track before"><div class="dow-fill" style="width:93%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">95<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-bn">4</span><span class="dow-day before">Sun</span><div class="dow-track before"><div class="dow-fill" style="width:92%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">94<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-bn">5</span><span class="dow-day before">Mon</span><div class="dow-track before"><div class="dow-fill" style="width:91%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">93<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-bn">6</span><span class="dow-day before">Sat</span><div class="dow-track before"><div class="dow-fill" style="width:80%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">82<span class="dow-unit"> /day</span></span></div>
+          <div class="dow-row"><span class="dow-rank rk-bn">7</span><span class="dow-day before">Thu</span><div class="dow-track before"><div class="dow-fill" style="width:74%;background:linear-gradient(90deg,#8B5E2A,#C4862A)"></div></div><span class="dow-value before">75<span class="dow-unit"> /day</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AFTER ══ -->
+  <div>
+    <div class="panel-label after">Proposed</div>
+    <div class="card card-after">
+      <div class="card-header">
+        <div class="card-title">Nyeri Town</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="badge-after-peak">★ Peak 7pm · 169 orders</span>
+          <span class="badge-after-total">1,403 total</span>
+        </div>
+      </div>
+
+      <div class="legend">
+        <!-- Dine-In: espresso gradient -->
+        <span class="legend-item after">
+          <span class="legend-swatch" style="background:linear-gradient(135deg,#5C2E0F,#1A0A05)"></span>Dine-In
+        </span>
+        <!-- Take-Away: solid forest green -->
+        <span class="legend-item after">
+          <span class="legend-swatch" style="background:#007029"></span>Take-Away
+        </span>
+        <!-- Delivery: solid yellow -->
+        <span class="legend-item after">
+          <span class="legend-swatch" style="background:#EAB308"></span>Delivery
+        </span>
+      </div>
+
+      <svg width="100%" viewBox="0 0 480 195" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <!-- Dine-In gradient: deep espresso top → rich dark brown base -->
+          <linearGradient id="g-dine" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#5C2E0F"/>
+            <stop offset="100%" stop-color="#1A0A05"/>
+          </linearGradient>
+          <!-- Peak glow -->
+          <filter id="pk-glow" x="-60%" y="-30%" width="220%" height="160%">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
+
+        <!-- Gridlines -->
+        <line x1="36" y1="28"  x2="470" y2="28"  stroke="#EDE8E2" stroke-width="1" stroke-dasharray="4 6"/>
+        <line x1="36" y1="65"  x2="470" y2="65"  stroke="#EDE8E2" stroke-width="1" stroke-dasharray="4 6"/>
+        <line x1="36" y1="102" x2="470" y2="102" stroke="#EDE8E2" stroke-width="1" stroke-dasharray="4 6"/>
+        <line x1="36" y1="139" x2="470" y2="139" stroke="#EDE8E2" stroke-width="1" stroke-dasharray="4 6"/>
+        <line x1="36" y1="172" x2="470" y2="172" stroke="#C8BEB4" stroke-width="1.5"/>
+
+        <!-- Y labels -->
+        <text x="30" y="32"  text-anchor="end" font-size="9" fill="#A8896A" font-weight="600">169</text>
+        <text x="30" y="69"  text-anchor="end" font-size="9" fill="#A8896A" font-weight="600">127</text>
+        <text x="30" y="106" text-anchor="end" font-size="9" fill="#A8896A" font-weight="600">85</text>
+        <text x="30" y="143" text-anchor="end" font-size="9" fill="#A8896A" font-weight="600">42</text>
+
+        <!-- X labels -->
+        <text x="52"  y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">12am</text>
+        <text x="112" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">3am</text>
+        <text x="172" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">6am</text>
+        <text x="232" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">9am</text>
+        <text x="292" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">12pm</text>
+        <text x="352" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">3pm</text>
+        <text x="412" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">6pm</text>
+        <text x="462" y="186" text-anchor="middle" font-size="9" fill="#A8896A" font-weight="600">9pm</text>
+
+        <!--
+          Colors — NO gradients, NO rounded corners (no rx):
+          Dine-In  = #2C1A12  (deep espresso, kept from current)
+          Take-Away = #007029  (solid forest green)
+          Delivery  = #EAB308  (solid yellow)
+        -->
+
+        <!-- LOW HOURS — espresso gradient only -->
+        <rect x="43"  y="169" width="13" height="3"  fill="url(#g-dine)"/>
+        <rect x="62"  y="168" width="13" height="4"  fill="url(#g-dine)"/>
+        <rect x="82"  y="169" width="13" height="3"  fill="url(#g-dine)"/>
+        <rect x="102" y="169" width="13" height="3"  fill="url(#g-dine)"/>
+        <rect x="122" y="168" width="13" height="4"  fill="url(#g-dine)"/>
+        <rect x="142" y="165" width="13" height="7"  fill="url(#g-dine)"/>
+
+        <!-- MORNING RAMP -->
+        <rect x="162" y="153" width="13" height="19" fill="url(#g-dine)"/>
+        <rect x="162" y="148" width="13" height="5"  fill="#007029"/>
+        <rect x="162" y="146" width="13" height="2"  fill="#EAB308"/>
+
+        <rect x="182" y="146" width="13" height="21" fill="url(#g-dine)"/>
+        <rect x="182" y="140" width="13" height="6"  fill="#007029"/>
+        <rect x="182" y="137" width="13" height="3"  fill="#EAB308"/>
+
+        <rect x="202" y="138" width="13" height="29" fill="url(#g-dine)"/>
+        <rect x="202" y="129" width="13" height="9"  fill="#007029"/>
+        <rect x="202" y="125" width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="222" y="132" width="13" height="35" fill="url(#g-dine)"/>
+        <rect x="222" y="121" width="13" height="11" fill="#007029"/>
+        <rect x="222" y="117" width="13" height="4"  fill="#EAB308"/>
+
+        <!-- DAYTIME -->
+        <rect x="242" y="118" width="13" height="49" fill="url(#g-dine)"/>
+        <rect x="242" y="103" width="13" height="15" fill="#007029"/>
+        <rect x="242" y="99"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="262" y="108" width="13" height="59" fill="url(#g-dine)"/>
+        <rect x="262" y="92"  width="13" height="16" fill="#007029"/>
+        <rect x="262" y="88"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="282" y="98"  width="13" height="69" fill="url(#g-dine)"/>
+        <rect x="282" y="80"  width="13" height="18" fill="#007029"/>
+        <rect x="282" y="76"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="302" y="106" width="13" height="61" fill="url(#g-dine)"/>
+        <rect x="302" y="90"  width="13" height="16" fill="#007029"/>
+        <rect x="302" y="86"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="322" y="113" width="13" height="54" fill="url(#g-dine)"/>
+        <rect x="322" y="99"  width="13" height="14" fill="#007029"/>
+        <rect x="322" y="95"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="342" y="108" width="13" height="59" fill="url(#g-dine)"/>
+        <rect x="342" y="93"  width="13" height="15" fill="#007029"/>
+        <rect x="342" y="89"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="362" y="102" width="13" height="65" fill="url(#g-dine)"/>
+        <rect x="362" y="84"  width="13" height="18" fill="#007029"/>
+        <rect x="362" y="80"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="382" y="94"  width="13" height="73" fill="url(#g-dine)"/>
+        <rect x="382" y="75"  width="13" height="19" fill="#007029"/>
+        <rect x="382" y="71"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="402" y="80"  width="13" height="87" fill="url(#g-dine)"/>
+        <rect x="402" y="60"  width="13" height="20" fill="#007029"/>
+        <rect x="402" y="56"  width="13" height="4"  fill="#EAB308"/>
+
+        <!-- ★ PEAK BAR — 7pm -->
+        <rect x="421" y="30" width="15" height="144" fill="#3D1F0D" fill-opacity="0.15" filter="url(#pk-glow)"/>
+        <rect x="422" y="62"  width="13" height="105" fill="url(#g-dine)"/>
+        <rect x="422" y="39"  width="13" height="23"  fill="#007029"/>
+        <rect x="422" y="34"  width="13" height="5"   fill="#EAB308"/>
+        <!-- star badge -->
+        <circle cx="428.5" cy="20" r="9" fill="#FFFBEB"/>
+        <circle cx="428.5" cy="20" r="9" fill="none" stroke="#FDE68A" stroke-width="1"/>
+        <text x="428.5" y="24" text-anchor="middle" font-size="11" fill="#92400E" font-weight="900">★</text>
+
+        <!-- POST-PEAK -->
+        <rect x="442" y="86"  width="13" height="81" fill="url(#g-dine)"/>
+        <rect x="442" y="69"  width="13" height="17" fill="#007029"/>
+        <rect x="442" y="65"  width="13" height="4"  fill="#EAB308"/>
+
+        <rect x="462" y="108" width="13" height="59" fill="url(#g-dine)"/>
+        <rect x="462" y="95"  width="13" height="13" fill="#007029"/>
+        <rect x="462" y="91"  width="13" height="4"  fill="#EAB308"/>
+      </svg>
+
+      <!-- DOW — coffee-inspired gradient on each bar -->
+      <div class="dow-section">
+        <div class="dow-divider-after">
+          <div class="dow-rule"></div>
+          <span class="dow-badge">Busiest Days of the Week</span>
+          <div class="dow-rule"></div>
+        </div>
+        <div class="dow-rows">
+          <!-- Coffee gradient: dark roast espresso → warm caramel latte -->
+          <div class="dow-row peak-after">
+            <span class="dow-rank rk-a1">1</span>
+            <span class="dow-day after peak">Wed</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:100%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after">102<span class="dow-unit" style="color:#8B6A50"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">2</span>
+            <span class="dow-day after">Fri</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:96%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">98<span class="dow-unit"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">3</span>
+            <span class="dow-day after">Tue</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:93%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">95<span class="dow-unit"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">4</span>
+            <span class="dow-day after">Sun</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:92%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">94<span class="dow-unit"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">5</span>
+            <span class="dow-day after">Mon</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:91%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">93<span class="dow-unit"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">6</span>
+            <span class="dow-day after">Sat</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:80%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">82<span class="dow-unit"> /day</span></span>
+          </div>
+          <div class="dow-row">
+            <span class="dow-rank rk-an">7</span>
+            <span class="dow-day after">Thu</span>
+            <div class="dow-track after"><div class="dow-fill" style="width:74%;background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div></div>
+            <span class="dow-value after-dim">75<span class="dow-unit"> /day</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Palette summary -->
+<div class="palette-bar">
+  <span class="palette-label">Color roles</span>
+  <div class="palette-item">
+    <div class="palette-swatch" style="background:linear-gradient(90deg,#5C2E0F,#1A0A05)"></div>
+    <span><strong>Deep Espresso gradient</strong> — Dine-In</span>
+  </div>
+  <div class="palette-item">
+    <div class="palette-swatch" style="background:#007029"></div>
+    <span><strong>Forest Green</strong> — Take-Away (solid, no gradient)</span>
+  </div>
+  <div class="palette-item">
+    <div class="palette-swatch" style="background:#EAB308"></div>
+    <span><strong>Yellow</strong> — Delivery (solid)</span>
+  </div>
+  <div class="palette-item">
+    <div class="palette-swatch" style="background:linear-gradient(90deg,#1A0A05,#7C3D0A,#C4862A,#E8B84A)"></div>
+    <span><strong>Coffee gradient</strong> — DOW bars · dark roast → caramel latte</span>
+  </div>
+</div>
+
+</body>
+</html>

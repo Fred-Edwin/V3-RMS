@@ -1,3 +1,13 @@
+> **SEALED — Phase 8 Complete (2026-05-04)**
+> This addendum file has been consolidated into the authoritative reference docs:
+> - Architecture decisions → docs/TDD.md §§22-25
+> - API endpoints → docs/API_CONTRACT.md §§13-17
+> - Data model → docs/DATA_MODEL.md
+> - Build order → docs/BUILD_ORDER.md §14
+> 
+> This file is preserved for historical context. Do not update it.
+
+---
 # Phase 3 Enhancement — Per-Item Prep Ticket Splitting
 
 This file records the design, implementation, and decisions for the ticket-splitting enhancement applied to the Phase 3 Order Management system.

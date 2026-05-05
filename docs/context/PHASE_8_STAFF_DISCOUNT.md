@@ -1,3 +1,13 @@
+> **SEALED — Phase 8 Complete (2026-05-04)**
+> This addendum file has been consolidated into the authoritative reference docs:
+> - Architecture decisions → docs/TDD.md §§22-25
+> - API endpoints → docs/API_CONTRACT.md §§13-17
+> - Data model → docs/DATA_MODEL.md
+> - Build order → docs/BUILD_ORDER.md §14
+> 
+> This file is preserved for historical context. Do not update it.
+
+---
 # Staff Discount Feature — Context (Post-Phase 8 Addendum)
 
 This feature was implemented as an addendum after Phase 8 completed. It integrates the 30% employee discount into the RMS with a manager approval gate, mirroring the House Account deferred-authorization pattern.

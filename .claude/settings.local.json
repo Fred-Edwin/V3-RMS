@@ -35,7 +35,26 @@
       "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name order_lifecycle_redesign --create-only)",
       "Bash(docker compose:*)",
       "Bash(xxd \"backend/prisma/migrations/20260311180000_prep_ticket_sequences/migration.sql\")",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(./scripts/logs.ps1)",
+      "Bash(ssh edwinfred@104.248.29.42 'cd ~/wendo-rms && docker compose exec postgres psql -U wendo_user -d wendo_rms -c \":*)",
+      "Bash(docker cp:*)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name add_accountant_role)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name add_accountant_role --create-only)",
+      "Read(//c/Users/edwin/.claude/projects/d--AI-applications-web-V3-RMS/tool-results/**)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name add_other_income)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate dev --name add_other_income --create-only)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma migrate deploy)",
+      "Bash(DATABASE_URL=\"postgresql://wendo_user:10035south@localhost:5433/wendo_rms\" npx prisma generate)",
+      "Bash(dir \"d:\\\\AI applications\\\\web\\\\V3-RMS\\\\frontend\\\\app\\\\app\")",
+      "Bash(pnpm tsc:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\edwin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--AI-applications-web-V3-RMS\\\\b13a5a2a-9e3c-4a82-9d2c-4a159a702e42\\\\tasks\\\\bcvk4nxrw.output\")",
+      "Bash(powershell -Command \"if \\(Test-Path .next\\) { Remove-Item -Recurse -Force .next }\")",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue\")"
+    ],
+    "additionalDirectories": [
+      "d:\\AI applications\\web\\V3-RMS\\frontend\\app\\app\\director\\branches"
     ]
   }
 }

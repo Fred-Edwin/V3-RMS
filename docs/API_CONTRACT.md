@@ -1,9 +1,9 @@
 ﻿# API Contract
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 1.0  
-**Status:** Draft  
-**Date:** 2026-02-22  
-**Base URL:** `https://api.wendorms.co.ke/api/v1`  
+**Version:** 2.0
+**Status:** Current
+**Date:** 2026-05-04
+**Base URL:** `https://api.wendo-rms.co.ke/api/v1`
 
 ---
 
@@ -13,16 +13,22 @@
 2. [Authentication](#2-authentication)
 3. [Menu](#3-menu)
 4. [Orders](#4-orders)
-5. [Prep Tickets](#5-prep-tickets)
-6. [Staff](#6-staff)
+5. [Prep Tickets & Incidents](#5-prep-tickets--incidents)
+6. [Staff & Transfers](#6-staff--transfers)
 7. [Shifts & Scheduling](#7-shifts--scheduling)
 8. [Clock Records](#8-clock-records)
 9. [Delivery Zones](#9-delivery-zones)
 10. [Branches](#10-branches)
 11. [Reports](#11-reports)
-12. [System Admin](#12-system-admin)
-13. [Health](#13-health)
-14. [WebSocket Events](#14-websocket-events)
+12. [Receipt Printing](#12-receipt-printing)
+13. [Credit Accounts](#13-credit-accounts)
+14. [Other Income](#14-other-income)
+15. [Discounts](#15-discounts)
+16. [Internal Communications](#16-internal-communications)
+17. [HR Module](#17-hr-module)
+18. [System Admin](#18-system-admin)
+19. [Health](#19-health)
+20. [WebSocket Events](#20-websocket-events)
 
 ---
 
@@ -87,7 +93,9 @@ Authorization: Bearer <accessToken>
 |---|---|
 | 🔑 SA | System Admin only |
 | 🔑 DIR | Director and above |
+| 🔑 HR | HR Manager (cross-branch HR access) |
 | 🔑 MGR | Manager and above |
+| 🔑 ACCT | Accountant (cross-branch read + settlement write) |
 | 🔑 WAITER | Waiter (branch-scoped) |
 | 🔑 CHEF | Chef (branch-scoped) |
 | 🔑 BARISTA | Barista (branch-scoped) |
@@ -874,7 +882,7 @@ Cancels an order. Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS
 
 ---
 
-## 5. Prep Tickets
+## 5. Prep Tickets & Incidents
 
 ### GET `/prep-tickets`
 **Access:** 🔑 CHEF, KDS, BARISTA, BDS  
@@ -1094,7 +1102,7 @@ perPage    (optional, default 20)
 
 ---
 
-## 6. Staff
+## 6. Staff & Transfers
 
 ### GET `/staff`
 **Access:** 🔑 MGR, DIR, SA  
@@ -2054,7 +2062,7 @@ Returns a file download (`Content-Disposition: attachment`).
 
 ---
 
-## 12. System Admin
+## 18. System Admin
 
 ### GET `/admin/organizations`
 **Access:** 🔑 SA  
@@ -2074,11 +2082,11 @@ Returns all users across all branches with no branch filter.
 
 ---
 
-## 13. Health
+## 19. Health
 
 ### GET `/health`
-**Access:** Public  
-Returns system health status. Used by Render for uptime monitoring.
+**Access:** Public
+Returns system health status. Used by the DigitalOcean deployment for uptime monitoring.
 
 **Response `200`:**
 ```json
@@ -2107,9 +2115,9 @@ Returns system health status. Used by Render for uptime monitoring.
 
 ---
 
-## 14. WebSocket Events
+## 20. WebSocket Events
 
-WebSocket connection is established at: `wss://api.wendorms.co.ke`
+WebSocket connection is established at: `wss://api.wendo-rms.co.ke`
 
 Authentication is passed on connection:
 ```javascript
@@ -2128,19 +2136,46 @@ const socket = io('wss://api.wendorms.co.ke', {
 
 ### Server → Client Events
 
+**Order Events**
+
 | Event | Payload | Recipient |
 |---|---|---|
-| `order:new` | `PrepTicket` object | Kitchen or Barista room (based on station) |
+| `order:new` | `PrepTicket` object | Station room (KDS/BDS) |
 | `order:claimed` | `{ orderId, ticketId, station, dailyNumber, claimedBy: { id, name } }` | Waiter user room |
 | `order:ready` | `{ orderId, ticketId, station, dailyNumber }` | Waiter user room |
 | `order:all_ready` | `{ orderId, dailyNumber }` | Waiter user room |
 | `order:paid` | `{ orderId, dailyNumber }` | Waiter user room |
 | `order:modified` | Updated `PrepTicket` object | Affected station room |
-| `order:cancelled` | `{ orderId }` | Kitchen and Barista room |
+| `order:cancelled` | `{ orderId }` | Station rooms |
 | `order:force_cancelled` | `{ orderId }` | Waiter user room + station rooms |
 | `ticket:rejected` | `{ orderId, ticketId, station, reason }` | Waiter user room |
 | `ticket:unclaimed` | `{ orderId, ticketId, station }` | Waiter user room |
 | `incident:new` | `{ id, type, orderId?, actor, details, createdAt }` | Branch room (managers) |
+
+**Authorization Events (House Account, Discounts)**
+
+| Event | Payload | Recipient |
+|---|---|---|
+| `order:auth_pending` | `{ orderId, authRequestId, type: "HOUSE_ACCOUNT", amount }` | Branch room + waiter user room |
+| `order:auth_resolved` | `{ orderId, action: "APPROVED"\|"REJECTED" }` | Branch room + waiter user room |
+| `order:staff_discount_pending` | `{ orderId, authRequestId, discountAmount }` | Branch room + waiter user room |
+| `order:staff_discount_resolved` | `{ orderId, action: "APPROVED"\|"REJECTED" }` | Waiter user room |
+| `order:customer_discount_pending` | `{ orderId, authRequestId, discountAmount }` | Branch room + waiter user room |
+| `order:customer_discount_resolved` | `{ orderId, action: "APPROVED"\|"REJECTED" }` | Waiter user room |
+
+**Internal Communications Events**
+
+| Event | Payload | Recipient |
+|---|---|---|
+| `comms:dm_received` | `{ conversationId, message: { id, senderId, bodyHtml, createdAt } }` | Recipient user room |
+| `comms:message_read` | `{ conversationId, messageId, readAt }` | Sender user room |
+| `comms:broadcast_received` | `{ broadcastId, subject, senderName }` | Branch room or role room |
+| `comms:broadcast_read` | `{ broadcastId, userId, readAt }` | Sender user room |
+| `comms:broadcast_acknowledged` | `{ broadcastId, userId, acknowledgedAt }` | Sender user room |
+| `comms:notice_received` | `{ noticeId, subject, issuerId }` | Recipient user room |
+| `comms:notice_acknowledged` | `{ noticeId, userId, acknowledgedAt }` | Issuer user room |
+| `comms:typing_start` | `{ conversationId, userId }` | Conversation participant user room |
+| `comms:typing_stop` | `{ conversationId, userId }` | Conversation participant user room |
 
 ### Connection Error Handling
 
@@ -2152,5 +2187,788 @@ const socket = io('wss://api.wendorms.co.ke', {
 
 ---
 
-*This API Contract is the authoritative reference for all frontend-backend communication in the Wendo RMS V1. Every endpoint reflects the data model, business rules, and architectural decisions defined in the PRD, Data Model, and TDD. Any new endpoint or change to an existing one must be documented here before implementation.*
+---
+
+## 12. Receipt Printing
+
+### GET `/print/jobs`
+**Access:** Print Station token (Bearer)
+The Flutter print app polls this endpoint to claim a pending print job.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "receiptType": "RECEIPT",
+    "copies": 1,
+    "receiptData": { /* full receipt payload */ },
+    "leaseExpiresAt": "2026-05-04T10:00:30Z"
+  }
+}
+```
+
+---
+
+### PATCH `/print/jobs/:id/complete`
+**Access:** Print Station token
+Marks a print job as completed.
+
+**Response `200`:**
+```json
+{ "success": true, "message": "Print job completed" }
+```
+
+---
+
+### PATCH `/print/jobs/:id/fail`
+**Access:** Print Station token
+Marks a print job as failed with a reason.
+
+**Request Body:**
+```json
+{ "reason": "Paper out" }
+```
+
+---
+
+### POST `/print/stations`
+**Access:** 🔑 MGR, SA
+Registers a new print station for the branch.
+
+**Request Body:**
+```json
+{ "name": "Front Counter Printer" }
+```
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": { "id": "uuid", "name": "Front Counter Printer", "token": "unique-token-string" }
+}
+```
+
+**Notes:**
+- The `token` is returned only once at creation. The Flutter app uses it as a Bearer token.
+- Triggering a print job happens automatically on order close (`POST /orders/:id/payment`).
+
+---
+
+## 13. Credit Accounts
+
+### House Accounts
+
+#### GET `/house-accounts`
+**Access:** 🔑 MGR, DIR, ACCT, SA
+Returns all house accounts. Managers see only their branch staff. Directors and Accountants see all.
+
+#### GET `/house-accounts/my`
+**Access:** 🔑 ALL (staff with a house account)
+Returns the authenticated user's own house account (balance, limit, settlement history).
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "creditLimit": "5000.00",
+    "currentBalance": "1200.00",
+    "isActive": true,
+    "requiresAuthorization": false,
+    "settlements": [
+      { "id": "uuid", "amount": "500.00", "note": "Cash repayment", "createdAt": "2026-04-01T09:00:00Z" }
+    ]
+  }
+}
+```
+
+#### POST `/house-accounts`
+**Access:** 🔑 DIR, SA
+Creates a house account for a staff member.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "creditLimit": 5000,
+  "requiresAuthorization": false
+}
+```
+
+#### PATCH `/house-accounts/:id`
+**Access:** 🔑 DIR, SA
+Updates credit limit, active status, or authorization requirement.
+
+#### POST `/house-accounts/:id/settle`
+**Access:** 🔑 MGR, ACCT, SA
+Records a balance repayment (decrements `currentBalance`).
+
+**Request Body:**
+```json
+{ "amount": 500, "note": "Cash repayment" }
+```
+
+---
+
+### House Account Authorization
+
+#### GET `/house-account-auth`
+**Access:** 🔑 MGR, DIR
+Returns pending House Account authorization requests for the branch.
+
+#### POST `/house-account-auth/:id/override`
+**Access:** 🔑 MGR, DIR
+Approves or rejects a pending House Account payment request.
+
+**Request Body:**
+```json
+{ "action": "APPROVE" }
+```
+
+- On `APPROVE`: order is closed, `houseAccount.currentBalance` incremented atomically.
+- On `REJECT`: order returns to `READY`, `PAYMENT_REJECTED` incident logged, waiter notified.
+
+#### POST `/house-account-auth/:id/force-expire`
+**Access:** 🔑 MGR, DIR
+Force-expires a stuck authorization request. Escape hatch for genuinely expired orders.
+
+---
+
+### Corporate Accounts
+
+#### GET `/corporate-accounts`
+**Access:** 🔑 DIR, ACCT, SA
+Returns all corporate accounts (system-level, not branch-scoped).
+
+#### POST `/corporate-accounts`
+**Access:** 🔑 DIR, SA
+Creates a corporate account.
+
+**Request Body:**
+```json
+{
+  "companyName": "Safaricom Ltd",
+  "contactName": "Jane Mwangi",
+  "contactPhone": "+254712345678",
+  "contactEmail": "jane@safaricom.co.ke",
+  "creditLimit": 200000,
+  "billingCycleDay": 1
+}
+```
+
+#### PATCH `/corporate-accounts/:id`
+**Access:** 🔑 DIR, SA
+Updates a corporate account.
+
+#### POST `/corporate-accounts/:id/settle`
+**Access:** 🔑 DIR, ACCT, SA
+Records a balance repayment.
+
+**Request Body:**
+```json
+{ "amount": 50000, "note": "Monthly invoice settlement" }
+```
+
+---
+
+### Customer Credit Accounts
+
+#### GET `/customer-credit`
+**Access:** 🔑 MGR, DIR, ACCT, SA
+Returns customer credit accounts. Branch-scoped for managers; requires `?branchId=` for directors/accountants.
+
+#### POST `/customer-credit`
+**Access:** 🔑 MGR, SA
+Creates a customer credit account for the manager's branch.
+
+**Request Body:**
+```json
+{
+  "customerName": "John Kamau",
+  "customerPhone": "+254798765432",
+  "creditLimit": 10000,
+  "notes": "Regular customer"
+}
+```
+
+#### PATCH `/customer-credit/:id`
+**Access:** 🔑 MGR, SA
+Updates a customer credit account.
+
+#### POST `/customer-credit/:id/settle`
+**Access:** 🔑 MGR, ACCT, SA
+Records a balance repayment.
+
+---
+
+### Outstanding Balances Report
+
+#### GET `/reports/outstanding-balances`
+**Access:** 🔑 DIR, ACCT, SA
+Returns a summary of all outstanding credit balances across all account types.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "houseAccounts": {
+      "totalOutstanding": "8500.00",
+      "accounts": [
+        { "staffName": "James Kamau", "balance": "1200.00", "creditLimit": "5000.00" }
+      ]
+    },
+    "corporateAccounts": {
+      "totalOutstanding": "125000.00",
+      "accounts": [
+        { "companyName": "Safaricom Ltd", "balance": "125000.00", "creditLimit": "200000.00" }
+      ]
+    },
+    "customerCreditAccounts": {
+      "totalOutstanding": "3200.00",
+      "accounts": [
+        { "customerName": "John Kamau", "balance": "1500.00", "creditLimit": "10000.00", "branch": "Wendo Kingz" }
+      ]
+    }
+  }
+}
+```
+
+---
+
+## 14. Other Income
+
+### GET `/other-income/categories`
+**Access:** 🔑 ALL (branch-scoped)
+Returns active other-income categories available at the user's branch.
+
+### POST `/other-income/categories`
+**Access:** 🔑 DIR, SA
+Creates a new other-income category.
+
+**Request Body:**
+```json
+{
+  "name": "Pool Table",
+  "branchId": null
+}
+```
+> `branchId: null` makes the category available at all branches.
+
+### PATCH `/other-income/categories/:id`
+**Access:** 🔑 DIR, SA
+Updates a category (name, active status).
+
+### GET `/other-income/entries`
+**Access:** 🔑 WAITER, MGR, DIR, ACCT, SA
+Returns other-income entries. Branch-scoped for managers/waiters; requires `?branchId=` for directors/accountants.
+
+**Query Params:**
+```
+startDate   (optional) — YYYY-MM-DD
+endDate     (optional) — YYYY-MM-DD
+categoryId  (optional)
+page        (optional, default 1)
+perPage     (optional, default 20, max 100)
+```
+
+### POST `/other-income/entries`
+**Access:** 🔑 WAITER, MGR, SA
+Records a new other-income transaction.
+
+**Request Body:**
+```json
+{
+  "categoryId": "uuid",
+  "amount": "500.00",
+  "paymentMethod": "MPESA",
+  "mpesaCode": "QK12345678",
+  "description": "1 hour pool table",
+  "entryDate": "2026-05-04"
+}
+```
+
+> For split payments, set `paymentMethod: "SPLIT"` and include `mpesaAmount`, `cashAmount`/`cardAmount`, and `splitType`.
+
+### DELETE `/other-income/entries/:id`
+**Access:** 🔑 WAITER (same-day only), MGR, SA
+Deletes an other-income entry. Waiters can only delete entries they recorded on the same calendar day.
+
+---
+
+## 15. Discounts
+
+### Named Customer Discounts
+
+#### GET `/discounts`
+**Access:** 🔑 WAITER, MGR, DIR, SA (branch-scoped; returns branch discounts + system-level discounts)
+Returns active discounts available at the user's branch.
+
+#### POST `/discounts`
+**Access:** 🔑 DIR, SA
+Creates a named customer discount.
+
+**Request Body:**
+```json
+{
+  "name": "Birthday Special",
+  "type": "PERCENTAGE",
+  "value": "10.00",
+  "requiresApproval": false,
+  "organizationId": null
+}
+```
+> `organizationId: null` = available at all branches. Pass a branch UUID to scope to one branch.
+
+#### PATCH `/discounts/:id`
+**Access:** 🔑 DIR, SA
+Updates a discount (name, value, active status, approval requirement).
+
+#### DELETE `/discounts/:id`
+**Access:** 🔑 DIR, SA
+Deactivates a discount.
+
+---
+
+### Customer Discount Authorization
+
+#### GET `/customer-discount-auth`
+**Access:** 🔑 MGR, DIR
+Returns pending customer discount authorization requests for the branch.
+
+#### POST `/customer-discount-auth/:id/resolve`
+**Access:** 🔑 MGR, DIR
+Approves or rejects a pending customer discount request.
+
+**Request Body:**
+```json
+{ "action": "APPROVE" }
+```
+
+- On `APPROVE`: discount fields written to the order; order returns to `READY`.
+- On `REJECT`: order returns to `READY`; no discount applied; waiter notified.
+
+---
+
+### Staff Discount Authorization
+
+#### GET `/staff-discount-auth`
+**Access:** 🔑 MGR, DIR
+Returns pending staff discount (30%) authorization requests for the branch.
+
+#### POST `/staff-discount-auth/:id/resolve`
+**Access:** 🔑 MGR, DIR
+Approves or rejects a pending staff discount request.
+
+**Request Body:**
+```json
+{ "action": "APPROVE" }
+```
+
+**Notes:**
+- Staff discount is always 30% of the order total.
+- The waiter must be the order creator (system enforced — waiters can only request discount on their own orders).
+- On approval: `discountPercent`, `discountAmount`, `discountedById` written to the order; order returns to `READY`.
+
+---
+
+## 16. Internal Communications
+
+All comms endpoints are under the `/comms` prefix.
+
+### Direct Messages
+
+#### GET `/comms/conversations`
+**Access:** 🔑 ALL
+Returns the authenticated user's conversation list with last-message preview.
+
+#### GET `/comms/conversations/:id/messages`
+**Access:** 🔑 ALL (conversation participant only)
+Returns paginated messages for a conversation.
+
+**Query Params:**
+```
+page     (optional, default 1)
+perPage  (optional, default 30)
+```
+
+#### POST `/comms/conversations`
+**Access:** 🔑 ALL
+Creates or opens a direct conversation with another user.
+
+**Request Body:**
+```json
+{ "recipientId": "uuid" }
+```
+
+#### POST `/comms/conversations/:id/messages`
+**Access:** 🔑 ALL (conversation participant only)
+Sends a message in a conversation. Emits `comms:dm_received` via Socket.io.
+
+**Request Body:**
+```json
+{ "bodyHtml": "<p>Good morning!</p>" }
+```
+
+#### DELETE `/comms/messages/:id`
+**Access:** 🔑 ALL (sender only)
+Soft-deletes a sent message.
+
+---
+
+### Broadcasts
+
+#### GET `/comms/broadcasts`
+**Access:** 🔑 ALL
+Returns broadcasts the authenticated user has received.
+
+#### POST `/comms/broadcasts`
+**Access:** 🔑 MGR, DIR, SA
+Sends a broadcast. Recipients are materialized at send time.
+
+**Request Body:**
+```json
+{
+  "scope": "ROLE_GROUP",
+  "targetRole": "WAITER",
+  "subject": "Shift reminder",
+  "bodyHtml": "<p>Please arrive 15 minutes early tomorrow.</p>",
+  "requiresAck": false
+}
+```
+
+> `scope` values: `COMPANY` (DIR only — all branches), `BRANCH`, `ROLE_GROUP`.
+
+#### POST `/comms/broadcasts/:id/read`
+**Access:** 🔑 ALL
+Marks a broadcast as read for the authenticated user.
+
+#### POST `/comms/broadcasts/:id/acknowledge`
+**Access:** 🔑 ALL
+Acknowledges a broadcast (only valid when `requiresAck = true`).
+
+#### GET `/comms/broadcasts/:id/delivery`
+**Access:** 🔑 MGR, DIR, SA
+Returns the delivery/read/acknowledge status for all recipients of a broadcast.
+
+---
+
+### Formal Notices
+
+#### GET `/comms/notices`
+**Access:** 🔑 ALL
+Returns formal notices the authenticated user has received.
+
+#### POST `/comms/notices`
+**Access:** 🔑 HR, MGR, DIR, SA
+Issues a formal notice requiring acknowledgement.
+
+**Request Body:**
+```json
+{
+  "recipientIds": ["uuid", "uuid"],
+  "subject": "Written Warning — Attendance",
+  "bodyHtml": "<p>This formal notice confirms...</p>"
+}
+```
+
+#### POST `/comms/notices/:id/acknowledge`
+**Access:** 🔑 ALL (recipient only)
+Acknowledges a formal notice.
+
+**Notes:**
+- BullMQ jobs schedule 24h and 48h reminder FCM push notifications to unacknowledged recipients.
+- Escalation timestamps (`reminder24SentAt`, `escalation48SentAt`) are recorded on `FormalNoticeRecipient`.
+
+#### GET `/comms/notices/:id/delivery`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns the acknowledgement status for all recipients of a formal notice.
+
+---
+
+## 17. HR Module
+
+All HR endpoints are under the `/hr` prefix.
+
+### Employee Profiles
+
+#### GET `/hr/profiles`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns employee profiles. Managers see only their branch. HR, Directors, SA see all.
+
+**Query Params:**
+```
+organizationId  (optional, HR/DIR/SA) — filter by branch
+isActive        (optional)            — true | false
+```
+
+#### GET `/hr/profiles/:userId`
+**Access:** 🔑 HR, MGR, DIR, SA (own profile also accessible to the employee)
+Returns a single employee profile with leave balances and disciplinary summary.
+
+#### POST `/hr/profiles`
+**Access:** 🔑 HR, MGR, SA
+Creates an employee profile for an existing user account.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "employmentType": "FULL_TIME",
+  "startDate": "2026-01-10",
+  "jobTitle": "Senior Waiter",
+  "nationalId": "12345678",
+  "probationEndDate": "2026-04-10",
+  "emergencyName": "Mary Kamau",
+  "emergencyRelation": "Mother",
+  "emergencyPhone": "+254712345678"
+}
+```
+
+> Creating a profile auto-seeds `LeaveBalance` records for each `LeaveType` for the current year.
+
+#### PATCH `/hr/profiles/:userId`
+**Access:** 🔑 HR, MGR, SA
+Updates an employee profile.
+
+---
+
+### Leave Management
+
+#### GET `/hr/leave/requests`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns leave requests. Managers see only their branch; HR/Director see all.
+
+**Query Params:**
+```
+status          (optional) — PENDING | APPROVED | REJECTED | CANCELLED
+organizationId  (optional, HR/DIR/SA)
+```
+
+#### GET `/hr/leave/requests/mine`
+**Access:** 🔑 ALL
+Returns the authenticated user's own leave requests and current leave balances.
+
+#### POST `/hr/leave/requests`
+**Access:** 🔑 ALL (staff apply for own leave)
+Submits a leave request.
+
+**Request Body:**
+```json
+{
+  "leaveType": "ANNUAL",
+  "startDate": "2026-06-01",
+  "endDate": "2026-06-07",
+  "reason": "Family vacation"
+}
+```
+
+**Validation Rules:**
+- `startDate` must not be in the past.
+- `totalDays` is calculated server-side (working days Mon–Fri only).
+- Available balance must cover the request; insufficient balance returns `409`.
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "leaveType": "ANNUAL",
+    "startDate": "2026-06-01",
+    "endDate": "2026-06-07",
+    "totalDays": 5,
+    "status": "PENDING"
+  }
+}
+```
+
+#### PATCH `/hr/leave/requests/:id/review`
+**Access:** 🔑 HR, MGR, SA
+Approves or rejects a leave request.
+
+**Request Body:**
+```json
+{ "action": "APPROVE", "reviewComment": "Approved. Enjoy your vacation." }
+```
+
+- On `APPROVE`: `leaveBalance.pendingDays` decremented, `usedDays` incremented. FCM notification sent to staff.
+- On `REJECT`: `leaveBalance.pendingDays` decremented (days returned). FCM notification sent to staff.
+
+#### PATCH `/hr/leave/requests/:id/cancel`
+**Access:** 🔑 ALL (own pending request only)
+Cancels a pending leave request. Returns reserved days to available balance.
+
+#### GET `/hr/leave/calendar`
+**Access:** 🔑 MGR, HR, DIR, SA
+Returns a monthly grid of approved leave for a branch (for scheduling reference).
+
+**Query Params:**
+```
+year            (required)
+month           (required, 1–12)
+organizationId  (optional, HR/DIR/SA)
+```
+
+---
+
+### Disciplinary Records
+
+#### GET `/hr/disciplinary`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns disciplinary records. Managers see only their branch.
+
+**Query Params:**
+```
+userId          (optional) — filter by staff member
+organizationId  (optional, HR/DIR/SA)
+```
+
+#### POST `/hr/disciplinary`
+**Access:** 🔑 HR, MGR, SA
+Creates a disciplinary record. Sends an FCM push notification to the employee.
+
+**Request Body:**
+```json
+{
+  "employeeProfileId": "uuid",
+  "incidentDate": "2026-04-28",
+  "actionDate": "2026-04-29",
+  "category": "ATTENDANCE",
+  "description": "Staff was 45 minutes late without prior notification.",
+  "actionTaken": "WRITTEN_WARNING",
+  "outcome": "Formal written warning issued.",
+  "expiresAt": "2026-10-29"
+}
+```
+
+#### PATCH `/hr/disciplinary/:id/acknowledge`
+**Access:** 🔑 ALL (subject of the record only)
+Records the employee's acknowledgement of the disciplinary record.
+
+---
+
+### HR Documents
+
+#### GET `/hr/documents`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns HR documents for an employee profile.
+
+**Query Params:**
+```
+employeeProfileId  (required)
+documentType       (optional)
+```
+
+#### POST `/hr/documents/upload`
+**Access:** 🔑 HR, MGR, SA
+Uploads an HR document to Cloudinary and creates the `HrDocument` record.
+
+**Request:** `multipart/form-data`
+```
+field: file              (PDF, JPG, PNG — max 10 MB)
+field: employeeProfileId (uuid)
+field: documentType      (CONTRACT | ID_COPY | CERTIFICATE | MEDICAL_CERTIFICATE | INCIDENT_REPORT | WARNING_LETTER | OTHER)
+field: leaveRequestId    (optional uuid)
+field: disciplinaryRecordId (optional uuid)
+```
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "fileName": "contract_james_kamau.pdf",
+    "fileUrl": "https://res.cloudinary.com/...",
+    "documentType": "CONTRACT"
+  }
+}
+```
+
+---
+
+### Attendance Analytics
+
+#### GET `/hr/attendance`
+**Access:** 🔑 HR, MGR, DIR, SA
+Returns attendance analytics for a branch over a date range.
+
+**Query Params:**
+```
+startDate       (required) — YYYY-MM-DD
+endDate         (required) — YYYY-MM-DD
+organizationId  (optional, HR/DIR/SA) — target branch
+```
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "period": { "startDate": "2026-04-01", "endDate": "2026-04-30" },
+    "staff": [
+      {
+        "userId": "uuid",
+        "name": "James Kamau",
+        "role": "WAITER",
+        "scheduledDays": 22,
+        "presentDays": 21,
+        "lateDays": 2,
+        "absentDays": 1,
+        "attendanceRate": "95.5%"
+      }
+    ]
+  }
+}
+```
+
+> Late threshold: clock-in more than 15 minutes after `Shift.startTime` = marked as late.
+
+#### GET `/hr/attendance/export`
+**Access:** 🔑 HR, MGR, DIR, SA
+Exports the attendance report as CSV.
+
+---
+
+### Staff Transfers
+
+#### GET `/staff-transfers`
+**Access:** 🔑 DIR, SA
+Returns all staff transfer records.
+
+#### POST `/staff-transfers`
+**Access:** 🔑 DIR, SA
+Transfers a staff member to another branch. Updates the user's `organizationId` and creates an audit `StaffTransfer` record.
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "toOrganizationId": "uuid",
+  "notes": "Temporarily covering staffing shortage at Town branch"
+}
+```
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "fromOrganizationId": "uuid",
+    "toOrganizationId": "uuid",
+    "transferredAt": "2026-05-04T08:00:00Z"
+  },
+  "message": "Staff transferred successfully"
+}
+```
+
+---
+
+*This API Contract is the authoritative reference for all frontend-backend communication in Wendo RMS. Every endpoint reflects the data model, business rules, and architectural decisions defined in the PRD, Data Model, and TDD. Any new endpoint or change to an existing one must be documented here before implementation.*
 

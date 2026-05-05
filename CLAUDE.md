@@ -102,16 +102,30 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 8
-Status: Complete
-Context file: docs/context/PHASE_8_CONTEXT.md
+Phase: 9 (Payslip Visibility Module)
+Status: Planning — not yet started
+Plan file: docs/context/PHASE_9_PAYSLIP_PLAN.md
 
-Previous phases:
+Previous phases (all complete):
+- Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md
+  - Addenda (sealed, consolidated into reference docs):
+    - ACCOUNTANT Role → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
+    - Staff Discount → docs/context/PHASE_8_STAFF_DISCOUNT.md
+    - Customer Discount → docs/context/PHASE_8_CUSTOMER_DISCOUNT.md
+    - HR Module → docs/context/HR_MODULE_CONTEXT.md
+    - Internal Comms → docs/context/COMMS_MODULE_CONTEXT.md
 - Phase 7 Complete → docs/context/PHASE_7_CONTEXT.md
-- Phase 3 Enhancement (Ticket Splitting) Complete → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
+- Phase 6 Complete → docs/context/PHASE_6_CONTEXT.md
+- Phase 5 Complete → docs/context/PHASE_5_CONTEXT.md
+- Phase 4 Complete → docs/context/PHASE_4_CONTEXT.md
+- Phase 3 Enhancement (Ticket Splitting) → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
+- Phase 3 Complete → docs/context/PHASE_3_CONTEXT.md
+- Phase 3.5 Complete → docs/context/PHASE_3.5_CONTEXT.md
+- Phase 2 Complete → docs/context/PHASE_2_CONTEXT.md
+- Phase 1.5 Complete → docs/context/PHASE_1.5_CONTEXT.md
+- Phase 1 Complete → docs/context/PHASE_1_CONTEXT.md
+- Phase 0 Complete → docs/context/PHASE_0_CONTEXT.md
 - UI/UX Refinements (cross-phase) → docs/context/REFINEMENT_CONTEXT.md
-- ACCOUNTANT Role (cross-phase, Phase 7–8) → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
-- Staff Discount Feature (post-Phase 8) → docs/context/PHASE_8_STAFF_DISCOUNT.md
 
 ## Current Deployment Model (Authoritative)
 
