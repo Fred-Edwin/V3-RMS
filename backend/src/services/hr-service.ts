@@ -211,7 +211,7 @@ export async function submitLeaveRequest(
       data: {
         employeeProfileId: profile.id,
         leaveBalanceId: balance.id,
-        ...(organizationId ? { organizationId } : {}),
+        organizationId: organizationId,
         leaveType: input.leaveType,
         startDate: input.startDate,
         endDate: input.endDate,
