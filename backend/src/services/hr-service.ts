@@ -204,7 +204,6 @@ export async function submitLeaveRequest(
   // organizationId may be null for cross-branch roles (ACCOUNTANT). LeaveRequest.organizationId
   // is nullable to support system-wide employees — HR_MANAGER/DIRECTOR are notified instead.
   const organizationId = profile.user.organizationId ?? null;
-  const organizationIdForCreate = organizationId ?? undefined;
 
   // Create request and increment pending days atomically
   const [request] = await prisma.$transaction([
@@ -212,7 +211,7 @@ export async function submitLeaveRequest(
       data: {
         employeeProfileId: profile.id,
         leaveBalanceId: balance.id,
-        organizationId: organizationIdForCreate,
+        ...(organizationId ? { organizationId } : {}),
         leaveType: input.leaveType,
         startDate: input.startDate,
         endDate: input.endDate,
