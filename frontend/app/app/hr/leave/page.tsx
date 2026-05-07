@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, CheckCircle2, XCircle, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, CheckCircle2, XCircle, X, MoreHorizontal, RotateCcw, Ban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PageLayout, PageHeader, EmptyState } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
-import { listLeaveRequests, approveLeaveRequest, rejectLeaveRequest } from '@/services/hrService';
+import { listLeaveRequests, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest, revertLeaveRequest } from '@/services/hrService';
 import type { LeaveRequest, LeaveStatus, LeaveType } from '@/types/hr';
 import { LeaveTypeBadge, LeaveStatusBadge, formatDateRange, roleLabel } from '@/components/hr/LeaveTypeBadge';
 
@@ -165,6 +165,71 @@ function ReviewDrawer({
   );
 }
 
+// ─── History Action Menu ──────────────────────────────────────────────────────
+
+function HistoryActionMenu({
+  request,
+  onRevert,
+  onCancel,
+  loading,
+}: {
+  request: LeaveRequest;
+  onRevert: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const canRevert = request.status === 'APPROVED' || request.status === 'REJECTED';
+  const canCancel = request.status === 'APPROVED';
+
+  if (!canRevert && !canCancel) return null;
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={loading}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600 disabled:opacity-40"
+      >
+        <MoreHorizontal size={15} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+          {canRevert && (
+            <button
+              onClick={() => { setOpen(false); onRevert(); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-body-sm text-stone-700 transition-colors hover:bg-stone-50"
+            >
+              <RotateCcw size={13} className="text-stone-400" />
+              Revert to Pending
+            </button>
+          )}
+          {canCancel && (
+            <button
+              onClick={() => { setOpen(false); onCancel(); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-body-sm text-[#991B1B] transition-colors hover:bg-[#FEF2F2]"
+            >
+              <Ban size={13} />
+              Cancel Leave
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LeaveRequestsPage(): JSX.Element {
@@ -237,6 +302,34 @@ export default function LeaveRequestsPage(): JSX.Element {
       await load();
     } catch (err) {
       toast({ variant: 'error', title: 'Failed to reject', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleRevert = async (req: LeaveRequest) => {
+    if (!accessToken) return;
+    setActionId(req.id);
+    try {
+      await revertLeaveRequest(req.id, accessToken);
+      toast({ variant: 'success', title: 'Reverted to pending', message: `${req.employeeProfile.user.name}'s leave request is pending review again.` });
+      await load();
+    } catch (err) {
+      toast({ variant: 'error', title: 'Failed to revert', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleCancel = async (req: LeaveRequest) => {
+    if (!accessToken) return;
+    setActionId(req.id);
+    try {
+      await cancelLeaveRequest(req.id, accessToken);
+      toast({ variant: 'success', title: 'Leave cancelled', message: `${req.employeeProfile.user.name}'s leave has been cancelled.` });
+      await load();
+    } catch (err) {
+      toast({ variant: 'error', title: 'Failed to cancel', message: err instanceof Error ? err.message : 'Please try again.' });
     } finally {
       setActionId(null);
     }
@@ -416,6 +509,7 @@ export default function LeaveRequestsPage(): JSX.Element {
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
                   <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-stone-400"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
@@ -449,6 +543,14 @@ export default function LeaveRequestsPage(): JSX.Element {
                       ) : (
                         <span className="text-caption text-stone-300">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <HistoryActionMenu
+                        request={req}
+                        onRevert={() => void handleRevert(req)}
+                        onCancel={() => void handleCancel(req)}
+                        loading={actionId === req.id}
+                      />
                     </td>
                   </tr>
                 ))}

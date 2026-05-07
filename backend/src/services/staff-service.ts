@@ -43,10 +43,15 @@ export const staffService = {
 
     const allowedRoles = shouldUseActorOrganization ? branchStaffRoles : undefined;
 
+    // SYSTEM_ADMIN can see deactivated staff (via explicit isActive filter).
+    // All other roles default to active-only unless they explicitly pass isActive=false.
+    const isActive =
+      actor.role === 'SYSTEM_ADMIN' ? filters.isActive : (filters.isActive ?? true);
+
     const results = await staffRepository.findMany({
       organizationId,
       role: filters.role,
-      isActive: filters.isActive,
+      isActive,
       onShift: filters.onShift,
       allowedRoles,
     });

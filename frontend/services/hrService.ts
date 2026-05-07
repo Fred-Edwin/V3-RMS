@@ -128,6 +128,13 @@ export async function cancelLeaveRequest(
   return apiClient.post(`/hr/leave/requests/${id}/cancel`, {}, token);
 }
 
+export async function revertLeaveRequest(
+  id: string,
+  token: string,
+): Promise<{ request: LeaveRequest }> {
+  return apiClient.post(`/hr/leave/requests/${id}/revert`, {}, token);
+}
+
 export async function getLeaveCalendar(
   params: { organizationId?: string; year: number; month: number },
   token: string,

@@ -392,6 +392,66 @@ export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
   return cancelled;
 }
 
+export async function revertLeaveRequest(actor: HrActor, requestId: string) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can revert leave requests');
+  }
+
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
+  if (!request) throw new NotFoundError('Leave request not found');
+
+  if (request.status !== 'APPROVED' && request.status !== 'REJECTED') {
+    throw new ConflictError('Only approved or rejected leave requests can be reverted to pending');
+  }
+
+  const targetOrgId = request.organizationId;
+  const totalDays = Number(request.totalDays);
+
+  if (request.status === 'APPROVED') {
+    // Move days from usedDays back to pendingDays
+    await prisma.$transaction([
+      prisma.leaveRequest.updateMany({
+        where: { id: requestId, organizationId: targetOrgId },
+        data: {
+          status: 'PENDING',
+          reviewedById: null,
+          reviewedAt: null,
+          reviewComment: null,
+        },
+      }),
+      prisma.leaveBalance.update({
+        where: { id: request.leaveBalanceId },
+        data: {
+          usedDays: { decrement: totalDays },
+          pendingDays: { increment: totalDays },
+        },
+      }),
+    ]);
+  } else {
+    // REJECTED: just restore pendingDays (they were decremented on rejection)
+    await prisma.$transaction([
+      prisma.leaveRequest.updateMany({
+        where: { id: requestId, organizationId: targetOrgId },
+        data: {
+          status: 'PENDING',
+          reviewedById: null,
+          reviewedAt: null,
+          reviewComment: null,
+        },
+      }),
+      prisma.leaveBalance.update({
+        where: { id: request.leaveBalanceId },
+        data: { pendingDays: { increment: totalDays } },
+      }),
+    ]);
+  }
+
+  const reverted = await hrRepository.findLeaveRequestById(requestId, targetOrgId ?? undefined);
+
+  logger.info({ requestId, revertedBy: actor.id, previousStatus: request.status }, 'Leave request reverted to pending');
+  return reverted;
+}
+
 export async function listLeaveRequests(
   actor: HrActor,
   params: {

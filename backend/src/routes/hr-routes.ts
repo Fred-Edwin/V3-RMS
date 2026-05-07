@@ -128,6 +128,13 @@ router.post(
   hrController.cancelLeaveRequest,
 );
 
+router.post(
+  '/hr/leave/requests/:id/revert',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.revertLeaveRequest,
+);
+
 // ─── Disciplinary Records ─────────────────────────────────────────────────────
 
 router.post(

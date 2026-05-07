@@ -181,6 +181,13 @@ export async function cancelLeaveRequest(req: Request, res: Response): Promise<v
   res.json({ success: true, data: { request } });
 }
 
+export async function revertLeaveRequest(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const { id } = hrRouteIdParamSchema.parse(req.params);
+  const request = await hrService.revertLeaveRequest(actor, id);
+  res.json({ success: true, data: { request } });
+}
+
 export async function getLeaveCalendar(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
   const query = leaveCalendarQuerySchema.parse(req.query);
