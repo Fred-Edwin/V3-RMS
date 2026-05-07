@@ -632,8 +632,19 @@ export const orderService = {
 
         // Create one ticket per requested item line that doesn't already have a ticket.
         // "Already has a ticket" means its occurrence key matches an existing ticket key.
-        // Track new occurrences created per base key so the stepper pass below doesn't double-count.
-        const allExistingKeys = new Set([...startedKeys, ...editableKeys]);
+        // IMPORTANT: re-index ALL station tickets together (started + editable) so that
+        // occurrence numbers are globally consistent. Merging independently-indexed arrays
+        // into a Set would collapse duplicate keys (e.g. two [friesId,null,0] entries become
+        // one), making the set smaller than the actual ticket count and causing an extra ticket
+        // to be created for the N-th requested occurrence that has no matching slot.
+        const allExistingKeys = new Set(
+          occurrenceKeys(
+            stationTickets.map((t) => ({
+              menuItemId: ticketItem(t)?.menuItemId ?? t.id,
+              notes: ticketItem(t)?.notes ?? null,
+            })),
+          ),
+        );
         const newOccurrenceQtyByBase = new Map<string, number>();
         for (let i = 0; i < requested.length; i++) {
           if (!allExistingKeys.has(requestedKeys[i]!)) {
