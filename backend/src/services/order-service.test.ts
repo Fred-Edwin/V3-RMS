@@ -576,6 +576,49 @@ describe('orderService.updateItems', () => {
       items: [{ menuItemId: 'kitchen-item-1', name: 'Burger', quantity: 1, notes: null }],
     });
   });
+
+  it('does not create extra tickets when resending the same N items with 1 started + (N-1) editable tickets', async () => {
+    // Regression test for production incident: Order #83 had 3x French Fries with
+    // 1 IN_PROGRESS + 2 PENDING tickets. Waiter resent same 3 items → 4th ticket created.
+    // Root cause: allExistingKeys merged two independently-indexed key arrays into a Set,
+    // collapsing the shared [friesId,null,0] key and under-counting existing tickets by 1.
+    const order = buildEditableOrderRecord({
+      status: OrderStatus.IN_PROGRESS,
+      items: [
+        { id: 'item-k-1', orderId: '33333333-3333-4333-8333-333333333333', menuItemId: 'fries-1', quantity: 1, unitPrice: new Prisma.Decimal('200.00'), subtotal: new Prisma.Decimal('200.00'), notes: null, menuItem: { id: 'fries-1', name: 'French Fries', category: { prepStation: 'KITCHEN' } } },
+        { id: 'item-k-2', orderId: '33333333-3333-4333-8333-333333333333', menuItemId: 'fries-1', quantity: 1, unitPrice: new Prisma.Decimal('200.00'), subtotal: new Prisma.Decimal('200.00'), notes: null, menuItem: { id: 'fries-1', name: 'French Fries', category: { prepStation: 'KITCHEN' } } },
+        { id: 'item-k-3', orderId: '33333333-3333-4333-8333-333333333333', menuItemId: 'fries-1', quantity: 1, unitPrice: new Prisma.Decimal('200.00'), subtotal: new Prisma.Decimal('200.00'), notes: null, menuItem: { id: 'fries-1', name: 'French Fries', category: { prepStation: 'KITCHEN' } } },
+      ],
+      prepTickets: [
+        { id: 'ticket-k-1', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 1, status: 'IN_PROGRESS', claimedById: 'chef-1', claimedAt: new Date(), readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: { id: 'chef-1', name: 'Chef One' } },
+        { id: 'ticket-k-2', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 2, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
+        { id: 'ticket-k-3', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 3, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
+      ],
+    });
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(order);
+    vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
+      createMenuItem('fries-1', 'French Fries', '200.00', 'KITCHEN'),
+    ]);
+    vi.mocked(orderRepository.updateItems).mockResolvedValue(order);
+
+    await orderService.updateItems(
+      order.id,
+      {
+        // Same 3 French Fries — no change
+        items: [
+          { menuItemId: 'fries-1', quantity: 1, notes: null },
+          { menuItemId: 'fries-1', quantity: 1, notes: null },
+          { menuItemId: 'fries-1', quantity: 1, notes: null },
+        ],
+      },
+      waiterActor,
+    );
+
+    const call = vi.mocked(orderRepository.updateItems).mock.calls[0];
+    // No new tickets should be created — all 3 already have tickets
+    expect(call?.[4].creates).toHaveLength(0);
+  });
 });
 describe('orderService.recordPayment', () => {
   beforeEach(() => {
