@@ -23,6 +23,9 @@ const formatRoleLabel = (role: AppRole): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const formatStaffGroupLabel = (staff: StaffDto): string =>
+  `${staff.organizationName ?? 'Branch'} - ${formatRoleLabel(staff.role)}`;
+
 export default function HrPayslipsPage(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
@@ -109,12 +112,14 @@ export default function HrPayslipsPage(): JSX.Element {
         .sort((left, right) => {
           const branchCompare = (left.organizationName ?? '').localeCompare(right.organizationName ?? '');
           if (branchCompare !== 0) return branchCompare;
+          const roleCompare = formatRoleLabel(left.role).localeCompare(formatRoleLabel(right.role));
+          if (roleCompare !== 0) return roleCompare;
           return left.name.localeCompare(right.name);
         })
         .map((staff) => ({
           value: staff.id,
-          label: `${staff.name} · ${formatRoleLabel(staff.role)}`,
-          group: staff.organizationName ?? 'Branch',
+          label: staff.name,
+          group: formatStaffGroupLabel(staff),
         })),
     ],
     [staffMembers],
@@ -152,7 +157,7 @@ export default function HrPayslipsPage(): JSX.Element {
       toast({
         variant: 'success',
         title: editingPayslip ? 'Payslip updated' : 'Payslip created',
-        message: `${saved.user.name} · ${saved.payPeriod}`,
+        message: `${saved.user.name} - ${saved.payPeriod}`,
       });
       setIsFormOpen(false);
       setEditingPayslip(null);
@@ -175,7 +180,7 @@ export default function HrPayslipsPage(): JSX.Element {
       toast({
         variant: 'success',
         title: 'Payslip locked',
-        message: `${payslip.user.name} · ${payslip.payPeriod}`,
+        message: `${payslip.user.name} - ${payslip.payPeriod}`,
       });
       await loadPayslips();
       if (selectedPayslip?.id === payslip.id) {
@@ -217,7 +222,7 @@ export default function HrPayslipsPage(): JSX.Element {
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-heading-lg font-semibold text-espresso">Payslip ledger</h2>
-            <p className="mt-1 text-body-sm text-stone-500">Cross-branch payroll records with a calm operational hierarchy.</p>
+            <p className="mt-1 text-body-sm text-stone-500">Cross-branch payroll records.</p>
           </div>
         </div>
 

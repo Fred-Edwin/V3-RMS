@@ -181,7 +181,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     }
   };
 
-  // BARISTA phone flow: self-claim. CHEFs use the tablet KDS only.
   const handlePersonalClaim = (ticketId: string) => {
     if (!currentUserId) {
       toast({
@@ -291,8 +290,6 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     />
   );
 
-  // Phone view for BARISTA personal device (self-claim flow).
-  // CHEFs no longer have access to this page — tablet KDS only.
   const renderPhoneTicket = (ticket: PrepTicketDetail) => (
     <KDSCard
       key={ticket.id}
@@ -327,7 +324,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
     />
   );
 
-  const isPersonalRole = role === 'BARISTA';
+  const isPersonalRole = role === 'BARISTA' || role === 'CHEF';
 
   // Keep inProgressCount up-to-date as tickets move between columns.
   // We derive it from the live inProgressTickets list so it reacts to Socket.io updates

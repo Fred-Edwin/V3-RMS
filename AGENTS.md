@@ -22,6 +22,29 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
 | `docs/context`             | Getting context for the previous phases        |
 
+## Critical Domain Knowledge (Read Before Touching These Areas)
+
+### Prep Ticket Model — One Ticket Per Order-Item Line
+`PrepTicket` records are created **one per order-item line per station**, not one per station.
+An order with `Latte x2 + Cappuccino + Fries` produces **3 tickets** (2 BARISTA + 1 KITCHEN).
+
+- `Latte x2` → 1 ticket with `items: [{ name: "Latte", quantity: 2 }]`
+- `Cappuccino` → 1 ticket with `items: [{ name: "Cappuccino", quantity: 1 }]`
+- `Fries` → 1 ticket with `items: [{ name: "Fries", quantity: 1 }]`
+
+**Do not** revert to grouping all station items into one ticket. This was an intentional workload-fairness design. See `docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
+
+The `@@unique([orderId, station, sequence])` constraint on `PrepTicket` supports multiple tickets per station via the `sequence` field. When bulk-creating tickets with `createMany`, you **must** assign per-station sequence numbers explicitly — the default `sequence: 1` will cause a unique constraint violation for the second ticket of the same station.
+
+**Duplicate item lines are distinct tickets, not quantity increments.** If a waiter taps `Cappuccino` twice, the result is **two separate cart lines → two separate tickets** on the BDS — not one ticket with `quantity: 2`. Each tap via `addToCart` always appends a new line (keyed by `lineId`). The backend reconciliation in `orderService.updateItems` uses occurrence-indexed keys `(menuItemId, notes, N)` to distinguish them.
+
+- To get **one ticket with quantity 2**: tap once, then use the **+** stepper in the cart review sheet.
+- To get **two separate tickets of quantity 1**: tap the item twice.
+
+Do not revert `addToCart` to merge by `menuItemId` — this was the root cause of the BDS missing-ticket bug (fixed 2026-04-08, commits `7ef34bf` + `df226e1`).
+
+---
+
 ## Non-Negotiables (Read These Now)
 
 1. TypeScript strict mode is always on. No `any` types.
@@ -79,9 +102,30 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 6
-Status: Complete
-Context file: docs/context/PHASE_6_CONTEXT.md
+Phase: 9 (Payslip Visibility Module)
+Status: Planning — not yet started
+Plan file: docs/context/PHASE_9_PAYSLIP_PLAN.md
+
+Previous phases (all complete):
+- Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md
+  - Addenda (sealed, consolidated into reference docs):
+    - ACCOUNTANT Role → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
+    - Staff Discount → docs/context/PHASE_8_STAFF_DISCOUNT.md
+    - Customer Discount → docs/context/PHASE_8_CUSTOMER_DISCOUNT.md
+    - HR Module → docs/context/HR_MODULE_CONTEXT.md
+    - Internal Comms → docs/context/COMMS_MODULE_CONTEXT.md
+- Phase 7 Complete → docs/context/PHASE_7_CONTEXT.md
+- Phase 6 Complete → docs/context/PHASE_6_CONTEXT.md
+- Phase 5 Complete → docs/context/PHASE_5_CONTEXT.md
+- Phase 4 Complete → docs/context/PHASE_4_CONTEXT.md
+- Phase 3 Enhancement (Ticket Splitting) → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
+- Phase 3 Complete → docs/context/PHASE_3_CONTEXT.md
+- Phase 3.5 Complete → docs/context/PHASE_3.5_CONTEXT.md
+- Phase 2 Complete → docs/context/PHASE_2_CONTEXT.md
+- Phase 1.5 Complete → docs/context/PHASE_1.5_CONTEXT.md
+- Phase 1 Complete → docs/context/PHASE_1_CONTEXT.md
+- Phase 0 Complete → docs/context/PHASE_0_CONTEXT.md
+- UI/UX Refinements (cross-phase) → docs/context/REFINEMENT_CONTEXT.md
 
 ## Current Deployment Model (Authoritative)
 
@@ -90,6 +134,7 @@ Context file: docs/context/PHASE_6_CONTEXT.md
 - API: Cloudflare tunnel (`https://api.wendo-rms.co.ke`) -> DigitalOcean droplet.
 - Backend services on server: `api`, `worker`, `postgres`, `redis`.
 - No dedicated staging environment is currently provisioned.
+- **Deployments are fully automated via GitHub Actions CI/CD.** Every push to `main` triggers: validate → build Docker image → push to ghcr.io → SSH into server → `git pull` + migrate + restart containers. No manual server commands needed after pushing. Monitor at: GitHub → repo → Actions tab. See `docs/DEPLOYMENT.md` §7 for full pipeline details.
 
 ## Command Quick Reference (for Coding Agents)
 
@@ -110,7 +155,7 @@ pnpm install
 pnpm dev
 ```
 
-Build checks:
+Build checks (run BOTH before every push — `typecheck` alone is not sufficient):
 
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS\backend"
@@ -118,11 +163,28 @@ pnpm build
 pnpm test
 
 Set-Location "d:\AI applications\web\V3-RMS\frontend"
-pnpm typecheck
 pnpm build
 ```
 
 ### Local DB - Migrations and Seed
+
+**MIGRATION WORKFLOW — ALWAYS follow this order:**
+
+1. Edit `backend/prisma/schema.prisma` locally
+2. Generate the migration SQL file locally:
+   ```powershell
+   Set-Location "d:\AI applications\web\V3-RMS\backend"
+   npx prisma migrate dev --name describe_your_change
+   ```
+3. Commit the generated migration file in `backend/prisma/migrations/`
+4. Push to GitHub
+5. On production server, apply with:
+   ```bash
+   docker compose exec api npx prisma migrate deploy
+   ```
+
+**Never run `prisma migrate dev` on production — it will prompt to reset (wipe) the database.**
+**Never run `prisma migrate deploy` without a committed migration file — it will report "No pending migrations" and the schema change won't apply.**
 
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS"
@@ -213,8 +275,31 @@ Set-Location "d:\AI applications\web\V3-RMS\frontend"
 pnpm dev -- -H 0.0.0.0 -p 3000
 ```
 
+### Push Notifications (FCM) — Ops Reference
+
+**VAPID key:** The `NEXT_PUBLIC_FIREBASE_VAPID_KEY` must be the **public key** (88 chars)
+from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
+The private key (44 chars) shown below it must never be used here.
+
+**Staff onboarding:** Each staff member must visit Profile → Push Notifications and tap
+**Enable Notifications** once on their device. Tokens are stored per-device in `users.fcm_token`.
+
+**Check who has registered:**
+```bash
+docker compose exec postgres psql -U wendo_user -d wendo_rms -c \
+  "SELECT name, role, CASE WHEN fcm_token IS NOT NULL THEN 'YES' ELSE 'NO' END as notifications_enabled FROM users WHERE is_active = true AND role IN ('WAITER','CHEF','BARISTA','KITCHEN_DISPLAY','BARISTA_DISPLAY') ORDER BY notifications_enabled, role, name;"
+```
+
+**Service worker:** `frontend/public/firebase-messaging-sw.js` is the committed fallback with
+real config baked in. `next.config.mjs` regenerates it from `firebase-messaging-sw.template.js`
+at build time when env vars are present. The `no-cache` header prevents CDN/browser caching.
+
+**If a device stops receiving pushes:** Token may be stale. Staff should re-visit Profile →
+Push Notifications — if it shows Enabled, they can log out and back in to re-register.
+
 ### Known Gotchas
 
 - Root `.env` must include `POSTGRES_PASSWORD=...` for Docker Compose.
 - `backend/.env` must be valid dotenv (`KEY=value` only; no multiline SSH keys).
 - Local Postgres is exposed on host `5433` for Prisma Studio local script.
+- FCM VAPID key: use the **public** key (88 chars), not the private key (44 chars).

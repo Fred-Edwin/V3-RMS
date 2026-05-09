@@ -41,18 +41,23 @@ const formatRoleLabel = (role: AppRole): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const formatStaffGroupLabel = (staff: StaffDto): string =>
+  `${staff.organizationName ?? 'Branch'} - ${formatRoleLabel(staff.role)}`;
+
 const staffToOptions = (staffMembers: StaffDto[]): SelectOption[] =>
   [...staffMembers]
     .filter((staff) => staff.isActive && !!staff.organizationId && !EXCLUDED_STAFF_ROLES.has(staff.role))
     .sort((left, right) => {
       const branchCompare = (left.organizationName ?? '').localeCompare(right.organizationName ?? '');
       if (branchCompare !== 0) return branchCompare;
+      const roleCompare = formatRoleLabel(left.role).localeCompare(formatRoleLabel(right.role));
+      if (roleCompare !== 0) return roleCompare;
       return left.name.localeCompare(right.name);
     })
     .map((staff) => ({
       value: staff.id,
-      label: `${staff.name} · ${formatRoleLabel(staff.role)}`,
-      group: staff.organizationName ?? 'Branch',
+      label: staff.name,
+      group: formatStaffGroupLabel(staff),
     }));
 
 const normalizeItems = (items: PayslipLineItem[]): PayslipLineItem[] =>
@@ -236,7 +241,7 @@ export function PayslipFormModal({
               </p>
               <p className="mt-2 text-body-sm text-stone-500">
                 Net pay
-                {form.payPeriod ? ` · ${formatPayPeriod(form.payPeriod)}` : ''}
+                {form.payPeriod ? ` - ${formatPayPeriod(form.payPeriod)}` : ''}
               </p>
             </div>
             <div className="mt-5 space-y-3 border-t border-stone-200 pt-4">
