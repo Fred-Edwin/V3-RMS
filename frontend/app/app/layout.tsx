@@ -185,6 +185,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
       { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
+      { label: 'Shifts', href: '/app/hr/shifts', icon: Calendar },
       { label: 'Payroll', href: '/app/hr/payroll', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
@@ -381,6 +382,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Leave Requests', href: '/app/hr/leave', icon: Calendar },
         { label: 'Leave Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
         { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
+        { label: 'Shifts', href: '/app/hr/shifts', icon: Calendar },
         { label: 'Payroll', href: '/app/hr/payroll', icon: FileText },
         { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       ],

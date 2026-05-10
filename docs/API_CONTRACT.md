@@ -1259,12 +1259,12 @@ Reactivates a previously deactivated staff account.
 ## 7. Shifts & Scheduling
 
 ### GET `/shifts`
-**Access:** 🔑 MGR, DIR  
-Returns shift definitions for a branch. Managers read their own branch. Directors must specify the branch using `organizationId`.
+**Access:** 🔑 MGR, DIR, HR  
+Returns shift definitions for a branch. Managers read their own branch. Directors and HR managers must specify the branch using `organizationId`.
 
 **Query Params:**
 ```
-organizationId  (optional, DIR only; required for DIR) — target branch id
+organizationId  (optional for MGR; required for DIR/HR) — target branch id
 ```
 
 **Response `200`:**
@@ -1293,17 +1293,19 @@ organizationId  (optional, DIR only; required for DIR) — target branch id
 ---
 
 ### POST `/shifts`
-**Access:** 🔑 MGR  
+**Access:** 🔑 MGR, HR  
 Creates a new shift definition.
 
 **Request Body:**
 ```json
 {
+  "organizationId": "uuid",
   "name": "Morning",
   "startTime": "06:00",
   "endTime": "14:00"
 }
 ```
+`organizationId` is optional for managers and required for HR managers.
 
 **Response `201`:**
 ```json
@@ -1323,17 +1325,19 @@ Creates a new shift definition.
 ---
 
 ### PATCH `/shifts/:id`
-**Access:** 🔑 MGR  
+**Access:** 🔑 MGR, HR  
 Updates a shift definition.
 
 **Request Body:** (all fields optional)
 ```json
 {
+  "organizationId": "uuid",
   "name": "Early Morning",
   "startTime": "05:30",
   "endTime": "13:30"
 }
 ```
+`organizationId` is optional for managers and required for HR managers.
 
 **Response `200`:**
 ```json
@@ -1347,8 +1351,13 @@ Updates a shift definition.
 ---
 
 ### DELETE `/shifts/:id`
-**Access:** 🔑 MGR  
+**Access:** 🔑 MGR, HR  
 Soft-deletes a shift definition. Deletion is blocked if future assignments exist for the shift.
+
+**Query Params:**
+```
+organizationId  (optional for MGR; required for HR) — target branch id
+```
 
 **Response `200`:**
 ```json
@@ -1372,16 +1381,16 @@ Soft-deletes a shift definition. Deletion is blocked if future assignments exist
 ---
 
 ### GET `/shift-assignments`
-**Access:** 🔑 MGR, DIR, ALL (staff see their own only)  
-Returns shift assignments. Managers read all assignments for their own branch. Directors must specify `organizationId`. Staff always see only their own assignments.
+**Access:** 🔑 MGR, DIR, HR, ALL (staff see their own only)  
+Returns shift assignments. Managers read all assignments for their own branch. Directors and HR managers must specify `organizationId`. Staff always see only their own assignments.
 
 **Query Params:**
 ```
 startDate   (required) — YYYY-MM-DD
 endDate     (required) — YYYY-MM-DD
-userId      (optional, MGR/DIR only) — filter by staff member
+userId      (optional, MGR/DIR/HR only) — filter by staff member
 shiftId     (optional) — filter by shift
-organizationId  (optional, DIR only; required for DIR) — target branch id
+organizationId  (optional for MGR; required for DIR/HR) — target branch id
 ```
 
 **Response `200`:**
@@ -1416,20 +1425,22 @@ organizationId  (optional, DIR only; required for DIR) — target branch id
 ---
 
 ### POST `/shift-assignments`
-**Access:** 🔑 MGR  
+**Access:** 🔑 MGR, HR  
 Assigns a staff member to a shift on a specific date.
 
 **Request Body:**
 ```json
 {
+  "organizationId": "uuid",
   "userId": "uuid",
   "shiftId": "uuid",
   "date": "2026-02-23"
 }
 ```
+`organizationId` is optional for managers and required for HR managers.
 
 **Validation Rules:**
-- `userId` must belong to the manager's branch
+- `userId` must belong to the selected branch
 - No duplicate assignment (same user + shift + date)
 
 **Response `201`:**
@@ -1443,6 +1454,46 @@ Assigns a staff member to a shift on a specific date.
     "shiftId": "uuid"
   },
   "message": "Shift assigned successfully"
+}
+```
+
+---
+
+### POST `/shift-assignments/reconcile-week`
+**Access:** 🔑 MGR, HR  
+Saves manual edits from the weekly spreadsheet roster. `shiftId: null` clears the staff member's assignment for that date (`OFF` in the UI).
+
+**Request Body:**
+```json
+{
+  "organizationId": "uuid",
+  "weekStart": "2026-05-10",
+  "changes": [
+    { "userId": "uuid", "date": "2026-05-12", "shiftId": "uuid" },
+    { "userId": "uuid", "date": "2026-05-13", "shiftId": null }
+  ]
+}
+```
+`organizationId` is optional for managers and required for HR managers.
+
+**Validation Rules:**
+- Changes are branch-scoped to the manager's branch or the HR-selected branch.
+- `userId` must be an active WAITER, CHEF, or BARISTA in that branch.
+- `shiftId` must be an active shift definition in that branch.
+- Dates must fall within `weekStart` through `weekStart + 6 days`.
+- Past dates and assignments with clock records are not modified.
+
+**Response `200` or `207`:**
+```json
+{
+  "success": true,
+  "data": {
+    "saved": 2,
+    "skipped": 0,
+    "errors": [],
+    "assignments": []
+  },
+  "message": "2 changes saved, 0 skipped"
 }
 ```
 

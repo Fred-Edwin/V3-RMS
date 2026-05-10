@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Copy, MapPin, Search, ShieldAlert, Trash2, Users, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Copy, Expand, Minimize2, Search, ShieldAlert, Trash2 } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -9,33 +9,23 @@ import {
   IconButton,
   Input,
   Modal,
-  PageHeader,
   PageLayout,
-  Popover,
   Select,
   SkeletonTable,
   Table,
   type TableColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
+import { cn } from '@/lib/cn';
 import { getTodayYmdInTimeZone, toYmdInTimeZone } from '@/lib/date';
+import { branchService, type BranchDto } from '@/services/branchService';
 import { shiftService } from '@/services/shiftService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
-import type {
-  ClockOverrideInput,
-  CopyWeekInput,
-  CreateShiftAssignmentInput,
-  Shift,
-  ShiftAssignment,
-  ShiftRole,
-} from '@/types/shift';
+import type { ClockOverrideInput, CopyWeekInput, Shift, ShiftAssignment, ShiftRole } from '@/types/shift';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type ViewMode = 'week' | 'month';
-type BatchMode = 'recurrence' | 'specific';
+type TabId = 'schedule' | 'attendance' | 'definitions';
 
 type ShiftRow = Record<string, unknown> & Shift;
 type AttendanceRow = Record<string, unknown> & ShiftAssignment;
@@ -44,13 +34,6 @@ interface ShiftFormState {
   name: string;
   startTime: string;
   endTime: string;
-}
-
-interface AssignmentModalState {
-  isOpen: boolean;
-  userId: string;
-  date: string;
-  shiftId: string;
 }
 
 interface OverrideModalState {
@@ -63,27 +46,15 @@ interface OverrideModalState {
 
 interface CopyWeekModalState {
   isOpen: boolean;
-  sourceWeekStart: string; // YYYY-MM-DD (Monday)
-  targetWeekStart: string; // YYYY-MM-DD (Monday)
+  sourceWeekStart: string;
+  targetWeekStart: string;
 }
 
-interface BatchModalState {
-  isOpen: boolean;
-  mode: BatchMode;
-  shiftId: string;
-  selectedUserIds: Set<string>;
-  // recurrence
-  selectedDaysOfWeek: Set<number>; // 0=Sun … 6=Sat
-  recurrenceMonth: string; // YYYY-MM
-  // specific dates
-  specificDates: Set<string>; // YYYY-MM-DD
-}
-
-// ─── Constants ───────────────────────────────────────────────────────────────
+type DraftValue = string | null;
 
 const emptyShiftForm: ShiftFormState = { name: '', startTime: '06:00', endTime: '14:00' };
-
-const roleOrder: ShiftRole[] = ['WAITER', 'CHEF', 'BARISTA'];
+const roleOrder: ShiftRole[] = ['CHEF', 'WAITER', 'BARISTA'];
+const OFF_VALUE = '__OFF__';
 
 const overrideReasonOptions = [
   { value: 'GPS permission denied', label: 'GPS permission denied' },
@@ -93,29 +64,14 @@ const overrideReasonOptions = [
   { value: 'Other', label: 'Other' },
 ] as const;
 
-const roleBadgeStyle: Record<string, string> = {
-  WAITER: 'bg-[#FDF3DC] text-[#92650A] border-[#F0D080]',
-  CHEF: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  BARISTA: 'bg-[#EDFAF1] text-[#1A6B3C] border-[#86EFAC]',
-};
-
-const roleAvatarStyle: Record<string, string> = {
-  WAITER: 'bg-[#FDF3DC] text-[#92650A]',
-  CHEF: 'bg-[#FEF0E0] text-[#A04F0A]',
-  BARISTA: 'bg-[#EDFAF1] text-[#1A6B3C]',
-};
-
-const shiftCardColors = [
-  { bg: 'bg-[#FDF3DC]', border: 'border-l-[#C4862A]', text: 'text-[#92650A]', dot: 'bg-[#C4862A]' },
-  { bg: 'bg-[#FEF0E0]', border: 'border-l-[#D97706]', text: 'text-[#A04F0A]', dot: 'bg-[#D97706]' },
-  { bg: 'bg-[#EDFAF1]', border: 'border-l-[#16A34A]', text: 'text-[#1A6B3C]', dot: 'bg-[#16A34A]' },
-  { bg: 'bg-[#EFF6FF]', border: 'border-l-[#3B82F6]', text: 'text-[#1E40AF]', dot: 'bg-[#3B82F6]' },
-  { bg: 'bg-[#F5F3FF]', border: 'border-l-[#8B5CF6]', text: 'text-[#5B21B6]', dot: 'bg-[#8B5CF6]' },
+const shiftColorClasses = [
+  'bg-[#FFF2D8] text-[#92650A]',
+  'bg-[#EAF2FF] text-[#2856A3]',
+  'bg-[#EFE8F8] text-[#5B2D8E]',
+  'bg-[#E6F3E8] text-[#1F6E43]',
+  'bg-[#FDF3DC] text-[#92650A]',
+  'bg-[#FEF0E0] text-[#A04F0A]',
 ];
-
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
 
 const dateToYmd = (value: Date): string => toYmdInTimeZone(value);
 
@@ -125,54 +81,17 @@ const addDays = (date: Date, days: number): Date => {
   return next;
 };
 
-const getMonday = (date: Date): Date => {
+const getSunday = (date: Date): Date => {
   const current = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = current.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  current.setDate(current.getDate() + offset);
+  current.setDate(current.getDate() - current.getDay());
   return current;
 };
-
-const getMonthStart = (date: Date): Date =>
-  new Date(date.getFullYear(), date.getMonth(), 1);
-
-const getMonthEnd = (date: Date): Date =>
-  new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
 const formatWeekRange = (startDate: Date): string => {
   const endDate = addDays(startDate, 6);
   const startLabel = startDate.toLocaleDateString([], { day: 'numeric', month: 'short' });
   const endLabel = endDate.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
-  return `${startLabel} – ${endLabel}`;
-};
-
-const formatMonthLabel = (date: Date): string =>
-  date.toLocaleDateString([], { month: 'long', year: 'numeric' });
-
-/** All calendar cells for a month view (padding with prev/next month days). */
-const buildMonthGrid = (monthStart: Date): Date[] => {
-  const firstDow = monthStart.getDay(); // 0 = Sun
-  const cells: Date[] = [];
-  for (let i = firstDow; i > 0; i--) cells.push(addDays(monthStart, -i));
-  const lastDay = getMonthEnd(monthStart).getDate();
-  for (let d = 0; d < lastDay; d++) cells.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), d + 1));
-  while (cells.length % 7 !== 0) cells.push(addDays(cells[cells.length - 1], 1));
-  return cells;
-};
-
-/** All YYYY-MM-DD dates matching the given days-of-week within a month. */
-const getRecurrenceDates = (yearMonth: string, daysOfWeek: Set<number>): string[] => {
-  if (!yearMonth || daysOfWeek.size === 0) return [];
-  const [year, month] = yearMonth.split('-').map(Number);
-  const start = new Date(year, month - 1, 1);
-  const end = getMonthEnd(start);
-  const dates: string[] = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    if (daysOfWeek.has(cur.getDay())) dates.push(dateToYmd(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dates;
+  return `${startLabel} - ${endLabel}`;
 };
 
 const formatTime = (value: string | null): string => {
@@ -180,203 +99,229 @@ const formatTime = (value: string | null): string => {
   return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const getShiftColor = (shiftId: string, allShifts: Shift[]) => {
-  const index = allShifts.findIndex((s) => s.id === shiftId);
-  return shiftCardColors[index >= 0 ? index % shiftCardColors.length : 0];
+const getShiftMinutes = (shift: Pick<Shift, 'startTime' | 'endTime'>): number => {
+  const [startHour = 0, startMinute = 0] = shift.startTime.split(':').map(Number);
+  const [endHour = 0, endMinute = 0] = shift.endTime.split(':').map(Number);
+  const start = startHour * 60 + startMinute;
+  let end = endHour * 60 + endMinute;
+  if (end <= start) end += 24 * 60;
+  return end - start;
 };
 
-// ─── Default batch modal state ────────────────────────────────────────────────
-
-const defaultBatchModal = (): BatchModalState => {
-  const now = new Date();
-  return {
-    isOpen: false,
-    mode: 'recurrence',
-    shiftId: '',
-    selectedUserIds: new Set(),
-    selectedDaysOfWeek: new Set(),
-    recurrenceMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
-    specificDates: new Set(),
-  };
+const formatHours = (minutes: number): string => {
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const getShiftColorClass = (shiftId: string, shifts: Shift[]): string => {
+  const index = shifts.findIndex((shift) => shift.id === shiftId);
+  return shiftColorClasses[index >= 0 ? index % shiftColorClasses.length : 0];
+};
+
+const buildOverrideReason = (reasonCode: string, notes: string): string => {
+  const trimmedNotes = notes.trim();
+  if (reasonCode === 'Other') return trimmedNotes;
+  return trimmedNotes ? `${reasonCode}: ${trimmedNotes}` : reasonCode;
+};
+
+const getOverrideActionLabel = (action: ClockOverrideInput['action']): string => {
+  if (action === 'CLOCK_IN') return 'Clock In';
+  if (action === 'VOID_CLOCK_OUT') return 'Void Clock-Out';
+  return 'Clock Out';
+};
 
 export default function ShiftManagementPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  const canManageAllBranches = role === 'HR_MANAGER';
 
+  const [activeTab, setActiveTab] = useState<TabId>('schedule');
+  const [branches, setBranches] = useState<BranchDto[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('');
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [viewAssignments, setViewAssignments] = useState<ShiftAssignment[]>([]);
   const [todayAssignments, setTodayAssignments] = useState<ShiftAssignment[]>([]);
-
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()));
-  const [monthStart, setMonthStart] = useState<Date>(() => getMonthStart(new Date()));
-
-  // Schedule filters
+  const [weekStart, setWeekStart] = useState<Date>(() => getSunday(new Date()));
   const [scheduleSearch, setScheduleSearch] = useState('');
   const [scheduleRole, setScheduleRole] = useState<ShiftRole | ''>('');
-  const [scheduleShiftId, setScheduleShiftId] = useState('');
-
+  const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [draftCells, setDraftCells] = useState<Map<string, DraftValue>>(new Map());
+  const [cellErrors, setCellErrors] = useState<Map<string, string>>(new Map());
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingShift, setIsSavingShift] = useState(false);
   const [isSavingOverride, setIsSavingOverride] = useState(false);
-  const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
-
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [shiftForm, setShiftForm] = useState<ShiftFormState>(emptyShiftForm);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [shiftPendingDelete, setShiftPendingDelete] = useState<Shift | null>(null);
-  const [assignmentPendingDelete, setAssignmentPendingDelete] = useState<ShiftAssignment | null>(null);
-
-  const [assignmentModal, setAssignmentModal] = useState<AssignmentModalState>({
-    isOpen: false, userId: '', date: '', shiftId: '',
-  });
   const [overrideModal, setOverrideModal] = useState<OverrideModalState>({
-    isOpen: false, assignment: null, action: 'CLOCK_IN', reasonCode: '', notes: '',
+    isOpen: false,
+    assignment: null,
+    action: 'CLOCK_IN',
+    reasonCode: '',
+    notes: '',
   });
-  const [batchModal, setBatchModal] = useState<BatchModalState>(defaultBatchModal);
-
   const [copyWeekModal, setCopyWeekModal] = useState<CopyWeekModalState>(() => {
-    const thisMonday = dateToYmd(getMonday(new Date()));
-    const prevMonday = dateToYmd(addDays(getMonday(new Date()), -7));
-    return { isOpen: false, sourceWeekStart: prevMonday, targetWeekStart: thisMonday };
+    const thisWeek = dateToYmd(getSunday(new Date()));
+    const prevWeek = dateToYmd(addDays(getSunday(new Date()), -7));
+    return { isOpen: false, sourceWeekStart: prevWeek, targetWeekStart: thisWeek };
   });
   const [isCopyingWeek, setIsCopyingWeek] = useState(false);
 
-  // Batch-delete selection mode
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedAssignmentIds, setSelectedAssignmentIds] = useState<Set<string>>(new Set());
-  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
-
-  // ── Derived ────────────────────────────────────────────────────────────────
-
   const todayDateKey = useMemo(() => getTodayYmdInTimeZone(), []);
-
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
-  );
-
-  const monthGridDays = useMemo(() => buildMonthGrid(monthStart), [monthStart]);
-
-  const viewStartDate = viewMode === 'week' ? dateToYmd(weekStart) : dateToYmd(monthStart);
-  const viewEndDate = viewMode === 'week'
-    ? dateToYmd(addDays(weekStart, 6))
-    : dateToYmd(getMonthEnd(monthStart));
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
+  const viewStartDate = dateToYmd(weekStart);
+  const viewEndDate = dateToYmd(addDays(weekStart, 6));
+  const dirtyCount = draftCells.size;
 
   const assignmentsBySlot = useMemo(() => {
     const map = new Map<string, ShiftAssignment[]>();
     for (const assignment of viewAssignments) {
       const key = `${assignment.userId}|${assignment.date}`;
-      const existing = map.get(key);
-      if (existing) existing.push(assignment);
-      else map.set(key, [assignment]);
+      const current = map.get(key) ?? [];
+      current.push(assignment);
+      map.set(key, current);
     }
     return map;
   }, [viewAssignments]);
 
-  const shiftRows = useMemo<ShiftRow[]>(() => shifts.map((s) => ({ ...s })), [shifts]);
-  const attendanceRows = useMemo<AttendanceRow[]>(() => todayAssignments.map((a) => ({ ...a })), [todayAssignments]);
+  const shiftMap = useMemo(() => new Map(shifts.map((shift) => [shift.id, shift])), [shifts]);
 
   const filteredStaff = useMemo(() => {
     const q = scheduleSearch.trim().toLowerCase();
-    return staff.filter((person) => {
-      if (q && !person.name.toLowerCase().includes(q) && !person.email.toLowerCase().includes(q)) return false;
-      if (scheduleRole && person.role !== scheduleRole) return false;
-      if (scheduleShiftId) {
-        // keep person only if they have at least one assignment matching this shift in the current view window
-        const hasMatch = Array.from(assignmentsBySlot.entries()).some(
-          ([key, assignments]) => key.startsWith(`${person.id}|`) && assignments.some((a) => a.shiftId === scheduleShiftId),
-        );
-        if (!hasMatch) return false;
-      }
-      return true;
-    });
-  }, [staff, scheduleSearch, scheduleRole, scheduleShiftId, assignmentsBySlot]);
+    return staff
+      .filter((person) => {
+        if (q && !person.name.toLowerCase().includes(q) && !person.email.toLowerCase().includes(q)) return false;
+        if (scheduleRole && person.role !== scheduleRole) return false;
+        return true;
+      })
+      .sort((left, right) => {
+        const leftRole = roleOrder.indexOf(left.role as ShiftRole);
+        const rightRole = roleOrder.indexOf(right.role as ShiftRole);
+        return leftRole !== rightRole ? leftRole - rightRole : left.name.localeCompare(right.name);
+      });
+  }, [scheduleRole, scheduleSearch, staff]);
 
-  const hasScheduleFilter = scheduleSearch !== '' || scheduleRole !== '' || scheduleShiftId !== '';
-
-  // Dates that will be created by the current batch modal config — past dates silently excluded
-  const batchPreviewDates = useMemo((): string[] => {
-    if (!batchModal.isOpen) return [];
-    const raw =
-      batchModal.mode === 'recurrence'
-        ? getRecurrenceDates(batchModal.recurrenceMonth, batchModal.selectedDaysOfWeek)
-        : Array.from(batchModal.specificDates).sort();
-    return raw.filter((d) => d >= todayDateKey);
-  }, [batchModal.isOpen, batchModal.mode, batchModal.recurrenceMonth, batchModal.selectedDaysOfWeek, batchModal.specificDates, todayDateKey]);
-
-  // ── Loaders ────────────────────────────────────────────────────────────────
+  const branchName = useMemo(() => {
+    if (canManageAllBranches) {
+      return branches.find((branch) => branch.id === selectedOrganizationId)?.name ?? 'Select branch';
+    }
+    return staff[0]?.organizationName ?? 'Current branch';
+  }, [branches, canManageAllBranches, selectedOrganizationId, staff]);
+  const scopedOrganizationId = canManageAllBranches ? selectedOrganizationId : undefined;
+  const hasBranchScope = !canManageAllBranches || Boolean(selectedOrganizationId);
+  const shiftRows = useMemo<ShiftRow[]>(() => shifts.map((shift) => ({ ...shift })), [shifts]);
+  const attendanceRows = useMemo<AttendanceRow[]>(() => todayAssignments.map((assignment) => ({ ...assignment })), [todayAssignments]);
 
   const loadCoreData = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
+    if (canManageAllBranches && !selectedOrganizationId) {
+      setIsLoading(false);
+      setShifts([]);
+      setStaff([]);
+      return;
+    }
     setIsLoading(true);
     try {
       const [shiftResponse, staffResponse] = await Promise.all([
-        shiftService.listShifts(accessToken),
-        staffService.listStaff(accessToken, { isActive: true }),
+        shiftService.listShifts(accessToken, scopedOrganizationId),
+        staffService.listStaff(accessToken, { isActive: true, organizationId: scopedOrganizationId }),
       ]);
       setShifts(shiftResponse);
-      setStaff(
-        staffResponse
-          .filter((p) => p.role === 'WAITER' || p.role === 'CHEF' || p.role === 'BARISTA')
-          .sort((a, b) => {
-            const ai = roleOrder.indexOf(a.role as ShiftRole);
-            const bi = roleOrder.indexOf(b.role as ShiftRole);
-            return ai !== bi ? ai - bi : a.name.localeCompare(b.name);
-          }),
-      );
+      setStaff(staffResponse.filter((person) => person.role === 'WAITER' || person.role === 'CHEF' || person.role === 'BARISTA'));
     } catch (error) {
       toast({ variant: 'error', title: 'Load failed', message: error instanceof ApiError ? error.message : 'Failed to load shift setup data.' });
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, toast]);
+  }, [accessToken, canManageAllBranches, scopedOrganizationId, selectedOrganizationId, toast]);
 
   const loadAssignments = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
+    if (canManageAllBranches && !selectedOrganizationId) {
+      setViewAssignments([]);
+      setTodayAssignments([]);
+      setDraftCells(new Map());
+      setCellErrors(new Map());
+      setSelectedCell(null);
+      return;
+    }
     try {
       const today = getTodayYmdInTimeZone();
       const [viewData, todayData] = await Promise.all([
-        shiftService.listAssignments({ startDate: viewStartDate, endDate: viewEndDate }, accessToken),
-        shiftService.listAssignments({ startDate: today, endDate: today }, accessToken),
+        shiftService.listAssignments({ startDate: viewStartDate, endDate: viewEndDate, organizationId: scopedOrganizationId }, accessToken),
+        shiftService.listAssignments({ startDate: today, endDate: today, organizationId: scopedOrganizationId }, accessToken),
       ]);
       setViewAssignments(viewData);
       setTodayAssignments(todayData);
+      setDraftCells(new Map());
+      setCellErrors(new Map());
+      setSelectedCell(null);
     } catch (error) {
       toast({ variant: 'error', title: 'Load failed', message: error instanceof ApiError ? error.message : 'Failed to load shift assignments.' });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- viewStartDate/viewEndDate are derived from state, safe
-  }, [accessToken, toast, viewStartDate, viewEndDate]);
+  }, [accessToken, canManageAllBranches, scopedOrganizationId, selectedOrganizationId, toast, viewEndDate, viewStartDate]);
+
+  useEffect(() => {
+    if (!accessToken || !canManageAllBranches) return;
+    let isMounted = true;
+    void branchService.listBranches(accessToken)
+      .then((branchData) => {
+        if (!isMounted) return;
+        const activeBranches = branchData.filter((branch) => branch.isActive);
+        setBranches(activeBranches);
+        setSelectedOrganizationId((current) => current || activeBranches[0]?.id || '');
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        toast({ variant: 'error', title: 'Branches failed', message: error instanceof ApiError ? error.message : 'Failed to load branches.' });
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, canManageAllBranches, toast]);
 
   useEffect(() => { void loadCoreData(); }, [loadCoreData]);
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
 
-  // ── Shift CRUD ─────────────────────────────────────────────────────────────
+  const openCreateShiftModal = () => {
+    setEditingShift(null);
+    setShiftForm(emptyShiftForm);
+    setIsShiftModalOpen(true);
+  };
 
-  const openCreateShiftModal = () => { setEditingShift(null); setShiftForm(emptyShiftForm); setIsShiftModalOpen(true); };
-  const openEditShiftModal = (shift: Shift) => { setEditingShift(shift); setShiftForm({ name: shift.name, startTime: shift.startTime, endTime: shift.endTime }); setIsShiftModalOpen(true); };
+  const openEditShiftModal = (shift: Shift) => {
+    setEditingShift(shift);
+    setShiftForm({ name: shift.name, startTime: shift.startTime, endTime: shift.endTime });
+    setIsShiftModalOpen(true);
+  };
 
   const handleSaveShift = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!accessToken) return;
+    if (!hasBranchScope) {
+      toast({ variant: 'warning', title: 'Select a branch', message: 'Choose a branch before editing shift definitions.' });
+      return;
+    }
     setIsSavingShift(true);
     try {
       if (editingShift) {
-        const updated = await shiftService.updateShift(editingShift.id, shiftForm, accessToken);
-        setShifts((cur) => cur.map((s) => (s.id === updated.id ? updated : s)));
+        const updated = await shiftService.updateShift(editingShift.id, { ...shiftForm, organizationId: scopedOrganizationId }, accessToken);
+        setShifts((current) => current.map((shift) => (shift.id === updated.id ? updated : shift)));
         toast({ variant: 'success', title: 'Shift updated' });
       } else {
-        const created = await shiftService.createShift(shiftForm, accessToken);
-        setShifts((cur) => [...cur, created].sort((a, b) => a.startTime.localeCompare(b.startTime)));
+        const created = await shiftService.createShift({ ...shiftForm, organizationId: scopedOrganizationId }, accessToken);
+        setShifts((current) => [...current, created].sort((a, b) => a.startTime.localeCompare(b.startTime)));
         toast({ variant: 'success', title: 'Shift created' });
       }
-      setIsShiftModalOpen(false); setEditingShift(null); setShiftForm(emptyShiftForm);
+      setIsShiftModalOpen(false);
+      setEditingShift(null);
+      setShiftForm(emptyShiftForm);
     } catch (error) {
       toast({ variant: 'error', title: 'Save failed', message: error instanceof ApiError ? error.message : 'Unable to save shift.' });
     } finally {
@@ -385,11 +330,11 @@ export default function ShiftManagementPage(): JSX.Element {
   };
 
   const handleDeleteShift = async (): Promise<void> => {
-    if (!accessToken || !shiftPendingDelete) return;
+    if (!accessToken || !shiftPendingDelete || !hasBranchScope) return;
     setIsSubmitting(true);
     try {
-      await shiftService.deleteShift(shiftPendingDelete.id, accessToken);
-      setShifts((cur) => cur.filter((s) => s.id !== shiftPendingDelete.id));
+      await shiftService.deleteShift(shiftPendingDelete.id, accessToken, scopedOrganizationId);
+      setShifts((current) => current.filter((shift) => shift.id !== shiftPendingDelete.id));
       setShiftPendingDelete(null);
       toast({ variant: 'success', title: 'Shift deleted' });
     } catch (error) {
@@ -399,118 +344,87 @@ export default function ShiftManagementPage(): JSX.Element {
     }
   };
 
-  // ── Single assignment ──────────────────────────────────────────────────────
+  const getCellKey = (userId: string, date: string): string => `${userId}|${date}`;
 
-  const openAssignModal = (userId: string, date: string) => {
-    if (date < todayDateKey) {
-      toast({ variant: 'warning', title: 'Cannot assign a past date', message: 'Choose today or a future date.' });
-      return;
-    }
-    setAssignmentModal({ isOpen: true, userId, date, shiftId: shifts[0]?.id ?? '' });
+  const getCellDraftOrCurrent = useCallback((userId: string, date: string): DraftValue | undefined => {
+    const key = getCellKey(userId, date);
+    if (draftCells.has(key)) return draftCells.get(key) ?? null;
+    const assignments = assignmentsBySlot.get(key);
+    if (!assignments || assignments.length === 0) return undefined;
+    if (assignments.length === 1) return assignments[0]?.shiftId;
+    return undefined;
+  }, [assignmentsBySlot, draftCells]);
+
+  const updateDraftCell = (userId: string, date: string, rawValue: string): void => {
+    const key = getCellKey(userId, date);
+    const nextValue = rawValue === OFF_VALUE ? null : rawValue;
+    const currentAssignments = assignmentsBySlot.get(key) ?? [];
+    const currentValue = currentAssignments.length === 1 ? currentAssignments[0]?.shiftId : undefined;
+    setDraftCells((current) => {
+      const next = new Map(current);
+      if ((nextValue === null && currentAssignments.length === 0) || nextValue === currentValue) next.delete(key);
+      else next.set(key, nextValue);
+      return next;
+    });
+    setCellErrors((current) => {
+      const next = new Map(current);
+      next.delete(key);
+      return next;
+    });
   };
 
-  const handleCreateAssignment = async (): Promise<void> => {
-    if (!accessToken || !assignmentModal.userId || !assignmentModal.date || !assignmentModal.shiftId) return;
-    setIsSubmitting(true);
+  const handleSaveSchedule = async (): Promise<void> => {
+    if (!accessToken || draftCells.size === 0 || !hasBranchScope) return;
+    setIsSavingSchedule(true);
     try {
-      await shiftService.createAssignment(
-        { userId: assignmentModal.userId, date: assignmentModal.date, shiftId: assignmentModal.shiftId } satisfies CreateShiftAssignmentInput,
+      const changes = Array.from(draftCells.entries()).map(([key, shiftId]) => {
+        const [userId = '', date = ''] = key.split('|');
+        return { userId, date, shiftId };
+      });
+      const result = await shiftService.reconcileWeek({ organizationId: scopedOrganizationId, weekStart: viewStartDate, changes }, accessToken);
+      setViewAssignments(result.assignments);
+      if (result.errors.length > 0) {
+        const nextErrors = new Map<string, string>();
+        for (const error of result.errors) nextErrors.set(getCellKey(error.userId, error.date), error.reason);
+        setCellErrors(nextErrors);
+        setDraftCells((current) => {
+          const next = new Map<string, DraftValue>();
+          for (const error of result.errors) {
+            const key = getCellKey(error.userId, error.date);
+            if (current.has(key)) next.set(key, current.get(key) ?? null);
+          }
+          return next;
+        });
+        toast({ variant: 'warning', title: 'Some cells need attention', message: `${result.saved} saved, ${result.skipped} skipped.` });
+      } else {
+        setDraftCells(new Map());
+        setCellErrors(new Map());
+        toast({ variant: 'success', title: 'Schedule saved', message: `${result.saved} change${result.saved === 1 ? '' : 's'} saved.` });
+      }
+    } catch (error) {
+      toast({ variant: 'error', title: 'Save failed', message: error instanceof ApiError ? error.message : 'Unable to save schedule.' });
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  };
+
+  const handleCopyWeek = async (): Promise<void> => {
+    if (!accessToken || !hasBranchScope) return;
+    setIsCopyingWeek(true);
+    try {
+      const result = await shiftService.copyWeek(
+        { organizationId: scopedOrganizationId, sourceWeekStart: copyWeekModal.sourceWeekStart, targetWeekStart: copyWeekModal.targetWeekStart } satisfies CopyWeekInput,
         accessToken,
       );
-      setAssignmentModal((c) => ({ ...c, isOpen: false }));
+      setCopyWeekModal((current) => ({ ...current, isOpen: false }));
       await loadAssignments();
-      toast({ variant: 'success', title: 'Shift assigned' });
+      const detail = result.skipped > 0 ? ` (${result.skipped} skipped)` : '';
+      toast({ variant: result.created > 0 ? 'success' : 'warning', title: `${result.created} assignment${result.created === 1 ? '' : 's'} copied${detail}` });
     } catch (error) {
-      toast({ variant: 'error', title: 'Assignment failed', message: error instanceof ApiError ? error.message : 'Unable to assign shift.' });
+      toast({ variant: 'error', title: 'Copy failed', message: error instanceof ApiError ? error.message : 'Unable to copy schedule.' });
     } finally {
-      setIsSubmitting(false);
+      setIsCopyingWeek(false);
     }
-  };
-
-  const handleDeleteAssignment = async (): Promise<void> => {
-    if (!accessToken || !assignmentPendingDelete) return;
-    setIsSubmitting(true);
-    try {
-      await shiftService.deleteAssignment(assignmentPendingDelete.id, accessToken);
-      setAssignmentPendingDelete(null);
-      await loadAssignments();
-      toast({ variant: 'success', title: 'Assignment removed' });
-    } catch (error) {
-      toast({ variant: 'error', title: 'Remove failed', message: error instanceof ApiError ? error.message : 'Unable to remove assignment.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ── Batch assignment ───────────────────────────────────────────────────────
-
-  const openBatchModal = () => {
-    setBatchModal({ ...defaultBatchModal(), isOpen: true, shiftId: shifts[0]?.id ?? '' });
-  };
-
-  const toggleBatchUser = (userId: string) => {
-    setBatchModal((cur) => {
-      const next = new Set(cur.selectedUserIds);
-      if (next.has(userId)) next.delete(userId); else next.add(userId);
-      return { ...cur, selectedUserIds: next };
-    });
-  };
-
-  const toggleBatchDayOfWeek = (dow: number) => {
-    setBatchModal((cur) => {
-      const next = new Set(cur.selectedDaysOfWeek);
-      if (next.has(dow)) next.delete(dow); else next.add(dow);
-      return { ...cur, selectedDaysOfWeek: next };
-    });
-  };
-
-  const toggleSpecificDate = (dateKey: string) => {
-    setBatchModal((cur) => {
-      const next = new Set(cur.specificDates);
-      if (next.has(dateKey)) next.delete(dateKey); else next.add(dateKey);
-      return { ...cur, specificDates: next };
-    });
-  };
-
-  const handleBatchSubmit = async (): Promise<void> => {
-    if (!accessToken) return;
-    if (batchModal.selectedUserIds.size === 0) {
-      toast({ variant: 'warning', title: 'Select at least one staff member' }); return;
-    }
-    if (batchPreviewDates.length === 0) {
-      toast({ variant: 'warning', title: batchModal.mode === 'recurrence' ? 'Select days of the week and a month' : 'Select at least one date' }); return;
-    }
-
-    // Warn if some dates are in the past but let backend validate per-row
-    setIsBatchSubmitting(true);
-    try {
-      const result = await shiftService.batchCreateAssignments(
-        { shiftId: batchModal.shiftId, userIds: Array.from(batchModal.selectedUserIds), dates: batchPreviewDates },
-        accessToken,
-      );
-      setBatchModal(defaultBatchModal());
-      await loadAssignments();
-      const detail = result.skipped > 0 ? ` (${result.skipped} skipped — conflicts or duplicates)` : '';
-      toast({ variant: result.created > 0 ? 'success' : 'warning', title: `${result.created} assignment${result.created === 1 ? '' : 's'} created${detail}` });
-    } catch (error) {
-      toast({ variant: 'error', title: 'Batch assign failed', message: error instanceof ApiError ? error.message : 'Unable to create assignments.' });
-    } finally {
-      setIsBatchSubmitting(false);
-    }
-  };
-
-  // ── Override ───────────────────────────────────────────────────────────────
-
-  const buildOverrideReason = (reasonCode: string, notes: string): string => {
-    const trimmedNotes = notes.trim();
-    if (reasonCode === 'Other') return trimmedNotes;
-    return trimmedNotes ? `${reasonCode}: ${trimmedNotes}` : reasonCode;
-  };
-
-  const getOverrideActionLabel = (action: ClockOverrideInput['action']): string => {
-    if (action === 'CLOCK_IN') return 'Clock In';
-    if (action === 'VOID_CLOCK_OUT') return 'Void Clock-Out';
-    return 'Clock Out';
   };
 
   const handleApplyOverride = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -518,7 +432,8 @@ export default function ShiftManagementPage(): JSX.Element {
     if (!accessToken || !overrideModal.assignment) return;
     const resolvedReason = buildOverrideReason(overrideModal.reasonCode, overrideModal.notes);
     if (!resolvedReason.trim()) {
-      toast({ variant: 'warning', title: 'Reason required', message: 'Choose or enter the reason for this attendance override.' }); return;
+      toast({ variant: 'warning', title: 'Reason required', message: 'Choose or enter the reason for this attendance override.' });
+      return;
     }
     setIsSavingOverride(true);
     try {
@@ -536,66 +451,14 @@ export default function ShiftManagementPage(): JSX.Element {
     }
   };
 
-  // ── Copy week ──────────────────────────────────────────────────────────────
-
-  const handleCopyWeek = async (): Promise<void> => {
-    if (!accessToken) return;
-    setIsCopyingWeek(true);
-    try {
-      const result = await shiftService.copyWeek(
-        { sourceWeekStart: copyWeekModal.sourceWeekStart, targetWeekStart: copyWeekModal.targetWeekStart } satisfies CopyWeekInput,
-        accessToken,
-      );
-      setCopyWeekModal((c) => ({ ...c, isOpen: false }));
-      await loadAssignments();
-      const detail = result.skipped > 0 ? ` (${result.skipped} skipped — duplicates or inactive shifts)` : '';
-      toast({ variant: result.created > 0 ? 'success' : 'warning', title: `${result.created} assignment${result.created === 1 ? '' : 's'} copied${detail}` });
-    } catch (error) {
-      toast({ variant: 'error', title: 'Copy failed', message: error instanceof ApiError ? error.message : 'Unable to copy schedule.' });
-    } finally {
-      setIsCopyingWeek(false);
-    }
-  };
-
-  // ── Batch delete ───────────────────────────────────────────────────────────
-
-  const toggleSelectMode = () => {
-    setIsSelectMode((v) => !v);
-    setSelectedAssignmentIds(new Set());
-  };
-
-  const toggleAssignmentSelection = (id: string) => {
-    setSelectedAssignmentIds((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleBatchDelete = async (): Promise<void> => {
-    if (!accessToken || selectedAssignmentIds.size === 0) return;
-    setIsBatchDeleting(true);
-    try {
-      const result = await shiftService.batchDeleteAssignments({ ids: Array.from(selectedAssignmentIds) }, accessToken);
-      setSelectedAssignmentIds(new Set());
-      setIsSelectMode(false);
-      await loadAssignments();
-      toast({ variant: 'success', title: `${result.deleted} assignment${result.deleted === 1 ? '' : 's'} deleted` });
-    } catch (error) {
-      toast({ variant: 'error', title: 'Delete failed', message: error instanceof ApiError ? error.message : 'Unable to delete assignments.' });
-    } finally {
-      setIsBatchDeleting(false);
-    }
-  };
-
-  // ── Table columns ──────────────────────────────────────────────────────────
-
   const shiftColumns: TableColumn<ShiftRow>[] = [
     { key: 'name', label: 'Shift' },
     { key: 'startTime', label: 'Start' },
     { key: 'endTime', label: 'End' },
     {
-      key: 'actions', label: 'Actions', className: 'w-[160px]',
+      key: 'actions',
+      label: 'Actions',
+      className: 'w-[160px]',
       render: (_value, row) => (
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => openEditShiftModal(row)}>Edit</Button>
@@ -607,7 +470,8 @@ export default function ShiftManagementPage(): JSX.Element {
 
   const attendanceColumns: TableColumn<AttendanceRow>[] = [
     {
-      key: 'user', label: 'Staff',
+      key: 'user',
+      label: 'Staff',
       render: (_value, row) => (
         <div>
           <p className="text-body-sm font-medium text-stone-900">{row.user.name}</p>
@@ -615,533 +479,301 @@ export default function ShiftManagementPage(): JSX.Element {
         </div>
       ),
     },
-    {
-      key: 'role', label: 'Role',
-      render: (_value, row) => (
-        <span className="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-label-sm text-stone-700">{row.user.role}</span>
-      ),
-    },
+    { key: 'role', label: 'Role', render: (_value, row) => <span className="text-body-sm text-stone-700">{row.user.role}</span> },
     { key: 'clockIn', label: 'Clock In', render: (_value, row) => formatTime(row.clockRecord?.clockInAt ?? null) },
     { key: 'clockOut', label: 'Clock Out', render: (_value, row) => formatTime(row.clockRecord?.clockOutAt ?? null) },
     {
-      key: 'method', label: 'Method',
+      key: 'method',
+      label: 'Method',
       render: (_value, row) => {
         const isOverride = row.clockRecord?.clockInMethod === 'OVERRIDE' || row.clockRecord?.clockOutMethod === 'OVERRIDE';
         if (!row.clockRecord) return <span className="text-stone-500">-</span>;
-        if (isOverride) {
-          return (
-            <div className="inline-flex items-center gap-2">
-              <ShieldAlert size={16} className="text-[#A04F0A]" />
-              <span className="text-body-sm text-[#A04F0A]">Override</span>
-              {row.clockRecord.overrideNote ? (
-                <Popover trigger={<button type="button" className="text-caption text-stone-500 underline">Reason</button>}>
-                  <div className="max-w-[220px] p-2 text-body-sm text-stone-700">{row.clockRecord.overrideNote}</div>
-                </Popover>
-              ) : null}
-            </div>
-          );
-        }
-        return <span className="inline-flex items-center gap-1 text-body-sm text-stone-700"><MapPin size={14} />GPS</span>;
+        return isOverride ? <span className="inline-flex items-center gap-1 text-[#A04F0A]"><ShieldAlert size={14} />Override</span> : <span className="text-body-sm text-stone-700">GPS</span>;
       },
     },
     {
-      key: 'override', label: 'Override', className: 'w-[200px]',
+      key: 'override',
+      label: 'Override',
+      className: 'w-[190px]',
       render: (_value, row) => {
-        const hasClockedIn = !!row.clockRecord?.clockInAt;
-        const hasClockedOut = !!row.clockRecord?.clockOutAt;
+        if (canManageAllBranches) return <span className="text-stone-500">-</span>;
+        const hasClockedIn = Boolean(row.clockRecord?.clockInAt);
+        const hasClockedOut = Boolean(row.clockRecord?.clockOutAt);
+        const nextAction: ClockOverrideInput['action'] = hasClockedIn ? 'CLOCK_OUT' : 'CLOCK_IN';
         if (hasClockedIn && hasClockedOut) {
-          return (
-            <Button size="sm" variant="secondary" onClick={() => {
-              setOverrideModal({ isOpen: true, assignment: row, action: 'VOID_CLOCK_OUT', reasonCode: '', notes: '' });
-            }}>
-              Void Clock-Out
-            </Button>
-          );
+          return <Button size="sm" variant="secondary" onClick={() => setOverrideModal({ isOpen: true, assignment: row, action: 'VOID_CLOCK_OUT', reasonCode: '', notes: '' })}>Void Clock-Out</Button>;
         }
-        return (
-          <Button size="sm" variant="secondary" onClick={() => {
-            const nextAction = hasClockedIn ? 'CLOCK_OUT' : 'CLOCK_IN';
-            setOverrideModal({ isOpen: true, assignment: row, action: nextAction, reasonCode: '', notes: '' });
-          }}>
-            {hasClockedIn ? 'Override Clock Out' : 'Override Clock In'}
-          </Button>
-        );
+        return <Button size="sm" variant="secondary" onClick={() => setOverrideModal({ isOpen: true, assignment: row, action: nextAction, reasonCode: '', notes: '' })}>{hasClockedIn ? 'Override Clock Out' : 'Override Clock In'}</Button>;
       },
     },
   ];
 
-  // ── Schedule grid helpers ──────────────────────────────────────────────────
+  const renderScheduleCell = (person: StaffDto, day: Date): JSX.Element => {
+    const dateKey = dateToYmd(day);
+    const cellKey = getCellKey(person.id, dateKey);
+    const isPastDate = dateKey < todayDateKey;
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    const assignments = assignmentsBySlot.get(cellKey) ?? [];
+    const draftValue = getCellDraftOrCurrent(person.id, dateKey);
+    const error = cellErrors.get(cellKey);
+    const isDirty = draftCells.has(cellKey);
+    const isSelected = selectedCell === cellKey;
+    const selectedShift = draftValue ? shiftMap.get(draftValue) : null;
+    const displayText = draftValue === null ? 'OFF' : selectedShift?.name ?? (assignments.length > 1 ? assignments.map((assignment) => assignment.shift.name).join(' / ') : 'OFF');
 
-  const renderAssignmentCell = (personId: string, dateKey: string, isPastDate: boolean, isWeekend = false) => {
-    const cellAssignments = assignmentsBySlot.get(`${personId}|${dateKey}`);
     return (
-      <>
-        {cellAssignments && cellAssignments.length > 0 ? (
-          <div className="space-y-1.5">
-            {cellAssignments.map((assignment) => {
-              const color = getShiftColor(assignment.shiftId, shifts);
-              const isSelected = selectedAssignmentIds.has(assignment.id);
-              return (
-                <div
-                  key={assignment.id}
-                  className={`group relative rounded-md border-l-[3px] ${color.border} ${color.bg} px-2 py-1.5 transition-shadow duration-fast hover:shadow-md ${isSelectMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-2 ring-[#991B1B]' : ''}`}
-                  onClick={isSelectMode ? () => toggleAssignmentSelection(assignment.id) : undefined}
-                >
-                  {isSelectMode && (
-                    <span className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 ${isSelected ? 'border-[#991B1B] bg-[#991B1B]' : 'border-stone-400 bg-white'}`}>
-                      {isSelected && <span className="h-1.5 w-1.5 rounded-sm bg-white" />}
-                    </span>
-                  )}
-                  <p className={`text-label-sm font-semibold ${color.text}`}>{assignment.shift.name}</p>
-                  <p className="text-[10px] text-stone-500">{assignment.shift.startTime} – {assignment.shift.endTime}</p>
-                  {!isSelectMode && (
-                    <button
-                      type="button"
-                      className="absolute -right-0.5 -top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-[#991B1B] text-white group-hover:flex"
-                      onClick={() => setAssignmentPendingDelete(assignment)}
-                      aria-label={`Remove ${assignment.shift.name}`}
-                    >
-                      <Trash2 size={9} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            {!isPastDate && !isSelectMode && (
-              <button
-                type="button"
-                className={`flex w-full items-center justify-center rounded-md border border-dashed py-1 text-[10px] font-medium transition-colors duration-fast ${
-                  isWeekend
-                    ? 'border-stone-100 text-stone-300 hover:border-stone-200 hover:text-stone-400'
-                    : 'border-stone-200 text-stone-400 hover:border-stone-300 hover:bg-stone-50 hover:text-stone-600'
-                }`}
-                onClick={() => openAssignModal(personId, dateKey)}
-              >
-                +
-              </button>
-            )}
-          </div>
-        ) : (
-          isPastDate || isSelectMode ? (
-            <div className="flex h-10 items-center justify-center">
-              <span className="text-[11px] text-stone-200">—</span>
-            </div>
+      <td
+        key={dateKey}
+        className={cn('border border-[#d0d0d0] p-0 text-center align-middle', isWeekend && 'bg-[#fafafa]')}
+        title={error ?? undefined}
+      >
+        <div
+          className={cn(
+            'relative flex min-h-[38px] items-center justify-center border-2 border-transparent px-1.5 text-[12px] font-bold',
+            selectedShift ? getShiftColorClass(selectedShift.id, shifts) : 'bg-[#f4f4f4] text-stone-500',
+            isSelected && 'border-[#1a73e8] shadow-[inset_0_0_0_1px_#1a73e8]',
+            isDirty && 'after:absolute after:right-0.5 after:top-0.5 after:h-0 after:w-0 after:border-l-[7px] after:border-t-[7px] after:border-l-transparent after:border-t-[#d97706]',
+            error && 'border-[#fca5a5] bg-[#fef2f2] text-[#991b1b]',
+            isPastDate && 'opacity-60',
+          )}
+          onClick={() => setSelectedCell(cellKey)}
+        >
+          {isPastDate ? (
+            <span>{displayText}</span>
           ) : (
-            <button
-              type="button"
-              className={`flex h-10 w-full items-center justify-center rounded-md border border-dashed border-transparent text-caption font-medium transition-all duration-fast ${
-                isWeekend
-                  ? 'text-stone-200 hover:border-stone-100 hover:bg-stone-50/50 hover:text-stone-400'
-                  : 'text-stone-300 hover:border-stone-200 hover:bg-stone-50 hover:text-stone-500'
-              }`}
-              onClick={() => openAssignModal(personId, dateKey)}
+            <select
+              aria-label={`${person.name} ${dateKey}`}
+              value={draftValue ?? OFF_VALUE}
+              onChange={(event) => updateDraftCell(person.id, dateKey, event.target.value)}
+              onFocus={() => setSelectedCell(cellKey)}
+              className="h-full w-full appearance-none bg-transparent text-center font-bold outline-none"
             >
-              + Assign
-            </button>
-          )
-        )}
-      </>
+              <option value={OFF_VALUE}>OFF</option>
+              {shifts.map((shift) => (
+                <option key={shift.id} value={shift.id}>{shift.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </td>
     );
   };
 
-  // ── Month view: single-staff day cell ─────────────────────────────────────
+  const staffWithHours = useMemo(() => filteredStaff.map((person) => {
+    const minutes = weekDays.reduce((sum, day) => {
+      const dateKey = dateToYmd(day);
+      const value = getCellDraftOrCurrent(person.id, dateKey);
+      if (value === null) return sum;
+      if (value) {
+        const shift = shiftMap.get(value);
+        return shift ? sum + getShiftMinutes(shift) : sum;
+      }
+      const assignments = assignmentsBySlot.get(getCellKey(person.id, dateKey)) ?? [];
+      return sum + assignments.reduce((inner, assignment) => inner + getShiftMinutes(assignment.shift), 0);
+    }, 0);
+    return { person, minutes };
+  }), [assignmentsBySlot, filteredStaff, getCellDraftOrCurrent, shiftMap, weekDays]);
 
-  const renderMonthCell = (day: Date, personId: string, isCurrentMonth: boolean) => {
-    const dateKey = dateToYmd(day);
-    const isPastDate = dateKey < todayDateKey;
-    const isToday = dateKey === todayDateKey;
-    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-    const cellAssignments = assignmentsBySlot.get(`${personId}|${dateKey}`);
+  const scheduleTotals = useMemo(() => {
+    const assigned = staffWithHours.reduce((sum, row) => sum + weekDays.filter((day) => {
+      const value = getCellDraftOrCurrent(row.person.id, dateToYmd(day));
+      if (value === null) return false;
+      if (value) return true;
+      return (assignmentsBySlot.get(getCellKey(row.person.id, dateToYmd(day))) ?? []).length > 0;
+    }).length, 0);
+    const possible = filteredStaff.length * 7;
+    const minutes = staffWithHours.reduce((sum, row) => sum + row.minutes, 0);
+    return { assigned, off: Math.max(possible - assigned, 0), minutes };
+  }, [assignmentsBySlot, filteredStaff.length, getCellDraftOrCurrent, staffWithHours, weekDays]);
 
-    return (
-      <div
-        key={dateKey}
-        className={`relative min-h-[72px] rounded-lg border p-1.5 transition-colors duration-fast ${
-          !isCurrentMonth
-            ? 'border-stone-100 bg-stone-50/30 opacity-40'
-            : isToday
-              ? 'border-[#C4862A]/30 bg-crema/30'
-              : isPastDate
-                ? 'border-stone-100 bg-stone-50/40'
-                : isWeekend
-                  ? 'border-stone-100 bg-stone-50/20'
-                  : 'border-stone-100 bg-white hover:border-stone-200'
-        }`}
-      >
-        <div className={`mb-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold ${
-          isToday ? 'bg-espresso text-crema' : isCurrentMonth ? 'text-stone-500' : 'text-stone-300'
-        }`}>
-          {day.getDate()}
-        </div>
-        {isCurrentMonth && (
-          <div className="space-y-0.5">
-            {cellAssignments?.map((a) => {
-              const color = getShiftColor(a.shiftId, shifts);
-              const isSelected = selectedAssignmentIds.has(a.id);
-              return (
-                <div
-                  key={a.id}
-                  className={`group relative flex items-center gap-1 rounded px-1 py-0.5 ${color.bg} ${isSelectMode ? 'cursor-pointer' : ''} ${isSelected ? 'ring-1 ring-[#991B1B]' : ''}`}
-                  onClick={isSelectMode ? () => toggleAssignmentSelection(a.id) : undefined}
-                >
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${color.dot}`} />
-                  <span className={`truncate text-[9px] font-medium leading-tight ${color.text}`}>{a.shift.name}</span>
-                  {!isSelectMode && (
-                    <button
-                      type="button"
-                      className="ml-auto hidden shrink-0 text-[#991B1B] group-hover:block"
-                      onClick={() => setAssignmentPendingDelete(a)}
-                      aria-label={`Remove ${a.shift.name}`}
-                    >
-                      <Trash2 size={8} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            {isCurrentMonth && !isPastDate && (
-              <button
-                type="button"
-                className="flex w-full items-center justify-center rounded py-0.5 text-[9px] text-stone-300 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-500"
-                onClick={() => openAssignModal(personId, dateKey)}
-              >
-                +
-              </button>
-            )}
-          </div>
+  const scheduleSheet = (
+    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border border-stone-200 bg-white shadow-sm', isExpanded && 'rounded-none border-0')}>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {isLoading ? (
+          <div className="p-6"><SkeletonTable rows={8} columns={9} /></div>
+        ) : filteredStaff.length === 0 ? (
+          <EmptyState icon={<Search size={24} />} heading="No staff match your filters" body="Try adjusting search or role filters." />
+        ) : (
+          <table className="w-full min-w-[1180px] table-fixed border-collapse font-['Calibri','Segoe_UI',Arial,sans-serif] text-[12px]">
+            <colgroup>
+              <col className="w-[34px]" />
+              <col className="w-[240px]" />
+              {weekDays.map((day) => <col key={dateToYmd(day)} className="w-[128px]" />)}
+              <col className="w-[84px]" />
+            </colgroup>
+            <thead>
+              <tr className="sticky top-0 z-20">
+                <th className="border border-white/30 bg-[#2e5984]"></th>
+                <th className="border border-white/30 bg-[#2e5984] px-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-white">Shift roster - {formatWeekRange(weekStart)}</th>
+                <th colSpan={7} className="border border-white/30 bg-[#2e5984] text-center text-[10px] font-extrabold uppercase tracking-wider text-white">Weekly Schedule</th>
+                <th className="border border-white/30 bg-[#217346] text-center text-[10px] font-extrabold uppercase tracking-wider text-white">Total</th>
+              </tr>
+              <tr className="sticky top-[22px] z-20 h-12">
+                <th className="border border-[#d0d0d0] bg-[#e8ebef] text-stone-500">1</th>
+                <th className="border border-[#d0d0d0] border-r-2 border-r-[#c5c5c5] bg-[#f5f5f5] px-2 text-left text-[14px] font-extrabold text-[#3f7fe8]">NAME</th>
+                {weekDays.map((day) => (
+                  <th key={dateToYmd(day)} className="border border-[#d0d0d0] bg-[#f5f5f5] px-2 text-left text-[14px] font-extrabold leading-tight text-[#3f7fe8]">
+                    {day.toLocaleDateString([], { weekday: 'long' })}<br />
+                    <span className="text-[11px] font-bold">{day.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                  </th>
+                ))}
+                <th className="border border-[#d0d0d0] bg-[#f5f5f5] text-center text-[12px] font-extrabold text-[#217346]">HOURS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {staffWithHours.map(({ person, minutes }, index) => (
+                <tr key={person.id} className={index % 2 === 1 ? 'bg-[#fbfbfb]' : 'bg-white'}>
+                  <td className="sticky left-0 z-10 border border-[#d0d0d0] bg-[#f0f0f0] text-center text-[11px] font-bold text-stone-500">{index + 2}</td>
+                  <td className="sticky left-[34px] z-10 border border-[#d0d0d0] border-r-2 border-r-[#c5c5c5] bg-inherit px-2">
+                    <div className="truncate font-bold text-[#1a0a00]">{person.name}</div>
+                    <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">{person.role}</div>
+                  </td>
+                  {weekDays.map((day) => renderScheduleCell(person, day))}
+                  <td className="border border-[#d0d0d0] bg-[#f0f7ee] text-center font-extrabold text-[#217346]">{formatHours(minutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
-    );
-  };
+      <div className="flex h-[30px] shrink-0 items-end gap-0.5 overflow-x-auto border-t border-[#d0d0d0] bg-[#e0e0e0] px-1">
+        {[-14, -7, 0, 7, 14].map((offset) => {
+          const start = addDays(weekStart, offset);
+          return (
+            <button
+              key={offset}
+              type="button"
+              onClick={() => setWeekStart(start)}
+              className={cn('h-6 min-w-[118px] rounded-t border border-[#bbb] border-b-0 bg-[#d0d0d0] px-3 text-[11px] text-stone-600', offset === 0 && 'border-t-[3px] border-t-[#217346] bg-white font-extrabold text-[#217346]')}
+            >
+              {formatWeekRange(start)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex h-6 shrink-0 items-center justify-between gap-4 overflow-hidden bg-[#217346] px-3 font-['Calibri','Segoe_UI',Arial,sans-serif] text-[11px] font-semibold text-white/90">
+        <span>Draft - {filteredStaff.length} staff - {dirtyCount} unsaved cell{dirtyCount === 1 ? '' : 's'} - manual save required</span>
+        <span>Assigned: {scheduleTotals.assigned}</span>
+        <span>Off: {scheduleTotals.off}</span>
+        <span>Scheduled: {formatHours(scheduleTotals.minutes)} hrs</span>
+      </div>
+    </div>
+  );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const scheduleToolbar = (
+    <div className="flex shrink-0 flex-wrap items-end gap-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Week</span>
+        <div className="flex h-8 overflow-hidden rounded-lg border border-stone-300 bg-white">
+          <button type="button" className="flex w-8 items-center justify-center border-r border-stone-200 text-stone-600" onClick={() => setWeekStart((current) => addDays(current, -7))}><ChevronLeft size={16} /></button>
+          <div className="flex min-w-[170px] items-center justify-center px-3 text-[12px] font-semibold text-espresso">{formatWeekRange(weekStart)}</div>
+          <button type="button" className="flex w-8 items-center justify-center border-l border-stone-200 text-stone-600" onClick={() => setWeekStart((current) => addDays(current, 7))}><ChevronRight size={16} /></button>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Branch</span>
+        <select
+          className="h-8 min-w-[140px] rounded-lg border border-stone-300 bg-white px-2.5 text-[12px] text-espresso disabled:bg-stone-50"
+          value={canManageAllBranches ? selectedOrganizationId : branchName}
+          onChange={(event) => {
+            setSelectedOrganizationId(event.target.value);
+            setSelectedCell(null);
+            setScheduleRole('');
+            setScheduleSearch('');
+          }}
+          disabled={!canManageAllBranches}
+        >
+          {canManageAllBranches ? (
+            branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)
+          ) : (
+            <option value={branchName}>{branchName}</option>
+          )}
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Role</span>
+        <select className="h-8 min-w-[120px] rounded-lg border border-stone-300 bg-white px-2.5 text-[12px] text-espresso" value={scheduleRole} onChange={(event) => setScheduleRole(event.target.value as ShiftRole | '')}>
+          <option value="">All roles</option>
+          <option value="CHEF">Chef</option>
+          <option value="WAITER">Waiter</option>
+          <option value="BARISTA">Barista</option>
+        </select>
+      </div>
+      <div className="relative">
+        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+        <input value={scheduleSearch} onChange={(event) => setScheduleSearch(event.target.value)} placeholder="Search staff..." className="h-8 rounded-lg border border-stone-300 bg-white pl-7 pr-3 text-[12px] text-espresso outline-none" />
+      </div>
+      <div className={cn('flex h-8 items-center gap-2 rounded-lg border px-3 text-[11.5px] font-semibold', dirtyCount > 0 ? 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]' : 'border-[#86efac] bg-[#edfaf1] text-[#1a6b3c]')}>
+        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+        {dirtyCount > 0 ? `${dirtyCount} unsaved cell${dirtyCount === 1 ? '' : 's'}` : 'All changes saved'}
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Shift definitions</span>
+        {shifts.slice(0, 5).map((shift) => (
+          <span key={shift.id} className={cn('inline-flex h-7 items-center gap-1 rounded-md border border-stone-200 px-2 text-[11px] font-bold', getShiftColorClass(shift.id, shifts))}>{shift.name}<span className="font-semibold opacity-60">{shift.startTime}-{shift.endTime}</span></span>
+        ))}
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <Button variant="secondary" size="sm" leftIcon={<Copy size={14} />} onClick={() => setCopyWeekModal((current) => ({ ...current, isOpen: true }))} disabled={!hasBranchScope || shifts.length === 0 || staff.length === 0}>Copy Week</Button>
+        <Button variant="secondary" size="sm" leftIcon={isExpanded ? <Minimize2 size={14} /> : <Expand size={14} />} onClick={() => setIsExpanded((current) => !current)}>{isExpanded ? 'Collapse' : 'Expand sheet'}</Button>
+        <Button size="sm" onClick={() => void handleSaveSchedule()} isLoading={isSavingSchedule} disabled={!hasBranchScope || dirtyCount === 0}>Save Schedule</Button>
+      </div>
+    </div>
+  );
 
   return (
-    <PageLayout className="animate-fade-up space-y-6">
-      <PageHeader
-        title="Shift Management"
-        titleClassName="font-display text-display-lg font-semibold text-espresso"
-        subtitle="Manage shift definitions, schedule assignments, and daily attendance."
-        action={<Button onClick={openCreateShiftModal}>Add Shift</Button>}
-      />
-
-      {/* ── Shift Definitions ────────────────────────────────────────────── */}
-      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Shift Definitions</h2>
-        {isLoading ? (
-          <SkeletonTable rows={4} columns={4} />
-        ) : shifts.length === 0 ? (
-          <EmptyState
-            icon={<Calendar size={24} />}
-            heading="No shifts yet"
-            body="Create your first shift definition to start scheduling."
-            action={<Button onClick={openCreateShiftModal}>Add Shift</Button>}
-          />
-        ) : (
-          <Table columns={shiftColumns} data={shiftRows} keyField="id" />
-        )}
-      </section>
-
-      {/* ── Schedule Section ─────────────────────────────────────────────── */}
-      <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 px-5 py-4">
-          <div>
-            <h2 className="text-heading-md font-semibold text-stone-900">
-              {viewMode === 'week' ? 'Weekly Schedule' : 'Monthly Schedule'}
-            </h2>
-            <p className="mt-0.5 text-body-sm text-stone-500">
-              {viewMode === 'week' ? formatWeekRange(weekStart) : formatMonthLabel(monthStart)}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* View toggle */}
-            <div className="flex rounded-lg border border-stone-200 p-0.5">
-              <button
-                type="button"
-                onClick={() => setViewMode('week')}
-                className={`rounded-md px-3 py-1.5 text-label-sm font-medium transition-colors duration-fast ${
-                  viewMode === 'week' ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Week
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('month')}
-                className={`rounded-md px-3 py-1.5 text-label-sm font-medium transition-colors duration-fast ${
-                  viewMode === 'month' ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Month
-              </button>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center gap-1">
-              <IconButton
-                icon={<ChevronLeft size={18} />}
-                label={viewMode === 'week' ? 'Previous week' : 'Previous month'}
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  if (viewMode === 'week') setWeekStart((c) => addDays(c, -7));
-                  else setMonthStart((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1));
-                }}
-              />
-              <IconButton
-                icon={<ChevronRight size={18} />}
-                label={viewMode === 'week' ? 'Next week' : 'Next month'}
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  if (viewMode === 'week') setWeekStart((c) => addDays(c, 7));
-                  else setMonthStart((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1));
-                }}
-              />
-            </div>
-
-            {/* Copy week */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setCopyWeekModal((c) => ({ ...c, isOpen: true }))}
-              disabled={shifts.length === 0 || staff.length === 0}
-            >
-              <Copy size={14} className="mr-1.5" />
-              Copy Week
-            </Button>
-
-            {/* Batch assign */}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={openBatchModal}
-              disabled={shifts.length === 0 || staff.length === 0}
-            >
-              <Users size={14} className="mr-1.5" />
-              Batch Assign
-            </Button>
-
-            {/* Select / batch delete */}
-            {isSelectMode ? (
-              <div className="flex items-center gap-2">
-                <span className="text-label-sm text-stone-500">{selectedAssignmentIds.size} selected</span>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => void handleBatchDelete()}
-                  isLoading={isBatchDeleting}
-                  disabled={selectedAssignmentIds.size === 0}
-                >
-                  <Trash2 size={14} className="mr-1.5" />
-                  Delete
-                </Button>
-                <Button size="sm" variant="secondary" onClick={toggleSelectMode} disabled={isBatchDeleting}>
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={toggleSelectMode}
-                disabled={viewAssignments.length === 0}
-              >
-                <Trash2 size={14} className="mr-1.5" />
-                Select &amp; Delete
-              </Button>
-            )}
-          </div>
+    <>
+      {isExpanded ? (
+        <div className="fixed inset-0 z-50 flex flex-col gap-3 bg-[#faf7f4] p-4">
+          {scheduleToolbar}
+          {scheduleSheet}
         </div>
-
-        {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 bg-stone-50/50 px-5 py-3">
-          {/* Name / email search */}
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search staff…"
-              value={scheduleSearch}
-              onChange={(e) => setScheduleSearch(e.target.value)}
-              className="h-8 rounded-lg border border-stone-200 bg-white pl-7 pr-3 text-label-sm text-stone-800 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none"
-            />
+      ) : (
+        <PageLayout className="animate-fade-up !mx-0 flex h-screen min-h-0 !max-w-none flex-col !px-6 !py-4">
+          <div className="shrink-0">
+            <h1 className="text-[22px] font-bold leading-tight tracking-[-0.3px] text-espresso">Shift Scheduling</h1>
+            <p className="mt-1 text-[13px] text-stone-400">Build the weekly roster with named shifts. Times stay in shift definitions; the roster stays clean.</p>
           </div>
-
-          {/* Role filter */}
-          <select
-            value={scheduleRole}
-            onChange={(e) => setScheduleRole(e.target.value as ShiftRole | '')}
-            className="h-8 rounded-lg border border-stone-200 bg-white px-2.5 text-label-sm text-stone-700 focus:border-stone-400 focus:outline-none"
-          >
-            <option value="">All roles</option>
-            <option value="WAITER">Waiter</option>
-            <option value="CHEF">Chef</option>
-            <option value="BARISTA">Barista</option>
-          </select>
-
-          {/* Shift filter */}
-          <select
-            value={scheduleShiftId}
-            onChange={(e) => setScheduleShiftId(e.target.value)}
-            className="h-8 rounded-lg border border-stone-200 bg-white px-2.5 text-label-sm text-stone-700 focus:border-stone-400 focus:outline-none"
-          >
-            <option value="">All shifts</option>
-            {shifts.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+          <div className="mt-4 flex shrink-0 border-b border-stone-200">
+            {([
+              ['schedule', 'Weekly Schedule'],
+              ['attendance', "Today's Attendance"],
+              ['definitions', 'Shift Definitions'],
+            ] as [TabId, string][]).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={cn('border-b-2 px-7 pb-2.5 text-[13px] font-semibold transition-colors', activeTab === id ? 'border-[#6b4226] text-espresso' : 'border-transparent text-stone-500 hover:text-stone-700')}
+              >
+                {label}
+              </button>
             ))}
-          </select>
-
-          {/* Clear */}
-          {hasScheduleFilter && (
-            <button
-              type="button"
-              onClick={() => { setScheduleSearch(''); setScheduleRole(''); setScheduleShiftId(''); }}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-label-sm text-stone-500 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
-            >
-              <X size={12} />
-              Clear
-            </button>
-          )}
-
-          {/* Result count */}
-          {hasScheduleFilter && (
-            <span className="ml-auto text-caption text-stone-400">
-              {filteredStaff.length} of {staff.length} staff
-            </span>
-          )}
-        </div>
-
-        <div className="p-4 sm:p-5">
-          {isLoading ? (
-            <SkeletonTable rows={5} columns={viewMode === 'week' ? 8 : 7} />
-          ) : staff.length === 0 ? (
-            <EmptyState
-              icon={<Calendar size={24} />}
-              heading="No active staff found"
-              body="Add active staff members first to create shift assignments."
-            />
-          ) : filteredStaff.length === 0 ? (
-            <EmptyState
-              icon={<Search size={24} />}
-              heading="No staff match your filters"
-              body="Try adjusting the search, role, or shift filter."
-            />
-          ) : viewMode === 'week' ? (
-            /* ── WEEK GRID ── */
-            <div className="w-full overflow-x-auto">
-              <table className="w-full min-w-[960px] border-separate border-spacing-0">
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 z-10 w-[180px] bg-white pb-3 pl-1 pr-3 text-left text-label-sm font-semibold uppercase tracking-wider text-stone-400">
-                      Staff
-                    </th>
-                    {weekDays.map((day) => {
-                      const dateKey = dateToYmd(day);
-                      const isToday = dateKey === todayDateKey;
-                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                      return (
-                        <th key={dateKey} className={`pb-3 text-center text-label-sm font-semibold uppercase tracking-wider ${
-                          isToday ? 'text-espresso' : isWeekend ? 'text-stone-300' : 'text-stone-400'
-                        }`}>
-                          <div className="text-[11px]">{day.toLocaleDateString([], { weekday: 'short' })}</div>
-                          <div className={`mt-1 inline-flex h-7 w-7 items-center justify-center rounded-full text-caption font-semibold ${
-                            isToday ? 'bg-espresso text-crema shadow-sm' : ''
-                          }`}>
-                            {day.getDate()}
-                          </div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStaff.map((person, personIndex) => (
-                    <tr key={person.id}>
-                      <td className={`sticky left-0 z-10 bg-white py-3 pl-1 pr-3 ${personIndex > 0 ? 'border-t border-stone-100' : ''}`}>
-                        <div className="flex items-center gap-2.5">
-                          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-label-sm font-semibold ${roleAvatarStyle[person.role] ?? 'bg-stone-100 text-stone-600'}`}>
-                            {person.name.charAt(0).toUpperCase()}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-body-sm font-medium text-stone-900">{person.name}</p>
-                            <span className={`mt-0.5 inline-flex rounded-full border px-1.5 py-px text-[10px] font-medium leading-tight ${roleBadgeStyle[person.role] ?? 'border-stone-200 bg-stone-100 text-stone-600'}`}>
-                              {person.role}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      {weekDays.map((day) => {
-                        const dateKey = dateToYmd(day);
-                        const isPastDate = dateKey < todayDateKey;
-                        const isToday = dateKey === todayDateKey;
-                        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                        return (
-                          <td
-                            key={dateKey}
-                            className={`px-1.5 py-2 align-top ${personIndex > 0 ? 'border-t border-stone-100' : ''} ${
-                              isToday
-                                ? 'bg-crema/50'
-                                : isPastDate
-                                  ? 'bg-stone-50/60'
-                                  : isWeekend
-                                    ? 'bg-stone-50/30'
-                                    : ''
-                            }`}
-                          >
-                            {renderAssignmentCell(person.id, dateKey, isPastDate, isWeekend)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            /* ── MONTH GRID — one staff member at a time with tab strip ── */
-            <MonthScheduleView
-              staff={filteredStaff}
-              monthGridDays={monthGridDays}
-              monthStart={monthStart}
-              renderMonthCell={renderMonthCell}
-            />
-          )}
-        </div>
-
-        {/* Shift legend */}
-        {shifts.length > 0 && !isLoading && (
-          <div className="flex flex-wrap items-center gap-3 border-t border-stone-100 bg-stone-50 px-5 py-3">
-            {shifts.map((shift, index) => {
-              const color = shiftCardColors[index % shiftCardColors.length];
-              return (
-                <div key={shift.id} className="flex items-center gap-1.5">
-                  <span className={`h-2.5 w-2.5 rounded-full ${color.dot}`} />
-                  <span className="text-caption text-stone-500">{shift.name} ({shift.startTime}–{shift.endTime})</span>
-                </div>
-              );
-            })}
           </div>
-        )}
-      </section>
+          {activeTab === 'schedule' && (
+            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
+              {scheduleToolbar}
+              {scheduleSheet}
+            </div>
+          )}
+          {activeTab === 'attendance' && (
+            <section className="mt-4 min-h-0 overflow-auto rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+              <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Today&apos;s Attendance</h2>
+              {isLoading ? <SkeletonTable rows={5} columns={6} /> : todayAssignments.length === 0 ? <EmptyState icon={<Calendar size={24} />} heading="No one scheduled today" body="There are no assignments for today." /> : <Table columns={attendanceColumns} data={attendanceRows} keyField="id" />}
+            </section>
+          )}
+          {activeTab === 'definitions' && (
+            <section className="mt-4 min-h-0 overflow-auto rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-heading-md font-semibold text-stone-900">Shift Definitions</h2>
+                <Button onClick={openCreateShiftModal} disabled={!hasBranchScope}>Add Shift</Button>
+              </div>
+              {isLoading ? <SkeletonTable rows={4} columns={4} /> : shifts.length === 0 ? <EmptyState icon={<Calendar size={24} />} heading="No shifts yet" body="Create your first shift definition to start scheduling." action={<Button onClick={openCreateShiftModal} disabled={!hasBranchScope}>Add Shift</Button>} /> : <Table columns={shiftColumns} data={shiftRows} keyField="id" />}
+            </section>
+          )}
+        </PageLayout>
+      )}
 
-      {/* ── Today's Attendance ───────────────────────────────────────────── */}
-      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Today&apos;s Attendance</h2>
-        {isLoading ? (
-          <SkeletonTable rows={4} columns={7} />
-        ) : attendanceRows.length === 0 ? (
-          <EmptyState icon={<Calendar size={24} />} heading="No one scheduled today" body="There are no assignments for today." />
-        ) : (
-          <Table columns={attendanceColumns} data={attendanceRows} keyField="id" />
-        )}
-      </section>
-
-      {/* ── Modals ───────────────────────────────────────────────────────── */}
-
-      {/* Shift CRUD modal */}
       <Modal
         isOpen={isShiftModalOpen}
         onClose={() => { if (!isSavingShift) setIsShiftModalOpen(false); }}
@@ -1153,456 +785,58 @@ export default function ShiftManagementPage(): JSX.Element {
           </div>
         }
       >
-        <form id="shift-form" className="space-y-4" onSubmit={(e) => void handleSaveShift(e)}>
-          <Input label="Shift Name" value={shiftForm.name} onChange={(e) => setShiftForm((c) => ({ ...c, name: e.target.value }))} placeholder="e.g. Morning" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input label="Start Time" type="time" value={shiftForm.startTime} onChange={(e) => setShiftForm((c) => ({ ...c, startTime: e.target.value }))} />
-            <Input label="End Time" type="time" value={shiftForm.endTime} onChange={(e) => setShiftForm((c) => ({ ...c, endTime: e.target.value }))} />
+        <form id="shift-form" className="space-y-4" onSubmit={(event) => void handleSaveShift(event)}>
+          <Input label="Shift Name" value={shiftForm.name} onChange={(event) => setShiftForm((current) => ({ ...current, name: event.target.value }))} placeholder="e.g. Morning" />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Start Time" type="time" value={shiftForm.startTime} onChange={(event) => setShiftForm((current) => ({ ...current, startTime: event.target.value }))} />
+            <Input label="End Time" type="time" value={shiftForm.endTime} onChange={(event) => setShiftForm((current) => ({ ...current, endTime: event.target.value }))} />
           </div>
         </form>
       </Modal>
 
-      {/* Single assign modal */}
       <Modal
-        isOpen={assignmentModal.isOpen}
-        onClose={() => { if (!isSubmitting) setAssignmentModal((c) => ({ ...c, isOpen: false })); }}
-        title="Assign Shift"
+        isOpen={copyWeekModal.isOpen}
+        onClose={() => { if (!isCopyingWeek) setCopyWeekModal((current) => ({ ...current, isOpen: false })); }}
+        title="Copy Week Schedule"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={() => setAssignmentModal((c) => ({ ...c, isOpen: false }))} disabled={isSubmitting}>Cancel</Button>
-            <Button onClick={() => void handleCreateAssignment()} isLoading={isSubmitting}>Assign</Button>
+            <Button variant="secondary" onClick={() => setCopyWeekModal((current) => ({ ...current, isOpen: false }))} disabled={isCopyingWeek}>Cancel</Button>
+            <Button onClick={() => void handleCopyWeek()} isLoading={isCopyingWeek} disabled={copyWeekModal.sourceWeekStart === copyWeekModal.targetWeekStart}>Copy Schedule</Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <Input label="Date" value={assignmentModal.date} disabled />
-          <Select label="Shift" value={assignmentModal.shiftId} onChange={(e) => setAssignmentModal((c) => ({ ...c, shiftId: e.target.value }))} options={shifts.map((s) => ({ value: s.id, label: `${s.name} (${s.startTime} – ${s.endTime})` }))} />
-          <Select label="Staff" value={assignmentModal.userId} onChange={(e) => setAssignmentModal((c) => ({ ...c, userId: e.target.value }))} options={staff.map((p) => ({ value: p.id, label: `${p.name} (${p.role})` }))} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="Source week start" type="date" value={copyWeekModal.sourceWeekStart} onChange={(event) => setCopyWeekModal((current) => ({ ...current, sourceWeekStart: event.target.value }))} />
+          <Input label="Target week start" type="date" value={copyWeekModal.targetWeekStart} onChange={(event) => setCopyWeekModal((current) => ({ ...current, targetWeekStart: event.target.value }))} />
         </div>
       </Modal>
 
-      {/* Batch assign modal */}
-      <Modal
-        isOpen={batchModal.isOpen}
-        onClose={() => { if (!isBatchSubmitting) setBatchModal(defaultBatchModal()); }}
-        title="Batch Assign Shifts"
-        maxWidth="lg"
-        footer={
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-caption text-stone-500">
-              {batchPreviewDates.length > 0 && batchModal.selectedUserIds.size > 0
-                ? `${batchPreviewDates.length} date${batchPreviewDates.length === 1 ? '' : 's'} × ${batchModal.selectedUserIds.size} staff = up to ${batchPreviewDates.length * batchModal.selectedUserIds.size} assignments`
-                : 'Select staff and dates to preview'}
-            </p>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setBatchModal(defaultBatchModal())} disabled={isBatchSubmitting}>Cancel</Button>
-              <Button onClick={() => void handleBatchSubmit()} isLoading={isBatchSubmitting}>Create Assignments</Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-5">
-          {/* Shift picker */}
-          <Select
-            label="Shift"
-            value={batchModal.shiftId}
-            onChange={(e) => setBatchModal((c) => ({ ...c, shiftId: e.target.value }))}
-            options={shifts.map((s) => ({ value: s.id, label: `${s.name} (${s.startTime} – ${s.endTime})` }))}
-          />
-
-          {/* Staff multi-select */}
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-label-sm font-medium text-stone-700">Staff Members</label>
-              <button
-                type="button"
-                onClick={() => setBatchModal((c) => ({
-                  ...c,
-                  selectedUserIds: c.selectedUserIds.size === staff.length ? new Set() : new Set(staff.map((p) => p.id)),
-                }))}
-                className="text-caption text-stone-400 underline hover:text-stone-600"
-              >
-                {batchModal.selectedUserIds.size === staff.length ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {staff.map((person) => {
-                const selected = batchModal.selectedUserIds.has(person.id);
-                return (
-                  <button
-                    key={person.id}
-                    type="button"
-                    onClick={() => toggleBatchUser(person.id)}
-                    className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all duration-fast ${
-                      selected
-                        ? 'border-stone-900 bg-stone-900 text-white'
-                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-50'
-                    }`}
-                  >
-                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-label-sm font-semibold ${
-                      selected ? 'bg-white/20 text-white' : roleAvatarStyle[person.role] ?? 'bg-stone-100 text-stone-600'
-                    }`}>
-                      {person.name.charAt(0).toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-body-sm font-medium">{person.name}</p>
-                      <p className={`text-caption ${selected ? 'text-white/70' : 'text-stone-500'}`}>{person.role}</p>
-                    </div>
-                    <div className={`ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                      selected ? 'border-white bg-white' : 'border-stone-300'
-                    }`}>
-                      {selected && <span className="h-2 w-2 rounded-sm bg-stone-900" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mode toggle */}
-          <div>
-            <label className="mb-2 block text-label-sm font-medium text-stone-700">Date Selection Mode</label>
-            <div className="flex rounded-lg border border-stone-200 p-0.5">
-              <button
-                type="button"
-                onClick={() => setBatchModal((c) => ({ ...c, mode: 'recurrence' }))}
-                className={`flex-1 rounded-md py-2 text-label-sm font-medium transition-colors duration-fast ${
-                  batchModal.mode === 'recurrence' ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Recurring Days
-              </button>
-              <button
-                type="button"
-                onClick={() => setBatchModal((c) => ({ ...c, mode: 'specific' }))}
-                className={`flex-1 rounded-md py-2 text-label-sm font-medium transition-colors duration-fast ${
-                  batchModal.mode === 'specific' ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-700'
-                }`}
-              >
-                Specific Dates
-              </button>
-            </div>
-          </div>
-
-          {batchModal.mode === 'recurrence' ? (
-            /* Recurrence */
-            <div className="space-y-3">
-              <div>
-                <label className="mb-2 block text-label-sm font-medium text-stone-700">Days of Week</label>
-                <div className="flex flex-wrap gap-2">
-                  {DAY_LABELS.map((label, dow) => {
-                    const selected = batchModal.selectedDaysOfWeek.has(dow);
-                    return (
-                      <button
-                        key={dow}
-                        type="button"
-                        onClick={() => toggleBatchDayOfWeek(dow)}
-                        className={`flex h-9 w-12 items-center justify-center rounded-lg border text-label-sm font-medium transition-all duration-fast ${
-                          selected
-                            ? 'border-stone-900 bg-stone-900 text-white'
-                            : 'border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Month</label>
-                <input
-                  type="month"
-                  value={batchModal.recurrenceMonth}
-                  onChange={(e) => setBatchModal((c) => ({ ...c, recurrenceMonth: e.target.value }))}
-                  className="rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
-                />
-              </div>
-              {batchPreviewDates.length > 0 && (
-                <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2.5">
-                  <p className="mb-1.5 text-label-sm font-medium text-stone-600">
-                    {batchPreviewDates.length} date{batchPreviewDates.length === 1 ? '' : 's'} will be scheduled
-                  </p>
-                  <p className="text-caption text-stone-400">{batchPreviewDates.join('  ·  ')}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Specific dates — mini calendar */
-            <SpecificDatePicker
-              selectedDates={batchModal.specificDates}
-              todayDateKey={todayDateKey}
-              onToggle={toggleSpecificDate}
-            />
-          )}
-        </div>
-      </Modal>
-
-      {/* Override modal */}
       <Modal
         isOpen={overrideModal.isOpen}
         onClose={() => { if (!isSavingOverride) setOverrideModal({ isOpen: false, assignment: null, action: 'CLOCK_IN', reasonCode: '', notes: '' }); }}
-        title={`${getOverrideActionLabel(overrideModal.action)} Attendance Override`}
+        title={`${getOverrideActionLabel(overrideModal.action)} Override`}
         footer={
           <div className="flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setOverrideModal({ isOpen: false, assignment: null, action: 'CLOCK_IN', reasonCode: '', notes: '' })} disabled={isSavingOverride}>Cancel</Button>
-            <Button type="submit" form="override-form" isLoading={isSavingOverride}>{getOverrideActionLabel(overrideModal.action)}</Button>
+            <Button form="override-form" type="submit" isLoading={isSavingOverride}>Apply Override</Button>
           </div>
         }
       >
-        <form id="override-form" className="space-y-4" onSubmit={(e) => void handleApplyOverride(e)}>
-          <Input label="Staff Member" value={overrideModal.assignment?.user.name ?? ''} disabled />
-          <Input label="Action" value={getOverrideActionLabel(overrideModal.action)} disabled />
-          <p className="text-body-sm text-stone-500">
-            {overrideModal.action === 'CLOCK_IN'
-              ? 'Use this when a staff member should be starting their shift but GPS failed.'
-              : overrideModal.action === 'VOID_CLOCK_OUT'
-                ? 'Use this when a staff member accidentally clocked out. This will clear the clock-out so they can continue their shift.'
-                : 'Use this when a staff member already clocked in and needs help closing the shift.'}
-          </p>
-          <Select
-            label="Reason"
-            value={overrideModal.reasonCode}
-            onChange={(e) => setOverrideModal((c) => ({ ...c, reasonCode: e.target.value }))}
-            options={[{ value: '', label: 'Select a reason' }, ...overrideReasonOptions.map((o) => ({ value: o.value, label: o.label }))]}
-          />
-          <Input
-            label={overrideModal.reasonCode === 'Other' ? 'Reason details' : 'Additional note'}
-            value={overrideModal.notes}
-            onChange={(e) => setOverrideModal((c) => ({ ...c, notes: e.target.value }))}
-            placeholder={overrideModal.reasonCode === 'Other' ? 'Describe why the override is needed' : 'Optional note for the audit trail'}
-          />
+        <form id="override-form" className="space-y-4" onSubmit={(event) => void handleApplyOverride(event)}>
+          <Select label="Reason" value={overrideModal.reasonCode} onChange={(event) => setOverrideModal((current) => ({ ...current, reasonCode: event.target.value }))} options={overrideReasonOptions.map((option) => ({ value: option.value, label: option.label }))} />
+          <Input label="Notes" value={overrideModal.notes} onChange={(event) => setOverrideModal((current) => ({ ...current, notes: event.target.value }))} placeholder="Add context for the override" />
         </form>
       </Modal>
 
-      {/* Copy week modal */}
-      <Modal
-        isOpen={copyWeekModal.isOpen}
-        onClose={() => { if (!isCopyingWeek) setCopyWeekModal((c) => ({ ...c, isOpen: false })); }}
-        title="Copy Week Schedule"
-        footer={
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-caption text-stone-500">Existing assignments in the target week are kept — duplicates are skipped.</p>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={() => setCopyWeekModal((c) => ({ ...c, isOpen: false }))} disabled={isCopyingWeek}>Cancel</Button>
-              <Button onClick={() => void handleCopyWeek()} isLoading={isCopyingWeek} disabled={copyWeekModal.sourceWeekStart === copyWeekModal.targetWeekStart}>Copy Schedule</Button>
-            </div>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-body-sm text-stone-600">
-            Pick a source week and a target week. Every assignment is copied to the same day of the target week.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy from</label>
-              <input
-                type="date"
-                value={copyWeekModal.sourceWeekStart}
-                onChange={(e) => {
-                  const monday = dateToYmd(getMonday(new Date(e.target.value + 'T00:00:00')));
-                  setCopyWeekModal((c) => ({ ...c, sourceWeekStart: monday }));
-                }}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
-              />
-              {copyWeekModal.sourceWeekStart && (
-                <p className="mt-1 text-caption text-stone-400">{formatWeekRange(new Date(copyWeekModal.sourceWeekStart + 'T00:00:00'))}</p>
-              )}
-            </div>
-            <div>
-              <label className="mb-1.5 block text-label-sm font-medium text-stone-700">Copy to</label>
-              <input
-                type="date"
-                value={copyWeekModal.targetWeekStart}
-                onChange={(e) => {
-                  const monday = dateToYmd(getMonday(new Date(e.target.value + 'T00:00:00')));
-                  setCopyWeekModal((c) => ({ ...c, targetWeekStart: monday }));
-                }}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-body-sm text-stone-900 focus:border-stone-400 focus:outline-none"
-              />
-              {copyWeekModal.targetWeekStart && (
-                <p className="mt-1 text-caption text-stone-400">{formatWeekRange(new Date(copyWeekModal.targetWeekStart + 'T00:00:00'))}</p>
-              )}
-            </div>
-          </div>
-          {copyWeekModal.sourceWeekStart === copyWeekModal.targetWeekStart && (
-            <p className="text-label-sm text-[#991B1B]">Source and target week must be different.</p>
-          )}
-        </div>
-      </Modal>
-
-      {/* Confirm dialogs */}
       <ConfirmDialog
         isOpen={Boolean(shiftPendingDelete)}
         onClose={() => { if (!isSubmitting) setShiftPendingDelete(null); }}
         onConfirm={() => void handleDeleteShift()}
         title="Delete shift?"
-        description={shiftPendingDelete ? `Delete "${shiftPendingDelete.name}"? This will also remove all associated assignments.` : 'Delete this shift?'}
+        description={shiftPendingDelete ? `Delete "${shiftPendingDelete.name}"? This will be blocked if the shift has future assignments.` : 'Delete this shift?'}
         confirmLabel="Delete"
         isLoading={isSubmitting}
       />
-      <ConfirmDialog
-        isOpen={Boolean(assignmentPendingDelete)}
-        onClose={() => { if (!isSubmitting) setAssignmentPendingDelete(null); }}
-        onConfirm={() => void handleDeleteAssignment()}
-        title="Remove shift assignment?"
-        description={assignmentPendingDelete ? `Remove ${assignmentPendingDelete.user.name} from ${assignmentPendingDelete.shift.name} on ${assignmentPendingDelete.date}?` : 'Remove this shift assignment?'}
-        confirmLabel="Remove"
-        isLoading={isSubmitting}
-      />
-    </PageLayout>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-interface MonthScheduleViewProps {
-  staff: StaffDto[];
-  monthGridDays: Date[];
-  monthStart: Date;
-  renderMonthCell: (day: Date, personId: string, isCurrentMonth: boolean) => JSX.Element;
-}
-
-function MonthScheduleView({ staff, monthGridDays, monthStart, renderMonthCell }: MonthScheduleViewProps): JSX.Element {
-  const [activePersonIndex, setActivePersonIndex] = useState(0);
-  const currentMonth = monthStart.getMonth();
-  const activePerson = staff[activePersonIndex];
-
-  return (
-    <div className="space-y-4">
-      {/* Staff tab strip — single scrolling row */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {staff.map((person, index) => {
-          const isActive = index === activePersonIndex;
-          const roleColorMap: Record<string, string> = {
-            WAITER: '#C4862A',
-            CHEF: '#A04F0A',
-            BARISTA: '#1A6B3C',
-          };
-          const accentColor = roleColorMap[person.role] ?? '#78716C';
-          return (
-            <button
-              key={person.id}
-              type="button"
-              onClick={() => setActivePersonIndex(index)}
-              style={isActive ? { borderLeftColor: accentColor } : {}}
-              className={`flex shrink-0 items-center gap-2 rounded-lg border border-l-[3px] px-3 py-2 text-left transition-all duration-fast ${
-                isActive
-                  ? 'border-stone-900 bg-stone-900 text-white'
-                  : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
-              }`}
-            >
-              <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-                isActive ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-600'
-              }`}>
-                {person.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="text-label-sm font-medium">{person.name}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {activePerson && (
-        <>
-          {/* Day-of-week header */}
-          <div className="grid grid-cols-7 gap-1">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-stone-400">{d}</div>
-            ))}
-          </div>
-
-          {/* Calendar cells */}
-          <div className="grid grid-cols-7 gap-1">
-            {monthGridDays.map((day) => {
-              const isCurrentMonth = day.getMonth() === currentMonth;
-              return renderMonthCell(day, activePerson.id, isCurrentMonth);
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-interface SpecificDatePickerProps {
-  selectedDates: Set<string>;
-  todayDateKey: string;
-  onToggle: (dateKey: string) => void;
-}
-
-function SpecificDatePicker({ selectedDates, todayDateKey, onToggle }: SpecificDatePickerProps): JSX.Element {
-  const [pickerMonth, setPickerMonth] = useState(() => getMonthStart(new Date()));
-  const gridDays = useMemo(() => buildMonthGrid(pickerMonth), [pickerMonth]);
-  const currentMonth = pickerMonth.getMonth();
-
-  return (
-    <div className="space-y-3">
-      {/* Mini-calendar navigation */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setPickerMonth((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <span className="text-label-sm font-semibold text-stone-700">
-          {pickerMonth.toLocaleDateString([], { month: 'long', year: 'numeric' })}
-        </span>
-        <button
-          type="button"
-          onClick={() => setPickerMonth((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <div key={i} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-stone-400">{d}</div>
-        ))}
-        {gridDays.map((day) => {
-          const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-          const isCurrentMonth = day.getMonth() === currentMonth;
-          const isPast = dateKey < todayDateKey;
-          const isSelected = selectedDates.has(dateKey);
-          const isToday = dateKey === todayDateKey;
-
-          return (
-            <button
-              key={dateKey}
-              type="button"
-              disabled={isPast || !isCurrentMonth}
-              onClick={() => onToggle(dateKey)}
-              className={`flex h-8 w-full items-center justify-center rounded-lg text-label-sm font-medium transition-all duration-fast ${
-                !isCurrentMonth || isPast
-                  ? 'cursor-default text-stone-200'
-                  : isSelected
-                    ? 'bg-stone-900 text-white'
-                    : isToday
-                      ? 'border border-stone-300 text-stone-700 hover:bg-stone-100'
-                      : 'text-stone-600 hover:bg-stone-100'
-              }`}
-            >
-              {day.getDate()}
-            </button>
-          );
-        })}
-      </div>
-
-      {selectedDates.size > 0 && (
-        <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2.5">
-          <p className="text-label-sm font-medium text-stone-600">
-            {selectedDates.size} date{selectedDates.size === 1 ? '' : 's'} selected
-          </p>
-          <p className="mt-0.5 text-caption text-stone-400">
-            {Array.from(selectedDates).sort().join('  ·  ')}
-          </p>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

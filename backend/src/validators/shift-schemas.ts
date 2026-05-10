@@ -5,6 +5,7 @@ import { isoDateSchema, routeIdParamSchema } from './order-schemas';
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'time must be in HH:MM format');
 
 export const CreateShiftSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(100),
   startTime: timeSchema,
   endTime: timeSchema,
@@ -12,6 +13,7 @@ export const CreateShiftSchema = z.object({
 
 export const UpdateShiftSchema = z
   .object({
+    organizationId: z.string().uuid().optional(),
     name: z.string().trim().min(1).max(100).optional(),
     startTime: timeSchema.optional(),
     endTime: timeSchema.optional(),
@@ -33,24 +35,38 @@ export const ShiftAssignmentQuerySchema = z.object({
 });
 
 export const CreateShiftAssignmentSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   userId: z.string().uuid(),
   shiftId: z.string().uuid(),
   date: isoDateSchema,
 });
 
 export const BatchCreateShiftAssignmentSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   shiftId: z.string().uuid(),
   userIds: z.array(z.string().uuid()).min(1).max(50),
   dates: z.array(isoDateSchema).min(1).max(62),
 });
 
 export const CopyWeekSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   sourceWeekStart: isoDateSchema, // Monday of the source week (YYYY-MM-DD)
   targetWeekStart: isoDateSchema, // Monday of the target week (YYYY-MM-DD)
 }).refine((d) => d.sourceWeekStart !== d.targetWeekStart, { message: 'sourceWeekStart and targetWeekStart must be different' });
 
 export const BatchDeleteShiftAssignmentSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   ids: z.array(z.string().uuid()).min(1).max(200),
+});
+
+export const ReconcileWeekShiftAssignmentsSchema = z.object({
+  organizationId: z.string().uuid().optional(),
+  weekStart: isoDateSchema,
+  changes: z.array(z.object({
+    userId: z.string().uuid(),
+    date: isoDateSchema,
+    shiftId: z.string().uuid().nullable(),
+  })).min(1).max(500),
 });
 
 export const ClockInOutSchema = z.object({
@@ -85,6 +101,7 @@ export type CreateShiftAssignmentInput = z.infer<typeof CreateShiftAssignmentSch
 export type BatchCreateShiftAssignmentInput = z.infer<typeof BatchCreateShiftAssignmentSchema>;
 export type CopyWeekInput = z.infer<typeof CopyWeekSchema>;
 export type BatchDeleteShiftAssignmentInput = z.infer<typeof BatchDeleteShiftAssignmentSchema>;
+export type ReconcileWeekShiftAssignmentsInput = z.infer<typeof ReconcileWeekShiftAssignmentsSchema>;
 export type ClockInOutInput = z.infer<typeof ClockInOutSchema>;
 export type ClockOverrideInput = z.infer<typeof ClockOverrideSchema>;
 export type UndoClockOutInput = z.infer<typeof UndoClockOutSchema>;

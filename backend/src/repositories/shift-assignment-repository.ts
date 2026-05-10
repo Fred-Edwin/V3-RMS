@@ -147,4 +147,38 @@ export const shiftAssignmentRepository = {
       return result.count;
     });
   },
+
+  reconcileWeek: async (
+    organizationId: string,
+    operations: Array<{
+      userId: string;
+      date: Date;
+      shiftId: string | null;
+      deleteIds: string[];
+    }>,
+  ): Promise<void> => {
+    await prisma.$transaction(async (tx) => {
+      for (const operation of operations) {
+        if (operation.deleteIds.length > 0) {
+          await tx.shiftAssignment.deleteMany({
+            where: {
+              id: { in: operation.deleteIds },
+              organizationId,
+            },
+          });
+        }
+
+        if (operation.shiftId) {
+          await tx.shiftAssignment.create({
+            data: {
+              organizationId,
+              userId: operation.userId,
+              shiftId: operation.shiftId,
+              date: operation.date,
+            },
+          });
+        }
+      }
+    });
+  },
 };
