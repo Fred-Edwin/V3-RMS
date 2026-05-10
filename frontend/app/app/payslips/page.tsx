@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Printer, RefreshCw, X } from 'lucide-react';
-import { Button, PageHeader, PageLayout, SkeletonBlock, SkeletonTable } from '@/components/ui';
+import { Button, PageLayout, SkeletonBlock, SkeletonTable } from '@/components/ui';
 import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
 import { useToast } from '@/hooks/useToast';
 import { payslipService } from '@/services/payslipService';
