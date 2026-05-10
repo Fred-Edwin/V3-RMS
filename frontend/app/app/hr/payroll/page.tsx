@@ -429,7 +429,7 @@ export default function HrPayslipsPage(): JSX.Element {
     `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
 
   return (
-    <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col" style={{ height: 'calc(100vh - 56px)' }}>
+    <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col [height:calc(100vh-56px)]">
       {/* Page header */}
       <div className="px-6 pt-5 pb-3">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Payroll</h1>
