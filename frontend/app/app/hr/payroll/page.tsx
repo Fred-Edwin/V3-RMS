@@ -429,7 +429,7 @@ export default function HrPayslipsPage(): JSX.Element {
     `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
 
   return (
-    <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0">
+    <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col" style={{ height: 'calc(100vh - 56px)' }}>
       {/* Page header */}
       <div className="px-6 pt-5 pb-3">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Payroll</h1>
@@ -456,7 +456,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
       {/* ── PAYROLL ENTRY TAB ──────────────────────────── */}
       {activeTab === 'entry' && (
-        <div className="flex flex-col px-6 pt-4 pb-6 gap-3">
+        <div className="flex flex-col flex-1 px-6 pt-4 pb-6 gap-3 overflow-hidden">
 
           {/* Controls row */}
           <div className="flex flex-wrap items-end gap-3 mb-2">
@@ -526,11 +526,10 @@ export default function HrPayslipsPage(): JSX.Element {
 
           {/* Sheet container */}
           <div
-            className="flex flex-col rounded-t-[20px] border border-stone-200 bg-white shadow-sm overflow-hidden"
-            style={{ minHeight: 400 }}
+            className="flex flex-col flex-1 rounded-t-[20px] border border-stone-200 bg-white shadow-sm overflow-hidden min-h-0"
           >
             {/* Scrollable sheet area */}
-            <div className="overflow-auto" style={{ maxHeight: 520 }}>
+            <div className="overflow-auto flex-1">
               {isLoadingSheet ? (
                 <div className="p-6"><SkeletonTable rows={6} columns={12} /></div>
               ) : (
