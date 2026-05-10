@@ -9,6 +9,7 @@ const request = async <T>(
 ): Promise<T> => {
   const response = await fetch(`${env.apiUrl}${path}`, {
     method,
+    cache: 'no-store',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
@@ -42,6 +43,7 @@ const requestEnvelope = async <T>(
 ): Promise<ApiResponseEnvelope<T>> => {
   const response = await fetch(`${env.apiUrl}${path}`, {
     method,
+    cache: 'no-store',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',

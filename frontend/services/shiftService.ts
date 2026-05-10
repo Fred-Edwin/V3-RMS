@@ -12,6 +12,8 @@ import type {
   CreateShiftAssignmentInput,
   CreateShiftInput,
   ListShiftAssignmentsQuery,
+  ReconcileWeekAssignmentInput,
+  ReconcileWeekAssignmentResult,
   Shift,
   ShiftAssignment,
   ShiftAssignmentClockRecord,
@@ -50,8 +52,8 @@ export const shiftService = {
     return apiClient.patch<Shift>(`/shifts/${id}`, data, accessToken);
   },
 
-  deleteShift: async (id: string, accessToken: string): Promise<void> => {
-    await apiClient.delete<void>(`/shifts/${id}`, accessToken);
+  deleteShift: async (id: string, accessToken: string, organizationId?: string): Promise<void> => {
+    await apiClient.delete<void>(`/shifts/${id}${toQueryString({ organizationId })}`, accessToken);
   },
 
   listAssignments: (
@@ -89,8 +91,8 @@ export const shiftService = {
     return apiClient.post<BatchCreateAssignmentResult>('/shift-assignments/batch', data, accessToken);
   },
 
-  deleteAssignment: async (id: string, accessToken: string): Promise<void> => {
-    await apiClient.delete<void>(`/shift-assignments/${id}`, accessToken);
+  deleteAssignment: async (id: string, accessToken: string, organizationId?: string): Promise<void> => {
+    await apiClient.delete<void>(`/shift-assignments/${id}${toQueryString({ organizationId })}`, accessToken);
   },
 
   copyWeek: (data: CopyWeekInput, accessToken: string): Promise<CopyWeekResult> => {
@@ -102,6 +104,13 @@ export const shiftService = {
     accessToken: string,
   ): Promise<BatchDeleteAssignmentResult> => {
     return apiClient.post<BatchDeleteAssignmentResult>('/shift-assignments/batch-delete', data, accessToken);
+  },
+
+  reconcileWeek: (
+    data: ReconcileWeekAssignmentInput,
+    accessToken: string,
+  ): Promise<ReconcileWeekAssignmentResult> => {
+    return apiClient.post<ReconcileWeekAssignmentResult>('/shift-assignments/reconcile-week', data, accessToken);
   },
 
   clockIn: (data: ClockInOutInput, accessToken: string): Promise<ApiResponseEnvelope<ShiftAssignmentClockRecord>> => {

@@ -3,21 +3,24 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { mapPrismaError } from '../utils/prisma-errors';
 import type { Request } from 'express';
 import { prisma } from '../config/database';
-import { shiftAssignmentRepository } from '../repositories/shift-assignment-repository';
+import { shiftAssignmentRepository, type ShiftAssignmentWithRelations } from '../repositories/shift-assignment-repository';
 import { shiftRepository } from '../repositories/shift-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { getTodayDateOnly, parseDateOnly, toIsoDateOnly } from '../utils/date-only';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
-import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, CopyWeekInput, CreateShiftAssignmentInput, ShiftAssignmentQueryInput } from '../validators/shift-schemas';
+import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, CopyWeekInput, CreateShiftAssignmentInput, ReconcileWeekShiftAssignmentsInput, ShiftAssignmentQueryInput, ShiftListQueryInput } from '../validators/shift-schemas';
 
 type Actor = NonNullable<Request['user']>;
+type SerializedShiftAssignment = Omit<ShiftAssignmentWithRelations, 'date'> & { date: string };
 
 const assignableRoles: UserRole[] = [UserRole.WAITER, UserRole.CHEF, UserRole.BARISTA];
 
+const requiresExplicitOrganizationId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
+
 const resolveReadOrganizationId = (actor: Actor, query: ShiftAssignmentQueryInput): string => {
-  if (actor.role === 'DIRECTOR') {
+  if (requiresExplicitOrganizationId(actor)) {
     if (!query.organizationId) {
-      throw new ValidationError('organizationId query param is required for directors');
+      throw new ValidationError('organizationId query param is required for organization-level shift access');
     }
     return query.organizationId;
   }
@@ -29,8 +32,32 @@ const resolveReadOrganizationId = (actor: Actor, query: ShiftAssignmentQueryInpu
   return actor.organizationId;
 };
 
+const resolveWriteOrganizationId = (actor: Actor, organizationId?: string): string => {
+  if (requiresExplicitOrganizationId(actor)) {
+    if (!organizationId) {
+      throw new ValidationError('organizationId is required for organization-level shift access');
+    }
+    return organizationId;
+  }
+
+  if (!actor.organizationId) {
+    throw new ForbiddenError('Branch context missing for this user');
+  }
+
+  if (organizationId && organizationId !== actor.organizationId) {
+    throw new ForbiddenError('Cannot manage shift assignments outside your branch');
+  }
+
+  return actor.organizationId;
+};
+
+const isOverlapping = (
+  candidate: { startTime: string; endTime: string },
+  existing: { shift: { startTime: string; endTime: string } },
+): boolean => candidate.startTime < existing.shift.endTime && candidate.endTime > existing.shift.startTime;
+
 export const shiftAssignmentService = {
-  listAssignments: async (actor: Actor, query: ShiftAssignmentQueryInput) => {
+  listAssignments: async (actor: Actor, query: ShiftAssignmentQueryInput): Promise<SerializedShiftAssignment[]> => {
     const startDate = parseDateOnly(query.startDate);
     const endDate = parseDateOnly(query.endDate);
 
@@ -74,9 +101,7 @@ export const shiftAssignmentService = {
   },
 
   createAssignment: async (actor: Actor, input: CreateShiftAssignmentInput) => {
-    if (!actor.organizationId) {
-      throw new ForbiddenError('Branch context missing for this user');
-    }
+    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
 
     const assignmentDate = parseDateOnly(input.date);
     const today = getTodayDateOnly();
@@ -84,19 +109,19 @@ export const shiftAssignmentService = {
       throw new ValidationError('Cannot create shift assignments for past dates');
     }
 
-    const staff = await staffRepository.findById(input.userId, actor.organizationId, assignableRoles);
+    const staff = await staffRepository.findById(input.userId, organizationId, assignableRoles);
     if (!staff || !staff.isActive) {
       throw new ValidationError('userId must belong to an active staff member in this branch');
     }
 
-    const shift = await shiftRepository.findById(input.shiftId, actor.organizationId);
+    const shift = await shiftRepository.findById(input.shiftId, organizationId);
     if (!shift) {
       throw new ValidationError('shiftId is invalid for this branch');
     }
 
     const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
       input.userId,
-      actor.organizationId,
+      organizationId,
       assignmentDate,
       assignmentDate,
     );
@@ -109,7 +134,7 @@ export const shiftAssignmentService = {
     }
 
     try {
-      const created = await shiftAssignmentRepository.create(actor.organizationId, {
+      const created = await shiftAssignmentRepository.create(organizationId, {
         userId: input.userId,
         shiftId: input.shiftId,
         date: assignmentDate,
@@ -128,20 +153,18 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: BatchCreateShiftAssignmentInput,
   ): Promise<{ created: number; skipped: number; errors: { userId: string; date: string; reason: string }[] }> => {
-    if (!actor.organizationId) {
-      throw new ForbiddenError('Branch context missing for this user');
-    }
+    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
 
     const today = getTodayDateOnly();
 
-    const shift = await shiftRepository.findById(input.shiftId, actor.organizationId);
+    const shift = await shiftRepository.findById(input.shiftId, organizationId);
     if (!shift) {
       throw new ValidationError('shiftId is invalid for this branch');
     }
 
     // Validate all userIds belong to active assignable staff in this branch
     const staffList = await Promise.all(
-      input.userIds.map((uid) => staffRepository.findById(uid, actor.organizationId!, assignableRoles)),
+      input.userIds.map((uid) => staffRepository.findById(uid, organizationId, assignableRoles)),
     );
     for (let i = 0; i < input.userIds.length; i++) {
       const member = staffList[i];
@@ -169,7 +192,7 @@ export const shiftAssignmentService = {
 
         const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
           userId,
-          actor.organizationId,
+          organizationId,
           assignmentDate,
           assignmentDate,
         );
@@ -199,7 +222,7 @@ export const shiftAssignmentService = {
           toCreate.map(({ userId, date }) =>
             prisma.shiftAssignment.create({
               data: {
-                organizationId: actor.organizationId!,
+                organizationId,
                 userId,
                 shiftId: input.shiftId,
                 date,
@@ -227,9 +250,7 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: CopyWeekInput,
   ): Promise<{ created: number; skipped: number }> => {
-    if (!actor.organizationId) {
-      throw new ForbiddenError('Branch context missing for this user');
-    }
+    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
 
     const sourceWeekStart = parseDateOnly(input.sourceWeekStart);
     const targetWeekStart = parseDateOnly(input.targetWeekStart);
@@ -238,7 +259,7 @@ export const shiftAssignmentService = {
     const offsetMs = targetWeekStart.getTime() - sourceWeekStart.getTime();
 
     const sourceAssignments = await shiftAssignmentRepository.findByOrganizationAndWeek(
-      actor.organizationId,
+      organizationId,
       sourceWeekStart,
     );
 
@@ -249,7 +270,7 @@ export const shiftAssignmentService = {
     // Guard: skip assignments for inactive shifts
     const shiftIds = [...new Set(sourceAssignments.map((a) => a.shiftId))];
     const shifts = await Promise.all(
-      shiftIds.map((id) => shiftRepository.findById(id, actor.organizationId!)),
+      shiftIds.map((id) => shiftRepository.findById(id, organizationId)),
     );
     const activeShiftIds = new Set(
       shifts.filter((s) => s !== null && s.isActive).map((s) => s!.id),
@@ -268,7 +289,7 @@ export const shiftAssignmentService = {
       const targetDate = new Date(src.date.getTime() + offsetMs);
 
       try {
-        await shiftAssignmentRepository.create(actor.organizationId, {
+        await shiftAssignmentRepository.create(organizationId, {
           userId: src.userId,
           shiftId: src.shiftId,
           date: targetDate,
@@ -290,24 +311,128 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: BatchDeleteShiftAssignmentInput,
   ): Promise<{ deleted: number }> => {
-    if (!actor.organizationId) {
-      throw new ForbiddenError('Branch context missing for this user');
-    }
+    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
 
-    const deleted = await shiftAssignmentRepository.deleteByIds(input.ids, actor.organizationId);
+    const deleted = await shiftAssignmentRepository.deleteByIds(input.ids, organizationId);
     return { deleted };
   },
 
-  deleteAssignment: async (actor: Actor, id: string): Promise<void> => {
-    if (!actor.organizationId) {
-      throw new ForbiddenError('Branch context missing for this user');
+  reconcileWeek: async (
+    actor: Actor,
+    input: ReconcileWeekShiftAssignmentsInput,
+  ): Promise<{
+    saved: number;
+    skipped: number;
+    errors: { userId: string; date: string; reason: string }[];
+    assignments: SerializedShiftAssignment[];
+  }> => {
+    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+
+    const weekStart = parseDateOnly(input.weekStart);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    const today = getTodayDateOnly();
+    const errors: { userId: string; date: string; reason: string }[] = [];
+    const operations: Array<{ userId: string; date: Date; shiftId: string | null; deleteIds: string[] }> = [];
+
+    const uniqueChanges = new Map<string, ReconcileWeekShiftAssignmentsInput['changes'][number]>();
+    for (const change of input.changes) {
+      uniqueChanges.set(`${change.userId}|${change.date}`, change);
     }
 
-    const assignment = await shiftAssignmentRepository.findById(id, actor.organizationId);
+    for (const change of uniqueChanges.values()) {
+      const assignmentDate = parseDateOnly(change.date);
+
+      if (assignmentDate < today) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Cannot edit past shift assignments' });
+        continue;
+      }
+
+      if (assignmentDate < weekStart || assignmentDate > weekEnd) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Date is outside the selected week' });
+        continue;
+      }
+
+      const staff = await staffRepository.findById(change.userId, organizationId, assignableRoles);
+      if (!staff || !staff.isActive) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Staff member is not active in this branch' });
+        continue;
+      }
+
+      const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
+        change.userId,
+        organizationId,
+        assignmentDate,
+        assignmentDate,
+      );
+
+      if (existingAssignments.some((assignment) => assignment.clockRecord !== null)) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Cannot change a shift that already has attendance records' });
+        continue;
+      }
+
+      if (change.shiftId === null) {
+        operations.push({
+          userId: change.userId,
+          date: assignmentDate,
+          shiftId: null,
+          deleteIds: existingAssignments.map((assignment) => assignment.id),
+        });
+        continue;
+      }
+
+      const shift = await shiftRepository.findById(change.shiftId, organizationId);
+      if (!shift) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Shift is not active in this branch' });
+        continue;
+      }
+
+      const sameShiftOnly = existingAssignments.length === 1 && existingAssignments[0]?.shiftId === change.shiftId;
+      if (sameShiftOnly) {
+        continue;
+      }
+
+      const retainedAssignments = existingAssignments.filter((assignment) => assignment.shiftId === change.shiftId);
+      const hasOverlap = retainedAssignments.some((assignment) => isOverlapping(shift, assignment));
+      if (hasOverlap) {
+        errors.push({ userId: change.userId, date: change.date, reason: `Shift "${shift.name}" overlaps with an existing assignment` });
+        continue;
+      }
+
+      operations.push({
+        userId: change.userId,
+        date: assignmentDate,
+        shiftId: change.shiftId,
+        deleteIds: existingAssignments.map((assignment) => assignment.id),
+      });
+    }
+
+    if (operations.length > 0) {
+      await shiftAssignmentRepository.reconcileWeek(organizationId, operations);
+    }
+
+    const assignments = await shiftAssignmentService.listAssignments(actor, {
+      organizationId,
+      startDate: toIsoDateOnly(weekStart),
+      endDate: toIsoDateOnly(weekEnd),
+    });
+
+    return {
+      saved: operations.length,
+      skipped: errors.length,
+      errors,
+      assignments,
+    };
+  },
+
+  deleteAssignment: async (actor: Actor, id: string, query: ShiftListQueryInput = {}): Promise<void> => {
+    const organizationId = resolveWriteOrganizationId(actor, query.organizationId);
+
+    const assignment = await shiftAssignmentRepository.findById(id, organizationId);
     if (!assignment) {
       throw new NotFoundError('Shift assignment not found');
     }
 
-    await shiftAssignmentRepository.delete(id, actor.organizationId);
+    await shiftAssignmentRepository.delete(id, organizationId);
   },
 };

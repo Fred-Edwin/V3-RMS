@@ -6,8 +6,10 @@ import {
   BatchDeleteShiftAssignmentSchema,
   CopyWeekSchema,
   CreateShiftAssignmentSchema,
+  ReconcileWeekShiftAssignmentsSchema,
   ShiftAssignmentIdParamSchema,
   ShiftAssignmentQuerySchema,
+  ShiftListQuerySchema,
 } from '../validators/shift-schemas';
 
 const requireActor = (req: Request) => {
@@ -78,10 +80,23 @@ export const shiftAssignmentController = {
     });
   },
 
+  reconcileWeek: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = ReconcileWeekShiftAssignmentsSchema.parse(req.body);
+    const result = await shiftAssignmentService.reconcileWeek(actor, data);
+
+    res.status(result.skipped > 0 ? 207 : 200).json({
+      success: true,
+      data: result,
+      message: `${result.saved} change${result.saved === 1 ? '' : 's'} saved, ${result.skipped} skipped`,
+    });
+  },
+
   deleteAssignment: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = ShiftAssignmentIdParamSchema.parse(req.params);
-    await shiftAssignmentService.deleteAssignment(actor, id);
+    const query = ShiftListQuerySchema.parse(req.query);
+    await shiftAssignmentService.deleteAssignment(actor, id, query);
 
     res.status(200).json({
       success: true,

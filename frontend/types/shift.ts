@@ -51,12 +51,14 @@ export interface ShiftAssignment {
 }
 
 export interface CreateShiftInput {
+  organizationId?: string;
   name: string;
   startTime: string;
   endTime: string;
 }
 
 export interface UpdateShiftInput {
+  organizationId?: string;
   name?: string;
   startTime?: string;
   endTime?: string;
@@ -71,6 +73,7 @@ export interface ListShiftAssignmentsQuery {
 }
 
 export interface CreateShiftAssignmentInput {
+  organizationId?: string;
   userId: string;
   shiftId: string;
   date: string;
@@ -94,6 +97,7 @@ export interface UndoClockOutInput {
 }
 
 export interface BatchCreateAssignmentInput {
+  organizationId?: string;
   shiftId: string;
   userIds: string[];
   dates: string[];
@@ -106,6 +110,7 @@ export interface BatchCreateAssignmentResult {
 }
 
 export interface CopyWeekInput {
+  organizationId?: string;
   sourceWeekStart: string; // YYYY-MM-DD (Monday)
   targetWeekStart: string; // YYYY-MM-DD (Monday)
 }
@@ -116,9 +121,27 @@ export interface CopyWeekResult {
 }
 
 export interface BatchDeleteAssignmentInput {
+  organizationId?: string;
   ids: string[];
 }
 
 export interface BatchDeleteAssignmentResult {
   deleted: number;
+}
+
+export interface ReconcileWeekAssignmentInput {
+  organizationId?: string;
+  weekStart: string;
+  changes: Array<{
+    userId: string;
+    date: string;
+    shiftId: string | null;
+  }>;
+}
+
+export interface ReconcileWeekAssignmentResult {
+  saved: number;
+  skipped: number;
+  errors: { userId: string; date: string; reason: string }[];
+  assignments: ShiftAssignment[];
 }

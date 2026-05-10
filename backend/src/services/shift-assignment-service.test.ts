@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import { UserRole } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shiftAssignmentRepository } from '../repositories/shift-assignment-repository';
 import { shiftRepository } from '../repositories/shift-repository';
@@ -13,6 +14,7 @@ vi.mock('../repositories/shift-assignment-repository', () => ({
     findById: vi.fn(),
     create: vi.fn(),
     delete: vi.fn(),
+    reconcileWeek: vi.fn(),
   },
 }));
 
@@ -37,6 +39,32 @@ const actor = {
 const organizationId = '22222222-2222-4222-8222-222222222222';
 const userId = '33333333-3333-4333-8333-333333333333';
 const shiftId = '44444444-4444-4444-8444-444444444444';
+const shiftId2 = '66666666-6666-4666-8666-666666666666';
+
+const makeAssignment = (overrides: Partial<Awaited<ReturnType<typeof shiftAssignmentRepository.findByUserAndDateRange>>[number]> = {}) => ({
+  id: '55555555-5555-4555-8555-555555555555',
+  organizationId,
+  userId,
+  shiftId,
+  date: parseDateOnly(formatDateOnly(getTodayDateOnly())),
+  createdAt: new Date('2026-02-24T10:00:00.000Z'),
+  updatedAt: new Date('2026-02-24T10:00:00.000Z'),
+  shift: {
+    id: shiftId,
+    name: 'Morning',
+    startTime: '06:00',
+    endTime: '14:00',
+    isActive: true,
+  },
+  user: {
+    id: userId,
+    name: 'Staff Member',
+    role: UserRole.WAITER,
+    isActive: true,
+  },
+  clockRecord: null,
+  ...overrides,
+});
 
 describe('shiftAssignmentService.createAssignment', () => {
   beforeEach(() => {
@@ -110,5 +138,122 @@ describe('shiftAssignmentService.createAssignment', () => {
         shiftId,
       }),
     );
+  });
+});
+
+describe('shiftAssignmentService.reconcileWeek', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(staffRepository.findById).mockResolvedValue({
+      id: userId,
+      name: 'Staff Member',
+      email: 'staff@wendo.co.ke',
+      phone: null,
+      role: 'WAITER',
+      isActive: true,
+      organizationId,
+      createdAt: new Date('2026-02-24T10:00:00.000Z'),
+      organization: {
+        name: 'Wendo Kingz',
+      },
+    });
+
+    vi.mocked(shiftRepository.findById).mockResolvedValue({
+      id: shiftId,
+      organizationId,
+      name: 'Morning',
+      startTime: '06:00',
+      endTime: '14:00',
+      isActive: true,
+      createdAt: new Date('2026-02-24T10:00:00.000Z'),
+      updatedAt: new Date('2026-02-24T10:00:00.000Z'),
+    });
+
+    vi.mocked(shiftAssignmentRepository.findByOrganizationAndDateRange).mockResolvedValue([]);
+  });
+
+  it('creates a new assignment from an empty roster cell', async () => {
+    const today = formatDateOnly(getTodayDateOnly());
+    vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([]);
+
+    const result = await shiftAssignmentService.reconcileWeek(actor, {
+      weekStart: today,
+      changes: [{ userId, date: today, shiftId }],
+    });
+
+    expect(result.saved).toBe(1);
+    expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
+      organizationId,
+      [expect.objectContaining({ userId, shiftId, deleteIds: [] })],
+    );
+  });
+
+  it('changes an existing assignment to another shift', async () => {
+    const today = formatDateOnly(getTodayDateOnly());
+    vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([makeAssignment()]);
+    vi.mocked(shiftRepository.findById).mockResolvedValue({
+      id: shiftId2,
+      organizationId,
+      name: 'Evening',
+      startTime: '14:00',
+      endTime: '22:00',
+      isActive: true,
+      createdAt: new Date('2026-02-24T10:00:00.000Z'),
+      updatedAt: new Date('2026-02-24T10:00:00.000Z'),
+    });
+
+    const result = await shiftAssignmentService.reconcileWeek(actor, {
+      weekStart: today,
+      changes: [{ userId, date: today, shiftId: shiftId2 }],
+    });
+
+    expect(result.saved).toBe(1);
+    expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
+      organizationId,
+      [expect.objectContaining({ userId, shiftId: shiftId2, deleteIds: ['55555555-5555-4555-8555-555555555555'] })],
+    );
+  });
+
+  it('clears an assignment when shiftId is null', async () => {
+    const today = formatDateOnly(getTodayDateOnly());
+    vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([makeAssignment()]);
+
+    const result = await shiftAssignmentService.reconcileWeek(actor, {
+      weekStart: today,
+      changes: [{ userId, date: today, shiftId: null }],
+    });
+
+    expect(result.saved).toBe(1);
+    expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
+      organizationId,
+      [expect.objectContaining({ userId, shiftId: null, deleteIds: ['55555555-5555-4555-8555-555555555555'] })],
+    );
+  });
+
+  it('rejects changing an assignment with a clock record', async () => {
+    const today = formatDateOnly(getTodayDateOnly());
+    vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([
+      makeAssignment({
+        clockRecord: {
+          id: '77777777-7777-4777-8777-777777777777',
+          clockInAt: new Date('2026-02-24T06:00:00.000Z'),
+          clockOutAt: null,
+          clockInMethod: 'GPS',
+          clockOutMethod: null,
+          overrideById: null,
+          overrideNote: null,
+        },
+      }),
+    ]);
+
+    const result = await shiftAssignmentService.reconcileWeek(actor, {
+      weekStart: today,
+      changes: [{ userId, date: today, shiftId: null }],
+    });
+
+    expect(result.saved).toBe(0);
+    expect(result.errors[0]?.reason).toContain('attendance records');
+    expect(shiftAssignmentRepository.reconcileWeek).not.toHaveBeenCalled();
   });
 });

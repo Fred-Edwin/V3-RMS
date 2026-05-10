@@ -56,7 +56,8 @@ export const shiftController = {
   deleteShift: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = ShiftIdParamSchema.parse(req.params);
-    await shiftService.deleteShift(actor, id);
+    const query = ShiftListQuerySchema.parse(req.query);
+    await shiftService.deleteShift(actor, id, query);
 
     res.status(200).json({
       success: true,
