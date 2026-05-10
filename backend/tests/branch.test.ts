@@ -116,4 +116,50 @@ describe('Branch routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
   });
+
+  it('PATCH /api/v1/branches/:id/profile allows director without branch context', async () => {
+    const branchId = '11111111-1111-4111-8111-111111111111';
+    const updateSpy = vi.spyOn(branchService, 'updateBranchProfile').mockResolvedValue({
+      id: branchId,
+      name: 'Wendo Nanyuki',
+      address: 'Nanyuki',
+      city: 'Nanyuki',
+      latitude: '0' as unknown as number,
+      longitude: '0' as unknown as number,
+      isHub: false,
+      isActive: true,
+      phone: '0707242987',
+      mpesaPaybill: '522522',
+      accountNumber: 'Nanyuki',
+      googleReviewUrl: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const token = signAccessToken({
+      userId: 'director-1',
+      role: 'DIRECTOR',
+      organizationId: null,
+    });
+
+    const response = await request(app)
+      .patch(`/api/v1/branches/${branchId}/profile`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        phone: '0707242987',
+        mpesaPaybill: '522522',
+        accountNumber: 'Nanyuki',
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.phone).toBe('0707242987');
+    expect(updateSpy).toHaveBeenCalledWith(
+      branchId,
+      expect.objectContaining({ role: 'DIRECTOR', organizationId: null }),
+      {
+        phone: '0707242987',
+        mpesaPaybill: '522522',
+        accountNumber: 'Nanyuki',
+      },
+    );
+  });
 });

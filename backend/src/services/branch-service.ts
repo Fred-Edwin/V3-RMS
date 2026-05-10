@@ -1,5 +1,11 @@
+import type { UserRole } from '@prisma/client';
 import { branchRepository } from '../repositories/branch-repository';
 import { ForbiddenError, NotFoundError } from '../utils/errors';
+
+interface BranchProfileActor {
+  role: UserRole;
+  organizationId: string | null;
+}
 
 export const branchService = {
   listBranches: async () => {
@@ -45,12 +51,21 @@ export const branchService = {
 
   updateBranchProfile: async (
     id: string,
-    requestingOrgId: string,
+    actor: BranchProfileActor,
     data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string }>,
   ) => {
-    if (id !== requestingOrgId) {
+    if (actor.role === 'MANAGER' && !actor.organizationId) {
+      throw new ForbiddenError('Branch context required');
+    }
+
+    if (actor.role === 'MANAGER' && id !== actor.organizationId) {
       throw new ForbiddenError('You can only edit your own branch');
     }
+
+    if (actor.role !== 'MANAGER' && actor.role !== 'DIRECTOR' && actor.role !== 'SYSTEM_ADMIN') {
+      throw new ForbiddenError('You do not have permission to perform this action');
+    }
+
     const existing = await branchRepository.findById(id);
     if (!existing) {
       throw new NotFoundError('Branch not found');

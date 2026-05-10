@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import { branchService } from '../services/branch-service';
 import { createBranchSchema, updateBranchSchema, updateBranchProfileSchema, branchIdParamSchema } from '../validators/branch-schemas';
-import { ForbiddenError } from '../utils/errors';
 
 export const branchController = {
   list: async (_req: Request, res: Response): Promise<void> => {
@@ -48,10 +47,8 @@ export const branchController = {
 
   updateProfile: async (req: Request, res: Response): Promise<void> => {
     const { id: branchId } = branchIdParamSchema.parse(req.params);
-    const requestingOrgId = req.user!.organizationId;
-    if (!requestingOrgId) throw new ForbiddenError('Branch context required');
     const data = updateBranchProfileSchema.parse(req.body);
-    const branch = await branchService.updateBranchProfile(branchId, requestingOrgId, data);
+    const branch = await branchService.updateBranchProfile(branchId, req.user!, data);
 
     res.status(200).json({
       success: true,

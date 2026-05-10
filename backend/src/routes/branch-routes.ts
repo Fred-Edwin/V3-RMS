@@ -45,7 +45,7 @@ branchRoutes.patch(
   '/branches/:id/profile',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   branchController.updateProfile,
 );
 
