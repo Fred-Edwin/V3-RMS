@@ -28,10 +28,10 @@ DROP COLUMN "other_allowances",
 DROP COLUMN "transport_allowance",
 ADD COLUMN     "advance" DECIMAL(10,2),
 ADD COLUMN     "incentives" DECIMAL(10,2),
-ADD COLUMN     "nssf_tier1" DECIMAL(10,2) NOT NULL,
-ADD COLUMN     "nssf_tier2" DECIMAL(10,2) NOT NULL,
+ADD COLUMN     "nssf_tier1" DECIMAL(10,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "nssf_tier2" DECIMAL(10,2) NOT NULL DEFAULT 0,
 ADD COLUMN     "overtime" DECIMAL(10,2),
-ADD COLUMN     "sha" DECIMAL(10,2) NOT NULL;
+ADD COLUMN     "sha" DECIMAL(10,2) NOT NULL DEFAULT 0;
 
 -- AlterTable
 ALTER TABLE "public"."staff_discount_auth_requests" ALTER COLUMN "id" DROP DEFAULT;
