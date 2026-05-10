@@ -132,6 +132,7 @@ describe('Branch routes', () => {
       mpesaPaybill: '522522',
       accountNumber: 'Nanyuki',
       googleReviewUrl: null,
+      kraPIN: 'P051234567A',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -148,10 +149,12 @@ describe('Branch routes', () => {
         phone: '0707242987',
         mpesaPaybill: '522522',
         accountNumber: 'Nanyuki',
+        kraPIN: 'P051234567A',
       });
 
     expect(response.status).toBe(200);
     expect(response.body.data.phone).toBe('0707242987');
+    expect(response.body.data.kraPIN).toBe('P051234567A');
     expect(updateSpy).toHaveBeenCalledWith(
       branchId,
       expect.objectContaining({ role: 'DIRECTOR', organizationId: null }),
@@ -159,6 +162,7 @@ describe('Branch routes', () => {
         phone: '0707242987',
         mpesaPaybill: '522522',
         accountNumber: 'Nanyuki',
+        kraPIN: 'P051234567A',
       },
     );
   });

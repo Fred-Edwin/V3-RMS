@@ -26,6 +26,7 @@ export const updateBranchProfileSchema = z.object({
   mpesaPaybill: z.string().min(1).max(20).optional(),
   accountNumber: z.string().min(1).max(50).optional(),
   googleReviewUrl: z.string().url().max(500).optional(),
+  kraPIN: z.string().min(1).max(20).optional(),
 });
 
 export const branchIdParamSchema = z.object({

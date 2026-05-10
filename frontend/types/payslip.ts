@@ -8,6 +8,7 @@ export interface PayslipLineItem {
 export interface PayslipOrganizationSummary {
   id: string;
   name: string;
+  kraPIN: string | null;
 }
 
 export interface PayslipEmployeeProfile {

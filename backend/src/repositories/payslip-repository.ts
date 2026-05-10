@@ -12,6 +12,7 @@ const payslipInclude = {
     select: {
       id: true,
       name: true,
+      kraPIN: true,
     },
   },
   user: {

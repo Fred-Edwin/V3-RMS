@@ -92,9 +92,11 @@ export function PayslipDetailModal({ payslip, isOpen, onClose }: PayslipDetailMo
                 <div style={{ fontSize: 11, color: '#57534e', marginTop: 2 }}>
                   {payslip.organization.name}
                 </div>
-                <div style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>
-                  Employer KRA PIN: [EMPLOYER KRA PIN]
-                </div>
+                {payslip.organization.kraPIN && (
+                  <div style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>
+                    Employer KRA PIN: {payslip.organization.kraPIN}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.5px' }}>PAYSLIP</div>

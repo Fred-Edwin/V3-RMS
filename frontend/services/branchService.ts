@@ -13,6 +13,7 @@ export interface BranchDto {
   mpesaPaybill: string | null;
   accountNumber: string | null;
   googleReviewUrl: string | null;
+  kraPIN: string | null;
 }
 
 export interface CreateBranchInput {
@@ -36,6 +37,7 @@ export interface UpdateBranchProfileInput {
   mpesaPaybill?: string;
   accountNumber?: string;
   googleReviewUrl?: string;
+  kraPIN?: string;
 }
 
 export const branchService = {

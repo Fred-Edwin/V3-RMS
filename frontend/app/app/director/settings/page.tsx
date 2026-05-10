@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Check, Copy, ExternalLink, Hash, Pencil, Phone, Printer, QrCode, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Building2, Check, Copy, ExternalLink, FileText, Hash, Pencil, Phone, Printer, QrCode, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { env } from '@/lib/env';
 import {
@@ -81,6 +81,7 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
       mpesaPaybill: profile?.mpesaPaybill ?? '',
       accountNumber: profile?.accountNumber ?? '',
       googleReviewUrl: profile?.googleReviewUrl ?? '',
+      kraPIN: profile?.kraPIN ?? '',
     });
     setIsEditModalOpen(true);
   };
@@ -94,6 +95,7 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
       if (editForm.mpesaPaybill?.trim()) payload.mpesaPaybill = editForm.mpesaPaybill.trim();
       if (editForm.accountNumber?.trim()) payload.accountNumber = editForm.accountNumber.trim();
       if (editForm.googleReviewUrl?.trim()) payload.googleReviewUrl = editForm.googleReviewUrl.trim();
+      if (editForm.kraPIN?.trim()) payload.kraPIN = editForm.kraPIN.trim().toUpperCase();
 
       const updated = await branchService.updateBranchProfile(selectedBranchId, payload, accessToken);
       setProfile(updated);
@@ -296,6 +298,7 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
                 <ProfileRow icon={<Phone size={14} />} label="Phone" value={profile.phone} placeholder="Not set" />
                 <ProfileRow icon={<Smartphone size={14} />} label="M-Pesa Paybill" value={profile.mpesaPaybill} placeholder="Not set" />
                 <ProfileRow icon={<Hash size={14} />} label="Account Number" value={profile.accountNumber} placeholder="Not set" />
+                <ProfileRow icon={<FileText size={14} />} label="KRA PIN" value={profile.kraPIN} placeholder="Not set" />
                 <ProfileRow icon={<ExternalLink size={14} />} label="Google Review Link" value={profile.googleReviewUrl} placeholder="Not set" />
               </div>
             )}
@@ -376,10 +379,11 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
         }
       >
         <div className="space-y-4 p-1">
-          <p className="text-body-sm text-stone-500">These details appear on printed receipts and bills for this branch.</p>
+          <p className="text-body-sm text-stone-500">Receipt details appear on printed receipts. KRA PIN is used on payslips only.</p>
           <Input label="Phone Number" value={editForm.phone ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))} placeholder="e.g. 0707 242 987" />
           <Input label="M-Pesa Paybill" value={editForm.mpesaPaybill ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, mpesaPaybill: e.target.value }))} placeholder="e.g. 522522" />
           <Input label="Account Number" value={editForm.accountNumber ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, accountNumber: e.target.value }))} placeholder="e.g. King'ong'o" />
+          <Input label="KRA PIN" value={editForm.kraPIN ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, kraPIN: e.target.value }))} placeholder="e.g. P051234567A" />
           <Input label="Google Review Link" value={editForm.googleReviewUrl ?? ''} onChange={(e) => setEditForm((prev) => ({ ...prev, googleReviewUrl: e.target.value }))} placeholder="https://g.page/r/..." />
         </div>
       </Modal>

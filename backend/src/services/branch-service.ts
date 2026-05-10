@@ -52,7 +52,7 @@ export const branchService = {
   updateBranchProfile: async (
     id: string,
     actor: BranchProfileActor,
-    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string }>,
+    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string; kraPIN: string }>,
   ) => {
     if (actor.role === 'MANAGER' && !actor.organizationId) {
       throw new ForbiddenError('Branch context required');

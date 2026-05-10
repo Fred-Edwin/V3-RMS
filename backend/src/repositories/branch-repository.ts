@@ -53,7 +53,7 @@ export const branchRepository = {
 
   updateProfile: async (
     id: string,
-    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string }>,
+    data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string; kraPIN: string }>,
   ) => {
     return prisma.organization.update({
       where: { id },
@@ -62,6 +62,7 @@ export const branchRepository = {
         mpesaPaybill: data.mpesaPaybill,
         accountNumber: data.accountNumber,
         googleReviewUrl: data.googleReviewUrl,
+        kraPIN: data.kraPIN,
       },
     });
   },

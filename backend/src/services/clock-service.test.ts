@@ -90,6 +90,7 @@ describe('clockService', () => {
       mpesaPaybill: null,
       accountNumber: null,
       googleReviewUrl: null,
+      kraPIN: null,
       isActive: true,
       isHub: false,
       createdAt: new Date('2026-03-01T00:00:00.000Z'),
