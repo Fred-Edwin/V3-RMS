@@ -37,6 +37,21 @@ export const updateEmployeeProfileSchema = z.object({
   jobTitle: z.string().min(1).optional(),
   reportingManagerId: z.string().uuid().optional().nullable(),
   notes: z.string().optional(),
+  kraPIN: z.string().min(1).optional().nullable(),
+  bankName: z.string().min(1).optional().nullable(),
+  accountNumber: z.string().min(1).optional().nullable(),
+  accountName: z.string().min(1).optional().nullable(),
+  bankBranch: z.string().min(1).optional().nullable(),
+  helbNumber: z.string().min(1).optional().nullable(),
+});
+
+export const updatePaymentDetailsSchema = z.object({
+  kraPIN: z.string().min(1).optional().nullable(),
+  bankName: z.string().min(1).optional().nullable(),
+  accountNumber: z.string().min(1).optional().nullable(),
+  accountName: z.string().min(1).optional().nullable(),
+  bankBranch: z.string().min(1).optional().nullable(),
+  helbNumber: z.string().min(1).optional().nullable(),
 });
 
 // ─── Leave Balances ───────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { Prisma, UserRole } from '@prisma/client';
 import { prisma } from '../config/database';
+import type { BulkUpsertRowInput } from '../validators/payslip-schemas';
 
 export interface PayslipLineItemStored {
   label: string;
@@ -23,6 +24,11 @@ const payslipInclude = {
       employeeProfile: {
         select: {
           jobTitle: true,
+          kraPIN: true,
+          bankName: true,
+          accountNumber: true,
+          accountName: true,
+          bankBranch: true,
         },
       },
     },
@@ -49,28 +55,6 @@ export interface PayslipListFilters {
   perPage: number;
 }
 
-export interface CreatePayslipRepositoryInput {
-  organizationId: string;
-  userId: string;
-  payPeriod: string;
-  payDate: Date;
-  basicSalary: Prisma.Decimal;
-  houseAllowance: Prisma.Decimal | null;
-  transportAllowance: Prisma.Decimal | null;
-  otherAllowances: PayslipLineItemStored[] | null;
-  paye: Prisma.Decimal;
-  nssf: Prisma.Decimal;
-  housingLevy: Prisma.Decimal;
-  helb: Prisma.Decimal | null;
-  otherDeductions: PayslipLineItemStored[] | null;
-  grossPay: Prisma.Decimal;
-  totalDeductions: Prisma.Decimal;
-  netPay: Prisma.Decimal;
-  createdById: string;
-}
-
-export interface UpdatePayslipRepositoryInput extends Omit<CreatePayslipRepositoryInput, 'createdById'> {}
-
 export interface PayslipTargetUser {
   id: string;
   name: string;
@@ -84,6 +68,9 @@ const toJson = (items: PayslipLineItemStored[] | null): Prisma.InputJsonValue | 
   return items as unknown as Prisma.InputJsonValue;
 };
 
+const toDecimal = (value: string | null | undefined): Prisma.Decimal | null =>
+  value != null ? new Prisma.Decimal(value) : null;
+
 export const payslipRepository = {
   findTargetUserById: async (userId: string): Promise<PayslipTargetUser | null> => {
     return prisma.user.findUnique({
@@ -95,31 +82,6 @@ export const payslipRepository = {
         organizationId: true,
         isActive: true,
       },
-    });
-  },
-
-  create: async (input: CreatePayslipRepositoryInput): Promise<PayslipWithRelations> => {
-    return prisma.payslip.create({
-      data: {
-        organizationId: input.organizationId,
-        userId: input.userId,
-        payPeriod: input.payPeriod,
-        payDate: input.payDate,
-        basicSalary: input.basicSalary,
-        houseAllowance: input.houseAllowance,
-        transportAllowance: input.transportAllowance,
-        otherAllowances: toJson(input.otherAllowances),
-        paye: input.paye,
-        nssf: input.nssf,
-        housingLevy: input.housingLevy,
-        helb: input.helb,
-        otherDeductions: toJson(input.otherDeductions),
-        grossPay: input.grossPay,
-        totalDeductions: input.totalDeductions,
-        netPay: input.netPay,
-        createdById: input.createdById,
-      },
-      include: payslipInclude,
     });
   },
 
@@ -175,7 +137,7 @@ export const payslipRepository = {
     filters: Omit<PayslipListFilters, 'organizationIds'>,
   ): Promise<{ items: PayslipWithRelations[]; total: number }> => {
     return payslipRepository.list({
-      organizationIds: organizationIds.filter((organizationId) => organizationId === branchId),
+      organizationIds: organizationIds.filter((id) => id === branchId),
       page: filters.page,
       perPage: filters.perPage,
       payPeriod: filters.payPeriod,
@@ -184,67 +146,114 @@ export const payslipRepository = {
     });
   },
 
-  update: async (
-    id: string,
+  bulkUpsert: async (
+    rows: BulkUpsertRowInput[],
     organizationId: string,
-    input: UpdatePayslipRepositoryInput,
-  ): Promise<PayslipWithRelations | null> => {
-    const updated = await prisma.payslip.updateMany({
-      where: {
-        id,
-        organizationId,
-      },
-      data: {
-        organizationId: input.organizationId,
-        userId: input.userId,
-        payPeriod: input.payPeriod,
-        payDate: input.payDate,
-        basicSalary: input.basicSalary,
-        houseAllowance: input.houseAllowance,
-        transportAllowance: input.transportAllowance,
-        otherAllowances: toJson(input.otherAllowances),
-        paye: input.paye,
-        nssf: input.nssf,
-        housingLevy: input.housingLevy,
-        helb: input.helb,
-        otherDeductions: toJson(input.otherDeductions),
-        grossPay: input.grossPay,
-        totalDeductions: input.totalDeductions,
-        netPay: input.netPay,
-      },
+    payPeriod: string,
+    createdById: string,
+    computedRows: Array<{ totalDeductions: Prisma.Decimal; netPay: Prisma.Decimal }>,
+  ): Promise<{ saved: PayslipWithRelations[]; skipped: string[] }> => {
+    const skipped: string[] = [];
+    const savedIds: string[] = [];
+
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]!;
+        const computed = computedRows[i]!;
+
+        // Check if existing payslip is locked — skip if so
+        const existing = await tx.payslip.findUnique({
+          where: {
+            organizationId_userId_payPeriod: {
+              organizationId,
+              userId: row.userId,
+              payPeriod,
+            },
+          },
+          select: { id: true, isLocked: true },
+        });
+
+        if (existing?.isLocked) {
+          skipped.push(row.userId);
+          continue;
+        }
+
+        const otherDeductions = row.otherDeductions
+          ? (row.otherDeductions as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull;
+
+        const upserted = await tx.payslip.upsert({
+          where: {
+            organizationId_userId_payPeriod: {
+              organizationId,
+              userId: row.userId,
+              payPeriod,
+            },
+          },
+          create: {
+            organizationId,
+            userId: row.userId,
+            payPeriod,
+            payDate: new Date(row.payDate),
+            grossPay: new Prisma.Decimal(row.grossPay),
+            paye: new Prisma.Decimal(row.paye),
+            sha: new Prisma.Decimal(row.sha),
+            nssfTier1: new Prisma.Decimal(row.nssfTier1),
+            nssfTier2: new Prisma.Decimal(row.nssfTier2),
+            housingLevy: new Prisma.Decimal(row.housingLevy),
+            helb: toDecimal(row.helb),
+            advance: toDecimal(row.advance),
+            incentives: toDecimal(row.incentives),
+            overtime: toDecimal(row.overtime),
+            otherDeductions,
+            totalDeductions: computed.totalDeductions,
+            netPay: computed.netPay,
+            createdById,
+          },
+          update: {
+            payDate: new Date(row.payDate),
+            grossPay: new Prisma.Decimal(row.grossPay),
+            paye: new Prisma.Decimal(row.paye),
+            sha: new Prisma.Decimal(row.sha),
+            nssfTier1: new Prisma.Decimal(row.nssfTier1),
+            nssfTier2: new Prisma.Decimal(row.nssfTier2),
+            housingLevy: new Prisma.Decimal(row.housingLevy),
+            helb: toDecimal(row.helb),
+            advance: toDecimal(row.advance),
+            incentives: toDecimal(row.incentives),
+            overtime: toDecimal(row.overtime),
+            otherDeductions,
+            totalDeductions: computed.totalDeductions,
+            netPay: computed.netPay,
+          },
+          select: { id: true },
+        });
+
+        savedIds.push(upserted.id);
+      }
     });
 
-    if (updated.count === 0) return null;
-
-    return prisma.payslip.findFirst({
-      where: {
-        id,
-        organizationId: input.organizationId,
-      },
+    const saved = await prisma.payslip.findMany({
+      where: { id: { in: savedIds } },
       include: payslipInclude,
     });
+
+    return { saved, skipped };
   },
 
-  lock: async (id: string, organizationId: string): Promise<PayslipWithRelations | null> => {
-    const updated = await prisma.payslip.updateMany({
-      where: {
-        id,
-        organizationId,
-        isLocked: false,
-      },
-      data: {
-        isLocked: true,
-      },
+  publishPeriod: async (organizationId: string, payPeriod: string): Promise<number> => {
+    const result = await prisma.payslip.updateMany({
+      where: { organizationId, payPeriod },
+      data: { isLocked: true },
     });
+    return result.count;
+  },
 
-    if (updated.count === 0) return null;
-
-    return prisma.payslip.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
-      include: payslipInclude,
+  revertPeriod: async (organizationId: string, payPeriod: string): Promise<number> => {
+    const result = await prisma.payslip.updateMany({
+      where: { organizationId, payPeriod },
+      data: { isLocked: false },
     });
+    return result.count;
   },
 };

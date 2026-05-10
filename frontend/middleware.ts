@@ -92,10 +92,13 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/hr')) {
-    return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'MANAGER'
-      || (pathname === '/app/hr/my-leave' && (
-        role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'ACCOUNTANT'
-      ));
+    // HR entry sheet and management: HR_MANAGER, DIRECTOR, SYSTEM_ADMIN only
+    // my-leave: all human staff
+    if (pathname === '/app/hr/my-leave') {
+      return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA'
+        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR';
+    }
+    return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
   if (pathname.startsWith('/app/accountant')) {
@@ -106,6 +109,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     return role === 'WAITER'
       || role === 'CHEF'
       || role === 'BARISTA'
+      || role === 'MANAGER'
       || role === 'HR_MANAGER'
       || role === 'DIRECTOR'
       || role === 'ACCOUNTANT';

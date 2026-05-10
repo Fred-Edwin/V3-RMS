@@ -34,24 +34,59 @@ overhead is not justified for a single-developer project at this scale.
 
 ## 1. Starting the Stack
 
-```powershell
-# From the repo root
-Set-Location "d:\AI applications\web\V3-RMS"
-docker compose up -d postgres redis api worker
+Docker runs only the infrastructure (Postgres + Redis). The API runs directly on
+your machine via `tsx watch` so every file save hot-reloads instantly — no build
+step, no container restart.
 
-# Verify everything is healthy
-docker compose ps
-Invoke-RestMethod http://localhost:4000/api/v1/health
+**Terminal 1 — infrastructure:**
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS"
+docker compose up -d postgres redis
 ```
 
-Start the frontend in a separate terminal:
+**Terminal 2 — backend (hot-reload):**
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\backend"
+pnpm dev
+```
+
+**Terminal 3 — frontend:**
 
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS\frontend"
 pnpm dev
 ```
 
+Verify:
+
+```powershell
+Invoke-RestMethod http://localhost:4000/api/v1/health
+```
+
 Open: `http://localhost:3000`
+
+### Why not `docker compose up -d api worker`?
+
+Running the API in Docker requires a `pnpm build` + container restart for every
+backend change. Running directly with `tsx watch` gives instant reload on save.
+The `docker-compose.override.yml` still mounts `./backend/dist` for cases where
+you need to run the API in Docker (e.g. testing Docker-specific behaviour) — but
+for day-to-day development, the direct approach is faster.
+
+### backend/.env — local vs Docker hostnames
+
+When running the backend directly, `backend/.env` must use `localhost` URLs:
+
+```dotenv
+DATABASE_URL=postgresql://wendo_user:PASSWORD@localhost:5433/wendo_rms
+REDIS_URL=redis://localhost:6379
+```
+
+The production server's `backend/.env` uses Docker service names (`postgres`,
+`wendo-redis`) — those are correct on the server and must not be changed.
+Your local `backend/.env` is gitignored, so changes here never affect production.
 
 ---
 
@@ -260,6 +295,24 @@ docker compose exec api node dist/scripts/seed-dev.js
 ---
 
 ## 7. Common Errors
+
+### `ENOTFOUND wendo-redis` or `ECONNREFUSED 127.0.0.1:6379`
+
+Your `backend/.env` has Docker-internal hostnames. When running the backend
+directly (not in Docker), update `backend/.env`:
+
+```dotenv
+DATABASE_URL=postgresql://wendo_user:PASSWORD@localhost:5433/wendo_rms
+REDIS_URL=redis://localhost:6379
+```
+
+Also ensure Redis is exposed to the host — `docker-compose.override.yml` should
+have a `redis: ports: ["6379:6379"]` entry. Recreate the Redis container if you
+just added that:
+
+```powershell
+docker compose up -d redis
+```
 
 ### `No active organization found` (seed-dev)
 

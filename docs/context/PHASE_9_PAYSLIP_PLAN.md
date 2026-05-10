@@ -1,5 +1,9 @@
 # Phase 9 — Payslip Visibility Module — Plan
 
+> **SUPERSEDED** — This plan was replaced after client review. The active implementation plan is `docs/context/PHASE_9_PAYSLIP_REDESIGN.md`.
+
+
+
 **Status:** Complete  
 **Date:** 2026-05-04  
 **Author:** System Architect

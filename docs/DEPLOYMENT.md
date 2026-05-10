@@ -856,29 +856,51 @@ Use this when running the project fully on `localhost`.
 
 1. Docker Desktop is running.
 2. `pnpm` is installed.
-3. `backend/.env` exists and is valid dotenv format (`KEY=value` only; no multiline private keys).
+3. `backend/.env` exists with `localhost` URLs (see below) and is valid dotenv format.
 4. Root `.env` exists with `POSTGRES_PASSWORD=...` for Docker Compose interpolation.
 
-### Local Startup (Backend + Infra via Docker)
+### backend/.env — Local Hostnames
+
+When running the backend directly on your machine (not in Docker), these two
+values must point to `localhost`, not Docker service names:
+
+```dotenv
+DATABASE_URL=postgresql://wendo_user:PASSWORD@localhost:5433/wendo_rms
+REDIS_URL=redis://localhost:6379
+```
+
+The production server's `backend/.env` uses `postgres` and `wendo-redis` — correct
+there, wrong here. Your local file is gitignored so changes never reach production.
+
+### Local Startup
+
+Docker runs only infrastructure. The API runs directly for instant hot-reload.
+
+**Terminal 1 — infrastructure only:**
 
 ```powershell
 Set-Location "d:\AI applications\web\V3-RMS"
-docker compose up -d postgres redis api worker
+docker compose up -d postgres redis
+```
+
+**Terminal 2 — backend (hot-reloads on every file save):**
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\backend"
+pnpm dev
+```
+
+**Terminal 3 — frontend:**
+
+```powershell
+Set-Location "d:\AI applications\web\V3-RMS\frontend"
+pnpm dev
 ```
 
 Health check:
 
 ```powershell
 Invoke-RestMethod http://localhost:4000/api/v1/health
-```
-
-### Local Frontend Startup
-
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS\frontend"
-Copy-Item .env.example .env -Force
-pnpm install
-pnpm dev
 ```
 
 Open:
@@ -993,10 +1015,14 @@ Remove-Item .\prod_snapshot.sql
 POSTGRES_PASSWORD=your_password
 ```
 
-2. `failed to read backend/.env ... unexpected character "/" in variable name`
+2. `ENOTFOUND wendo-redis` or `ECONNREFUSED 127.0.0.1:6379`
+- Cause: `backend/.env` has Docker-internal hostnames (`postgres`, `wendo-redis`) but the backend is running directly on your machine.
+- Fix: update `backend/.env` to use `localhost:5433` for Postgres and `localhost:6379` for Redis. Also ensure `docker-compose.override.yml` exposes Redis on port 6379.
+
+3. `failed to read backend/.env ... unexpected character "/" in variable name`
 - Cause: invalid/multiline content in `.env` (commonly pasted SSH private keys).
 - Fix: keep `.env` entries as single-line `KEY=value` only. Remove SSH keys and other non-env blocks from `backend/.env`.
 
-3. `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+4. `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
 - Cause: Docker Desktop daemon is not running.
 - Fix: start Docker Desktop, wait for it to initialize, then rerun `docker compose up -d ...`.

@@ -69,7 +69,7 @@ export function DirectorSidebarNav({ collapsed }: DirectorSidebarNavProps): JSX.
           { label: 'Incident Log', href: '/app/director/incidents', icon: ShieldAlert },
           { label: 'Discounts', href: '/app/admin/discounts', icon: Percent },
           { label: 'Branch Settings', href: '/app/director/settings', icon: Settings2 },
-          { label: 'Payslips', href: '/app/hr/payslips', icon: FileText },
+          { label: 'Payroll', href: '/app/hr/payroll', icon: FileText },
         ],
       },
       {

@@ -38,6 +38,14 @@ router.get(
   hrController.listProfiles,
 );
 
+// Self-service: staff update their own bank/KRA details — must be before /:userId
+router.patch(
+  '/hr/profiles/my/payment-details',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.updateMyPaymentDetails,
+);
+
 // Self-access OR management — access control handled in service
 router.get(
   '/hr/profiles/:userId',

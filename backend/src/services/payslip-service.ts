@@ -3,36 +3,28 @@ import { Prisma, UserRole } from '@prisma/client';
 import { branchRepository } from '../repositories/branch-repository';
 import {
   payslipRepository,
-  type CreatePayslipRepositoryInput,
   type PayslipLineItemStored,
   type PayslipWithRelations,
 } from '../repositories/payslip-repository';
 import type {
-  CreatePayslipInput,
+  BulkUpsertInput,
+  BulkUpsertRowInput,
   PayslipBranchQuery,
   PayslipLineItemInput,
   PayslipListQuery,
   PayslipMineQuery,
-  UpdatePayslipInput,
+  PublishInput,
+  RevertInput,
 } from '../validators/payslip-schemas';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
-import { mapPrismaError } from '../utils/prisma-errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 
 export type PayslipActor = NonNullable<Request['user']>;
 
-const CROSS_BRANCH_READ_ROLES = new Set<UserRole>(['SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER', 'ACCOUNTANT']);
+const CROSS_BRANCH_READ_ROLES = new Set<UserRole>(['SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER']);
 const MUTATION_ROLES = new Set<UserRole>(['SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER']);
+const PUBLISH_ROLES = new Set<UserRole>(['DIRECTOR', 'HR_MANAGER']);
 const HUMAN_ROLES = new Set<UserRole>([
   'SYSTEM_ADMIN',
-  'DIRECTOR',
-  'HR_MANAGER',
-  'MANAGER',
-  'ACCOUNTANT',
-  'WAITER',
-  'CHEF',
-  'BARISTA',
-]);
-const PAYSLIP_ELIGIBLE_ROLES = new Set<UserRole>([
   'DIRECTOR',
   'HR_MANAGER',
   'MANAGER',
@@ -52,22 +44,6 @@ const normalizeLineItems = (items?: PayslipLineItemInput[]): PayslipLineItemStor
   }));
 };
 
-const parseStoredLineItems = (value: unknown): PayslipLineItemStored[] | null => {
-  if (!Array.isArray(value)) return null;
-  const parsed = value
-    .map((item) => {
-      if (!item || typeof item !== 'object') return null;
-      const candidate = item as { label?: unknown; amount?: unknown };
-      if (typeof candidate.label !== 'string' || typeof candidate.amount !== 'string') return null;
-      return {
-        label: candidate.label,
-        amount: candidate.amount,
-      };
-    })
-    .filter((item): item is PayslipLineItemStored => item !== null);
-  return parsed.length > 0 ? parsed : null;
-};
-
 const sumLineItems = (items: PayslipLineItemStored[] | null): Prisma.Decimal => {
   if (!items) return ZERO;
   return items.reduce(
@@ -76,35 +52,24 @@ const sumLineItems = (items: PayslipLineItemStored[] | null): Prisma.Decimal => 
   );
 };
 
-const toOptionalDecimal = (value?: string | null): Prisma.Decimal | null => {
-  if (value === undefined || value === null) return null;
-  return new Prisma.Decimal(value);
-};
+const computeTotals = (row: BulkUpsertRowInput): { totalDeductions: Prisma.Decimal; netPay: Prisma.Decimal } => {
+  const grossPay = new Prisma.Decimal(row.grossPay);
 
-const calculateTotals = (input: {
-  basicSalary: Prisma.Decimal;
-  houseAllowance: Prisma.Decimal | null;
-  transportAllowance: Prisma.Decimal | null;
-  otherAllowances: PayslipLineItemStored[] | null;
-  paye: Prisma.Decimal;
-  nssf: Prisma.Decimal;
-  housingLevy: Prisma.Decimal;
-  helb: Prisma.Decimal | null;
-  otherDeductions: PayslipLineItemStored[] | null;
-}): Pick<CreatePayslipRepositoryInput, 'grossPay' | 'totalDeductions' | 'netPay'> => {
-  const grossPay = input.basicSalary
-    .add(input.houseAllowance ?? ZERO)
-    .add(input.transportAllowance ?? ZERO)
-    .add(sumLineItems(input.otherAllowances));
+  const otherDeductionItems = row.otherDeductions
+    ? normalizeLineItems(row.otherDeductions)
+    : null;
 
-  const totalDeductions = input.paye
-    .add(input.nssf)
-    .add(input.housingLevy)
-    .add(input.helb ?? ZERO)
-    .add(sumLineItems(input.otherDeductions));
+  const totalDeductions = new Prisma.Decimal(row.paye)
+    .add(new Prisma.Decimal(row.sha))
+    .add(new Prisma.Decimal(row.nssfTier1))
+    .add(new Prisma.Decimal(row.nssfTier2))
+    .add(new Prisma.Decimal(row.housingLevy))
+    .add(row.helb ? new Prisma.Decimal(row.helb) : ZERO)
+    .add(row.advance ? new Prisma.Decimal(row.advance) : ZERO)
+    .add(sumLineItems(otherDeductionItems));
+  // overtime and incentives are earnings additions — NOT included in totalDeductions
 
   return {
-    grossPay,
     totalDeductions,
     netPay: grossPay.sub(totalDeductions),
   };
@@ -122,8 +87,7 @@ const getAccessibleOrganizationIds = async (
 ): Promise<string[]> => {
   if (CROSS_BRANCH_READ_ROLES.has(actor.role)) {
     if (requestedOrganizationId) return [requestedOrganizationId];
-    const activeIds = await branchRepository.findActiveIds();
-    return activeIds;
+    return branchRepository.findActiveIds();
   }
 
   if (!actor.organizationId) {
@@ -164,72 +128,49 @@ const assertCanMutate = (actor: PayslipActor): void => {
   }
 };
 
-const resolveTargetUser = async (userId: string) => {
-  const targetUser = await payslipRepository.findTargetUserById(userId);
-  if (!targetUser || !targetUser.isActive) {
-    throw new NotFoundError('Target staff member not found or inactive');
+const assertCanPublish = (actor: PayslipActor): void => {
+  if (!PUBLISH_ROLES.has(actor.role)) {
+    throw new ForbiddenError('Only HR Managers and Directors can publish or revert payroll periods');
   }
-  if (!targetUser.organizationId) {
-    throw new ValidationError('Target staff member must belong to a branch');
-  }
-  if (!PAYSLIP_ELIGIBLE_ROLES.has(targetUser.role)) {
-    throw new ValidationError('Payslips can only be created for branch staff and management users');
-  }
-  return targetUser;
-};
-
-const buildCreatePayload = async (
-  actor: PayslipActor,
-  input: CreatePayslipInput,
-): Promise<CreatePayslipRepositoryInput> => {
-  const targetUser = await resolveTargetUser(input.userId);
-  const organizationId = targetUser.organizationId;
-  if (!organizationId) {
-    throw new ValidationError('Target staff member must belong to a branch');
-  }
-
-  const payloadBase = {
-    organizationId,
-    userId: targetUser.id,
-    payPeriod: input.payPeriod,
-    payDate: new Date(`${input.payDate}T00:00:00.000Z`),
-    basicSalary: new Prisma.Decimal(input.basicSalary),
-    houseAllowance: toOptionalDecimal(input.houseAllowance),
-    transportAllowance: toOptionalDecimal(input.transportAllowance),
-    otherAllowances: normalizeLineItems(input.otherAllowances),
-    paye: new Prisma.Decimal(input.paye),
-    nssf: new Prisma.Decimal(input.nssf),
-    housingLevy: new Prisma.Decimal(input.housingLevy),
-    helb: toOptionalDecimal(input.helb),
-    otherDeductions: normalizeLineItems(input.otherDeductions),
-  };
-
-  return {
-    ...payloadBase,
-    ...calculateTotals(payloadBase),
-    createdById: actor.id,
-  };
 };
 
 export const payslipService = {
-  create: async (actor: PayslipActor, input: CreatePayslipInput): Promise<PayslipWithRelations> => {
+  bulkUpsert: async (
+    actor: PayslipActor,
+    input: BulkUpsertInput,
+  ): Promise<{ saved: PayslipWithRelations[]; skipped: string[] }> => {
     ensureHumanActor(actor);
     assertCanMutate(actor);
-    const payload = await buildCreatePayload(actor, input);
 
-    try {
-      return await payslipRepository.create(payload);
-    } catch (error) {
-      return mapPrismaError(error, {
-        conflict: 'A payslip already exists for this staff member and pay period',
-      });
-    }
+    const computedRows = input.rows.map(computeTotals);
+
+    return payslipRepository.bulkUpsert(
+      input.rows,
+      input.organizationId,
+      input.payPeriod,
+      actor.id,
+      computedRows,
+    );
+  },
+
+  publish: async (actor: PayslipActor, input: PublishInput): Promise<{ count: number }> => {
+    ensureHumanActor(actor);
+    assertCanPublish(actor);
+    const count = await payslipRepository.publishPeriod(input.organizationId, input.payPeriod);
+    return { count };
+  },
+
+  revert: async (actor: PayslipActor, input: RevertInput): Promise<{ count: number }> => {
+    ensureHumanActor(actor);
+    assertCanPublish(actor);
+    const count = await payslipRepository.revertPeriod(input.organizationId, input.payPeriod);
+    return { count };
   },
 
   list: async (actor: PayslipActor, query: PayslipListQuery) => {
     ensureHumanActor(actor);
     if (!CROSS_BRANCH_READ_ROLES.has(actor.role)) {
-      throw new ForbiddenError('Only Directors, HR Managers, Accountants, and System Admins can list all payslips');
+      throw new ForbiddenError('Only Directors, HR Managers, and System Admins can list all payslips');
     }
 
     const organizationIds = await getAccessibleOrganizationIds(actor, query.organizationId);
@@ -237,7 +178,7 @@ export const payslipService = {
       organizationIds,
       payPeriod: query.payPeriod,
       userId: query.userId,
-      isLocked: query.status === 'LOCKED' ? true : query.status === 'DRAFT' ? false : undefined,
+      isLocked: query.status === 'PUBLISHED' ? true : query.status === 'DRAFT' ? false : undefined,
       page: query.page,
       perPage: query.perPage,
     });
@@ -267,7 +208,7 @@ export const payslipService = {
     const result = await payslipRepository.listByBranch(branchId, organizationIds, {
       payPeriod: query.payPeriod,
       userId: query.userId,
-      isLocked: query.status === 'LOCKED' ? true : query.status === 'DRAFT' ? false : undefined,
+      isLocked: query.status === 'PUBLISHED' ? true : query.status === 'DRAFT' ? false : undefined,
       page: query.page,
       perPage: query.perPage,
     });
@@ -297,85 +238,5 @@ export const payslipService = {
     }
 
     return payslip;
-  },
-
-  update: async (actor: PayslipActor, id: string, input: UpdatePayslipInput): Promise<PayslipWithRelations> => {
-    ensureHumanActor(actor);
-    assertCanMutate(actor);
-
-    const organizationIds = await getAccessibleOrganizationIds(actor);
-    const existing = await payslipRepository.findById(id, organizationIds);
-
-    if (!existing) {
-      throw new NotFoundError('Payslip not found');
-    }
-    if (existing.isLocked) {
-      throw new ConflictError('Locked payslips cannot be edited');
-    }
-
-    let targetUser = null;
-    if (input.userId) {
-      targetUser = await resolveTargetUser(input.userId);
-    }
-
-    const nextPayloadBase = {
-      organizationId: targetUser?.organizationId ?? existing.organizationId,
-      userId: targetUser?.id ?? existing.userId,
-      payPeriod: input.payPeriod ?? existing.payPeriod,
-      payDate: input.payDate ? new Date(`${input.payDate}T00:00:00.000Z`) : existing.payDate,
-      basicSalary: input.basicSalary ? new Prisma.Decimal(input.basicSalary) : existing.basicSalary,
-      houseAllowance: input.houseAllowance !== undefined ? toOptionalDecimal(input.houseAllowance) : existing.houseAllowance,
-      transportAllowance: input.transportAllowance !== undefined
-        ? toOptionalDecimal(input.transportAllowance)
-        : existing.transportAllowance,
-      otherAllowances: input.otherAllowances !== undefined
-        ? normalizeLineItems(input.otherAllowances)
-        : parseStoredLineItems(existing.otherAllowances),
-      paye: input.paye ? new Prisma.Decimal(input.paye) : existing.paye,
-      nssf: input.nssf ? new Prisma.Decimal(input.nssf) : existing.nssf,
-      housingLevy: input.housingLevy ? new Prisma.Decimal(input.housingLevy) : existing.housingLevy,
-      helb: input.helb !== undefined ? toOptionalDecimal(input.helb) : existing.helb,
-      otherDeductions: input.otherDeductions !== undefined
-        ? normalizeLineItems(input.otherDeductions)
-        : parseStoredLineItems(existing.otherDeductions),
-    };
-
-    const payload = {
-      ...nextPayloadBase,
-      ...calculateTotals(nextPayloadBase),
-    };
-
-    try {
-      const updated = await payslipRepository.update(id, existing.organizationId, payload);
-      if (!updated) {
-        throw new NotFoundError('Payslip not found');
-      }
-      return updated;
-    } catch (error) {
-      return mapPrismaError(error, {
-        conflict: 'A payslip already exists for this staff member and pay period',
-      });
-    }
-  },
-
-  lock: async (actor: PayslipActor, id: string): Promise<PayslipWithRelations> => {
-    ensureHumanActor(actor);
-    assertCanMutate(actor);
-
-    const organizationIds = await getAccessibleOrganizationIds(actor);
-    const existing = await payslipRepository.findById(id, organizationIds);
-
-    if (!existing) {
-      throw new NotFoundError('Payslip not found');
-    }
-    if (existing.isLocked) {
-      throw new ConflictError('Payslip is already locked');
-    }
-
-    const locked = await payslipRepository.lock(id, existing.organizationId);
-    if (!locked) {
-      throw new ConflictError('Payslip could not be locked. Please refresh and try again.');
-    }
-    return locked;
   },
 };

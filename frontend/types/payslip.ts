@@ -10,15 +10,22 @@ export interface PayslipOrganizationSummary {
   name: string;
 }
 
+export interface PayslipEmployeeProfile {
+  jobTitle: string | null;
+  kraPIN: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+  bankBranch: string | null;
+}
+
 export interface PayslipUserSummary {
   id: string;
   name: string;
   email: string;
   role: AppRole;
   organizationId: string | null;
-  employeeProfile?: {
-    jobTitle: string | null;
-  } | null;
+  employeeProfile?: PayslipEmployeeProfile | null;
 }
 
 export interface PayslipCreatorSummary {
@@ -33,16 +40,17 @@ export interface Payslip {
   userId: string;
   payPeriod: string;
   payDate: string;
-  basicSalary: string;
-  houseAllowance: string | null;
-  transportAllowance: string | null;
-  otherAllowances: PayslipLineItem[] | null;
+  grossPay: string;
   paye: string;
-  nssf: string;
+  sha: string;
+  nssfTier1: string;
+  nssfTier2: string;
   housingLevy: string;
   helb: string | null;
+  advance: string | null;
+  incentives: string | null;
+  overtime: string | null;
   otherDeductions: PayslipLineItem[] | null;
-  grossPay: string;
   totalDeductions: string;
   netPay: string;
   isLocked: boolean;
@@ -74,19 +82,34 @@ export interface PayslipListFilters {
   perPage?: number;
 }
 
-export interface PayslipCreateInput {
+export interface BulkUpsertRow {
   userId: string;
-  payPeriod: string;
   payDate: string;
-  basicSalary: string;
-  houseAllowance?: string | null;
-  transportAllowance?: string | null;
-  otherAllowances?: PayslipLineItem[];
+  grossPay: string;
   paye: string;
-  nssf: string;
+  sha: string;
+  nssfTier1: string;
+  nssfTier2: string;
   housingLevy: string;
   helb?: string | null;
+  advance?: string | null;
+  incentives?: string | null;
+  overtime?: string | null;
   otherDeductions?: PayslipLineItem[];
 }
 
-export interface PayslipUpdateInput extends PayslipCreateInput {}
+export interface BulkUpsertInput {
+  payPeriod: string;
+  organizationId: string;
+  rows: BulkUpsertRow[];
+}
+
+export interface BulkUpsertResult {
+  saved: Payslip[];
+  skipped: string[];
+}
+
+export interface PublishRevertInput {
+  payPeriod: string;
+  organizationId: string;
+}

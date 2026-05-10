@@ -2,13 +2,14 @@ import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { payslipService } from '../services/payslip-service';
 import {
-  createPayslipSchema,
+  bulkUpsertSchema,
   payslipBranchIdParamSchema,
   payslipBranchQuerySchema,
   payslipIdParamSchema,
   payslipListQuerySchema,
   payslipMineQuerySchema,
-  updatePayslipSchema,
+  publishSchema,
+  revertSchema,
 } from '../validators/payslip-schemas';
 
 const requireActor = (req: Request) => {
@@ -19,15 +20,39 @@ const requireActor = (req: Request) => {
 };
 
 export const payslipController = {
-  create: async (req: Request, res: Response): Promise<void> => {
+  bulkUpsert: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const input = createPayslipSchema.parse(req.body);
-    const payslip = await payslipService.create(actor, input);
+    const input = bulkUpsertSchema.parse(req.body);
+    const result = await payslipService.bulkUpsert(actor, input);
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
-      data: { payslip },
-      message: 'Payslip created successfully',
+      data: result,
+      message: `Saved ${result.saved.length} payslip(s). Skipped ${result.skipped.length} locked row(s).`,
+    });
+  },
+
+  publish: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const input = publishSchema.parse(req.body);
+    const result = await payslipService.publish(actor, input);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: `Published payroll for ${input.payPeriod}. ${result.count} payslip(s) finalised.`,
+    });
+  },
+
+  revert: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const input = revertSchema.parse(req.body);
+    const result = await payslipService.revert(actor, input);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: `Reverted ${input.payPeriod} to draft. ${result.count} payslip(s) unlocked.`,
     });
   },
 
@@ -91,31 +116,6 @@ export const payslipController = {
     res.status(200).json({
       success: true,
       data: { payslip },
-    });
-  },
-
-  update: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = payslipIdParamSchema.parse(req.params);
-    const input = updatePayslipSchema.parse(req.body);
-    const payslip = await payslipService.update(actor, id, input);
-
-    res.status(200).json({
-      success: true,
-      data: { payslip },
-      message: 'Payslip updated successfully',
-    });
-  },
-
-  lock: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = payslipIdParamSchema.parse(req.params);
-    const payslip = await payslipService.lock(actor, id);
-
-    res.status(200).json({
-      success: true,
-      data: { payslip },
-      message: 'Payslip locked successfully',
     });
   },
 };

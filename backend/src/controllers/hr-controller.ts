@@ -5,6 +5,7 @@ import { uploadImageBuffer } from '../utils/cloudinary';
 import {
   createEmployeeProfileSchema,
   updateEmployeeProfileSchema,
+  updatePaymentDetailsSchema,
   updateLeaveBalanceSchema,
   createLeaveRequestSchema,
   reviewLeaveRequestSchema,
@@ -91,6 +92,28 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     jobTitle: body.jobTitle,
     reportingManagerId: body.reportingManagerId === null ? null : body.reportingManagerId,
     notes: body.notes,
+  });
+
+  res.json({ success: true, data: { profile } });
+}
+
+export async function updateMyPaymentDetails(req: Request, res: Response): Promise<void> {
+  const body = updatePaymentDetailsSchema.parse(req.body);
+  const actorId = req.user!.id;
+
+  const existing = await hrRepository.findProfileByUserId(actorId);
+  if (!existing) {
+    res.status(404).json({ success: false, error: 'Employee profile not found. Contact HR to create your profile first.' });
+    return;
+  }
+
+  const profile = await hrRepository.updateProfile(existing.id, {
+    kraPIN: body.kraPIN,
+    bankName: body.bankName,
+    accountNumber: body.accountNumber,
+    accountName: body.accountName,
+    bankBranch: body.bankBranch,
+    helbNumber: body.helbNumber,
   });
 
   res.json({ success: true, data: { profile } });

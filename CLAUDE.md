@@ -103,8 +103,8 @@ types/ — shared TypeScript types
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
 Phase: 9 (Payslip Visibility Module)
-Status: Planning — not yet started
-Plan file: docs/context/PHASE_9_PAYSLIP_PLAN.md
+Status: In Progress
+Plan file: docs/context/PHASE_9_PAYSLIP_REDESIGN.md
 
 Previous phases (all complete):
 - Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md

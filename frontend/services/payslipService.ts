@@ -1,10 +1,11 @@
 import { apiClient } from '@/lib/apiClient';
 import type {
+  BulkUpsertInput,
+  BulkUpsertResult,
   Payslip,
-  PayslipCreateInput,
   PayslipListFilters,
   PayslipListResult,
-  PayslipUpdateInput,
+  PublishRevertInput,
 } from '@/types/payslip';
 
 const toQueryString = (filters?: PayslipListFilters): string => {
@@ -12,7 +13,7 @@ const toQueryString = (filters?: PayslipListFilters): string => {
 
   if (filters?.payPeriod) params.set('payPeriod', filters.payPeriod);
   if (filters?.userId) params.set('userId', filters.userId);
-  if (filters?.isLocked !== undefined) params.set('status', filters.isLocked ? 'LOCKED' : 'DRAFT');
+  if (filters?.isLocked !== undefined) params.set('status', filters.isLocked ? 'PUBLISHED' : 'DRAFT');
   if (filters?.page) params.set('page', String(filters.page));
   if (filters?.perPage) params.set('perPage', String(filters.perPage));
 
@@ -52,21 +53,32 @@ export const payslipService = {
     filters?: Omit<PayslipListFilters, 'isLocked'>,
   ): Promise<PayslipListResult> => toListResult(`/payslips/branch/${branchId}${toQueryString(filters)}`, accessToken),
 
-  listAccountantPayslips: (accessToken: string, filters?: PayslipListFilters): Promise<PayslipListResult> =>
-    toListResult(`/payslips${toQueryString(filters)}`, accessToken),
-
-  createPayslip: async (input: PayslipCreateInput, accessToken: string): Promise<Payslip> => {
-    const response = await apiClient.post<{ payslip: Payslip }>('/payslips', input, accessToken);
-    return response.payslip;
+  bulkUpsert: async (input: BulkUpsertInput, accessToken: string): Promise<BulkUpsertResult> => {
+    const response = await apiClient.post<BulkUpsertResult>('/payslips/bulk-upsert', input, accessToken);
+    return response;
   },
 
-  updatePayslip: async (id: string, input: PayslipUpdateInput, accessToken: string): Promise<Payslip> => {
-    const response = await apiClient.patch<{ payslip: Payslip }>(`/payslips/${id}`, input, accessToken);
-    return response.payslip;
+  publishPeriod: async (input: PublishRevertInput, accessToken: string): Promise<{ count: number }> => {
+    const response = await apiClient.post<{ count: number }>('/payslips/publish', input, accessToken);
+    return response;
   },
 
-  lockPayslip: async (id: string, accessToken: string): Promise<Payslip> => {
-    const response = await apiClient.post<{ payslip: Payslip }>(`/payslips/${id}/lock`, {}, accessToken);
-    return response.payslip;
+  revertPeriod: async (input: PublishRevertInput, accessToken: string): Promise<{ count: number }> => {
+    const response = await apiClient.post<{ count: number }>('/payslips/revert', input, accessToken);
+    return response;
+  },
+
+  updateMyPaymentDetails: async (
+    data: {
+      kraPIN?: string | null;
+      bankName?: string | null;
+      accountNumber?: string | null;
+      accountName?: string | null;
+      bankBranch?: string | null;
+      helbNumber?: string | null;
+    },
+    accessToken: string,
+  ): Promise<void> => {
+    await apiClient.patch('/hr/profiles/my/payment-details', data, accessToken);
   },
 };

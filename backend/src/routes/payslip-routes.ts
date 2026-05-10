@@ -16,21 +16,35 @@ const ALL_HUMAN_ROLES = [
   'BARISTA',
 ] as const;
 
+// Must register literal sub-paths before /:id to avoid Express collisions.
 payslipRoutes.post(
-  '/payslips',
+  '/payslips/bulk-upsert',
   authenticate,
   requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER'),
-  payslipController.create,
+  payslipController.bulkUpsert,
+);
+
+payslipRoutes.post(
+  '/payslips/publish',
+  authenticate,
+  requireRole('DIRECTOR', 'HR_MANAGER'),
+  payslipController.publish,
+);
+
+payslipRoutes.post(
+  '/payslips/revert',
+  authenticate,
+  requireRole('DIRECTOR', 'HR_MANAGER'),
+  payslipController.revert,
 );
 
 payslipRoutes.get(
   '/payslips',
   authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER', 'ACCOUNTANT'),
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER', 'MANAGER'),
   payslipController.list,
 );
 
-// Must register literal sub-paths before /:id to avoid Express collisions.
 payslipRoutes.get(
   '/payslips/my',
   authenticate,
@@ -50,20 +64,6 @@ payslipRoutes.get(
   authenticate,
   requireRole(...ALL_HUMAN_ROLES),
   payslipController.getById,
-);
-
-payslipRoutes.patch(
-  '/payslips/:id',
-  authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER'),
-  payslipController.update,
-);
-
-payslipRoutes.post(
-  '/payslips/:id/lock',
-  authenticate,
-  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'HR_MANAGER'),
-  payslipController.lock,
 );
 
 export default payslipRoutes;

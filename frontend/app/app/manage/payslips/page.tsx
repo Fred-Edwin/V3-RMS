@@ -48,8 +48,8 @@ export default function ManagerPayslipsPage(): JSX.Element {
   return (
     <PageLayout className="animate-fade-up space-y-6">
       <PageHeader
-        title="Branch Payslips"
-        subtitle="Read-only branch payroll visibility for period checks, staff support, and print-ready review."
+        title="Payslip Records"
+        subtitle="Read-only branch payroll records for period checks, staff support, and print-ready review."
         titleClassName="font-display text-display-lg font-semibold text-espresso"
       />
 
@@ -61,7 +61,7 @@ export default function ManagerPayslipsPage(): JSX.Element {
 
       <section className="rounded-[24px] border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4">
-          <h2 className="font-display text-heading-lg font-semibold text-espresso">Branch ledger</h2>
+          <h2 className="font-display text-heading-lg font-semibold text-espresso">Payslip records</h2>
           <p className="mt-1 text-body-sm text-stone-500">No editing controls here. This view is for review, clarification, and print support only.</p>
         </div>
 

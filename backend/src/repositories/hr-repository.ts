@@ -44,6 +44,12 @@ export interface UpdateEmployeeProfileData {
   jobTitle?: string;
   reportingManagerId?: string | null;
   notes?: string;
+  kraPIN?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  bankBranch?: string | null;
+  helbNumber?: string | null;
 }
 
 export interface CreateLeaveRequestData {

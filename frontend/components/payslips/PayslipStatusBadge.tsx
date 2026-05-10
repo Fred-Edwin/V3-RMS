@@ -14,7 +14,7 @@ export function PayslipStatusBadge({ isLocked, className }: PayslipStatusBadgePr
         className,
       )}
     >
-      {isLocked ? 'Locked' : 'Draft'}
+      {isLocked ? 'Published' : 'Draft'}
     </span>
   );
 }
