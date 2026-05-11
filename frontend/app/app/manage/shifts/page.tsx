@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Copy, Expand, Minimize2, Search, ShieldAlert, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Calendar, ChevronLeft, ChevronRight, Copy, Expand, Minimize2, Search, ShieldAlert, Trash2, X } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -147,6 +147,8 @@ export default function ShiftManagementPage(): JSX.Element {
   const [scheduleSearch, setScheduleSearch] = useState('');
   const [scheduleRole, setScheduleRole] = useState<ShiftRole | ''>('');
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [multiSelectedCells, setMultiSelectedCells] = useState<Set<string>>(new Set());
+  const [isSelectingCells, setIsSelectingCells] = useState(false);
   const [draftCells, setDraftCells] = useState<Map<string, DraftValue>>(new Map());
   const [cellErrors, setCellErrors] = useState<Map<string, string>>(new Map());
   const [isExpanded, setIsExpanded] = useState(false);
@@ -172,12 +174,17 @@ export default function ShiftManagementPage(): JSX.Element {
     return { isOpen: false, sourceWeekStart: prevWeek, targetWeekStart: thisWeek };
   });
   const [isCopyingWeek, setIsCopyingWeek] = useState(false);
+  const [autoSaveSequence, setAutoSaveSequence] = useState(0);
+  const saveInFlightRef = useRef(false);
+  const pendingAutoSaveRef = useRef(false);
+  const shiftKeyPressedRef = useRef(false);
 
   const todayDateKey = useMemo(() => getTodayYmdInTimeZone(), []);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
   const viewStartDate = dateToYmd(weekStart);
   const viewEndDate = dateToYmd(addDays(weekStart, 6));
   const dirtyCount = draftCells.size;
+  const selectedCellCount = multiSelectedCells.size;
 
   const assignmentsBySlot = useMemo(() => {
     const map = new Map<string, ShiftAssignment[]>();
@@ -249,6 +256,7 @@ export default function ShiftManagementPage(): JSX.Element {
       setDraftCells(new Map());
       setCellErrors(new Map());
       setSelectedCell(null);
+      setMultiSelectedCells(new Set());
       return;
     }
     try {
@@ -262,6 +270,7 @@ export default function ShiftManagementPage(): JSX.Element {
       setDraftCells(new Map());
       setCellErrors(new Map());
       setSelectedCell(null);
+      setMultiSelectedCells(new Set());
     } catch (error) {
       toast({ variant: 'error', title: 'Load failed', message: error instanceof ApiError ? error.message : 'Failed to load shift assignments.' });
     }
@@ -288,6 +297,23 @@ export default function ShiftManagementPage(): JSX.Element {
 
   useEffect(() => { void loadCoreData(); }, [loadCoreData]);
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
+
+  useEffect(() => {
+    const handleMouseUp = (): void => setIsSelectingCells(false);
+    const handleKeyUp = (event: KeyboardEvent): void => {
+      if (event.key === 'Shift') {
+        shiftKeyPressedRef.current = false;
+        setIsSelectingCells(false);
+      }
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const openCreateShiftModal = () => {
     setEditingShift(null);
@@ -346,6 +372,38 @@ export default function ShiftManagementPage(): JSX.Element {
 
   const getCellKey = (userId: string, date: string): string => `${userId}|${date}`;
 
+  const toggleCellSelection = (cellKey: string): void => {
+    setSelectedCell(cellKey);
+    setMultiSelectedCells((current) => {
+      const next = new Set(current);
+      if (next.has(cellKey)) next.delete(cellKey);
+      else next.add(cellKey);
+      return next;
+    });
+  };
+
+  const addCellSelection = (cellKey: string): void => {
+    setSelectedCell(cellKey);
+    setMultiSelectedCells((current) => {
+      if (current.has(cellKey)) return current;
+      const next = new Set(current);
+      next.add(cellKey);
+      return next;
+    });
+  };
+
+  const clearSelectedShiftCells = (): void => {
+    if (multiSelectedCells.size === 0) return;
+
+    for (const cellKey of Array.from(multiSelectedCells)) {
+      const [userId = '', date = ''] = cellKey.split('|');
+      if (userId && date) updateDraftCell(userId, date, OFF_VALUE);
+    }
+
+    setMultiSelectedCells(new Set());
+    setIsSelectingCells(false);
+  };
+
   const getCellDraftOrCurrent = useCallback((userId: string, date: string): DraftValue | undefined => {
     const key = getCellKey(userId, date);
     if (draftCells.has(key)) return draftCells.get(key) ?? null;
@@ -373,11 +431,17 @@ export default function ShiftManagementPage(): JSX.Element {
     });
   };
 
-  const handleSaveSchedule = async (): Promise<void> => {
+  const handleSaveSchedule = useCallback(async (options: { silent?: boolean } = {}): Promise<void> => {
     if (!accessToken || draftCells.size === 0 || !hasBranchScope) return;
+    if (saveInFlightRef.current) {
+      pendingAutoSaveRef.current = true;
+      return;
+    }
+    const draftSnapshot = new Map(draftCells);
+    saveInFlightRef.current = true;
     setIsSavingSchedule(true);
     try {
-      const changes = Array.from(draftCells.entries()).map(([key, shiftId]) => {
+      const changes = Array.from(draftSnapshot.entries()).map(([key, shiftId]) => {
         const [userId = '', date = ''] = key.split('|');
         return { userId, date, shiftId };
       });
@@ -388,25 +452,52 @@ export default function ShiftManagementPage(): JSX.Element {
         for (const error of result.errors) nextErrors.set(getCellKey(error.userId, error.date), error.reason);
         setCellErrors(nextErrors);
         setDraftCells((current) => {
-          const next = new Map<string, DraftValue>();
+          const next = new Map(current);
+          for (const key of Array.from(draftSnapshot.keys())) {
+            next.delete(key);
+          }
           for (const error of result.errors) {
             const key = getCellKey(error.userId, error.date);
             if (current.has(key)) next.set(key, current.get(key) ?? null);
+            else if (draftSnapshot.has(key)) next.set(key, draftSnapshot.get(key) ?? null);
           }
           return next;
         });
         toast({ variant: 'warning', title: 'Some cells need attention', message: `${result.saved} saved, ${result.skipped} skipped.` });
       } else {
-        setDraftCells(new Map());
+        setDraftCells((current) => {
+          const next = new Map(current);
+          for (const [key, value] of Array.from(draftSnapshot.entries())) {
+            if (next.get(key) === value) next.delete(key);
+          }
+          return next;
+        });
         setCellErrors(new Map());
-        toast({ variant: 'success', title: 'Schedule saved', message: `${result.saved} change${result.saved === 1 ? '' : 's'} saved.` });
+        if (!options.silent) {
+          toast({ variant: 'success', title: 'Schedule saved', message: `${result.saved} change${result.saved === 1 ? '' : 's'} saved.` });
+        }
       }
     } catch (error) {
       toast({ variant: 'error', title: 'Save failed', message: error instanceof ApiError ? error.message : 'Unable to save schedule.' });
     } finally {
+      saveInFlightRef.current = false;
       setIsSavingSchedule(false);
+      if (pendingAutoSaveRef.current) {
+        pendingAutoSaveRef.current = false;
+        setAutoSaveSequence((current) => current + 1);
+      }
     }
-  };
+  }, [accessToken, draftCells, hasBranchScope, scopedOrganizationId, toast, viewStartDate]);
+
+  useEffect(() => {
+    if (draftCells.size === 0 || !hasBranchScope || !accessToken) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void handleSaveSchedule({ silent: true });
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [accessToken, autoSaveSequence, draftCells, handleSaveSchedule, hasBranchScope]);
 
   const handleCopyWeek = async (): Promise<void> => {
     if (!accessToken || !hasBranchScope) return;
@@ -518,6 +609,7 @@ export default function ShiftManagementPage(): JSX.Element {
     const error = cellErrors.get(cellKey);
     const isDirty = draftCells.has(cellKey);
     const isSelected = selectedCell === cellKey;
+    const isMultiSelected = multiSelectedCells.has(cellKey);
     const selectedShift = draftValue ? shiftMap.get(draftValue) : null;
     const displayText = draftValue === null ? 'OFF' : selectedShift?.name ?? (assignments.length > 1 ? assignments.map((assignment) => assignment.shift.name).join(' / ') : 'OFF');
 
@@ -532,13 +624,29 @@ export default function ShiftManagementPage(): JSX.Element {
             'relative flex min-h-[38px] items-center justify-center border-2 border-transparent px-1.5 text-[12px] font-bold',
             selectedShift ? getShiftColorClass(selectedShift.id, shifts) : 'bg-[#f4f4f4] text-stone-500',
             isSelected && 'border-[#1a73e8] shadow-[inset_0_0_0_1px_#1a73e8]',
+            isMultiSelected && 'border-[#217346] shadow-[inset_0_0_0_1px_#217346]',
             isDirty && 'after:absolute after:right-0.5 after:top-0.5 after:h-0 after:w-0 after:border-l-[7px] after:border-t-[7px] after:border-l-transparent after:border-t-[#d97706]',
             error && 'border-[#fca5a5] bg-[#fef2f2] text-[#991b1b]',
             isPastDate && 'opacity-60',
           )}
+          onMouseDown={(event) => {
+            if (isPastDate) return;
+            if (event.shiftKey) {
+              event.preventDefault();
+              shiftKeyPressedRef.current = true;
+              setIsSelectingCells(true);
+              toggleCellSelection(cellKey);
+            } else {
+              setSelectedCell(cellKey);
+            }
+          }}
+          onMouseEnter={() => {
+            if (!isPastDate && isSelectingCells && shiftKeyPressedRef.current) addCellSelection(cellKey);
+          }}
           onClick={() => setSelectedCell(cellKey)}
+          title={error ?? 'Shift-click to select multiple cells'}
         >
-          {isPastDate ? (
+          {isPastDate || isMultiSelected ? (
             <span>{displayText}</span>
           ) : (
             <select
@@ -588,6 +696,15 @@ export default function ShiftManagementPage(): JSX.Element {
 
   const scheduleSheet = (
     <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border border-stone-200 bg-white shadow-sm', isExpanded && 'rounded-none border-0')}>
+      {selectedCellCount > 0 && (
+        <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-[#d0d0d0] bg-[#fff8e8] px-3 font-['Calibri','Segoe_UI',Arial,sans-serif] text-[12px]">
+          <span className="font-bold text-[#6b4226]">{selectedCellCount} cell{selectedCellCount === 1 ? '' : 's'} selected</span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={clearSelectedShiftCells}>Clear shifts</Button>
+            <IconButton icon={<X size={15} />} label="Cancel cell selection" size="sm" variant="ghost" onClick={() => setMultiSelectedCells(new Set())} />
+          </div>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto">
         {isLoading ? (
           <div className="p-6"><SkeletonTable rows={8} columns={9} /></div>
@@ -652,7 +769,8 @@ export default function ShiftManagementPage(): JSX.Element {
         })}
       </div>
       <div className="flex h-6 shrink-0 items-center justify-between gap-4 overflow-hidden bg-[#217346] px-3 font-['Calibri','Segoe_UI',Arial,sans-serif] text-[11px] font-semibold text-white/90">
-        <span>Draft - {filteredStaff.length} staff - {dirtyCount} unsaved cell{dirtyCount === 1 ? '' : 's'} - manual save required</span>
+        <span>Draft - {filteredStaff.length} staff - {isSavingSchedule ? 'autosaving...' : dirtyCount > 0 ? `${dirtyCount} pending cell${dirtyCount === 1 ? '' : 's'}` : 'saved'}</span>
+        <span>{selectedCellCount > 0 ? `${selectedCellCount} selected` : 'Shift-click to select'}</span>
         <span>Assigned: {scheduleTotals.assigned}</span>
         <span>Off: {scheduleTotals.off}</span>
         <span>Scheduled: {formatHours(scheduleTotals.minutes)} hrs</span>
@@ -703,9 +821,9 @@ export default function ShiftManagementPage(): JSX.Element {
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
         <input value={scheduleSearch} onChange={(event) => setScheduleSearch(event.target.value)} placeholder="Search staff..." className="h-8 rounded-lg border border-stone-300 bg-white pl-7 pr-3 text-[12px] text-espresso outline-none" />
       </div>
-      <div className={cn('flex h-8 items-center gap-2 rounded-lg border px-3 text-[11.5px] font-semibold', dirtyCount > 0 ? 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]' : 'border-[#86efac] bg-[#edfaf1] text-[#1a6b3c]')}>
+      <div className={cn('flex h-8 items-center gap-2 rounded-lg border px-3 text-[11.5px] font-semibold', dirtyCount > 0 || isSavingSchedule ? 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]' : 'border-[#86efac] bg-[#edfaf1] text-[#1a6b3c]')}>
         <span className="h-1.5 w-1.5 rounded-full bg-current" />
-        {dirtyCount > 0 ? `${dirtyCount} unsaved cell${dirtyCount === 1 ? '' : 's'}` : 'All changes saved'}
+        {isSavingSchedule ? 'Saving...' : dirtyCount > 0 ? `${dirtyCount} autosave pending` : 'All changes saved'}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-extrabold uppercase tracking-wider text-stone-400">Shift definitions</span>
@@ -716,7 +834,7 @@ export default function ShiftManagementPage(): JSX.Element {
       <div className="ml-auto flex items-center gap-2">
         <Button variant="secondary" size="sm" leftIcon={<Copy size={14} />} onClick={() => setCopyWeekModal((current) => ({ ...current, isOpen: true }))} disabled={!hasBranchScope || shifts.length === 0 || staff.length === 0}>Copy Week</Button>
         <Button variant="secondary" size="sm" leftIcon={isExpanded ? <Minimize2 size={14} /> : <Expand size={14} />} onClick={() => setIsExpanded((current) => !current)}>{isExpanded ? 'Collapse' : 'Expand sheet'}</Button>
-        <Button size="sm" onClick={() => void handleSaveSchedule()} isLoading={isSavingSchedule} disabled={!hasBranchScope || dirtyCount === 0}>Save Schedule</Button>
+        <Button size="sm" onClick={() => void handleSaveSchedule()} isLoading={isSavingSchedule} disabled={!hasBranchScope || dirtyCount === 0}>Save now</Button>
       </div>
     </div>
   );
