@@ -88,7 +88,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/inbox')) {
-    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER';
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN';
   }
 
   if (pathname.startsWith('/app/hr')) {
