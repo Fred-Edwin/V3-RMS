@@ -1,8 +1,8 @@
 # Phase 9 — Payslip Feature Redesign
 ## Updated Feature Requirements
 
-**Status:** Backend + frontend implemented. Local environment running and verified.  
-**Date:** 2026-05-10  
+**Status:** Complete — deployed to production.  
+**Date:** 2026-05-11  
 **Supersedes:** `docs/context/PHASE_9_PAYSLIP_PLAN.md` (original implementation, now replaced)
 
 ---
@@ -80,7 +80,9 @@ HR or Director can **Revert to Draft** (sets `isLocked = false`) if a correction
 
 ---
 
-## HR / Director Side — `/app/hr/payslips`
+## HR / Director Side — `/app/hr/payroll`
+
+> **Note:** The route was implemented as `/app/hr/payroll` (not `/app/hr/payslips` as originally planned). The sidebar nav item is labelled "Payroll".
 
 ### Page structure
 One page, two tabs:
@@ -338,10 +340,45 @@ Triggered by `window.print()` with print-specific CSS class. No PDF library need
 
 ---
 
-## Out of Scope for This Redesign
+## Deviations from Original Plan (Implemented)
 
-- KRA PIN and bank details storage on EmployeeProfile (flagged as future task)
-- Employer KRA PIN on Organization model (placeholder used for now)
+### Bank & KRA Details — implemented (was flagged as future task)
+Staff can view and edit their own bank and KRA details from the My Payments → Bank & KRA Details tab. Fields stored on `EmployeeProfile`:
+- `kraPIN`, `bankName`, `accountNumber`, `accountName`, `bankBranch`, `helbNumber`
+
+**New backend route:** `PATCH /hr/profiles/my/payment-details`
+- Registered **before** `/:userId` to prevent Express matching `"my"` as a userId param
+- Auth: all human staff roles (`authenticate` + `requireRole`)
+- Controller: `hrController.updateMyPaymentDetails`
+- Validator: `updatePaymentDetailsSchema` in `hr-schemas.ts`
+
+**New frontend service method:** `payslipService.updateMyPaymentDetails`
+
+**Migration:** `20260510091000_add_employee_profile_bank_kra_fields`
+
+### Staff sorting — role hierarchy
+Both the HR entry sheet and the Payslip Records tab sort staff by role hierarchy then alphabetically:
+```
+DIRECTOR=0, HR_MANAGER=1, MANAGER=2, ACCOUNTANT=3, CHEF=4, BARISTA=5, WAITER=6
+```
+
+### Stale closure fix — auto-save
+`autoSaveRow` in `hr/payroll/page.tsx` uses a `rowsRef` (updated via `useEffect`) to always read the latest row state, bypassing the stale closure capture in the debounced callback.
+
+### Production migration fix
+The `20260510025111_redesign_payslip_fields` migration initially failed in production because `nssf_tier1`, `nssf_tier2`, and `sha` were added as `NOT NULL` with no default on a non-empty table. Fixed by adding `DEFAULT 0` to those columns in the migration SQL. The failed migration was resolved via `prisma migrate resolve --rolled-back` on the production server before re-running the deploy.
+
+### Mobile UI — My Payments page
+The staff My Payments page was redesigned for mobile:
+- Compact header: title + one-line subtitle, no `PageHeader` component
+- Hero card: Net Pay as centrepiece (large), gross/deductions as a compact supporting row below
+- Unified breakdown card: earnings section + deductions section + net pay footer — one card replacing the previous three separate cards
+- Payment History: table format with gross/deductions hidden on mobile (`hidden sm:table-cell`), net pay + status + print icon visible on all screens
+- Bank & KRA Details read view: `truncate` on value, no fixed `min-w` on label
+
+## Out of Scope (still pending)
+
+- Employer KRA PIN on Organization model (placeholder `[EMPLOYER KRA PIN]` used in print view)
 - WebSocket real-time push to staff (refresh-on-load is sufficient)
 - Payslip email delivery
 - Automated statutory deduction calculation

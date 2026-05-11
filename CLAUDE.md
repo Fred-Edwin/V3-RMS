@@ -103,10 +103,11 @@ types/ — shared TypeScript types
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
 Phase: 9 (Payslip Visibility Module)
-Status: In Progress
+Status: Complete — deployed to production 2026-05-11
 Plan file: docs/context/PHASE_9_PAYSLIP_REDESIGN.md
 
 Previous phases (all complete):
+- Phase 9 Complete → docs/context/PHASE_9_PAYSLIP_REDESIGN.md
 - Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md
   - Addenda (sealed, consolidated into reference docs):
     - ACCOUNTANT Role → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
@@ -296,6 +297,42 @@ at build time when env vars are present. The `no-cache` header prevents CDN/brow
 
 **If a device stops receiving pushes:** Token may be stale. Staff should re-visit Profile →
 Push Notifications — if it shows Enabled, they can log out and back in to re-register.
+
+### GitHub CLI (gh) — PR & Deploy Workflow
+
+```powershell
+# After pushing a branch — monitor CI live (no browser needed)
+gh run watch
+
+# Create a draft PR from current branch
+gh pr create --draft
+
+# Convert draft to ready when CI passes
+gh pr ready
+
+# List your open PRs (works from anywhere)
+gh pr list --author '@me' --repo Fred-Edwin/V3-RMS
+
+# Merge PR: squash commit + delete branch
+gh pr merge 45 --squash --delete-branch
+
+# Check deploy status after merging to main
+gh run list --branch main --limit 5 --repo Fred-Edwin/V3-RMS
+
+# View CI logs for a failed run
+gh run view <run-id> --log
+```
+
+PowerShell profile shortcuts (defined in `$PROFILE`):
+
+| Shortcut | What it does |
+|---|---|
+| `watch-run` | Watch latest CI run live |
+| `prm 45` | Merge PR #45 (squash + delete branch) |
+| `pr-draft` | Create draft PR interactively |
+| `my-work` | List your open PRs + issues |
+| `pr-open` | Open current branch's PR in browser |
+| `deploy-status` | Last 5 CI runs on main |
 
 ### Known Gotchas
 
