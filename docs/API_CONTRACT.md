@@ -821,10 +821,12 @@ Records payment for an order and marks it as closed. For delivery orders, marks 
 ```
 
 **Validation Rules:**
-- `paymentMethod` required: `MPESA | CASH | CARD`
+- `paymentMethod` required: `MPESA | CASH | CARD | SPLIT | GUEST_SPLIT | HOUSE_ACCOUNT | CORPORATE_ACCOUNT | CUSTOMER_CREDIT`
 - Delivery orders only accept `MPESA`
 - Order must be in `READY` status before payment can be recorded
 - For delivery orders, all prep tickets must be `READY`
+- For `GUEST_SPLIT`: persisted `SplitPaymentLine` records must sum to the order total (±1 KES). Use the split-line endpoints below to add lines before calling this endpoint.
+- For `SPLIT`: include `splitType` (`MPESA_CASH | MPESA_CARD | CASH_CARD`), `mpesaCode` (if Mpesa involved), and the relevant amount fields.
 
 **Response `200`:**
 ```json
@@ -838,6 +840,85 @@ Records payment for an order and marks it as closed. For delivery orders, marks 
     "closedAt": "2026-02-22T09:45:00Z"
   },
   "message": "Payment recorded. Order closed."
+}
+```
+
+---
+
+### POST `/orders/:id/split-lines`
+**Access:** 🔑 WAITER  
+Adds a guest payment line for a Guest Split order. Each call records one guest's payment immediately in the DB. Lines can be deleted and re-added before the order is closed.
+
+**Request Body:**
+```json
+{
+  "label": "Guest 1",
+  "amount": 750,
+  "method": "MPESA",
+  "mpesaCode": "QHX7K2P1MN"
+}
+```
+
+**Validation Rules:**
+- `label`: 1–100 characters
+- `amount`: positive number
+- `method`: `MPESA | CASH | CARD`
+- `mpesaCode`: required when `method` is `MPESA`
+- New cumulative sum must not exceed order total + 1 KES
+
+**Response `201`:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "orderId": "uuid",
+    "label": "Guest 1",
+    "amount": "750.00",
+    "method": "MPESA",
+    "mpesaCode": "QHX7K2P1MN",
+    "paidAt": "2026-05-11T08:00:00Z",
+    "createdAt": "2026-05-11T08:00:00Z"
+  }
+}
+```
+
+---
+
+### GET `/orders/:id/split-lines`
+**Access:** 🔑 WAITER, MGR, DIRECTOR  
+Returns all split payment lines for an order.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "orderId": "uuid",
+      "label": "Guest 1",
+      "amount": "750.00",
+      "method": "MPESA",
+      "mpesaCode": "QHX7K2P1MN",
+      "paidAt": "2026-05-11T08:00:00Z",
+      "createdAt": "2026-05-11T08:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### DELETE `/orders/:id/split-lines/:lineId`
+**Access:** 🔑 WAITER  
+Removes a guest payment line. Only allowed while the order is not yet closed.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": { "success": true }
 }
 ```
 

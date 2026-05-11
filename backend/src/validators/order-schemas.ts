@@ -103,6 +103,10 @@ export const RecordPaymentSchema = z
         });
       }
     }
+    if (data.paymentMethod === PaymentMethod.GUEST_SPLIT) {
+      // Lines are validated against the DB in the service; no extra fields required in the schema
+      return;
+    }
     if (data.paymentMethod === PaymentMethod.SPLIT) {
       if (!data.splitType) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'splitType is required for split payment', path: ['splitType'] });
@@ -137,6 +141,19 @@ export const RecordPaymentSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'customerCreditAccountId is required for customer credit payment', path: ['customerCreditAccountId'] });
     }
   });
+
+export const AddSplitLineSchema = z.object({
+  label: z.string().min(1).max(100),
+  amount: z.number().positive(),
+  method: z.enum(['MPESA', 'CASH', 'CARD'] as const),
+  mpesaCode: z.string().min(1).max(200).optional(),
+}).superRefine((data, ctx) => {
+  if (data.method === 'MPESA' && !data.mpesaCode) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mpesaCode is required for Mpesa payment', path: ['mpesaCode'] });
+  }
+});
+
+export type AddSplitLineInput = z.infer<typeof AddSplitLineSchema>;
 
 export const AccountOrderSchema = z
   .object({

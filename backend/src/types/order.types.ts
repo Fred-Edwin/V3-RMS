@@ -85,6 +85,17 @@ export interface OrderSummaryRecord {
   prepTickets: PrepTicketSummaryRecord[];
 }
 
+export interface SplitPaymentLineRecord {
+  id: string;
+  orderId: string;
+  label: string;
+  amount: string;
+  method: PaymentMethod;
+  mpesaCode: string | null;
+  paidAt: Date;
+  createdAt: Date;
+}
+
 export interface OrderRecord {
   id: string;
   organizationId: string;
@@ -123,6 +134,7 @@ export interface OrderRecord {
   } | null;
   items: OrderItemRecord[];
   prepTickets: PrepTicketRecord[];
+  splitPaymentLines: SplitPaymentLineRecord[];
 }
 
 export interface CreateOrderItemWithPriceDto {

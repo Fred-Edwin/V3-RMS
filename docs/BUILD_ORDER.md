@@ -948,14 +948,16 @@ The following checks must be applied to every screen built in Phases 1 through 3
 ### Backend
 
 #### Shift Endpoints
-- [ ] GET /api/v1/shifts
-- [ ] POST /api/v1/shifts
-- [ ] PATCH /api/v1/shifts/:id
+- [x] GET /api/v1/shifts
+- [x] POST /api/v1/shifts
+- [x] PATCH /api/v1/shifts/:id
 
 #### Shift Assignment Endpoints
-- [ ] GET /api/v1/shift-assignments
-- [ ] POST /api/v1/shift-assignments
-- [ ] DELETE /api/v1/shift-assignments/:id
+- [x] GET /api/v1/shift-assignments
+- [x] POST /api/v1/shift-assignments
+- [x] POST /api/v1/shift-assignments/reconcile-week
+- [x] POST /api/v1/shift-assignments/batch-delete
+- [x] DELETE /api/v1/shift-assignments/:id
 
 #### Clock Record Endpoints
 - [ ] POST /api/v1/clock/in
@@ -995,6 +997,23 @@ The following checks must be applied to every screen built in Phases 1 through 3
 - [ ] Daily view — all staff assigned today, shift, clock-in/out time, method
 - [ ] GPS vs Override — icon indicator
 - [ ] Override reason shown in Popover on tap/hover
+
+**Shift Sheet Redesign Addendum**
+- [x] Shift Definitions tab retains branch-scoped CRUD backed by live DB shift records
+- [x] Spreadsheet-style weekly roster view - staff rows, Sunday-Saturday columns, hours total
+- [x] Staff rows grouped by role (`CHEF`, `WAITER`, `BARISTA`) and alphabetized within groups
+- [x] Assign or clear directly in roster cells using live shift definitions and `OFF`
+- [x] Autosave roster edits through `POST /api/v1/shift-assignments/reconcile-week`
+- [x] Shift-click / Shift-drag multi-cell selection with temporary "Clear shifts" action
+- [x] Previous and next week navigation
+- [x] Expand sheet focus mode
+- [x] Today's Attendance tab remains available; manager override actions require manager branch scope
+
+#### UI: HR - Shift Management (/app/hr/shifts)
+- [x] HR Manager can open the same spreadsheet roster under the HR account
+- [x] Branch selector scopes staff, shifts, schedule assignments, copy-week, and save/reconcile operations
+- [x] Shift Definitions tab supports branch-scoped CRUD for the selected branch
+- [x] Today's Attendance tab is visible cross-branch; attendance override remains manager-only
 
 #### UI: Staff — Shifts Page (/app/shifts — WAITER, CHEF, BARISTA)
 - [ ] Upcoming 7 days — Card per day: shift name, date, start/end time

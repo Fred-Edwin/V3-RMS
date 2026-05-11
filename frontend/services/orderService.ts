@@ -8,6 +8,7 @@ import type {
   OrderType,
   PaginationMeta,
   PaymentMethod,
+  SplitPaymentLine,
   UpdateOrderItemsDto,
 } from '@/types/order';
 
@@ -113,6 +114,22 @@ export const orderService = {
     accessToken: string,
   ): Promise<OrderDetail> => {
     return apiClient.patch<OrderDetail>(`/orders/${id}/manager-edit`, data, accessToken);
+  },
+
+  addSplitLine: (
+    id: string,
+    data: { label: string; amount: number; method: 'MPESA' | 'CASH' | 'CARD'; mpesaCode?: string },
+    accessToken: string,
+  ): Promise<SplitPaymentLine> => {
+    return apiClient.post<SplitPaymentLine>(`/orders/${id}/split-lines`, data, accessToken);
+  },
+
+  getSplitLines: (id: string, accessToken: string): Promise<SplitPaymentLine[]> => {
+    return apiClient.get<SplitPaymentLine[]>(`/orders/${id}/split-lines`, accessToken);
+  },
+
+  deleteSplitLine: (id: string, lineId: string, accessToken: string): Promise<{ success: boolean }> => {
+    return apiClient.delete<{ success: boolean }>(`/orders/${id}/split-lines/${lineId}`, accessToken);
   },
 
   accountOrder: (

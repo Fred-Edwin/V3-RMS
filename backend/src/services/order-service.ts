@@ -15,6 +15,7 @@ import {
   type SummaryOrderPrismaRecord,
 } from '../repositories/order-repository';
 import { idempotencyRepository } from '../repositories/idempotency-repository';
+import { splitLineRepository } from '../repositories/split-line-repository';
 import { socketService } from '../sockets/socket-service';
 import { fcmService } from './fcm-service';
 import { incidentService } from './incident-service';
@@ -31,6 +32,7 @@ import {
   deriveStationsFromItems,
 } from '../utils/order-utils';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { getTodayDateOnly } from '../utils/date-only';
 import { logger } from '../utils/logger';
 import type {
   ActiveOrderQueryInput,
@@ -88,9 +90,6 @@ const parseDateOnly = (date: string): Date => {
   return new Date(year, month - 1, day);
 };
 
-const normalizeOrderDate = (date: Date): Date => {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-};
 
 const resolveOrganizationId = (actor: Actor, requestedBranchId?: string): string => {
   if (branchScopedRoles.includes(actor.role)) {
@@ -243,6 +242,16 @@ const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
       notes: item.notes,
     })),
     prepTickets: order.prepTickets.map(serializePrepTicket),
+    splitPaymentLines: (order.splitPaymentLines ?? []).map((line) => ({
+      id: line.id,
+      orderId: line.orderId,
+      label: line.label,
+      amount: line.amount.toString(),
+      method: line.method,
+      mpesaCode: line.mpesaCode,
+      paidAt: line.paidAt,
+      createdAt: line.createdAt,
+    })),
   };
 };
 
@@ -377,7 +386,7 @@ export const orderService = {
     const createOrderStart = Date.now();
     const created = await orderRepository.createWithItemsAndTickets({
       organizationId,
-      orderDate: normalizeOrderDate(new Date()),
+      orderDate: getTodayDateOnly(),
       type: data.type,
       status: OrderStatus.PENDING,
       tableNumber: data.type === OrderType.DINE_IN ? data.tableNumber : null,
@@ -505,7 +514,7 @@ export const orderService = {
     query: ActiveOrderQueryInput = { view: 'full' },
   ): Promise<Array<OrderRecord | OrderSummaryRecord>> => {
     const organizationId = resolveOrganizationId(actor);
-    const today = normalizeOrderDate(new Date());
+    const today = getTodayDateOnly();
     const createdById = actor.role === 'WAITER' ? actor.id : undefined;
     if (query.view === 'summary') {
       const orders = await orderRepository.findActiveSummary(organizationId, today, createdById);
@@ -909,6 +918,17 @@ export const orderService = {
       if (Math.abs(splitTotal - orderTotal) > 1) {
         throw new ValidationError(
           `Split amounts (${splitTotal.toFixed(2)}) must equal the order total (${orderTotal.toFixed(2)})`,
+        );
+      }
+    }
+
+    // For guest split, validate that the sum of persisted split lines equals the order total
+    if (data.paymentMethod === PaymentMethod.GUEST_SPLIT) {
+      const orderTotal = Number(order.total);
+      const linesSum = await splitLineRepository.sumByOrderId(orderId);
+      if (Math.abs(linesSum - orderTotal) > 1) {
+        throw new ConflictError(
+          `Guest payment lines total KES ${linesSum.toFixed(2)} but order total is KES ${orderTotal.toFixed(2)}. Collect the remaining KES ${(orderTotal - linesSum).toFixed(2)} before closing.`,
         );
       }
     }

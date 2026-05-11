@@ -23,8 +23,8 @@ import { useToast } from '@/hooks/useToast';
 import { Avatar, Button, KDSCard, OrderCard, PageHeader, PageLayout, StatCard } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderSummary } from '@/types/order';
-import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
+import type { OrderDetail, OrderSummary, SplitPaymentLine } from '@/types/order';
+import type { AddSplitLinePayload, PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
 import type { ShiftAssignment, ShiftAssignmentClockRecord } from '@/types/shift';
 
 const ROLE_PLACEHOLDERS = new Set(['waiter', 'chef', 'barista', 'manager', 'director', 'admin', 'staff', 'user', 'system']);
@@ -309,6 +309,23 @@ export default function DashboardPage(): JSX.Element {
     }
   };
 
+  const handleAddSplitLine = async (orderId: string, payload: AddSplitLinePayload): Promise<SplitPaymentLine> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    const line = await orderService.addSplitLine(orderId, payload, accessToken);
+    setSelectedOrder((prev) =>
+      prev ? { ...prev, splitPaymentLines: [...prev.splitPaymentLines, line] } : prev,
+    );
+    return line;
+  };
+
+  const handleDeleteSplitLine = async (orderId: string, lineId: string): Promise<void> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    await orderService.deleteSplitLine(orderId, lineId, accessToken);
+    setSelectedOrder((prev) =>
+      prev ? { ...prev, splitPaymentLines: prev.splitPaymentLines.filter((l) => l.id !== lineId) } : prev,
+    );
+  };
+
   const handleCreateCustomerCredit = async (name: string, phone: string, creditLimit: string): Promise<string> => {
     if (!accessToken) throw new Error('Not authenticated');
     const account = await customerCreditService.createAccount({ customerName: name, customerPhone: phone, creditLimit }, accessToken);
@@ -415,6 +432,8 @@ export default function DashboardPage(): JSX.Element {
           corporateAccounts={corporateAccounts}
           customerCreditAccounts={customerCreditAccounts}
           onCreateCustomerCredit={(name, phone, limit) => handleCreateCustomerCredit(name, phone, limit)}
+          onAddSplitLine={(orderId, payload) => handleAddSplitLine(orderId, payload)}
+          onDeleteSplitLine={(orderId, lineId) => handleDeleteSplitLine(orderId, lineId)}
         />
       </PageLayout>
     );

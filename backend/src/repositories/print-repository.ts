@@ -83,6 +83,12 @@ export interface OrderForReceipt {
       name: string;
     };
   }>;
+  splitPaymentLines: Array<{
+    label: string;
+    amount: Prisma.Decimal;
+    method: string;
+    mpesaCode: string | null;
+  }>;
 }
 
 // ─── Print Job Repository ──────────────────────────────────────────────────
@@ -347,6 +353,10 @@ export const printRepository = {
               select: { name: true },
             },
           },
+        },
+        splitPaymentLines: {
+          select: { label: true, amount: true, method: true, mpesaCode: true },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });

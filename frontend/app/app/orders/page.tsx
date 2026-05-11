@@ -23,9 +23,9 @@ import { useOrderStore } from '@/store/orderStore';
 import { useToast } from '@/hooks/useToast';
 import { BottomSheet, IconButton, OrderCard, PageHeader, PageLayout } from '@/components/ui';
 import { ApiError } from '@/types/api';
-import type { OrderDetail, OrderStatus, OrderType } from '@/types/order';
+import type { OrderDetail, OrderStatus, OrderType, SplitPaymentLine } from '@/types/order';
 import type { Discount } from '@/types/discount';
-import type { PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
+import type { AddSplitLinePayload, PaymentPayload } from '@/components/orders/OrderDetailBottomSheet';
 
 export const dynamic = 'force-dynamic';
 
@@ -323,6 +323,23 @@ export default function OrdersPage(): JSX.Element {
     } finally {
       setIsPaymentSubmitting(false);
     }
+  };
+
+  const handleAddSplitLine = async (orderId: string, payload: AddSplitLinePayload): Promise<SplitPaymentLine> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    const line = await orderService.addSplitLine(orderId, payload, accessToken);
+    setSelectedOrder((prev) =>
+      prev ? { ...prev, splitPaymentLines: [...prev.splitPaymentLines, line] } : prev,
+    );
+    return line;
+  };
+
+  const handleDeleteSplitLine = async (orderId: string, lineId: string): Promise<void> => {
+    if (!accessToken) throw new Error('Not authenticated');
+    await orderService.deleteSplitLine(orderId, lineId, accessToken);
+    setSelectedOrder((prev) =>
+      prev ? { ...prev, splitPaymentLines: prev.splitPaymentLines.filter((l) => l.id !== lineId) } : prev,
+    );
   };
 
   const handleOpenCancel = (orderId: string) => {
@@ -732,6 +749,8 @@ export default function OrdersPage(): JSX.Element {
         pendingCustomerDiscountName={pendingCustomerDiscountName ?? undefined}
         onCustomerDiscountOverride={(orderId, decision) => void handleCustomerDiscountOverride(orderId, decision)}
         isCustomerDiscountOverrideSubmitting={isCustomerDiscountOverrideSubmitting}
+        onAddSplitLine={(orderId, payload) => handleAddSplitLine(orderId, payload)}
+        onDeleteSplitLine={(orderId, lineId) => handleDeleteSplitLine(orderId, lineId)}
       />
 
       <CancelOrderSheet

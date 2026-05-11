@@ -17,6 +17,13 @@ interface ReceiptItem {
   total: number;
 }
 
+interface SplitPaymentLineData {
+  label: string;
+  amount: number;
+  method: string;
+  mpesaCode: string | null;
+}
+
 interface ReceiptData {
   branchName: string;
   branchPhone: string | null;
@@ -44,6 +51,8 @@ interface ReceiptData {
   cashAmount?: number;
   cardAmount?: number;
   splitType?: string;
+  // Guest split lines — present when paymentMethod === 'GUEST_SPLIT'
+  splitPaymentLines?: SplitPaymentLineData[];
 }
 
 const getFirstName = (fullName: string): string =>
@@ -145,6 +154,16 @@ export const printService = {
                   ...(order.mpesaAmount ? { mpesaAmount: toDecimalNumber(order.mpesaAmount) } : {}),
                   ...(order.cashAmount ? { cashAmount: toDecimalNumber(order.cashAmount) } : {}),
                   ...(order.cardAmount ? { cardAmount: toDecimalNumber(order.cardAmount) } : {}),
+                }
+              : {}),
+            ...(order.paymentMethod === 'GUEST_SPLIT'
+              ? {
+                  splitPaymentLines: (order.splitPaymentLines ?? []).map((line) => ({
+                    label: line.label,
+                    amount: toDecimalNumber(line.amount),
+                    method: line.method,
+                    mpesaCode: line.mpesaCode,
+                  })),
                 }
               : {}),
           }

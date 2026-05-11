@@ -1,8 +1,8 @@
 # Deployment Guide
 ## Wendo RMS — Restaurant Management System
-**Version:** 2.0
+**Version:** 2.1
 **Status:** Live
-**Date:** 2026-03-02
+**Date:** 2026-05-11
 **Strategy:** DigitalOcean VPS ($6/mo) + Docker Compose + Vercel (frontend)
 
 ---
@@ -496,7 +496,12 @@ Every push to `main` triggers a GitHub Actions workflow (`validate` → `build` 
    - Health checks `/api/v1/health` — fails the deploy if the API doesn't come up
    - Cleans up dangling image layers
 
-Monitor runs at: GitHub → repo → **Actions** tab.
+Monitor runs at: GitHub → repo → **Actions** tab, or from your terminal:
+
+```powershell
+gh run watch          # live output for the current run
+gh run list --branch main --limit 5   # post-merge deploy status
+```
 
 ### Manual (if needed)
 

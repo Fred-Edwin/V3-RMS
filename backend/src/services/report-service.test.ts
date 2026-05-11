@@ -58,6 +58,7 @@ const sampleDailySummary = {
     CASH: '200.00',
     CARD: '0.00',
     SPLIT: '0.00',
+    GUEST_SPLIT: '0.00',
     HOUSE_ACCOUNT: '0.00',
     CORPORATE_ACCOUNT: '0.00',
     CUSTOMER_CREDIT: '0.00',

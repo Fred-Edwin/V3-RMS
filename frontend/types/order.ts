@@ -1,6 +1,6 @@
 ﻿export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'AWAITING_AUTHORIZATION' | 'CLOSED' | 'CANCELLED';
-export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT' | 'HOUSE_ACCOUNT' | 'CORPORATE_ACCOUNT' | 'CUSTOMER_CREDIT';
+export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT' | 'GUEST_SPLIT' | 'HOUSE_ACCOUNT' | 'CORPORATE_ACCOUNT' | 'CUSTOMER_CREDIT';
 export type PrepStation = 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY';
 export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED';
 export type OrderListView = 'full' | 'summary';
@@ -64,6 +64,17 @@ export interface CreditAccountSummary {
   name: string; // user name for house, company name for corporate, customer name for credit
 }
 
+export interface SplitPaymentLine {
+  id: string;
+  orderId: string;
+  label: string;
+  amount: string;
+  method: 'MPESA' | 'CASH' | 'CARD';
+  mpesaCode: string | null;
+  paidAt: string;
+  createdAt: string;
+}
+
 export interface OrderDetail extends OrderSummary {
   items: OrderItemDetail[];
   closedAt: string | null;
@@ -76,6 +87,7 @@ export interface OrderDetail extends OrderSummary {
   discountAmount: string | null;
   discountedById: string | null;
   discountId: string | null;
+  splitPaymentLines: SplitPaymentLine[];
 }
 
 export interface CreateOrderItem {

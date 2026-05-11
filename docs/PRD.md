@@ -309,7 +309,9 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 5. After preparation, waiter marks the order as **Handed to Grubba**
 6. Order is marked Closed
 
-**FR-ORD-06:** Payment methods for Dine-In and Take-Away shall be: Mpesa, Cash, or Card. Payment method for Delivery shall be: Mpesa only.
+**FR-ORD-06:** Payment methods for Dine-In and Take-Away shall be: Mpesa, Cash, Card, Split (2 methods), or Guest Split (N guests each paying their own share). Payment method for Delivery shall be: Mpesa only.
+
+**FR-ORD-06a — Guest Split:** When a table wishes to split the bill between multiple guests, the waiter selects "Split between guests", sets the number of guests (2–20), and records each guest's payment individually (Mpesa, Cash, or Card). Each payment is persisted immediately as a `SplitPaymentLine` record. The order is closed only when all lines sum to the order total (±1 KES tolerance). The receipt prints a breakdown of each guest's name, amount, and payment method.
 
 **FR-ORD-07:** The waiter shall be able to track the preparation status of their submitted orders in real time from an order details view. The view shall show the status of each station (food: Pending / In-Progress / Ready; drinks: Pending / In-Progress / Ready).
 
@@ -329,6 +331,7 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 - Tapping the button creates a print job in the database (status: PENDING)
 - A dedicated Android app ("Wendo Printer") installed on the branch work phone polls for pending jobs every 3 seconds and sends ESC/POS commands to the Bluetooth-connected thermal printer
 - Receipts print on 80mm thermal paper and include: branch name, phone, order number, order type, date/time, waiter first name, itemised list with quantities and amounts, subtotal, delivery fee (if applicable), total, payment method, and a QR code linking to `https://www.wendoz.co.ke/`
+- For Guest Split orders, receipts include a per-guest breakdown (label, amount, method, M-Pesa code where applicable)
 - Print jobs are persisted in the DB — if the printer is offline, jobs queue and print when reconnected
 - Jobs older than 24 hours are automatically expired
 - Managers configure the print station from the branch settings page — a QR code is generated for one-tap app setup
@@ -385,7 +388,13 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
 **FR-STF-05 — Shift Scheduling:**
 - Managers create shifts with a name, start time, and end time (e.g., Morning 6:00am–2:00pm)
 - Shift times are editable by the Manager
-- Managers assign specific staff members to specific shifts per day
+- Managers assign specific staff members to specific shifts per day using a spreadsheet-style weekly roster
+- HR Managers can view and edit shift definitions and weekly rosters across all branches by selecting the target branch
+- Roster rows are branch staff grouped by role (`CHEF`, `WAITER`, `BARISTA`) and sorted alphabetically within each role
+- Roster cells display shift definition names rather than raw time ranges; selecting `OFF` clears the assignment for that staff member and day
+- Roster edits autosave, with an explicit "Save now" action available for immediate persistence
+- Users can Shift-click or Shift-drag roster cells to select multiple cells and clear their shifts in one action
+- Past-date cells are read-only, and assignments with clock records cannot be cleared or changed
 - Staff can view their own upcoming shifts in their app
 - The system records scheduled hours vs actual hours worked (calculated from clock-in/out timestamps)
 
@@ -649,6 +658,7 @@ Only one open attendance record is allowed per staff member at a time across all
 - As an HR manager, I want to upload an employment contract to a staff member's HR profile so all documents are in one place.
 - As an HR manager, I want to create a disciplinary record so incidents are documented formally.
 - As an HR manager, I want to view attendance analytics across all branches so I can identify patterns and take action.
+- As an HR manager, I want to edit shift definitions and weekly schedules for every branch so scheduling standards can be managed centrally.
 
 ### Accountant *(Added Phase 7)*
 - As an accountant, I want to view the outstanding balances report so I know what is owed across all credit accounts.

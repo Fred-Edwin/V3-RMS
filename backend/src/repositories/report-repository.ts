@@ -285,6 +285,7 @@ export const reportRepository = {
       CASH: '0.00',
       CARD: '0.00',
       SPLIT: '0.00',
+      GUEST_SPLIT: '0.00',
       HOUSE_ACCOUNT: '0.00',
       CORPORATE_ACCOUNT: '0.00',
       CUSTOMER_CREDIT: '0.00',
@@ -1544,7 +1545,7 @@ export const reportRepository = {
       }
 
       const revenueByPaymentMethod: DailySummaryReport['revenueByPaymentMethod'] = {
-        MPESA: '0.00', CASH: '0.00', CARD: '0.00', SPLIT: '0.00',
+        MPESA: '0.00', CASH: '0.00', CARD: '0.00', SPLIT: '0.00', GUEST_SPLIT: '0.00',
         HOUSE_ACCOUNT: '0.00', CORPORATE_ACCOUNT: '0.00', CUSTOMER_CREDIT: '0.00',
       };
       const pmTotals = new Map<string, Prisma.Decimal>();

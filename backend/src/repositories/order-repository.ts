@@ -50,6 +50,11 @@ const orderInclude = {
       fee: true,
     },
   },
+  splitPaymentLines: {
+    orderBy: {
+      createdAt: 'asc' as const,
+    },
+  },
 } as const;
 
 const orderSummaryInclude = {

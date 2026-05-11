@@ -595,12 +595,34 @@ model Order {
   updatedAt      DateTime @updatedAt @map("updated_at")
   closedAt       DateTime? @map("closed_at")
 
+  splitPaymentLines SplitPaymentLine[]
+
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([organizationId, orderDate])
   @@index([createdById])
   @@map("orders")
+}
+
+model SplitPaymentLine {
+  -- One record per guest for GUEST_SPLIT orders.
+  -- Written immediately when the waiter confirms each guest's payment.
+  -- Deleted and re-added if the waiter corrects an entry before closing.
+
+  id        String        @id @default(uuid())
+  orderId   String        @map("order_id")
+  label     String                             -- "Guest 1", "Guest 2", etc.
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod                      -- MPESA | CASH | CARD only
+  mpesaCode String?       @map("mpesa_code")
+  paidAt    DateTime      @default(now()) @map("paid_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("split_payment_lines")
 }
 ```
 
@@ -1509,7 +1531,8 @@ enum PaymentMethod {
   MPESA
   CASH
   CARD
-  SPLIT
+  SPLIT             -- one payer, two methods (mpesaAmount + cashAmount/cardAmount + splitType)
+  GUEST_SPLIT       -- N guests, each with own SplitPaymentLine record
   HOUSE_ACCOUNT
   CORPORATE_ACCOUNT
   CUSTOMER_CREDIT

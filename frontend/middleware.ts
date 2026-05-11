@@ -80,7 +80,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/history')) {
-    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR';
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'ACCOUNTANT' || role === 'HR_MANAGER';
   }
 
   if (pathname.startsWith('/app/other-income')) {
@@ -96,7 +96,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     // my-leave: all human staff
     if (pathname === '/app/hr/my-leave') {
       return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA'
-        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR';
+        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
     }
     return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
@@ -112,7 +112,8 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
       || role === 'MANAGER'
       || role === 'HR_MANAGER'
       || role === 'DIRECTOR'
-      || role === 'ACCOUNTANT';
+      || role === 'ACCOUNTANT'
+      || role === 'SYSTEM_ADMIN';
   }
 
   if (pathname.startsWith('/app')) {
