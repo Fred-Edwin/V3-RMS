@@ -368,6 +368,13 @@ DIRECTOR=0, HR_MANAGER=1, MANAGER=2, ACCOUNTANT=3, CHEF=4, BARISTA=5, WAITER=6
 ### Production migration fix
 The `20260510025111_redesign_payslip_fields` migration initially failed in production because `nssf_tier1`, `nssf_tier2`, and `sha` were added as `NOT NULL` with no default on a non-empty table. Fixed by adding `DEFAULT 0` to those columns in the migration SQL. The failed migration was resolved via `prisma migrate resolve --rolled-back` on the production server before re-running the deploy.
 
+### Branch KRA PIN — implemented (was pending)
+Directors can set the branch KRA PIN via **Director → Branch Settings** page. The field is stored on the `Organization` model (`kraPIN`) and printed as the Employer KRA PIN on every payslip for that branch.
+
+- UI: `frontend/app/app/director/settings/page.tsx` — KRA PIN input in the Branch Settings edit form, read-only display in the profile view
+- Backend: `branch-schemas.ts` → `kraPIN` field, `branch-repository.ts` + `branch-service.ts` → `updateBranch`
+- Print: `PayslipDetailModal.tsx` reads `payslip.organization.kraPIN` — shown if set, omitted if null
+
 ### Mobile UI — My Payments page
 The staff My Payments page was redesigned for mobile:
 - Compact header: title + one-line subtitle, no `PageHeader` component
@@ -378,7 +385,7 @@ The staff My Payments page was redesigned for mobile:
 
 ## Out of Scope (still pending)
 
-- Employer KRA PIN on Organization model (placeholder `[EMPLOYER KRA PIN]` used in print view)
+- ~~Employer KRA PIN on Organization model~~ — **implemented** (see below)
 - WebSocket real-time push to staff (refresh-on-load is sufficient)
 - Payslip email delivery
 - Automated statutory deduction calculation
