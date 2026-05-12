@@ -294,6 +294,12 @@ export default function MyPaymentsPage(): JSX.Element {
                       <span className="text-[13px] font-semibold text-emerald-600 whitespace-nowrap">Ksh {formatCurrency(currentPayslip.incentives)}</span>
                     </div>
                   )}
+                  {currentPayslip.allowances && currentPayslip.allowances !== '0' && currentPayslip.allowances !== '0.00' && (
+                    <div className="flex items-center justify-between py-2 border-b border-stone-100">
+                      <span className="text-[13px] text-stone-600">Allowances</span>
+                      <span className="text-[13px] font-semibold text-emerald-600 whitespace-nowrap">Ksh {formatCurrency(currentPayslip.allowances)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Deductions section */}

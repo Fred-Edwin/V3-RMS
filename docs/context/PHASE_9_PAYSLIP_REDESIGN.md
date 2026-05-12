@@ -30,6 +30,7 @@ The original Phase 9 implementation (modal-based per-staff entry) has been repla
 - `advance Decimal? @db.Decimal(10,2)` — salary advance recovery (optional)
 - `incentives Decimal? @db.Decimal(10,2)` — performance incentives (optional)
 - `overtime Decimal? @db.Decimal(10,2)` — overtime pay (optional)
+- `allowances Decimal? @db.Decimal(10,2)` — additional allowances (optional)
 
 ### Fields changed
 - `grossPay` — promoted from server-computed to **direct admin input**. Admin enters gross; server does not compute it.
@@ -42,9 +43,10 @@ totalDeductions = paye + nssfTier1 + nssfTier2 + sha + housingLevy
                   + (helb ?? 0) + (advance ?? 0) + sum(otherDeductions)
 
 netPay = grossPay − totalDeductions
+       + (incentives ?? 0) + (overtime ?? 0) + (allowances ?? 0)
 ```
 
-Note: `overtime` and `incentives` are earnings additions — they are NOT included in totalDeductions. They are displayed in the earnings section on the payslip print view.
+Note: `overtime`, `incentives`, and `allowances` are earnings additions — they are NOT included in totalDeductions. `advance` is a deduction and reduces net pay.
 
 ### Unique constraint
 `@@unique([organizationId, userId, payPeriod])` — unchanged. Bulk upsert uses this key.
@@ -120,6 +122,7 @@ A searchable, filterable list of all saved payslips.
 | Advance | Input | Optional |
 | Incentives | Input | Optional |
 | O.T | Input | Overtime, optional |
+| Allowances | Input | Optional |
 | Total Deductions | Computed | Red fill, read-only, live |
 | Net Salary | Computed | Green fill, read-only, live |
 
@@ -134,7 +137,7 @@ Two additional read-only columns are appended after Net Salary. They are not pay
 | Column | Source | Notes |
 |---|---|---|
 | KRA PIN | `EmployeeProfile.kraPIN` | Read-only. Shows `— Not set` with amber highlight if missing. |
-| Bank Account | `EmployeeProfile.bankName + accountNumber (masked)` | Read-only. Shows `— Not set` with amber highlight if missing. |
+| Bank Account | `EmployeeProfile.bankName + accountNumber (full)` | Read-only. Shows `— Not set` with amber highlight if missing. Full account number is visible on the HR sheet only. |
 
 - These columns are always visible — missing data is highlighted amber so HR knows which staff need to update their details before payslips are printed
 - HR cannot edit these cells on the sheet — staff update their own details via My Payments → Bank & KRA Details tab
@@ -171,7 +174,7 @@ Two additional read-only columns are appended after Net Salary. They are not pay
 - Staff side: badge reverts to "Draft · HR is editing", Print button disables
 
 #### Sheet tabs (bottom of sheet)
-- One tab per recent pay period (last 6 months + current)
+- Two tabs only: previous month first, current month second
 - Clicking a tab loads that period's data into the same sheet
 - Active tab highlighted in green
 
@@ -282,6 +285,7 @@ Triggered by `window.print()` with print-specific CSS class. No PDF library need
 │  Gross Salary         KES XX,XXX                │
 │  Overtime             KES X,XXX    (if any)     │
 │  Incentives           KES X,XXX    (if any)     │
+│  Allowances           KES X,XXX    (if any)     │
 ├─────────────────────────────────────────────────┤
 │  DEDUCTIONS                                     │
 │  PAYE                 KES X,XXX                 │

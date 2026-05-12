@@ -2194,6 +2194,25 @@ Returns a file download (`Content-Disposition: attachment`).
 
 ---
 
+## Payslips
+
+### POST `/payslips/bulk-upsert`
+
+Creates or updates payroll rows for a single branch and pay period. The request body contains `payPeriod`, `organizationId`, and `rows`.
+
+Each row accepts these money fields as decimal strings: `grossPay`, `paye`, `sha`, `nssfTier1`, `nssfTier2`, `housingLevy`, optional `helb`, optional `advance`, optional `incentives`, optional `overtime`, optional `allowances`, and optional `otherDeductions[]` entries with required `label` and `amount`.
+
+The server ignores client-computed totals and computes:
+
+```text
+totalDeductions = paye + sha + nssfTier1 + nssfTier2 + housingLevy + helb + advance + sum(otherDeductions)
+netPay = grossPay + incentives + overtime + allowances - totalDeductions
+```
+
+`advance` reduces pay. `incentives`, `overtime`, and `allowances` increase pay.
+
+---
+
 ## 18. System Admin
 
 ### GET `/admin/organizations`

@@ -1187,6 +1187,7 @@ model Payslip {
   advance         Decimal? @db.Decimal(10, 2)
   incentives      Decimal? @db.Decimal(10, 2)
   overtime        Decimal? @db.Decimal(10, 2)
+  allowances      Decimal? @db.Decimal(10, 2)
   otherDeductions Json?    @map("other_deductions")
   totalDeductions Decimal  @db.Decimal(10, 2) @map("total_deductions")
   netPay          Decimal  @db.Decimal(10, 2) @map("net_pay")

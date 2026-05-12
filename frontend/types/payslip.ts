@@ -51,6 +51,7 @@ export interface Payslip {
   advance: string | null;
   incentives: string | null;
   overtime: string | null;
+  allowances: string | null;
   otherDeductions: PayslipLineItem[] | null;
   totalDeductions: string;
   netPay: string;
@@ -96,6 +97,7 @@ export interface BulkUpsertRow {
   advance?: string | null;
   incentives?: string | null;
   overtime?: string | null;
+  allowances?: string | null;
   otherDeductions?: PayslipLineItem[];
 }
 
