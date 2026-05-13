@@ -108,6 +108,38 @@ export const socketService = {
     io.to(branchRoomName(organizationId)).emit('order:force_cancelled', payload);
   },
 
+  emitOrderCancellationPending: (
+    waiterId: string,
+    organizationId: string,
+    payload: {
+      orderId: string;
+      dailyNumber: number;
+      authRequestId: string;
+      requestedById: string;
+      reason: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:cancellation_pending', payload);
+    io.to(branchRoomName(organizationId)).emit('order:cancellation_pending', payload);
+  },
+
+  emitOrderCancellationResolved: (
+    waiterId: string,
+    organizationId: string,
+    payload: {
+      orderId: string;
+      dailyNumber: number;
+      authRequestId: string;
+      approved: boolean;
+      restoredStatus?: string;
+    },
+  ): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(waiterId)).emit('order:cancellation_resolved', payload);
+    io.to(branchRoomName(organizationId)).emit('order:cancellation_resolved', payload);
+  },
+
   emitTicketRejected: (
     organizationId: string,
     waiterId: string,

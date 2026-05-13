@@ -743,21 +743,25 @@ export function OrderDetailBottomSheet({
   if (!order) return null;
 
   const isPaid = Boolean(order.paymentMethod);
+  const isCancellationPending = order.status === 'AWAITING_CANCELLATION_APPROVAL';
   const canEdit =
     (isOwner || isManager) &&
     order.status !== 'CLOSED' &&
     order.status !== 'CANCELLED' &&
-    order.status !== 'AWAITING_AUTHORIZATION';
+    order.status !== 'AWAITING_AUTHORIZATION' &&
+    !isCancellationPending;
   const canCancel =
     (isOwner || isManager) &&
     order.status !== 'CLOSED' &&
     order.status !== 'CANCELLED' &&
-    order.status !== 'AWAITING_AUTHORIZATION';
+    order.status !== 'AWAITING_AUTHORIZATION' &&
+    !isCancellationPending;
   const canPrintBill =
     Boolean(onPrintBill) &&
     !isPaid &&
     order.status !== 'PENDING' &&
-    order.status !== 'CANCELLED';
+    order.status !== 'CANCELLED' &&
+    !isCancellationPending;
 
   const resetPaymentForm = () => {
     setMpesaCode('');
@@ -932,6 +936,18 @@ export function OrderDetailBottomSheet({
           {/* ── Payment summary (already paid) ─────────────────────────── */}
           {isPaid && order.paymentMethod && <PaymentSummary order={order} />}
 
+          {isCancellationPending && (
+            <div className="rounded-xl border border-[#FDBA74] bg-[#FFF7ED] p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock size={16} className="shrink-0 text-[#9A3412]" />
+                <p className="text-[13px] font-semibold text-[#9A3412]">Cancellation Pending Approval</p>
+              </div>
+              <p className="text-[13px] text-[#9A3412]">
+                A manager or director must approve this cancellation before the order is removed.
+              </p>
+            </div>
+          )}
+
           {/* ── Action buttons (edit / cancel / print bill) ─────────────── */}
           {canEdit && onEdit && (
             <Button variant="secondary" className="w-full" onClick={() => onEdit(order.id)}>
@@ -940,7 +956,7 @@ export function OrderDetailBottomSheet({
           )}
           {canCancel && onCancel && (
             <Button variant="destructive" className="w-full" onClick={() => onCancel(order.id)}>
-              Cancel Order
+              {isManager ? 'Cancel Order' : 'Request Cancellation'}
             </Button>
           )}
           {canPrintBill && (

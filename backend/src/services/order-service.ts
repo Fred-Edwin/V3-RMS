@@ -2,6 +2,7 @@
 import { houseAccountAuthService } from './house-account-auth-service';
 import { staffDiscountAuthService } from './staff-discount-auth-service';
 import { customerDiscountAuthService } from './customer-discount-auth-service';
+import { orderCancellationAuthService } from './order-cancellation-auth-service';
 import { authRepository } from '../repositories/auth-repository';
 import type { Request } from 'express';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
@@ -543,8 +544,12 @@ export const orderService = {
 
     assertOwnership(existingOrder, actor);
 
-    if (existingOrder.status === OrderStatus.CLOSED || existingOrder.status === OrderStatus.CANCELLED) {
-      throw new ConflictError('This order is closed and cannot be modified.');
+    if (
+      existingOrder.status === OrderStatus.CLOSED ||
+      existingOrder.status === OrderStatus.CANCELLED ||
+      existingOrder.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('This order is locked and cannot be modified.');
     }
 
     const resolvedItems = await resolveOrderItems(organizationId, data.items);
@@ -984,6 +989,15 @@ export const orderService = {
 
     const allowedStatuses = [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY];
 
+    if (actor.role === 'WAITER') {
+      await orderCancellationAuthService.createRequest(orderId, reason, null, actor);
+      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      if (!pendingOrder) {
+        throw new NotFoundError('Order not found');
+      }
+      return serializeOrder(pendingOrder);
+    }
+
     const cancelled = await orderRepository.cancel(orderId, organizationId, allowedStatuses, reason, actor.id);
     if (!cancelled) {
       throw new ConflictError('Order cannot be cancelled in its current state.');
@@ -1052,8 +1066,12 @@ export const orderService = {
       throw new NotFoundError('Order not found');
     }
 
-    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
-      throw new ConflictError('Closed or cancelled orders cannot be modified.');
+    if (
+      order.status === OrderStatus.CLOSED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('Locked, closed, or cancelled orders cannot be modified.');
     }
 
     // Validate that every ID in removeItemIds actually belongs to this order
@@ -1255,8 +1273,12 @@ export const orderService = {
     const order = await orderRepository.findById(orderId, organizationId);
     if (!order) throw new NotFoundError('Order not found');
 
-    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
-      throw new ConflictError('Order is already closed or cancelled');
+    if (
+      order.status === OrderStatus.CLOSED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('Order is locked, closed, or cancelled');
     }
 
     const accounted = await orderRepository.accountOrder(orderId, organizationId, {

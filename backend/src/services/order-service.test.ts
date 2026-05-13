@@ -2,6 +2,7 @@
 import type { Request } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deliveryZoneRepository } from '../repositories/delivery-zone-repository';
+import { orderCancellationAuthService } from './order-cancellation-auth-service';
 import { staffDiscountAuthService } from './staff-discount-auth-service';
 import type { MenuItemWithCategoryRecord } from '../repositories/menu-repository';
 import { menuRepository } from '../repositories/menu-repository';
@@ -44,6 +45,12 @@ vi.mock('./staff-discount-auth-service', () => ({
   },
 }));
 
+vi.mock('./order-cancellation-auth-service', () => ({
+  orderCancellationAuthService: {
+    createRequest: vi.fn(),
+  },
+}));
+
 vi.mock('../sockets/socket-service', () => ({
   socketService: {
     emitNewOrder: vi.fn(),
@@ -54,6 +61,7 @@ vi.mock('../sockets/socket-service', () => ({
     emitOrderClosed: vi.fn(),
     emitOrderModified: vi.fn(),
     emitOrderCancelled: vi.fn(),
+    emitOrderForceCancelled: vi.fn(),
   },
 }));
 
@@ -704,5 +712,52 @@ describe('orderService.recordPayment', () => {
     );
     expect(orderRepository.recordPayment).not.toHaveBeenCalled();
     expect(result.status).toBe('AWAITING_AUTHORIZATION');
+  });
+});
+
+describe('orderService.cancel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('waiter cancellation creates an approval request and returns locked order', async () => {
+    const order = buildCreatedOrderRecord();
+    const pendingOrder = {
+      ...order,
+      status: OrderStatus.AWAITING_CANCELLATION_APPROVAL,
+    } as unknown as FullOrderPrismaRecord;
+
+    vi.mocked(orderRepository.findById)
+      .mockResolvedValueOnce(order)
+      .mockResolvedValueOnce(pendingOrder);
+    vi.mocked(orderCancellationAuthService.createRequest).mockResolvedValue({
+      id: '77777777-7777-4777-8777-777777777777',
+      organizationId,
+      orderId: order.id,
+      requestedById: waiterActor.id,
+      reason: 'Customer left',
+      reasonDetail: null,
+      previousStatus: OrderStatus.PENDING,
+      status: 'PENDING',
+      resolvedById: null,
+      resolvedAt: null,
+      resolutionNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      order: { id: order.id, dailyNumber: order.dailyNumber, status: OrderStatus.AWAITING_CANCELLATION_APPROVAL, total: '700' },
+      requestedBy: { id: waiterActor.id, name: 'Waiter One' },
+      resolvedBy: null,
+    });
+
+    const result = await orderService.cancel(order.id, 'Customer left', waiterActor);
+
+    expect(orderCancellationAuthService.createRequest).toHaveBeenCalledWith(
+      order.id,
+      'Customer left',
+      null,
+      waiterActor,
+    );
+    expect(orderRepository.cancel).not.toHaveBeenCalled();
+    expect(result.status).toBe(OrderStatus.AWAITING_CANCELLATION_APPROVAL);
   });
 });

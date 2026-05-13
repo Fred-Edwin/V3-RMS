@@ -110,14 +110,15 @@ export const orderController = {
     const data = CancelOrderSchema.parse(req.body);
     const reason = data.reason === 'Other' ? `Other: ${data.reasonDetail}` : data.reason;
     const order = await orderService.cancel(id, reason, actor);
+    const isPendingApproval = order.status === 'AWAITING_CANCELLATION_APPROVAL';
 
-    res.status(200).json({
+    res.status(isPendingApproval ? 202 : 200).json({
       success: true,
       data: {
         id: order.id,
         status: order.status,
       },
-      message: 'Order cancelled',
+      message: isPendingApproval ? 'Cancellation request sent for approval' : 'Order cancelled',
     });
   },
 
