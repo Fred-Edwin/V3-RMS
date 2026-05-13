@@ -32,6 +32,7 @@ export const bulkUpsertRowSchema = z.object({
   advance: optionalPayslipMoneySchema.optional(),
   incentives: optionalPayslipMoneySchema.optional(),
   overtime: optionalPayslipMoneySchema.optional(),
+  allowances: optionalPayslipMoneySchema.optional(),
   otherDeductions: z.array(payslipLineItemSchema).max(20).optional(),
 });
 

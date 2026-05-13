@@ -1,5 +1,5 @@
 ﻿export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY';
-export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'AWAITING_AUTHORIZATION' | 'CLOSED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'AWAITING_AUTHORIZATION' | 'AWAITING_CANCELLATION_APPROVAL' | 'CLOSED' | 'CANCELLED';
 export type PaymentMethod = 'MPESA' | 'CASH' | 'CARD' | 'SPLIT' | 'GUEST_SPLIT' | 'HOUSE_ACCOUNT' | 'CORPORATE_ACCOUNT' | 'CUSTOMER_CREDIT';
 export type PrepStation = 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY';
 export type PrepTicketStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'REJECTED';

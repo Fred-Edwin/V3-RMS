@@ -303,7 +303,10 @@ export const prepTicketService = {
       .every((entry) => entry.status === PrepTicketStatus.READY);
 
     if (allReady) {
-      await orderRepository.updateStatus(readyTicket.orderId, organizationId, OrderStatus.READY);
+      const parentOrder = await orderRepository.findById(readyTicket.orderId, organizationId);
+      if (parentOrder?.status !== OrderStatus.AWAITING_CANCELLATION_APPROVAL) {
+        await orderRepository.updateStatus(readyTicket.orderId, organizationId, OrderStatus.READY);
+      }
       socketService.emitOrderAllReady(ticket.order.createdById, {
         orderId: readyTicket.orderId,
         dailyNumber: ticket.order.dailyNumber,

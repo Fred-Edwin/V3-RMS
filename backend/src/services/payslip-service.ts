@@ -52,7 +52,9 @@ const sumLineItems = (items: PayslipLineItemStored[] | null): Prisma.Decimal => 
   );
 };
 
-const computeTotals = (row: BulkUpsertRowInput): { totalDeductions: Prisma.Decimal; netPay: Prisma.Decimal } => {
+export const computePayslipTotals = (
+  row: BulkUpsertRowInput,
+): { totalDeductions: Prisma.Decimal; netPay: Prisma.Decimal } => {
   const grossPay = new Prisma.Decimal(row.grossPay);
 
   const otherDeductionItems = row.otherDeductions
@@ -67,11 +69,16 @@ const computeTotals = (row: BulkUpsertRowInput): { totalDeductions: Prisma.Decim
     .add(row.helb ? new Prisma.Decimal(row.helb) : ZERO)
     .add(row.advance ? new Prisma.Decimal(row.advance) : ZERO)
     .add(sumLineItems(otherDeductionItems));
-  // overtime and incentives are earnings additions — NOT included in totalDeductions
+  const totalEarnings = grossPay
+    .add(row.incentives ? new Prisma.Decimal(row.incentives) : ZERO)
+    .add(row.overtime ? new Prisma.Decimal(row.overtime) : ZERO)
+    .add(row.allowances ? new Prisma.Decimal(row.allowances) : ZERO);
+
+  // overtime, incentives, and allowances are earnings additions — NOT included in totalDeductions
 
   return {
     totalDeductions,
-    netPay: grossPay.sub(totalDeductions),
+    netPay: totalEarnings.sub(totalDeductions),
   };
 };
 
@@ -142,7 +149,7 @@ export const payslipService = {
     ensureHumanActor(actor);
     assertCanMutate(actor);
 
-    const computedRows = input.rows.map(computeTotals);
+    const computedRows = input.rows.map(computePayslipTotals);
 
     return payslipRepository.bulkUpsert(
       input.rows,

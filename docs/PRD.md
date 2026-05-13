@@ -322,9 +322,11 @@ Same as Dine-In except no table number is required. Waiter packs the order inste
   - Once a station has a ticket in `IN_PROGRESS` or `READY`, the waiter may not remove/decrease items already on the order for that station
   - Additions for a started/ready station create a new follow-up prep ticket batch for that station (so KDS/BDS receives a new card)
 - When a modification occurs, the affected prep station (KDS or BDS) shall receive a notification of the change
-**FR-ORD-09:** Order statuses shall be: `Pending` → `In-Progress` → `Ready` → `Closed`.
+**FR-ORD-09:** Order statuses shall be: `Pending` → `In-Progress` → `Ready` → `Closed`, with controlled hold states for `Awaiting Authorization` and `Awaiting Cancellation Approval`.
 
 **FR-ORD-10:** An order is marked **Closed** when the waiter confirms payment (or marks as Handed to Grubba for delivery).
+
+**FR-ORD-10a — Cancellation Approval:** A waiter may request cancellation for an active order they created, but the order shall not become `Cancelled` until a Manager or Director approves the request. While cancellation approval is pending, the order is locked from payment, item editing, split payment line edits, and duplicate cancellation requests. If approved, the order becomes `Cancelled` and the cancellation audit records the requester, approver, reason, and timestamps. If rejected, the order returns to its previous status and the waiter is notified to continue handling it. Managers and Directors may cancel active `Pending`, `In-Progress`, or `Ready` orders directly with a required reason and audit trail; payment/discount authorization holds must be resolved through their own approval flows.
 
 **FR-ORD-11 — Receipt Printing:**
 - After payment is recorded, the waiter shall see a "Print Receipt" button on the order detail screen
@@ -715,5 +717,3 @@ The following features are explicitly excluded from the current system and plann
 ---
 
 *This document is the authoritative source of product requirements for the Wendo RMS. Any scope changes must be reviewed and updated here before development begins. Version 2.0 reflects the completed Phase 8 system state.*
-
-

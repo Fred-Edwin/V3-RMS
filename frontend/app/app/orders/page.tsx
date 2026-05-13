@@ -35,6 +35,7 @@ const statusOptions: Array<{ value: 'ALL' | OrderStatus; label: string }> = [
   { value: 'IN_PROGRESS', label: 'In Progress' },
   { value: 'READY', label: 'Ready' },
   { value: 'AWAITING_AUTHORIZATION', label: 'Auth Pending' },
+  { value: 'AWAITING_CANCELLATION_APPROVAL', label: 'Cancel Pending' },
 ];
 
 const typeOptions: Array<{ value: 'ALL' | OrderType; label: string }> = [
@@ -46,7 +47,7 @@ const typeOptions: Array<{ value: 'ALL' | OrderType; label: string }> = [
 
 const parseStatusFilter = (value: string | null): 'ALL' | OrderStatus => {
   if (!value || value === 'ALL') return 'ALL';
-  const allowed: OrderStatus[] = ['PENDING', 'IN_PROGRESS', 'READY', 'AWAITING_AUTHORIZATION', 'CLOSED', 'CANCELLED'];
+  const allowed: OrderStatus[] = ['PENDING', 'IN_PROGRESS', 'READY', 'AWAITING_AUTHORIZATION', 'AWAITING_CANCELLATION_APPROVAL', 'CLOSED', 'CANCELLED'];
   return allowed.includes(value as OrderStatus) ? (value as OrderStatus) : 'ALL';
 };
 
@@ -146,6 +147,7 @@ export default function OrdersPage(): JSX.Element {
     IN_PROGRESS: typeFilteredOrders.filter((o) => o.status === 'IN_PROGRESS').length,
     READY: typeFilteredOrders.filter((o) => o.status === 'READY').length,
     AWAITING_AUTHORIZATION: typeFilteredOrders.filter((o) => o.status === 'AWAITING_AUTHORIZATION').length,
+    AWAITING_CANCELLATION_APPROVAL: typeFilteredOrders.filter((o) => o.status === 'AWAITING_CANCELLATION_APPROVAL').length,
   }), [typeFilteredOrders]);
 
   const typeCounts = useMemo(() => ({
@@ -243,6 +245,37 @@ export default function OrdersPage(): JSX.Element {
     return () => { socket.off('order:customer_discount_resolved', handleCustomerDiscountResolved); };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- toast and updateOrderRealTime are stable; no risk of loop
   }, [updateOrderRealTime]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleCancellationPending = (payload: { orderId: string; dailyNumber: number }) => {
+      updateOrderRealTime(payload.orderId, { status: 'AWAITING_CANCELLATION_APPROVAL' });
+      setSelectedOrder((prev) => (prev && prev.id === payload.orderId ? { ...prev, status: 'AWAITING_CANCELLATION_APPROVAL' } : prev));
+      toast({ variant: 'info', title: `Order #${payload.dailyNumber} cancellation pending`, message: 'A manager or director must approve it.' });
+    };
+    const handleCancellationResolved = (payload: { orderId: string; dailyNumber: number; approved: boolean; restoredStatus?: string }) => {
+      if (payload.approved) {
+        removeOrderFromActive(payload.orderId);
+        setSelectedOrder((prev) => (prev && prev.id === payload.orderId ? { ...prev, status: 'CANCELLED' } : prev));
+        toast({ variant: 'success', title: `Order #${payload.dailyNumber} cancelled` });
+      } else {
+        const restoredStatus: OrderStatus =
+          payload.restoredStatus === 'PENDING' || payload.restoredStatus === 'IN_PROGRESS' || payload.restoredStatus === 'READY'
+            ? payload.restoredStatus
+            : 'IN_PROGRESS';
+        updateOrderRealTime(payload.orderId, { status: restoredStatus });
+        setSelectedOrder((prev) => (prev && prev.id === payload.orderId ? { ...prev, status: restoredStatus } : prev));
+        toast({ variant: 'info', title: `Order #${payload.dailyNumber} cancellation rejected`, message: 'Continue handling the order.' });
+      }
+    };
+    socket.on('order:cancellation_pending', handleCancellationPending);
+    socket.on('order:cancellation_resolved', handleCancellationResolved);
+    return () => {
+      socket.off('order:cancellation_pending', handleCancellationPending);
+      socket.off('order:cancellation_resolved', handleCancellationResolved);
+    };
+  }, [removeOrderFromActive, toast, updateOrderRealTime]);
 
   const handleOpenOrder = async (orderId: string) => {
     if (!accessToken) return;
@@ -352,12 +385,19 @@ export default function OrdersPage(): JSX.Element {
     if (!accessToken || !cancelOrderId) return;
     setIsCancelSubmitting(true);
     try {
-      await orderService.cancel(cancelOrderId, { reason, reasonDetail }, accessToken);
-      removeOrderFromActive(cancelOrderId);
-      toast({ variant: 'success', title: 'Order cancelled' });
+      const updated = await orderService.cancel(cancelOrderId, { reason, reasonDetail }, accessToken);
+      if (updated.status === 'AWAITING_CANCELLATION_APPROVAL') {
+        updateOrderRealTime(cancelOrderId, { status: 'AWAITING_CANCELLATION_APPROVAL' });
+        toast({ variant: 'info', title: 'Cancellation request sent', message: 'A manager or director must approve it.' });
+      } else {
+        removeOrderFromActive(cancelOrderId);
+        toast({ variant: 'success', title: 'Order cancelled' });
+      }
       setIsCancelOpen(false);
       setCancelOrderId(null);
-      setSelectedOrder(null);
+      setSelectedOrder((prev) =>
+        prev && prev.id === cancelOrderId ? { ...prev, status: updated.status } : prev,
+      );
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Unable to cancel order.';
       toast({ variant: 'error', title: 'Cancel failed', message });

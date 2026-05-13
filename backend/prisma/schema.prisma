@@ -40,6 +40,7 @@ model Organization {
   otherIncomeEntries     OtherIncomeEntry[]
   otherIncomeEntriesBranch OtherIncomeEntry[]    @relation("OtherIncomeEntryBranch")
   staffDiscountAuthRequests StaffDiscountAuthRequest[]
+  orderCancellationRequests OrderCancellationRequest[]
   discounts                 Discount[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
   directConversations      DirectConversation[]
@@ -88,6 +89,8 @@ model User {
   organization       Organization?     @relation(fields: [organizationId], references: [id])
   ordersCreated        Order[]           @relation("OrderCreatedBy")
   ordersCancelled      Order[]           @relation("OrderCancelledBy")
+  orderCancellationRequestsRequested OrderCancellationRequest[] @relation("OrderCancellationRequestedBy")
+  orderCancellationRequestsResolved  OrderCancellationRequest[] @relation("OrderCancellationResolvedBy")
   shiftAssignments     ShiftAssignment[]
   clockRecords         ClockRecord[]
   prepTicketsClaimed   PrepTicket[]      @relation("PrepTicketClaimedBy")
@@ -343,6 +346,7 @@ model Order {
   houseAuthRequests       HouseAccountAuthRequest[]
   staffDiscountAuthRequests StaffDiscountAuthRequest[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
+  cancellationRequests OrderCancellationRequest[]
   splitPaymentLines       SplitPaymentLine[]
 
   @@unique([organizationId, dailyNumber, orderDate])
@@ -351,6 +355,33 @@ model Order {
   @@index([organizationId, orderDate])
   @@index([createdById])
   @@map("orders")
+}
+
+model OrderCancellationRequest {
+  id             String                    @id @default(uuid())
+  organizationId String                    @map("organization_id")
+  orderId        String                    @map("order_id")
+  requestedById  String                    @map("requested_by_id")
+  reason         String
+  reasonDetail   String?                   @map("reason_detail")
+  previousStatus OrderStatus               @map("previous_status")
+  status         CancellationRequestStatus @default(PENDING)
+  resolvedById   String?                   @map("resolved_by_id")
+  resolvedAt     DateTime?                 @map("resolved_at")
+  resolutionNote String?                   @map("resolution_note")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  requestedBy  User         @relation("OrderCancellationRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("OrderCancellationResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([requestedById])
+  @@index([status])
+  @@map("order_cancellation_requests")
 }
 
 model OrderItem {
@@ -443,8 +474,15 @@ enum OrderStatus {
   IN_PROGRESS
   READY
   AWAITING_AUTHORIZATION
+  AWAITING_CANCELLATION_APPROVAL
   CLOSED
   CANCELLED
+}
+
+enum CancellationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum HouseAccountAuthStatus {
@@ -487,6 +525,7 @@ enum IncidentType {
   ORDER_STALE
   ORDER_ITEM_REMOVED
   PAYMENT_REJECTED
+  ORDER_CANCELLATION_REJECTED
 }
 
 enum ModificationRequestStatus {
@@ -1187,6 +1226,7 @@ model Payslip {
   advance         Decimal? @db.Decimal(10, 2)
   incentives      Decimal? @db.Decimal(10, 2)
   overtime        Decimal? @db.Decimal(10, 2)
+  allowances      Decimal? @db.Decimal(10, 2)
   otherDeductions Json?    @map("other_deductions")
   totalDeductions Decimal  @db.Decimal(10, 2) @map("total_deductions")
   netPay          Decimal  @db.Decimal(10, 2) @map("net_pay")

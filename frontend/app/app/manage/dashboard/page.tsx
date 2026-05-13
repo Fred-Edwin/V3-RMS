@@ -19,6 +19,7 @@ import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
 import { customerDiscountAuthService } from '@/services/customerDiscountAuthService';
+import { orderCancellationAuthService } from '@/services/orderCancellationAuthService';
 import { reportService } from '@/services/reportService';
 import { shiftService } from '@/services/shiftService';
 import { useAuthStore } from '@/store/authStore';
@@ -29,6 +30,7 @@ import type { ShiftAssignment } from '@/types/shift';
 import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
 import type { StaffDiscountAuthRequest } from '@/types/staffDiscountAuth';
 import type { CustomerDiscountAuthRequest } from '@/types/discount';
+import type { OrderCancellationAuthRequest } from '@/types/orderCancellationAuth';
 
 const formatDisplayDate = (ymd: string): string => {
   const parsed = new Date(`${ymd}T00:00:00`);
@@ -124,6 +126,8 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
+  const [pendingCancellationAuths, setPendingCancellationAuths] = useState<OrderCancellationAuthRequest[]>([]);
+  const [cancellationOverrideSubmittingId, setCancellationOverrideSubmittingId] = useState<string | null>(null);
 
 
   const loadDailySummary = useCallback(async (): Promise<void> => {
@@ -227,6 +231,9 @@ export default function ManagerDashboardPage(): JSX.Element {
     customerDiscountAuthService.listPending(accessToken)
       .then((data) => setPendingCustomerDiscountAuths(data))
       .catch(() => { /* non-critical */ });
+    orderCancellationAuthService.listPending(accessToken)
+      .then((data) => setPendingCancellationAuths(data))
+      .catch(() => { /* non-critical */ });
   }, [accessToken]);
 
   // Keep widget in sync via socket — add new pending auths and remove resolved ones
@@ -302,6 +309,30 @@ export default function ManagerDashboardPage(): JSX.Element {
     };
   }, [accessToken]);
 
+  // Keep cancellation approval widget in sync via socket
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleCancellationPending = (payload: { orderId: string; authRequestId: string }) => {
+      if (!accessToken) return;
+      orderCancellationAuthService.getById(payload.authRequestId, accessToken)
+        .then((req) => setPendingCancellationAuths((prev) => {
+          if (prev.some((r) => r.id === req.id)) return prev;
+          return [...prev, req];
+        }))
+        .catch(() => { /* non-critical */ });
+    };
+    const handleCancellationResolved = (payload: { orderId: string }) => {
+      setPendingCancellationAuths((prev) => prev.filter((r) => r.orderId !== payload.orderId));
+    };
+    socket.on('order:cancellation_pending', handleCancellationPending);
+    socket.on('order:cancellation_resolved', handleCancellationResolved);
+    return () => {
+      socket.off('order:cancellation_pending', handleCancellationPending);
+      socket.off('order:cancellation_resolved', handleCancellationResolved);
+    };
+  }, [accessToken]);
+
   const handleDiscountDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
     if (!accessToken || discountOverrideSubmittingId) return;
     setDiscountOverrideSubmittingId(authRequestId);
@@ -355,6 +386,24 @@ export default function ManagerDashboardPage(): JSX.Element {
       setAuthOverrideSubmittingId(null);
     }
   }, [accessToken, authOverrideSubmittingId, toast]);
+
+  const handleCancellationDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || cancellationOverrideSubmittingId) return;
+    setCancellationOverrideSubmittingId(authRequestId);
+    try {
+      await orderCancellationAuthService.override(authRequestId, decision, accessToken);
+      setPendingCancellationAuths((prev) => prev.filter((r) => r.id !== authRequestId));
+      toast({
+        variant: 'success',
+        title: decision === 'APPROVED' ? 'Cancellation approved' : 'Cancellation rejected',
+        message: decision === 'APPROVED' ? 'The order has been cancelled.' : 'Order returned to the waiter.',
+      });
+    } catch {
+      toast({ variant: 'error', title: 'Action failed', message: 'Could not process the decision.' });
+    } finally {
+      setCancellationOverrideSubmittingId(null);
+    }
+  }, [accessToken, cancellationOverrideSubmittingId, toast]);
 
   const summaryAvgPrep = useMemo(() => {
     if (!dailySummary) {
@@ -477,6 +526,68 @@ export default function ManagerDashboardPage(): JSX.Element {
                 })}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Order Cancellation Authorizations */}
+      {pendingCancellationAuths.length > 0 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3 print:hidden">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-orange-600 shrink-0" />
+            <p className="text-body-sm font-semibold text-orange-800">
+              {pendingCancellationAuths.length === 1
+                ? '1 order cancellation awaiting your approval'
+                : `${pendingCancellationAuths.length} order cancellations awaiting your approval`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {pendingCancellationAuths.map((req) => {
+              const loading = cancellationOverrideSubmittingId === req.id;
+              return (
+                <div key={req.id} className="rounded-lg border border-orange-200 bg-white p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-semibold text-stone-900">
+                      Order #{req.order.dailyNumber}
+                      <span className="ml-2 font-normal text-stone-500">
+                        KES {Number.parseFloat(req.order.total).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      </span>
+                    </p>
+                    <p className="text-caption text-stone-500 mt-0.5">
+                      {req.reason}{req.reasonDetail ? ` · ${req.reasonDetail}` : ''} · requested by {req.requestedBy.name}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={!!cancellationOverrideSubmittingId}
+                      onClick={() => void handleCancellationDecision(req.id, 'APPROVED')}
+                      className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading ? (
+                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <CheckCircle size={13} />
+                      )}
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!!cancellationOverrideSubmittingId}
+                      onClick={() => void handleCancellationDecision(req.id, 'REJECTED')}
+                      className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loading ? (
+                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      ) : (
+                        <XCircle size={13} />
+                      )}
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -870,4 +981,3 @@ export default function ManagerDashboardPage(): JSX.Element {
     </PageLayout>
   );
 }
-

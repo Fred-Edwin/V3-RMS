@@ -14,6 +14,7 @@ const statusVariantMap = {
   IN_PROGRESS: 'inprogress',
   READY: 'ready',
   AWAITING_AUTHORIZATION: 'awaiting',
+  AWAITING_CANCELLATION_APPROVAL: 'cancellationPending',
   CLOSED: 'closed',
   CANCELLED: 'cancelled',
 } as const;

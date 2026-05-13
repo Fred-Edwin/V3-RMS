@@ -925,8 +925,8 @@ Removes a guest payment line. Only allowed while the order is not yet closed.
 ---
 
 ### PATCH `/orders/:id/cancel`
-**Access:** 🔑 WAITER, MGR
-Cancels an order. Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS`, or `READY` status. Managers can cancel any non-terminal order. Cancellation of `IN_PROGRESS`/`READY` orders by a manager emits `order:force_cancelled`.
+**Access:** 🔑 WAITER, MGR, DIR
+Requests or performs cancellation. Waiters can request cancellation for their own orders in `PENDING`, `IN_PROGRESS`, or `READY` status; this does **not** immediately cancel the order. The order moves to `AWAITING_CANCELLATION_APPROVAL` until a Manager or Director approves or rejects. Managers and Directors can directly cancel active orders in `PENDING`, `IN_PROGRESS`, or `READY` with the same reason payload. Direct cancellation of `IN_PROGRESS`/`READY` orders emits `order:force_cancelled`.
 
 **Request Body:**
 ```json
@@ -940,8 +940,29 @@ Cancels an order. Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS
 - `reason` required: one of `Customer changed their mind | Customer left | Duplicate order | Wrong items ordered | Item unavailable | Other`
 - `reasonDetail` required when reason is `Other`
 - Waiter must be the order creator (ownership check)
+- Waiter path is rejected if the order already has a pending cancellation request
+- Orders in `CLOSED`, `CANCELLED`, `AWAITING_AUTHORIZATION`, or `AWAITING_CANCELLATION_APPROVAL` cannot receive a new waiter cancellation request
+- Manager/Director direct cancellation is allowed only from `PENDING`, `IN_PROGRESS`, or `READY`; orders in authorization hold states must be resolved through their approval flow
 
-**Response `200`:**
+**Waiter Response `202`:**
+```json
+{
+  "success": true,
+  "data": {
+    "order": { "id": "uuid", "status": "AWAITING_CANCELLATION_APPROVAL" },
+    "cancellationRequest": {
+      "id": "uuid",
+      "orderId": "uuid",
+      "status": "PENDING",
+      "previousStatus": "IN_PROGRESS",
+      "reason": "Customer left"
+    }
+  },
+  "message": "Cancellation request sent for approval"
+}
+```
+
+**Manager/Director Response `200`:**
 ```json
 {
   "success": true,
@@ -960,6 +981,35 @@ Cancels an order. Waiters can cancel their own orders in `PENDING`, `IN_PROGRESS
   }
 }
 ```
+
+---
+
+### Order Cancellation Authorization
+
+#### GET `/order-cancellation-auth`
+**Access:** 🔑 MGR, DIR
+Returns pending cancellation requests for the authenticated manager's branch. Directors may see requests across branches according to the same cross-branch access rules used by manager dashboards.
+
+#### GET `/orders/:orderId/cancellation-auth`
+**Access:** 🔑 WAITER, MGR, DIR
+Returns the pending cancellation request for an order. Waiters can only fetch requests for their own orders.
+
+#### POST `/order-cancellation-auth/:authRequestId/override`
+**Access:** 🔑 MGR, DIR
+Approves or rejects a pending cancellation request.
+
+**Request Body:**
+```json
+{
+  "decision": "APPROVED",
+  "resolutionNote": "Optional note when rejecting or approving"
+}
+```
+
+**Behavior:**
+- On `APPROVE`: request status becomes `APPROVED`, order status becomes `CANCELLED`, cancellation fields are written to the order, `ORDER_CANCELLED` incident is logged, and prep stations plus the waiter are notified.
+- On `REJECT`: request status becomes `REJECTED`, order status is restored to the request's `previousStatus`, rejection audit is logged, and the waiter is notified to continue handling the order.
+- Approval/rejection is atomic with the order status update.
 
 ---
 
@@ -2194,6 +2244,25 @@ Returns a file download (`Content-Disposition: attachment`).
 
 ---
 
+## Payslips
+
+### POST `/payslips/bulk-upsert`
+
+Creates or updates payroll rows for a single branch and pay period. The request body contains `payPeriod`, `organizationId`, and `rows`.
+
+Each row accepts these money fields as decimal strings: `grossPay`, `paye`, `sha`, `nssfTier1`, `nssfTier2`, `housingLevy`, optional `helb`, optional `advance`, optional `incentives`, optional `overtime`, optional `allowances`, and optional `otherDeductions[]` entries with required `label` and `amount`.
+
+The server ignores client-computed totals and computes:
+
+```text
+totalDeductions = paye + sha + nssfTier1 + nssfTier2 + housingLevy + helb + advance + sum(otherDeductions)
+netPay = grossPay + incentives + overtime + allowances - totalDeductions
+```
+
+`advance` reduces pay. `incentives`, `overtime`, and `allowances` increase pay.
+
+---
+
 ## 18. System Admin
 
 ### GET `/admin/organizations`
@@ -2280,6 +2349,8 @@ const socket = io('wss://api.wendorms.co.ke', {
 | `order:modified` | Updated `PrepTicket` object | Affected station room |
 | `order:cancelled` | `{ orderId }` | Station rooms |
 | `order:force_cancelled` | `{ orderId }` | Waiter user room + station rooms |
+| `order:cancellation_pending` | `{ orderId, authRequestId, dailyNumber, requestedById, reason }` | Branch room + waiter user room |
+| `order:cancellation_resolved` | `{ orderId, authRequestId, action: "APPROVED"\|"REJECTED", restoredStatus? }` | Branch room + waiter user room |
 | `ticket:rejected` | `{ orderId, ticketId, station, reason }` | Waiter user room |
 | `ticket:unclaimed` | `{ orderId, ticketId, station }` | Waiter user room |
 | `incident:new` | `{ id, type, orderId?, actor, details, createdAt }` | Branch room (managers) |

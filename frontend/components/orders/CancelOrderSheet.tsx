@@ -38,9 +38,9 @@ export function CancelOrderSheet({ isOpen, onClose, onConfirm, isSubmitting = fa
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={handleClose} title="Cancel Order">
+    <BottomSheet isOpen={isOpen} onClose={handleClose} title="Request Cancellation">
       <div className="space-y-4">
-        <p className="text-body-sm text-stone-600">Why is this order being cancelled?</p>
+        <p className="text-body-sm text-stone-600">Why should this order be cancelled?</p>
 
         <div className="space-y-2">
           {CANCEL_REASONS.map((reason) => (
@@ -82,7 +82,7 @@ export function CancelOrderSheet({ isOpen, onClose, onConfirm, isSubmitting = fa
           isLoading={isSubmitting}
           onClick={handleConfirm}
         >
-          Cancel Order
+          Request Cancellation
         </Button>
       </div>
     </BottomSheet>

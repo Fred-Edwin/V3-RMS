@@ -432,6 +432,7 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: 'In Progress',
   READY: 'Ready',
   AWAITING_AUTHORIZATION: 'Awaiting Auth',
+  AWAITING_CANCELLATION_APPROVAL: 'Cancel Pending',
 };
 
 const formatDateTime = (isoString: string): string => {

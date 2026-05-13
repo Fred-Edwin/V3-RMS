@@ -37,6 +37,7 @@ interface SheetRow {
   advance: string;
   incentives: string;
   overtime: string;
+  allowances: string;
   kraPIN: string | null;
   bankAccount: string | null;
   payslipId: string | null;
@@ -44,7 +45,84 @@ interface SheetRow {
   errorMsg: string;
 }
 
+const EDITABLE_COLUMNS = [
+  'grossPay',
+  'paye',
+  'sha',
+  'nssfTier1',
+  'nssfTier2',
+  'housingLevy',
+  'ncnsAmount',
+  'ncnsNote',
+  'advance',
+  'incentives',
+  'overtime',
+  'allowances',
+] as const;
+
+type EditableColumnKey = (typeof EDITABLE_COLUMNS)[number];
+
+interface SheetCellCoord {
+  rowIndex: number;
+  columnKey: EditableColumnKey;
+}
+
+interface SheetSelection {
+  anchor: SheetCellCoord;
+  focus: SheetCellCoord;
+}
+
+const MONEY_COLUMNS = new Set<EditableColumnKey>(
+  EDITABLE_COLUMNS.filter((column) => column !== 'ncnsNote'),
+);
+
 const EXCLUDED_ROLES = new Set<AppRole>(['KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'SYSTEM_ADMIN']);
+
+const columnIndex = (columnKey: EditableColumnKey): number => EDITABLE_COLUMNS.indexOf(columnKey);
+
+const sameCell = (a: SheetCellCoord | null, b: SheetCellCoord | null): boolean =>
+  !!a && !!b && a.rowIndex === b.rowIndex && a.columnKey === b.columnKey;
+
+const getSelectionBounds = (selection: SheetSelection) => {
+  const anchorColumn = columnIndex(selection.anchor.columnKey);
+  const focusColumn = columnIndex(selection.focus.columnKey);
+
+  return {
+    minRow: Math.min(selection.anchor.rowIndex, selection.focus.rowIndex),
+    maxRow: Math.max(selection.anchor.rowIndex, selection.focus.rowIndex),
+    minCol: Math.min(anchorColumn, focusColumn),
+    maxCol: Math.max(anchorColumn, focusColumn),
+  };
+};
+
+const isCellInSelection = (cell: SheetCellCoord, selection: SheetSelection | null): boolean => {
+  if (!selection) return false;
+  const bounds = getSelectionBounds(selection);
+  const col = columnIndex(cell.columnKey);
+  return cell.rowIndex >= bounds.minRow && cell.rowIndex <= bounds.maxRow && col >= bounds.minCol && col <= bounds.maxCol;
+};
+
+const isBottomRightSelectionCell = (cell: SheetCellCoord, selection: SheetSelection | null): boolean => {
+  if (!selection) return false;
+  const bounds = getSelectionBounds(selection);
+  return cell.rowIndex === bounds.maxRow && columnIndex(cell.columnKey) === bounds.maxCol;
+};
+
+const normalizeClipboardValue = (columnKey: EditableColumnKey, value: string): string | null => {
+  const trimmed = value.trim();
+  if (!MONEY_COLUMNS.has(columnKey)) return trimmed;
+
+  const normalized = trimmed.replace(/,/g, '');
+  if (normalized === '') return '';
+  if (!/^\d{1,8}(\.\d{1,2})?$/.test(normalized)) return null;
+  return normalized;
+};
+
+const parseClipboardGrid = (text: string): string[][] => {
+  const rows = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (rows[rows.length - 1] === '') rows.pop();
+  return rows.map((row) => row.split('\t'));
+};
 
 const computeRow = (row: SheetRow) => {
   const totalDeductions =
@@ -55,7 +133,12 @@ const computeRow = (row: SheetRow) => {
     Number(row.housingLevy || 0) +
     Number(row.ncnsAmount || 0) +
     Number(row.advance || 0);
-  const netSalary = Number(row.grossPay || 0) - totalDeductions;
+  const totalEarnings =
+    Number(row.grossPay || 0) +
+    Number(row.incentives || 0) +
+    Number(row.overtime || 0) +
+    Number(row.allowances || 0);
+  const netSalary = totalEarnings - totalDeductions;
   return { totalDeductions, netSalary };
 };
 
@@ -72,10 +155,9 @@ const SHEET_ROLE_ORDER: Record<string, number> = {
 const roleLabel = (role: string) =>
   role.toLowerCase().split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-const maskAccount = (accountNumber: string | null | undefined, bankName: string | null | undefined): string | null => {
+const formatSheetAccount = (accountNumber: string | null | undefined, bankName: string | null | undefined): string | null => {
   if (!accountNumber) return null;
-  const masked = accountNumber.length > 4 ? `···${accountNumber.slice(-4)}` : accountNumber;
-  return bankName ? `${bankName} ${masked}` : masked;
+  return bankName ? `${bankName} ${accountNumber}` : accountNumber;
 };
 
 const staffToRow = (staff: StaffDto): SheetRow => ({
@@ -93,6 +175,7 @@ const staffToRow = (staff: StaffDto): SheetRow => ({
   advance: '',
   incentives: '',
   overtime: '',
+  allowances: '',
   kraPIN: null,
   bankAccount: null,
   payslipId: null,
@@ -115,22 +198,21 @@ const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
     advance: payslip.advance ?? '',
     incentives: payslip.incentives ?? '',
     overtime: payslip.overtime ?? '',
+    allowances: payslip.allowances ?? '',
     kraPIN: ep?.kraPIN ?? null,
-    bankAccount: maskAccount(ep?.accountNumber, ep?.bankName),
+    bankAccount: formatSheetAccount(ep?.accountNumber, ep?.bankName),
     payslipId: payslip.id,
     state: 'saved',
   };
 };
 
-const getLastNMonths = (n: number): string[] => {
-  const result: string[] = [];
+const getPreviousAndCurrentMonths = (): string[] => {
   const now = new Date();
-  for (let i = 0; i < n; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  return [1, 0].map((offset) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
-    result.push(`${d.getFullYear()}-${mm}`);
-  }
-  return result;
+    return `${d.getFullYear()}-${mm}`;
+  });
 };
 
 const lastDayOfMonth = (payPeriod: string): string => {
@@ -180,9 +262,9 @@ export default function HrPayslipsPage(): JSX.Element {
   const actorOrgId = useAuthStore((state) => state.organizationId);
   const { toast } = useToast();
 
-  const periods = useMemo(() => getLastNMonths(7), []);
+  const periods = useMemo(() => getPreviousAndCurrentMonths(), []);
   const [activeTab, setActiveTab] = useState<TabId>('entry');
-  const [activePeriod, setActivePeriod] = useState(periods[0]);
+  const [activePeriod, setActivePeriod] = useState(periods[1] ?? periods[0]);
   const [selectedBranchId, setSelectedBranchId] = useState(actorOrgId ?? '');
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
@@ -200,10 +282,16 @@ export default function HrPayslipsPage(): JSX.Element {
   const [recordStaffId, setRecordStaffId] = useState('');
   const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [activeCell, setActiveCell] = useState<SheetCellCoord | null>(null);
+  const [selection, setSelection] = useState<SheetSelection | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [fillSelection, setFillSelection] = useState<SheetSelection | null>(null);
 
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const rowsRef = useRef<SheetRow[]>([]);
+  const selectionRef = useRef<SheetSelection | null>(null);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
+  useEffect(() => { selectionRef.current = selection; }, [selection]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -261,7 +349,7 @@ export default function HrPayslipsPage(): JSX.Element {
         if (existing) {
           const ep = existing.user.employeeProfile;
           base.kraPIN = ep?.kraPIN ?? null;
-          base.bankAccount = maskAccount(ep?.accountNumber, ep?.bankName);
+          base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
           Object.assign(base, payslipToRow(existing));
         }
         return base;
@@ -281,17 +369,7 @@ export default function HrPayslipsPage(): JSX.Element {
     void loadSheet();
   }, [loadSheet]);
 
-  const updateRow = (userId: string, field: keyof SheetRow, value: string) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.userId === userId ? { ...row, [field]: value, state: 'dirty' as RowState, errorMsg: '' } : row,
-      ),
-    );
-    if (debounceTimers.current[userId]) clearTimeout(debounceTimers.current[userId]);
-    debounceTimers.current[userId] = setTimeout(() => { void autoSaveRow(userId); }, 1500);
-  };
-
-  const autoSaveRow = async (userId: string) => {
+  const autoSaveRow = useCallback(async (userId: string) => {
     if (!accessToken) return;
     const orgId = selectedBranchId || actorOrgId;
     if (!orgId) return;
@@ -323,6 +401,7 @@ export default function HrPayslipsPage(): JSX.Element {
             advance: row.advance || null,
             incentives: row.incentives || null,
             overtime: row.overtime || null,
+            allowances: row.allowances || null,
             otherDeductions: otherDeductions.length > 0 ? otherDeductions : undefined,
           }],
         },
@@ -335,7 +414,140 @@ export default function HrPayslipsPage(): JSX.Element {
         prev.map((r) => r.userId === userId ? { ...r, state: 'error', errorMsg: msg } : r),
       );
     }
+  }, [accessToken, activePeriod, actorOrgId, selectedBranchId]);
+
+  const scheduleAutoSave = useCallback((userId: string) => {
+    if (debounceTimers.current[userId]) clearTimeout(debounceTimers.current[userId]);
+    debounceTimers.current[userId] = setTimeout(() => { void autoSaveRow(userId); }, 1500);
+  }, [autoSaveRow]);
+
+  const updateRowsBatch = useCallback((updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }>) => {
+    const affectedUserIds = new Set<string>();
+
+    setRows((prev) => {
+      const next = prev.map((row) => ({ ...row }));
+      updates.forEach((update) => {
+        const row = next[update.rowIndex];
+        if (!row) return;
+        row[update.field] = update.value;
+        row.state = 'dirty';
+        row.errorMsg = '';
+        affectedUserIds.add(row.userId);
+      });
+      return next;
+    });
+
+    affectedUserIds.forEach(scheduleAutoSave);
+  }, [scheduleAutoSave]);
+
+  const updateRow = (userId: string, field: keyof SheetRow, value: string) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.userId === userId ? { ...row, [field]: value, state: 'dirty' as RowState, errorMsg: '' } : row,
+      ),
+    );
+    scheduleAutoSave(userId);
   };
+
+  const handleCellMouseDown = (cell: SheetCellCoord) => {
+    if (isPublished) return;
+    setActiveCell(cell);
+    setSelection({ anchor: cell, focus: cell });
+    setIsSelecting(true);
+  };
+
+  const handleCellMouseEnter = (cell: SheetCellCoord) => {
+    if (isSelecting && selection) {
+      setSelection({ anchor: selection.anchor, focus: cell });
+      return;
+    }
+
+    if (fillSelection) {
+      setSelection({ anchor: fillSelection.anchor, focus: cell });
+    }
+  };
+
+  const finishPointerAction = useCallback(() => {
+    if (fillSelection && selection && !isPublished) {
+      const sourceBounds = getSelectionBounds(fillSelection);
+      const targetBounds = getSelectionBounds(selection);
+      const draggedPastSource = targetBounds.maxRow > sourceBounds.maxRow || targetBounds.maxCol > sourceBounds.maxCol;
+
+      if (draggedPastSource) {
+        const updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }> = [];
+        const sourceRows = rowsRef.current.slice(sourceBounds.minRow, sourceBounds.maxRow + 1);
+        for (let rowIndex = sourceBounds.maxRow + 1; rowIndex <= targetBounds.maxRow; rowIndex++) {
+          const sourceRow = sourceRows[(rowIndex - sourceBounds.maxRow - 1) % sourceRows.length];
+          if (!sourceRow) continue;
+          for (let colIndex = sourceBounds.minCol; colIndex <= sourceBounds.maxCol; colIndex++) {
+            const field = EDITABLE_COLUMNS[colIndex];
+            if (!field) continue;
+            updates.push({ rowIndex, field, value: sourceRow[field] });
+          }
+        }
+        if (updates.length > 0) updateRowsBatch(updates);
+      }
+    }
+
+    setIsSelecting(false);
+    setFillSelection(null);
+  }, [fillSelection, isPublished, selection, updateRowsBatch]);
+
+  useEffect(() => {
+    window.addEventListener('mouseup', finishPointerAction);
+    return () => window.removeEventListener('mouseup', finishPointerAction);
+  }, [finishPointerAction]);
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>, startCell: SheetCellCoord) => {
+    if (isPublished) return;
+
+    const grid = parseClipboardGrid(event.clipboardData.getData('text/plain'));
+    if (grid.length === 0) return;
+    event.preventDefault();
+
+    const startColumnIndex = columnIndex(startCell.columnKey);
+    const updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }> = [];
+
+    grid.forEach((pastedRow, rowOffset) => {
+      const rowIndex = startCell.rowIndex + rowOffset;
+      if (rowIndex >= rowsRef.current.length) return;
+
+      pastedRow.forEach((rawValue, colOffset) => {
+        const field = EDITABLE_COLUMNS[startColumnIndex + colOffset];
+        if (!field) return;
+        const value = normalizeClipboardValue(field, rawValue);
+        if (value === null) return;
+        updates.push({ rowIndex, field, value });
+      });
+    });
+
+    if (updates.length > 0) updateRowsBatch(updates);
+  };
+
+  useEffect(() => {
+    const handleCopy = (event: ClipboardEvent) => {
+      const currentSelection = selectionRef.current;
+      if (!currentSelection) return;
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLElement) || !activeElement.closest('[data-payroll-sheet="true"]')) return;
+
+      const bounds = getSelectionBounds(currentSelection);
+      const text = rowsRef.current
+        .slice(bounds.minRow, bounds.maxRow + 1)
+        .map((row) =>
+          EDITABLE_COLUMNS.slice(bounds.minCol, bounds.maxCol + 1)
+            .map((field) => row[field])
+            .join('\t'),
+        )
+        .join('\n');
+
+      event.clipboardData?.setData('text/plain', text);
+      event.preventDefault();
+    };
+
+    document.addEventListener('copy', handleCopy);
+    return () => document.removeEventListener('copy', handleCopy);
+  }, []);
 
   const handlePublish = async () => {
     if (!accessToken) return;
@@ -412,6 +624,7 @@ export default function HrPayslipsPage(): JSX.Element {
       advance: sum('advance'),
       incentives: sum('incentives'),
       overtime: sum('overtime'),
+      allowances: sum('allowances'),
       totalDeductions: rows.reduce((acc, r) => acc + computeRow(r).totalDeductions, 0),
       netSalary: rows.reduce((acc, r) => acc + computeRow(r).netSalary, 0),
     };
@@ -427,6 +640,61 @@ export default function HrPayslipsPage(): JSX.Element {
   /* ── Shared cell class helpers ─── */
   const inp = (extra = '') =>
     `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
+
+  const editableCellStyle = (cell: SheetCellCoord, bg: string): React.CSSProperties => {
+    const selected = isCellInSelection(cell, selection);
+    const active = sameCell(cell, activeCell);
+
+    return {
+      ...cellStyle(selected ? '#dbeafe' : bg),
+      position: 'relative',
+      boxShadow: active
+        ? 'inset 0 0 0 2px #2563eb'
+        : selected
+          ? 'inset 0 0 0 1px #60a5fa'
+          : undefined,
+    };
+  };
+
+  const cellEvents = (cell: SheetCellCoord) => ({
+    onMouseDown: () => handleCellMouseDown(cell),
+    onMouseEnter: () => handleCellMouseEnter(cell),
+  });
+
+  const inputEvents = (cell: SheetCellCoord) => ({
+    onFocus: () => {
+      if (isPublished) return;
+      setActiveCell(cell);
+      setSelection({ anchor: cell, focus: cell });
+    },
+    onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => handlePaste(event, cell),
+  });
+
+  const fillHandle = (cell: SheetCellCoord) => {
+    if (isPublished || !isBottomRightSelectionCell(cell, selection)) return null;
+
+    return (
+      <span
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (selection) setFillSelection(selection);
+        }}
+        title="Drag to fill"
+        style={{
+          position: 'absolute',
+          right: -3,
+          bottom: -3,
+          width: 7,
+          height: 7,
+          border: '1px solid white',
+          background: '#2563eb',
+          cursor: 'crosshair',
+          zIndex: 6,
+        }}
+      />
+    );
+  };
 
   return (
     <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col [height:calc(100vh-56px)]">
@@ -529,12 +797,12 @@ export default function HrPayslipsPage(): JSX.Element {
             className="flex flex-col flex-1 rounded-t-[20px] border border-stone-200 bg-white shadow-sm overflow-hidden min-h-0"
           >
             {/* Scrollable sheet area */}
-            <div className="overflow-auto flex-1">
+            <div className="overflow-auto flex-1" data-payroll-sheet="true">
               {isLoadingSheet ? (
                 <div className="p-6"><SkeletonTable rows={6} columns={12} /></div>
               ) : (
                 <table
-                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: '12px', minWidth: '100%', tableLayout: 'fixed' }}
+                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: '12px', width: 1880, minWidth: 1880, tableLayout: 'fixed' }}
                 >
                   <colgroup>
                     <col style={{ width: 32, minWidth: 32 }} />
@@ -551,8 +819,9 @@ export default function HrPayslipsPage(): JSX.Element {
                     <col style={{ width: 84, minWidth: 84 }} />
                     <col style={{ width: 100, minWidth: 100 }} />
                     <col style={{ width: 100, minWidth: 100 }} />
+                    <col style={{ width: 100, minWidth: 100 }} />
                     <col style={{ width: 140, minWidth: 140 }} />
-                    <col style={{ width: 140, minWidth: 140 }} />
+                    <col style={{ width: 260, minWidth: 260 }} />
                   </colgroup>
 
                   <thead>
@@ -579,7 +848,7 @@ export default function HrPayslipsPage(): JSX.Element {
                         DEDUCTIONS
                       </td>
                       <td
-                        colSpan={3}
+                        colSpan={4}
                         style={{ background: '#5b2d8e', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
                       >
                         EXTRAS
@@ -623,6 +892,7 @@ export default function HrPayslipsPage(): JSX.Element {
                       <th style={colHdrStyle('#5b2d8e')}>Advance</th>
                       <th style={colHdrStyle('#5b2d8e')}>Incentives</th>
                       <th style={colHdrStyle('#5b2d8e')}>O.T</th>
+                      <th style={colHdrStyle('#5b2d8e')}>Allowances</th>
                       {/* Computed */}
                       <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Total<br />Deductions</th>
                       <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Net<br />Salary</th>
@@ -638,6 +908,7 @@ export default function HrPayslipsPage(): JSX.Element {
                       const locked = isPublished;
                       const isEven = idx % 2 === 1;
                       const rowBg = locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff';
+                      const c = (columnKey: EditableColumnKey): SheetCellCoord => ({ rowIndex: idx, columnKey });
 
                       return (
                         <tr
@@ -665,65 +936,93 @@ export default function HrPayslipsPage(): JSX.Element {
                           </td>
 
                           {/* GROSS */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#eaf4e6' : '#f0f7ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.grossPay} placeholder="0"
+                          <td style={editableCellStyle(c('grossPay'), locked ? '#f0f0f0' : isEven ? '#eaf4e6' : '#f0f7ee')} {...cellEvents(c('grossPay'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.grossPay} placeholder="0" {...inputEvents(c('grossPay'))}
                               onChange={(e) => updateRow(row.userId, 'grossPay', e.target.value)} />
+                            {fillHandle(c('grossPay'))}
                           </td>
 
                           {/* PAYE */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.paye} placeholder="0"
+                          <td style={editableCellStyle(c('paye'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('paye'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.paye} placeholder="0" {...inputEvents(c('paye'))}
                               onChange={(e) => updateRow(row.userId, 'paye', e.target.value)} />
+                            {fillHandle(c('paye'))}
                           </td>
                           {/* SHA */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.sha} placeholder="0"
+                          <td style={editableCellStyle(c('sha'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('sha'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.sha} placeholder="0" {...inputEvents(c('sha'))}
                               onChange={(e) => updateRow(row.userId, 'sha', e.target.value)} />
+                            {fillHandle(c('sha'))}
                           </td>
                           {/* NSSF T1 */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier1} placeholder="0"
+                          <td style={editableCellStyle(c('nssfTier1'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier1'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier1} placeholder="0" {...inputEvents(c('nssfTier1'))}
                               onChange={(e) => updateRow(row.userId, 'nssfTier1', e.target.value)} />
+                            {fillHandle(c('nssfTier1'))}
                           </td>
                           {/* NSSF T2 */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier2} placeholder="0"
+                          <td style={editableCellStyle(c('nssfTier2'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier2'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier2} placeholder="0" {...inputEvents(c('nssfTier2'))}
                               onChange={(e) => updateRow(row.userId, 'nssfTier2', e.target.value)} />
+                            {fillHandle(c('nssfTier2'))}
                           </td>
                           {/* Housing Levy */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.housingLevy} placeholder="0"
+                          <td style={editableCellStyle(c('housingLevy'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('housingLevy'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.housingLevy} placeholder="0" {...inputEvents(c('housingLevy'))}
                               onChange={(e) => updateRow(row.userId, 'housingLevy', e.target.value)} />
+                            {fillHandle(c('housingLevy'))}
                           </td>
 
                           {/* N.C.N.S — stacked amount + note */}
-                          <td style={{ border: '1px solid #d0d0d0', padding: 0, verticalAlign: 'middle', height: 40, background: locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee' }}>
+                          <td style={{ ...editableCellStyle(c('ncnsAmount'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee'), padding: 0 }} {...cellEvents(c('ncnsAmount'))}>
                             <div style={{ display: 'flex', flexDirection: 'column', height: 40 }}>
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                                <input disabled={locked} style={inputStyle} className={inp()} value={row.ncnsAmount} placeholder="0"
+                                <input disabled={locked} style={inputStyle} className={inp()} value={row.ncnsAmount} placeholder="0" {...inputEvents(c('ncnsAmount'))}
                                   onChange={(e) => updateRow(row.userId, 'ncnsAmount', e.target.value)} />
                               </div>
-                              <div style={{ height: 16, borderTop: '1px dashed #e0e0e0', display: 'flex', alignItems: 'center' }}>
-                                <input disabled={locked} style={{ ...inputStyle, fontSize: 10, color: '#a8a29e', fontStyle: 'italic' }} className={inp()} value={row.ncnsNote} placeholder="note…"
+                              <div
+                                style={{
+                                  height: 16,
+                                  borderTop: '1px dashed #e0e0e0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  position: 'relative',
+                                  background: isCellInSelection(c('ncnsNote'), selection) ? '#dbeafe' : undefined,
+                                  boxShadow: sameCell(c('ncnsNote'), activeCell) ? 'inset 0 0 0 2px #2563eb' : undefined,
+                                }}
+                                {...cellEvents(c('ncnsNote'))}
+                              >
+                                <input disabled={locked} style={{ ...inputStyle, fontSize: 10, color: '#a8a29e', fontStyle: 'italic' }} className={inp()} value={row.ncnsNote} placeholder="note…" {...inputEvents(c('ncnsNote'))}
                                   onChange={(e) => updateRow(row.userId, 'ncnsNote', e.target.value)} />
+                                {fillHandle(c('ncnsNote'))}
                               </div>
                             </div>
+                            {fillHandle(c('ncnsAmount'))}
                           </td>
 
                           {/* Advance */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.advance} placeholder="—"
+                          <td style={editableCellStyle(c('advance'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('advance'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.advance} placeholder="—" {...inputEvents(c('advance'))}
                               onChange={(e) => updateRow(row.userId, 'advance', e.target.value)} />
+                            {fillHandle(c('advance'))}
                           </td>
                           {/* Incentives */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.incentives} placeholder="—"
+                          <td style={editableCellStyle(c('incentives'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('incentives'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.incentives} placeholder="—" {...inputEvents(c('incentives'))}
                               onChange={(e) => updateRow(row.userId, 'incentives', e.target.value)} />
+                            {fillHandle(c('incentives'))}
                           </td>
                           {/* OT */}
-                          <td style={cellStyle(locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.overtime} placeholder="—"
+                          <td style={editableCellStyle(c('overtime'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('overtime'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.overtime} placeholder="—" {...inputEvents(c('overtime'))}
                               onChange={(e) => updateRow(row.userId, 'overtime', e.target.value)} />
+                            {fillHandle(c('overtime'))}
+                          </td>
+                          {/* Allowances */}
+                          <td style={editableCellStyle(c('allowances'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('allowances'))}>
+                            <input disabled={locked} style={inputStyle} className={inp()} value={row.allowances} placeholder="—" {...inputEvents(c('allowances'))}
+                              onChange={(e) => updateRow(row.userId, 'allowances', e.target.value)} />
+                            {fillHandle(c('allowances'))}
                           </td>
 
                           {/* Total Deductions (computed) */}
@@ -762,6 +1061,7 @@ export default function HrPayslipsPage(): JSX.Element {
                         <td style={totalCellStyle('extra')}>{formatCurrency(totals.advance.toFixed(2))}</td>
                         <td style={totalCellStyle('extra')}>{formatCurrency(totals.incentives.toFixed(2))}</td>
                         <td style={totalCellStyle('extra')}>{formatCurrency(totals.overtime.toFixed(2))}</td>
+                        <td style={totalCellStyle('extra')}>{formatCurrency(totals.allowances.toFixed(2))}</td>
                         <td style={{ ...totalCellStyle('ded'), background: '#fde8e8', color: '#a31515' }}>{formatCurrency(totals.totalDeductions.toFixed(2))}</td>
                         <td style={{ ...totalCellStyle('earn'), background: '#e6f3e8', color: '#1f6e43' }}>{formatCurrency(totals.netSalary.toFixed(2))}</td>
                         <td style={{ border: '1px solid #d0d0d0', borderLeft: '2px solid #e7e5e4', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>

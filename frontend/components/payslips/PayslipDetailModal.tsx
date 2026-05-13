@@ -35,6 +35,16 @@ const Divider = () => (
   <tr><td colSpan={2} style={{ padding: 0 }}><div style={{ borderBottom: '1px solid #e7e5e4', margin: '2px 0' }} /></td></tr>
 );
 
+const amountToNumber = (value: string | null | undefined): number => Number(value ?? 0);
+
+const totalEarnings = (payslip: Payslip): string =>
+  (
+    amountToNumber(payslip.grossPay) +
+    amountToNumber(payslip.overtime) +
+    amountToNumber(payslip.incentives) +
+    amountToNumber(payslip.allowances)
+  ).toFixed(2);
+
 export function PayslipDetailModal({ payslip, isOpen, onClose }: PayslipDetailModalProps): JSX.Element {
   const footer = (
     <div className="flex items-center justify-end gap-3">
@@ -170,6 +180,7 @@ export function PayslipDetailModal({ payslip, isOpen, onClose }: PayslipDetailMo
                       <LineRow label="Gross Salary" value={payslip.grossPay} green />
                       <LineRow label="Overtime" value={payslip.overtime} green />
                       <LineRow label="Incentives" value={payslip.incentives} green />
+                      <LineRow label="Allowances" value={payslip.allowances} green />
                     </tbody>
                   </table>
                 </div>
@@ -207,7 +218,7 @@ export function PayslipDetailModal({ payslip, isOpen, onClose }: PayslipDetailMo
                   <tr>
                     <td style={{ padding: '5px 0', fontSize: 12, color: '#57534e' }}>Total Earnings</td>
                     <td style={{ padding: '5px 0', fontSize: 12, fontWeight: 600, textAlign: 'right', color: '#15803d' }}>
-                      Ksh {formatCurrency(payslip.grossPay)}
+                      Ksh {formatCurrency(totalEarnings(payslip))}
                     </td>
                   </tr>
                   <tr>

@@ -60,6 +60,10 @@ export function useActiveOrders() {
     };
 
     const handleOrderAllReady = (payload: { orderId: string }) => {
+      const current = useOrderStore.getState().activeOrders.find((order) => order.id === payload.orderId);
+      if (current?.status === 'AWAITING_CANCELLATION_APPROVAL') {
+        return;
+      }
       updateOrderRealTime(payload.orderId, { status: 'READY' });
     };
 
@@ -76,6 +80,25 @@ export function useActiveOrders() {
     };
 
     socket.on('order:force_cancelled', handleForceCancelled);
+
+    const handleCancellationPending = (payload: { orderId: string }) => {
+      updateOrderRealTime(payload.orderId, { status: 'AWAITING_CANCELLATION_APPROVAL' });
+    };
+
+    const handleCancellationResolved = (payload: { orderId: string; approved: boolean; restoredStatus?: string }) => {
+      if (payload.approved) {
+        removeOrderFromActive(payload.orderId);
+      } else {
+        updateOrderRealTime(payload.orderId, {
+          status: payload.restoredStatus === 'PENDING' || payload.restoredStatus === 'IN_PROGRESS' || payload.restoredStatus === 'READY'
+            ? payload.restoredStatus
+            : 'IN_PROGRESS',
+        });
+      }
+    };
+
+    socket.on('order:cancellation_pending', handleCancellationPending);
+    socket.on('order:cancellation_resolved', handleCancellationResolved);
 
     // House account authorization events
     const handleAuthPending = (payload: { orderId: string }) => {
@@ -106,6 +129,8 @@ export function useActiveOrders() {
       socket.off('order:all_ready', handleOrderAllReady);
       socket.off('order:cancelled', handleOrderCancelled);
       socket.off('order:force_cancelled', handleForceCancelled);
+      socket.off('order:cancellation_pending', handleCancellationPending);
+      socket.off('order:cancellation_resolved', handleCancellationResolved);
       socket.off('order:auth_pending', handleAuthPending);
       socket.off('order:auth_resolved', handleAuthResolved);
       offReconnect();

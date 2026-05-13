@@ -29,8 +29,12 @@ export const splitLineService = {
     const order = await orderRepository.findById(orderId, organizationId);
     if (!order) throw new NotFoundError('Order not found');
 
-    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
-      throw new ConflictError('Cannot add a payment line to a closed or cancelled order');
+    if (
+      order.status === OrderStatus.CLOSED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('Cannot add a payment line to a locked, closed, or cancelled order');
     }
 
     if (!ALLOWED_LINE_METHODS.includes(data.method as PaymentMethod)) {
@@ -68,8 +72,12 @@ export const splitLineService = {
     const order = await orderRepository.findById(orderId, organizationId);
     if (!order) throw new NotFoundError('Order not found');
 
-    if (order.status === OrderStatus.CLOSED || order.status === OrderStatus.CANCELLED) {
-      throw new ConflictError('Cannot remove a payment line from a closed or cancelled order');
+    if (
+      order.status === OrderStatus.CLOSED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('Cannot remove a payment line from a locked, closed, or cancelled order');
     }
 
     const line = await splitLineRepository.findById(lineId);

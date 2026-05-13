@@ -5,7 +5,7 @@ import { Badge } from './Badge'
 import { TimeElapsed } from './TimeElapsed'
 import type { BadgeVariant } from './Badge'
 
-export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'AWAITING_AUTHORIZATION' | 'CLOSED' | 'CANCELLED'
+export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'READY' | 'AWAITING_AUTHORIZATION' | 'AWAITING_CANCELLATION_APPROVAL' | 'CLOSED' | 'CANCELLED'
 export type OrderType = 'DINE_IN' | 'TAKE_AWAY' | 'DELIVERY'
 
 interface PrepTicketStaff {
@@ -34,6 +34,7 @@ const statusBorderClasses: Record<OrderStatus, string> = {
   IN_PROGRESS: 'border-l-[#F5B87A]',
   READY: 'border-l-[#86EFAC]',
   AWAITING_AUTHORIZATION: 'border-l-amber-400',
+  AWAITING_CANCELLATION_APPROVAL: 'border-l-orange-400',
   CLOSED: 'border-l-stone-300',
   CANCELLED: 'border-l-[#F5A898]',
 }
@@ -43,6 +44,7 @@ const statusToBadgeVariant: Record<OrderStatus, BadgeVariant> = {
   IN_PROGRESS: 'inprogress',
   READY: 'ready',
   AWAITING_AUTHORIZATION: 'awaiting',
+  AWAITING_CANCELLATION_APPROVAL: 'cancellationPending',
   CLOSED: 'closed',
   CANCELLED: 'cancelled',
 }

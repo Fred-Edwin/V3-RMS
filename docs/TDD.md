@@ -760,6 +760,45 @@ PATCH /api/v1/orders/:id/items
    - order:new      → stations receiving new follow-up ticket batches
 6. Return updated order
 ```
+
+### Order Cancellation Approval Flow
+
+Waiter-initiated cancellation is an approval workflow, not an immediate mutation:
+
+```
+PATCH /api/v1/orders/:id/cancel
+        ↓
+1. Validate reason payload with Zod
+2. Confirm waiter owns the order
+3. Reject CLOSED, CANCELLED, AWAITING_AUTHORIZATION, or already-pending cancellation orders
+4. DATABASE TRANSACTION:
+   - Create OrderCancellationRequest with previousStatus snapshot
+   - Set Order.status to AWAITING_CANCELLATION_APPROVAL
+5. Emit order:cancellation_pending to branch room + waiter user room
+6. Return pending request to waiter
+```
+
+Manager/director resolution is also transactional:
+
+```
+POST /api/v1/order-cancellation-auth/:id/override
+        ↓
+APPROVE:
+  - Mark request APPROVED
+  - Set order CANCELLED
+  - Write cancelReason/cancelledById
+  - Log ORDER_CANCELLED incident
+  - Emit order:cancellation_resolved and order:cancelled/order:force_cancelled
+
+REJECT:
+  - Mark request REJECTED
+  - Restore order.status to request.previousStatus
+  - Log ORDER_CANCELLATION_REJECTED incident
+  - Emit order:cancellation_resolved
+```
+
+While an order is `AWAITING_CANCELLATION_APPROVAL`, payment, item edits, split-line edits, and duplicate cancellation requests are blocked. Prep tickets remain intact; rejection simply returns the order to its prior lifecycle state.
+
 ---
 
 ## 15. Background Jobs
@@ -1302,6 +1341,19 @@ The recipient list is materialized into `BroadcastRecipient` rows at send time s
 
 ---
 
+### ADR-011 — Separate Cancellation Approval Flow
+
+**Date:** 2026-05-13
+**Status:** Planned
+
+**Context:** Waiters could directly cancel their own active orders. The audit trail recorded the action, but it did not prevent misuse after food or drinks had already entered preparation. House Account and discount approvals already proved that manager/director approval can control sensitive order transitions without requiring physical handoff.
+
+**Decision:** Add `AWAITING_CANCELLATION_APPROVAL` as a dedicated order status and `OrderCancellationRequest` as a dedicated approval table. Do not reuse `AWAITING_AUTHORIZATION` or the House Account/discount request tables. Payment/discount authorization and operational cancellation approval have different triggers, resolution behavior, and reporting needs.
+
+**Consequences:** Waiter cancellation becomes preventive rather than merely auditable. Rejections can restore the exact prior order status using `previousStatus`. Managers retain direct cancellation authority with a reason. Trade-off: the frontend dashboard must merge one more pending-approval source, and guarded order actions must treat `AWAITING_CANCELLATION_APPROVAL` as locked.
+
+---
+
 ## 27. Open Questions
 
 | # | Question | Impact |
@@ -1317,6 +1369,4 @@ The recipient list is materialized into `BroadcastRecipient` rows at send time s
 ---
 
 *This document is the authoritative technical reference for the Wendo RMS. All development must conform to the architecture defined here. Deviations require an ADR entry and a document update before implementation. Version 2.0 reflects the completed Phase 8 system state.*
-
-
 

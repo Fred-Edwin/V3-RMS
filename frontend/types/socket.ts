@@ -27,6 +27,20 @@ export interface ServerToClientEvents {
   'order:cancelled': (payload: { orderId: string }) => void;
   'order:closed': (payload: { orderId: string }) => void;
   'order:force_cancelled': (payload: { orderId: string }) => void;
+  'order:cancellation_pending': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    authRequestId: string;
+    requestedById: string;
+    reason: string;
+  }) => void;
+  'order:cancellation_resolved': (payload: {
+    orderId: string;
+    dailyNumber: number;
+    authRequestId: string;
+    approved: boolean;
+    restoredStatus?: string;
+  }) => void;
   'ticket:rejected': (payload: {
     orderId: string;
     ticketId: string;

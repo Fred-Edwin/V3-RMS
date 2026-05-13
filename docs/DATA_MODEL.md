@@ -26,6 +26,7 @@
    - [ShiftAssignment](#411-shiftassignment)
    - [ClockRecord](#412-clockrecord)
    - [Order](#413-order)
+   - [OrderCancellationRequest](#413a-ordercancellationrequest)
    - [OrderItem](#414-orderitem)
    - [PrepTicket](#415-prepticket)
    - [OrderModificationRequest (Deprecated)](#416-ordermodificationrequest-deprecated)
@@ -101,6 +102,7 @@ Every design decision in this schema follows these rules, derived from the Engin
 | `Order` | A customer order — top-level entity tracking lifecycle and payment. |
 | `OrderItem` | A single line item within an order (price snapshotted at order time). |
 | `PrepTicket` | A routed sub-order sent to one prep station (KDS or BDS). One per order-item line per station. |
+| `OrderCancellationRequest` | Approval request created when a waiter asks to cancel an active order. |
 | `OrderModificationRequest` | **Deprecated.** Retained for migration compatibility only. |
 | `IncidentLog` | Immutable log of every non-happy-path event (cancellations, rejections, overrides). |
 | `IdempotencyKey` | Prevents duplicate order creation on network retries. Pruned after 60 seconds. |
@@ -180,6 +182,7 @@ Organization (Branch)
 │   ├── PrepTicket (one per order-item line per station)
 │   ├── IncidentLog (non-happy-path events)
 │   ├── PrintJob (thermal receipt queue)
+│   ├── OrderCancellationRequest (if waiter cancellation needs approval)
 │   ├── HouseAccountAuthRequest (if payment = HOUSE_ACCOUNT)
 │   ├── StaffDiscountAuthRequest (if staff discount applied)
 │   └── CustomerDiscountAuthRequest (if customer discount needs approval)
@@ -596,6 +599,7 @@ model Order {
   closedAt       DateTime? @map("closed_at")
 
   splitPaymentLines SplitPaymentLine[]
+  cancellationRequests OrderCancellationRequest[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -633,7 +637,49 @@ model SplitPaymentLine {
 - **Credit account fields** — at most one of `houseAccountId`, `corporateAccountId`, `customerCreditAccountId` is set per order.
 - **Discount fields** — `discountedById` (non-null) indicates a staff discount; `discountId` (non-null) indicates a named customer discount. They are mutually exclusive and also mutually exclusive with credit payment methods.
 - `status = AWAITING_AUTHORIZATION` is set when either a House Account payment, staff discount, or approval-required customer discount is pending manager/director approval.
+- `status = AWAITING_CANCELLATION_APPROVAL` is set when a waiter cancellation request is pending. The matching `OrderCancellationRequest.previousStatus` restores the order if the request is rejected.
 - `closedAt` provides a clean timestamp for reporting (time from submission to closure).
+
+---
+
+### 4.13a OrderCancellationRequest
+
+Approval record created when a waiter requests order cancellation. This is separate from House Account and discount authorization because cancellation is an operational control, not a payment or discount approval.
+
+```prisma
+model OrderCancellationRequest {
+  id             String                    @id @default(uuid())
+  organizationId String                    @map("organization_id")
+  orderId        String                    @map("order_id")
+  requestedById  String                    @map("requested_by_id")
+  reason         String
+  reasonDetail   String?                   @map("reason_detail")
+  previousStatus OrderStatus               @map("previous_status")
+  status         CancellationRequestStatus @default(PENDING)
+  resolvedById   String?                   @map("resolved_by_id")
+  resolvedAt     DateTime?                 @map("resolved_at")
+  resolutionNote String?                   @map("resolution_note")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+
+  order       Order @relation(fields: [orderId], references: [id])
+  requestedBy User  @relation("OrderCancellationRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy  User? @relation("OrderCancellationResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([requestedById])
+  @@index([status])
+  @@map("order_cancellation_requests")
+}
+```
+
+**Notes:**
+- `previousStatus` is required so rejection restores the order to `PENDING`, `IN_PROGRESS`, or `READY` exactly as it was before the request.
+- Only one pending cancellation request may exist per order. Enforce this with a partial unique migration index on `order_id WHERE status = 'PENDING'` plus service-level conflict handling.
+- The Prisma schema must include inverse relation arrays on `Order` and `User` for `OrderCancellationRequest`.
+- On approval: the order becomes `CANCELLED`, cancellation fields are written to `Order`, and an `ORDER_CANCELLED` incident is logged.
+- On rejection: the order returns to `previousStatus`; the rejected request remains as permanent audit history.
 
 ---
 
@@ -1497,7 +1543,8 @@ enum OrderType {
 
 -- Order status lifecycle:
 -- PENDING → IN_PROGRESS → READY → CLOSED
--- PENDING → CANCELLED (any time before kitchen claims)
+-- PENDING/IN_PROGRESS/READY → AWAITING_CANCELLATION_APPROVAL (waiter cancellation pending)
+-- AWAITING_CANCELLATION_APPROVAL → CANCELLED (approved) or previousStatus (rejected)
 -- READY → AWAITING_AUTHORIZATION (House Account / discount pending approval)
 -- AWAITING_AUTHORIZATION → READY (rejected) or CLOSED (approved)
 enum OrderStatus {
@@ -1505,6 +1552,7 @@ enum OrderStatus {
   IN_PROGRESS
   READY
   AWAITING_AUTHORIZATION
+  AWAITING_CANCELLATION_APPROVAL
   CLOSED
   CANCELLED
 }
@@ -1514,6 +1562,12 @@ enum HouseAccountAuthStatus {
   APPROVED
   REJECTED
   TIMED_OUT   -- set if the request expires without action (24h)
+}
+
+enum CancellationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum PrepTicketStatus {
@@ -1560,6 +1614,7 @@ enum IncidentType {
   ORDER_STALE           -- order has been pending too long
   ORDER_ITEM_REMOVED    -- MANAGER removed one or more items from a non-PENDING order
   PAYMENT_REJECTED      -- House Account payment was rejected by the account holder
+  ORDER_CANCELLATION_REJECTED -- waiter cancellation request was rejected
 }
 
 enum ModificationRequestStatus {

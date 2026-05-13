@@ -59,7 +59,7 @@ orderRoutes.patch(
   '/orders/:id/cancel',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'MANAGER'),
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR'),
   orderController.cancelOrder,
 );
 
