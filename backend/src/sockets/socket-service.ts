@@ -150,6 +150,14 @@ export const socketService = {
     io.to(stationRoomName(organizationId, payload.station)).emit('ticket:rejected', payload);
   },
 
+  emitTicketReverted: (
+    organizationId: string,
+    payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number },
+  ): void => {
+    const io = getSocketServer();
+    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:unclaimed', payload);
+  },
+
   emitTicketUnclaimed: (
     organizationId: string,
     waiterId: string,

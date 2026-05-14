@@ -1,0 +1,2 @@
+-- Add ORDER_CORRECTION to the IncidentType enum
+ALTER TYPE "IncidentType" ADD VALUE IF NOT EXISTS 'ORDER_CORRECTION';

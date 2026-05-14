@@ -102,11 +102,12 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 10 (Guest Split Payment)
-Status: Complete — deployed to production 2026-05-11
-Plan file: docs/context/PHASE_10_GUEST_SPLIT.md
+Phase: 12 (Order Correction Console)
+Status: Complete — implemented 2026-05-14
+Plan file: docs/context/PHASE_12_ORDER_CORRECTION.md
 
 Previous phases (all complete):
+- Phase 12 Complete → docs/context/PHASE_12_ORDER_CORRECTION.md
 - Phase 10 Complete → docs/context/PHASE_10_GUEST_SPLIT.md
 - Phase 9 Complete → docs/context/PHASE_9_PAYSLIP_REDESIGN.md
 - Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md

@@ -21,6 +21,8 @@ interface TableProps<T extends Record<string, unknown>> {
   sortDirection?: 'asc' | 'desc'
   emptyState?: React.ReactNode
   className?: string
+  onRowClick?: (row: T) => void
+  getRowClassName?: (row: T) => string
 }
 
 // Using function declaration (not arrow function) to avoid TSX <T> ambiguity
@@ -33,6 +35,8 @@ function Table<T extends Record<string, unknown>>({
   sortDirection,
   emptyState,
   className,
+  onRowClick,
+  getRowClassName,
 }: TableProps<T>) {
   const [internalSortKey, setInternalSortKey] = useState<string | undefined>(sortKey)
   const [internalSortDir, setInternalSortDir] = useState<'asc' | 'desc'>(sortDirection ?? 'asc')
@@ -95,7 +99,12 @@ function Table<T extends Record<string, unknown>>({
             data.map((row) => (
               <tr
                 key={String(row[keyField])}
-                className="h-[52px] border-b border-stone-100 hover:bg-stone-100 transition-colors duration-fast"
+                className={cn(
+                  'h-[52px] border-b border-stone-100 hover:bg-stone-100 transition-colors duration-fast',
+                  onRowClick && 'cursor-pointer',
+                  getRowClassName?.(row),
+                )}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((col) => (
                   <td

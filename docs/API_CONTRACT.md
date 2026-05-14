@@ -3173,5 +3173,200 @@ Transfers a staff member to another branch. Updates the user's `organizationId` 
 
 ---
 
+## Order Correction Console (SYSTEM_ADMIN)
+
+All endpoints require `Authorization: Bearer <token>` with `role: SYSTEM_ADMIN`. Every write operation atomically appends an `IncidentLog` row with `type: ORDER_CORRECTION`. Corrections on orders older than 7 days are rejected with `409`.
+
+---
+
+### GET `/admin/order-corrections`
+
+Returns paginated list of orders across **all branches** (no organizationId filter — cross-branch view for SYSTEM_ADMIN).
+
+**Query Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `branchId` | UUID (optional) | Filter by branch |
+| `status` | string (optional) | Filter by order status |
+| `dateFrom` | YYYY-MM-DD (optional) | Start date filter |
+| `dateTo` | YYYY-MM-DD (optional) | End date filter |
+| `search` | string (optional) | Free-text search (max 100 chars) |
+| `page` | number (default 1) | Page number |
+| `perPage` | number (default 50, max 100) | Results per page |
+
+**Response `200`**
+```json
+{
+  "success": true,
+  "orders": [
+    {
+      "id": "uuid",
+      "dailyNumber": 42,
+      "orderDate": "2026-05-14",
+      "type": "DINE_IN",
+      "status": "CLOSED",
+      "tableNumber": "5",
+      "paymentMethod": "MPESA",
+      "mpesaCode": "QKA123XY",
+      "total": "700.00",
+      "createdAt": "2026-05-14T10:00:00Z",
+      "closedAt": "2026-05-14T11:30:00Z",
+      "organizationId": "uuid",
+      "organizationName": "Wendo Nyeri Central",
+      "createdByName": "Waiter One"
+    }
+  ],
+  "pagination": { "total": 1, "page": 1, "perPage": 50, "totalPages": 1 }
+}
+```
+
+---
+
+### GET `/admin/order-corrections/:id`
+
+Returns full order detail including items, prep tickets, and pending auth request ID.
+
+**Response `200`**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "dailyNumber": 42,
+    "status": "CLOSED",
+    "paymentMethod": "MPESA",
+    "mpesaCode": "QKA123XY",
+    "subtotal": "700.00",
+    "deliveryFee": "0.00",
+    "total": "700.00",
+    "items": [
+      { "id": "uuid", "menuItemId": "uuid", "name": "Latte", "quantity": 2, "unitPrice": "350.00", "subtotal": "700.00", "notes": null }
+    ],
+    "prepTickets": [
+      { "id": "uuid", "station": "BARISTA", "status": "READY", "sequence": 1 }
+    ],
+    "pendingAuthRequestId": null
+  }
+}
+```
+
+---
+
+### GET `/admin/order-corrections/:id/audit-log`
+
+Returns all `ORDER_CORRECTION` incident log entries for this order.
+
+**Response `200`**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "type": "ORDER_CORRECTION",
+      "actor": { "id": "uuid", "name": "System Admin" },
+      "details": {
+        "action": "CORRECT_MPESA_CODE",
+        "field": "mpesaCode",
+        "before": "QKA000YY",
+        "after": "QKA123XY",
+        "reason": "Customer provided correct code"
+      },
+      "createdAt": "2026-05-14T12:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### PATCH `/admin/order-corrections/:id/mpesa-code`
+
+Corrects the M-Pesa transaction code on a **CLOSED** order paid by MPESA, SPLIT, or GUEST_SPLIT.
+
+**Request body**
+```json
+{ "mpesaCode": "QKA123XY", "reason": "Customer provided correct code (min 10 chars)" }
+```
+
+**Errors**: `409` if not CLOSED, not an M-Pesa payment, or older than 7 days.
+
+---
+
+### PATCH `/admin/order-corrections/:id/payment-method`
+
+Changes the recorded payment method on a **CLOSED** order.
+
+**Request body**
+```json
+{ "paymentMethod": "CASH", "reason": "Payment method was recorded incorrectly (min 10 chars)" }
+```
+
+**Valid values**: Any `PaymentMethod` enum value.  
+**Errors**: `400` if new method equals current; `409` if not CLOSED or older than 7 days.
+
+---
+
+### POST `/admin/order-corrections/:id/force-ready`
+
+Forces an **IN_PROGRESS** order to **READY** when a ghost rejected prep ticket is blocking automatic transition.
+
+**Guard**: Order must be IN_PROGRESS; at least one ticket must be REJECTED; all non-REJECTED tickets must already be READY.
+
+**Request body**
+```json
+{ "reason": "Ghost rejected ticket confirmed by kitchen; all items done (min 10 chars)" }
+```
+
+**Errors**: `409` if guard conditions not met or older than 7 days.
+
+---
+
+### POST `/admin/order-corrections/:id/revert-auth`
+
+Reverts an **AWAITING_AUTHORIZATION** order to **READY** by deleting the pending house account auth request.
+
+**Guard**: Order must be AWAITING_AUTHORIZATION and have a pending `HouseAccountAuthRequest`.
+
+**Request body**
+```json
+{ "reason": "Customer will pay cash; house account auth cancelled (min 10 chars)" }
+```
+
+**Errors**: `409` if not in correct state, no pending auth request, or older than 7 days.
+
+---
+
+### PATCH `/admin/order-corrections/:id/items/:itemId/remove`
+
+Removes an item from the order and recalculates `subtotal` and `total` atomically.
+
+**Guards**: Order must not be CANCELLED or PENDING; cannot remove the last item.
+
+**Request body**
+```json
+{ "reason": "Item added by mistake; customer refused to pay (min 10 chars)" }
+```
+
+**Errors**: `409` if order is CANCELLED or last item; `404` if item not on order; `409` if older than 7 days.
+
+---
+
+### PATCH `/admin/order-corrections/:id/total`
+
+Manually adjusts the order total (last-resort correction, e.g. post-close manager discount).
+
+**Guards**: Order must not be CANCELLED. `newTotal` must be ≥ 0.
+
+**Request body**
+```json
+{ "newTotal": 500.00, "reason": "Manager approved post-close discount (min 10 chars)" }
+```
+
+**Errors**: `400` if newTotal negative; `409` if CANCELLED or older than 7 days.
+
+---
+
 *This API Contract is the authoritative reference for all frontend-backend communication in Wendo RMS. Every endpoint reflects the data model, business rules, and architectural decisions defined in the PRD, Data Model, and TDD. Any new endpoint or change to an existing one must be documented here before implementation.*
 

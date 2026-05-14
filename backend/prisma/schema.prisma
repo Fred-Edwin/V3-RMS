@@ -526,6 +526,7 @@ enum IncidentType {
   ORDER_ITEM_REMOVED
   PAYMENT_REJECTED
   ORDER_CANCELLATION_REJECTED
+  ORDER_CORRECTION
 }
 
 enum ModificationRequestStatus {

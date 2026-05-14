@@ -26,6 +26,7 @@ import commsRoutes from './comms-routes';
 import hrRoutes from './hr-routes';
 import staffTransferRoutes from './staff-transfer-routes';
 import payslipRoutes from './payslip-routes';
+import orderCorrectionRoutes from './order-correction-routes';
 
 const apiRouter = Router();
 
@@ -56,5 +57,6 @@ apiRouter.use(commsRoutes);
 apiRouter.use(hrRoutes);
 apiRouter.use(staffTransferRoutes);
 apiRouter.use(payslipRoutes);
+apiRouter.use(orderCorrectionRoutes);
 
 export default apiRouter;

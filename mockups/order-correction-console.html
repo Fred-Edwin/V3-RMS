@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Correction Console — Wendo RMS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --espresso:  #1a0a00;
+      --latte:     #6b4226;
+      --cream:     #faf7f4;
+      --stone-50:  #fafaf9;
+      --stone-100: #f5f5f4;
+      --stone-200: #e7e5e4;
+      --stone-300: #d6d3d1;
+      --stone-400: #a8a29e;
+      --stone-500: #78716c;
+      --stone-600: #57534e;
+      --stone-700: #44403c;
+      --stone-900: #1c1917;
+      --white:     #ffffff;
+
+      /* semantics */
+      --pending-bg: #fdf3dc; --pending-tx: #92650a; --pending-bd: #f0d080;
+      --inprog-bg:  #fef0e0; --inprog-tx:  #a04f0a; --inprog-bd:  #f5b87a;
+      --ready-bg:   #edfaf1; --ready-tx:   #1a6b3c; --ready-bd:   #86efac;
+      --closed-bg:  #f4f4f5; --closed-tx:  #71717a; --closed-bd:  #d4d4d8;
+      --cancel-bg:  #fdf2f0; --cancel-tx:  #9b3a2a; --cancel-bd:  #f5a898;
+      --auth-bg:    #eff6ff; --auth-tx:    #1d4ed8; --auth-bd:    #bfdbfe;
+
+      --err-bg:  #fdf2f0; --err-tx: #9b3a2a; --err-bd: #f5a898;
+      --warn-bg: #fffbeb; --warn-tx:#92400e; --warn-bd:#fcd34d;
+      --info-bg: #eff6ff; --info-tx:#1d4ed8; --info-bd:#bfdbfe;
+      --ok-bg:   #edfaf1; --ok-tx:  #1a6b3c; --ok-bd:  #86efac;
+
+      --sidebar-w: 200px;
+      --topbar-h:  48px;
+      --sheet-w:   420px;
+      --shadow-sm: 0 1px 3px rgb(0 0 0/.08);
+      --shadow-md: 0 4px 20px rgb(0 0 0/.12);
+      --r:         6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--cream);
+      color: var(--stone-900);
+      font-size: 13px;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--espresso);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .sidebar-logo {
+      padding: 16px 14px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .sidebar-logo-text { font-size: 13.5px; font-weight: 800; color: white; letter-spacing: -.3px; }
+    .sidebar-logo-sub  { font-size: 9.5px; color: rgba(255,255,255,.35); margin-top: 1px; text-transform: uppercase; letter-spacing: .08em; }
+
+    .sidebar-nav { padding: 10px 6px; flex: 1; }
+
+    .nav-section { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.25); padding: 10px 8px 5px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      height: 34px; padding: 0 8px; margin-bottom: 1px;
+      border-radius: var(--r); color: rgba(255,255,255,.5); font-size: 12.5px; cursor: default;
+    }
+    .nav-item.active { background: rgba(255,255,255,.11); color: white; font-weight: 600; }
+    .nav-item:not(.active):hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.8); }
+    .nav-item svg { flex-shrink: 0; opacity: .7; }
+    .nav-item.active svg { opacity: 1; }
+
+    .sidebar-foot {
+      padding: 10px 14px;
+      border-top: 1px solid rgba(255,255,255,.07);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .s-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--latte); display:flex;align-items:center;justify-content:center; font-size:10px;font-weight:700;color:white;flex-shrink:0; }
+    .s-name  { font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.75); }
+    .s-role  { font-size: 9.5px; color: rgba(255,255,255,.3); margin-top: 1px; }
+
+    /* ── Main ────────────────────────────────────────────────────── */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* ── Topbar ──────────────────────────────────────────────────── */
+    .topbar {
+      height: var(--topbar-h); background: var(--white);
+      border-bottom: 1px solid var(--stone-200);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 18px; flex-shrink: 0;
+    }
+    .breadcrumb { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--stone-400); }
+    .breadcrumb .cur { color: var(--espresso); font-weight: 600; }
+    .breadcrumb svg { color: var(--stone-300); }
+
+    .topbar-r { display: flex; align-items: center; gap: 10px; }
+    .topbar-date { font-size: 11px; color: var(--stone-400); }
+    .t-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--latte); display:flex;align-items:center;justify-content:center; font-size:10.5px;font-weight:700;color:white; }
+
+    /* ── Page header ─────────────────────────────────────────────── */
+    .pg-head {
+      padding: 16px 20px 0; flex-shrink: 0;
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .pg-head h1 {
+      font-size: 17px; font-weight: 700; color: var(--espresso); letter-spacing: -.3px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pg-head p { font-size: 11.5px; color: var(--stone-400); margin-top: 2px; }
+    .admin-badge {
+      display:inline-flex;align-items:center;gap:4px;
+      padding: 2px 8px; border-radius: 99px;
+      background: var(--err-bg); color: var(--err-tx); border: 1px solid var(--err-bd);
+      font-size: 10px; font-weight: 700; letter-spacing: .03em;
+    }
+
+    /* ── Filter bar ──────────────────────────────────────────────── */
+    .filter-bar {
+      padding: 12px 20px 10px; display: flex; align-items: center;
+      gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; }
+    .search-icon { position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--stone-400);pointer-events:none; }
+    .f-input {
+      height: 32px; padding: 0 10px 0 30px; border: 1px solid var(--stone-200);
+      border-radius: var(--r); background: white; font-size: 12px; color: var(--stone-900);
+      outline: none; min-width: 190px;
+    }
+    .f-input:focus { border-color: var(--latte); box-shadow: 0 0 0 2px rgba(107,66,38,.1); }
+    .f-select {
+      height: 32px; padding: 0 24px 0 9px; border: 1px solid var(--stone-200);
+      border-radius: var(--r); background: white; font-size: 12px; color: var(--stone-700);
+      outline: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 7px center;
+    }
+    .f-select:focus { border-color: var(--latte); }
+    .f-date { width: 120px; padding-right: 6px; }
+    .f-sep { font-size: 11px; color: var(--stone-300); }
+    .f-spacer { flex: 1; }
+    .f-count { font-size: 11.5px; color: var(--stone-400); white-space: nowrap; }
+
+    /* ── Split pane ──────────────────────────────────────────────── */
+    .split {
+      flex: 1; min-height: 0; display: flex;
+      overflow: hidden; position: relative;
+    }
+
+    /* ── Table pane ──────────────────────────────────────────────── */
+    .table-pane {
+      flex: 1; min-width: 0; overflow: auto;
+      padding: 0 20px 20px;
+      transition: padding-right .2s ease;
+    }
+
+    .tbl {
+      width: 100%; border-collapse: collapse;
+      background: white;
+      border: 1px solid var(--stone-200);
+      border-radius: var(--r);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      table-layout: fixed;
+    }
+    .tbl th {
+      padding: 0 12px; height: 34px; text-align: left;
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--stone-500);
+      background: var(--stone-100);
+      border-bottom: 1px solid var(--stone-200);
+      white-space: nowrap;
+      /* Excel-like: add right-border on each header cell */
+      border-right: 1px solid var(--stone-200);
+    }
+    .tbl th:last-child { border-right: none; }
+
+    .tbl td {
+      padding: 0 12px; height: 42px;
+      font-size: 12.5px; color: var(--stone-700);
+      border-bottom: 1px solid var(--stone-100);
+      border-right: 1px solid var(--stone-100);
+      vertical-align: middle;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tbl td:last-child { border-right: none; }
+
+    .tbl tbody tr { cursor: pointer; }
+    .tbl tbody tr:hover td { background: var(--stone-50); }
+    .tbl tbody tr.sel td { background: #fdf8f2 !important; }
+    .tbl tbody tr.sel td:first-child {
+      box-shadow: inset 3px 0 0 var(--latte);
+    }
+    .tbl tbody tr:last-child td { border-bottom: none; }
+
+    /* col widths */
+    .col-ref    { width: 80px; }
+    .col-branch { width: 90px; }
+    .col-type   { width: 82px; }
+    .col-status { width: 118px; }
+    .col-pay    { width: 90px; }
+    .col-code   { width: 114px; font-family: monospace; font-size: 11.5px; letter-spacing: .04em; color: var(--stone-500); }
+    .col-total  { width: 88px; text-align: right; }
+    .col-time   { } /* flex remaining */
+
+    .order-num  { font-size: 13px; font-weight: 700; color: var(--espresso); }
+    .order-sub  { font-size: 10.5px; color: var(--stone-400); }
+    .total-val  { font-weight: 600; color: var(--stone-900); }
+    .time-main  { font-size: 12px; }
+    .time-sub   { font-size: 10.5px; color: var(--stone-400); }
+
+    /* ── Badges ──────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 7px; border-radius: 99px;
+      font-size: 10.5px; font-weight: 600; border: 1px solid; white-space: nowrap;
+    }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .b-pending  { background:var(--pending-bg); color:var(--pending-tx); border-color:var(--pending-bd); }
+    .b-inprog   { background:var(--inprog-bg);  color:var(--inprog-tx);  border-color:var(--inprog-bd); }
+    .b-ready    { background:var(--ready-bg);   color:var(--ready-tx);   border-color:var(--ready-bd); }
+    .b-closed   { background:var(--closed-bg);  color:var(--closed-tx);  border-color:var(--closed-bd); }
+    .b-cancel   { background:var(--cancel-bg);  color:var(--cancel-tx);  border-color:var(--cancel-bd); }
+    .b-auth     { background:var(--auth-bg);    color:var(--auth-tx);    border-color:var(--auth-bd); }
+
+    .chip { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10.5px; font-weight:600; background:var(--stone-100); color:var(--stone-600); }
+
+    /* ── Right sheet ─────────────────────────────────────────────── */
+    .sheet {
+      width: var(--sheet-w);
+      flex-shrink: 0;
+      background: white;
+      border-left: 1px solid var(--stone-200);
+      display: flex; flex-direction: column;
+      height: 100%;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Sheet header — very tight */
+    .sh-head {
+      padding: 11px 14px 0;
+      border-bottom: 1px solid var(--stone-200);
+      flex-shrink: 0;
+    }
+    .sh-head-row {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .sh-title-line {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .sh-ref { font-size: 15px; font-weight: 800; color: var(--espresso); letter-spacing: -.3px; }
+    .sh-sub { font-size: 11px; color: var(--stone-400); margin-top: 3px; }
+
+    .sh-close {
+      width: 26px; height: 26px; border-radius: 5px;
+      border: 1px solid var(--stone-200); background: white;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--stone-400); flex-shrink: 0;
+    }
+    .sh-close:hover { background: var(--stone-100); color: var(--stone-700); }
+
+    /* Sheet tabs */
+    .sh-tabs { display: flex; }
+    .sh-tab {
+      padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--stone-500);
+      cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      white-space: nowrap;
+    }
+    .sh-tab.on { color: var(--espresso); font-weight: 700; border-bottom-color: var(--latte); }
+    .sh-tab:hover:not(.on) { color: var(--stone-700); }
+
+    .audit-count {
+      display:inline-flex;align-items:center;
+      background:var(--warn-bg);color:var(--warn-tx);border:1px solid var(--warn-bd);
+      border-radius:99px;padding:0 5px;font-size:9.5px;font-weight:700;margin-left:5px;
+    }
+
+    /* Sheet body */
+    .sh-body { flex: 1; overflow-y: auto; }
+
+    /* ── Items section (always visible at top of Actions tab) ─────── */
+    .items-section {
+      border-bottom: 1px solid var(--stone-200);
+    }
+
+    .section-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--stone-100);
+      border-bottom: 1px solid var(--stone-200);
+    }
+    .section-lbl {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--stone-500);
+    }
+    .section-meta { font-size: 11px; color: var(--stone-400); }
+
+    /* Excel-style items table inside sheet */
+    .items-tbl { width: 100%; border-collapse: collapse; }
+    .items-tbl td {
+      padding: 0 14px; height: 36px; font-size: 12px; color: var(--stone-700);
+      border-bottom: 1px solid var(--stone-100);
+      border-right: 1px solid var(--stone-100);
+      vertical-align: middle;
+    }
+    .items-tbl td:last-child { border-right: none; }
+    .items-tbl tr:last-child td { border-bottom: none; }
+    .items-tbl .i-name { font-weight: 500; color: var(--stone-800); white-space: nowrap; }
+    .items-tbl .i-note { font-size: 10.5px; color: var(--stone-400); }
+    .items-tbl .i-qty  { width: 36px; text-align: center; font-size: 12px; color: var(--stone-500); }
+    .items-tbl .i-price{ width: 80px; text-align: right; font-weight: 600; font-size: 12px; color: var(--stone-700); white-space: nowrap; }
+    .items-tbl .i-act  { width: 32px; text-align: center; }
+
+    .rm-btn {
+      width: 22px; height: 22px; border-radius: 4px;
+      border: 1px solid var(--stone-200); background: white;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--stone-400);
+    }
+    .rm-btn:hover { border-color: var(--err-bd); background: var(--err-bg); color: var(--err-tx); }
+
+    /* Total row */
+    .total-row td {
+      background: var(--stone-100) !important;
+      border-top: 1px solid var(--stone-200) !important;
+      font-size: 12px; font-weight: 700; color: var(--stone-700);
+    }
+
+    /* ── Action picker section ───────────────────────────────────── */
+    .action-section { padding: 14px; }
+
+    .action-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--stone-500); margin-bottom: 8px; }
+
+    .action-select-wrap { position: relative; margin-bottom: 14px; }
+    .action-select {
+      width: 100%; height: 36px; padding: 0 28px 0 10px;
+      border: 1px solid var(--stone-200); border-radius: var(--r);
+      background: white; font-size: 13px; color: var(--stone-900);
+      outline: none; appearance: none; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 9px center;
+    }
+    .action-select:focus { border-color: var(--latte); box-shadow: 0 0 0 2px rgba(107,66,38,.1); }
+
+    /* Availability chips under picker */
+    .avail-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .avail-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px; font-size: 10.5px; font-weight: 600;
+      border: 1px solid;
+    }
+    .avail-on  { background: var(--ok-bg);  color: var(--ok-tx);  border-color: var(--ok-bd); }
+    .avail-off { background: var(--closed-bg); color: var(--stone-400); border-color: var(--stone-300); }
+
+    /* Form that appears after picking an action */
+    .action-form { display: flex; flex-direction: column; gap: 10px; }
+
+    .callout {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 9px 11px; border-radius: var(--r);
+      font-size: 11.5px; line-height: 1.5; border: 1px solid;
+    }
+    .callout svg { flex-shrink: 0; margin-top: 1px; }
+    .callout-warn  { background: var(--warn-bg); color: var(--warn-tx); border-color: var(--warn-bd); }
+    .callout-info  { background: var(--info-bg); color: var(--info-tx); border-color: var(--info-bd); }
+    .callout-err   { background: var(--err-bg);  color: var(--err-tx);  border-color: var(--err-bd); }
+
+    .fl { display: flex; flex-direction: column; gap: 4px; }
+    .fl label { font-size: 11px; font-weight: 600; color: var(--stone-600); }
+    .fl input, .fl select, .fl textarea {
+      height: 32px; padding: 0 9px; border: 1px solid var(--stone-200);
+      border-radius: var(--r); font-size: 12.5px; color: var(--stone-900);
+      background: white; outline: none; width: 100%; font-family: inherit;
+    }
+    .fl textarea { height: auto; padding: 7px 9px; resize: vertical; min-height: 60px; }
+    .fl input:focus, .fl select:focus, .fl textarea:focus { border-color: var(--latte); box-shadow: 0 0 0 2px rgba(107,66,38,.1); }
+    .fl .hint { font-size: 10.5px; color: var(--stone-400); }
+    .req { color: var(--err-tx); margin-left: 2px; }
+
+    .fl select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23a8a29e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      padding-right: 26px;
+    }
+
+    .btn-row { display: flex; gap: 7px; justify-content: flex-end; padding-top: 4px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 0 13px; height: 32px; border-radius: var(--r);
+      font-size: 12px; font-weight: 600; cursor: pointer; border: none; white-space: nowrap;
+    }
+    .btn-primary { background: var(--espresso); color: white; }
+    .btn-primary:hover { opacity: .88; }
+    .btn-ghost { background: transparent; color: var(--stone-500); border: 1px solid var(--stone-200); }
+    .btn-ghost:hover { background: var(--stone-100); }
+    .btn-warn  { background: white; color: var(--warn-tx); border: 1px solid var(--warn-bd); }
+    .btn-warn:hover  { background: var(--warn-bg); }
+    .btn-danger { background: white; color: var(--err-tx); border: 1px solid var(--err-bd); }
+    .btn-danger:hover { background: var(--err-bg); }
+
+    .divider { border: none; border-top: 1px solid var(--stone-100); margin: 6px 0; }
+
+    /* ── Sheet footer ────────────────────────────────────────────── */
+    .sh-foot {
+      padding: 9px 14px; border-top: 1px solid var(--stone-200);
+      background: var(--stone-100); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .lock-notice { display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--err-tx);font-weight:600; }
+    .sh-foot-note { font-size: 10.5px; color: var(--stone-400); }
+
+    /* ── Audit log styles ────────────────────────────────────────── */
+    .audit-panel { padding: 14px; display: flex; flex-direction: column; gap: 0; }
+
+    .audit-entry { display: flex; gap: 10px; padding-bottom: 14px; position: relative; }
+    .audit-entry:not(:last-child)::after {
+      content: ''; position: absolute; left: 13px; top: 28px; bottom: 0;
+      width: 1px; background: var(--stone-200);
+    }
+
+    .a-dot {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      border: 1px solid var(--stone-200); background: white;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--stone-400); position: relative; z-index: 1;
+    }
+    .a-dot.pay  { border-color: var(--auth-bd); background: var(--auth-bg); color: var(--auth-tx); }
+    .a-dot.item { border-color: var(--err-bd);  background: var(--err-bg);  color: var(--err-tx); }
+    .a-dot.stat { border-color: var(--warn-bd); background: var(--warn-bg); color: var(--warn-tx); }
+
+    .a-body { flex: 1; }
+    .a-action { font-size: 12px; font-weight: 700; color: var(--stone-700); }
+    .a-who    { font-size: 10.5px; color: var(--stone-400); margin-top: 1px; }
+
+    .diff-box {
+      margin-top: 6px; padding: 6px 9px; border-radius: var(--r);
+      background: var(--stone-50); border: 1px solid var(--stone-100);
+      font-size: 11px; display: flex; align-items: center; gap: 7px;
+    }
+    .diff-before { color: var(--err-tx); text-decoration: line-through; font-family: monospace; letter-spacing:.02em; }
+    .diff-arrow  { color: var(--stone-300); }
+    .diff-after  { color: var(--ok-tx); font-weight: 700; font-family: monospace; letter-spacing:.02em; }
+
+    .a-reason { font-size: 11px; color: var(--stone-500); font-style: italic; margin-top: 5px; }
+    .a-time   { font-size: 10px; color: var(--stone-300); margin-top: 3px; }
+
+    /* System events */
+    .sys-events { padding: 12px 14px; border-top: 1px solid var(--stone-200); background: var(--stone-50); }
+    .sys-title { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing:.08em; color: var(--stone-400); margin-bottom: 8px; }
+    .sys-row { display: flex; gap: 10px; font-size: 11.5px; color: var(--stone-500); padding: 3px 0; border-bottom: 1px solid var(--stone-100); }
+    .sys-row:last-child { border-bottom: none; }
+    .sys-time { color: var(--stone-300); font-size: 10.5px; white-space: nowrap; width: 36px; flex-shrink: 0; padding-top: 1px; }
+
+    /* ── Empty (no order selected) ───────────────────────────────── */
+    .no-sel {
+      width: var(--sheet-w); flex-shrink: 0;
+      border-left: 1px solid var(--stone-200);
+      display: flex; align-items: center; justify-content: center;
+      background: var(--stone-50); color: var(--stone-400);
+      flex-direction: column; gap: 8px; text-align: center; padding: 24px;
+    }
+    .no-sel svg { opacity: .3; }
+    .no-sel p { font-size: 13px; font-weight: 600; color: var(--stone-500); }
+    .no-sel span { font-size: 11.5px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-text">Wendo</div>
+    <div class="sidebar-logo-sub">System Admin</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Operations</div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Staff
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Branches
+    </div>
+    <div class="nav-section" style="margin-top:6px;">Tools</div>
+    <div class="nav-item active">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Order Corrections
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Incident Logs
+    </div>
+    <div class="nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m11-11h-2M3 12H1m17.07-7.07-1.41 1.41M6.34 17.66l-1.41 1.41M17.66 17.66l1.41 1.41M6.34 6.34 4.93 4.93"/></svg>
+      System Config
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="s-avatar">SA</div>
+    <div>
+      <div class="s-name">Edwin K.</div>
+      <div class="s-role">SYSTEM_ADMIN</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ──────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="breadcrumb">
+      <span>Admin</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="cur">Order Corrections</span>
+    </div>
+    <div class="topbar-r">
+      <span class="topbar-date">Thu 14 May 2026</span>
+      <div class="t-avatar">SA</div>
+    </div>
+  </header>
+
+  <!-- Page header -->
+  <div class="pg-head">
+    <div>
+      <h1>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Order Correction Console
+        <span class="admin-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          SYSTEM_ADMIN
+        </span>
+      </h1>
+      <p>Audited corrections across all branches. Every change is permanently logged.</p>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="f-input" type="text" placeholder="Order # or table…" />
+    </div>
+    <select class="f-select">
+      <option>All Branches</option>
+      <option>Kingz</option>
+      <option>Town</option>
+      <option>Karatina</option>
+    </select>
+    <select class="f-select">
+      <option>All Statuses</option>
+      <option>In Progress</option>
+      <option>Ready</option>
+      <option>Closed</option>
+      <option>Awaiting Auth</option>
+    </select>
+    <input class="f-select f-date" type="date" value="2026-05-14" />
+    <span class="f-sep">—</span>
+    <input class="f-select f-date" type="date" value="2026-05-14" />
+    <div class="f-spacer"></div>
+    <span class="f-count">6 orders</span>
+  </div>
+
+  <!-- Split pane -->
+  <div class="split">
+
+    <!-- Orders table -->
+    <div class="table-pane">
+      <table class="tbl">
+        <colgroup>
+          <col class="col-ref">
+          <col class="col-branch">
+          <col class="col-type">
+          <col class="col-status">
+          <col class="col-pay">
+          <col class="col-code">
+          <col class="col-total">
+          <col>
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Branch</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th>M-Pesa Code</th>
+            <th style="text-align:right;">Total</th>
+            <th>Date &amp; Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- selected row -->
+          <tr class="sel" onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#47</div><div class="order-sub">Table 4</div></td>
+            <td>Kingz</td>
+            <td><span class="chip">Dine-In</span></td>
+            <td><span class="badge b-closed"><span class="dot"></span>Closed</span></td>
+            <td>M-Pesa</td>
+            <td class="col-code">QHX7K2P1MN</td>
+            <td class="col-total"><span class="total-val">1,850</span></td>
+            <td><div class="time-main">14 May 2026</div><div class="time-sub">09:31 AM</div></td>
+          </tr>
+          <tr onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#46</div><div class="order-sub">Table 7</div></td>
+            <td>Kingz</td>
+            <td><span class="chip">Dine-In</span></td>
+            <td><span class="badge b-inprog"><span class="dot"></span>In Progress</span></td>
+            <td>—</td>
+            <td class="col-code" style="color:var(--stone-300);">—</td>
+            <td class="col-total"><span class="total-val">620</span></td>
+            <td><div class="time-main">14 May 2026</div><div class="time-sub">09:15 AM</div></td>
+          </tr>
+          <tr onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#45</div><div class="order-sub">Take-Away</div></td>
+            <td>Town</td>
+            <td><span class="chip">Take-Away</span></td>
+            <td><span class="badge b-auth"><span class="dot"></span>Awaiting Auth</span></td>
+            <td>House Acc</td>
+            <td class="col-code" style="color:var(--stone-300);">—</td>
+            <td class="col-total"><span class="total-val">950</span></td>
+            <td><div class="time-main">14 May 2026</div><div class="time-sub">08:57 AM</div></td>
+          </tr>
+          <tr onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#44</div><div class="order-sub">Table 2</div></td>
+            <td>Kingz</td>
+            <td><span class="chip">Dine-In</span></td>
+            <td><span class="badge b-ready"><span class="dot"></span>Ready</span></td>
+            <td>—</td>
+            <td class="col-code" style="color:var(--stone-300);">—</td>
+            <td class="col-total"><span class="total-val">430</span></td>
+            <td><div class="time-main">14 May 2026</div><div class="time-sub">08:44 AM</div></td>
+          </tr>
+          <tr onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#43</div><div class="order-sub">Delivery</div></td>
+            <td>Karatina</td>
+            <td><span class="chip">Delivery</span></td>
+            <td><span class="badge b-closed"><span class="dot"></span>Closed</span></td>
+            <td>M-Pesa</td>
+            <td class="col-code">PBX3R9K2NM</td>
+            <td class="col-total"><span class="total-val">1,200</span></td>
+            <td><div class="time-main">14 May 2026</div><div class="time-sub">08:20 AM</div></td>
+          </tr>
+          <tr onclick="selectRow(this,'actions')">
+            <td><div class="order-num">#42</div><div class="order-sub">Table 11</div></td>
+            <td>Town</td>
+            <td><span class="chip">Dine-In</span></td>
+            <td><span class="badge b-cancel"><span class="dot"></span>Cancelled</span></td>
+            <td>—</td>
+            <td class="col-code" style="color:var(--stone-300);">—</td>
+            <td class="col-total" style="color:var(--stone-400);"><span>780</span></td>
+            <td><div class="time-main">13 May 2026</div><div class="time-sub">06:58 PM</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Right sheet: Order #47 ─────────────────────────────── -->
+    <div class="sheet" id="sheet">
+
+      <!-- Header -->
+      <div class="sh-head">
+        <div class="sh-head-row">
+          <div>
+            <div class="sh-title-line">
+              <span class="sh-ref">#47</span>
+              <span class="badge b-closed"><span class="dot"></span>Closed</span>
+            </div>
+            <div class="sh-sub">Kingz Branch &middot; Table 4 &middot; Dine-In &middot; 14 May 2026, 09:31 AM &middot; Grace W.</div>
+          </div>
+          <button class="sh-close" onclick="closeSheet()" title="Close">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="sh-tabs">
+          <div class="sh-tab on" id="tab-actions-btn" onclick="switchTab('actions')">Correction Actions</div>
+          <div class="sh-tab" id="tab-audit-btn" onclick="switchTab('audit')">
+            Audit Log <span class="audit-count">2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="sh-body">
+
+        <!-- ── ACTIONS TAB ─────────────────────────────────────── -->
+        <div id="panel-actions">
+
+          <!-- Items table — always shown -->
+          <div class="items-section">
+            <div class="section-hd">
+              <span class="section-lbl">Order Items</span>
+              <span class="section-meta">M-Pesa · <strong style="color:var(--stone-700);">KES 1,850.00</strong></span>
+            </div>
+            <table class="items-tbl">
+              <tr>
+                <td><div class="i-name">Signature Latte</div><div class="i-note">Extra shot · No sugar</div></td>
+                <td class="i-qty">×2</td>
+                <td class="i-price">900.00</td>
+                <td class="i-act"><button class="rm-btn" title="Remove"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+              </tr>
+              <tr>
+                <td><div class="i-name">Cheese Toast</div></td>
+                <td class="i-qty">×1</td>
+                <td class="i-price">350.00</td>
+                <td class="i-act"><button class="rm-btn" title="Remove"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+              </tr>
+              <tr>
+                <td><div class="i-name">Cappuccino</div></td>
+                <td class="i-qty">×1</td>
+                <td class="i-price">420.00</td>
+                <td class="i-act"><button class="rm-btn" title="Remove"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+              </tr>
+              <tr>
+                <td><div class="i-name">Avocado Toast</div></td>
+                <td class="i-qty">×1</td>
+                <td class="i-price">580.00</td>
+                <td class="i-act"><button class="rm-btn" title="Remove"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="2" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;">Total</td>
+                <td class="i-price" style="font-size:13px;color:var(--espresso);">1,850.00</td>
+                <td class="i-act"></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Action picker -->
+          <div class="action-section">
+            <div class="action-label">Apply a Correction</div>
+
+            <!-- Available action chips -->
+            <div class="avail-row">
+              <span class="avail-chip avail-on">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Correct M-Pesa
+              </span>
+              <span class="avail-chip avail-on">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Change Method
+              </span>
+              <span class="avail-chip avail-on">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Remove Item
+              </span>
+              <span class="avail-chip avail-on">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Adjust Total
+              </span>
+              <span class="avail-chip avail-off" title="Order must be IN_PROGRESS with a rejected ticket">
+                Force Ready
+              </span>
+              <span class="avail-chip avail-off" title="Order must be AWAITING_AUTHORIZATION">
+                Revert Auth
+              </span>
+            </div>
+
+            <select class="action-select" onchange="showForm(this.value)">
+              <option value="">— Select a correction to apply —</option>
+              <optgroup label="Payment">
+                <option value="mpesa">Correct M-Pesa Code</option>
+                <option value="method">Change Payment Method</option>
+              </optgroup>
+              <optgroup label="Items &amp; Total">
+                <option value="remove">Remove an Item (use × above, then confirm)</option>
+                <option value="total">Adjust Order Total</option>
+              </optgroup>
+              <optgroup label="Status (unavailable for CLOSED)">
+                <option value="force" disabled>Force IN_PROGRESS → READY</option>
+                <option value="auth" disabled>Revert AWAITING_AUTH → READY</option>
+              </optgroup>
+            </select>
+
+            <!-- Form: Correct M-Pesa code (shown by default as demo) -->
+            <div class="action-form" id="form-mpesa">
+              <div class="callout callout-info">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Current code: <strong style="font-family:monospace;">QHX7K2P1MN</strong> — enter the corrected transaction code below.</span>
+              </div>
+              <div class="fl">
+                <label>Corrected M-Pesa Code <span class="req">*</span></label>
+                <input type="text" value="QHX7K2P1MN" style="font-family:monospace;letter-spacing:.05em;" />
+                <span class="hint">10–12 alphanumeric characters as shown in the M-Pesa statement.</span>
+              </div>
+              <div class="fl">
+                <label>Reason <span class="req">*</span></label>
+                <textarea>Customer quoted the wrong code at POS. Correct code confirmed via M-Pesa screenshot.</textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-ghost" onclick="showForm('')">Cancel</button>
+                <button class="btn btn-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  Apply Correction
+                </button>
+              </div>
+            </div>
+
+            <!-- Form: Change payment method (hidden) -->
+            <div class="action-form" id="form-method" style="display:none;">
+              <div class="callout callout-warn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Use only when the wrong payment method was recorded at close.</span>
+              </div>
+              <div class="fl">
+                <label>New Payment Method <span class="req">*</span></label>
+                <select>
+                  <option selected>M-Pesa (current)</option>
+                  <option>Cash</option>
+                  <option>Card</option>
+                  <option>Split</option>
+                </select>
+              </div>
+              <div class="fl">
+                <label>Reason <span class="req">*</span></label>
+                <textarea placeholder="Why is the payment method being changed?"></textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-ghost" onclick="showForm('')">Cancel</button>
+                <button class="btn btn-warn">Change Method</button>
+              </div>
+            </div>
+
+            <!-- Form: Adjust total (hidden) -->
+            <div class="action-form" id="form-total" style="display:none;">
+              <div class="callout callout-err">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Last resort only. Prefer using item removal to adjust totals — it creates a cleaner audit trail.</span>
+              </div>
+              <div class="fl">
+                <label>New Total (KES) <span class="req">*</span></label>
+                <input type="number" value="1850.00" min="0" step="0.01" />
+                <span class="hint">Current: KES 1,850.00</span>
+              </div>
+              <div class="fl">
+                <label>Mandatory Reason <span class="req">*</span></label>
+                <textarea placeholder="Full justification for this total adjustment…"></textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-ghost" onclick="showForm('')">Cancel</button>
+                <button class="btn btn-danger">Adjust Total</button>
+              </div>
+            </div>
+
+            <!-- Form: remove item (pending reason) — hidden by default -->
+            <div class="action-form" id="form-remove" style="display:none;">
+              <div class="callout callout-warn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>Click <strong>×</strong> on an item above, then provide a reason and confirm.</span>
+              </div>
+              <div class="fl">
+                <label>Reason for removal <span class="req">*</span></label>
+                <textarea placeholder="Why is this item being removed?"></textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-ghost" onclick="showForm('')">Cancel</button>
+                <button class="btn btn-danger">Confirm Removal</button>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /panel-actions -->
+
+        <!-- ── AUDIT TAB ───────────────────────────────────────── -->
+        <div id="panel-audit" style="display:none;">
+          <div class="audit-panel">
+
+            <div class="audit-entry">
+              <div class="a-dot item">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </div>
+              <div class="a-body">
+                <div class="a-action">Item Removed — Avocado Toast ×1</div>
+                <div class="a-who">Edwin K. · System Admin</div>
+                <div class="diff-box">
+                  <span style="color:var(--stone-400);font-size:10.5px;">Total:</span>
+                  <span class="diff-before">KES 2,430.00</span>
+                  <span class="diff-arrow">→</span>
+                  <span class="diff-after">KES 1,850.00</span>
+                </div>
+                <div class="a-reason">"Item billed in error — customer did not order this. Confirmed by Grace W."</div>
+                <div class="a-time">14 May 2026 · 10:16 AM</div>
+              </div>
+            </div>
+
+            <div class="audit-entry">
+              <div class="a-dot pay">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              </div>
+              <div class="a-body">
+                <div class="a-action">M-Pesa Code Corrected</div>
+                <div class="a-who">Edwin K. · System Admin</div>
+                <div class="diff-box">
+                  <span class="diff-before">QHX7K2P1XX</span>
+                  <span class="diff-arrow">→</span>
+                  <span class="diff-after">QHX7K2P1MN</span>
+                </div>
+                <div class="a-reason">"Customer provided wrong code at POS. Confirmed via M-Pesa statement."</div>
+                <div class="a-time">14 May 2026 · 10:14 AM</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- System events -->
+          <div class="sys-events">
+            <div class="sys-title">System Events</div>
+            <div class="sys-row">
+              <span class="sys-time">09:31</span>
+              <span>Order closed · M-Pesa QHX7K2P1MN · Grace W.</span>
+            </div>
+            <div class="sys-row">
+              <span class="sys-time">09:28</span>
+              <span>Order marked READY</span>
+            </div>
+            <div class="sys-row">
+              <span class="sys-time">09:14</span>
+              <span>Order submitted · Table 4 · Grace W.</span>
+            </div>
+          </div>
+        </div><!-- /panel-audit -->
+
+      </div><!-- /sh-body -->
+
+      <!-- Sheet footer -->
+      <div class="sh-foot">
+        <div class="lock-notice">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Locked after 7 days
+        </div>
+        <div class="sh-foot-note">All changes audited</div>
+      </div>
+
+    </div><!-- /sheet -->
+
+  </div><!-- /split -->
+
+</main>
+
+<script>
+  function switchTab(tab) {
+    document.getElementById('panel-actions').style.display = tab === 'actions' ? 'block' : 'none';
+    document.getElementById('panel-audit').style.display   = tab === 'audit'   ? 'block' : 'none';
+    document.getElementById('tab-actions-btn').className = 'sh-tab' + (tab === 'actions' ? ' on' : '');
+    document.getElementById('tab-audit-btn').className   = 'sh-tab' + (tab === 'audit'   ? ' on' : '');
+  }
+
+  function showForm(val) {
+    ['mpesa','method','total','remove'].forEach(id => {
+      document.getElementById('form-' + id).style.display = 'none';
+    });
+    const el = document.querySelector('.action-select');
+    if (el && val) el.value = val;
+    if (val && document.getElementById('form-' + val)) {
+      document.getElementById('form-' + val).style.display = 'flex';
+    }
+  }
+
+  function selectRow(tr) {
+    document.querySelectorAll('.tbl tbody tr').forEach(r => r.classList.remove('sel'));
+    tr.classList.add('sel');
+    document.getElementById('sheet').style.display = 'flex';
+  }
+
+  function closeSheet() {
+    document.querySelectorAll('.tbl tbody tr').forEach(r => r.classList.remove('sel'));
+    document.getElementById('sheet').style.display = 'none';
+  }
+
+  // wire action-select dropdown to form toggle
+  document.querySelector('.action-select').addEventListener('change', function() {
+    showForm(this.value);
+  });
+
+  // × buttons on item rows: show the remove form
+  document.querySelectorAll('.rm-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelector('.action-select').value = 'remove';
+      showForm('remove');
+    });
+  });
+</script>
+
+</body>
+</html>

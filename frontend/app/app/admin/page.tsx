@@ -560,14 +560,24 @@ export default function Page(): JSX.Element {
           titleClassName="font-display text-display-lg font-semibold text-espresso"
           subtitle="Manage branches, leadership accounts, and system configuration."
           action={
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push('/app/admin/menu')}
-            >
-              Master Menu
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => router.push('/app/admin/order-corrections')}
+              >
+                Order Corrections
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => router.push('/app/admin/menu')}
+              >
+                Master Menu
+              </Button>
+            </div>
           }
         />
 
