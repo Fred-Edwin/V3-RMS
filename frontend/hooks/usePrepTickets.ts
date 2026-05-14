@@ -3,7 +3,9 @@ import { connectSocket, getSocket, joinStationRoom, onReconnect } from '@/lib/so
 import { prepTicketService } from '@/services/prepTicketService';
 import { useAuthStore } from '@/store/authStore';
 import { useKitchenStore } from '@/store/kitchenStore';
-import type { PrepStation, PrepTicketStatus } from '@/types/order';
+import type { PrepStation, PrepTicketDetail, PrepTicketStatus } from '@/types/order';
+
+const ACTIVE_TICKET_PAGE_SIZE = 100;
 
 // Returns all stations this role can manage. Kitchen-family roles see KITCHEN,
 // PIZZA, and PASTRY tickets on the same display.
@@ -15,6 +17,28 @@ const stationsFromRole = (role: string | null): PrepStation[] => {
     return ['BARISTA'];
   }
   return [];
+};
+
+const fetchAllActiveTickets = async (accessToken: string): Promise<PrepTicketDetail[]> => {
+  const tickets: PrepTicketDetail[] = [];
+  let page = 1;
+
+  while (true) {
+    const response = await prepTicketService.getTickets(
+      { activeOnly: true, page, perPage: ACTIVE_TICKET_PAGE_SIZE },
+      accessToken,
+    );
+
+    tickets.push(...response.tickets);
+
+    if (response.pagination.page >= response.pagination.totalPages || response.tickets.length === 0) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return tickets;
 };
 
 export function usePrepTickets() {
@@ -46,8 +70,8 @@ export function usePrepTickets() {
     setLoading(true);
     setError(null);
     try {
-      const response = await prepTicketService.getTickets({ activeOnly: true }, accessToken);
-      setTickets(response.tickets);
+      const tickets = await fetchAllActiveTickets(accessToken);
+      setTickets(tickets);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load prep tickets';
       setError(message);
