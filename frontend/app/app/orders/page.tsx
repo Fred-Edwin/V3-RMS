@@ -406,11 +406,11 @@ export default function OrdersPage(): JSX.Element {
     }
   };
 
-  const handlePrintBill = async (orderId: string) => {
+  const handlePrintBill = async (orderId: string, targetStationId: string | null) => {
     if (!accessToken || isPrintBillSubmitting) return;
     setIsPrintBillSubmitting(true);
     try {
-      await printService.createPrintJob(orderId, accessToken, 'BILL');
+      await printService.createPrintJob(orderId, accessToken, 'BILL', targetStationId);
       toast({ variant: 'success', title: 'Bill sent to printer' });
     } catch (error) {
       const message =
@@ -425,11 +425,11 @@ export default function OrdersPage(): JSX.Element {
     }
   };
 
-  const handlePrintReceipt = async (orderId: string) => {
+  const handlePrintReceipt = async (orderId: string, targetStationId: string | null) => {
     if (!accessToken || isPrintSubmitting) return;
     setIsPrintSubmitting(true);
     try {
-      await printService.createPrintJob(orderId, accessToken);
+      await printService.createPrintJob(orderId, accessToken, 'RECEIPT', targetStationId);
       toast({ variant: 'success', title: 'Receipt sent to printer' });
     } catch (error) {
       const message =
@@ -764,8 +764,8 @@ export default function OrdersPage(): JSX.Element {
         }}
         onPayment={(orderId, payload) => void handlePayment(orderId, payload)}
         onCancel={handleOpenCancel}
-        onPrintBill={(orderId) => void handlePrintBill(orderId)}
-        onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}
+        onPrintBill={(orderId, targetStationId) => void handlePrintBill(orderId, targetStationId)}
+        onPrintReceipt={(orderId, targetStationId) => void handlePrintReceipt(orderId, targetStationId)}
         isPaymentSubmitting={isPaymentSubmitting}
         isPrintBillSubmitting={isPrintBillSubmitting}
         isPrintSubmitting={isPrintSubmitting}

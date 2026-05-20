@@ -13,6 +13,7 @@ export interface PrintJobRecord {
   status: PrintJobStatus;
   receiptData: Prisma.JsonValue;
   requestedById: string;
+  targetStationId: string | null;
   claimedByStationId: string | null;
   claimedAt: Date | null;
   leaseExpiresAt: Date | null;
@@ -30,6 +31,7 @@ export interface PrintJobSummaryRecord {
   receiptType: ReceiptType;
   copies: number;
   status: PrintJobStatus;
+  targetStationId: string | null;
   createdAt: Date;
 }
 
@@ -102,6 +104,7 @@ export const printRepository = {
     copies: number;
     activeKey: string;
     receiptData: Prisma.InputJsonValue;
+    targetStationId?: string | null;
   }): Promise<PrintJobSummaryRecord> => {
     return prisma.printJob.create({
       data: {
@@ -112,6 +115,7 @@ export const printRepository = {
         copies: data.copies,
         activeKey: data.activeKey,
         receiptData: data.receiptData,
+        targetStationId: data.targetStationId ?? null,
       },
       select: {
         id: true,
@@ -119,6 +123,7 @@ export const printRepository = {
         receiptType: true,
         copies: true,
         status: true,
+        targetStationId: true,
         createdAt: true,
       },
     });
@@ -152,6 +157,7 @@ export const printRepository = {
         receiptType: true,
         copies: true,
         status: true,
+        targetStationId: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -175,6 +181,7 @@ export const printRepository = {
         receiptType: true,
         copies: true,
         status: true,
+        targetStationId: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -227,6 +234,7 @@ export const printRepository = {
         SELECT "id"
         FROM "public"."print_jobs"
         WHERE "organization_id" = ${organizationId}
+          AND ("target_station_id" = ${stationId} OR "target_station_id" IS NULL)
           AND (
             "status" = 'PENDING'
             OR ("status" = 'PRINTING' AND ("lease_expires_at" IS NULL OR "lease_expires_at" < ${now}))
@@ -254,6 +262,7 @@ export const printRepository = {
         pj."status",
         pj."receipt_data" AS "receiptData",
         pj."requested_by_id" AS "requestedById",
+        pj."target_station_id" AS "targetStationId",
         pj."claimed_by_station_id" AS "claimedByStationId",
         pj."claimed_at" AS "claimedAt",
         pj."lease_expires_at" AS "leaseExpiresAt",

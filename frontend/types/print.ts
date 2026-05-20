@@ -7,7 +7,15 @@ export interface PrintJobSummary {
   receiptType: ReceiptType;
   copies: number;
   status: PrintJobStatus;
+  targetStationId: string | null;
   createdAt: string;
+}
+
+/** Lightweight station shape returned by GET /print-stations/selectable. */
+export interface SelectablePrintStation {
+  id: string;
+  name: string;
+  isOnline: boolean;
 }
 
 export interface PrintJob {

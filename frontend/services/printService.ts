@@ -5,14 +5,28 @@ import type {
   PrintJobSummary,
   PrintStation,
   ReceiptType,
+  SelectablePrintStation,
 } from '@/types/print';
 import type { ApiResponseEnvelope } from '@/types/api';
 
 export const printService = {
   // ── Print Jobs ────────────────────────────────────────────────────────────
 
-  createPrintJob: (orderId: string, token: string, receiptType: ReceiptType = 'RECEIPT'): Promise<PrintJobSummary> =>
-    apiClient.post<PrintJobSummary>('/print-jobs', { orderId, receiptType }, token),
+  /**
+   * Create a print job. `targetStationId` pins the job to one device;
+   * omit it (or pass null) to let any station in the branch claim it.
+   */
+  createPrintJob: (
+    orderId: string,
+    token: string,
+    receiptType: ReceiptType = 'RECEIPT',
+    targetStationId?: string | null,
+  ): Promise<PrintJobSummary> =>
+    apiClient.post<PrintJobSummary>(
+      '/print-jobs',
+      { orderId, receiptType, ...(targetStationId ? { targetStationId } : {}) },
+      token,
+    ),
 
   createOtherIncomePrintJob: (entryId: string, token: string): Promise<PrintJobSummary> =>
     apiClient.post<PrintJobSummary>('/print-jobs/other-income', { entryId }, token),
@@ -32,6 +46,12 @@ export const printService = {
   getPrintJobById: (id: string, token: string): Promise<PrintJob> =>
     apiClient.get<PrintJob>(`/print-jobs/${id}`, token),
 
+  // ── Print Target Picker ───────────────────────────────────────────────────
+
+  /** Branch print stations available to pick as a print target (waiter-accessible). */
+  listSelectableStations: (token: string): Promise<SelectablePrintStation[]> =>
+    apiClient.get<SelectablePrintStation[]>('/print-stations/selectable', token),
+
   // ── Print Station Management ──────────────────────────────────────────────
 
   createPrintStation: (name: string, token: string, branchId?: string): Promise<CreatedPrintStation> => {
@@ -47,5 +67,11 @@ export const printService = {
   deactivatePrintStation: (stationId: string, token: string, branchId?: string): Promise<void> => {
     const qs = branchId ? `?branchId=${branchId}` : '';
     return apiClient.delete<void>(`/print-stations/${stationId}${qs}`, token);
+  },
+
+  /** Enqueue a canned diagnostic print on a specific station. */
+  testPrintStation: (stationId: string, token: string, branchId?: string): Promise<PrintJobSummary> => {
+    const qs = branchId ? `?branchId=${branchId}` : '';
+    return apiClient.post<PrintJobSummary>(`/print-stations/${stationId}/test-print${qs}`, {}, token);
   },
 };

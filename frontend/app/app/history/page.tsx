@@ -102,11 +102,11 @@ export default function HistoryPage(): JSX.Element {
   const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
 
-  const handlePrintReceipt = async (orderId: string) => {
+  const handlePrintReceipt = async (orderId: string, targetStationId: string | null) => {
     if (!accessToken || isPrintSubmitting) return;
     setIsPrintSubmitting(true);
     try {
-      await printService.createPrintJob(orderId, accessToken);
+      await printService.createPrintJob(orderId, accessToken, 'RECEIPT', targetStationId);
       toast({ variant: 'success', title: 'Receipt sent to printer' });
     } catch (error) {
       const message =
@@ -270,7 +270,7 @@ export default function HistoryPage(): JSX.Element {
         order={selectedOrder}
         onEdit={() => {/* read-only in history */}}
         onPayment={() => {/* read-only in history */}}
-        onPrintReceipt={(orderId) => void handlePrintReceipt(orderId)}
+        onPrintReceipt={(orderId, targetStationId) => void handlePrintReceipt(orderId, targetStationId)}
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}

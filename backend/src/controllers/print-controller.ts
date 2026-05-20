@@ -33,14 +33,20 @@ export const printController = {
 
   createPrintJob: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
-    const { orderId, receiptType } = CreatePrintJobSchema.parse(req.body);
+    const { orderId, receiptType, targetStationId } = CreatePrintJobSchema.parse(req.body);
 
     const organizationId = actor.organizationId;
     if (!organizationId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const job = await printService.createPrintJob(orderId, actor.id, organizationId, receiptType);
+    const job = await printService.createPrintJob(
+      orderId,
+      actor.id,
+      organizationId,
+      receiptType,
+      targetStationId ?? null,
+    );
 
     res.status(201).json({
       success: true,
@@ -185,6 +191,48 @@ export const printController = {
     res.status(200).json({
       success: true,
       data: stations,
+    });
+  },
+
+  // Lightweight station list for the web-app print-target picker.
+  // Available to waiters (unlike the manager-only management list).
+  listSelectablePrintStations: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+
+    const organizationId = actor.organizationId;
+    if (!organizationId) {
+      throw new UnauthorizedError('User is not assigned to a branch');
+    }
+
+    const stations = await printService.listPrintStations(organizationId);
+
+    res.status(200).json({
+      success: true,
+      data: stations.map((station) => ({
+        id: station.id,
+        name: station.name,
+        isOnline: station.isOnline,
+      })),
+    });
+  },
+
+  testPrintStation: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const { branchId } = BranchIdQuerySchema.parse(req.query);
+
+    const organizationId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
+    if (!organizationId) {
+      throw new UnauthorizedError('User is not assigned to a branch');
+    }
+
+    const job = await printService.createTestPrintJob(id, organizationId, actor.id);
+
+    res.status(201).json({
+      success: true,
+      data: job,
+      message: 'Test print sent to station',
     });
   },
 

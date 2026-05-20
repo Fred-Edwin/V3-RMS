@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Printer, ChefHat, Coffee, Clock, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { BottomSheet, Button, Input } from '@/components/ui';
+import { PrintTargetModal } from '@/components/orders/PrintTargetModal';
 import { env } from '@/lib/env';
 import type { OrderDetail, PaymentMethod, SplitPaymentLine } from '@/types/order';
 import type { HouseAccountDropdownItem } from '@/services/houseAccountService';
@@ -41,8 +42,8 @@ interface OrderDetailBottomSheetProps {
   onEdit: (orderId: string) => void;
   onPayment: (orderId: string, payload: PaymentPayload) => void;
   onCancel?: (orderId: string) => void;
-  onPrintBill?: (orderId: string) => void;
-  onPrintReceipt?: (orderId: string) => void;
+  onPrintBill?: (orderId: string, targetStationId: string | null) => void;
+  onPrintReceipt?: (orderId: string, targetStationId: string | null) => void;
   isPaymentSubmitting?: boolean;
   isPrintBillSubmitting?: boolean;
   isPrintSubmitting?: boolean;
@@ -728,7 +729,8 @@ export function OrderDetailBottomSheet({
   const [mpesaAmount, setMpesaAmount] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [cardAmount, setCardAmount] = useState('');
-  const [isReprintConfirmOpen, setIsReprintConfirmOpen] = useState(false);
+  // Which print-target modal is open, if any (bill vs receipt picker).
+  const [printTargetKind, setPrintTargetKind] = useState<'BILL' | 'RECEIPT' | null>(null);
   const [selectedDiscountId, setSelectedDiscountId] = useState<string | null>(null);
   const [selectedHouseAccountId, setSelectedHouseAccountId] = useState('');
   const [selectedCorporateAccountId, setSelectedCorporateAccountId] = useState('');
@@ -960,7 +962,7 @@ export function OrderDetailBottomSheet({
             </Button>
           )}
           {canPrintBill && (
-            <Button variant="secondary" className="w-full" isLoading={isPrintBillSubmitting} onClick={() => onPrintBill?.(order.id)}>
+            <Button variant="secondary" className="w-full" isLoading={isPrintBillSubmitting} onClick={() => setPrintTargetKind('BILL')}>
               <Printer size={16} className="mr-2 shrink-0" />
               Print Bill
             </Button>
@@ -1358,7 +1360,7 @@ export function OrderDetailBottomSheet({
 
           {/* ── Print receipt (after payment) ───────────────────────────── */}
           {isPaid && onPrintReceipt && (
-            <Button variant="secondary" className="w-full" isLoading={isPrintSubmitting} onClick={() => setIsReprintConfirmOpen(true)}>
+            <Button variant="secondary" className="w-full" isLoading={isPrintSubmitting} onClick={() => setPrintTargetKind('RECEIPT')}>
               <Printer size={16} className="mr-2 shrink-0" />
               Print Receipt
             </Button>
@@ -1366,14 +1368,22 @@ export function OrderDetailBottomSheet({
         </div>
       </BottomSheet>
 
-      {/* Reprint confirmation */}
-      <BottomSheet isOpen={isReprintConfirmOpen} onClose={() => setIsReprintConfirmOpen(false)} title="Print Receipt?">
-        <div className="space-y-4">
-          <p className="text-[14px] text-stone-700">This will print 2 copies (customer + accountant). If you already printed this receipt, it will print again.</p>
-          <Button className="w-full" onClick={() => { setIsReprintConfirmOpen(false); onPrintReceipt?.(order.id); }}>Yes, Print</Button>
-          <Button variant="secondary" className="w-full" onClick={() => setIsReprintConfirmOpen(false)}>Cancel</Button>
-        </div>
-      </BottomSheet>
+      {/* Print device picker — bill or receipt */}
+      <PrintTargetModal
+        isOpen={printTargetKind !== null}
+        kind={printTargetKind ?? 'RECEIPT'}
+        onClose={() => setPrintTargetKind(null)}
+        isSubmitting={printTargetKind === 'BILL' ? isPrintBillSubmitting : isPrintSubmitting}
+        onConfirm={(targetStationId) => {
+          const kind = printTargetKind;
+          setPrintTargetKind(null);
+          if (kind === 'BILL') {
+            onPrintBill?.(order.id, targetStationId);
+          } else if (kind === 'RECEIPT') {
+            onPrintReceipt?.(order.id, targetStationId);
+          }
+        }}
+      />
     </>
   );
 }
