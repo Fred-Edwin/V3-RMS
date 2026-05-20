@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Copy, ExternalLink, Hash, Pencil, Phone, Printer, QrCode, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Check, Copy, ExternalLink, Hash, Pencil, Phone, Printer, QrCode, Receipt, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { env } from '@/lib/env';
 import {
@@ -202,6 +202,28 @@ export default function BranchSettingsPage(): JSX.Element {
     }
   };
 
+  // Sends a canned diagnostic receipt to a station — lets an admin physically
+  // confirm which device a station maps to and catch a mis-registered printer.
+  const [testingStationId, setTestingStationId] = useState<string | null>(null);
+
+  const handleTestPrint = async (station: PrintStation) => {
+    if (!accessToken || testingStationId) return;
+    setTestingStationId(station.id);
+    try {
+      await printService.testPrintStation(station.id, accessToken);
+      toast({
+        variant: 'success',
+        title: 'Test print sent',
+        message: `Check that "${station.name}" prints a test receipt.`,
+      });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to send test print.';
+      toast({ variant: 'error', title: 'Test print failed', message });
+    } finally {
+      setTestingStationId(null);
+    }
+  };
+
   const handleCopyToken = async (token: string) => {
     try {
       await navigator.clipboard.writeText(token);
@@ -341,6 +363,14 @@ export default function BranchSettingsPage(): JSX.Element {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <IconButton
+                    icon={<Receipt size={16} />}
+                    label="Send test print"
+                    variant="ghost"
+                    size="sm"
+                    disabled={testingStationId === station.id}
+                    onClick={() => void handleTestPrint(station)}
+                  />
                   <IconButton
                     icon={<QrCode size={16} />}
                     label="Re-pair printer"

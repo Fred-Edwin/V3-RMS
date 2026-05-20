@@ -598,6 +598,7 @@ model PrintJob {
   status         PrintJobStatus  @default(PENDING)
   receiptData    Json            @map("receipt_data")
   requestedById  String          @map("requested_by_id")
+  targetStationId String?        @map("target_station_id")
   claimedByStationId String?     @map("claimed_by_station_id")
   claimedAt      DateTime?       @map("claimed_at")
   leaseExpiresAt DateTime?       @map("lease_expires_at")
@@ -611,10 +612,12 @@ model PrintJob {
   organization   Organization    @relation(fields: [organizationId], references: [id])
   order          Order?          @relation(fields: [orderId], references: [id])
   requestedBy    User            @relation("PrintJobRequester", fields: [requestedById], references: [id])
+  targetStation  PrintStation?   @relation("PrintJobTargetStation", fields: [targetStationId], references: [id])
   claimedByStation PrintStation? @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
   printedByStation PrintStation? @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])
 
   @@index([organizationId, status])
+  @@index([organizationId, status, targetStationId])
   @@index([orderId])
   @@map("print_jobs")
 }
@@ -630,6 +633,7 @@ model PrintStation {
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
   organization   Organization @relation(fields: [organizationId], references: [id])
+  targetedJobs   PrintJob[]   @relation("PrintJobTargetStation")
   claimedJobs    PrintJob[]   @relation("PrintJobClaimedBy")
   printedJobs    PrintJob[]   @relation("PrintJobPrintedBy")
 

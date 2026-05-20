@@ -5,6 +5,8 @@ import { PrintJobStatus, ReceiptType } from '@prisma/client';
 export const CreatePrintJobSchema = z.object({
   orderId: z.string().uuid('orderId must be a valid UUID'),
   receiptType: z.nativeEnum(ReceiptType).default(ReceiptType.RECEIPT),
+  // null / omitted = any station in the branch may claim the job.
+  targetStationId: z.string().uuid('targetStationId must be a valid UUID').nullish(),
 });
 
 // GET /print-jobs query

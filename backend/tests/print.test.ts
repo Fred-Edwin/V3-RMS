@@ -42,6 +42,7 @@ const samplePrintJob = {
   status: 'PENDING' as const,
   receiptData: { branchName: 'Wendo Kingz' },
   requestedById: '11111111-1111-4111-8111-111111111111',
+  targetStationId: null,
   claimedByStationId: null,
   claimedAt: null,
   leaseExpiresAt: null,
@@ -59,7 +60,27 @@ const samplePrintJobSummary = {
   receiptType: 'RECEIPT' as const,
   copies: 2,
   status: 'PENDING' as const,
+  targetStationId: null,
   createdAt: new Date('2026-03-08T10:00:00Z'),
+};
+
+// Shared paid-order fixture for createPrintJob service tests.
+const paidOrderFixture = {
+  id: orderId,
+  organizationId: orgId,
+  dailyNumber: 42,
+  orderDate: new Date('2026-03-08'),
+  type: 'DINE_IN',
+  tableNumber: 'T5',
+  subtotal: { toString: () => '1200' } as never,
+  deliveryFee: { toString: () => '0' } as never,
+  total: { toString: () => '1200' } as never,
+  paymentMethod: 'CASH',
+  paidAt: new Date('2026-03-08T14:32:00Z'),
+  createdAt: new Date('2026-03-08T10:00:00Z'),
+  organization: { name: 'Wendo Kingz' },
+  createdBy: { name: 'Jane M.' },
+  items: [],
 };
 
 const sampleStation = {
@@ -473,6 +494,161 @@ describe('printService.createPrintJob', () => {
     const result = await printService.createPrintJob(orderId, 'user-1', orgId);
 
     expect(result).toBe(samplePrintJobSummary);
+  });
+
+  // ─── Targeted print-job routing ──────────────────────────────────────────
+
+  it('passes a valid same-branch targetStationId through to the repository', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue(paidOrderFixture as never);
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(null);
+    vi.spyOn(printRepository, 'findPrintStationById').mockResolvedValue(sampleStation);
+    const createSpy = vi
+      .spyOn(printRepository, 'createPrintJob')
+      .mockResolvedValue({ ...samplePrintJobSummary, targetStationId: stationId });
+
+    await printService.createPrintJob(orderId, 'user-1', orgId, 'RECEIPT', stationId);
+
+    expect(createSpy.mock.calls[0]?.[0]?.targetStationId).toBe(stationId);
+  });
+
+  it('rejects a targetStationId that belongs to another branch', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue(paidOrderFixture as never);
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(null);
+    // findPrintStationById is org-scoped → another branch's station resolves to null.
+    vi.spyOn(printRepository, 'findPrintStationById').mockResolvedValue(null);
+
+    await expect(
+      printService.createPrintJob(orderId, 'user-1', orgId, 'RECEIPT', stationId),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('rejects a targetStationId for an inactive station', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue(paidOrderFixture as never);
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(null);
+    vi.spyOn(printRepository, 'findPrintStationById').mockResolvedValue({
+      ...sampleStation,
+      isActive: false,
+    });
+
+    await expect(
+      printService.createPrintJob(orderId, 'user-1', orgId, 'RECEIPT', stationId),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('creates a null-target job when no targetStationId is given (backward compatible)', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue(paidOrderFixture as never);
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(null);
+    const stationLookup = vi.spyOn(printRepository, 'findPrintStationById');
+    const createSpy = vi
+      .spyOn(printRepository, 'createPrintJob')
+      .mockResolvedValue(samplePrintJobSummary);
+
+    await printService.createPrintJob(orderId, 'user-1', orgId, 'RECEIPT');
+
+    expect(createSpy.mock.calls[0]?.[0]?.targetStationId).toBeNull();
+    // No station validation lookup should happen for an untargeted job.
+    expect(stationLookup).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing active job without re-creating it (idempotent)', async () => {
+    vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue(paidOrderFixture as never);
+    vi.spyOn(printRepository, 'findActiveJobForOrder').mockResolvedValue(samplePrintJobSummary);
+    // Validation runs before the idempotency check, so the station lookup still happens.
+    const stationLookup = vi
+      .spyOn(printRepository, 'findPrintStationById')
+      .mockResolvedValue(sampleStation);
+    const createSpy = vi.spyOn(printRepository, 'createPrintJob');
+
+    const result = await printService.createPrintJob(orderId, 'user-1', orgId, 'RECEIPT', stationId);
+
+    // The existing job is returned; the new target is intentionally ignored.
+    expect(result).toBe(samplePrintJobSummary);
+    expect(createSpy).not.toHaveBeenCalled();
+    expect(stationLookup).toHaveBeenCalledWith(stationId, orgId);
+  });
+});
+
+describe('printService.createTestPrintJob', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('enqueues a BILL job pinned to the station', async () => {
+    vi.spyOn(printRepository, 'findPrintStationById').mockResolvedValue(sampleStation);
+    const createSpy = vi
+      .spyOn(printRepository, 'createPrintJob')
+      .mockResolvedValue({ ...samplePrintJobSummary, receiptType: 'BILL', targetStationId: stationId });
+
+    await printService.createTestPrintJob(stationId, orgId, 'user-1');
+
+    const arg = createSpy.mock.calls[0]?.[0];
+    expect(arg?.targetStationId).toBe(stationId);
+    expect(arg?.receiptType).toBe('BILL');
+    expect(arg?.orderId).toBeUndefined();
+  });
+
+  it('throws NotFoundError for an unknown station', async () => {
+    vi.spyOn(printRepository, 'findPrintStationById').mockResolvedValue(null);
+
+    await expect(
+      printService.createTestPrintJob(stationId, orgId, 'user-1'),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('GET /api/v1/print-stations/selectable', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns a trimmed station list for a waiter', async () => {
+    vi.spyOn(printService, 'listPrintStations').mockResolvedValue([
+      { ...sampleStation, isOnline: true },
+    ]);
+
+    const res = await request(app)
+      .get('/api/v1/print-stations/selectable')
+      .set('Authorization', `Bearer ${waiterToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([{ id: stationId, name: 'Counter Printer', isOnline: true }]);
+  });
+
+  it('returns 403 for a chef role', async () => {
+    const res = await request(app)
+      .get('/api/v1/print-stations/selectable')
+      .set('Authorization', `Bearer ${chefToken}`);
+
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/v1/print-stations/:id/test-print', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('sends a test print for a manager', async () => {
+    vi.spyOn(printService, 'createTestPrintJob').mockResolvedValue({
+      ...samplePrintJobSummary,
+      receiptType: 'BILL',
+      targetStationId: stationId,
+    });
+
+    const res = await request(app)
+      .post(`/api/v1/print-stations/${stationId}/test-print`)
+      .set('Authorization', `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(201);
+    expect(res.body.message).toBe('Test print sent to station');
+  });
+
+  it('returns 403 for a waiter role', async () => {
+    const res = await request(app)
+      .post(`/api/v1/print-stations/${stationId}/test-print`)
+      .set('Authorization', `Bearer ${waiterToken}`);
+
+    expect(res.status).toBe(403);
   });
 });
 
