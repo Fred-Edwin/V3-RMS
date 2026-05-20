@@ -202,8 +202,8 @@ describe('Order Correction routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.orders).toHaveLength(1);
-      expect(res.body.pagination.total).toBe(1);
+      expect(res.body.data.orders).toHaveLength(1);
+      expect(res.body.data.pagination.total).toBe(1);
     });
 
     it('forwards query filters to service', async () => {

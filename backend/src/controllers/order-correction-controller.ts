@@ -25,7 +25,7 @@ export const orderCorrectionController = {
     requireActor(req);
     const query = ListOrderCorrectionsQuerySchema.parse(req.query);
     const result = await orderCorrectionService.listOrders(query);
-    res.status(200).json({ success: true, ...result });
+    res.status(200).json({ success: true, data: result });
   },
 
   getOrderDetail: async (req: Request, res: Response): Promise<void> => {
