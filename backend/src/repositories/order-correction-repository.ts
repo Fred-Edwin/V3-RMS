@@ -1,6 +1,14 @@
+import type { PaymentMethod } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../config/database';
+import { ConflictError } from '../utils/errors';
 import type { ListOrderCorrectionsQuery } from '../validators/order-correction-schemas';
+
+const assertOrderUpdated = (count: number): void => {
+  if (count === 0) {
+    throw new ConflictError('Order could not be updated — it may have changed or been removed');
+  }
+};
 
 const orderWithDetailInclude = {
   organization: { select: { id: true, name: true } },
@@ -37,9 +45,9 @@ export const orderCorrectionRepository = {
       where.status = query.status;
     }
     if (query.dateFrom || query.dateTo) {
-      const orderDate: Record<string, string> = {};
-      if (query.dateFrom) orderDate.gte = query.dateFrom;
-      if (query.dateTo) orderDate.lte = query.dateTo;
+      const orderDate: Record<string, Date> = {};
+      if (query.dateFrom) orderDate.gte = new Date(`${query.dateFrom}T00:00:00.000Z`);
+      if (query.dateTo) orderDate.lte = new Date(`${query.dateTo}T23:59:59.999Z`);
       where.orderDate = orderDate;
     }
     if (query.search) {
@@ -96,6 +104,7 @@ export const orderCorrectionRepository = {
         where: { id: orderId, organizationId },
         data: { mpesaCode },
       });
+      assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
           organizationId,
@@ -118,7 +127,7 @@ export const orderCorrectionRepository = {
   correctPaymentMethod: async (
     orderId: string,
     organizationId: string,
-    paymentMethod: string,
+    paymentMethod: PaymentMethod,
     actorId: string,
     before: string,
     reason: string,
@@ -126,8 +135,9 @@ export const orderCorrectionRepository = {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
         where: { id: orderId, organizationId },
-        data: { paymentMethod: paymentMethod as never },
+        data: { paymentMethod },
       });
+      assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
           organizationId,
@@ -158,6 +168,7 @@ export const orderCorrectionRepository = {
         where: { id: orderId, organizationId },
         data: { status: 'READY' },
       });
+      assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
           organizationId,
@@ -190,6 +201,7 @@ export const orderCorrectionRepository = {
         where: { id: orderId, organizationId },
         data: { status: 'READY' },
       });
+      assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
           organizationId,
@@ -235,6 +247,7 @@ export const orderCorrectionRepository = {
           total: newTotal,
         },
       });
+      assertOrderUpdated(updated.count);
 
       await tx.incidentLog.create({
         data: {
@@ -309,6 +322,7 @@ export const orderCorrectionRepository = {
         where: { id: orderId, organizationId },
         data: { total: newTotal },
       });
+      assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
           organizationId,

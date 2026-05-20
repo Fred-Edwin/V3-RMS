@@ -3199,25 +3199,27 @@ Returns paginated list of orders across **all branches** (no organizationId filt
 ```json
 {
   "success": true,
-  "orders": [
-    {
-      "id": "uuid",
-      "dailyNumber": 42,
-      "orderDate": "2026-05-14",
-      "type": "DINE_IN",
-      "status": "CLOSED",
-      "tableNumber": "5",
-      "paymentMethod": "MPESA",
-      "mpesaCode": "QKA123XY",
-      "total": "700.00",
-      "createdAt": "2026-05-14T10:00:00Z",
-      "closedAt": "2026-05-14T11:30:00Z",
-      "organizationId": "uuid",
-      "organizationName": "Wendo Nyeri Central",
-      "createdByName": "Waiter One"
-    }
-  ],
-  "pagination": { "total": 1, "page": 1, "perPage": 50, "totalPages": 1 }
+  "data": {
+    "orders": [
+      {
+        "id": "uuid",
+        "dailyNumber": 42,
+        "orderDate": "2026-05-14",
+        "type": "DINE_IN",
+        "status": "CLOSED",
+        "tableNumber": "5",
+        "paymentMethod": "MPESA",
+        "mpesaCode": "QKA123XY",
+        "total": "700.00",
+        "createdAt": "2026-05-14T10:00:00Z",
+        "closedAt": "2026-05-14T11:30:00Z",
+        "organizationId": "uuid",
+        "organizationName": "Wendo Nyeri Central",
+        "createdByName": "Waiter One"
+      }
+    ],
+    "pagination": { "total": 1, "page": 1, "perPage": 50, "totalPages": 1 }
+  }
 }
 ```
 
@@ -3335,6 +3337,21 @@ Reverts an **AWAITING_AUTHORIZATION** order to **READY** by deleting the pending
 ```
 
 **Errors**: `409` if not in correct state, no pending auth request, or older than 7 days.
+
+---
+
+### POST `/admin/order-corrections/:id/tickets/:ticketId/revert-rejected`
+
+Reverts a **REJECTED** prep ticket back to **PENDING** so the kitchen/barista station can re-attempt it. The station display is notified immediately via the `ticket:unclaimed` socket event.
+
+**Guard**: The ticket must belong to the order and have status `REJECTED`.
+
+**Request body**
+```json
+{ "reason": "Barista accidentally rejected the ticket; please re-attempt (min 10 chars)" }
+```
+
+**Errors**: `404` if the ticket is not found on the order; `409` if the ticket is not REJECTED or the order is older than 7 days.
 
 ---
 
