@@ -66,11 +66,28 @@ printRoutes.post(
   printController.createPrintStation,
 );
 
+// IMPORTANT: /print-stations/selectable must be registered BEFORE /print-stations/:id
+// Waiters need this for the print-target picker; the management list below is manager-only.
+printRoutes.get(
+  '/print-stations/selectable',
+  authenticate,
+  requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
+  printController.listSelectablePrintStations,
+);
+
 printRoutes.get(
   '/print-stations',
   authenticate,
   requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
   printController.listPrintStations,
+);
+
+// IMPORTANT: /print-stations/:id/test-print must be registered BEFORE /print-stations/:id
+printRoutes.post(
+  '/print-stations/:id/test-print',
+  authenticate,
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  printController.testPrintStation,
 );
 
 printRoutes.delete(

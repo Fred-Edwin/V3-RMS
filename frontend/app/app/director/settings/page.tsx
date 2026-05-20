@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Building2, Check, Copy, ExternalLink, FileText, Hash, Pencil, Phone, Printer, QrCode, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { Building2, Check, Copy, ExternalLink, FileText, Hash, Pencil, Phone, Printer, QrCode, Receipt, Smartphone, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { env } from '@/lib/env';
 import {
@@ -144,6 +144,28 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
   useEffect(() => {
     void loadStations();
   }, [loadStations]);
+
+  // Sends a canned diagnostic receipt so an admin can physically confirm which
+  // device a station maps to — catches a station registered under the wrong branch.
+  const [testingStationId, setTestingStationId] = useState<string | null>(null);
+
+  const handleTestPrint = async (station: PrintStation) => {
+    if (!accessToken || !selectedBranchId || testingStationId) return;
+    setTestingStationId(station.id);
+    try {
+      await printService.testPrintStation(station.id, accessToken, selectedBranchId);
+      toast({
+        variant: 'success',
+        title: 'Test print sent',
+        message: `Check that "${station.name}" prints a test receipt.`,
+      });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to send test print.';
+      toast({ variant: 'error', title: 'Test print failed', message });
+    } finally {
+      setTestingStationId(null);
+    }
+  };
 
   const handleAddStation = async () => {
     if (!accessToken || !newStationName.trim() || !selectedBranchId) return;
@@ -354,6 +376,7 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
+                      <IconButton icon={<Receipt size={16} />} label="Send test print" variant="ghost" size="sm" disabled={testingStationId === station.id} onClick={() => void handleTestPrint(station)} />
                       <IconButton icon={<QrCode size={16} />} label="Re-pair printer" variant="ghost" size="sm" onClick={() => setStationPendingRepair(station)} />
                       <IconButton icon={<Trash2 size={16} />} label="Remove station" variant="ghost" size="sm" onClick={() => setStationPendingRemove(station)} />
                     </div>

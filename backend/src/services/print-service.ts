@@ -6,7 +6,8 @@ import { otherIncomeRepository } from '../repositories/other-income-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 
 const PRINT_STATION_TOKEN_PREFIX = 'pst_';
-const STATION_ONLINE_THRESHOLD_SECONDS = 60;
+// 90s = 3 missed 30s heartbeats before a station is considered offline.
+const STATION_ONLINE_THRESHOLD_SECONDS = 90;
 const JOB_MAX_AGE_HOURS = 24;
 const CLAIM_LEASE_SECONDS = 120;
 
@@ -98,6 +99,7 @@ export const printService = {
     requestedById: string,
     organizationId: string,
     receiptType: ReceiptType = 'RECEIPT',
+    targetStationId?: string | null,
   ): Promise<PrintJobSummaryRecord> => {
     const order = await printRepository.findOrderForReceipt(orderId, organizationId);
 
@@ -108,6 +110,18 @@ export const printService = {
     // RECEIPT requires payment; BILL does not
     if (receiptType === 'RECEIPT' && !order.paymentMethod) {
       throw new ValidationError('Order has not been paid yet — cannot print a receipt');
+    }
+
+    // A targeted job is pinned to one station; null = any station in the branch.
+    // findPrintStationById is org-scoped, so this also rejects another branch's station.
+    if (targetStationId) {
+      const station = await printRepository.findPrintStationById(targetStationId, organizationId);
+      if (!station) {
+        throw new ValidationError('Selected print station does not belong to this branch');
+      }
+      if (!station.isActive) {
+        throw new ValidationError('Selected print station is no longer active');
+      }
     }
 
     // Idempotency: return existing PENDING/PRINTING job of the same type rather than creating a duplicate
@@ -184,6 +198,7 @@ export const printService = {
         copies,
         activeKey,
         receiptData: receiptData as unknown as Prisma.InputJsonValue,
+        targetStationId: targetStationId ?? null,
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -270,6 +285,59 @@ export const printService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Enqueue a canned BILL print job pinned to a single station, so an admin can
+   * physically confirm which device a station is — used to catch a station that
+   * was registered under the wrong branch.
+   */
+  createTestPrintJob: async (
+    stationId: string,
+    organizationId: string,
+    requestedById: string,
+  ): Promise<PrintJobSummaryRecord> => {
+    const station = await printRepository.findPrintStationById(stationId, organizationId);
+    if (!station) {
+      throw new NotFoundError('Print station not found');
+    }
+    if (!station.isActive) {
+      throw new ValidationError('Print station is no longer active');
+    }
+
+    const now = new Date();
+    const receiptData: ReceiptData = {
+      branchName: station.name,
+      branchPhone: null,
+      mpesaPaybill: null,
+      accountNumber: null,
+      googleReviewUrl: null,
+      orderNumber: 'TEST',
+      dailyNumber: 0,
+      orderDate: formatDate(now),
+      orderTime: formatTime(now),
+      orderType: `Test Print — ${station.name}`,
+      tableNumber: null,
+      waiterName: 'Print Station Test',
+      waiterFirstName: 'Test',
+      items: [{ name: 'Test print line', quantity: 1, unitPrice: 0, total: 0 }],
+      subtotal: 0,
+      deliveryFee: 0,
+      total: 0,
+    };
+
+    // Unique per call so repeated test prints are never deduped by activeKey.
+    const activeKey = `test-print:${stationId}:${now.getTime()}`;
+
+    return printRepository.createPrintJob({
+      organizationId,
+      requestedById,
+      receiptType: 'BILL',
+      copies: 1,
+      activeKey,
+      receiptData: receiptData as unknown as Prisma.InputJsonValue,
+      targetStationId: stationId,
+    });
   },
 
   getPrintJobs: async (
