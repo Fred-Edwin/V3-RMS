@@ -18,10 +18,7 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
 export const orderCorrectionService = {
   listOrders: (query: ListOrderCorrectionsQuery, token: string): Promise<OrderCorrectionListResponse> => {
     const qs = buildQuery(query as Record<string, string | number | undefined>);
-    return apiClient.getWithEnvelope<OrderCorrectionListResponse>(
-      `/admin/order-corrections${qs}`,
-      token,
-    ).then((env) => env.data as OrderCorrectionListResponse);
+    return apiClient.get<OrderCorrectionListResponse>(`/admin/order-corrections${qs}`, token);
   },
 
   getOrderDetail: (orderId: string, token: string): Promise<OrderCorrectionDetail> =>
