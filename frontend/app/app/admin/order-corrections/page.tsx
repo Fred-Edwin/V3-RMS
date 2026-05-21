@@ -28,7 +28,6 @@ import {
   SkeletonTable,
   Textarea,
 } from '@/components/ui';
-import { Input } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/cn';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -156,10 +155,16 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
   // List state
   const [orders, setOrders] = useState<OrderCorrectionListItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [page] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Pagination — page is advanced by infinite scroll, not by UI controls.
+  const PER_PAGE = 50;
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const isFetchingRef = useRef(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -188,11 +193,15 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
 
   // ── Data loading ────────────────────────────────────────────────────────────
 
-  const loadOrders = useCallback(async () => {
-    if (!accessToken) return;
-    setIsLoading(true);
+  // Fetches one page. `append: false` resets the list (filter change / refresh);
+  // `append: true` concatenates the next page (infinite scroll).
+  const fetchPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (!accessToken || isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (append) setIsLoadingMore(true);
+    else setIsLoading(true);
     try {
-      const query: ListOrderCorrectionsQuery = { page, perPage: 50 };
+      const query: ListOrderCorrectionsQuery = { page: pageNum, perPage: PER_PAGE };
       if (branchId) query.branchId = branchId;
       if (status) query.status = status;
       if (dateFrom) query.dateFrom = dateFrom;
@@ -200,15 +209,37 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
       if (search.trim()) query.search = search.trim();
 
       const result = await orderCorrectionService.listOrders(query, accessToken);
-      setOrders(result.orders);
       setTotal(result.pagination.total);
+      pageRef.current = pageNum;
+      hasMoreRef.current = pageNum < result.pagination.totalPages;
+      setOrders((prev) => (append ? [...prev, ...result.orders] : result.orders));
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Failed to load orders';
       toast({ variant: 'error', title: 'Load failed', message: msg });
     } finally {
+      isFetchingRef.current = false;
+      setIsLoadingMore(false);
       setIsLoading(false);
     }
-  }, [accessToken, page, branchId, status, dateFrom, dateTo, search, toast]);
+  }, [accessToken, branchId, status, dateFrom, dateTo, search, toast]);
+
+  // Fresh page-1 load — used on mount, filter change, and manual refresh.
+  const reloadOrders = useCallback(() => {
+    pageRef.current = 1;
+    hasMoreRef.current = true;
+    void fetchPage(1, false);
+  }, [fetchPage]);
+
+  // Appends the next page; invoked by the sheet scroll handler.
+  const loadMore = useCallback(() => {
+    if (isFetchingRef.current || !hasMoreRef.current) return;
+    void fetchPage(pageRef.current + 1, true);
+  }, [fetchPage]);
+
+  const handleSheetScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 240) loadMore();
+  }, [loadMore]);
 
   const loadDetail = useCallback(async (orderId: string) => {
     if (!accessToken) return;
@@ -231,9 +262,11 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
     }
   }, [accessToken, toast]);
 
+  // Re-runs whenever a filter changes (fetchPage closes over the filters),
+  // resetting the list to a fresh page 1.
   useEffect(() => {
-    void loadOrders();
-  }, [loadOrders]);
+    reloadOrders();
+  }, [reloadOrders]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -337,14 +370,14 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
       }
       resetForm();
       await loadDetail(detail.id);
-      await loadOrders();
+      reloadOrders();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Correction failed';
       toast({ variant: 'error', title: 'Correction failed', message: msg });
     } finally {
       setIsSubmitting(false);
     }
-  }, [accessToken, detail, activeAction, reason, mpesaCode, paymentMethod, newTotal, pendingItemId, pendingTicketId, resetForm, loadDetail, loadOrders, toast]);
+  }, [accessToken, detail, activeAction, reason, mpesaCode, paymentMethod, newTotal, pendingItemId, pendingTicketId, resetForm, loadDetail, reloadOrders, toast]);
 
   // ── Availability guards (what corrections are possible for this order) ───────
 
@@ -372,7 +405,7 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
         isExpanded && 'rounded-none border-0',
       )}
     >
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto" onScroll={handleSheetScroll}>
         {isLoading ? (
           <div className="p-6"><SkeletonTable rows={8} columns={7} /></div>
         ) : orders.length === 0 ? (
@@ -544,6 +577,16 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
             </tbody>
           </table>
         )}
+        {/* Infinite-scroll loading indicator */}
+        {isLoadingMore && (
+          <div
+            className="flex items-center justify-center gap-2 py-3 text-[11px] font-semibold text-stone-400"
+            style={{ fontFamily: SHEET_FONT }}
+          >
+            <RefreshCw size={12} className="animate-spin" />
+            Loading more orders…
+          </div>
+        )}
       </div>
       {/* Charcoal status footer bar */}
       <div
@@ -554,7 +597,11 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
           <Shield size={11} />
           Audited correction console — every change permanently logged
         </span>
-        <span>{total} order{total !== 1 ? 's' : ''}</span>
+        <span>
+          {orders.length < total
+            ? `Showing ${orders.length} of ${total}`
+            : `${total} order${total !== 1 ? 's' : ''}`}
+        </span>
         <span>Cross-branch view</span>
         <span>7-day correction window</span>
       </div>
@@ -563,59 +610,65 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
 
   // ── Toolbar ─────────────────────────────────────────────────────────────────
 
+  // All controls share one flat h-8 / thin-border style so the toolbar reads
+  // as a single row of spreadsheet-style inputs (matching the date pickers).
+  const controlClass =
+    'h-8 px-2 text-sm border border-stone-200 rounded-md bg-white text-stone-700 outline-none focus:border-amber-600';
+
   const toolbar = (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
       <div className="relative">
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-        <Input
+        <input
+          type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Order # or table…"
-          className="pl-8 h-8 text-sm w-48"
+          className={cn(controlClass, 'w-48 pl-8')}
         />
       </div>
 
-      <Select
+      <select
         value={branchId}
         onChange={(e) => setBranchId(e.target.value)}
-        options={[
-          { value: '', label: 'All Branches' },
-          ...branches.map((b) => ({ value: b.id, label: b.name })),
-        ]}
-        className="h-8 text-sm"
-      />
+        className={cn(controlClass, 'min-w-[150px] cursor-pointer')}
+      >
+        <option value="">All Branches</option>
+        {branches.map((b) => (
+          <option key={b.id} value={b.id}>{b.name}</option>
+        ))}
+      </select>
 
-      <Select
+      <select
         value={status}
         onChange={(e) => setStatus(e.target.value)}
-        options={[
-          { value: '', label: 'All Statuses' },
-          { value: 'PENDING', label: 'Pending' },
-          { value: 'IN_PROGRESS', label: 'In Progress' },
-          { value: 'READY', label: 'Ready' },
-          { value: 'CLOSED', label: 'Closed' },
-          { value: 'AWAITING_AUTHORIZATION', label: 'Awaiting Auth' },
-          { value: 'CANCELLED', label: 'Cancelled' },
-        ]}
-        className="h-8 text-sm"
-      />
+        className={cn(controlClass, 'min-w-[140px] cursor-pointer')}
+      >
+        <option value="">All Statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="READY">Ready</option>
+        <option value="CLOSED">Closed</option>
+        <option value="AWAITING_AUTHORIZATION">Awaiting Auth</option>
+        <option value="CANCELLED">Cancelled</option>
+      </select>
 
       <input
         type="date"
         value={dateFrom}
         onChange={(e) => setDateFrom(e.target.value)}
-        className="h-8 px-2 text-sm border border-stone-200 rounded-md bg-white text-stone-700 outline-none focus:border-amber-600"
+        className={controlClass}
       />
       <span className="text-stone-300 text-xs">—</span>
       <input
         type="date"
         value={dateTo}
         onChange={(e) => setDateTo(e.target.value)}
-        className="h-8 px-2 text-sm border border-stone-200 rounded-md bg-white text-stone-700 outline-none focus:border-amber-600"
+        className={controlClass}
       />
 
       <button
-        onClick={() => void loadOrders()}
+        onClick={() => reloadOrders()}
         className="h-8 w-8 flex items-center justify-center border border-stone-200 rounded-md bg-white text-stone-400 hover:bg-stone-50 hover:text-stone-600"
         title="Refresh"
       >
