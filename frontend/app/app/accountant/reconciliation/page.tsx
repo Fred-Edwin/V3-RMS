@@ -343,6 +343,42 @@ function OrderDrillDown({
                       <tr key={`${order.id}-detail`} className="bg-amber-50/30">
                         <td colSpan={7} className="px-6 pb-4 pt-2">
                           <div className="rounded-lg border border-amber-100 bg-white shadow-sm">
+                            {/* Order header */}
+                            <div className="flex flex-wrap items-start gap-x-6 gap-y-2 border-b border-stone-100 px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-label-sm font-medium ${
+                                  expandedDetail.type === 'DINE_IN'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : expandedDetail.type === 'TAKE_AWAY'
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {expandedDetail.type === 'DINE_IN' ? 'Dine-In' : expandedDetail.type === 'TAKE_AWAY' ? 'Take-Away' : 'Delivery'}
+                                </span>
+                                {expandedDetail.tableNumber && (
+                                  <span className="text-label-sm text-stone-600">Table {expandedDetail.tableNumber}</span>
+                                )}
+                              </div>
+                              {expandedDetail.deliveryZone && (
+                                <div className="text-label-sm text-stone-500">
+                                  Zone: <span className="font-medium text-stone-700">{expandedDetail.deliveryZone.name}</span>
+                                  <span className="ml-1 text-stone-400">(+{formatCurrency(expandedDetail.deliveryZone.fee)})</span>
+                                </div>
+                              )}
+                              <div className="text-label-sm text-stone-500">
+                                Placed: <span className="font-medium text-stone-700">{new Date(expandedDetail.createdAt).toLocaleString('en-KE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                              </div>
+                              {expandedDetail.paidAt && (
+                                <div className="text-label-sm text-stone-500">
+                                  Paid: <span className="font-medium text-stone-700">{new Date(expandedDetail.paidAt).toLocaleString('en-KE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                </div>
+                              )}
+                              {expandedDetail.notes && (
+                                <div className="w-full text-label-sm text-stone-500">
+                                  Note: <span className="italic text-stone-600">{expandedDetail.notes}</span>
+                                </div>
+                              )}
+                            </div>
                             <table className="w-full">
                               <thead>
                                 <tr className="border-b border-stone-100">
