@@ -13,6 +13,7 @@ import {
   PageHeader,
   PageLayout,
   PriceDisplay,
+  Select,
   SkeletonTable,
   Table,
   Toggle,
@@ -42,6 +43,7 @@ interface AccountFormState {
 
 interface SettlementFormState {
   amount: string;
+  paymentMethod: 'MPESA' | 'CASH' | 'CARD';
   note: string;
 }
 
@@ -66,7 +68,7 @@ const defaultAccountForm: AccountFormState = {
   isActive: true,
 };
 
-const defaultSettlementForm: SettlementFormState = { amount: '', note: '' };
+const defaultSettlementForm: SettlementFormState = { amount: '', paymentMethod: 'MPESA', note: '' };
 
 export default function CorporateAccountsPage(): JSX.Element {
   const router = useRouter();
@@ -223,6 +225,7 @@ export default function CorporateAccountsPage(): JSX.Element {
     try {
       const payload: RecordCorporateSettlementInput = {
         amount,
+        paymentMethod: settlementForm.paymentMethod,
         note: settlementForm.note.trim() || undefined,
       };
       await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
@@ -471,6 +474,17 @@ export default function CorporateAccountsPage(): JSX.Element {
             onChange={(e) => setSettlementForm((c) => ({ ...c, amount: e.target.value }))}
             placeholder="e.g. 15000.00"
             disabled={isSettling}
+          />
+          <Select
+            label="Payment Method"
+            value={settlementForm.paymentMethod}
+            onChange={(e) => setSettlementForm((c) => ({ ...c, paymentMethod: e.target.value as 'MPESA' | 'CASH' | 'CARD' }))}
+            disabled={isSettling}
+            options={[
+              { value: 'MPESA', label: 'M-Pesa' },
+              { value: 'CASH', label: 'Cash' },
+              { value: 'CARD', label: 'Card' },
+            ]}
           />
           <Input
             label="Note (optional)"

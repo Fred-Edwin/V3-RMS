@@ -110,8 +110,9 @@ interface SettlementModalProps {
   title: string;
   currentBalance: string;
   isLoading: boolean;
+  showPaymentMethod?: boolean;
   onClose: () => void;
-  onSubmit: (amount: string, note: string) => void;
+  onSubmit: (amount: string, note: string, paymentMethod?: string) => void;
 }
 
 function SettlementModal({
@@ -119,22 +120,25 @@ function SettlementModal({
   title,
   currentBalance,
   isLoading,
+  showPaymentMethod = false,
   onClose,
   onSubmit,
 }: SettlementModalProps) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('MPESA');
 
   useEffect(() => {
     if (isOpen) {
       setAmount('');
       setNote('');
+      setPaymentMethod('MPESA');
     }
   }, [isOpen]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSubmit(amount, note);
+    onSubmit(amount, note, showPaymentMethod ? paymentMethod : undefined);
   };
 
   return (
@@ -164,11 +168,24 @@ function SettlementModal({
           placeholder="e.g. 1500.00"
           disabled={isLoading}
         />
+        {showPaymentMethod && (
+          <Select
+            label="Payment Method"
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            disabled={isLoading}
+            options={[
+              { value: 'MPESA', label: 'M-Pesa' },
+              { value: 'CASH', label: 'Cash' },
+              { value: 'CARD', label: 'Card' },
+            ]}
+          />
+        )}
         <Input
           label="Note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. Cash payment received"
+          placeholder="e.g. Bank transfer ref #12345"
           disabled={isLoading}
         />
       </form>
@@ -407,11 +424,15 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
     }
   };
 
-  const handleSettle = async (amount: string, note: string) => {
-    if (!settlementTarget || !amount) return;
+  const handleSettle = async (amount: string, note: string, paymentMethod?: string) => {
+    if (!settlementTarget || !amount || !paymentMethod) return;
     setIsSettling(true);
     try {
-      const payload: RecordCorporateSettlementInput = { amount, note: note || undefined };
+      const payload: RecordCorporateSettlementInput = {
+        amount,
+        paymentMethod: paymentMethod as 'MPESA' | 'CASH' | 'CARD',
+        note: note || undefined,
+      };
       await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
       toast({ variant: 'success', title: 'Settlement recorded' });
       setSettlementTarget(null);
@@ -493,8 +514,9 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
         title={`Record Settlement — ${settlementTarget?.companyName ?? ''}`}
         currentBalance={settlementTarget?.currentBalance ?? '0'}
         isLoading={isSettling}
+        showPaymentMethod
         onClose={() => { if (!isSettling) setSettlementTarget(null); }}
-        onSubmit={(amount, note) => void handleSettle(amount, note)}
+        onSubmit={(amount, note, paymentMethod) => void handleSettle(amount, note, paymentMethod)}
       />
     </>
   );

@@ -44,6 +44,7 @@ export interface UpdateCorporateAccountInput {
 
 export interface RecordCorporateSettlementInput {
   amount: string;
+  paymentMethod: 'MPESA' | 'CASH' | 'CARD';
   note?: string;
 }
 

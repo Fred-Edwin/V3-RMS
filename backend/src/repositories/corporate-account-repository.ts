@@ -141,6 +141,7 @@ export const corporateAccountRepository = {
   createSettlement: async (data: {
     corporateAccountId: string;
     amount: string;
+    paymentMethod: 'MPESA' | 'CASH' | 'CARD';
     note: string | undefined;
     settledById: string;
   }): Promise<CorporateAccountSettlement> => {
@@ -148,6 +149,7 @@ export const corporateAccountRepository = {
       data: {
         corporateAccountId: data.corporateAccountId,
         amount: new Prisma.Decimal(data.amount),
+        paymentMethod: data.paymentMethod,
         note: data.note,
         settledById: data.settledById,
       },

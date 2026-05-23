@@ -38,6 +38,7 @@ export const UpdateCorporateAccountSchema = z
 
 export const RecordCorporateSettlementSchema = z.object({
   amount: moneySchema,
+  paymentMethod: z.enum(['MPESA', 'CASH', 'CARD']),
   note: z.string().max(500).optional(),
 });
 

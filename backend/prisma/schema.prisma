@@ -740,6 +740,7 @@ model CorporateAccountSettlement {
   id                 String           @id @default(uuid())
   corporateAccountId String           @map("corporate_account_id")
   amount             Decimal          @db.Decimal(10, 2)
+  paymentMethod      PaymentMethod    @map("payment_method")
   note               String?
   settledById        String           @map("settled_by_id")
   createdAt          DateTime         @default(now()) @map("created_at")

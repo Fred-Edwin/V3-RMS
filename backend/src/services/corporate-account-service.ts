@@ -77,6 +77,7 @@ export const corporateAccountService = {
         data: {
           corporateAccountId: id,
           amount,
+          paymentMethod: input.paymentMethod,
           note: input.note,
           settledById: actor.id,
         },
