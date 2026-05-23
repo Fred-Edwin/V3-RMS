@@ -130,27 +130,27 @@ describe('corporateAccountService.recordSettlement', () => {
   it('records settlement when amount is valid', async () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
     vi.mocked(prisma.$transaction).mockImplementation((fn) => (fn as (tx: unknown) => Promise<unknown>)({ corporateAccountSettlement: { create: vi.fn() }, corporateAccount: { update: vi.fn() } }));
-    await corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', note: 'Cash' });
+    await corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', paymentMethod: 'CASH', note: 'Cash' });
     expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   it('throws NotFoundError when account not found', async () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(null);
     await expect(
-      corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000' }),
+      corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', paymentMethod: 'MPESA' }),
     ).rejects.toThrow('Corporate account not found');
   });
 
   it('throws ValidationError when amount exceeds balance', async () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount({ currentBalance: new Prisma.Decimal(100) }));
     await expect(
-      corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000' }),
+      corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', paymentMethod: 'MPESA' }),
     ).rejects.toThrow('Settlement amount exceeds');
   });
 
   it('throws ForbiddenError for manager', async () => {
     await expect(
-      corporateAccountService.recordSettlement(managerActor, accountId, { amount: '100' }),
+      corporateAccountService.recordSettlement(managerActor, accountId, { amount: '100', paymentMethod: 'MPESA' }),
     ).rejects.toThrow('Only Directors and System Admins');
   });
 });
