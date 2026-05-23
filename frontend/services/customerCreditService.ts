@@ -65,15 +65,20 @@ export const customerCreditService = {
     return apiClient.post(`/customer-credit-accounts/${id}/settlements${query}`, data, token);
   },
 
-  getOrderHistory: (
+  getOrderHistory: async (
     id: string,
     token: string,
     page = 1,
     perPage = 50,
     branchId?: string,
   ): Promise<{ orders: Array<{ id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string }>; total: number }> => {
+    type OrderRow = { id: string; dailyNumber: number; total: string; createdAt: string; organizationId: string };
     const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
     if (branchId) params.set('branchId', branchId);
-    return apiClient.get(`/customer-credit-accounts/${id}/orders?${params.toString()}`, token);
+    const envelope = await apiClient.getWithEnvelope<OrderRow[]>(`/customer-credit-accounts/${id}/orders?${params.toString()}`, token);
+    return {
+      orders: envelope.data ?? [],
+      total: (envelope.pagination as { total: number } | undefined)?.total ?? 0,
+    };
   },
 };
