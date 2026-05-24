@@ -491,13 +491,17 @@ export default function ShiftManagementPage(): JSX.Element {
 
   useEffect(() => {
     if (draftCells.size === 0 || !hasBranchScope || !accessToken) return;
+    // Don't auto-retry cells that already failed — only fire when there are
+    // pending cells beyond those sitting in the error state unchanged.
+    const hasFreshDraft = Array.from(draftCells.keys()).some((key) => !cellErrors.has(key));
+    if (!hasFreshDraft) return;
 
     const timeoutId = window.setTimeout(() => {
       void handleSaveSchedule({ silent: true });
     }, 900);
 
     return () => window.clearTimeout(timeoutId);
-  }, [accessToken, autoSaveSequence, draftCells, handleSaveSchedule, hasBranchScope]);
+  }, [accessToken, autoSaveSequence, cellErrors, draftCells, handleSaveSchedule, hasBranchScope]);
 
   const handleCopyWeek = async (): Promise<void> => {
     if (!accessToken || !hasBranchScope) return;
