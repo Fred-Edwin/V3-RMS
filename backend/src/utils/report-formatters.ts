@@ -69,7 +69,8 @@ const toDailySummaryCsv = (data: DailySummaryReport): Buffer => {
     rev(data.revenueByPaymentMethod.MPESA) +
     rev(data.revenueByPaymentMethod.CASH) +
     rev(data.revenueByPaymentMethod.CARD) +
-    rev(data.revenueByPaymentMethod.SPLIT);
+    rev(data.revenueByPaymentMethod.SPLIT) +
+    rev(data.revenueByPaymentMethod.GUEST_SPLIT);
 
   const totalOrderTypes =
     (data.ordersByType.DINE_IN ?? 0) +
@@ -107,6 +108,7 @@ const toDailySummaryCsv = (data: DailySummaryReport): Buffer => {
     ['Cash', data.revenueByPaymentMethod.CASH, pct(rev(data.revenueByPaymentMethod.CASH), totalPayments)],
     ['Card', data.revenueByPaymentMethod.CARD, pct(rev(data.revenueByPaymentMethod.CARD), totalPayments)],
     ['Split (Mpesa+Cash)', data.revenueByPaymentMethod.SPLIT, pct(rev(data.revenueByPaymentMethod.SPLIT), totalPayments)],
+    ['Split between guests', data.revenueByPaymentMethod.GUEST_SPLIT, pct(rev(data.revenueByPaymentMethod.GUEST_SPLIT), totalPayments)],
     ['TOTAL', totalPayments.toFixed(2), '100%'],
     [],
     ['── TOP SELLING ITEMS ──'],
@@ -564,13 +566,15 @@ const drawDailySummaryPdf = (doc: PDFKit.PDFDocument, data: DailySummaryReport):
   const cashRev = rev(data.revenueByPaymentMethod.CASH);
   const cardRev = rev(data.revenueByPaymentMethod.CARD);
   const splitRev = rev(data.revenueByPaymentMethod.SPLIT);
-  const totalPayments = mpesaRev + cashRev + cardRev + splitRev;
+  const guestSplitRev = rev(data.revenueByPaymentMethod.GUEST_SPLIT);
+  const totalPayments = mpesaRev + cashRev + cardRev + splitRev + guestSplitRev;
 
   const payItems = [
     { label: 'M-Pesa', value: mpesaRev },
     { label: 'Cash', value: cashRev },
     { label: 'Card', value: cardRev },
     { label: 'Split', value: splitRev },
+    { label: 'Guest Split', value: guestSplitRev },
   ];
   drawHorizontalBar(doc, payItems, totalPayments, formatKes);
 
