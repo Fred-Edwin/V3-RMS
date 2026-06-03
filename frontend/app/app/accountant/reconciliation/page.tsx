@@ -10,7 +10,12 @@ import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { OrderDetail } from '@/types/order';
-import type { AccountantReconciliationReport, StaleOrder, StaleOrdersReport } from '@/types/report';
+import type {
+  AccountantReconciliationOrder,
+  AccountantReconciliationReport,
+  StaleOrder,
+  StaleOrdersReport,
+} from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +56,45 @@ const PAYMENT_LABELS: Record<string, string> = {
   CORPORATE_ACCOUNT: 'Corporate',
   CUSTOMER_CREDIT: 'Credit',
   UNKNOWN: '—',
+};
+
+const SPLIT_METHODS = [
+  { key: 'mpesa', label: 'M-Pesa' },
+  { key: 'cash', label: 'Cash' },
+  { key: 'card', label: 'Card' },
+] as const;
+
+const isSplitOrder = (order: AccountantReconciliationOrder): boolean =>
+  order.paymentMethod === 'SPLIT' || order.paymentMethod === 'GUEST_SPLIT';
+
+const formatSplitBreakdown = (order: AccountantReconciliationOrder): string => {
+  const parts = SPLIT_METHODS.flatMap(({ key, label }) => {
+    const value = Number.parseFloat(order.paymentBreakdown[key]);
+    return value > 0 ? [`${label} ${formatCurrency(value)}`] : [];
+  });
+
+  return parts.length > 0 ? parts.join(' · ') : 'No split details recorded';
+};
+
+const formatSplitLines = (order: AccountantReconciliationOrder): string => {
+  if (order.paymentMethod === 'GUEST_SPLIT') {
+    return order.splitPaymentLines
+      .map((line) => {
+        const code = line.mpesaCode ? ` (${line.mpesaCode})` : '';
+        return `${line.label}: ${PAYMENT_LABELS[line.method] ?? line.method} ${formatCurrency(line.amount)}${code}`;
+      })
+      .join('; ');
+  }
+
+  return formatSplitBreakdown(order);
+};
+
+const csvEscape = (value: string | number): string => {
+  const text = String(value);
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -202,16 +246,20 @@ function OrderDrillDown({
   }, [accessToken, date, organizationId, toast]);
 
   const exportCsv = () => {
-    const headers = ['Order #', 'Time', 'Waiter', 'Payment Method', 'Amount', 'M-Pesa Code'];
+    const headers = ['Order #', 'Time', 'Waiter', 'Payment Method', 'M-Pesa', 'Cash', 'Card', 'Amount', 'M-Pesa Code', 'Split Details'];
     const rows = filteredOrders.map((o) => [
       String(o.dailyNumber),
       formatTime(o.time),
       o.waiterName,
       PAYMENT_LABELS[o.paymentMethod] ?? o.paymentMethod,
+      o.paymentBreakdown.mpesa,
+      o.paymentBreakdown.cash,
+      o.paymentBreakdown.card,
       o.total,
       o.mpesaCode ?? '',
+      isSplitOrder(o) ? formatSplitLines(o) : '',
     ]);
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -332,6 +380,11 @@ function OrderDrillDown({
                         <span className="text-body-sm text-stone-700">
                           {PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}
                         </span>
+                        {isSplitOrder(order) && (
+                          <p className="mt-1 max-w-[260px] text-caption leading-snug text-stone-500">
+                            {formatSplitBreakdown(order)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 font-mono text-body-sm text-stone-500">
                         {order.mpesaCode ?? '—'}
@@ -380,6 +433,58 @@ function OrderDrillDown({
                                 </div>
                               )}
                             </div>
+                            {isSplitOrder(order) && (
+                              <div className="border-b border-stone-100 bg-stone-50/60 px-4 py-3">
+                                <p className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">
+                                  Payment split
+                                </p>
+                                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                                  {SPLIT_METHODS.map(({ key, label }) => (
+                                    <div key={key} className="rounded-md border border-stone-200 bg-white px-3 py-2">
+                                      <p className="text-caption text-stone-500">{label}</p>
+                                      <p className="font-mono text-body-sm font-semibold text-stone-800">
+                                        {formatCurrency(order.paymentBreakdown[key])}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                                {order.paymentMethod === 'GUEST_SPLIT' && order.splitPaymentLines.length > 0 && (
+                                  <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
+                                    <table className="w-full">
+                                      <thead>
+                                        <tr className="border-b border-stone-100 bg-white">
+                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Guest</th>
+                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Method</th>
+                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Code</th>
+                                          <th className="px-3 py-2 text-right text-label-sm font-medium text-stone-500">Amount</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-stone-50">
+                                        {order.splitPaymentLines.map((line) => (
+                                          <tr key={`${order.id}-${line.label}-${line.amount}`}>
+                                            <td className="px-3 py-2 text-body-sm text-stone-700">{line.label}</td>
+                                            <td className="px-3 py-2 text-body-sm text-stone-700">
+                                              {PAYMENT_LABELS[line.method] ?? line.method}
+                                            </td>
+                                            <td className="px-3 py-2 font-mono text-body-sm text-stone-500">
+                                              {line.mpesaCode ?? '—'}
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-mono text-body-sm font-semibold text-stone-900">
+                                              {formatCurrency(line.amount)}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                                {order.paymentMethod === 'SPLIT' && order.splitType && (
+                                  <p className="mt-2 text-caption text-stone-500">
+                                    Split type: {order.splitType.replace(/_/g, ' + ')}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                             <table className="w-full">
                               <thead>
                                 <tr className="border-b border-stone-100">
