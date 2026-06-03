@@ -42,9 +42,13 @@ type PaymentOrderRow = {
   cashAmount: Prisma.Decimal | null;
   cardAmount: Prisma.Decimal | null;
   splitType: string | null;
+  splitPaymentLines: Array<{
+    method: string;
+    amount: Prisma.Decimal;
+  }>;
 };
 
-const computePaymentBreakdown = (orders: PaymentOrderRow[]): WaiterPaymentBreakdown => {
+export const computePaymentBreakdown = (orders: PaymentOrderRow[]): WaiterPaymentBreakdown => {
   let mpesa = new Prisma.Decimal(0);
   let cash = new Prisma.Decimal(0);
   let card = new Prisma.Decimal(0);
@@ -71,6 +75,12 @@ const computePaymentBreakdown = (orders: PaymentOrderRow[]): WaiterPaymentBreakd
       if (order.mpesaAmount) mpesa = mpesa.add(order.mpesaAmount);
       if (order.cashAmount) cash = cash.add(order.cashAmount);
       if (order.cardAmount) card = card.add(order.cardAmount);
+    } else if (method === 'GUEST_SPLIT') {
+      for (const line of order.splitPaymentLines) {
+        if (line.method === 'MPESA') mpesa = mpesa.add(line.amount);
+        if (line.method === 'CASH') cash = cash.add(line.amount);
+        if (line.method === 'CARD') card = card.add(line.amount);
+      }
     }
   }
 
@@ -538,6 +548,12 @@ export const reportRepository = {
               cashAmount: true,
               cardAmount: true,
               splitType: true,
+              splitPaymentLines: {
+                select: {
+                  method: true,
+                  amount: true,
+                },
+              },
             },
           }),
     ]);
@@ -735,6 +751,12 @@ export const reportRepository = {
               cashAmount: true,
               cardAmount: true,
               splitType: true,
+              splitPaymentLines: {
+                select: {
+                  method: true,
+                  amount: true,
+                },
+              },
             },
           }),
           otherIncomeRepository.sumByCategory(organization.id, startDate, endDate),
@@ -1199,6 +1221,12 @@ export const reportRepository = {
           cashAmount: true,
           cardAmount: true,
           splitType: true,
+          splitPaymentLines: {
+            select: {
+              method: true,
+              amount: true,
+            },
+          },
           items: {
             select: {
               quantity: true,
@@ -2031,6 +2059,12 @@ export const reportRepository = {
           cashAmount: true,
           cardAmount: true,
           splitType: true,
+          splitPaymentLines: {
+            select: {
+              method: true,
+              amount: true,
+            },
+          },
           createdBy: {
             select: { id: true, name: true },
           },
@@ -2055,6 +2089,7 @@ export const reportRepository = {
         cashAmount: order.cashAmount,
         cardAmount: order.cardAmount,
         splitType: order.splitType,
+        splitPaymentLines: order.splitPaymentLines,
       });
       waiterMap.set(waiterId, existing);
     }
@@ -2075,6 +2110,7 @@ export const reportRepository = {
       cashAmount: o.cashAmount,
       cardAmount: o.cardAmount,
       splitType: o.splitType,
+      splitPaymentLines: o.splitPaymentLines,
     }));
 
     const reconciliationOrders = orders.map((o) => ({

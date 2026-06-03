@@ -31,6 +31,7 @@ export interface DailySummary {
     CASH: string;
     CARD: string;
     SPLIT: string;
+    GUEST_SPLIT: string;
     HOUSE_ACCOUNT: string;
     CORPORATE_ACCOUNT: string;
     CUSTOMER_CREDIT: string;

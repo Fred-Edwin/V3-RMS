@@ -46,6 +46,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   CASH: 'Cash',
   CARD: 'Card',
   SPLIT: 'Split',
+  GUEST_SPLIT: 'Split between guests',
   HOUSE_ACCOUNT: 'House Acct',
   CORPORATE_ACCOUNT: 'Corporate',
   CUSTOMER_CREDIT: 'Credit',
