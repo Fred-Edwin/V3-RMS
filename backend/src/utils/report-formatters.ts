@@ -1066,13 +1066,13 @@ const drawReconciliationPdf = (
       doc,
       [
         { header: '#', width: 30, align: 'right' },
-        { header: 'Time', width: 55 },
-        { header: 'Waiter', width: 110 },
+        { header: 'Time', width: 50 },
+        { header: 'Waiter', width: 90 },
         { header: 'Method', width: 80 },
-        { header: 'M-Pesa Code', width: 100 },
-        { header: 'Amount (KES)', width: 100, align: 'right' },
-        { header: 'M-Pesa', width: 75, align: 'right' },
-        { header: 'Cash', width: 65, align: 'right' },
+        { header: 'Amount', width: 80, align: 'right' },
+        { header: 'M-Pesa', width: 65, align: 'right' },
+        { header: 'Cash', width: 55, align: 'right' },
+        { header: 'Card', width: 55, align: 'right' },
       ],
       data.orders.map((o) => {
         const time = new Date(o.time).toLocaleTimeString('en-KE', {
@@ -1085,10 +1085,10 @@ const drawReconciliationPdf = (
           time,
           o.waiterName,
           PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod,
-          o.mpesaCode ?? '—',
           formatKes(rev(o.total)),
-          o.mpesaAmount ? formatKes(rev(o.mpesaAmount)) : '—',
-          o.cashAmount ? formatKes(rev(o.cashAmount)) : '—',
+          formatKes(rev(o.paymentBreakdown.mpesa)),
+          formatKes(rev(o.paymentBreakdown.cash)),
+          formatKes(rev(o.paymentBreakdown.card)),
         ];
       }),
     );

@@ -109,6 +109,15 @@ export interface AccountantReconciliationOrder {
   cashAmount: string | null;
   cardAmount: string | null;
   splitType: string | null;
+  paymentBreakdown: WaiterPaymentBreakdown;
+  splitPaymentLines: AccountantReconciliationSplitLine[];
+}
+
+export interface AccountantReconciliationSplitLine {
+  label: string;
+  amount: string;
+  method: string;
+  mpesaCode: string | null;
 }
 
 export interface AccountantReconciliationWaiterRow {

@@ -1223,8 +1223,10 @@ export const reportRepository = {
           splitType: true,
           splitPaymentLines: {
             select: {
+              label: true,
               method: true,
               amount: true,
+              mpesaCode: true,
             },
           },
           items: {
@@ -2061,8 +2063,10 @@ export const reportRepository = {
           splitType: true,
           splitPaymentLines: {
             select: {
+              label: true,
               method: true,
               amount: true,
+              mpesaCode: true,
             },
           },
           createdBy: {
@@ -2113,20 +2117,39 @@ export const reportRepository = {
       splitPaymentLines: o.splitPaymentLines,
     }));
 
-    const reconciliationOrders = orders.map((o) => ({
-      id: o.id,
-      dailyNumber: o.dailyNumber,
-      time: (o.paidAt ?? new Date()).toISOString(),
-      waiterId: o.createdBy.id,
-      waiterName: o.createdBy.name,
-      total: o.total.toFixed(2),
-      paymentMethod: o.paymentMethod ?? 'UNKNOWN',
-      mpesaCode: o.mpesaCode ?? null,
-      mpesaAmount: o.mpesaAmount?.toFixed(2) ?? null,
-      cashAmount: o.cashAmount?.toFixed(2) ?? null,
-      cardAmount: o.cardAmount?.toFixed(2) ?? null,
-      splitType: o.splitType ?? null,
-    }));
+    const reconciliationOrders = orders.map((o) => {
+      const paymentRow: PaymentOrderRow = {
+        paymentMethod: o.paymentMethod,
+        total: o.total,
+        mpesaAmount: o.mpesaAmount,
+        cashAmount: o.cashAmount,
+        cardAmount: o.cardAmount,
+        splitType: o.splitType,
+        splitPaymentLines: o.splitPaymentLines,
+      };
+
+      return {
+        id: o.id,
+        dailyNumber: o.dailyNumber,
+        time: (o.paidAt ?? new Date()).toISOString(),
+        waiterId: o.createdBy.id,
+        waiterName: o.createdBy.name,
+        total: o.total.toFixed(2),
+        paymentMethod: o.paymentMethod ?? 'UNKNOWN',
+        mpesaCode: o.mpesaCode ?? null,
+        mpesaAmount: o.mpesaAmount?.toFixed(2) ?? null,
+        cashAmount: o.cashAmount?.toFixed(2) ?? null,
+        cardAmount: o.cardAmount?.toFixed(2) ?? null,
+        splitType: o.splitType ?? null,
+        paymentBreakdown: computePaymentBreakdown([paymentRow]),
+        splitPaymentLines: o.splitPaymentLines.map((line) => ({
+          label: line.label,
+          amount: line.amount.toFixed(2),
+          method: line.method,
+          mpesaCode: line.mpesaCode ?? null,
+        })),
+      };
+    });
 
     return {
       date: formatDateOnly(date),
