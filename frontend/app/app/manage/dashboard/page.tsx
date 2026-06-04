@@ -15,6 +15,7 @@ import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumC
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
+import { STAFF_DISCOUNT_PERCENT } from '@/lib/discountConstants';
 import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
 import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
@@ -685,7 +686,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       </span>
                     </p>
                     <p className="text-caption text-stone-500 mt-0.5">
-                      30% staff discount · requested by {req.requestedBy.name}
+                      {req.discountPercent || STAFF_DISCOUNT_PERCENT}% staff discount · requested by {req.requestedBy.name}
                     </p>
                   </div>
                   <div className="flex gap-1.5 shrink-0">

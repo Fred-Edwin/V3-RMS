@@ -20,4 +20,4 @@ export interface StaffDiscountAuthRequestRecord {
 
 export type StaffDiscountDecision = 'APPROVED' | 'REJECTED';
 
-export const STAFF_DISCOUNT_PERCENT = 30;
+export const STAFF_DISCOUNT_PERCENT = 20;

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Printer, ChefHat, Coffee, Clock, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { BottomSheet, Button, Input } from '@/components/ui';
+import { STAFF_DISCOUNT_PERCENT } from '@/lib/discountConstants';
 import { env } from '@/lib/env';
 import type { OrderDetail, PaymentMethod, SplitPaymentLine } from '@/types/order';
 import type { HouseAccountDropdownItem } from '@/services/houseAccountService';
@@ -1217,7 +1218,7 @@ export function OrderDetailBottomSheet({
                             className="w-full rounded-xl border-[1.5px] border-stone-200 bg-white px-4 py-3 text-[14px] text-stone-900 focus:outline-none focus:border-[#2C1810]"
                           >
                             <option value="">No discount</option>
-                            {isOwner && <option value="staff">Staff Discount (30%) — needs approval</option>}
+                            {isOwner && <option value="staff">Staff Discount ({STAFF_DISCOUNT_PERCENT}%) — needs approval</option>}
                             {availableDiscounts.map((d) => {
                               const valueLabel = d.type === 'PERCENTAGE' ? `${d.value}%` : `KES ${d.value}`;
                               return <option key={d.id} value={d.id}>{d.name} ({valueLabel}) — {d.requiresApproval ? 'needs approval' : 'instant'}</option>;
@@ -1231,7 +1232,7 @@ export function OrderDetailBottomSheet({
                         const isStaff = selectedDiscountId === 'staff';
                         const customerDiscount = isStaff ? null : availableDiscounts.find((d) => d.id === selectedDiscountId);
                         const savedAmount = isStaff
-                          ? (orderTotal * 0.3).toFixed(2)
+                          ? ((orderTotal * STAFF_DISCOUNT_PERCENT) / 100).toFixed(2)
                           : customerDiscount
                           ? customerDiscount.type === 'PERCENTAGE'
                             ? ((orderTotal * parseFloat(customerDiscount.value)) / 100).toFixed(2)
@@ -1285,7 +1286,7 @@ export function OrderDetailBottomSheet({
                 <Clock size={16} className="text-[#92400E] shrink-0" />
                 <p className="text-[13px] font-semibold text-[#92400E]">Awaiting Discount Approval</p>
               </div>
-              <p className="text-[13px] text-[#92400E]">A 30% staff discount has been requested. A manager must approve before payment can be collected.</p>
+              <p className="text-[13px] text-[#92400E]">A {STAFF_DISCOUNT_PERCENT}% staff discount has been requested. A manager must approve before payment can be collected.</p>
               {isManager && onStaffDiscountOverride && (
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" className="flex-1" isLoading={isStaffDiscountOverrideSubmitting} onClick={() => onStaffDiscountOverride(order.id, 'APPROVED')}>Approve Discount</Button>

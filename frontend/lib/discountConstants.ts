@@ -1,0 +1,1 @@
+export const STAFF_DISCOUNT_PERCENT = 20;
