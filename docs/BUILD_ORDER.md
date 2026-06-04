@@ -1261,7 +1261,7 @@ This phase was built in parallel sub-tracks that did not depend on each other (e
 ### Sub-track B: Discounts (Staff + Customer)
 
 - [x] `Discount` model — named customer discounts (PERCENTAGE or FIXED_AMOUNT), optionally branch-scoped
-- [x] `StaffDiscountAuthRequest` model — 30% staff discount requires manager approval
+- [x] `StaffDiscountAuthRequest` model — 20% staff discount requires manager approval
 - [x] `CustomerDiscountAuthRequest` model — approval-required named discounts
 - [x] Extended `Order`: `discountPercent`, `discountAmount`, `discountedById`, `discountId`
 - [x] `AWAITING_AUTHORIZATION` disambiguation: check `order.discountedById` (staff) vs `order.discountId` (customer) vs neither (house account)

@@ -128,7 +128,7 @@ Every design decision in this schema follows these rules, derived from the Engin
 | `OtherIncomeCategory` | Named category for non-order revenue (e.g., Pool Table, Event Hire). |
 | `OtherIncomeEntry` | A single recorded other-income transaction at a branch. |
 | `Discount` | A named customer discount (percentage or fixed). Director-defined, optionally branch-scoped. |
-| `StaffDiscountAuthRequest` | Authorization request for a 30% staff discount on a waiter's own order. |
+| `StaffDiscountAuthRequest` | Authorization request for a 20% staff discount on a waiter's own order. |
 | `CustomerDiscountAuthRequest` | Authorization request when a named customer discount requires manager approval. |
 
 ### Internal Communications
@@ -1137,7 +1137,7 @@ model Discount {
 
 ### 4.31 StaffDiscountAuthRequest
 
-Created when a waiter applies a 30% staff discount to their own order, requiring manager approval.
+Created when a waiter applies a 20% staff discount to their own order, requiring manager approval.
 
 ```prisma
 model StaffDiscountAuthRequest {
@@ -1145,7 +1145,7 @@ model StaffDiscountAuthRequest {
   organizationId  String                  @map("organization_id")
   orderId         String                  @map("order_id")
   requestedById   String                  @map("requested_by_id")  -- the waiter
-  discountPercent Decimal                 @db.Decimal(5, 2) @map("discount_percent")  -- always 30.00
+  discountPercent Decimal                 @db.Decimal(5, 2) @map("discount_percent")  -- always 20.00
   originalAmount  Decimal                 @db.Decimal(10, 2) @map("original_amount")
   discountAmount  Decimal                 @db.Decimal(10, 2) @map("discount_amount")
   status          StaffDiscountAuthStatus @default(PENDING)

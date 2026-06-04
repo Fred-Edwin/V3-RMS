@@ -90,9 +90,9 @@ const buildPendingAuthRequest = () => ({
   organizationId,
   orderId,
   requestedById: waiterActor.id,
-  discountPercent: new Prisma.Decimal('30'),
+  discountPercent: new Prisma.Decimal('20'),
   originalAmount: new Prisma.Decimal('1000.00'),
-  discountAmount: new Prisma.Decimal('300.00'),
+  discountAmount: new Prisma.Decimal('200.00'),
   status: 'PENDING' as const,
   resolvedById: null,
   resolvedAt: null,
@@ -124,19 +124,19 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
         organizationId,
         orderId,
         requestedById: waiterActor.id,
-        discountPercent: '30',
+        discountPercent: '20',
         originalAmount: '1000',
-        discountAmount: '300',
+        discountAmount: '200',
       }),
     );
     expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'AWAITING_AUTHORIZATION');
     expect(socketService.emitStaffDiscountAuthPending).toHaveBeenCalledWith(
       waiterActor.id,
       organizationId,
-      expect.objectContaining({ orderId, authRequestId, discountAmount: '300' }),
+      expect.objectContaining({ orderId, authRequestId, discountAmount: '200' }),
     );
     expect(result.status).toBe('PENDING');
-    expect(result.discountAmount).toBe('300');
+    expect(result.discountAmount).toBe('200');
   });
 
   it('throws NotFoundError when order does not exist', async () => {
@@ -200,9 +200,9 @@ describe('staffDiscountAuthService.managerApprove', () => {
     const pendingRequest = buildPendingAuthRequest();
     const discountedOrder = {
       ...buildReadyOrder(),
-      total: new Prisma.Decimal('700.00'),
-      discountPercent: new Prisma.Decimal('30'),
-      discountAmount: new Prisma.Decimal('300.00'),
+      total: new Prisma.Decimal('800.00'),
+      discountPercent: new Prisma.Decimal('20'),
+      discountAmount: new Prisma.Decimal('200.00'),
       discountedById: managerActor.id,
       status: 'AWAITING_AUTHORIZATION' as const,
     };
@@ -226,15 +226,15 @@ describe('staffDiscountAuthService.managerApprove', () => {
     expect(orderRepository.applyDiscount).toHaveBeenCalledWith(
       orderId,
       organizationId,
-      '30',
-      '300',
+      '20',
+      '200',
       managerActor.id,
     );
     expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
     expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
       organizationId,
-      expect.objectContaining({ orderId, approved: true, discountedTotal: '700' }),
+      expect.objectContaining({ orderId, approved: true, discountedTotal: '800' }),
     );
     expect(result.status).toBe('APPROVED');
   });
