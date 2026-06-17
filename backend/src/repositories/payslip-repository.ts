@@ -99,6 +99,9 @@ export const payslipRepository = {
   list: async (filters: PayslipListFilters): Promise<{ items: PayslipWithRelations[]; total: number }> => {
     const where: Prisma.PayslipWhereInput = {
       organizationId: { in: filters.organizationIds },
+      // Hide payslips of deactivated staff — they should not appear anywhere in the UI.
+      // Historical payslip rows are preserved in the DB and reappear if the user is reactivated.
+      user: { is: { isActive: true } },
       ...(filters.payPeriod ? { payPeriod: filters.payPeriod } : {}),
       ...(filters.userId ? { userId: filters.userId } : {}),
       ...(filters.isLocked !== undefined ? { isLocked: filters.isLocked } : {}),
