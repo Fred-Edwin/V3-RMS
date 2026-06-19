@@ -4,6 +4,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { printRepository, type PrintJobRecord, type PrintJobSummaryRecord, type PrintStationRecord } from '../repositories/print-repository';
 import { otherIncomeRepository } from '../repositories/other-income-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { formatNairobiDate, formatNairobiTime } from '../utils/date-only';
 
 const PRINT_STATION_TOKEN_PREFIX = 'pst_';
 const STATION_ONLINE_THRESHOLD_SECONDS = 60;
@@ -86,11 +87,9 @@ interface CreatedPrintStation {
 
 const toDecimalNumber = (val: Prisma.Decimal): number => Number(val.toString());
 
-const formatDate = (date: Date): string =>
-  date.toLocaleDateString('en-KE', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/');
+const formatDate = (date: Date): string => formatNairobiDate(date);
 
-const formatTime = (date: Date): string =>
-  date.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: false });
+const formatTime = (date: Date): string => formatNairobiTime(date);
 
 export const printService = {
   createPrintJob: async (

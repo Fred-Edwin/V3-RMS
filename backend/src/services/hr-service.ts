@@ -629,8 +629,10 @@ async function notifyManagementOfLeaveRequest(
     });
 
     const leaveLabel = request.leaveType.replace('_', ' ').toLowerCase();
-    const startStr = request.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    const endStr = request.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    // Leave dates are stored as UTC-midnight date-only values (see date-only.ts),
+    // so format them in UTC — converting to Nairobi would shift them a day earlier.
+    const startStr = request.startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    const endStr = request.endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
     for (const manager of managers) {
       void fcmService.sendLeaveRequestPush(manager.id, {

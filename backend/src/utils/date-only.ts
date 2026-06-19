@@ -1,6 +1,32 @@
+/**
+ * The single source of truth for the business timezone. All user-facing
+ * timestamps (receipts, reports, notifications) must be formatted in this
+ * zone, never the server's local zone — production runs in UTC, so any
+ * `toLocale*` call without an explicit `timeZone` prints 3 hours early.
+ */
+export const NAIROBI_TZ = 'Africa/Nairobi';
+
 const buildUtcDateOnly = (year: number, month: number, day: number): Date => {
   return new Date(Date.UTC(year, month - 1, day));
 };
+
+/** Formats an instant as `HH:MM` (24h) in Kenya time. */
+export const formatNairobiTime = (value: Date, hour12 = false): string =>
+  value.toLocaleTimeString('en-KE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12,
+    timeZone: NAIROBI_TZ,
+  });
+
+/** Formats an instant as `DD/MM/YYYY` in Kenya time. */
+export const formatNairobiDate = (value: Date): string =>
+  value.toLocaleDateString('en-KE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: NAIROBI_TZ,
+  });
 
 export const parseDateOnly = (value: string): Date => {
   const [yearToken, monthToken, dayToken] = value.split('-');

@@ -6,6 +6,7 @@ import type {
   ReportType,
   StaffPerformanceReport,
 } from '../types/report.types';
+import { NAIROBI_TZ } from './date-only';
 
 // ── Brand colours ────────────────────────────────────────────────────────────
 const ESPRESSO = '#2C1810';
@@ -44,7 +45,7 @@ const formatMins = (mins: number | null | undefined): string => {
 };
 
 const todayLabel = (): string =>
-  new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' });
+  new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric', timeZone: NAIROBI_TZ });
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -1079,6 +1080,7 @@ const drawReconciliationPdf = (
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
+          timeZone: NAIROBI_TZ,
         });
         return [
           String(o.dailyNumber),
