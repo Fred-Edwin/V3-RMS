@@ -112,7 +112,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     ],
     overflowTabs: [
       { label: 'Credit Accounts', href: '/app/accountant/credit', icon: CreditCard },
-      { label: 'Payslips', href: '/app/accountant/payslips', icon: FileText },
+      { label: 'My Payments', href: '/app/payslips', icon: FileText },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
     ],
   },
@@ -282,7 +282,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
         { label: 'Reconciliation', href: '/app/accountant/reconciliation', icon: Clock },
-        { label: 'Payslips', href: '/app/accountant/payslips', icon: FileText },
+        { label: 'My Payments', href: '/app/payslips', icon: FileText },
       ],
     },
     {
