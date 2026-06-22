@@ -79,6 +79,7 @@ export interface PayslipListResult {
 export interface PayslipListFilters {
   payPeriod?: string;
   userId?: string;
+  organizationId?: string;
   isLocked?: boolean;
   page?: number;
   perPage?: number;

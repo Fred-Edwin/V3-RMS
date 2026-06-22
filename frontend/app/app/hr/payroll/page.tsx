@@ -330,7 +330,11 @@ export default function HrPayslipsPage(): JSX.Element {
 
       const [staffResult, payslipResult] = await Promise.all([
         staffService.listStaff(accessToken, { organizationId: orgId, isActive: true }),
-        payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, page: 1, perPage: 200 }),
+        // Scope to the selected branch so isPublished reflects THIS branch only.
+        // Without organizationId this returns payslips across all branches, so a draft
+        // in any other branch would make a locked branch look editable (and edits to
+        // its locked rows would be silently skipped server-side).
+        payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, organizationId: orgId, page: 1, perPage: 200 }),
       ]);
 
       const eligible = staffResult
@@ -384,7 +388,7 @@ export default function HrPayslipsPage(): JSX.Element {
         ? [{ label: row.ncnsNote || 'Deduction', amount: Number(row.ncnsAmount).toFixed(2) }]
         : [];
 
-      await payslipService.bulkUpsert(
+      const result = await payslipService.bulkUpsert(
         {
           payPeriod: activePeriod,
           organizationId: orgId,
@@ -407,6 +411,21 @@ export default function HrPayslipsPage(): JSX.Element {
         },
         accessToken,
       );
+
+      // A 200 response does NOT guarantee the row persisted: the backend skips rows
+      // whose payslip is already locked (published). Treat a skipped row as an error
+      // instead of a false "saved" — otherwise the edit is silently lost on refresh.
+      if (result.skipped.includes(userId)) {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.userId === userId
+              ? { ...r, state: 'error', errorMsg: 'Period is published — revert to draft before editing this row.' }
+              : r,
+          ),
+        );
+        return;
+      }
+
       setRows((prev) => prev.map((r) => r.userId === userId ? { ...r, state: 'saved' } : r));
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Auto-save failed';
