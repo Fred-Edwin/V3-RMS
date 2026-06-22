@@ -13,6 +13,7 @@ const toQueryString = (filters?: PayslipListFilters): string => {
 
   if (filters?.payPeriod) params.set('payPeriod', filters.payPeriod);
   if (filters?.userId) params.set('userId', filters.userId);
+  if (filters?.organizationId) params.set('organizationId', filters.organizationId);
   if (filters?.isLocked !== undefined) params.set('status', filters.isLocked ? 'PUBLISHED' : 'DRAFT');
   if (filters?.page) params.set('page', String(filters.page));
   if (filters?.perPage) params.set('perPage', String(filters.perPage));
