@@ -23,16 +23,20 @@ const ROLE_LABELS: Record<string, string> = {
   WAITER: 'Waiter',
   CHEF: 'Chef',
   BARISTA: 'Barista',
+  STEWARD: 'Steward',
+  HOUSEKEEPING: 'Housekeeping',
 };
 
 // Grouped sections in display order
 const SECTION_DEFS: { label: string; roles: string[] }[] = [
-  { label: 'Leadership',  roles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] },
-  { label: 'Finance',     roles: ['ACCOUNTANT'] },
-  { label: 'System',      roles: ['SYSTEM_ADMIN'] },
-  { label: 'Service',     roles: ['WAITER'] },
-  { label: 'Kitchen',     roles: ['CHEF'] },
-  { label: 'Barista',     roles: ['BARISTA'] },
+  { label: 'Leadership',    roles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] },
+  { label: 'Finance',       roles: ['ACCOUNTANT'] },
+  { label: 'System',        roles: ['SYSTEM_ADMIN'] },
+  { label: 'Service',       roles: ['WAITER'] },
+  { label: 'Kitchen',       roles: ['CHEF'] },
+  { label: 'Barista',       roles: ['BARISTA'] },
+  { label: 'Stewards',      roles: ['STEWARD'] },
+  { label: 'Housekeeping',  roles: ['HOUSEKEEPING'] },
 ];
 
 export function ContactPickerSheet({ isOpen, onClose, onSelect, error, onClearError }: Props) {

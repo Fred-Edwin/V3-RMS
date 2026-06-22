@@ -240,7 +240,7 @@ export default function ShiftManagementPage(): JSX.Element {
         staffService.listStaff(accessToken, { isActive: true, organizationId: scopedOrganizationId }),
       ]);
       setShifts(shiftResponse);
-      setStaff(staffResponse.filter((person) => person.role === 'WAITER' || person.role === 'CHEF' || person.role === 'BARISTA'));
+      setStaff(staffResponse.filter((person) => ['WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'].includes(person.role)));
     } catch (error) {
       toast({ variant: 'error', title: 'Load failed', message: error instanceof ApiError ? error.message : 'Failed to load shift setup data.' });
     } finally {

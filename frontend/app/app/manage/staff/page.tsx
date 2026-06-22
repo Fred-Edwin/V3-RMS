@@ -11,7 +11,7 @@ import { staffTransferService } from '@/services/staffTransferService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 
-type ManagerCreatableRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA' | 'KITCHEN_DISPLAY' | 'BARISTA_DISPLAY'>;
+type ManagerCreatableRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA' | 'KITCHEN_DISPLAY' | 'BARISTA_DISPLAY' | 'STEWARD' | 'HOUSEKEEPING'>;
 
 const roleLabel: Record<string, string> = {
   WAITER: 'Waiter',
@@ -19,9 +19,12 @@ const roleLabel: Record<string, string> = {
   BARISTA: 'Barista',
   KITCHEN_DISPLAY: 'Kitchen Display',
   BARISTA_DISPLAY: 'Barista Display',
+  STEWARD: 'Steward',
+  HOUSEKEEPING: 'Housekeeping',
   MANAGER: 'Manager',
   DIRECTOR: 'Director',
   ACCOUNTANT: 'Accountant',
+  HR_MANAGER: 'HR Manager',
   SYSTEM_ADMIN: 'System Admin',
 };
 
@@ -315,6 +318,8 @@ export default function Page(): JSX.Element {
               <option value="BARISTA">Barista</option>
               <option value="KITCHEN_DISPLAY">Kitchen Display</option>
               <option value="BARISTA_DISPLAY">Barista Display</option>
+              <option value="STEWARD">Steward</option>
+              <option value="HOUSEKEEPING">Housekeeping</option>
               <option value="MANAGER">Manager</option>
             </select>
             <select
@@ -502,6 +507,8 @@ export default function Page(): JSX.Element {
                 { value: 'BARISTA', label: 'Barista' },
                 { value: 'KITCHEN_DISPLAY', label: 'Kitchen Display' },
                 { value: 'BARISTA_DISPLAY', label: 'Barista Display' },
+                { value: 'STEWARD', label: 'Steward' },
+                { value: 'HOUSEKEEPING', label: 'Housekeeping' },
               ]}
             />
             <Input

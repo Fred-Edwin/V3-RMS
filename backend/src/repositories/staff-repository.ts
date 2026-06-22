@@ -88,7 +88,7 @@ export const staffRepository = {
           organizationId,
           isActive: true,
           id: { not: excludeId },
-          role: { in: ['MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA'] },
+          role: { in: ['MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'] },
         },
         select: staffSelect,
         orderBy: { name: 'asc' },

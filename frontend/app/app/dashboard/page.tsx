@@ -218,7 +218,7 @@ export default function DashboardPage(): JSX.Element {
   }, [loadPrepDashboardData]);
 
   const loadTodayShiftAssignments = useCallback(async () => {
-    if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA')) {
+    if (!accessToken || (role !== 'WAITER' && role !== 'CHEF' && role !== 'BARISTA' && role !== 'STEWARD' && role !== 'HOUSEKEEPING')) {
       return;
     }
 
@@ -496,6 +496,89 @@ export default function DashboardPage(): JSX.Element {
             ))}
           </div>
         </section>
+      </PageLayout>
+    );
+  }
+
+  if (role === 'STEWARD' || role === 'HOUSEKEEPING') {
+    const roleLabel = role === 'STEWARD' ? 'Steward' : 'Housekeeping';
+    return (
+      <PageLayout className="space-y-6">
+        <header className="mb-6 flex items-start justify-between border-b border-stone-200 pb-4">
+          <div className="min-w-0 pr-4">
+            <h1 className="text-heading-lg font-sans font-semibold leading-tight text-stone-900 sm:text-heading-xl">
+              {`Good ${greetingTime}, ${displayFirstName}`}
+            </h1>
+            <p className="mt-1 text-body-md text-stone-500">{roleLabel} · {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          </div>
+          <Link
+            href="/app/profile"
+            aria-label="Open profile"
+            className="rounded-full focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <Avatar name={headerAvatarName} size="md" />
+          </Link>
+        </header>
+
+        <InboxNudge />
+
+        {canPromptFcmPermission && (
+          <div className="rounded-md border border-[#F0D080] bg-[#FDF3DC] p-3">
+            <p className="text-body-sm text-[#92650A]">
+              Enable notifications to get messages and shift reminders on this device.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => void requestPermissionAndRegister()}
+                isLoading={isRegisteringFcmToken}
+              >
+                Enable Notifications
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismissPrompt}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <ClockWidget assignments={todayShiftAssignments} onUpdated={handleClockUpdated} />
+
+        {/* Quick-access cards */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/app/hr/my-leave"
+            className="flex flex-col gap-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            <span className="text-[22px]">🏖️</span>
+            <span className="mt-1 text-[13px] font-semibold text-stone-800">My Leave</span>
+            <span className="text-[11px] text-stone-400">View &amp; request leave</span>
+          </Link>
+          <Link
+            href="/app/payslips"
+            className="flex flex-col gap-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            <span className="text-[22px]">💳</span>
+            <span className="mt-1 text-[13px] font-semibold text-stone-800">My Payments</span>
+            <span className="text-[11px] text-stone-400">Salary &amp; payslips</span>
+          </Link>
+          <Link
+            href="/app/inbox"
+            className="flex flex-col gap-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            <span className="text-[22px]">💬</span>
+            <span className="mt-1 text-[13px] font-semibold text-stone-800">Inbox</span>
+            <span className="text-[11px] text-stone-400">Messages &amp; announcements</span>
+          </Link>
+          <Link
+            href="/app/profile"
+            className="flex flex-col gap-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm hover:bg-stone-50 transition-colors"
+          >
+            <span className="text-[22px]">👤</span>
+            <span className="mt-1 text-[13px] font-semibold text-stone-800">My Profile</span>
+            <span className="text-[11px] text-stone-400">Account &amp; settings</span>
+          </Link>
+        </div>
       </PageLayout>
     );
   }

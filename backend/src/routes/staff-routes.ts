@@ -17,14 +17,14 @@ staffRoutes.get(
   '/staff/messaging-contacts',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
   staffController.messagingContacts,
 );
 staffRoutes.get(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'STEWARD', 'HOUSEKEEPING'),
   staffController.list,
 );
 staffRoutes.get(

@@ -9,7 +9,7 @@ import { authService } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
 
-const notificationRoles: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'MANAGER', 'DIRECTOR'];
+const notificationRoles: AppRole[] = ['WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'MANAGER', 'DIRECTOR', 'STEWARD', 'HOUSEKEEPING'];
 
 const shouldRegisterRole = (role: AppRole | null): role is AppRole => {
   if (!role) {

@@ -10,7 +10,7 @@ shiftAssignmentRoutes.get(
   '/shift-assignments',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'DIRECTOR', 'HR_MANAGER', 'WAITER', 'CHEF', 'BARISTA'),
+  requireRole('MANAGER', 'DIRECTOR', 'HR_MANAGER', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
   shiftAssignmentController.listAssignments,
 );
 

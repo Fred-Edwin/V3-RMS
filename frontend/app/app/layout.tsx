@@ -55,7 +55,7 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STEWARD' | 'HOUSEKEEPING';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -188,6 +188,30 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Shifts', href: '/app/hr/shifts', icon: Calendar },
       { label: 'Payroll', href: '/app/hr/payroll', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+  },
+  STEWARD: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
+    ],
+  },
+  HOUSEKEEPING: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
+    ],
+    overflowTabs: [
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
     ],
   },
 };
@@ -390,6 +414,32 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     {
       label: 'Account',
       items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+    },
+  ],
+  STEWARD: [
+    {
+      label: 'Navigation',
+      items: [
+        { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+        { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+        { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
+        { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+        { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      ],
+    },
+  ],
+  HOUSEKEEPING: [
+    {
+      label: 'Navigation',
+      items: [
+        { label: 'Dashboard', href: '/app/dashboard', icon: LayoutDashboard },
+        { label: 'Shifts', href: '/app/shifts', icon: Calendar },
+        { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
+        { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+        { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      ],
     },
   ],
 };

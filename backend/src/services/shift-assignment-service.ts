@@ -13,7 +13,7 @@ import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, 
 type Actor = NonNullable<Request['user']>;
 type SerializedShiftAssignment = Omit<ShiftAssignmentWithRelations, 'date'> & { date: string };
 
-const assignableRoles: UserRole[] = [UserRole.WAITER, UserRole.CHEF, UserRole.BARISTA];
+const assignableRoles: UserRole[] = [UserRole.WAITER, UserRole.CHEF, UserRole.BARISTA, UserRole.STEWARD, UserRole.HOUSEKEEPING];
 
 const requiresExplicitOrganizationId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
 
@@ -67,7 +67,7 @@ export const shiftAssignmentService = {
 
     const organizationId = resolveReadOrganizationId(actor, query);
 
-    if (actor.role === 'WAITER' || actor.role === 'CHEF' || actor.role === 'BARISTA') {
+    if (assignableRoles.map(String).includes(actor.role)) {
       const assignments = await shiftAssignmentRepository.findByUserAndDateRange(
         actor.id,
         organizationId,

@@ -32,6 +32,8 @@ const HUMAN_ROLES = new Set<UserRole>([
   'WAITER',
   'CHEF',
   'BARISTA',
+  'STEWARD',
+  'HOUSEKEEPING',
 ]);
 
 const ZERO = new Prisma.Decimal('0.00');

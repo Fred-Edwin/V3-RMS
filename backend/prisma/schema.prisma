@@ -454,6 +454,8 @@ enum UserRole {
   BARISTA
   KITCHEN_DISPLAY
   BARISTA_DISPLAY
+  STEWARD
+  HOUSEKEEPING
 }
 
 enum PrepStation {

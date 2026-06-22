@@ -10,7 +10,7 @@ clockRoutes.post(
   '/clock/in',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'CHEF', 'BARISTA'),
+  requireRole('WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
   clockController.clockIn,
 );
 
@@ -18,7 +18,7 @@ clockRoutes.post(
   '/clock/out',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'CHEF', 'BARISTA'),
+  requireRole('WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
   clockController.clockOut,
 );
 
@@ -26,7 +26,7 @@ clockRoutes.post(
   '/clock/undo-out',
   authenticate,
   branchScope,
-  requireRole('WAITER', 'CHEF', 'BARISTA'),
+  requireRole('WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
   clockController.undoClockOut,
 );
 

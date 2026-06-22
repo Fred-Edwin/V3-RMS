@@ -14,6 +14,8 @@ const ALL_HUMAN_ROLES = [
   'WAITER',
   'CHEF',
   'BARISTA',
+  'STEWARD',
+  'HOUSEKEEPING',
 ] as const;
 
 // Must register literal sub-paths before /:id to avoid Express collisions.

@@ -10,6 +10,8 @@ const USER_ROLES = [
   'BARISTA',
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
+  'STEWARD',
+  'HOUSEKEEPING',
 ] as const;
 
 export const SendDirectMessageSchema = z.object({

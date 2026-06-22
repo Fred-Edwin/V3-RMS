@@ -84,6 +84,7 @@ export function roleLabel(role: string): string {
     MANAGER: 'Manager', DIRECTOR: 'Director', HR_MANAGER: 'HR Manager',
     ACCOUNTANT: 'Accountant', SYSTEM_ADMIN: 'System Admin',
     KITCHEN_DISPLAY: 'Kitchen Display', BARISTA_DISPLAY: 'Barista Display',
+    STEWARD: 'Steward', HOUSEKEEPING: 'Housekeeping',
   };
   return map[role] ?? role;
 }

@@ -16,6 +16,8 @@ const allRoles: AppRole[] = [
   'ACCOUNTANT',
   'HR_MANAGER',
   'SYSTEM_ADMIN',
+  'STEWARD',
+  'HOUSEKEEPING',
 ];
 
 const decodeRole = (token: string): AppRole | null => {
@@ -88,7 +90,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/inbox')) {
-    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN';
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
   if (pathname.startsWith('/app/hr')) {
@@ -96,7 +98,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     // my-leave: all human staff
     if (pathname === '/app/hr/my-leave') {
       return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA'
-        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING';
     }
     return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
@@ -113,11 +115,13 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
       || role === 'HR_MANAGER'
       || role === 'DIRECTOR'
       || role === 'ACCOUNTANT'
-      || role === 'SYSTEM_ADMIN';
+      || role === 'SYSTEM_ADMIN'
+      || role === 'STEWARD'
+      || role === 'HOUSEKEEPING';
   }
 
   if (pathname.startsWith('/app')) {
-    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA';
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'STEWARD' || role === 'HOUSEKEEPING';
   }
 
   return true;

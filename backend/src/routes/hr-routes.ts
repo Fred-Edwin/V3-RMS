@@ -19,7 +19,7 @@ const HR_AUTHORITY = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'] as const;
 const HR_AND_MANAGER = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER'] as const;
 const ALL_STAFF = [
   'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER',
-  'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA',
+  'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING',
 ] as const;
 
 // ─── Employee Profiles ────────────────────────────────────────────────────────
