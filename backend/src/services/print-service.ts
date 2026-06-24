@@ -315,7 +315,7 @@ export const printService = {
       dailyNumber: 0,
       orderDate: formatDate(now),
       orderTime: formatTime(now),
-      orderType: `Test Print — ${station.name}`,
+      orderType: `Test Print - ${station.name}`,
       tableNumber: null,
       waiterName: 'Print Station Test',
       waiterFirstName: 'Test',
