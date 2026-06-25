@@ -15,6 +15,7 @@ import {
   MyPerformanceQuerySchema,
   StaffPerformanceQuerySchema,
   StaleOrdersQuerySchema,
+  WaiterLiabilitySummaryQuerySchema,
 } from '../validators/report-schemas';
 
 const requireActor = (req: Request) => {
@@ -167,6 +168,27 @@ export const reportController = {
     const actor = requireActor(req);
     const query = StaleOrdersQuerySchema.parse(req.query);
     const report = await reportService.getStaleOrders(actor, query);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getMyWaiterLiabilities: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const report = await reportService.getMyWaiterLiabilities(actor);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  getWaiterLiabilitySummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = WaiterLiabilitySummaryQuerySchema.parse(req.query);
+    const report = await reportService.getWaiterLiabilitySummary(actor, query);
 
     res.status(200).json({
       success: true,

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Printer, RefreshCw, X } from 'lucide-react';
 import { Button, PageLayout, SkeletonBlock, SkeletonTable } from '@/components/ui';
 import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
+import { StaleOrderLiabilityCard } from '@/components/dashboard/StaleOrderLiabilityCard';
 import { useToast } from '@/hooks/useToast';
 import { payslipService } from '@/services/payslipService';
 import { useAuthStore } from '@/store/authStore';
@@ -182,6 +183,9 @@ export default function MyPaymentsPage(): JSX.Element {
       {/* ── CURRENT MONTH TAB ── */}
       {activeTab === 'current' && (
         <div className="space-y-4">
+          {/* Unresolved stale-order liability (waiters only; renders nothing otherwise) */}
+          <StaleOrderLiabilityCard accessToken={accessToken} />
+
           {isLoadingCurrent ? (
             <div className="space-y-4">
               <SkeletonBlock className="h-14 rounded-xl" />

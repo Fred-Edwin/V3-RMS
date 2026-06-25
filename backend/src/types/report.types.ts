@@ -161,6 +161,43 @@ export interface StaleOrdersReport {
   orders: StaleOrder[];
 }
 
+// ── Waiter stale-order liability (visibility + accrual; HR keys deductions manually) ──
+
+/** A single stale, unpaid order a waiter is liable for. */
+export interface WaiterLiabilityOrder {
+  id: string;
+  dailyNumber: number;
+  status: string;
+  orderDate: string;
+  tableNumber: string | null;
+  total: string;
+  branchName: string;
+}
+
+/** A waiter's own unresolved stale-order liability list + running total. */
+export interface MyWaiterLiabilityReport {
+  totalOrders: number;
+  totalLiability: string;
+  orders: WaiterLiabilityOrder[];
+}
+
+/** One row in the HR per-waiter rollup. */
+export interface WaiterLiabilitySummaryRow {
+  waiterId: string;
+  waiterName: string;
+  branchName: string;
+  orderCount: number;
+  totalLiability: string;
+}
+
+/** HR view: every waiter with unresolved stale-order liability across selected branches. */
+export interface WaiterLiabilitySummaryReport {
+  totalWaiters: number;
+  totalOrders: number;
+  totalLiability: string;
+  waiters: WaiterLiabilitySummaryRow[];
+}
+
 export interface BranchOverviewReport {
   period: {
     startDate: string;

@@ -14,9 +14,11 @@ import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { payslipService } from '@/services/payslipService';
 import { staffService, type StaffDto } from '@/services/staffService';
+import { waiterLiabilityService } from '@/services/waiterLiabilityService';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
 import type { Payslip } from '@/types/payslip';
+import type { WaiterLiabilitySummaryReport } from '@/types/waiterLiability';
 import { formatCurrency, formatPayPeriod } from '@/components/payslips/payslip-utils';
 import { cn } from '@/lib/cn';
 
@@ -221,7 +223,7 @@ const lastDayOfMonth = (payPeriod: string): string => {
   return last.toISOString().slice(0, 10);
 };
 
-type TabId = 'entry' | 'records';
+type TabId = 'entry' | 'records' | 'stale';
 
 /* ── Auto-save status indicator ─────────────────────────────────── */
 function AutoSaveStatus({ dirty, saving, error }: { dirty: number; saving: number; error: number }) {
@@ -282,6 +284,12 @@ export default function HrPayslipsPage(): JSX.Element {
   const [recordStaffId, setRecordStaffId] = useState('');
   const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Stale-Order Deductions tab — per-waiter liability rollup (read-only; HR keys the
+  // amount into the N.C.N.S/Deductions column on the Payroll Entry tab manually).
+  const [staleSummary, setStaleSummary] = useState<WaiterLiabilitySummaryReport | null>(null);
+  const [isLoadingStale, setIsLoadingStale] = useState(false);
+
   const [activeCell, setActiveCell] = useState<SheetCellCoord | null>(null);
   const [selection, setSelection] = useState<SheetSelection | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -629,6 +637,24 @@ export default function HrPayslipsPage(): JSX.Element {
     if (activeTab === 'records') void loadRecords();
   }, [activeTab, loadRecords]);
 
+  const loadStaleSummary = useCallback(async () => {
+    if (!accessToken) return;
+    setIsLoadingStale(true);
+    try {
+      // selectedBranchId empty = all active branches (cross-branch roles).
+      const result = await waiterLiabilityService.getWaiterSummary(accessToken, selectedBranchId || undefined);
+      setStaleSummary(result);
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to load stale-order deductions', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsLoadingStale(false);
+    }
+  }, [accessToken, selectedBranchId, toast]);
+
+  useEffect(() => {
+    if (activeTab === 'stale') void loadStaleSummary();
+  }, [activeTab, loadStaleSummary]);
+
   const totals = useMemo(() => {
     const sum = (field: keyof SheetRow) =>
       rows.reduce((acc, r) => acc + Number((r[field] as string) || 0), 0);
@@ -725,7 +751,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
       {/* Main tabs (underline style) */}
       <div className="flex border-b border-stone-200 px-6 flex-shrink-0">
-        {([['entry', 'Payroll Entry'], ['records', 'Payslip Records']] as [TabId, string][]).map(([id, label]) => (
+        {([['entry', 'Payroll Entry'], ['records', 'Payslip Records'], ['stale', 'Stale-Order Deductions']] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
@@ -1211,6 +1237,92 @@ export default function HrPayslipsPage(): JSX.Element {
                 showBranch
                 onView={(p) => { setSelectedPayslip(p); setIsDetailOpen(true); }}
               />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── STALE-ORDER DEDUCTIONS TAB ─────────────────── */}
+      {activeTab === 'stale' && (
+        <div className="px-6 pt-4 pb-6 space-y-4">
+          {/* Explainer + branch filter */}
+          <div style={{ background: 'white', border: '1px solid #e7e5e4', borderRadius: 16, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="max-w-2xl">
+                <h3 className="text-[14px] font-bold text-[#1a0a00]">Potential Stale-Order Deductions</h3>
+                <p className="mt-1 text-[12px] leading-snug text-stone-500">
+                  Unpaid orders that waiters never closed, totalled per waiter. Once the Accountant
+                  accounts for an order (or it is closed), it drops off automatically. Key the amount
+                  into the <strong>N.C.N.S / Deductions</strong> column on the Payroll Entry tab when
+                  building this period&rsquo;s payroll.
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Branch</span>
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 140, cursor: 'pointer' }}
+                >
+                  {branchOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary strip */}
+          {staleSummary && staleSummary.totalWaiters > 0 && (
+            <div className="flex flex-wrap gap-3">
+              <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Waiters Affected</div>
+                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-stone-800">{staleSummary.totalWaiters}</div>
+              </div>
+              <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Unresolved Orders</div>
+                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-stone-800">{staleSummary.totalOrders}</div>
+              </div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-red-400">Total at Risk</div>
+                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-red-700">Ksh {formatCurrency(staleSummary.totalLiability)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Per-waiter table */}
+          <div style={{ border: '1px solid #e7e5e4', borderRadius: 16, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            {isLoadingStale ? (
+              <div className="p-5"><SkeletonTable rows={5} columns={4} /></div>
+            ) : !staleSummary || staleSummary.totalWaiters === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-[14px] text-stone-600">No unresolved stale orders 🎉</p>
+                <p className="mt-1 text-[12px] text-stone-400">Every order in the selected branch has been closed or accounted for.</p>
+              </div>
+            ) : (
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-stone-200 bg-stone-50">
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Waiter</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Branch</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Orders</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-stone-400">Potential Deduction</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staleSummary.waiters.map((waiter) => (
+                    <tr
+                      key={waiter.waiterId}
+                      className="border-b border-stone-100 last:border-none hover:bg-stone-50/60"
+                    >
+                      <td className="px-4 py-3 font-semibold text-stone-800">{waiter.waiterName}</td>
+                      <td className="px-4 py-3 text-stone-500">{waiter.branchName}</td>
+                      <td className="px-4 py-3 text-center tabular-nums text-stone-600">{waiter.orderCount}</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-bold text-red-700 whitespace-nowrap">
+                        Ksh {formatCurrency(waiter.totalLiability)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>

@@ -111,5 +111,22 @@ reportRoutes.get(
   reportController.getDiscountUsage,
 );
 
+// WAITER self-service: their own unresolved stale-order liabilities + running total.
+reportRoutes.get(
+  '/reports/my-liabilities',
+  authenticate,
+  branchScope,
+  requireRole('WAITER'),
+  reportController.getMyWaiterLiabilities,
+);
+
+// HR/payroll + management: per-waiter rollup of unresolved stale-order liabilities.
+reportRoutes.get(
+  '/reports/waiter-liabilities',
+  authenticate,
+  requireRole('HR_MANAGER', 'DIRECTOR', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN'),
+  reportController.getWaiterLiabilitySummary,
+);
+
 export default reportRoutes;
 
