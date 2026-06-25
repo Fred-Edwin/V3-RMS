@@ -33,6 +33,13 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(1),
   VAPID_KEY: z.string().optional().default(''),
   SKIP_SHIFT_VALIDATION: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // Waiter stale-order liability only counts orders on/after this date (YYYY-MM-DD).
+  // Orders before it are excluded from waiter liability — e.g. the Mar/Apr 2026 dual-run
+  // backlog that was reconciled in the legacy system. Configurable so the line can move.
+  LIABILITY_START_DATE: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'LIABILITY_START_DATE must be YYYY-MM-DD')
+    .default('2026-05-01'),
   CLOCK_GEOFENCE_RADIUS_METRES: z.coerce.number().int().positive().max(1000).default(50),
   LOG_LEVEL: z.string().default('info'),
   LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
