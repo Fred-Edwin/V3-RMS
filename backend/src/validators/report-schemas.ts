@@ -75,6 +75,12 @@ export const StaleOrdersQuerySchema = z.object({
   endDate: isoDateSchema.optional(),
 });
 
+// HR per-waiter stale-order liability rollup. organizationId optional:
+// when omitted, cross-branch roles (HR_MANAGER/DIRECTOR/SYSTEM_ADMIN) get all active branches.
+export const WaiterLiabilitySummaryQuerySchema = z.object({
+  organizationId: z.string().uuid().optional(),
+});
+
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
 export type StaffPerformanceQueryInput = z.infer<typeof StaffPerformanceQuerySchema>;
 export type BranchOverviewQueryInput = z.infer<typeof BranchOverviewQuerySchema>;
@@ -85,4 +91,5 @@ export type ExportQueryInput = z.infer<typeof ExportQuerySchema>;
 export type AccountantReconciliationQueryInput = z.infer<typeof AccountantReconciliationQuerySchema>;
 export type DiscountUsageQueryInput = z.infer<typeof DiscountUsageQuerySchema>;
 export type StaleOrdersQueryInput = z.infer<typeof StaleOrdersQuerySchema>;
+export type WaiterLiabilitySummaryQueryInput = z.infer<typeof WaiterLiabilitySummaryQuerySchema>;
 

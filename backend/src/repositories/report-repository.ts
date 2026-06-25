@@ -2228,6 +2228,68 @@ export const reportRepository = {
     };
   },
 
+  // Stale, unpaid orders a waiter is personally liable for, across the given branches.
+  // Credit orders (HOUSE_ACCOUNT/CORPORATE_ACCOUNT/CUSTOMER_CREDIT) are paid → CLOSED →
+  // already excluded by the status filter. Walk-outs are CANCELLED → excluded. The
+  // explicit paymentMethod:null guard is defensive: only genuinely unpaid orders count.
+  getWaiterStaleLiabilities: async (
+    organizationIds: string[],
+    waiterId?: string,
+  ): Promise<
+    Array<{
+      id: string;
+      dailyNumber: number;
+      status: OrderStatus;
+      orderDate: Date;
+      tableNumber: string | null;
+      total: Prisma.Decimal;
+      waiterId: string;
+      waiterName: string;
+      branchName: string;
+    }>
+  > => {
+    if (organizationIds.length === 0) return [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const orders = await prisma.order.findMany({
+      where: {
+        organizationId: { in: organizationIds },
+        orderDate: { lt: today },
+        status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
+        paymentMethod: null,
+        paidAt: null,
+        createdBy: { isTestUser: false },
+        ...(waiterId ? { createdById: waiterId } : {}),
+      },
+      select: {
+        id: true,
+        dailyNumber: true,
+        status: true,
+        orderDate: true,
+        tableNumber: true,
+        total: true,
+        createdBy: { select: { id: true, name: true } },
+        organization: { select: { name: true } },
+      },
+      orderBy: { orderDate: 'asc' },
+      take: 2000,
+    });
+
+    return orders.map((o) => ({
+      id: o.id,
+      dailyNumber: o.dailyNumber,
+      status: o.status,
+      orderDate: o.orderDate,
+      tableNumber: o.tableNumber,
+      total: o.total,
+      waiterId: o.createdBy.id,
+      waiterName: o.createdBy.name,
+      branchName: o.organization.name,
+    }));
+  },
+
   getDiscountUsage: async (
     startDate: Date,
     endDate: Date,

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote } from 'lucide-react';
 import { ActiveOrdersSummary } from '@/components/dashboard/ActiveOrdersSummary';
+import { StaleOrderLiabilityCard } from '@/components/dashboard/StaleOrderLiabilityCard';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
 import { ClockWidget } from '@/components/shifts/ClockWidget';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
@@ -385,6 +386,9 @@ export default function DashboardPage(): JSX.Element {
             valueClassName="font-sans text-heading-xl font-bold tabular-nums tracking-tight"
           />
         </div>
+
+        {/* Unresolved stale-order liability warning (renders only when there are any) */}
+        <StaleOrderLiabilityCard accessToken={accessToken} />
 
         {/* Other income quick action */}
         <Link

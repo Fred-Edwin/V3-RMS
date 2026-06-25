@@ -1,5 +1,7 @@
 ﻿import type { Request } from 'express';
+import { Prisma } from '@prisma/client';
 import { reportRepository } from '../repositories/report-repository';
+import { branchRepository } from '../repositories/branch-repository';
 import { redisClient } from '../config/redis';
 import { ForbiddenError, ValidationError } from '../utils/errors';
 import { formatDateOnly, parseDateOnly } from '../utils/date-only';
@@ -15,10 +17,13 @@ import type {
   HourlyHeatmapReport,
   ItemsPerformanceReport,
   MyPerformanceReport,
+  MyWaiterLiabilityReport,
   OutstandingBalancesReport,
   ReportType,
   StaffPerformanceReport,
   StaleOrdersReport,
+  WaiterLiabilitySummaryReport,
+  WaiterLiabilitySummaryRow,
 } from '../types/report.types';
 import type {
   AccountantReconciliationQueryInput,
@@ -33,6 +38,7 @@ import type {
   MyPerformanceQueryInput,
   StaffPerformanceQueryInput,
   StaleOrdersQueryInput,
+  WaiterLiabilitySummaryQueryInput,
 } from '../validators/report-schemas';
 
 type Actor = NonNullable<Request['user']>;
@@ -446,6 +452,103 @@ export const reportService = {
     const startDate = query.startDate ? parseDateOnly(query.startDate) : undefined;
     const endDate = query.endDate ? parseDateOnly(query.endDate) : undefined;
     return reportRepository.getStaleOrders(query.organizationId ?? null, startDate, endDate);
+  },
+
+  // WAITER self-service: the waiter's own unresolved stale-order liabilities + running total.
+  // Scoped to the waiter's branch (from JWT) and to orders they created.
+  getMyWaiterLiabilities: async (actor: Actor): Promise<MyWaiterLiabilityReport> => {
+    if (actor.role !== 'WAITER') {
+      throw new ForbiddenError('Only waiters can view their own order liabilities');
+    }
+    if (!actor.organizationId) {
+      throw new ForbiddenError('Branch context missing for this user');
+    }
+
+    const rows = await reportRepository.getWaiterStaleLiabilities([actor.organizationId], actor.id);
+    const total = rows.reduce((sum, row) => sum.add(row.total), new Prisma.Decimal(0));
+
+    return {
+      totalOrders: rows.length,
+      totalLiability: total.toFixed(2),
+      orders: rows.map((row) => ({
+        id: row.id,
+        dailyNumber: row.dailyNumber,
+        status: row.status,
+        orderDate: row.orderDate.toISOString(),
+        tableNumber: row.tableNumber,
+        total: row.total.toFixed(2),
+        branchName: row.branchName,
+      })),
+    };
+  },
+
+  // HR/payroll view: per-waiter rollup of unresolved stale-order liabilities so HR can key
+  // the amount into otherDeductions manually. Cross-branch roles see all active branches
+  // unless a specific organizationId is passed.
+  getWaiterLiabilitySummary: async (
+    actor: Actor,
+    query: WaiterLiabilitySummaryQueryInput,
+  ): Promise<WaiterLiabilitySummaryReport> => {
+    const crossBranchRoles = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'];
+    let organizationIds: string[];
+
+    if (crossBranchRoles.includes(actor.role)) {
+      organizationIds = query.organizationId
+        ? [query.organizationId]
+        : await branchRepository.findActiveIds();
+    } else if (actor.role === 'MANAGER' || actor.role === 'ACCOUNTANT') {
+      if (actor.role === 'ACCOUNTANT') {
+        if (!query.organizationId) {
+          throw new ValidationError('organizationId query param is required for this role');
+        }
+        organizationIds = [query.organizationId];
+      } else {
+        if (!actor.organizationId) {
+          throw new ForbiddenError('Branch context missing for this user');
+        }
+        if (query.organizationId && query.organizationId !== actor.organizationId) {
+          throw new ForbiddenError('Cannot access liabilities for another branch');
+        }
+        organizationIds = [actor.organizationId];
+      }
+    } else {
+      throw new ForbiddenError('You do not have permission to view waiter liabilities');
+    }
+
+    const rows = await reportRepository.getWaiterStaleLiabilities(organizationIds);
+
+    // Roll up per waiter.
+    const byWaiter = new Map<string, WaiterLiabilitySummaryRow & { runningTotal: Prisma.Decimal }>();
+    let grandTotal = new Prisma.Decimal(0);
+
+    for (const row of rows) {
+      grandTotal = grandTotal.add(row.total);
+      const existing = byWaiter.get(row.waiterId);
+      if (existing) {
+        existing.orderCount += 1;
+        existing.runningTotal = existing.runningTotal.add(row.total);
+      } else {
+        byWaiter.set(row.waiterId, {
+          waiterId: row.waiterId,
+          waiterName: row.waiterName,
+          branchName: row.branchName,
+          orderCount: 1,
+          totalLiability: '0.00',
+          runningTotal: row.total,
+        });
+      }
+    }
+
+    const waiters: WaiterLiabilitySummaryRow[] = Array.from(byWaiter.values())
+      .map(({ runningTotal, ...rest }) => ({ ...rest, totalLiability: runningTotal.toFixed(2) }))
+      .sort((a, b) => Number(b.totalLiability) - Number(a.totalLiability));
+
+    return {
+      totalWaiters: waiters.length,
+      totalOrders: rows.length,
+      totalLiability: grandTotal.toFixed(2),
+      waiters,
+    };
   },
 
   getDiscountUsage: async (
