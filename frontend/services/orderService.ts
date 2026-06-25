@@ -149,4 +149,31 @@ export const orderService = {
     const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : '';
     return apiClient.patch<OrderDetail>(`/orders/${id}/account${query}`, data, accessToken);
   },
+
+  // Manager: live stale orders for their branch (unpaid, unclosed, post-cutoff).
+  getBranchStaleOrders: (accessToken: string): Promise<BranchStaleOrdersReport> => {
+    return apiClient.get<BranchStaleOrdersReport>('/orders/branch-stale', accessToken);
+  },
+
+  // Manager: unstick a stale order to READY so it can then be closed via recordPayment.
+  forceReady: (id: string, reason: string, accessToken: string): Promise<OrderDetail> => {
+    return apiClient.patch<OrderDetail>(`/orders/${id}/force-ready`, { reason }, accessToken);
+  },
 };
+
+export interface BranchStaleOrder {
+  id: string;
+  dailyNumber: number;
+  status: string;
+  orderDate: string;
+  tableNumber: string | null;
+  total: string;
+  branchName: string;
+  waiterName: string;
+}
+
+export interface BranchStaleOrdersReport {
+  totalOrders: number;
+  totalLiability: string;
+  orders: BranchStaleOrder[];
+}

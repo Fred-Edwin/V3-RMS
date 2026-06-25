@@ -16,11 +16,13 @@ import {
   type SummaryOrderPrismaRecord,
 } from '../repositories/order-repository';
 import { idempotencyRepository } from '../repositories/idempotency-repository';
+import { reportRepository } from '../repositories/report-repository';
 import { splitLineRepository } from '../repositories/split-line-repository';
 import { socketService } from '../sockets/socket-service';
 import { fcmService } from './fcm-service';
 import { incidentService } from './incident-service';
 import type {
+  BranchStaleOrdersReport,
   OrderRecord,
   OrderSummaryRecord,
   PrepTicketItemSnapshot,
@@ -1304,6 +1306,79 @@ export const orderService = {
         action: 'accounted_by_accountant',
         paymentMethod: data.paymentMethod,
         note: data.note ?? null,
+      },
+    });
+
+    return serialized;
+  },
+
+  // Manager's live stale orders for their own branch (unpaid, unclosed, post-cutoff).
+  // Reuses the same query that powers waiter liability so the lists stay consistent.
+  getBranchStaleOrders: async (actor: Actor): Promise<BranchStaleOrdersReport> => {
+    if (actor.role !== 'MANAGER') {
+      throw new ForbiddenError('Only managers can view branch stale orders');
+    }
+    const organizationId = resolveOrganizationId(actor);
+    const rows = await reportRepository.getWaiterStaleLiabilities([organizationId]);
+    const total = rows.reduce((sum, row) => sum.add(row.total), new Prisma.Decimal(0));
+
+    return {
+      totalOrders: rows.length,
+      totalLiability: total.toFixed(2),
+      orders: rows.map((row) => ({
+        id: row.id,
+        dailyNumber: row.dailyNumber,
+        status: row.status,
+        orderDate: row.orderDate.toISOString(),
+        tableNumber: row.tableNumber,
+        total: row.total.toFixed(2),
+        branchName: row.branchName,
+        waiterName: row.waiterName,
+      })),
+    };
+  },
+
+  // Manager unsticks a stale order in a non-terminal status to READY so it can then be
+  // closed (via recordPayment). Audited via an ORDER_STALE incident. Two-step by design:
+  // this only changes status; the manager records payment separately.
+  forceReady: async (
+    orderId: string,
+    reason: string,
+    actor: Actor,
+  ): Promise<OrderRecord> => {
+    if (actor.role !== 'MANAGER') {
+      throw new ForbiddenError('Only managers can force an order ready');
+    }
+    const organizationId = resolveOrganizationId(actor);
+    const order = await orderRepository.findById(orderId, organizationId);
+    if (!order) throw new NotFoundError('Order not found');
+
+    if (
+      order.status === OrderStatus.CLOSED ||
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.AWAITING_CANCELLATION_APPROVAL
+    ) {
+      throw new ConflictError('Order is closed, cancelled, or pending cancellation');
+    }
+    if (order.status === OrderStatus.READY) {
+      throw new ConflictError('Order is already ready');
+    }
+
+    const updated = await orderRepository.updateStatus(orderId, organizationId, OrderStatus.READY);
+    if (!updated) throw new ConflictError('Order could not be updated. Please refresh and try again.');
+
+    const serialized = serializeOrder(updated);
+
+    incidentService.log({
+      organizationId,
+      orderId,
+      type: 'ORDER_STALE',
+      actorId: actor.id,
+      details: {
+        dailyNumber: serialized.dailyNumber,
+        action: 'forced_ready_by_manager',
+        previousStatus: order.status,
+        reason,
       },
     });
 

@@ -5,6 +5,7 @@ import {
   ActiveOrderQuerySchema,
   CancelOrderSchema,
   CreateOrderSchema,
+  ForceReadySchema,
   ManagerRemoveItemsSchema,
   OrderQuerySchema,
   RecordPaymentSchema,
@@ -146,6 +147,29 @@ export const orderController = {
       success: true,
       data: order,
       message: 'Order accounted successfully',
+    });
+  },
+
+  getBranchStaleOrders: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const report = await orderService.getBranchStaleOrders(actor);
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  },
+
+  forceReady: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = routeIdParamSchema.parse(req.params);
+    const { reason } = ForceReadySchema.parse(req.body);
+    const order = await orderService.forceReady(id, reason, actor);
+
+    res.status(200).json({
+      success: true,
+      data: order,
+      message: 'Order forced ready. You can now record payment to close it.',
     });
   },
 };
