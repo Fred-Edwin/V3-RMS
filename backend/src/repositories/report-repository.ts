@@ -1,5 +1,6 @@
 ﻿import { OrderStatus, PrepStation, Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
+import { env } from '../config/env';
 import { otherIncomeRepository } from './other-income-repository';
 import { computeActualHours, computeAveragePrepMinutes, computeScheduledHours } from '../utils/report-utils';
 import { formatDateOnly } from '../utils/date-only';
@@ -2232,6 +2233,9 @@ export const reportRepository = {
   // Credit orders (HOUSE_ACCOUNT/CORPORATE_ACCOUNT/CUSTOMER_CREDIT) are paid → CLOSED →
   // already excluded by the status filter. Walk-outs are CANCELLED → excluded. The
   // explicit paymentMethod:null guard is defensive: only genuinely unpaid orders count.
+  //
+  // Only orders on/after env.LIABILITY_START_DATE count. Orders before it are excluded —
+  // e.g. the Mar/Apr 2026 dual-run backlog already reconciled in the legacy system.
   getWaiterStaleLiabilities: async (
     organizationIds: string[],
     waiterId?: string,
@@ -2253,10 +2257,12 @@ export const reportRepository = {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const liabilityStart = new Date(`${env.LIABILITY_START_DATE}T00:00:00.000Z`);
+
     const orders = await prisma.order.findMany({
       where: {
         organizationId: { in: organizationIds },
-        orderDate: { lt: today },
+        orderDate: { gte: liabilityStart, lt: today },
         status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
         paymentMethod: null,
         paidAt: null,
