@@ -181,13 +181,14 @@ export interface MyWaiterLiabilityReport {
   orders: WaiterLiabilityOrder[];
 }
 
-/** One row in the HR per-waiter rollup. */
+/** One row in the HR per-waiter rollup, including the waiter's individual stale orders. */
 export interface WaiterLiabilitySummaryRow {
   waiterId: string;
   waiterName: string;
   branchName: string;
   orderCount: number;
   totalLiability: string;
+  orders: WaiterLiabilityOrder[];
 }
 
 /** HR view: every waiter with unresolved stale-order liability across selected branches. */

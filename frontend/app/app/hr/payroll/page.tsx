@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import {
   Button,
@@ -289,6 +289,7 @@ export default function HrPayslipsPage(): JSX.Element {
   // amount into the N.C.N.S/Deductions column on the Payroll Entry tab manually).
   const [staleSummary, setStaleSummary] = useState<WaiterLiabilitySummaryReport | null>(null);
   const [isLoadingStale, setIsLoadingStale] = useState(false);
+  const [expandedWaiterId, setExpandedWaiterId] = useState<string | null>(null);
 
   const [activeCell, setActiveCell] = useState<SheetCellCoord | null>(null);
   const [selection, setSelection] = useState<SheetSelection | null>(null);
@@ -1243,18 +1244,26 @@ export default function HrPayslipsPage(): JSX.Element {
       )}
 
       {/* ── STALE-ORDER DEDUCTIONS TAB ─────────────────── */}
-      {activeTab === 'stale' && (
-        <div className="px-6 pt-4 pb-6 space-y-4">
-          {/* Explainer + branch filter */}
-          <div style={{ background: 'white', border: '1px solid #e7e5e4', borderRadius: 16, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      {activeTab === 'stale' && (() => {
+        const waiters = staleSummary?.waiters ?? [];
+        const hasData = waiters.length > 0;
+        const singleBranch = Boolean(selectedBranchId);
+        const dataColCount = singleBranch ? 4 : 5; // #, Waiter, [Branch], Orders, Potential Deduction
+        const fmtShortDate = (iso: string) =>
+          new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Africa/Nairobi' });
+
+        // Shared Excel-style cell borders
+        const cellBorder = '1px solid #d8d4d0';
+
+        return (
+          <div className="px-6 pt-4 pb-6 space-y-3">
+            {/* Header row: title + action note + branch filter (compact) */}
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="max-w-2xl">
+              <div className="max-w-3xl">
                 <h3 className="text-[14px] font-bold text-[#1a0a00]">Potential Stale-Order Deductions</h3>
-                <p className="mt-1 text-[12px] leading-snug text-stone-500">
-                  Unpaid orders that waiters never closed, totalled per waiter. Once the Accountant
-                  accounts for an order (or it is closed), it drops off automatically. Key the amount
-                  into the <strong>N.C.N.S / Deductions</strong> column on the Payroll Entry tab when
-                  building this period&rsquo;s payroll.
+                <p className="mt-0.5 text-[12px] leading-snug text-stone-500">
+                  Unpaid orders waiters never closed, totalled per waiter. Resolved orders drop off
+                  automatically. Key each amount into the <strong>N.C.N.S / Deductions</strong> column on Payroll Entry.
                 </p>
               </div>
               <div className="flex flex-col gap-1">
@@ -1262,71 +1271,101 @@ export default function HrPayslipsPage(): JSX.Element {
                 <select
                   value={selectedBranchId}
                   onChange={(e) => setSelectedBranchId(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 140, cursor: 'pointer' }}
+                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 6, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 150, cursor: 'pointer' }}
                 >
                   {branchOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Summary strip */}
-          {staleSummary && staleSummary.totalWaiters > 0 && (
-            <div className="flex flex-wrap gap-3">
-              <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Waiters Affected</div>
-                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-stone-800">{staleSummary.totalWaiters}</div>
-              </div>
-              <div className="rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Unresolved Orders</div>
-                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-stone-800">{staleSummary.totalOrders}</div>
-              </div>
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-red-400">Total at Risk</div>
-                <div className="mt-0.5 text-[20px] font-bold tabular-nums text-red-700">Ksh {formatCurrency(staleSummary.totalLiability)}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Per-waiter table */}
-          <div style={{ border: '1px solid #e7e5e4', borderRadius: 16, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            {/* Excel-style gridlined table */}
             {isLoadingStale ? (
-              <div className="p-5"><SkeletonTable rows={5} columns={4} /></div>
-            ) : !staleSummary || staleSummary.totalWaiters === 0 ? (
-              <div className="p-12 text-center">
-                <p className="text-[14px] text-stone-600">No unresolved stale orders 🎉</p>
+              <div className="rounded-md border border-stone-200 bg-white p-5"><SkeletonTable rows={6} columns={dataColCount} /></div>
+            ) : !hasData ? (
+              <div className="rounded-md border border-stone-200 bg-white p-12 text-center">
+                <p className="text-[13px] font-semibold text-stone-700">No unresolved stale orders</p>
                 <p className="mt-1 text-[12px] text-stone-400">Every order in the selected branch has been closed or accounted for.</p>
               </div>
             ) : (
-              <table className="w-full text-[13px]">
-                <thead>
-                  <tr className="border-b border-stone-200 bg-stone-50">
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Waiter</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Branch</th>
-                    <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Orders</th>
-                    <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-stone-400">Potential Deduction</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {staleSummary.waiters.map((waiter) => (
-                    <tr
-                      key={waiter.waiterId}
-                      className="border-b border-stone-100 last:border-none hover:bg-stone-50/60"
-                    >
-                      <td className="px-4 py-3 font-semibold text-stone-800">{waiter.waiterName}</td>
-                      <td className="px-4 py-3 text-stone-500">{waiter.branchName}</td>
-                      <td className="px-4 py-3 text-center tabular-nums text-stone-600">{waiter.orderCount}</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold text-red-700 whitespace-nowrap">
-                        Ksh {formatCurrency(waiter.totalLiability)}
-                      </td>
+              <div className="overflow-x-auto rounded-md border border-[#d8d4d0]">
+                <table
+                  className="w-full"
+                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: 12.5 }}
+                >
+                  <thead>
+                    <tr style={{ background: '#2e5984', color: 'white' }}>
+                      <th style={{ border: cellBorder, padding: '6px 8px', textAlign: 'center', fontWeight: 700, width: 40 }}>#</th>
+                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Waiter</th>
+                      {!singleBranch && (
+                        <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Branch</th>
+                      )}
+                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: 90 }}>Orders</th>
+                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: 170 }}>Potential Deduction (Ksh)</th>
+                      <th style={{ border: cellBorder, padding: '6px 6px', width: 28 }} aria-label="Expand" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {waiters.map((waiter, idx) => {
+                      const isExpanded = expandedWaiterId === waiter.waiterId;
+                      const rowBg = isExpanded ? '#eaf1f8' : idx % 2 === 1 ? '#f6f5f4' : '#ffffff';
+                      return (
+                        <Fragment key={waiter.waiterId}>
+                          <tr
+                            onClick={() => setExpandedWaiterId(isExpanded ? null : waiter.waiterId)}
+                            style={{ background: rowBg, cursor: 'pointer' }}
+                            className="hover:!bg-[#eef3fa]"
+                          >
+                            <td style={{ border: cellBorder, padding: '5px 8px', textAlign: 'center', color: '#78716c', fontWeight: 600 }}>{idx + 1}</td>
+                            <td style={{ border: cellBorder, padding: '5px 10px', fontWeight: 600, color: '#1a0a00' }}>{waiter.waiterName}</td>
+                            {!singleBranch && <td style={{ border: cellBorder, padding: '5px 10px', color: '#57534e' }}>{waiter.branchName}</td>}
+                            <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'center', color: '#1a0a00' }} className="tabular-nums">{waiter.orderCount}</td>
+                            <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'right', fontWeight: 700, color: '#a31515' }} className="tabular-nums whitespace-nowrap">{formatCurrency(waiter.totalLiability)}</td>
+                            <td style={{ border: cellBorder, padding: '5px 4px', textAlign: 'center', color: '#a8a29e', userSelect: 'none' }}>{isExpanded ? '▾' : '▸'}</td>
+                          </tr>
+
+                          {isExpanded && waiter.orders.map((order, oIdx) => (
+                            <tr key={order.id} style={{ background: '#fbfaf9' }}>
+                              <td style={{ border: cellBorder }} />
+                              <td style={{ border: cellBorder, padding: '4px 10px', color: '#57534e' }} className="whitespace-nowrap">
+                                <span style={{ color: '#a8a29e', marginRight: 6 }}>{oIdx + 1}.</span>
+                                Order #{order.dailyNumber}
+                              </td>
+                              {!singleBranch && <td style={{ border: cellBorder, padding: '4px 10px', color: '#78716c' }}>{order.branchName}</td>}
+                              <td style={{ border: cellBorder, padding: '4px 10px', textAlign: 'center', color: '#78716c' }} className="whitespace-nowrap">
+                                {fmtShortDate(order.orderDate)}{order.tableNumber ? ` · T${order.tableNumber}` : ''}
+                              </td>
+                              <td style={{ border: cellBorder, padding: '4px 10px', textAlign: 'right', color: '#a31515', fontWeight: 600 }} className="tabular-nums whitespace-nowrap">{formatCurrency(order.total)}</td>
+                              <td style={{ border: cellBorder }} />
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
+
+                    {/* Totals row */}
+                    <tr style={{ background: '#dce6f1', fontWeight: 700 }}>
+                      <td style={{ border: cellBorder, padding: '6px 8px' }} />
+                      <td style={{ border: cellBorder, padding: '6px 10px', color: '#1a0a00', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.04em' }}>Total</td>
+                      {!singleBranch && <td style={{ border: cellBorder }} />}
+                      <td style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', color: '#1a0a00' }} className="tabular-nums">{staleSummary!.totalOrders}</td>
+                      <td style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', color: '#a31515' }} className="tabular-nums whitespace-nowrap">Ksh {formatCurrency(staleSummary!.totalLiability)}</td>
+                      <td style={{ border: cellBorder }} />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {hasData && (
+              <p className="text-[11px] text-stone-400">
+                {staleSummary!.totalWaiters} waiter{staleSummary!.totalWaiters > 1 ? 's' : ''} ·
+                {' '}{staleSummary!.totalOrders} unresolved order{staleSummary!.totalOrders > 1 ? 's' : ''} ·
+                {' '}click a row to view individual orders
+              </p>
             )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modals */}
       <ConfirmDialog

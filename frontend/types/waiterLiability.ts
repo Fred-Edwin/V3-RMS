@@ -24,6 +24,7 @@ export interface WaiterLiabilitySummaryRow {
   branchName: string;
   orderCount: number;
   totalLiability: string;
+  orders: WaiterLiabilityOrder[];
 }
 
 /** HR/payroll view: per-waiter rollup across selected branches. */
