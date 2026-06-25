@@ -22,6 +22,7 @@ import type {
   ReportType,
   StaffPerformanceReport,
   StaleOrdersReport,
+  WaiterLiabilityOrder,
   WaiterLiabilitySummaryReport,
   WaiterLiabilitySummaryRow,
 } from '../types/report.types';
@@ -517,16 +518,26 @@ export const reportService = {
 
     const rows = await reportRepository.getWaiterStaleLiabilities(organizationIds);
 
-    // Roll up per waiter.
+    // Roll up per waiter, keeping each waiter's individual orders for the HR drill-down.
     const byWaiter = new Map<string, WaiterLiabilitySummaryRow & { runningTotal: Prisma.Decimal }>();
     let grandTotal = new Prisma.Decimal(0);
 
     for (const row of rows) {
       grandTotal = grandTotal.add(row.total);
+      const order: WaiterLiabilityOrder = {
+        id: row.id,
+        dailyNumber: row.dailyNumber,
+        status: row.status,
+        orderDate: row.orderDate.toISOString(),
+        tableNumber: row.tableNumber,
+        total: row.total.toFixed(2),
+        branchName: row.branchName,
+      };
       const existing = byWaiter.get(row.waiterId);
       if (existing) {
         existing.orderCount += 1;
         existing.runningTotal = existing.runningTotal.add(row.total);
+        existing.orders.push(order);
       } else {
         byWaiter.set(row.waiterId, {
           waiterId: row.waiterId,
@@ -535,6 +546,7 @@ export const reportService = {
           orderCount: 1,
           totalLiability: '0.00',
           runningTotal: row.total,
+          orders: [order],
         });
       }
     }

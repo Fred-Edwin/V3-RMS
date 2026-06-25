@@ -118,6 +118,10 @@ describe('Waiter stale-order liability', () => {
     expect(res.body.data.waiters[1].waiterName).toBe('James');
     expect(res.body.data.waiters[1].orderCount).toBe(2);
     expect(res.body.data.waiters[1].totalLiability).toBe('800.00');
+    // each rollup row carries the waiter's individual orders for the HR drill-down
+    expect(res.body.data.waiters[1].orders).toHaveLength(2);
+    expect(res.body.data.waiters[0].orders).toHaveLength(1);
+    expect(res.body.data.waiters[0].orders[0].dailyNumber).toBe(1);
   });
 
   it('HR/Director without organizationId queries all active branches', async () => {
