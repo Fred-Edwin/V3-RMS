@@ -248,6 +248,13 @@ export const ManagerRemoveItemsSchema = z.object({
 
 export type ManagerRemoveItemsInput = z.infer<typeof ManagerRemoveItemsSchema>;
 
+export const ForceReadySchema = z.object({
+  /** Mandatory reason for the audit log */
+  reason: z.string().min(3).max(500),
+});
+
+export type ForceReadyInput = z.infer<typeof ForceReadySchema>;
+
 export const ActiveOrderQuerySchema = z.object({
   view: orderListViewSchema.default('full'),
 });

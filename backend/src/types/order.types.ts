@@ -168,3 +168,22 @@ export interface CreateOrderWithTicketsDto {
   prepTickets: CreatePrepTicketDto[];
 }
 
+
+// Manager branch stale-orders view — one row per unresolved stale order, with the
+// waiter who owns it so the manager knows whose order it is.
+export interface BranchStaleOrder {
+  id: string;
+  dailyNumber: number;
+  status: string;
+  orderDate: string;
+  tableNumber: string | null;
+  total: string;
+  branchName: string;
+  waiterName: string;
+}
+
+export interface BranchStaleOrdersReport {
+  totalOrders: number;
+  totalLiability: string;
+  orders: BranchStaleOrder[];
+}

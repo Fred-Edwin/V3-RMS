@@ -23,6 +23,16 @@ orderRoutes.get(
   orderController.getActiveOrders,
 );
 
+// Manager's live stale (unpaid, unclosed, post-cutoff) orders for their branch.
+// Registered before /orders/:id so "branch-stale" is not matched as an id.
+orderRoutes.get(
+  '/orders/branch-stale',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER'),
+  orderController.getBranchStaleOrders,
+);
+
 orderRoutes.get(
   '/orders/:id',
   authenticate,
@@ -51,8 +61,17 @@ orderRoutes.patch(
   '/orders/:id/payment',
   authenticate,
   branchScope,
-  requireRole('WAITER'),
+  requireRole('WAITER', 'MANAGER'),
   orderController.recordPayment,
+);
+
+// Manager unsticks a stale order in a non-terminal status to READY so it can be closed.
+orderRoutes.patch(
+  '/orders/:id/force-ready',
+  authenticate,
+  branchScope,
+  requireRole('MANAGER'),
+  orderController.forceReady,
 );
 
 orderRoutes.patch(
