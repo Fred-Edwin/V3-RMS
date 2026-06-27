@@ -119,6 +119,49 @@ describe('Auth routes', () => {
     expect(response.status).toBe(400);
   });
 
+  it('POST /api/v1/auth/verify-password returns 200 verified for correct password', async () => {
+    vi.spyOn(authService, 'verifyPassword').mockResolvedValue();
+    const token = signAccessToken({
+      userId: 'waiter-1',
+      role: 'WAITER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .post('/api/v1/auth/verify-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ password: 'CorrectPass123!' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.verified).toBe(true);
+  });
+
+  it('POST /api/v1/auth/verify-password returns 401 for wrong password', async () => {
+    vi.spyOn(authService, 'verifyPassword').mockRejectedValue(
+      new UnauthorizedError('Password verification failed'),
+    );
+    const token = signAccessToken({
+      userId: 'waiter-1',
+      role: 'WAITER',
+      organizationId: 'org-1',
+    });
+
+    const response = await request(app)
+      .post('/api/v1/auth/verify-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ password: 'WrongPass' });
+
+    expect(response.status).toBe(401);
+  });
+
+  it('POST /api/v1/auth/verify-password returns 401 when unauthenticated', async () => {
+    const response = await request(app)
+      .post('/api/v1/auth/verify-password')
+      .send({ password: 'CorrectPass123!' });
+
+    expect(response.status).toBe(401);
+  });
+
   it('POST /api/v1/auth/register-device returns 200 for authenticated user', async () => {
     vi.spyOn(authService, 'registerDevice').mockResolvedValue();
     const token = signAccessToken({

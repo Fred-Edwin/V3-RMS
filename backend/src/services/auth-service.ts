@@ -162,6 +162,21 @@ export const authService = {
     await authRepository.deleteAllRefreshTokensByUserId(user.id);
   },
 
+  // Stateless re-authentication for view-gates (e.g. payslip page).
+  // Verifies the supplied password against the current user's hash.
+  // Issues no token and changes no session.
+  verifyPassword: async ({ userId, password }: { userId: string; password: string }): Promise<void> => {
+    const user = await authRepository.findUserByIdWithPassword(userId);
+    if (!user) {
+      throw new UnauthorizedError('Invalid user');
+    }
+
+    const isValidPassword = await comparePassword(password, user.passwordHash);
+    if (!isValidPassword) {
+      throw new UnauthorizedError('Password verification failed');
+    }
+  },
+
   registerDevice: async (input: { userId: string; fcmToken: string }): Promise<void> => {
     await authRepository.saveFcmToken(input.userId, input.fcmToken);
   },

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { env } from '../config/env';
 import { authService } from '../services/auth-service';
-import { changePasswordSchema, loginSchema, registerDeviceSchema } from '../validators/auth-schemas';
+import { changePasswordSchema, loginSchema, registerDeviceSchema, verifyPasswordSchema } from '../validators/auth-schemas';
 import { UnauthorizedError } from '../utils/errors';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
@@ -125,6 +125,23 @@ export const authController = {
     res.status(200).json({
       success: true,
       message: 'Password updated successfully',
+    });
+  },
+
+  verifyPassword: async (req: Request, res: Response): Promise<void> => {
+    const data = verifyPasswordSchema.parse(req.body);
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    await authService.verifyPassword({
+      userId: req.user.id,
+      password: data.password,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { verified: true },
     });
   },
 
