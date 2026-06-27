@@ -1,7 +1,8 @@
 # Payslip View Gate
 
-**Status**: In Progress
+**Status**: Complete
 **Started**: 2026-06-25
+**Completed**: 2026-06-27 (PR #17)
 
 ---
 
@@ -56,5 +57,5 @@ payslip API server-side. It is NOT the only line of defense.
 - [x] F1. authService.verifyPassword client method.
 - [x] F2. Lock-screen UI + gate logic on /app/payslips (re-lock on mount/idle/blur).
 - [x] F3. Frontend build green.
-- [ ] S1. Branch, commit, push, PR, merge.
-- [ ] S2. Update doc + MEMORY.md.
+- [x] S1. Branch, commit, push, PR, merge.
+- [x] S2. Update doc + MEMORY.md.
