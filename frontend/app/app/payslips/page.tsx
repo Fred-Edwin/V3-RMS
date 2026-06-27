@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pencil, Printer, RefreshCw, X } from 'lucide-react';
 import { Button, PageLayout, SkeletonBlock, SkeletonTable } from '@/components/ui';
 import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
+import { PayslipLockScreen } from '@/components/payslips/PayslipLockScreen';
 import { StaleOrderLiabilityCard } from '@/components/dashboard/StaleOrderLiabilityCard';
+import { usePayslipGate } from '@/hooks/usePayslipGate';
 import { useToast } from '@/hooks/useToast';
 import { payslipService } from '@/services/payslipService';
 import { useAuthStore } from '@/store/authStore';
@@ -55,6 +57,7 @@ export default function MyPaymentsPage(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
   const { toast } = useToast();
+  const gate = usePayslipGate();
 
   const [activeTab, setActiveTab] = useState<TabId>('current');
   const [currentPayslip, setCurrentPayslip] = useState<Payslip | null>(null);
@@ -70,7 +73,7 @@ export default function MyPaymentsPage(): JSX.Element {
   const [form, setForm] = useState<PaymentDetailsForm>(emptyForm());
 
   const loadCurrentPayslip = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !gate.isVerified) return;
     setIsLoadingCurrent(true);
     try {
       const result = await payslipService.listMyPayslips(accessToken, { page: 1, perPage: 1 });
@@ -80,10 +83,10 @@ export default function MyPaymentsPage(): JSX.Element {
     } finally {
       setIsLoadingCurrent(false);
     }
-  }, [accessToken, toast]);
+  }, [accessToken, gate.isVerified, toast]);
 
   const loadHistory = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken || !gate.isVerified) return;
     setIsLoadingHistory(true);
     try {
       const result = await payslipService.listMyPayslips(accessToken, { page: 1, perPage: 24 });
@@ -93,10 +96,10 @@ export default function MyPaymentsPage(): JSX.Element {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [accessToken, toast]);
+  }, [accessToken, gate.isVerified, toast]);
 
-  useEffect(() => { void loadCurrentPayslip(); }, [loadCurrentPayslip]);
-  useEffect(() => { if (activeTab === 'history') void loadHistory(); }, [activeTab, loadHistory]);
+  useEffect(() => { if (gate.isVerified) void loadCurrentPayslip(); }, [gate.isVerified, loadCurrentPayslip]);
+  useEffect(() => { if (gate.isVerified && activeTab === 'history') void loadHistory(); }, [gate.isVerified, activeTab, loadHistory]);
 
   // Populate form when entering edit mode
   const startEditing = () => {
@@ -150,7 +153,7 @@ export default function MyPaymentsPage(): JSX.Element {
           <h1 className="font-display text-[28px] font-semibold text-espresso leading-tight">My Payments</h1>
           <p className="text-[13px] text-stone-400 mt-0.5">Salary, deductions &amp; payment history</p>
         </div>
-        {activeTab === 'current' && (
+        {gate.isVerified && activeTab === 'current' && (
           <button onClick={() => void loadCurrentPayslip()} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-stone-500 hover:text-stone-700 transition-colors shrink-0">
             <RefreshCw size={13} />
             Refresh
@@ -158,6 +161,11 @@ export default function MyPaymentsPage(): JSX.Element {
         )}
       </div>
 
+      {/* View-gate: financial content stays hidden until the user re-confirms their password. */}
+      {!gate.isVerified ? (
+        <PayslipLockScreen onVerify={gate.verify} isVerifying={gate.isVerifying} error={gate.error} />
+      ) : (
+      <>
       {/* Tabs */}
       <div className="flex border-b border-stone-200">
         {([
@@ -488,6 +496,8 @@ export default function MyPaymentsPage(): JSX.Element {
             )
           )}
         </div>
+      )}
+      </>
       )}
 
       <PayslipDetailModal

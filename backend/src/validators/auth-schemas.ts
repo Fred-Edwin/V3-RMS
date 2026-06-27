@@ -13,3 +13,7 @@ export const changePasswordSchema = z.object({
 export const registerDeviceSchema = z.object({
   fcmToken: z.string().min(1),
 });
+
+export const verifyPasswordSchema = z.object({
+  password: z.string().min(1),
+});

@@ -31,4 +31,10 @@ export const authService = {
   registerDevice: async (input: { fcmToken: string }, accessToken: string): Promise<void> => {
     await apiClient.post('/auth/register-device', input, accessToken);
   },
+
+  // Stateless re-authentication for view-gates (e.g. payslip page).
+  // Resolves on match; throws ApiError (401) on mismatch.
+  verifyPassword: async (password: string, accessToken: string): Promise<void> => {
+    await apiClient.post('/auth/verify-password', { password }, accessToken);
+  },
 };

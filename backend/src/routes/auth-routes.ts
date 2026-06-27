@@ -38,6 +38,18 @@ authRoutes.patch('/auth/change-password', authenticate, branchScope, requireRole
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
 ), authController.changePassword);
+authRoutes.post('/auth/verify-password', loginRateLimit, authenticate, branchScope, requireRole(
+  'SYSTEM_ADMIN',
+  'DIRECTOR',
+  'MANAGER',
+  'HR_MANAGER',
+  'ACCOUNTANT',
+  'WAITER',
+  'CHEF',
+  'BARISTA',
+  'KITCHEN_DISPLAY',
+  'BARISTA_DISPLAY',
+), authController.verifyPassword);
 authRoutes.post('/auth/register-device', authenticate, branchScope, requireRole(
   'SYSTEM_ADMIN',
   'DIRECTOR',
