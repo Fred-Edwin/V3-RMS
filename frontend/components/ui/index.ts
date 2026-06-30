@@ -68,3 +68,6 @@ export { SkeletonTable } from './SkeletonTable'
 export { Table } from './Table'
 export type { TableColumn } from './Table'
 export { SupportContact } from './SupportContact'
+
+// Wave 10 — Onboarding
+export { TourButton } from './TourButton'
