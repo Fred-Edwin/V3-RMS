@@ -12,6 +12,7 @@ import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
 import { PayslipTable } from '@/components/payslips/PayslipTable';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
+import { commsService } from '@/services/commsService';
 import { payslipService } from '@/services/payslipService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { waiterLiabilityService } from '@/services/waiterLiabilityService';
@@ -277,6 +278,7 @@ function AutoSaveStatus({ dirty, saving, error }: { dirty: number; saving: numbe
 export default function HrPayslipsPage(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const actorOrgId = useAuthStore((state) => state.organizationId);
+  const actorRole = useAuthStore((state) => state.role);
   const { toast } = useToast();
 
   const periods = useMemo(() => getPreviousAndCurrentMonths(), []);
@@ -290,6 +292,10 @@ export default function HrPayslipsPage(): JSX.Element {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+
+  // Missing-bank-details readiness + notify flow.
+  const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
+  const [isNotifying, setIsNotifying] = useState(false);
 
   const [records, setRecords] = useState<Payslip[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
@@ -803,6 +809,53 @@ export default function HrPayslipsPage(): JSX.Element {
     toast({ variant: 'success', title: 'Payroll register exported', message: `${rows.length} staff across ${isAllBranches ? 'all branches' : selectedBranchName}.` });
   }, [rows.length, toExportRows, exportSlug, activePeriod, isAllBranches, selectedBranchName, toast]);
 
+  /* ── Missing bank-account readiness ──────────────────────────────── */
+  // Staff with no bank account are silently excluded from the bank file. Surface
+  // them so HR/Director can chase the details before the next payroll run.
+  const missingBankDetails = useMemo(
+    () => rows.filter((r) => !(r.accountNumber && r.accountNumber.trim())),
+    [rows],
+  );
+
+  // Only Directors and HR Managers may issue formal notices (matches the comms module).
+  const canNotify = actorRole === 'DIRECTOR' || actorRole === 'HR_MANAGER';
+
+  const handleNotifyMissing = useCallback(async () => {
+    if (!accessToken || missingBankDetails.length === 0) return;
+    setIsNotifying(true);
+    try {
+      // One personalised formal notice per affected employee — the issueNotice API
+      // targets a single user per call, so we fan out.
+      const results = await Promise.allSettled(
+        missingBankDetails.map((r) =>
+          commsService.issueNotice(accessToken, {
+            targetUserId: r.userId,
+            subject: 'Action needed: add your bank & payment details',
+            bodyHtml:
+              `<p>Hi ${r.name},</p>` +
+              `<p>Payroll cannot pay you until your bank details are on file. ` +
+              `Please open <strong>Profile → Payment Details</strong> and add your ` +
+              `bank name, account number, and KRA PIN.</p>` +
+              `<p>Do this before the next payroll run so your salary is included in the bank payment file.</p>`,
+          }),
+        ),
+      );
+
+      const sent = results.filter((x) => x.status === 'fulfilled').length;
+      const failed = results.length - sent;
+      if (failed === 0) {
+        toast({ variant: 'success', title: 'Staff notified', message: `Sent a payment-details notice to ${sent} staff member${sent === 1 ? '' : 's'}.` });
+      } else {
+        toast({ variant: 'error', title: `Notified ${sent}, ${failed} failed`, message: 'Some notices could not be sent. Please retry.' });
+      }
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to notify staff', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsNotifying(false);
+      setShowNotifyConfirm(false);
+    }
+  }, [accessToken, missingBankDetails, toast]);
+
   /* ── Shared cell class helpers ─── */
   const inp = (extra = '') =>
     `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
@@ -988,6 +1041,30 @@ export default function HrPayslipsPage(): JSX.Element {
           {isPublished && (
             <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[12px] text-emerald-800 flex-shrink-0">
               ✓ &nbsp;<strong>{formatPayPeriod(activePeriod)} is published.</strong>&nbsp; Staff can see and print their payslips. Click &ldquo;Revert to Draft&rdquo; to make corrections.
+            </div>
+          )}
+
+          {/* Missing bank-details readiness banner */}
+          {!isLoadingSheet && missingBankDetails.length > 0 && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900 flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="flex items-center gap-2">
+                  <span className="text-[14px]">⚠️</span>
+                  <span>
+                    <strong>{missingBankDetails.length} of {rows.length} staff are missing bank details</strong>
+                    {' '}— they will be excluded from the bank payment file.
+                  </span>
+                </span>
+                {canNotify && (
+                  <button
+                    onClick={() => setShowNotifyConfirm(true)}
+                    disabled={isNotifying}
+                    className="ml-auto rounded-md bg-amber-600 px-3 py-1 text-[11.5px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {isNotifying ? 'Sending…' : `Notify ${missingBankDetails.length} staff`}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1543,6 +1620,15 @@ export default function HrPayslipsPage(): JSX.Element {
         description="Staff will see figures as draft again and will not be able to print until you re-publish."
         confirmLabel="Revert to Draft"
         isLoading={isPublishing}
+      />
+      <ConfirmDialog
+        isOpen={showNotifyConfirm}
+        onClose={() => setShowNotifyConfirm(false)}
+        onConfirm={() => void handleNotifyMissing()}
+        title={`Notify ${missingBankDetails.length} staff about missing details?`}
+        description={`Each affected staff member will receive a formal notice asking them to add their bank account and KRA PIN under Profile → Payment Details.`}
+        confirmLabel={`Send ${missingBankDetails.length} notice${missingBankDetails.length === 1 ? '' : 's'}`}
+        isLoading={isNotifying}
       />
       <PayslipDetailModal
         payslip={selectedPayslip}
