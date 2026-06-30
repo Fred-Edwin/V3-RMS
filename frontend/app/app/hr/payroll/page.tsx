@@ -848,7 +848,7 @@ export default function HrPayslipsPage(): JSX.Element {
             bodyHtml:
               `<p>Hi ${r.name},</p>` +
               `<p>Payroll cannot pay you until your bank details are on file. ` +
-              `Please open <strong>Profile → Payment Details</strong> and add your ` +
+              `Please open your <strong>Payslips</strong> page and add your ` +
               `bank name, account number, and KRA PIN.</p>` +
               `<p>Do this before the next payroll run so your salary is included in the bank payment file.</p>`,
           }),
