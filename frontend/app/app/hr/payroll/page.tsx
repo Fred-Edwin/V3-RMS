@@ -7,7 +7,10 @@ import {
   ConfirmDialog,
   PageLayout,
   SkeletonTable,
+  TourButton,
 } from '@/components/ui';
+import { usePageTour } from '@/hooks/usePageTour';
+import { PAYROLL_TOUR_PAGE_KEY, payrollTourSteps } from './payroll-tour';
 import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
 import { PayslipTable } from '@/components/payslips/PayslipTable';
 import { useToast } from '@/hooks/useToast';
@@ -820,6 +823,17 @@ export default function HrPayslipsPage(): JSX.Element {
   // Only Directors and HR Managers may issue formal notices (matches the comms module).
   const canNotify = actorRole === 'DIRECTOR' || actorRole === 'HR_MANAGER';
 
+  // Guided tour for the Payroll Entry tab. The page is HR_MANAGER/DIRECTOR-scoped,
+  // but gate explicitly so no tour UI/auto-start leaks to other roles. Only enable
+  // once the entry tab's sheet has finished loading, so the anchored controls are
+  // in the DOM before driver.js measures them.
+  const canTour = actorRole === 'DIRECTOR' || actorRole === 'HR_MANAGER';
+  const { startTour } = usePageTour({
+    pageKey: PAYROLL_TOUR_PAGE_KEY,
+    steps: payrollTourSteps,
+    enabled: canTour && activeTab === 'entry' && !isLoadingSheet,
+  });
+
   const handleNotifyMissing = useCallback(async () => {
     if (!accessToken || missingBankDetails.length === 0) return;
     setIsNotifying(true);
@@ -918,13 +932,16 @@ export default function HrPayslipsPage(): JSX.Element {
   return (
     <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col [height:calc(100vh-56px)]">
       {/* Page header */}
-      <div className="px-6 pt-5 pb-3">
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Payroll</h1>
-        <p style={{ marginTop: 4, fontSize: 13, color: '#a8a29e' }}>Enter and manage staff payroll per pay period. Staff see figures as drafts in real time.</p>
+      <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4">
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Payroll</h1>
+          <p style={{ marginTop: 4, fontSize: 13, color: '#a8a29e' }}>Enter and manage staff payroll per pay period. Staff see figures as drafts in real time.</p>
+        </div>
+        {canTour && <TourButton onClick={startTour} className="flex-shrink-0" />}
       </div>
 
       {/* Main tabs (underline style) */}
-      <div className="flex border-b border-stone-200 px-6 flex-shrink-0">
+      <div data-tour="tabs" className="flex border-b border-stone-200 px-6 flex-shrink-0">
         {([['entry', 'Payroll Entry'], ['records', 'Payslip Records'], ['stale', 'Stale-Order Deductions']] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
@@ -951,6 +968,7 @@ export default function HrPayslipsPage(): JSX.Element {
             <div className="flex flex-col gap-1">
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Pay Period</span>
               <input
+                data-tour="pay-period"
                 type="month"
                 value={activePeriod}
                 onChange={(e) => e.target.value && setActivePeriod(e.target.value)}
@@ -961,6 +979,7 @@ export default function HrPayslipsPage(): JSX.Element {
             <div className="flex flex-col gap-1">
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Branch</span>
               <select
+                data-tour="branch"
                 value={selectedBranchId}
                 onChange={(e) => setSelectedBranchId(e.target.value)}
                 style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 140, cursor: 'pointer' }}
@@ -982,6 +1001,7 @@ export default function HrPayslipsPage(): JSX.Element {
             <div className="ml-auto flex items-center gap-2">
               {/* CSV exports — available in any branch scope, incl. all-branches */}
               <button
+                data-tour="export-bank"
                 onClick={handleExportBankFile}
                 disabled={rows.length === 0}
                 title="Strict CSV for the bank, grouped by branch (net pay per employee)"
@@ -995,6 +1015,7 @@ export default function HrPayslipsPage(): JSX.Element {
                 Bank File
               </button>
               <button
+                data-tour="export-register"
                 onClick={handleExportRegister}
                 disabled={rows.length === 0}
                 title="Full payroll register with all columns, branch subtotals & grand total"
@@ -1015,6 +1036,7 @@ export default function HrPayslipsPage(): JSX.Element {
                 </span>
               ) : isPublished ? (
                 <button
+                  data-tour="publish"
                   onClick={() => setShowRevertConfirm(true)}
                   disabled={isPublishing}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', height: 34, borderRadius: 8, border: '1px solid #ef4444', background: 'white', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
@@ -1023,6 +1045,7 @@ export default function HrPayslipsPage(): JSX.Element {
                 </button>
               ) : (
                 <button
+                  data-tour="publish"
                   onClick={() => setShowPublishConfirm(true)}
                   disabled={isPublishing || rows.length === 0}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 34, borderRadius: 8, background: '#1a0a00', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', opacity: (isPublishing || rows.length === 0) ? 0.5 : 1 }}
@@ -1046,7 +1069,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
           {/* Missing bank-details readiness banner */}
           {!isLoadingSheet && missingBankDetails.length > 0 && (
-            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900 flex-shrink-0">
+            <div data-tour="missing-bank" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900 flex-shrink-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <span className="flex items-center gap-2">
                   <span className="text-[14px]">⚠️</span>
@@ -1070,6 +1093,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
           {/* Sheet container */}
           <div
+            data-tour="sheet"
             className="flex flex-col flex-1 rounded-t-[20px] border border-stone-200 bg-white shadow-sm overflow-hidden min-h-0"
           >
             {/* Scrollable sheet area */}
@@ -1130,6 +1154,7 @@ export default function HrPayslipsPage(): JSX.Element {
                         EXTRAS
                       </td>
                       <td
+                        data-tour="computed"
                         colSpan={2}
                         style={{ background: '#1a5276', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
                       >
