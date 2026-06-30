@@ -20,6 +20,13 @@ import type { AppRole } from '@/types/auth';
 import type { Payslip } from '@/types/payslip';
 import type { WaiterLiabilitySummaryReport } from '@/types/waiterLiability';
 import { formatCurrency, formatPayPeriod } from '@/components/payslips/payslip-utils';
+import {
+  buildBankFileCsv,
+  buildPayrollRegisterCsv,
+  csvFilenameSlug,
+  downloadCsv,
+  type PayrollExportRow,
+} from '@/lib/payroll-csv';
 import { cn } from '@/lib/cn';
 
 type RowState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -28,6 +35,7 @@ interface SheetRow {
   userId: string;
   name: string;
   role: string;
+  branchName: string;
   grossPay: string;
   paye: string;
   sha: string;
@@ -42,6 +50,8 @@ interface SheetRow {
   allowances: string;
   kraPIN: string | null;
   bankAccount: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
   payslipId: string | null;
   state: RowState;
   errorMsg: string;
@@ -162,10 +172,11 @@ const formatSheetAccount = (accountNumber: string | null | undefined, bankName: 
   return bankName ? `${bankName} ${accountNumber}` : accountNumber;
 };
 
-const staffToRow = (staff: StaffDto): SheetRow => ({
+const staffToRow = (staff: StaffDto, branchName: string): SheetRow => ({
   userId: staff.id,
   name: staff.name,
   role: roleLabel(staff.role),
+  branchName,
   grossPay: '',
   paye: '',
   sha: '',
@@ -180,6 +191,8 @@ const staffToRow = (staff: StaffDto): SheetRow => ({
   allowances: '',
   kraPIN: null,
   bankAccount: null,
+  bankName: null,
+  accountNumber: null,
   payslipId: null,
   state: 'idle',
   errorMsg: '',
@@ -203,6 +216,8 @@ const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
     allowances: payslip.allowances ?? '',
     kraPIN: ep?.kraPIN ?? null,
     bankAccount: formatSheetAccount(ep?.accountNumber, ep?.bankName),
+    bankName: ep?.bankName ?? null,
+    accountNumber: ep?.accountNumber ?? null,
     payslipId: payslip.id,
     state: 'saved',
   };
@@ -306,7 +321,11 @@ export default function HrPayslipsPage(): JSX.Element {
     if (!accessToken) return;
     branchService.listBranches(accessToken)
       .then((loaded) => {
-        const active = loaded.filter((b) => b.isActive && !b.isHub);
+        // Sort A–Z so the branch dropdown, the all-branches sheet, and the CSV
+        // exports all present branches in the same alphabetical order.
+        const active = loaded
+          .filter((b) => b.isActive && !b.isHub)
+          .sort((a, b) => a.name.localeCompare(b.name));
         setBranches(active);
         // Auto-select first branch if no branch is pre-selected (avoids empty sheet on load)
         setSelectedBranchId((prev) => {
@@ -330,13 +349,73 @@ export default function HrPayslipsPage(): JSX.Element {
     [branches, selectedBranchId],
   );
 
+  // All-branches is a consolidated, read-only view: editing and publishing are
+  // per-branch, so here the sheet is for review + CSV export only.
+  const isAllBranches = !selectedBranchId;
+  // Cells are non-editable when a period is published OR in the all-branches view.
+  const editLocked = isPublished || isAllBranches;
+
+  // Build sheet rows for a single branch from its staff + payslips.
+  const buildBranchRows = useCallback((
+    branchName: string,
+    staffResult: StaffDto[],
+    payslips: Payslip[],
+  ): SheetRow[] => {
+    const eligible = staffResult
+      .filter((s) => !EXCLUDED_ROLES.has(s.role))
+      .sort((a, b) => {
+        const ra = SHEET_ROLE_ORDER[a.role] ?? 99;
+        const rb = SHEET_ROLE_ORDER[b.role] ?? 99;
+        if (ra !== rb) return ra - rb;
+        return a.name.localeCompare(b.name);
+      });
+    const payslipMap = new Map(payslips.map((p) => [p.userId, p]));
+
+    return eligible.map((staff) => {
+      const base = staffToRow(staff, branchName);
+      const existing = payslipMap.get(staff.id);
+      if (existing) {
+        const ep = existing.user.employeeProfile;
+        base.kraPIN = ep?.kraPIN ?? null;
+        base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
+        base.bankName = ep?.bankName ?? null;
+        base.accountNumber = ep?.accountNumber ?? null;
+        Object.assign(base, payslipToRow(existing));
+      }
+      return base;
+    });
+  }, []);
+
   const loadSheet = useCallback(async () => {
     if (!accessToken) return;
     setIsLoadingSheet(true);
     try {
-      const orgId = selectedBranchId || actorOrgId;
-      if (!orgId) { setIsLoadingSheet(false); return; }
+      // All-branches mode: no branch selected. Fan out across every active branch
+      // and concatenate into one consolidated, read-only sheet (editing/publish are
+      // per-branch, so the combined view is view + export only).
+      if (!selectedBranchId) {
+        if (branches.length === 0) { setIsLoadingSheet(false); return; }
 
+        const perBranch = await Promise.all(
+          branches.map(async (branch) => {
+            const [staffResult, payslipResult] = await Promise.all([
+              staffService.listStaff(accessToken, { organizationId: branch.id, isActive: true }),
+              payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, organizationId: branch.id, page: 1, perPage: 200 }),
+            ]);
+            return buildBranchRows(branch.name, staffResult, payslipResult.items);
+          }),
+        );
+
+        // Preserve branch order (branches[]), and within a branch the role/name sort.
+        const sheetRows = perBranch.flat();
+        setIsPublished(false);
+        setRows(sheetRows);
+        return;
+      }
+
+      const orgId = selectedBranchId;
+
+      const branchName = branches.find((b) => b.id === orgId)?.name ?? '';
       const [staffResult, payslipResult] = await Promise.all([
         staffService.listStaff(accessToken, { organizationId: orgId, isActive: true }),
         // Scope to the selected branch so isPublished reflects THIS branch only.
@@ -346,28 +425,7 @@ export default function HrPayslipsPage(): JSX.Element {
         payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, organizationId: orgId, page: 1, perPage: 200 }),
       ]);
 
-      const eligible = staffResult
-        .filter((s) => !EXCLUDED_ROLES.has(s.role))
-        .sort((a, b) => {
-          const ra = SHEET_ROLE_ORDER[a.role] ?? 99;
-          const rb = SHEET_ROLE_ORDER[b.role] ?? 99;
-          if (ra !== rb) return ra - rb;
-          return a.name.localeCompare(b.name);
-        });
-      const payslipMap = new Map(payslipResult.items.map((p) => [p.userId, p]));
-
-      const sheetRows: SheetRow[] = eligible.map((staff) => {
-        const base = staffToRow(staff);
-        const existing = payslipMap.get(staff.id);
-        if (existing) {
-          const ep = existing.user.employeeProfile;
-          base.kraPIN = ep?.kraPIN ?? null;
-          base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
-          Object.assign(base, payslipToRow(existing));
-        }
-        return base;
-      });
-
+      const sheetRows = buildBranchRows(branchName, staffResult, payslipResult.items);
       const allPublished = payslipResult.items.length > 0 && payslipResult.items.every((p) => p.isLocked);
       setIsPublished(allPublished);
       setRows(sheetRows);
@@ -376,7 +434,7 @@ export default function HrPayslipsPage(): JSX.Element {
     } finally {
       setIsLoadingSheet(false);
     }
-  }, [accessToken, activePeriod, selectedBranchId, actorOrgId, toast]);
+  }, [accessToken, activePeriod, selectedBranchId, branches, buildBranchRows, toast]);
 
   useEffect(() => {
     void loadSheet();
@@ -478,7 +536,7 @@ export default function HrPayslipsPage(): JSX.Element {
   };
 
   const handleCellMouseDown = (cell: SheetCellCoord) => {
-    if (isPublished) return;
+    if (editLocked) return;
     setActiveCell(cell);
     setSelection({ anchor: cell, focus: cell });
     setIsSelecting(true);
@@ -496,7 +554,7 @@ export default function HrPayslipsPage(): JSX.Element {
   };
 
   const finishPointerAction = useCallback(() => {
-    if (fillSelection && selection && !isPublished) {
+    if (fillSelection && selection && !editLocked) {
       const sourceBounds = getSelectionBounds(fillSelection);
       const targetBounds = getSelectionBounds(selection);
       const draggedPastSource = targetBounds.maxRow > sourceBounds.maxRow || targetBounds.maxCol > sourceBounds.maxCol;
@@ -519,7 +577,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
     setIsSelecting(false);
     setFillSelection(null);
-  }, [fillSelection, isPublished, selection, updateRowsBatch]);
+  }, [fillSelection, editLocked, selection, updateRowsBatch]);
 
   useEffect(() => {
     window.addEventListener('mouseup', finishPointerAction);
@@ -527,7 +585,7 @@ export default function HrPayslipsPage(): JSX.Element {
   }, [finishPointerAction]);
 
   const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>, startCell: SheetCellCoord) => {
-    if (isPublished) return;
+    if (editLocked) return;
 
     const grid = parseClipboardGrid(event.clipboardData.getData('text/plain'));
     if (grid.length === 0) return;
@@ -683,6 +741,68 @@ export default function HrPayslipsPage(): JSX.Element {
     error: rows.filter((r) => r.state === 'error').length,
   }), [rows]);
 
+  /* ── CSV exports ─────────────────────────────────────────────────── */
+  const toExportRows = useCallback((): PayrollExportRow[] =>
+    rows.map((r) => {
+      const { totalDeductions, netSalary } = computeRow(r);
+      const num = (v: string) => Number(v || 0);
+      return {
+        branchName: r.branchName || selectedBranchName,
+        name: r.name,
+        role: r.role,
+        kraPIN: r.kraPIN,
+        bankName: r.bankName,
+        accountNumber: r.accountNumber,
+        grossPay: num(r.grossPay),
+        paye: num(r.paye),
+        sha: num(r.sha),
+        nssfTier1: num(r.nssfTier1),
+        nssfTier2: num(r.nssfTier2),
+        housingLevy: num(r.housingLevy),
+        ncnsAmount: num(r.ncnsAmount),
+        ncnsNote: r.ncnsNote,
+        advance: num(r.advance),
+        incentives: num(r.incentives),
+        overtime: num(r.overtime),
+        allowances: num(r.allowances),
+        totalDeductions,
+        netSalary,
+      };
+    }), [rows, selectedBranchName]);
+
+  const exportSlug = useCallback(() => {
+    const period = csvFilenameSlug(formatPayPeriod(activePeriod));
+    const scope = isAllBranches ? 'All-Branches' : csvFilenameSlug(selectedBranchName);
+    return `${scope}-${period}`;
+  }, [activePeriod, isAllBranches, selectedBranchName]);
+
+  const handleExportBankFile = useCallback(() => {
+    if (rows.length === 0) return;
+    const { csv, excluded, includedCount } = buildBankFileCsv(toExportRows());
+    if (!csv) {
+      toast({ variant: 'error', title: 'Nothing to export', message: 'No staff have a bank account and a payable net salary for this period.' });
+      return;
+    }
+    downloadCsv(`Wendo-Bank-Payment-${exportSlug()}.csv`, csv);
+    if (excluded.length > 0) {
+      toast({
+        variant: 'success',
+        title: `Bank file exported · ${includedCount} staff`,
+        message: `${excluded.length} excluded (no bank account or zero net): ${excluded.slice(0, 5).join(', ')}${excluded.length > 5 ? '…' : ''}`,
+      });
+    } else {
+      toast({ variant: 'success', title: 'Bank file exported', message: `${includedCount} staff included.` });
+    }
+  }, [rows.length, toExportRows, exportSlug, toast]);
+
+  const handleExportRegister = useCallback(() => {
+    if (rows.length === 0) return;
+    const generated = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Nairobi' }).format(new Date());
+    const csv = buildPayrollRegisterCsv(toExportRows(), formatPayPeriod(activePeriod), generated);
+    downloadCsv(`Wendo-Payroll-Register-${exportSlug()}.csv`, csv);
+    toast({ variant: 'success', title: 'Payroll register exported', message: `${rows.length} staff across ${isAllBranches ? 'all branches' : selectedBranchName}.` });
+  }, [rows.length, toExportRows, exportSlug, activePeriod, isAllBranches, selectedBranchName, toast]);
+
   /* ── Shared cell class helpers ─── */
   const inp = (extra = '') =>
     `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
@@ -709,7 +829,7 @@ export default function HrPayslipsPage(): JSX.Element {
 
   const inputEvents = (cell: SheetCellCoord) => ({
     onFocus: () => {
-      if (isPublished) return;
+      if (editLocked) return;
       setActiveCell(cell);
       setSelection({ anchor: cell, focus: cell });
     },
@@ -717,7 +837,7 @@ export default function HrPayslipsPage(): JSX.Element {
   });
 
   const fillHandle = (cell: SheetCellCoord) => {
-    if (isPublished || !isBottomRightSelectionCell(cell, selection)) return null;
+    if (editLocked || !isBottomRightSelectionCell(cell, selection)) return null;
 
     return (
       <span
@@ -807,7 +927,40 @@ export default function HrPayslipsPage(): JSX.Element {
             />
 
             <div className="ml-auto flex items-center gap-2">
-              {isPublished ? (
+              {/* CSV exports — available in any branch scope, incl. all-branches */}
+              <button
+                onClick={handleExportBankFile}
+                disabled={rows.length === 0}
+                title="Strict CSV for the bank, grouped by branch (net pay per employee)"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #1f6e43', background: 'white', color: '#1f6e43', fontSize: 12, fontWeight: 600, cursor: rows.length === 0 ? 'not-allowed' : 'pointer', opacity: rows.length === 0 ? 0.5 : 1 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Bank File
+              </button>
+              <button
+                onClick={handleExportRegister}
+                disabled={rows.length === 0}
+                title="Full payroll register with all columns, branch subtotals & grand total"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #d6d3d1', background: 'white', color: '#57534e', fontSize: 12, fontWeight: 600, cursor: rows.length === 0 ? 'not-allowed' : 'pointer', opacity: rows.length === 0 ? 0.5 : 1 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Full Register
+              </button>
+
+              {/* Publish/Revert are per-branch only — hidden in the consolidated all-branches view */}
+              {isAllBranches ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, paddingLeft: 6, fontSize: 11.5, color: '#a8a29e', fontStyle: 'italic' }}>
+                  View &amp; export only · pick a branch to edit or publish
+                </span>
+              ) : isPublished ? (
                 <button
                   onClick={() => setShowRevertConfirm(true)}
                   disabled={isPublishing}
@@ -951,7 +1104,10 @@ export default function HrPayslipsPage(): JSX.Element {
                   <tbody>
                     {rows.map((row, idx) => {
                       const { totalDeductions, netSalary } = computeRow(row);
+                      // `locked` controls the greyed "published" look; inputs are
+                      // additionally disabled in the read-only all-branches view.
                       const locked = isPublished;
+                      const inputsDisabled = editLocked;
                       const isEven = idx % 2 === 1;
                       const rowBg = locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff';
                       const c = (columnKey: EditableColumnKey): SheetCellCoord => ({ rowIndex: idx, columnKey });
@@ -978,43 +1134,45 @@ export default function HrPayslipsPage(): JSX.Element {
                           {/* Name (sticky) — clean: name on top, role below, no badges */}
                           <td style={{ border: '1px solid #d0d0d0', borderRight: '2px solid #d6d3d1', padding: '0 8px', verticalAlign: 'middle', overflow: 'hidden', fontSize: 12, position: 'sticky', left: 32, background: locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff', zIndex: 4, height: 40 }}>
                             <div style={{ fontWeight: 600, color: locked ? '#999' : '#1a0a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</div>
-                            <div style={{ fontSize: 9, color: '#b0a9a4', marginTop: 1 }}>{row.role}</div>
+                            <div style={{ fontSize: 9, color: '#b0a9a4', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {row.role}{isAllBranches && row.branchName ? ` · ${row.branchName}` : ''}
+                            </div>
                           </td>
 
                           {/* GROSS */}
                           <td style={editableCellStyle(c('grossPay'), locked ? '#f0f0f0' : isEven ? '#eaf4e6' : '#f0f7ee')} {...cellEvents(c('grossPay'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.grossPay} placeholder="0" {...inputEvents(c('grossPay'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.grossPay} placeholder="0" {...inputEvents(c('grossPay'))}
                               onChange={(e) => updateRow(row.userId, 'grossPay', e.target.value)} />
                             {fillHandle(c('grossPay'))}
                           </td>
 
                           {/* PAYE */}
                           <td style={editableCellStyle(c('paye'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('paye'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.paye} placeholder="0" {...inputEvents(c('paye'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.paye} placeholder="0" {...inputEvents(c('paye'))}
                               onChange={(e) => updateRow(row.userId, 'paye', e.target.value)} />
                             {fillHandle(c('paye'))}
                           </td>
                           {/* SHA */}
                           <td style={editableCellStyle(c('sha'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('sha'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.sha} placeholder="0" {...inputEvents(c('sha'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.sha} placeholder="0" {...inputEvents(c('sha'))}
                               onChange={(e) => updateRow(row.userId, 'sha', e.target.value)} />
                             {fillHandle(c('sha'))}
                           </td>
                           {/* NSSF T1 */}
                           <td style={editableCellStyle(c('nssfTier1'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier1'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier1} placeholder="0" {...inputEvents(c('nssfTier1'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.nssfTier1} placeholder="0" {...inputEvents(c('nssfTier1'))}
                               onChange={(e) => updateRow(row.userId, 'nssfTier1', e.target.value)} />
                             {fillHandle(c('nssfTier1'))}
                           </td>
                           {/* NSSF T2 */}
                           <td style={editableCellStyle(c('nssfTier2'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier2'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.nssfTier2} placeholder="0" {...inputEvents(c('nssfTier2'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.nssfTier2} placeholder="0" {...inputEvents(c('nssfTier2'))}
                               onChange={(e) => updateRow(row.userId, 'nssfTier2', e.target.value)} />
                             {fillHandle(c('nssfTier2'))}
                           </td>
                           {/* Housing Levy */}
                           <td style={editableCellStyle(c('housingLevy'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('housingLevy'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.housingLevy} placeholder="0" {...inputEvents(c('housingLevy'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.housingLevy} placeholder="0" {...inputEvents(c('housingLevy'))}
                               onChange={(e) => updateRow(row.userId, 'housingLevy', e.target.value)} />
                             {fillHandle(c('housingLevy'))}
                           </td>
@@ -1023,7 +1181,7 @@ export default function HrPayslipsPage(): JSX.Element {
                           <td style={{ ...editableCellStyle(c('ncnsAmount'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee'), padding: 0 }} {...cellEvents(c('ncnsAmount'))}>
                             <div style={{ display: 'flex', flexDirection: 'column', height: 40 }}>
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                                <input disabled={locked} style={inputStyle} className={inp()} value={row.ncnsAmount} placeholder="0" {...inputEvents(c('ncnsAmount'))}
+                                <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.ncnsAmount} placeholder="0" {...inputEvents(c('ncnsAmount'))}
                                   onChange={(e) => updateRow(row.userId, 'ncnsAmount', e.target.value)} />
                               </div>
                               <div
@@ -1038,7 +1196,7 @@ export default function HrPayslipsPage(): JSX.Element {
                                 }}
                                 {...cellEvents(c('ncnsNote'))}
                               >
-                                <input disabled={locked} style={{ ...inputStyle, fontSize: 10, color: '#a8a29e', fontStyle: 'italic' }} className={inp()} value={row.ncnsNote} placeholder="note…" {...inputEvents(c('ncnsNote'))}
+                                <input disabled={inputsDisabled} style={{ ...inputStyle, fontSize: 10, color: '#a8a29e', fontStyle: 'italic' }} className={inp()} value={row.ncnsNote} placeholder="note…" {...inputEvents(c('ncnsNote'))}
                                   onChange={(e) => updateRow(row.userId, 'ncnsNote', e.target.value)} />
                                 {fillHandle(c('ncnsNote'))}
                               </div>
@@ -1048,25 +1206,25 @@ export default function HrPayslipsPage(): JSX.Element {
 
                           {/* Advance */}
                           <td style={editableCellStyle(c('advance'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('advance'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.advance} placeholder="—" {...inputEvents(c('advance'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.advance} placeholder="—" {...inputEvents(c('advance'))}
                               onChange={(e) => updateRow(row.userId, 'advance', e.target.value)} />
                             {fillHandle(c('advance'))}
                           </td>
                           {/* Incentives */}
                           <td style={editableCellStyle(c('incentives'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('incentives'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.incentives} placeholder="—" {...inputEvents(c('incentives'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.incentives} placeholder="—" {...inputEvents(c('incentives'))}
                               onChange={(e) => updateRow(row.userId, 'incentives', e.target.value)} />
                             {fillHandle(c('incentives'))}
                           </td>
                           {/* OT */}
                           <td style={editableCellStyle(c('overtime'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('overtime'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.overtime} placeholder="—" {...inputEvents(c('overtime'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.overtime} placeholder="—" {...inputEvents(c('overtime'))}
                               onChange={(e) => updateRow(row.userId, 'overtime', e.target.value)} />
                             {fillHandle(c('overtime'))}
                           </td>
                           {/* Allowances */}
                           <td style={editableCellStyle(c('allowances'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('allowances'))}>
-                            <input disabled={locked} style={inputStyle} className={inp()} value={row.allowances} placeholder="—" {...inputEvents(c('allowances'))}
+                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.allowances} placeholder="—" {...inputEvents(c('allowances'))}
                               onChange={(e) => updateRow(row.userId, 'allowances', e.target.value)} />
                             {fillHandle(c('allowances'))}
                           </td>
@@ -1155,10 +1313,10 @@ export default function HrPayslipsPage(): JSX.Element {
             {/* Status bar (Excel-style green bar) */}
             <div style={{ height: 22, background: '#217346', color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', fontSize: 11, flexShrink: 0, fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif" }}>
               <span>
-                {isPublished ? 'Published' : 'Draft'} · {rows.length} staff
-                {statusCounts.saved > 0 && !isPublished && ` · ${statusCounts.saved} saved`}
-                {statusCounts.dirty > 0 && ` · ${statusCounts.dirty} pending`}
-                {statusCounts.error > 0 && ` · ${statusCounts.error} error`}
+                {isAllBranches ? `All branches · ${branches.length} branches` : isPublished ? 'Published' : 'Draft'} · {rows.length} staff
+                {!isAllBranches && statusCounts.saved > 0 && !isPublished && ` · ${statusCounts.saved} saved`}
+                {!isAllBranches && statusCounts.dirty > 0 && ` · ${statusCounts.dirty} pending`}
+                {!isAllBranches && statusCounts.error > 0 && ` · ${statusCounts.error} error`}
               </span>
               <div style={{ display: 'flex', gap: 20 }}>
                 <span><span style={{ opacity: 0.65, marginRight: 4 }}>Gross:</span><strong>Ksh {formatCurrency(totals.grossPay.toFixed(2))}</strong></span>
