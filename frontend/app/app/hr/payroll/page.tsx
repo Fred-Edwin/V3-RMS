@@ -26,11 +26,11 @@ import type { WaiterLiabilitySummaryReport } from '@/types/waiterLiability';
 import { formatCurrency, formatPayPeriod } from '@/components/payslips/payslip-utils';
 import {
   buildBankFileCsv,
-  buildPayrollRegisterCsv,
   csvFilenameSlug,
   downloadCsv,
   type PayrollExportRow,
 } from '@/lib/payroll-csv';
+import { buildPayrollRegisterWorkbook, downloadBlob } from '@/lib/payroll-xlsx';
 import { cn } from '@/lib/cn';
 
 type RowState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -804,12 +804,17 @@ export default function HrPayslipsPage(): JSX.Element {
     }
   }, [rows.length, toExportRows, exportSlug, toast]);
 
-  const handleExportRegister = useCallback(() => {
+  const handleExportRegister = useCallback(async () => {
     if (rows.length === 0) return;
     const generated = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Nairobi' }).format(new Date());
-    const csv = buildPayrollRegisterCsv(toExportRows(), formatPayPeriod(activePeriod), generated);
-    downloadCsv(`Wendo-Payroll-Register-${exportSlug()}.csv`, csv);
-    toast({ variant: 'success', title: 'Payroll register exported', message: `${rows.length} staff across ${isAllBranches ? 'all branches' : selectedBranchName}.` });
+    const scopeLabel = isAllBranches ? 'All Branches' : selectedBranchName;
+    try {
+      const blob = await buildPayrollRegisterWorkbook(toExportRows(), formatPayPeriod(activePeriod), generated, scopeLabel);
+      downloadBlob(`Wendo-Payroll-Register-${exportSlug()}.xlsx`, blob);
+      toast({ variant: 'success', title: 'Payroll register exported', message: `${rows.length} staff across ${isAllBranches ? 'all branches' : selectedBranchName}.` });
+    } catch {
+      toast({ variant: 'error', title: 'Export failed', message: 'Could not build the Excel workbook. Please try again.' });
+    }
   }, [rows.length, toExportRows, exportSlug, activePeriod, isAllBranches, selectedBranchName, toast]);
 
   /* ── Missing bank-account readiness ──────────────────────────────── */
@@ -1018,7 +1023,7 @@ export default function HrPayslipsPage(): JSX.Element {
                 data-tour="export-register"
                 onClick={handleExportRegister}
                 disabled={rows.length === 0}
-                title="Full payroll register with all columns, branch subtotals & grand total"
+                title="Full payroll register as a formatted Excel workbook — all columns, branch subtotals & grand total"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #d6d3d1', background: 'white', color: '#57534e', fontSize: 12, fontWeight: 600, cursor: rows.length === 0 ? 'not-allowed' : 'pointer', opacity: rows.length === 0 ? 0.5 : 1 }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1026,7 +1031,7 @@ export default function HrPayslipsPage(): JSX.Element {
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Full Register
+                Full Register (Excel)
               </button>
 
               {/* Publish/Revert are per-branch only — hidden in the consolidated all-branches view */}
