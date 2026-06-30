@@ -294,7 +294,6 @@ export default function HrPayslipsPage(): JSX.Element {
   const [isPublishing, setIsPublishing] = useState(false);
 
   // Missing-bank-details readiness + notify flow.
-  const [showMissingList, setShowMissingList] = useState(false);
   const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
 
@@ -1056,37 +1055,16 @@ export default function HrPayslipsPage(): JSX.Element {
                     {' '}— they will be excluded from the bank payment file.
                   </span>
                 </span>
-                <div className="ml-auto flex items-center gap-2">
+                {canNotify && (
                   <button
-                    onClick={() => setShowMissingList((v) => !v)}
-                    className="rounded-md border border-amber-300 bg-white px-2.5 py-1 text-[11.5px] font-medium text-amber-800 hover:bg-amber-100"
+                    onClick={() => setShowNotifyConfirm(true)}
+                    disabled={isNotifying}
+                    className="ml-auto rounded-md bg-amber-600 px-3 py-1 text-[11.5px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
                   >
-                    {showMissingList ? 'Hide names' : 'View names'}
+                    {isNotifying ? 'Sending…' : `Notify ${missingBankDetails.length} staff`}
                   </button>
-                  {canNotify && (
-                    <button
-                      onClick={() => setShowNotifyConfirm(true)}
-                      disabled={isNotifying}
-                      className="rounded-md bg-amber-600 px-3 py-1 text-[11.5px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-                    >
-                      {isNotifying ? 'Sending…' : `Notify ${missingBankDetails.length} staff`}
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
-              {showMissingList && (
-                <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 border-t border-amber-200 pt-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {missingBankDetails.map((r) => (
-                    <li key={r.userId} className="flex items-center gap-2 text-[11.5px] text-amber-900">
-                      <span className="size-1 shrink-0 rounded-full bg-amber-500" />
-                      <span className="truncate">
-                        {r.name}
-                        <span className="text-amber-700/70"> · {r.role}{isAllBranches && r.branchName ? ` · ${r.branchName}` : ''}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
 
