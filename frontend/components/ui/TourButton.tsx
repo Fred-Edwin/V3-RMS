@@ -1,6 +1,6 @@
 'use client';
 
-import { Compass } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface TourButtonProps {
@@ -30,7 +30,7 @@ export function TourButton({ onClick, label = 'Take the tour', className }: Tour
         className,
       )}
     >
-      <Compass size={14} strokeWidth={2} aria-hidden />
+      <HelpCircle size={14} strokeWidth={2} aria-hidden />
       {label}
     </button>
   );
