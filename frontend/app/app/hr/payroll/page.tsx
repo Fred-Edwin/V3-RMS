@@ -15,7 +15,7 @@ import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
 import { PayslipTable } from '@/components/payslips/PayslipTable';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
-import { commsService } from '@/services/commsService';
+import { updateEmployeeProfile } from '@/services/hrService';
 import { payslipService } from '@/services/payslipService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { waiterLiabilityService } from '@/services/waiterLiabilityService';
@@ -31,6 +31,7 @@ import {
   type PayrollExportRow,
 } from '@/lib/payroll-csv';
 import { buildPayrollRegisterWorkbook, downloadBlob } from '@/lib/payroll-xlsx';
+import { buildStaffDetailPatch, formatSheetAccount } from '@/lib/payroll-staff-details';
 import { cn } from '@/lib/cn';
 
 type RowState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -171,11 +172,6 @@ const SHEET_ROLE_ORDER: Record<string, number> = {
 const roleLabel = (role: string) =>
   role.toLowerCase().split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-const formatSheetAccount = (accountNumber: string | null | undefined, bankName: string | null | undefined): string | null => {
-  if (!accountNumber) return null;
-  return bankName ? `${bankName} ${accountNumber}` : accountNumber;
-};
-
 const staffToRow = (staff: StaffDto, branchName: string): SheetRow => ({
   userId: staff.id,
   name: staff.name,
@@ -296,10 +292,6 @@ export default function HrPayslipsPage(): JSX.Element {
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Missing-bank-details readiness + notify flow.
-  const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
-  const [isNotifying, setIsNotifying] = useState(false);
-
   const [records, setRecords] = useState<Payslip[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [recordPeriod, setRecordPeriod] = useState('');
@@ -325,6 +317,12 @@ export default function HrPayslipsPage(): JSX.Element {
   const selectionRef = useRef<SheetSelection | null>(null);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
   useEffect(() => { selectionRef.current = selection; }, [selection]);
+
+  // Staff-detail (KRA PIN / bank) edits persist to the employee profile via a
+  // separate path from the money-field auto-save (which upserts payslips). Keyed
+  // by userId so a save dot can show per row independent of the payslip state.
+  const staffDetailTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [staffDetailState, setStaffDetailState] = useState<Record<string, RowState>>({});
 
   useEffect(() => {
     if (!accessToken) return;
@@ -542,6 +540,58 @@ export default function HrPayslipsPage(): JSX.Element {
       ),
     );
     scheduleAutoSave(userId);
+  };
+
+  /* ── Staff payment details (KRA PIN / bank) ───────────────────────── */
+  // These are employee-profile attributes, not period figures, so they persist
+  // to PATCH /hr/profiles/:userId (HR_MANAGER/DIRECTOR-gated) — independent of
+  // the payslip money auto-save and always editable, even for published periods.
+  type StaffDetailField = 'kraPIN' | 'bankName' | 'accountNumber';
+
+  // Persist all three staff-detail fields together on each debounced flush, so a
+  // quick edit of one field can never drop an unsaved edit of another on the same row.
+  const saveStaffDetail = useCallback(async (userId: string) => {
+    if (!accessToken) return;
+    const row = rowsRef.current.find((r) => r.userId === userId);
+    if (!row) return;
+
+    setStaffDetailState((prev) => ({ ...prev, [userId]: 'saving' }));
+    try {
+      await updateEmployeeProfile(userId, buildStaffDetailPatch(row), accessToken);
+      // Keep the derived bankAccount display string in sync with its parts.
+      setRows((prev) =>
+        prev.map((r) =>
+          r.userId === userId
+            ? { ...r, bankAccount: formatSheetAccount(r.accountNumber, r.bankName) }
+            : r,
+        ),
+      );
+      setStaffDetailState((prev) => ({ ...prev, [userId]: 'saved' }));
+    } catch (error) {
+      setStaffDetailState((prev) => ({ ...prev, [userId]: 'error' }));
+      toast({
+        variant: 'error',
+        title: 'Could not save staff detail',
+        message: error instanceof Error ? error.message : 'Please try again.',
+      });
+    }
+  }, [accessToken, toast]);
+
+  const updateStaffDetail = (userId: string, field: StaffDetailField, value: string) => {
+    setRows((prev) =>
+      prev.map((row) => (row.userId === userId ? { ...row, [field]: value } : row)),
+    );
+    setStaffDetailState((prev) => ({ ...prev, [userId]: 'dirty' }));
+    if (staffDetailTimers.current[userId]) clearTimeout(staffDetailTimers.current[userId]);
+    staffDetailTimers.current[userId] = setTimeout(() => { void saveStaffDetail(userId); }, 1500);
+  };
+
+  // Save immediately on blur (cancel the pending debounce), but only if there is
+  // an unsaved edit — avoids a redundant PATCH when tabbing through unchanged cells.
+  const flushStaffDetail = (userId: string) => {
+    if (staffDetailState[userId] !== 'dirty') return;
+    if (staffDetailTimers.current[userId]) clearTimeout(staffDetailTimers.current[userId]);
+    void saveStaffDetail(userId);
   };
 
   const handleCellMouseDown = (cell: SheetCellCoord) => {
@@ -817,17 +867,6 @@ export default function HrPayslipsPage(): JSX.Element {
     }
   }, [rows.length, toExportRows, exportSlug, activePeriod, isAllBranches, selectedBranchName, toast]);
 
-  /* ── Missing bank-account readiness ──────────────────────────────── */
-  // Staff with no bank account are silently excluded from the bank file. Surface
-  // them so HR/Director can chase the details before the next payroll run.
-  const missingBankDetails = useMemo(
-    () => rows.filter((r) => !(r.accountNumber && r.accountNumber.trim())),
-    [rows],
-  );
-
-  // Only Directors and HR Managers may issue formal notices (matches the comms module).
-  const canNotify = actorRole === 'DIRECTOR' || actorRole === 'HR_MANAGER';
-
   // Guided tour for the Payroll Entry tab. The page is HR_MANAGER/DIRECTOR-scoped,
   // but gate explicitly so no tour UI/auto-start leaks to other roles. Only enable
   // once the entry tab's sheet has finished loading, so the anchored controls are
@@ -838,42 +877,6 @@ export default function HrPayslipsPage(): JSX.Element {
     steps: payrollTourSteps,
     enabled: canTour && activeTab === 'entry' && !isLoadingSheet,
   });
-
-  const handleNotifyMissing = useCallback(async () => {
-    if (!accessToken || missingBankDetails.length === 0) return;
-    setIsNotifying(true);
-    try {
-      // One personalised formal notice per affected employee — the issueNotice API
-      // targets a single user per call, so we fan out.
-      const results = await Promise.allSettled(
-        missingBankDetails.map((r) =>
-          commsService.issueNotice(accessToken, {
-            targetUserId: r.userId,
-            subject: 'Action needed: add your bank & payment details',
-            bodyHtml:
-              `<p>Hi ${r.name},</p>` +
-              `<p>Payroll cannot pay you until your bank details are on file. ` +
-              `Please open your <strong>Payslips</strong> page and add your ` +
-              `bank name, account number, and KRA PIN.</p>` +
-              `<p>Do this before the next payroll run so your salary is included in the bank payment file.</p>`,
-          }),
-        ),
-      );
-
-      const sent = results.filter((x) => x.status === 'fulfilled').length;
-      const failed = results.length - sent;
-      if (failed === 0) {
-        toast({ variant: 'success', title: 'Staff notified', message: `Sent a payment-details notice to ${sent} staff member${sent === 1 ? '' : 's'}.` });
-      } else {
-        toast({ variant: 'error', title: `Notified ${sent}, ${failed} failed`, message: 'Some notices could not be sent. Please retry.' });
-      }
-    } catch (error) {
-      toast({ variant: 'error', title: 'Failed to notify staff', message: error instanceof Error ? error.message : 'Please try again.' });
-    } finally {
-      setIsNotifying(false);
-      setShowNotifyConfirm(false);
-    }
-  }, [accessToken, missingBankDetails, toast]);
 
   /* ── Shared cell class helpers ─── */
   const inp = (extra = '') =>
@@ -1072,30 +1075,6 @@ export default function HrPayslipsPage(): JSX.Element {
             </div>
           )}
 
-          {/* Missing bank-details readiness banner */}
-          {!isLoadingSheet && missingBankDetails.length > 0 && (
-            <div data-tour="missing-bank" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-900 flex-shrink-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="flex items-center gap-2">
-                  <span className="text-[14px]">⚠️</span>
-                  <span>
-                    <strong>{missingBankDetails.length} of {rows.length} staff are missing bank details</strong>
-                    {' '}— they will be excluded from the bank payment file.
-                  </span>
-                </span>
-                {canNotify && (
-                  <button
-                    onClick={() => setShowNotifyConfirm(true)}
-                    disabled={isNotifying}
-                    className="ml-auto rounded-md bg-amber-600 px-3 py-1 text-[11.5px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {isNotifying ? 'Sending…' : `Notify ${missingBankDetails.length} staff`}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Sheet container */}
           <div
             data-tour="sheet"
@@ -1107,7 +1086,7 @@ export default function HrPayslipsPage(): JSX.Element {
                 <div className="p-6"><SkeletonTable rows={6} columns={12} /></div>
               ) : (
                 <table
-                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: '12px', width: 1880, minWidth: 1880, tableLayout: 'fixed' }}
+                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: '12px', width: 1920, minWidth: 1920, tableLayout: 'fixed' }}
                 >
                   <colgroup>
                     <col style={{ width: 32, minWidth: 32 }} />
@@ -1126,7 +1105,8 @@ export default function HrPayslipsPage(): JSX.Element {
                     <col style={{ width: 100, minWidth: 100 }} />
                     <col style={{ width: 100, minWidth: 100 }} />
                     <col style={{ width: 140, minWidth: 140 }} />
-                    <col style={{ width: 260, minWidth: 260 }} />
+                    <col style={{ width: 150, minWidth: 150 }} />
+                    <col style={{ width: 150, minWidth: 150 }} />
                   </colgroup>
 
                   <thead>
@@ -1166,10 +1146,11 @@ export default function HrPayslipsPage(): JSX.Element {
                         COMPUTED
                       </td>
                       <td
-                        colSpan={2}
-                        style={{ background: '#78716c', border: '1px solid rgba(255,255,255,0.25)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.85)', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
+                        data-tour="staff-details"
+                        colSpan={3}
+                        style={{ background: '#78716c', border: '1px solid rgba(255,255,255,0.25)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
                       >
-                        STAFF DETAILS (read-only)
+                        STAFF DETAILS
                       </td>
                     </tr>
 
@@ -1202,9 +1183,10 @@ export default function HrPayslipsPage(): JSX.Element {
                       {/* Computed */}
                       <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Total<br />Deductions</th>
                       <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Net<br />Salary</th>
-                      {/* Ref */}
+                      {/* Staff details (editable) */}
                       <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', borderLeft: '2px solid #d6d3d1', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>KRA PIN</th>
-                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>Bank Account</th>
+                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>Bank<br />Name</th>
+                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>Account<br />Number</th>
                     </tr>
                   </thead>
 
@@ -1345,13 +1327,41 @@ export default function HrPayslipsPage(): JSX.Element {
                             {Number(row.grossPay || 0) === 0 ? <span style={{ color: '#ccc' }}>—</span> : formatCurrency(netSalary.toFixed(2))}
                           </td>
 
-                          {/* KRA PIN (ref) */}
-                          <td style={{ border: '1px solid #d0d0d0', borderLeft: '2px solid #e7e5e4', background: row.kraPIN ? '#fafafa' : '#fffbeb', textAlign: 'center', padding: '0 6px', fontSize: 11, color: row.kraPIN ? '#57534e' : '#d97706', verticalAlign: 'middle', fontStyle: row.kraPIN ? 'normal' : 'italic' }}>
-                            {row.kraPIN ?? '— Not set'}
+                          {/* KRA PIN (editable) */}
+                          <td style={staffCellStyle(!!row.kraPIN, true)}>
+                            <input
+                              value={row.kraPIN ?? ''}
+                              placeholder="Not set"
+                              style={staffInputStyle}
+                              onChange={(e) => updateStaffDetail(row.userId, 'kraPIN', e.target.value)}
+                              onBlur={() => flushStaffDetail(row.userId)}
+                            />
                           </td>
-                          {/* Bank Account (ref) */}
-                          <td style={{ border: '1px solid #d0d0d0', background: row.bankAccount ? '#fafafa' : '#fffbeb', textAlign: 'center', padding: '0 6px', fontSize: 11, color: row.bankAccount ? '#57534e' : '#d97706', verticalAlign: 'middle', fontStyle: row.bankAccount ? 'normal' : 'italic' }}>
-                            {row.bankAccount ?? '— Not set'}
+                          {/* Bank Name (editable) */}
+                          <td style={staffCellStyle(!!row.bankName, false)}>
+                            <input
+                              value={row.bankName ?? ''}
+                              placeholder="Not set"
+                              style={staffInputStyle}
+                              onChange={(e) => updateStaffDetail(row.userId, 'bankName', e.target.value)}
+                              onBlur={() => flushStaffDetail(row.userId)}
+                            />
+                          </td>
+                          {/* Account Number (editable) */}
+                          <td style={{ ...staffCellStyle(!!row.accountNumber, false), position: 'relative' }}>
+                            <input
+                              value={row.accountNumber ?? ''}
+                              placeholder="Not set"
+                              style={staffInputStyle}
+                              onChange={(e) => updateStaffDetail(row.userId, 'accountNumber', e.target.value)}
+                              onBlur={() => flushStaffDetail(row.userId)}
+                            />
+                            {staffDetailState[row.userId] && staffDetailState[row.userId] !== 'saved' && (
+                              <span
+                                title={staffDetailState[row.userId] === 'error' ? 'Save failed' : staffDetailState[row.userId] === 'saving' ? 'Saving…' : 'Unsaved'}
+                                style={{ position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: '50%', background: staffDetailState[row.userId] === 'error' ? '#ef4444' : '#f59e0b' }}
+                              />
+                            )}
                           </td>
                         </tr>
                       );
@@ -1379,7 +1389,10 @@ export default function HrPayslipsPage(): JSX.Element {
                           {rows.filter(r => r.kraPIN).length} of {rows.length} set
                         </td>
                         <td style={{ border: '1px solid #d0d0d0', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>
-                          {rows.filter(r => r.bankAccount).length} of {rows.length} set
+                          {rows.filter(r => r.bankName).length} of {rows.length} set
+                        </td>
+                        <td style={{ border: '1px solid #d0d0d0', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>
+                          {rows.filter(r => r.accountNumber).length} of {rows.length} set
                         </td>
                       </tr>
                     )}
@@ -1651,15 +1664,6 @@ export default function HrPayslipsPage(): JSX.Element {
         confirmLabel="Revert to Draft"
         isLoading={isPublishing}
       />
-      <ConfirmDialog
-        isOpen={showNotifyConfirm}
-        onClose={() => setShowNotifyConfirm(false)}
-        onConfirm={() => void handleNotifyMissing()}
-        title={`Notify ${missingBankDetails.length} staff about missing details?`}
-        description={`Each affected staff member will receive a formal notice asking them to add their bank account and KRA PIN under Profile → Payment Details.`}
-        confirmLabel={`Send ${missingBankDetails.length} notice${missingBankDetails.length === 1 ? '' : 's'}`}
-        isLoading={isNotifying}
-      />
       <PayslipDetailModal
         payslip={selectedPayslip}
         isOpen={isDetailOpen}
@@ -1729,6 +1733,32 @@ const inputStyle: React.CSSProperties = {
   fontSize: 12,
   color: '#1a0a00',
   textAlign: 'right',
+  padding: '0 6px',
+};
+
+// Editable staff-detail cell (KRA PIN / bank). Amber wash when empty so HR can
+// still spot missing details at a glance now that the banner is gone.
+function staffCellStyle(hasValue: boolean, leftBorder: boolean): React.CSSProperties {
+  return {
+    border: '1px solid #d0d0d0',
+    ...(leftBorder ? { borderLeft: '2px solid #e7e5e4' } : {}),
+    background: hasValue ? '#fafafa' : '#fffbeb',
+    padding: 0,
+    height: 40,
+    verticalAlign: 'middle',
+  };
+}
+
+const staffInputStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
+  fontSize: 11,
+  color: '#57534e',
+  textAlign: 'center',
   padding: '0 6px',
 };
 

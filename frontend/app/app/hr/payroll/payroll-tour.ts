@@ -3,9 +3,8 @@ import type { TourStep } from '@/lib/tour/types';
 /**
  * Guided-tour steps for the HR Payroll page. Anchored to `data-tour` attributes
  * on the real controls so the tour survives styling changes. Steps whose anchor
- * is not currently rendered (e.g. Publish/Revert in the all-branches view, or
- * the missing-bank-details banner when everyone has details) are dropped at
- * runtime by `buildDriverSteps`.
+ * is not currently rendered (e.g. Publish/Revert in the all-branches view) are
+ * dropped at runtime by `buildDriverSteps`.
  */
 export const PAYROLL_TOUR_PAGE_KEY = 'payroll';
 
@@ -74,11 +73,11 @@ export const payrollTourSteps: TourStep[] = [
     align: 'end',
   },
   {
-    anchor: 'missing-bank',
-    title: 'Bank-details readiness',
+    anchor: 'staff-details',
+    title: 'Staff payment details',
     description:
-      'If anyone is missing bank details this amber banner warns you — they would be left out of the bank file. Use <strong>“Notify staff”</strong> to send them a formal request to add their details.',
+      'Edit each employee’s <strong>KRA PIN</strong>, <strong>Bank Name</strong> and <strong>Account Number</strong> directly here. These feed the bank payment file, and changes save on their own — no need to open each profile.',
     side: 'bottom',
-    align: 'start',
+    align: 'end',
   },
 ];

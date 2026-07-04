@@ -259,4 +259,10 @@ export interface CreateEmployeeProfileInput {
   jobTitle?: string;
   reportingManagerId?: string;
   notes?: string;
+  kraPIN?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  bankBranch?: string | null;
+  helbNumber?: string | null;
 }
