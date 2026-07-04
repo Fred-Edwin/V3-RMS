@@ -136,6 +136,25 @@ describe('Auth routes', () => {
     expect(response.body.data.verified).toBe(true);
   });
 
+  it('POST /api/v1/auth/verify-password passes the RBAC gate for STEWARD and HOUSEKEEPING', async () => {
+    // Regression: these roles were missing from the requireRole list, so the
+    // payslip view-gate rejected them at RBAC (403) before the password was
+    // ever checked — stewards/housekeepers could not open their payslips.
+    vi.spyOn(authService, 'verifyPassword').mockResolvedValue();
+
+    for (const role of ['STEWARD', 'HOUSEKEEPING'] as const) {
+      const token = signAccessToken({ userId: `${role}-1`, role, organizationId: 'org-1' });
+
+      const response = await request(app)
+        .post('/api/v1/auth/verify-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ password: 'CorrectPass123!' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.verified).toBe(true);
+    }
+  });
+
   it('POST /api/v1/auth/verify-password returns 401 for wrong password', async () => {
     vi.spyOn(authService, 'verifyPassword').mockRejectedValue(
       new UnauthorizedError('Password verification failed'),

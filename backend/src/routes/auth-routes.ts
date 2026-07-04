@@ -35,6 +35,8 @@ authRoutes.patch('/auth/change-password', authenticate, branchScope, requireRole
   'WAITER',
   'CHEF',
   'BARISTA',
+  'STEWARD',
+  'HOUSEKEEPING',
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
 ), authController.changePassword);
@@ -47,6 +49,8 @@ authRoutes.post('/auth/verify-password', loginRateLimit, authenticate, branchSco
   'WAITER',
   'CHEF',
   'BARISTA',
+  'STEWARD',
+  'HOUSEKEEPING',
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
 ), authController.verifyPassword);
@@ -59,6 +63,8 @@ authRoutes.post('/auth/register-device', authenticate, branchScope, requireRole(
   'WAITER',
   'CHEF',
   'BARISTA',
+  'STEWARD',
+  'HOUSEKEEPING',
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
 ), authController.registerDevice);
