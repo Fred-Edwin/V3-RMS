@@ -32,6 +32,7 @@ import {
 } from '@/lib/payroll-csv';
 import { buildPayrollRegisterWorkbook, downloadBlob } from '@/lib/payroll-xlsx';
 import { buildStaffDetailPatch, formatSheetAccount } from '@/lib/payroll-staff-details';
+import { CARRIED_FIELDS, carryForwardValues, priorPeriod } from '@/lib/payroll-carry-forward';
 import { cn } from '@/lib/cn';
 
 type RowState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -60,6 +61,10 @@ interface SheetRow {
   payslipId: string | null;
   state: RowState;
   errorMsg: string;
+  // True when the money figures were pre-filled by carry-forward from a prior
+  // period (an unsaved draft). Cleared once the row is saved or manually edited
+  // away. Used to show the "carried over" tag and to know the row still needs review.
+  carriedOver: boolean;
 }
 
 const EDITABLE_COLUMNS = [
@@ -196,6 +201,7 @@ const staffToRow = (staff: StaffDto, branchName: string): SheetRow => ({
   payslipId: null,
   state: 'idle',
   errorMsg: '',
+  carriedOver: false,
 });
 
 const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
@@ -223,13 +229,47 @@ const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
   };
 };
 
-const getPreviousAndCurrentMonths = (): string[] => {
+/**
+ * Map a prior-period payslip onto the current sheet row as a *carry-forward
+ * draft*. Recurring/variable field rules live in `carryForwardValues`; here we
+ * add the sheet-row bookkeeping. The result is an unsaved draft (`state: 'idle'`,
+ * `carriedOver: true`) that HR must review and save.
+ */
+const carryForwardRow = (prior: Payslip): Partial<SheetRow> => ({
+  ...carryForwardValues(prior),
+  // This is a fresh draft for the new period, not the prior payslip.
+  payslipId: null,
+  state: 'idle',
+  carriedOver: true,
+});
+
+/** Map a sheet row to the bulkUpsert row payload for a given period. */
+const rowToUpsertPayload = (row: SheetRow, payPeriod: string) => {
+  const otherDeductions = row.ncnsAmount
+    ? [{ label: row.ncnsNote || 'Deduction', amount: Number(row.ncnsAmount).toFixed(2) }]
+    : [];
+  return {
+    userId: row.userId,
+    payDate: lastDayOfMonth(payPeriod),
+    grossPay: row.grossPay || '0',
+    paye: row.paye || '0',
+    sha: row.sha || '0',
+    nssfTier1: row.nssfTier1 || '0',
+    nssfTier2: row.nssfTier2 || '0',
+    housingLevy: row.housingLevy || '0',
+    helb: null,
+    advance: row.advance || null,
+    incentives: row.incentives || null,
+    overtime: row.overtime || null,
+    allowances: row.allowances || null,
+    otherDeductions: otherDeductions.length > 0 ? otherDeductions : undefined,
+  };
+};
+
+/** The current month as a "YYYY-MM" pay-period string. */
+const currentPeriod = (): string => {
   const now = new Date();
-  return [1, 0].map((offset) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}`;
-  });
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
 const lastDayOfMonth = (payPeriod: string): string => {
@@ -280,9 +320,8 @@ export default function HrPayslipsPage(): JSX.Element {
   const actorRole = useAuthStore((state) => state.role);
   const { toast } = useToast();
 
-  const periods = useMemo(() => getPreviousAndCurrentMonths(), []);
   const [activeTab, setActiveTab] = useState<TabId>('entry');
-  const [activePeriod, setActivePeriod] = useState(periods[1] ?? periods[0]);
+  const [activePeriod, setActivePeriod] = useState(currentPeriod);
   const [selectedBranchId, setSelectedBranchId] = useState(actorOrgId ?? '');
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
@@ -363,10 +402,16 @@ export default function HrPayslipsPage(): JSX.Element {
   const editLocked = isPublished || isAllBranches;
 
   // Build sheet rows for a single branch from its staff + payslips.
+  //
+  // `priorPayslips` (optional) holds the most recent prior period's payslips for
+  // this branch. When a staff member has NO payslip in the current period but
+  // DOES have one in the prior period, the recurring figures carry forward as an
+  // editable draft (see carryForwardRow) so HR only edits what changed.
   const buildBranchRows = useCallback((
     branchName: string,
     staffResult: StaffDto[],
     payslips: Payslip[],
+    priorPayslips: Payslip[] = [],
   ): SheetRow[] => {
     const eligible = staffResult
       .filter((s) => !EXCLUDED_ROLES.has(s.role))
@@ -377,6 +422,7 @@ export default function HrPayslipsPage(): JSX.Element {
         return a.name.localeCompare(b.name);
       });
     const payslipMap = new Map(payslips.map((p) => [p.userId, p]));
+    const priorMap = new Map(priorPayslips.map((p) => [p.userId, p]));
 
     return eligible.map((staff) => {
       const base = staffToRow(staff, branchName);
@@ -388,10 +434,47 @@ export default function HrPayslipsPage(): JSX.Element {
         base.bankName = ep?.bankName ?? null;
         base.accountNumber = ep?.accountNumber ?? null;
         Object.assign(base, payslipToRow(existing));
+        return base;
+      }
+
+      // No current-period payslip — carry forward from the prior period if we
+      // have one for this staff member. Staff details (KRA PIN/bank) come from
+      // the live employee profile, not the old payslip.
+      const prior = priorMap.get(staff.id);
+      if (prior) {
+        const ep = prior.user.employeeProfile;
+        base.kraPIN = ep?.kraPIN ?? null;
+        base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
+        base.bankName = ep?.bankName ?? null;
+        base.accountNumber = ep?.accountNumber ?? null;
+        Object.assign(base, carryForwardRow(prior));
       }
       return base;
     });
   }, []);
+
+  // Find the most recent prior period (looking back up to `MAX_CARRY_LOOKBACK`
+  // months) that has any saved payslips for this branch, and return them. Used
+  // to seed a fresh period via carry-forward. Returns [] if nothing is found —
+  // e.g. a branch's very first payroll run.
+  const MAX_CARRY_LOOKBACK = 3;
+  const fetchPriorPayslips = useCallback(
+    async (orgId: string, fromPeriod: string): Promise<Payslip[]> => {
+      if (!accessToken) return [];
+      for (let back = 1; back <= MAX_CARRY_LOOKBACK; back += 1) {
+        const period = priorPeriod(fromPeriod, back);
+        const result = await payslipService.listHrPayslips(accessToken, {
+          payPeriod: period,
+          organizationId: orgId,
+          page: 1,
+          perPage: 200,
+        });
+        if (result.items.length > 0) return result.items;
+      }
+      return [];
+    },
+    [accessToken],
+  );
 
   const loadSheet = useCallback(async () => {
     if (!accessToken) return;
@@ -432,7 +515,14 @@ export default function HrPayslipsPage(): JSX.Element {
         payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, organizationId: orgId, page: 1, perPage: 200 }),
       ]);
 
-      const sheetRows = buildBranchRows(branchName, staffResult, payslipResult.items);
+      // Fresh period (no payslips saved yet) → carry forward the most recent
+      // prior period so HR only edits what changed. A period that already has
+      // data is left exactly as saved (no auto carry-forward over real figures).
+      const priorPayslips = payslipResult.items.length === 0
+        ? await fetchPriorPayslips(orgId, activePeriod)
+        : [];
+
+      const sheetRows = buildBranchRows(branchName, staffResult, payslipResult.items, priorPayslips);
       const allPublished = payslipResult.items.length > 0 && payslipResult.items.every((p) => p.isLocked);
       setIsPublished(allPublished);
       setRows(sheetRows);
@@ -441,7 +531,7 @@ export default function HrPayslipsPage(): JSX.Element {
     } finally {
       setIsLoadingSheet(false);
     }
-  }, [accessToken, activePeriod, selectedBranchId, branches, buildBranchRows, toast]);
+  }, [accessToken, activePeriod, selectedBranchId, branches, buildBranchRows, fetchPriorPayslips, toast]);
 
   useEffect(() => {
     void loadSheet();
@@ -458,30 +548,11 @@ export default function HrPayslipsPage(): JSX.Element {
     setRows((prev) => prev.map((r) => r.userId === userId ? { ...r, state: 'saving' } : r));
 
     try {
-      const otherDeductions = row.ncnsAmount
-        ? [{ label: row.ncnsNote || 'Deduction', amount: Number(row.ncnsAmount).toFixed(2) }]
-        : [];
-
       const result = await payslipService.bulkUpsert(
         {
           payPeriod: activePeriod,
           organizationId: orgId,
-          rows: [{
-            userId: row.userId,
-            payDate: lastDayOfMonth(activePeriod),
-            grossPay: row.grossPay || '0',
-            paye: row.paye || '0',
-            sha: row.sha || '0',
-            nssfTier1: row.nssfTier1 || '0',
-            nssfTier2: row.nssfTier2 || '0',
-            housingLevy: row.housingLevy || '0',
-            helb: null,
-            advance: row.advance || null,
-            incentives: row.incentives || null,
-            overtime: row.overtime || null,
-            allowances: row.allowances || null,
-            otherDeductions: otherDeductions.length > 0 ? otherDeductions : undefined,
-          }],
+          rows: [rowToUpsertPayload(row, activePeriod)],
         },
         accessToken,
       );
@@ -514,6 +585,47 @@ export default function HrPayslipsPage(): JSX.Element {
     debounceTimers.current[userId] = setTimeout(() => { void autoSaveRow(userId); }, 1500);
   }, [autoSaveRow]);
 
+  // Persist every row that isn't already saved — carried-over drafts (never
+  // touched, so `idle`) and in-flight edits alike — in one bulkUpsert. Used
+  // before publishing so unchanged, carried-forward staff are not published as
+  // blank/absent. Returns true on success. Rows the server skips (already
+  // locked) are marked as errors and reported.
+  const flushPendingRows = useCallback(async (): Promise<boolean> => {
+    if (!accessToken) return true;
+    const orgId = selectedBranchId || actorOrgId;
+    if (!orgId) return false;
+
+    const pending = rowsRef.current.filter((r) => r.state !== 'saved');
+    if (pending.length === 0) return true;
+
+    setRows((prev) => prev.map((r) => (r.state !== 'saved' ? { ...r, state: 'saving' } : r)));
+    try {
+      const result = await payslipService.bulkUpsert(
+        {
+          payPeriod: activePeriod,
+          organizationId: orgId,
+          rows: pending.map((r) => rowToUpsertPayload(r, activePeriod)),
+        },
+        accessToken,
+      );
+      const skipped = new Set(result.skipped);
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.state === 'saved') return r;
+          if (skipped.has(r.userId)) {
+            return { ...r, state: 'error', errorMsg: 'Period is published — revert to draft before editing this row.' };
+          }
+          return { ...r, state: 'saved', carriedOver: false };
+        }),
+      );
+      return skipped.size === 0;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Save failed';
+      setRows((prev) => prev.map((r) => (r.state === 'saving' ? { ...r, state: 'error', errorMsg: msg } : r)));
+      return false;
+    }
+  }, [accessToken, activePeriod, actorOrgId, selectedBranchId]);
+
   const updateRowsBatch = useCallback((updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }>) => {
     const affectedUserIds = new Set<string>();
 
@@ -525,6 +637,7 @@ export default function HrPayslipsPage(): JSX.Element {
         row[update.field] = update.value;
         row.state = 'dirty';
         row.errorMsg = '';
+        row.carriedOver = false;
         affectedUserIds.add(row.userId);
       });
       return next;
@@ -536,7 +649,7 @@ export default function HrPayslipsPage(): JSX.Element {
   const updateRow = (userId: string, field: keyof SheetRow, value: string) => {
     setRows((prev) =>
       prev.map((row) =>
-        row.userId === userId ? { ...row, [field]: value, state: 'dirty' as RowState, errorMsg: '' } : row,
+        row.userId === userId ? { ...row, [field]: value, state: 'dirty' as RowState, errorMsg: '', carriedOver: false } : row,
       ),
     );
     scheduleAutoSave(userId);
@@ -694,12 +807,86 @@ export default function HrPayslipsPage(): JSX.Element {
     return () => document.removeEventListener('copy', handleCopy);
   }, []);
 
+  const [isCopying, setIsCopying] = useState(false);
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+
+  // Manually re-pull the previous period's recurring figures over the current
+  // sheet, even when this period already has data. Only fills EMPTY money cells
+  // per row and never overwrites a figure HR has already entered; the resulting
+  // rows are carried-over drafts that still need saving.
+  const copyFromPreviousMonth = useCallback(async () => {
+    if (!accessToken || isAllBranches) return;
+    const orgId = selectedBranchId || actorOrgId;
+    if (!orgId) return;
+
+    setIsCopying(true);
+    try {
+      const prior = await fetchPriorPayslips(orgId, activePeriod);
+      if (prior.length === 0) {
+        toast({ variant: 'info', title: 'Nothing to copy', message: 'No earlier payroll was found for this branch.' });
+        return;
+      }
+      const priorMap = new Map(prior.map((p) => [p.userId, p]));
+
+      // Compute, per row, which blank recurring cells the prior period can fill.
+      // Derive from the current rows snapshot (rowsRef) so the count and the
+      // scheduled saves are computed exactly once, outside the setRows updater.
+      const patches = new Map<string, Partial<SheetRow>>();
+      for (const row of rowsRef.current) {
+        const source = priorMap.get(row.userId);
+        if (!source) continue;
+        const carried = carryForwardRow(source);
+        const patch: Partial<SheetRow> = {};
+        for (const field of CARRIED_FIELDS) {
+          // Only fill blank recurring cells — never clobber a value HR already typed.
+          if (!row[field] && carried[field]) patch[field] = carried[field] as string;
+        }
+        if (Object.keys(patch).length > 0) patches.set(row.userId, patch);
+      }
+
+      if (patches.size > 0) {
+        setRows((prev) =>
+          prev.map((row) => {
+            const patch = patches.get(row.userId);
+            return patch ? { ...row, ...patch, state: 'dirty', carriedOver: true, errorMsg: '' } : row;
+          }),
+        );
+        // Persist the freshly-filled rows through the normal debounced auto-save.
+        patches.forEach((_patch, userId) => scheduleAutoSave(userId));
+      }
+      const filled = patches.size;
+      toast({
+        variant: filled > 0 ? 'success' : 'info',
+        title: filled > 0 ? 'Copied from previous month' : 'Nothing to fill',
+        message: filled > 0
+          ? `${filled} row${filled > 1 ? 's' : ''} pre-filled. Review and save.`
+          : 'Every row already has figures — no blank cells to fill.',
+      });
+    } catch (error) {
+      toast({ variant: 'error', title: 'Copy failed', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsCopying(false);
+      setShowCopyConfirm(false);
+    }
+  }, [accessToken, isAllBranches, selectedBranchId, actorOrgId, activePeriod, fetchPriorPayslips, scheduleAutoSave, toast]);
+
   const handlePublish = async () => {
     if (!accessToken) return;
     const orgId = selectedBranchId || actorOrgId;
     if (!orgId) return;
     setIsPublishing(true);
     try {
+      // Persist any pending rows first — carried-forward drafts included — so
+      // publishing never locks in blank payslips for unchanged staff.
+      const flushed = await flushPendingRows();
+      if (!flushed) {
+        toast({
+          variant: 'error',
+          title: 'Cannot publish yet',
+          message: 'Some rows could not be saved. Resolve the flagged rows, then publish again.',
+        });
+        return;
+      }
       await payslipService.publishPeriod({ payPeriod: activePeriod, organizationId: orgId }, accessToken);
       setIsPublished(true);
       setRows((prev) => prev.map((r) => ({ ...r, state: 'saved' as RowState })));
@@ -798,6 +985,8 @@ export default function HrPayslipsPage(): JSX.Element {
     dirty: rows.filter((r) => r.state === 'dirty').length,
     saving: rows.filter((r) => r.state === 'saving').length,
     error: rows.filter((r) => r.state === 'error').length,
+    // Carried-over rows still awaiting review (untouched drafts from a prior month).
+    carried: rows.filter((r) => r.carriedOver && r.state === 'idle').length,
   }), [rows]);
 
   /* ── CSV exports ─────────────────────────────────────────────────── */
@@ -1037,6 +1226,20 @@ export default function HrPayslipsPage(): JSX.Element {
                 Full Register (Excel)
               </button>
 
+              {/* Copy from previous month — fills blank recurring cells from the
+                  most recent prior period. Per-branch, editable periods only. */}
+              {!isAllBranches && !isPublished && (
+                <button
+                  onClick={() => setShowCopyConfirm(true)}
+                  disabled={isCopying || rows.length === 0}
+                  title="Fill blank Gross/PAYE/SHA/NSSF/Housing Levy/Allowance cells from the most recent prior month"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #d6d3d1', background: 'white', color: '#57534e', fontSize: 12, fontWeight: 600, cursor: (isCopying || rows.length === 0) ? 'not-allowed' : 'pointer', opacity: (isCopying || rows.length === 0) ? 0.5 : 1 }}
+                >
+                  <RefreshCw size={13} />
+                  {isCopying ? 'Copying…' : 'Copy from previous month'}
+                </button>
+              )}
+
               {/* Publish/Revert are per-branch only — hidden in the consolidated all-branches view */}
               {isAllBranches ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, paddingLeft: 6, fontSize: 11.5, color: '#a8a29e', fontStyle: 'italic' }}>
@@ -1072,6 +1275,18 @@ export default function HrPayslipsPage(): JSX.Element {
           {isPublished && (
             <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[12px] text-emerald-800 flex-shrink-0">
               ✓ &nbsp;<strong>{formatPayPeriod(activePeriod)} is published.</strong>&nbsp; Staff can see and print their payslips. Click &ldquo;Revert to Draft&rdquo; to make corrections.
+            </div>
+          )}
+
+          {/* Carry-forward banner — figures pre-filled from a prior month await review */}
+          {!isPublished && statusCounts.carried > 0 && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-[12px] text-blue-800 flex-shrink-0">
+              <RefreshCw size={13} className="flex-shrink-0" />
+              <span>
+                <strong>{statusCounts.carried} row{statusCounts.carried > 1 ? 's' : ''} carried over</strong> from the previous month.
+                Recurring figures are pre-filled — update any that changed (variable items like overtime &amp; advances start blank),
+                then <strong>Publish</strong> to finalise. Publishing saves carried figures automatically.
+              </span>
             </div>
           )}
 
@@ -1217,12 +1432,25 @@ export default function HrPayslipsPage(): JSX.Element {
                               {row.state === 'error' && (
                                 <span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} title={row.errorMsg} />
                               )}
+                              {row.carriedOver && row.state === 'idle' && (
+                                <span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} title="Carried over from previous month — review and save" />
+                              )}
                             </div>
                           </td>
 
-                          {/* Name (sticky) — clean: name on top, role below, no badges */}
+                          {/* Name (sticky) — clean: name on top, role below */}
                           <td style={{ border: '1px solid #d0d0d0', borderRight: '2px solid #d6d3d1', padding: '0 8px', verticalAlign: 'middle', overflow: 'hidden', fontSize: 12, position: 'sticky', left: 32, background: locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff', zIndex: 4, height: 40 }}>
-                            <div style={{ fontWeight: 600, color: locked ? '#999' : '#1a0a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
+                              <span style={{ fontWeight: 600, color: locked ? '#999' : '#1a0a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
+                              {row.carriedOver && (
+                                <span
+                                  title="Figures carried over from the previous month — review and save"
+                                  style={{ flexShrink: 0, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 4px', lineHeight: 1.3 }}
+                                >
+                                  Carried
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: 9, color: '#b0a9a4', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {row.role}{isAllBranches && row.branchName ? ` · ${row.branchName}` : ''}
                             </div>
@@ -1401,31 +1629,10 @@ export default function HrPayslipsPage(): JSX.Element {
               )}
             </div>
 
-            {/* Sheet period tabs (bottom of sheet, inside container) */}
-            <div style={{ height: 28, background: '#e0e0e0', borderTop: '1px solid #d0d0d0', display: 'flex', alignItems: 'flex-end', padding: '0 4px', flexShrink: 0 }}>
-              {periods.map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setActivePeriod(period)}
-                  style={{
-                    padding: '3px 16px',
-                    fontSize: 11,
-                    background: activePeriod === period ? '#ffffff' : '#d0d0d0',
-                    border: '1px solid #bbb',
-                    borderBottom: 'none',
-                    borderRadius: '3px 3px 0 0',
-                    cursor: 'pointer',
-                    color: activePeriod === period ? '#217346' : '#57534e',
-                    fontWeight: activePeriod === period ? 700 : 400,
-                    marginRight: 2,
-                    fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
-                    flexShrink: 0,
-                  }}
-                >
-                  {formatPayPeriod(period)}
-                </button>
-              ))}
-              <Button variant="ghost" size="sm" leftIcon={<RefreshCw size={12} />} onClick={() => void loadSheet()} style={{ marginLeft: 'auto', fontSize: 11, height: 22 }}>
+            {/* Sheet toolbar (bottom of sheet, inside container). Period selection
+                is driven by the Pay Period picker in the controls row above. */}
+            <div style={{ height: 28, background: '#e0e0e0', borderTop: '1px solid #d0d0d0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 4px', flexShrink: 0 }}>
+              <Button variant="ghost" size="sm" leftIcon={<RefreshCw size={12} />} onClick={() => void loadSheet()} style={{ fontSize: 11, height: 22 }}>
                 Refresh
               </Button>
             </div>
@@ -1663,6 +1870,15 @@ export default function HrPayslipsPage(): JSX.Element {
         description="Staff will see figures as draft again and will not be able to print until you re-publish."
         confirmLabel="Revert to Draft"
         isLoading={isPublishing}
+      />
+      <ConfirmDialog
+        isOpen={showCopyConfirm}
+        onClose={() => setShowCopyConfirm(false)}
+        onConfirm={() => void copyFromPreviousMonth()}
+        title="Copy figures from the previous month?"
+        description={`This fills blank Gross Pay, PAYE, SHA, NSSF, Housing Levy and Allowance cells at ${selectedBranchName} from the most recent prior month. Values you have already entered are left untouched. Variable items (overtime, advances, incentives) are not copied.`}
+        confirmLabel="Copy figures"
+        isLoading={isCopying}
       />
       <PayslipDetailModal
         payslip={selectedPayslip}
