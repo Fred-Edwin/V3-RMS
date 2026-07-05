@@ -266,13 +266,10 @@ const rowToUpsertPayload = (row: SheetRow, payPeriod: string) => {
   };
 };
 
-const getPreviousAndCurrentMonths = (): string[] => {
+/** The current month as a "YYYY-MM" pay-period string. */
+const currentPeriod = (): string => {
   const now = new Date();
-  return [1, 0].map((offset) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}`;
-  });
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
 const lastDayOfMonth = (payPeriod: string): string => {
@@ -323,9 +320,8 @@ export default function HrPayslipsPage(): JSX.Element {
   const actorRole = useAuthStore((state) => state.role);
   const { toast } = useToast();
 
-  const periods = useMemo(() => getPreviousAndCurrentMonths(), []);
   const [activeTab, setActiveTab] = useState<TabId>('entry');
-  const [activePeriod, setActivePeriod] = useState(periods[1] ?? periods[0]);
+  const [activePeriod, setActivePeriod] = useState(currentPeriod);
   const [selectedBranchId, setSelectedBranchId] = useState(actorOrgId ?? '');
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
@@ -1633,31 +1629,10 @@ export default function HrPayslipsPage(): JSX.Element {
               )}
             </div>
 
-            {/* Sheet period tabs (bottom of sheet, inside container) */}
-            <div style={{ height: 28, background: '#e0e0e0', borderTop: '1px solid #d0d0d0', display: 'flex', alignItems: 'flex-end', padding: '0 4px', flexShrink: 0 }}>
-              {periods.map((period) => (
-                <button
-                  key={period}
-                  onClick={() => setActivePeriod(period)}
-                  style={{
-                    padding: '3px 16px',
-                    fontSize: 11,
-                    background: activePeriod === period ? '#ffffff' : '#d0d0d0',
-                    border: '1px solid #bbb',
-                    borderBottom: 'none',
-                    borderRadius: '3px 3px 0 0',
-                    cursor: 'pointer',
-                    color: activePeriod === period ? '#217346' : '#57534e',
-                    fontWeight: activePeriod === period ? 700 : 400,
-                    marginRight: 2,
-                    fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
-                    flexShrink: 0,
-                  }}
-                >
-                  {formatPayPeriod(period)}
-                </button>
-              ))}
-              <Button variant="ghost" size="sm" leftIcon={<RefreshCw size={12} />} onClick={() => void loadSheet()} style={{ marginLeft: 'auto', fontSize: 11, height: 22 }}>
+            {/* Sheet toolbar (bottom of sheet, inside container). Period selection
+                is driven by the Pay Period picker in the controls row above. */}
+            <div style={{ height: 28, background: '#e0e0e0', borderTop: '1px solid #d0d0d0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 4px', flexShrink: 0 }}>
+              <Button variant="ghost" size="sm" leftIcon={<RefreshCw size={12} />} onClick={() => void loadSheet()} style={{ fontSize: 11, height: 22 }}>
                 Refresh
               </Button>
             </div>
