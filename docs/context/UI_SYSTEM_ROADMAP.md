@@ -31,11 +31,16 @@ Floor roles (waiter, KDS/BDS) are untouched by design.
 
 Progress:
 - ✅ `director/analytics` (9 tables) — PR #27, merged 2026-07-06
-- Director: `director/` dashboard → `director/branches` → branch detail pages
+- ✅ `director/` dashboard — local branch `feat/round1-director-dashboard-exceltable`, pending owner manual test (late-orders modal → ExcelTable red; leaderboards stayed lists after owner revert)
+- ✅ `director/branches/[branchId]` — same branch, pending owner manual test (no ExcelTables by owner decision; tokens + shared primitives only)
+- ✅ Shared primitives shipped on that branch: `TabBar` (underline/segmented), `ExportMenu`, `DateRangeBar`, `RankedItemList`, `Badge` tones, `lib/chart-colors.ts`
+- Next — Director: `director/other-income` → `director/settings` → `director/incidents`
 - Accountant: `accountant/reconciliation` (6 tables) → `accountant/analytics` (5) → credit pages
 - Manager: `manage/reports` (4 tables) → remaining manage pages
 - HR: attendance → leave
 - Admin: `admin/order-corrections`
+
+**Working process (owner-set, 2026-07-06):** per page — propose the table/component change list → owner approves → migrate → `pnpm build` + `pnpm test` → commit locally (NO push) → owner tests manually → corrections or approval → next page. Push + draft PR only when the owner says the batch is verified.
 
 ### Round 2 — Status system unification
 Create `lib/status.ts` as the single status→tone+label map (order/ticket/leave/payroll/incident). Generalize `Badge` (tone + custom children). Delete the 10+ per-page status color maps (e.g. `hr/my-leave/page.tsx` inline ternary styles).
