@@ -396,6 +396,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <div className="min-h-full bg-office-canvas">
     <PageLayout className="animate-fade-up space-y-6">
 
       {/* ── Back navigation ── */}
@@ -684,7 +685,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     title="Revenue (KES)"
                     subtitle={`Daily revenue — ${periodLabel}`}
                     data={periodRevenueTrendData}
-                    accentColor="#047857"
+                    accentColor="#1A6B3C" // success token — charts take hex props, not classes
                     valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`}
                     tooltipUnit="KES"
                     summaryLabel="Total Revenue"
@@ -774,7 +775,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     </div>
                     <div>
                       <div className="mb-2 flex items-center gap-1.5">
-                        <TrendingDown size={14} className="text-red-400" />
+                        <TrendingDown size={14} className="text-danger" />
                         <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom {periodItems.limit}</span>
                       </div>
                       <div className="divide-y divide-stone-100">
@@ -805,5 +806,6 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       )}
 
     </PageLayout>
+    </div>
   );
 }
