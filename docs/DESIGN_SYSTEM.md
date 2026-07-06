@@ -1186,11 +1186,13 @@ export default config
 
 ### The Hybrid Decision
 
-The warm crema canvas is right for the **floor** — waiters, kitchen and barista displays, the customer-facing rhythm of service. It is not right for dense back-office data work. Payroll, reconciliation, reports and analytics are **office surfaces**: they borrow the visual language of professional spreadsheet software — gridlines, colored header bands, high density, tabular numerals.
+*Revised 2026-07-06: the owner reversed the page-canvas part of this decision after seeing it live — the warm crema canvas (`#F5F0E8`) is the primary page background on **all** pages, including back-office ones. `office.canvas` (`#FAFAFA`) must not be used as a page background.*
 
-- **Floor surfaces** (orders, KDS/BDS, waiter app, clock-in): warm crema canvas, unchanged.
-- **Office surfaces** (payroll, reports, reconciliation, analytics): clean corporate treatment on a near-white canvas (`office.canvas` `#FAFAFA`), with Excel-style tables and sheets.
-- Wendo **espresso** remains the primary action color and **amber** the highlight color on *both* kinds of surface — the brand lives in the accents and typography, not the canvas.
+The office idiom lives in the **data surfaces themselves**, not the canvas. Payroll, reconciliation, reports and analytics render their data through Excel-style components — gridlines, colored header bands, high density, tabular numerals — as white cards sitting on the crema canvas.
+
+- **All pages**: warm crema canvas.
+- **Office data surfaces** (payroll, reports, reconciliation, analytics): Excel-style tables and sheets inside white cards.
+- Wendo **espresso** remains the primary action color and **amber** the highlight color everywhere — the brand lives in the accents and typography, not the canvas.
 
 ### Typeface for Sheets
 

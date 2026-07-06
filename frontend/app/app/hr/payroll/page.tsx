@@ -880,7 +880,7 @@ export default function HrPayslipsPage(): JSX.Element {
   );
 
   return (
-    <PageLayout className="animate-fade-up !mx-0 flex !max-w-none flex-col !px-0 !py-0 [height:calc(100vh-56px)] bg-office-canvas">
+    <PageLayout className="animate-fade-up !mx-0 flex !max-w-none flex-col !px-0 !py-0 [height:calc(100vh-56px)] bg-crema">
       {/* Page header */}
       <div className="px-6 pb-3 pt-5">
         <PageHeader

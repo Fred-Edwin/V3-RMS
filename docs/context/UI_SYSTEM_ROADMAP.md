@@ -6,7 +6,7 @@
 
 ## Decisions already made (do not re-litigate)
 
-1. **Hybrid design direction** — floor screens (orders, KDS/BDS, waiter) keep the warm crema canvas; back-office data surfaces (payroll, reports, reconciliation, analytics) use the clean corporate treatment on `office.canvas` (#FAFAFA). Espresso/amber stay the accent colors everywhere.
+1. **Single warm canvas** *(revised 2026-07-06 — owner reversed the hybrid canvas after seeing it live)* — **crema `#F5F0E8` is the primary page background on ALL pages**, floor and back-office alike. Do not apply `bg-office-canvas` to pages. The "office" treatment lives in the data surfaces themselves (white ExcelTable/Sheet cards with gridlines) sitting on the crema canvas. Espresso/amber stay the accent colors everywhere.
 2. **Fonts follow function** — Inter (via `--font-sans`) for all operational UI; Cormorant Garamond for titles/brand moments only; numbers always Inter semibold + `tabular-nums`; Calibri stack (`font-sheet`) only inside Sheet/ExcelTable. Jost was removed after real-world review. The Tailwind `fontFamily` must reference the next/font CSS variables — never literal font names.
 3. **No dark mode** — display screens stay light (owner decision).
 4. **Two sanctioned table components** — `Table` (soft lists), `ExcelTable` (read-only corporate data), plus `Sheet` (editable grids). Pages must not hand-roll `<table>`.
@@ -22,9 +22,10 @@
 
 ### Round 1 — Role-by-role page sweep (one page per PR)
 Sweep order: **Director → Accountant → Manager → HR → Admin**. Each page gets, together in one PR:
-- Hand-rolled tables → `ExcelTable` (or `Sheet` if the grid is editable)
+- Hand-rolled `<table>` markup → `ExcelTable` (or `Sheet` if the grid is editable). Div-based leaderboards, rank lists and interactive status lists stay as soft lists (owner decision, 2026-07-06)
 - Hardcoded hex/inline styles → tokens in every touched block
-- `bg-office-canvas` on the page
+- Page canvas stays crema (see decision 1 — `bg-office-canvas` removed from the sweep)
+- List planned table/component changes and get owner approval before editing each page
 
 Floor roles (waiter, KDS/BDS) are untouched by design.
 

@@ -402,7 +402,6 @@ export default function DirectorBranchDetailPage(): JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-full bg-office-canvas">
     <PageLayout className="animate-fade-up space-y-6">
 
       {/* ── Back navigation ── */}
@@ -725,6 +724,5 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       )}
 
     </PageLayout>
-    </div>
   );
 }

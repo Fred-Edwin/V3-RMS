@@ -836,7 +836,6 @@ export default function DirectorAnalyticsPage(): JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-full bg-office-canvas">
     <PageLayout className="animate-fade-up space-y-6">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
@@ -1483,6 +1482,5 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       )}
 
     </PageLayout>
-    </div>
   );
 }
