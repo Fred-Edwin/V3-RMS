@@ -102,11 +102,12 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 12 (Order Correction Console)
-Status: Complete — implemented 2026-05-14
-Plan file: docs/context/PHASE_12_ORDER_CORRECTION.md
+Phase: UI System Overhaul (design tokens, Sheet/ExcelTable data components)
+Status: Round 0 complete 2026-07-06 — Rounds 1–6 pending
+Plan file: docs/context/UI_SYSTEM_ROADMAP.md
 
 Previous phases (all complete):
+- Phase 12 Complete → docs/context/PHASE_12_ORDER_CORRECTION.md
 - Phase 12 Complete → docs/context/PHASE_12_ORDER_CORRECTION.md
 - Phase 10 Complete → docs/context/PHASE_10_GUEST_SPLIT.md
 - Phase 9 Complete → docs/context/PHASE_9_PAYSLIP_REDESIGN.md
