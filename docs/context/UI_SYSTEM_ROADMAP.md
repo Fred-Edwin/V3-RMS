@@ -33,14 +33,21 @@ Progress:
 - ✅ `director/analytics` (9 tables) — PR #27, merged 2026-07-06
 - ✅ `director/` dashboard — local branch `feat/round1-director-dashboard-exceltable`, owner-tested 2026-07-06 (late-orders modal → ExcelTable red; leaderboards stayed lists after owner revert)
 - ✅ `director/branches/[branchId]` — same branch, owner-tested 2026-07-06 (no ExcelTables by owner decision; tokens + shared primitives only)
+- ✅ `director/other-income` — same branch, owner-tested 2026-07-06 (Categories + Entries tables → ExcelTable gray, TabBar segmented, status.pending/espresso tokens)
+- ✅ `director/settings` — same branch, owner-tested 2026-07-06 (no tables on this page — Select primitive + success/status.pending tokens only)
+- ✅ `director/incidents` — same branch, owner-tested 2026-07-06 (Badge primitive replaces 8-line hex map; stays an expandable status list by design)
+- ✅ Director sweep complete. `director/corporate-accounts` and `director/outstanding-balances` are re-export shims (no content of their own) — see below.
+- ✅ Pulled forward ahead of order (same branch, not yet owner-tested after last change): `admin/corporate-accounts` (ExcelTable gray + Badge status pill) and `manage/outstanding-balances` (3 ExcelTables + TabBar underline + warning tokens) — these are the real pages behind Director's Credit nav links, which only appear when `NEXT_PUBLIC_CREDIT_ACCOUNTS_ENABLED=true` is set locally (Phase 7 feature flag, off by default).
 - ✅ Shared primitives shipped on that branch: `TabBar` (underline/segmented), `ExportMenu`, `DateRangeBar`, `RankedItemList`, `Badge` tones, `lib/chart-colors.ts`
-- Next — Director: `director/other-income` → `director/settings` → `director/incidents`
-- Accountant: `accountant/reconciliation` (6 tables) → `accountant/analytics` (5) → credit pages
+- 📌 **Parked idea (not started):** owner wants to merge `admin/corporate-accounts` + `manage/outstanding-balances` into one page with tabs (Corporate Accounts / Outstanding Balances-with-its-3-subtabs). Investigation found a 4th related page, `accountant/credit`, which is a separate fuller settlement workflow (not the same component) — and `manage/my-tab` is self-service for every role, confirmed out of scope for any merge. Owner said to pin this and resume the sweep; needs Plan mode + explicit re-scoping before starting given the role-gating complexity (Manager must never see the Corporate Accounts CRUD tab). Full detail in agent memory: `credit-pages-merge-pinned.md`.
+- Next — Accountant: `accountant/reconciliation` (1,323 lines, 6 tables) → `accountant/analytics` (5) → credit pages
 - Manager: `manage/reports` (4 tables) → remaining manage pages
 - HR: attendance → leave
 - Admin: `admin/order-corrections`
 
 **Working process (owner-set, 2026-07-06):** per page — propose the table/component change list → owner approves → migrate → `pnpm build` + `pnpm test` → commit locally (NO push) → owner tests manually → corrections or approval → next page. Push + draft PR only when the owner says the batch is verified.
+
+**Branch state as of this handoff:** `feat/round1-director-dashboard-exceltable`, all commits local (not pushed). Last commit: credit-pages ExcelTable/Badge/TabBar migration, build+test green, awaiting owner's manual verification pass.
 
 ### Round 2 — Status system unification
 Create `lib/status.ts` as the single status→tone+label map (order/ticket/leave/payroll/incident). Generalize `Badge` (tone + custom children). Delete the 10+ per-page status color maps (e.g. `hr/my-leave/page.tsx` inline ternary styles).
