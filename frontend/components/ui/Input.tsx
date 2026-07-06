@@ -36,7 +36,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       'w-full h-11 bg-parchment border-[1.5px] rounded-sm text-body-md font-sans text-stone-900 placeholder:text-stone-400 transition-colors duration-fast',
       'focus:outline-none focus:shadow-focus',
       hasError
-        ? 'border-[#FCA5A5] focus:border-[#FCA5A5]'
+        ? 'border-danger-border focus:border-danger-border'
         : 'border-stone-200 focus:border-espresso',
       disabled && 'bg-stone-100 opacity-50 cursor-not-allowed',
       leftIcon ? 'pl-10' : prefix ? 'pl-3' : 'px-3',
@@ -95,7 +95,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <span
             id={`${id}-error`}
             role="alert"
-            className="text-caption text-[#991B1B]"
+            className="text-caption text-danger"
           >
             {errorMessage}
           </span>

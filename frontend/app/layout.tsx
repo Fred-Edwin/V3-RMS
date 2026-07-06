@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Jost } from 'next/font/google';
+import { Cormorant_Garamond, Inter } from 'next/font/google';
 import './globals.css';
 import { SessionBootstrap } from '@/components/app/SessionBootstrap';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -11,10 +11,9 @@ const cormorantGaramond = Cormorant_Garamond({
   weight: ['400', '500', '600', '700'],
 });
 
-const jost = Jost({
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
-  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const viewport: Viewport = {
@@ -47,8 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cormorantGaramond.variable} ${jost.variable}`}>
-      <body className={`${cormorantGaramond.variable} ${jost.variable} font-sans`}>
+    <html lang="en" className={`${cormorantGaramond.variable} ${inter.variable}`}>
+      <body className={`${cormorantGaramond.variable} ${inter.variable} font-sans`}>
         <SessionBootstrap />
         <OfflineBanner />
         {children}

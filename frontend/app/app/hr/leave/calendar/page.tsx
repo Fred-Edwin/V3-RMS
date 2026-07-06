@@ -391,7 +391,7 @@ export default function LeaveCalendarPage(): JSX.Element {
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="min-w-[110px] text-center font-display text-heading-sm font-semibold text-[#2C1810]">
+          <span className="min-w-[110px] text-center font-sans text-heading-sm font-semibold text-[#2C1810]">
             {MONTH_NAMES[month]} {year}
           </span>
           <button

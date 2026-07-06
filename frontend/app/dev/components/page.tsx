@@ -16,8 +16,11 @@ import {
   Modal, BottomSheet, Popover, ConfirmDialog,
   EmptyState,
   SkeletonBlock, SkeletonCard, SkeletonTable,
-  Table,
+  Table, ExcelTable, Sheet, SheetCell, useSheetEngine,
   type TableColumn,
+  type ExcelColumn,
+  type SheetColumnGroup,
+  type SheetUpdate,
   type OrderStatus,
   type BadgeVariant,
 } from '@/components/ui'
@@ -121,19 +124,19 @@ export default function ComponentsPage() {
             <div><span className="text-display-xl font-display">display-xl — Cormorant Garamond 48px</span></div>
             <div><span className="text-display-lg font-display">display-lg — Cormorant Garamond 36px</span></div>
             <Divider />
-            <div><span className="text-heading-xl font-sans font-semibold">heading-xl — DM Sans 30px</span></div>
-            <div><span className="text-heading-lg font-sans font-semibold">heading-lg — DM Sans 24px</span></div>
-            <div><span className="text-heading-md font-sans font-semibold">heading-md — DM Sans 20px</span></div>
-            <div><span className="text-heading-sm font-sans font-semibold">heading-sm — DM Sans 18px</span></div>
+            <div><span className="text-heading-xl font-sans font-semibold">heading-xl — Inter 30px</span></div>
+            <div><span className="text-heading-lg font-sans font-semibold">heading-lg — Inter 24px</span></div>
+            <div><span className="text-heading-md font-sans font-semibold">heading-md — Inter 20px</span></div>
+            <div><span className="text-heading-sm font-sans font-semibold">heading-sm — Inter 18px</span></div>
             <Divider />
-            <div><span className="text-body-lg">body-lg — DM Sans 16px regular</span></div>
-            <div><span className="text-body-md">body-md — DM Sans 15px regular</span></div>
-            <div><span className="text-body-sm">body-sm — DM Sans 14px regular</span></div>
+            <div><span className="text-body-lg">body-lg — Inter 16px regular</span></div>
+            <div><span className="text-body-md">body-md — Inter 15px regular</span></div>
+            <div><span className="text-body-sm">body-sm — Inter 14px regular</span></div>
             <Divider />
-            <div><span className="text-label-lg font-medium">label-lg — DM Sans 14px medium</span></div>
-            <div><span className="text-label-md font-medium">label-md — DM Sans 13px medium</span></div>
-            <div><span className="text-label-sm font-medium">label-sm — DM Sans 12px medium</span></div>
-            <div><span className="text-caption text-stone-500">caption — DM Sans 12px regular</span></div>
+            <div><span className="text-label-lg font-medium">label-lg — Inter 14px medium</span></div>
+            <div><span className="text-label-md font-medium">label-md — Inter 13px medium</span></div>
+            <div><span className="text-label-sm font-medium">label-sm — Inter 12px medium</span></div>
+            <div><span className="text-caption text-stone-500">caption — Inter 12px regular</span></div>
           </div>
         </Section>
 
@@ -677,6 +680,21 @@ export default function ComponentsPage() {
           </div>
         </Section>
 
+        <Section title="29b. ExcelTable (corporate data table)">
+          <p className="text-body-sm text-stone-500 mb-4">
+            Read-only Excel-style table for back-office data surfaces. Click a row to expand its child rows.
+          </p>
+          <ExcelTableDemo />
+        </Section>
+
+        <Section title="29c. Sheet (editable Excel-style grid)">
+          <p className="text-body-sm text-stone-500 mb-4">
+            Editable grid with drag selection, copy/paste (TSV), drag-fill, and arrow/Enter/Tab keyboard navigation.
+            Try selecting a range and dragging the blue fill handle.
+          </p>
+          <SheetDemo />
+        </Section>
+
         {/* 30. Navigation Previews */}
         <Section title="30. Navigation Components">
           <div className="space-y-6">
@@ -733,6 +751,182 @@ export default function ComponentsPage() {
           End of component catalogue — Phase 1.5 complete
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── ExcelTable demo ─────────────────────────────────────────────── */
+
+interface DemoWaiter {
+  id: string
+  waiter: string
+  orders: number
+  amount: number
+  details: Array<{ label: string; date: string; total: number }>
+}
+
+const excelDemoRows: DemoWaiter[] = [
+  {
+    id: 'w1', waiter: 'James Mwangi', orders: 3, amount: 4250,
+    details: [
+      { label: 'Order #41', date: '2 Jul · T4', total: 1800 },
+      { label: 'Order #58', date: '3 Jul · T2', total: 1250 },
+      { label: 'Order #63', date: '4 Jul', total: 1200 },
+    ],
+  },
+  { id: 'w2', waiter: 'Grace Njeri', orders: 1, amount: 950, details: [{ label: 'Order #12', date: '1 Jul · T7', total: 950 }] },
+  { id: 'w3', waiter: 'Samuel Kibet', orders: 2, amount: 2100, details: [
+    { label: 'Order #7', date: '30 Jun · T1', total: 1400 },
+    { label: 'Order #19', date: '1 Jul', total: 700 },
+  ] },
+]
+
+function ExcelTableDemo() {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const columns: ExcelColumn<DemoWaiter>[] = [
+    { key: 'waiter', label: 'Waiter', render: (w) => <span className="font-semibold">{w.waiter}</span> },
+    { key: 'orders', label: 'Orders', align: 'center', width: 90, render: (w) => <span className="tabular-nums">{w.orders}</span> },
+    {
+      key: 'amount', label: 'Amount (Ksh)', numeric: true, tone: 'negative', width: 160,
+      render: (w) => <span className="font-bold">{w.amount.toLocaleString()}</span>,
+    },
+  ]
+
+  return (
+    <ExcelTable
+      columns={columns}
+      rows={excelDemoRows}
+      rowKey={(w) => w.id}
+      numbered
+      expandable={{
+        isExpanded: (w) => expandedId === w.id,
+        onToggle: (w) => setExpandedId(expandedId === w.id ? null : w.id),
+        childRows: (w) => w.details.map((d) => ({
+          waiter: d.label,
+          orders: d.date,
+          amount: <span className="font-semibold text-sheet-negative">{d.total.toLocaleString()}</span>,
+        })),
+      }}
+      totalsRow={{
+        waiter: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+        orders: excelDemoRows.reduce((a, w) => a + w.orders, 0),
+        amount: <>Ksh {excelDemoRows.reduce((a, w) => a + w.amount, 0).toLocaleString()}</>,
+      }}
+      footnote="Demo data — click a row to expand"
+    />
+  )
+}
+
+/* ── Sheet demo ──────────────────────────────────────────────────── */
+
+const SHEET_DEMO_COLUMNS = ['base', 'bonus', 'deduction'] as const
+type SheetDemoKey = (typeof SHEET_DEMO_COLUMNS)[number]
+
+interface SheetDemoRow {
+  id: string
+  name: string
+  role: string
+  base: string
+  bonus: string
+  deduction: string
+}
+
+function SheetDemo() {
+  const [rows, setRows] = useState<SheetDemoRow[]>([
+    { id: 'r1', name: 'James Mwangi', role: 'Waiter', base: '32000', bonus: '1500', deduction: '500' },
+    { id: 'r2', name: 'Wanjiru Kamau', role: 'Chef', base: '48000', bonus: '', deduction: '' },
+    { id: 'r3', name: 'Peter Ochieng', role: 'Barista', base: '35000', bonus: '800', deduction: '' },
+    { id: 'r4', name: 'Grace Njeri', role: 'Manager', base: '65000', bonus: '', deduction: '1200' },
+  ])
+
+  const applyUpdates = (updates: SheetUpdate<SheetDemoKey>[]) => {
+    setRows((prev) => {
+      const next = prev.map((r) => ({ ...r }))
+      updates.forEach((u) => {
+        const row = next[u.rowIndex]
+        if (row) row[u.columnKey] = u.value
+      })
+      return next
+    })
+  }
+
+  const engine = useSheetEngine<SheetDemoKey>({
+    columnKeys: SHEET_DEMO_COLUMNS,
+    rowCount: rows.length,
+    getValue: (rowIndex, key) => rows[rowIndex]?.[key] ?? '',
+    onBatchUpdate: applyUpdates,
+  })
+
+  const sum = (key: SheetDemoKey) => rows.reduce((a, r) => a + Number(r[key] || 0), 0)
+
+  const moneyCol = (key: SheetDemoKey, header: string, tint: 'green' | 'red', totalClass: string) => ({
+    key,
+    header,
+    width: 110,
+    renderCell: (ctx: { row: SheetDemoRow; rowIndex: number; zebra: boolean; locked: boolean; disabled: boolean }) => (
+      <SheetCell
+        cell={{ rowIndex: ctx.rowIndex, columnKey: key }}
+        engine={engine}
+        value={ctx.row[key]}
+        onChange={(value) => applyUpdates([{ rowIndex: ctx.rowIndex, columnKey: key, value }])}
+        tint={tint}
+        zebra={ctx.zebra}
+        placeholder="0"
+        className="group-hover:bg-sheet-hover"
+      />
+    ),
+    renderTotal: () => sum(key).toLocaleString(),
+    totalClassName: totalClass,
+  })
+
+  const groups: SheetColumnGroup<SheetDemoRow>[] = [
+    {
+      label: 'DEMO SHEET — TYPE, PASTE, DRAG-FILL',
+      tone: 'navy',
+      columns: [{
+        key: 'name',
+        header: 'NAME',
+        width: 180,
+        renderCell: (ctx) => (
+          <td className={`sticky left-8 z-[4] h-10 border border-sheet-grid-dense border-r-2 border-r-stone-300 px-2 align-middle ${ctx.zebra ? 'bg-sheet-zebra-dense' : 'bg-white'} group-hover:bg-sheet-hover`}>
+            <div className="truncate font-semibold text-office-ink">{ctx.row.name}</div>
+            <div className="truncate text-[9px] text-stone-400">{ctx.row.role}</div>
+          </td>
+        ),
+        renderTotal: () => (
+          <span className="text-label-sm font-semibold uppercase tracking-wide text-stone-600">Totals</span>
+        ),
+        totalClassName: 'border-r-2 border-r-stone-300',
+      }],
+    },
+    {
+      label: 'Earnings',
+      tone: 'green',
+      columns: [
+        moneyCol('base', 'Base Pay', 'green', 'text-sheet-band-green'),
+        moneyCol('bonus', 'Bonus', 'green', 'text-sheet-band-green'),
+      ],
+    },
+    {
+      label: 'Deductions',
+      tone: 'red',
+      columns: [moneyCol('deduction', 'Deduction', 'red', 'text-sheet-band-red')],
+    },
+  ]
+
+  return (
+    <div className="flex h-96">
+      <Sheet
+        groups={groups}
+        rows={rows}
+        rowKey={(r) => r.id}
+        engine={engine}
+        statusBar={{
+          left: `Demo · ${rows.length} rows`,
+          right: <span><span className="mr-1 opacity-65">Net:</span><strong>Ksh {(sum('base') + sum('bonus') - sum('deduction')).toLocaleString()}</strong></span>,
+        }}
+      />
     </div>
   )
 }

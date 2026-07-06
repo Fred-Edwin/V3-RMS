@@ -57,7 +57,7 @@ export function TopBar({ branchName, stationLabel, connectionStatus, tone = 'dar
       </div>
       <span
         className={cn(
-          'text-center font-display text-heading-md tabular-nums',
+          'text-center font-sans text-heading-md font-medium tabular-nums',
           tone === 'dark' ? 'text-crema' : 'text-stone-900',
         )}
       >

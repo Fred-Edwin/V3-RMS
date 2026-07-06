@@ -9,13 +9,12 @@ interface BadgeProps {
   className?: string
 }
 
-// Full class strings written out — no interpolation (Tailwind JIT requirement)
 const variantClasses: Record<BadgeVariant, string> = {
-  pending: 'bg-[#FDF3DC] text-[#92650A] border border-[#F0D080]',
-  inprogress: 'bg-[#FEF0E0] text-[#A04F0A] border border-[#F5B87A]',
-  ready: 'bg-[#EDFAF1] text-[#1A6B3C] border border-[#86EFAC]',
-  closed: 'bg-[#F4F4F5] text-[#71717A] border border-[#D4D4D8]',
-  cancelled: 'bg-[#FDF2F0] text-[#9B3A2A] border border-[#F5A898]',
+  pending: 'bg-status-pending-bg text-status-pending-text border border-status-pending-border',
+  inprogress: 'bg-status-inprogress-bg text-status-inprogress-text border border-status-inprogress-border',
+  ready: 'bg-status-ready-bg text-status-ready-text border border-status-ready-border',
+  closed: 'bg-status-closed-bg text-status-closed-text border border-status-closed-border',
+  cancelled: 'bg-status-cancelled-bg text-status-cancelled-text border border-status-cancelled-border',
   awaiting: 'bg-amber-50 text-amber-800 border border-amber-300',
   cancellationPending: 'bg-[#FFF7ED] text-[#9A3412] border border-[#FDBA74]',
 }

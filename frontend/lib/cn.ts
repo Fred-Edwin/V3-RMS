@@ -5,6 +5,7 @@ const customTextScale = [
   'display-2xl',
   'display-xl',
   'display-lg',
+  'display-md',
   'heading-xl',
   'heading-lg',
   'heading-md',
@@ -16,6 +17,10 @@ const customTextScale = [
   'label-md',
   'label-sm',
   'caption',
+  'sheet-base',
+  'sheet-cell',
+  'sheet-header',
+  'sheet-band',
 ] as const;
 
 // Treat custom text-* tokens as font-size utilities so text colors are not dropped.

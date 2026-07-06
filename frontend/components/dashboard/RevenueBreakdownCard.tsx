@@ -25,7 +25,7 @@ export function RevenueBreakdownCard({ totalRevenue, period }: RevenueBreakdownC
           <h3 className="text-heading-md font-semibold text-stone-900">Revenue Allocation</h3>
           {period && <span className="text-caption text-stone-400">{period}</span>}
         </div>
-        <p className="mt-1 font-display text-display-lg font-semibold leading-tight text-espresso">
+        <p className="mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums text-espresso">
           {formatKes(totalRevenue)}
         </p>
         <p className="text-caption uppercase tracking-widest text-stone-400">Gross revenue</p>

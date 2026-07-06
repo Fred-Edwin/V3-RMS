@@ -67,6 +67,22 @@ export { SkeletonCard } from './SkeletonCard'
 export { SkeletonTable } from './SkeletonTable'
 export { Table } from './Table'
 export type { TableColumn } from './Table'
+export { ExcelTable } from './ExcelTable'
+export type { ExcelColumn, ExcelTableProps, ExcelHeaderTone } from './ExcelTable'
+export { Sheet, SheetCell, useSheetEngine } from './sheet'
+export type {
+  SheetColumn,
+  SheetColumnGroup,
+  SheetRowContext,
+  SheetRowIndicator,
+  SheetEngine,
+  SheetBandTone,
+  SheetCellCoord,
+  SheetCellTint,
+  SheetRowState,
+  SheetSelection,
+  SheetUpdate,
+} from './sheet'
 export { SupportContact } from './SupportContact'
 
 // Wave 10 — Onboarding

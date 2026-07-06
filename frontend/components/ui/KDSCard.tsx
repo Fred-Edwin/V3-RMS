@@ -47,12 +47,11 @@ interface KDSCardProps {
   className?: string
 }
 
-// Full class strings — no interpolation
 const ticketBorderClasses: Record<TicketStatus, string> = {
-  PENDING: 'border-l-[#F0D080]',
-  IN_PROGRESS: 'border-l-[#F5B87A]',
-  READY: 'border-l-[#86EFAC]',
-  REJECTED: 'border-l-[#FCA5A5]',
+  PENDING: 'border-l-status-pending-border',
+  IN_PROGRESS: 'border-l-status-inprogress-border',
+  READY: 'border-l-status-ready-border',
+  REJECTED: 'border-l-danger-border',
 }
 
 const typeLabels: Record<OrderType, string> = {
@@ -67,8 +66,8 @@ function getElapsedMinutes(startTime: string | Date): number {
 }
 
 function getTimerClass(minutes: number): string {
-  if (minutes >= 20) return 'text-[#991B1B]'
-  if (minutes >= 10) return 'text-[#C4862A]'
+  if (minutes >= 20) return 'text-danger'
+  if (minutes >= 10) return 'text-amber'
   return 'text-stone-500'
 }
 

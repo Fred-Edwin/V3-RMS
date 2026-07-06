@@ -659,7 +659,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue Today</p>
                 <TrendingUp size={16} className="text-stone-400" />
               </div>
-              <p className="mt-2 font-display text-display-lg font-medium text-stone-900">
+              <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
                 {formatCurrency(overviewToday?.totalRevenue ?? '0')}
               </p>
               <DeltaBadge pct={totalRevenueDelta} />
@@ -688,7 +688,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Orders Today</p>
                 <Building2 size={16} className="text-stone-400" />
               </div>
-              <p className="mt-2 font-display text-display-lg font-medium text-stone-900">
+              <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
                 {overviewToday?.totalOrders ?? 0}
               </p>
               <DeltaBadge pct={totalOrdersDelta} />
@@ -705,7 +705,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Avg Prep Time</p>
               <Clock size={16} className="text-stone-400" />
             </div>
-            <p className="mt-2 font-display text-display-lg font-medium text-stone-900">
+            <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
               {avgPrepTime !== null ? `${avgPrepTime} min` : '—'}
             </p>
             <span className="text-caption text-stone-400">All branches, all stations</span>
@@ -721,7 +721,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Staff Clocked In</p>
               <Users size={16} className="text-stone-400" />
             </div>
-            <p className="mt-2 font-display text-display-lg font-medium text-stone-900">
+            <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
               {pulse?.totalClockedIn ?? 0}
             </p>
             <span className="text-caption text-stone-400">
