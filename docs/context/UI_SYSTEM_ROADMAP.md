@@ -31,8 +31,8 @@ Floor roles (waiter, KDS/BDS) are untouched by design.
 
 Progress:
 - ✅ `director/analytics` (9 tables) — PR #27, merged 2026-07-06
-- ✅ `director/` dashboard — local branch `feat/round1-director-dashboard-exceltable`, pending owner manual test (late-orders modal → ExcelTable red; leaderboards stayed lists after owner revert)
-- ✅ `director/branches/[branchId]` — same branch, pending owner manual test (no ExcelTables by owner decision; tokens + shared primitives only)
+- ✅ `director/` dashboard — local branch `feat/round1-director-dashboard-exceltable`, owner-tested 2026-07-06 (late-orders modal → ExcelTable red; leaderboards stayed lists after owner revert)
+- ✅ `director/branches/[branchId]` — same branch, owner-tested 2026-07-06 (no ExcelTables by owner decision; tokens + shared primitives only)
 - ✅ Shared primitives shipped on that branch: `TabBar` (underline/segmented), `ExportMenu`, `DateRangeBar`, `RankedItemList`, `Badge` tones, `lib/chart-colors.ts`
 - Next — Director: `director/other-income` → `director/settings` → `director/incidents`
 - Accountant: `accountant/reconciliation` (6 tables) → `accountant/analytics` (5) → credit pages
