@@ -20,8 +20,21 @@
 
 ## Remaining rounds (in order)
 
-### Round 1 — Migrate hand-rolled tables to ExcelTable/Table (+ office canvas per page)
-Traffic order: `director/analytics` (9 tables) → `accountant/reconciliation` (6) → `accountant/analytics` (5) → `manage/reports` (4) → attendance, leave, order-corrections, director/branches, credit pages. Each migrated page also gets `bg-office-canvas`.
+### Round 1 — Role-by-role page sweep (one page per PR)
+Sweep order: **Director → Accountant → Manager → HR → Admin**. Each page gets, together in one PR:
+- Hand-rolled tables → `ExcelTable` (or `Sheet` if the grid is editable)
+- Hardcoded hex/inline styles → tokens in every touched block
+- `bg-office-canvas` on the page
+
+Floor roles (waiter, KDS/BDS) are untouched by design.
+
+Progress:
+- ✅ `director/analytics` (9 tables) — PR #27, merged 2026-07-06
+- Director: `director/` dashboard → `director/branches` → branch detail pages
+- Accountant: `accountant/reconciliation` (6 tables) → `accountant/analytics` (5) → credit pages
+- Manager: `manage/reports` (4 tables) → remaining manage pages
+- HR: attendance → leave
+- Admin: `admin/order-corrections`
 
 ### Round 2 — Status system unification
 Create `lib/status.ts` as the single status→tone+label map (order/ticket/leave/payroll/incident). Generalize `Badge` (tone + custom children). Delete the 10+ per-page status color maps (e.g. `hr/my-leave/page.tsx` inline ternary styles).
