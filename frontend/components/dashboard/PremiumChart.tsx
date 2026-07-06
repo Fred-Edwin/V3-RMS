@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { DowHeatmapPoint, HourlyHeatmapReport } from '@/types/report';
+import { CHART_AMBER, CHART_SERIES_PALETTE } from '@/lib/chart-colors';
 import { cn } from '@/lib/cn';
 
 function useContainerWidth(fallback = 320): [React.RefObject<HTMLDivElement>, number] {
@@ -95,7 +96,7 @@ interface Point {
 }
 
 // Branch palette: red primary, blue secondary, then fallbacks
-const seriesPalette = ['#DC2626', '#2563EB', '#16A34A', '#D97706', '#0D9488', '#7C3AED'];
+const seriesPalette = [...CHART_SERIES_PALETTE];
 
 const getPointsPath = (points: Point[], minY: number, maxY: number): string => {
   if (points.length === 0) {
@@ -224,7 +225,7 @@ export function LineTrendChart({
   title,
   subtitle,
   data,
-  accentColor = '#C4862A',
+  accentColor = CHART_AMBER,
   valueFormatter = defaultFormatter,
   tooltipUnit = 'Orders',
   summaryLabel = 'Total Orders',
@@ -865,7 +866,7 @@ interface HourlyBarsChartProps {
 }
 
 // Coffee gradient: dark roast espresso → caramel latte
-const DOW_BAR_GRADIENT = 'linear-gradient(90deg, #1A0A05 0%, #7C3D0A 40%, #C4862A 75%, #E8B84A 100%)';
+const DOW_BAR_GRADIENT = `linear-gradient(90deg, #1A0A05 0%, #7C3D0A 40%, ${CHART_AMBER} 75%, #E8B84A 100%)`;
 
 function DowBars({ points }: { points: DowHeatmapPoint[] }): JSX.Element {
   const max = Math.max(...points.map((p) => p.avgOrderCount), 1);
@@ -1081,7 +1082,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
                     y={paddingTop}
                     width={barSpacing - 2}
                     height={innerHeight}
-                    fill="#C4862A"
+                    fill={CHART_AMBER}
                     fillOpacity={0.06}
                     rx={4}
                     ry={4}
@@ -1199,7 +1200,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
                 y1={paddingTop}
                 x2={hoveredBarX}
                 y2={paddingTop + innerHeight}
-                stroke="#C4862A"
+                stroke={CHART_AMBER}
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
                 strokeOpacity={0.6}
@@ -1234,7 +1235,7 @@ export function HourlyBarsChart({ data, showDow = false, className }: HourlyBars
                 height={82}
                 rx={2}
                 ry={2}
-                fill="#C4862A"
+                fill={CHART_AMBER}
               />
               <text
                 x={clamp(hoveredBarX - 72, paddingLeft + 10, paddingLeft + innerWidth - 158)}

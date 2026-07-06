@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Button, EmptyState, ExcelTable, Modal, PageLayout, SkeletonBlock, type ExcelColumn } from '@/components/ui';
 import { LineTrendChart } from '@/components/dashboard/PremiumChart';
+import { RankedItemList } from '@/components/dashboard/RankedItemList';
+import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
@@ -838,46 +840,14 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                   <ChevronUp size={14} className="text-status-ready-text" />
                   <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Top 5</span>
                 </div>
-                <div className="divide-y divide-stone-100">
-                  {todayItems.topItems.map((item, i) => (
-                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
-                        <div>
-                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
-                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <RankedItemList items={todayItems.topItems} variant="top" formatCurrency={formatCurrency} />
               </div>
               <div>
                 <div className="mb-2 flex items-center gap-1.5">
                   <TrendingDown size={14} className="text-danger" />
                   <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom 5</span>
                 </div>
-                <div className="divide-y divide-stone-100">
-                  {todayItems.bottomItems.map((item, i) => (
-                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
-                        <div>
-                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
-                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <RankedItemList items={todayItems.bottomItems} variant="bottom" formatCurrency={formatCurrency} />
               </div>
             </div>
           ) : (
@@ -918,7 +888,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Revenue (KES)"
               subtitle="Daily total across all branches"
               data={revenueTrendData}
-              accentColor="#1A6B3C" // success token — charts take hex props, not classes
+              accentColor={CHART_SUCCESS}
               valueFormatter={(value) =>
                 `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`
               }
@@ -929,7 +899,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Orders"
               subtitle="Daily closed order volume"
               data={ordersTrendData}
-              accentColor="#C4862A"
+              accentColor={CHART_AMBER}
               valueFormatter={(value) => String(Math.round(value))}
               tooltipUnit="Orders"
               summaryLabel="Total Orders"
