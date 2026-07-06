@@ -1205,7 +1205,7 @@ All Excel-surface colors live under `sheet.*` in `tailwind.config.ts`: gridlines
 | Component | Use for | Look |
 |---|---|---|
 | `Table` (`components/ui/Table.tsx`) | Browsing lists — staff, orders, incidents | Soft: horizontal dividers only, generous rows |
-| `ExcelTable` (`components/ui/ExcelTable.tsx`) | Read-only corporate data — registers, liabilities, report tables | Gridlines, navy header band, zebra rows, totals band, expandable child rows |
+| `ExcelTable` (`components/ui/ExcelTable.tsx`) | Read-only corporate data — registers, liabilities, report tables | Gridlines, navy header band, zebra rows, totals band, expandable child rows, sortable headers (per-column `sort` config) |
 | `Sheet` (`components/ui/sheet/`) | Editable grids — payroll entry | Full spreadsheet: colored group bands, frozen columns, cell selection, copy/paste, drag-fill, keyboard navigation |
 
 Pages must not hand-roll `<table>` markup for data surfaces. If one of these components is missing a capability, extend the component — do not fork its styling into a page.
