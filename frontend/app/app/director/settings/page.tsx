@@ -14,8 +14,10 @@ import {
   Modal,
   PageHeader,
   PageLayout,
+  Select,
   SkeletonBlock,
   SkeletonTable,
+  type SelectOption,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto, type UpdateBranchProfileInput } from '@/services/branchService';
@@ -48,6 +50,8 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
       })
       .finally(() => setIsBranchesLoading(false));
   }, [accessToken, toast]);
+
+  const branchOptions: SelectOption[] = branches.map((b) => ({ value: b.id, label: b.name }));
 
   // ─── Branch profile ──────────────────────────────────────────────────────
   const [profile, setProfile] = useState<BranchDto | null>(null);
@@ -280,18 +284,14 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
             <label htmlFor="branch-select" className="text-body-sm font-medium text-stone-700 shrink-0">
               Branch
             </label>
-            <select
-              id="branch-select"
-              value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-body-sm text-stone-900 shadow-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-64">
+              <Select
+                id="branch-select"
+                options={branchOptions}
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </section>
@@ -361,8 +361,8 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
                         <div className="mt-0.5 flex items-center gap-1.5">
                           {station.isOnline ? (
                             <>
-                              <Wifi size={12} className="text-[#1A6B3C]" />
-                              <span className="text-caption text-[#1A6B3C]">Online</span>
+                              <Wifi size={12} className="text-success" />
+                              <span className="text-caption text-success">Online</span>
                             </>
                           ) : (
                             <>
@@ -457,8 +457,8 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
               />
             </div>
           )}
-          <div className="rounded-lg border border-amber/40 bg-[#FDF3DC] p-3">
-            <p className="mb-2 text-label-sm text-[#92650A]">This token will NOT be shown again.</p>
+          <div className="rounded-lg border border-amber/40 bg-status-pending-bg p-3">
+            <p className="mb-2 text-label-sm text-status-pending-text">This token will NOT be shown again.</p>
             <div className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2">
               <code className="flex-1 break-all text-caption text-stone-900">{tokenModal?.token}</code>
               <button
@@ -467,7 +467,7 @@ export default function DirectorBranchSettingsPage(): JSX.Element {
                 className="shrink-0 rounded p-1 text-stone-500 hover:bg-stone-100 hover:text-stone-700 transition-colors"
                 aria-label="Copy token"
               >
-                {isCopied ? <Check size={16} className="text-[#1A6B3C]" /> : <Copy size={16} />}
+                {isCopied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
               </button>
             </div>
           </div>
