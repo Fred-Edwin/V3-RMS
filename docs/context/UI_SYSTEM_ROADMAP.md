@@ -41,7 +41,7 @@ Progress:
 - ✅ Shared primitives shipped on that branch: `TabBar` (underline/segmented), `ExportMenu`, `DateRangeBar`, `RankedItemList`, `Badge` tones, `lib/chart-colors.ts`
 - 📌 **Parked idea (not started):** owner wants to merge `admin/corporate-accounts` + `manage/outstanding-balances` into one page with tabs (Corporate Accounts / Outstanding Balances-with-its-3-subtabs). Investigation found a 4th related page, `accountant/credit`, which is a separate fuller settlement workflow (not the same component) — and `manage/my-tab` is self-service for every role, confirmed out of scope for any merge. Owner said to pin this and resume the sweep; needs Plan mode + explicit re-scoping before starting given the role-gating complexity (Manager must never see the Corporate Accounts CRUD tab). Full detail in agent memory: `credit-pages-merge-pinned.md`.
 - Next — Accountant: `accountant/reconciliation` (1,323 lines, 6 tables) → `accountant/analytics` (5) → credit pages
-- Manager: `manage/reports` (4 tables) → remaining manage pages
+- Manager: `manage/reports` (4 tables) → remaining manage pages, including `manage/my-tab` (has a hex status pill + `TabOrderHistoryTable` sub-component, not yet inspected) in its normal turn — owner confirmed 2026-07-06 not to bump it up ahead of the sweep order
 - HR: attendance → leave
 - Admin: `admin/order-corrections`
 
