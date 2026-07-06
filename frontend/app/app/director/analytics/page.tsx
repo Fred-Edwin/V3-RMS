@@ -1217,7 +1217,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 {/* Total Discounted */}
                 <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Total Discounted</p>
-                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                  <p className="mt-1.5 font-sans text-display-md font-bold text-espresso tabular-nums">
                     {formatCurrency(discountUsage.totalDiscounted)}
                   </p>
                   <p className="mt-0.5 text-caption text-stone-400">{periodLabel}</p>
@@ -1225,7 +1225,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 {/* Orders with discount */}
                 <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Discounted Orders</p>
-                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                  <p className="mt-1.5 font-sans text-display-md font-bold text-espresso tabular-nums">
                     {discountUsage.totalOrders}
                   </p>
                   <p className="mt-0.5 text-caption text-stone-400">Orders with a discount applied</p>
@@ -1233,7 +1233,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                 {/* Avg per discounted order */}
                 <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                   <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Avg per Order</p>
-                  <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">
+                  <p className="mt-1.5 font-sans text-display-md font-bold text-espresso tabular-nums">
                     {discountUsage.totalOrders > 0
                       ? formatCurrency(
                           String(Number.parseFloat(discountUsage.totalDiscounted) / discountUsage.totalOrders),
@@ -1397,22 +1397,22 @@ export default function DirectorAnalyticsPage(): JSX.Element {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Approved</p>
-                <p className="mt-1.5 font-display text-display-md font-bold text-[#1A6B3C] tabular-nums">{leaveStats.approved}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-[#1A6B3C] tabular-nums">{leaveStats.approved}</p>
                 <p className="mt-0.5 text-caption text-stone-400">{leaveStats.totalDaysTaken}d total taken</p>
               </div>
               <div className="rounded-xl border border-[#F0D080] bg-[#FFFDF5] p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A]">Pending</p>
-                <p className="mt-1.5 font-display text-display-md font-bold text-[#92650A] tabular-nums">{leaveStats.pending}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-[#92650A] tabular-nums">{leaveStats.pending}</p>
                 <p className="mt-0.5 text-caption text-[#92650A]">Awaiting HR review</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Rejected</p>
-                <p className="mt-1.5 font-display text-display-md font-bold text-[#9B3A2A] tabular-nums">{leaveStats.rejected}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-[#9B3A2A] tabular-nums">{leaveStats.rejected}</p>
                 <p className="mt-0.5 text-caption text-stone-400">Declined requests</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Days Taken</p>
-                <p className="mt-1.5 font-display text-display-md font-bold text-espresso tabular-nums">{leaveStats.totalDaysTaken}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-espresso tabular-nums">{leaveStats.totalDaysTaken}</p>
                 <p className="mt-0.5 text-caption text-stone-400">Approved leave days</p>
               </div>
             </div>

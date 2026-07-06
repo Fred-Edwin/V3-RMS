@@ -52,15 +52,83 @@ const config: Config = {
             border: '#F5A898',
           },
         },
+        danger: {
+          DEFAULT: '#991B1B',
+          bg: '#FEF2F2',
+          border: '#FCA5A5',
+        },
+        success: {
+          DEFAULT: '#1A6B3C',
+          bg: '#EDFAF1',
+          border: '#86EFAC',
+        },
+        warning: {
+          DEFAULT: '#92400E',
+          bg: '#FFFBEB',
+          border: '#FCD34D',
+        },
+        // Excel-style data surfaces (Sheet / ExcelTable). Values lifted from the
+        // hand-built payroll sheet so existing visuals are preserved exactly.
+        sheet: {
+          grid: '#D8D4D0',
+          'grid-dense': '#D0D0D0',
+          header: '#F0F0F0',
+          toolbar: '#E0E0E0',
+          statusbar: '#217346',
+          zebra: '#F6F5F4',
+          'zebra-dense': '#F9F9F9',
+          rownum: '#F0F0F0',
+          'rownum-even': '#EBEBEB',
+          hover: '#EEF3FA',
+          subrow: '#FBFAF9',
+          expanded: '#EAF1F8',
+          totals: '#DCE6F1',
+          locked: '#F5F5F5',
+          selection: '#DBEAFE',
+          'selection-ring': '#60A5FA',
+          active: '#2563EB',
+          negative: '#A31515',
+          'dot-pending': '#F59E0B',
+          'dot-error': '#EF4444',
+          'dot-info': '#3B82F6',
+          band: {
+            navy: '#2E5984',
+            green: '#1F6E43',
+            red: '#A31515',
+            purple: '#5B2D8E',
+            teal: '#1A5276',
+            gray: '#78716C',
+          },
+          // Column-group cell washes (soft = odd rows, base = even rows)
+          tint: {
+            green: '#EAF4E6',
+            'green-soft': '#F0F7EE',
+            red: '#FAE8E6',
+            'red-soft': '#FDF0EE',
+            purple: '#EDE6F5',
+            'purple-soft': '#F3EEFA',
+            'red-strong': '#FDE8E8',
+            'green-strong': '#E6F3E8',
+          },
+        },
+        // Back-office canvas (hybrid direction: warm floor, clean office).
+        office: {
+          canvas: '#FAFAFA',
+          ink: '#1A0A00',
+        },
       },
       fontFamily: {
-        display: ['Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', 'serif'],
-        sans: ['Jost', 'Futura', 'Century Gothic', 'sans-serif'],
+        // next/font registers hashed family names; the CSS variables are the
+        // only reliable way to reference the loaded webfonts.
+        display: ['var(--font-display)', 'Cormorant Garamond', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+        sheet: ['Calibri', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       fontSize: {
         'display-2xl': ['3.5rem', { lineHeight: '1.1', letterSpacing: '-0.02em' }],
         'display-xl': ['3rem', { lineHeight: '1.15', letterSpacing: '-0.02em' }],
         'display-lg': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.01em' }],
+        'display-md': ['1.75rem', { lineHeight: '1.25', letterSpacing: '-0.01em' }],
         'heading-xl': ['1.875rem', { lineHeight: '1.25', letterSpacing: '-0.01em' }],
         'heading-lg': ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em' }],
         'heading-md': ['1.25rem', { lineHeight: '1.35' }],
@@ -72,6 +140,12 @@ const config: Config = {
         'label-md': ['0.8125rem', { lineHeight: '1.4', letterSpacing: '0.01em' }],
         'label-sm': ['0.75rem', { lineHeight: '1.3', letterSpacing: '0.02em' }],
         caption: ['0.75rem', { lineHeight: '1.4', letterSpacing: '0.01em' }],
+        // Excel-style data surfaces (px-locked; these grids mimic spreadsheet density).
+        // Sized for long entry sessions on desktop — real Excel defaults to ~14.7px.
+        'sheet-base': ['13.5px', { lineHeight: '1.4' }],
+        'sheet-cell': ['13px', { lineHeight: '1.35' }],
+        'sheet-header': ['11.5px', { lineHeight: '1.3' }],
+        'sheet-band': ['11px', { lineHeight: '1.2', letterSpacing: '0.06em' }],
       },
       spacing: {
         18: '4.5rem',

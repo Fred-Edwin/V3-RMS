@@ -21,6 +21,7 @@
 11. [Motion & Interaction](#11-motion--interaction)
 12. [Interface-Specific Patterns](#12-interface-specific-patterns)
 13. [Tailwind Configuration](#13-tailwind-configuration)
+14. [Data Surfaces — Office Mode](#14-data-surfaces--office-mode)
 
 ---
 
@@ -233,13 +234,13 @@ An elegant, high-contrast serif with exceptional refinement at large sizes. Pull
 
 Google Fonts: `Cormorant Garamond` — weights 400, 500, 600
 
-**Body & UI: Jost**
-A geometric sans-serif modeled after the 1920s–30s Johnston and Futura tradition — the same modernist era in which Cormorant Garamond's Renaissance letterforms were being rediscovered. The pairing is historically coherent: old-world warmth meets modernist clarity. Jost has airy letterforms, open apertures, and slightly rounded terminals that prevent the coldness of pure geometric sans-serifs like Inter or Roboto. It reads as editorial and intentional at every size from 12px caption to 20px heading, without ever feeling like a startup product font.
+**Body & UI: Inter**
+*(Revised 2026-07-06 — replaced Inter.)* A humanist neo-grotesque designed specifically for user interfaces at screen sizes: tall x-height, open apertures, disambiguated characters (Il1, 0O), and proper tabular figures. It is the de facto standard for enterprise product UI (Linear, GitHub, Figma) because it stays effortlessly legible at the 12–14px sizes where operational software lives. The previous choice, Inter, was a Futura-style geometric — beautiful in brand contexts but measurably harder to read as dense UI text; it was replaced after the first real-world review.
 
-Google Fonts: `Jost` — variable font, weights 300–700 in one request
+Google Fonts: `Inter` — variable font, one request
 
 **Why these two together:**
-Cormorant is the personality — the serif that signals craft, history, and premium intention. Jost is the clarity — the geometric sans that signals precision and restraint. Both share the same quiet confidence. Neither shouts. Together they capture exactly what Wendo is: a place with taste that also runs an efficient operation.
+Cormorant is the personality — the serif that signals craft, history, and premium intention, reserved for titles and brand moments. Inter is the workhorse — invisible, precise, and legible under pressure. The brand lives in the hero type and the espresso/amber accents; the daily work happens in a font engineered for exactly that.
 
 ---
 
@@ -253,23 +254,23 @@ display-2xl   3.5rem  / 56px   weight 500   line-height 1.1   tracking -0.02em
 display-xl    3rem    / 48px   weight 500   line-height 1.15  tracking -0.02em
 display-lg    2.25rem / 36px   weight 500   line-height 1.2   tracking -0.01em
 
-// Headings — DM Sans
+// Headings — Inter
 heading-xl    1.875rem / 30px  weight 600   line-height 1.25  tracking -0.01em
 heading-lg    1.5rem   / 24px  weight 600   line-height 1.3   tracking -0.01em
 heading-md    1.25rem  / 20px  weight 600   line-height 1.35  tracking 0
 heading-sm    1.125rem / 18px  weight 600   line-height 1.4   tracking 0
 
-// Body — DM Sans
+// Body — Inter
 body-lg       1rem     / 16px  weight 400   line-height 1.6   tracking 0
 body-md       0.9375rem/ 15px  weight 400   line-height 1.6   tracking 0
 body-sm       0.875rem / 14px  weight 400   line-height 1.5   tracking 0
 
-// Labels & UI — DM Sans
+// Labels & UI — Inter
 label-lg      0.875rem / 14px  weight 500   line-height 1.4   tracking 0.01em
 label-md      0.8125rem/ 13px  weight 500   line-height 1.4   tracking 0.01em
 label-sm      0.75rem  / 12px  weight 500   line-height 1.3   tracking 0.02em
 
-// Caption — DM Sans
+// Caption — Inter
 caption       0.75rem  / 12px  weight 400   line-height 1.4   tracking 0.01em
 ```
 
@@ -278,9 +279,10 @@ caption       0.75rem  / 12px  weight 400   line-height 1.4   tracking 0.01em
 ### Typography Rules
 
 - **Cormorant Garamond is used only for display text and top-level page headings.** Not for buttons, labels, nav items, or body copy. Its job is to give personality to hero moments — not to do operational work.
-- **DM Sans does all operational work.** Every button, label, navigation item, form field, table cell, and body paragraph uses DM Sans.
+- **Inter does all operational work.** Every button, label, navigation item, form field, table cell, and body paragraph uses Inter.
 - **Never use font weights below 400 in UI.** Light weights (300) are reserved for large display text only.
-- **Never exceed two typefaces.** These two and nothing else.
+- **Never exceed two typefaces in general UI.** These two and nothing else. (Single scoped exception: Excel-style data surfaces use the Calibri sheet stack — see §14.)
+- **Fonts follow function.** Serif = titles and brand moments. Sans = controls, labels, body. Numbers = sans, semibold, `tabular-nums` — always, everywhere. If an element conveys data, it is never set in the serif.
 - **Heading hierarchy must be strict.** Every page has one `heading-xl` maximum. Skipping levels (h1 to h3) is not permitted.
 - **Line length for body text:** Maximum 65 characters per line on desktop. Mobile is constrained by viewport naturally.
 
@@ -394,7 +396,7 @@ Buttons communicate importance through visual weight. The hierarchy is strict �
 ```
 Background:   Espresso (#2C1810)
 Text:         Crema (#F5F0E8)
-Font:         DM Sans, label-lg, weight 500
+Font:         Inter, label-lg, weight 500
 Height:       44px (mobile), 40px (desktop)
 Padding:      0 24px
 Border Radius: radius-md (8px)
@@ -413,7 +415,7 @@ Loading:      Background stays Espresso, text replaced by subtle spinner
 Background:   transparent
 Text:         Espresso (#2C1810)
 Border:       1.5px solid Espresso (#2C1810)
-Font:         DM Sans, label-lg, weight 500
+Font:         Inter, label-lg, weight 500
 Height:       44px (mobile), 40px (desktop)
 Padding:      0 24px
 Border Radius: radius-md
@@ -428,7 +430,7 @@ Disabled:     Border → Stone 300, Text → Stone 400
 Background:   transparent
 Text:         Stone 700 (#44403C)
 Border:       none
-Font:         DM Sans, label-md, weight 500
+Font:         Inter, label-md, weight 500
 Height:       36px
 Padding:      0 16px
 Border Radius: radius-md
@@ -442,7 +444,7 @@ Active:       Background → Stone 200
 Background:   transparent
 Text:         #991B1B (Error Text)
 Border:       1.5px solid #FCA5A5 (Error Border)
-Font:         DM Sans, label-lg, weight 500
+Font:         Inter, label-lg, weight 500
 
 Hover:        Background → Error BG (#FEF2F2)
 ```
@@ -465,10 +467,10 @@ Border:       1.5px solid Stone 200 (#E8E5E1)
 Border Radius: radius-sm (4px)
 Height:       44px (mobile), 40px (desktop)
 Padding:      0 16px
-Font:         DM Sans, body-md
+Font:         Inter, body-md
 Text colour:  Stone 900
 
-Label:        DM Sans, label-sm, Stone 700, 8px above input
+Label:        Inter, label-sm, Stone 700, 8px above input
 Placeholder:  Stone 500
 
 Focus:        Border → Espresso (#2C1810), shadow-focus-ring (amber)
@@ -625,7 +627,7 @@ Nav item:
   Padding:    0 16px
   Border Radius: radius-md
   Icon:       20px, left, 12px gap to label
-  Label:      label-md, DM Sans
+  Label:      label-md, Inter
   Inactive:   Stone 600 (icon + text), transparent background
   Hover:      Stone 100 background, Stone 900 text
   Active:     Stone 100 background, Espresso text and icon,
@@ -800,7 +802,7 @@ This passive urgency signal means the chef does not need a manager to tell them 
 
 ### Icon Library: Lucide Icons
 
-Lucide is clean, geometric, and consistent. It is already part of the tech stack (`lucide-react`). The line weight and visual language are a natural fit for the DM Sans/Cormorant pairing — not too heavy, not too light.
+Lucide is clean, geometric, and consistent. It is already part of the tech stack (`lucide-react`). The line weight and visual language are a natural fit for the Inter/Cormorant pairing — not too heavy, not too light.
 
 ### Sizing Standards
 
@@ -932,7 +934,7 @@ Subtle fade + slight upward movement (translateY: 8px → 0, opacity: 0 → 1, 3
 - The active orders list uses large, scannable cards — order number is the largest text element
 - Colour-coded left borders on order cards for instant status recognition
 
-**Typography in this interface:** Mostly DM Sans. Cormorant is used only for the page title on the Dashboard (e.g., "Good morning, James").
+**Typography in this interface:** Mostly Inter. Cormorant is used only for the page title on the Dashboard (e.g., "Good morning, James").
 
 ---
 
@@ -970,7 +972,7 @@ Status borders: Same semantic colours — they work on dark
 **Design decisions:**
 - Sidebar navigation — persistent, always visible on desktop
 - Dashboard uses a card grid — 4 stat cards across the top, charts and tables below
-- Stat cards use Cormorant Garamond for the number — this is the one place a large serif number feels authoritative and premium
+- Stat card numbers use Inter semibold with `tabular-nums` — numbers are data and must be instantly comparable at a glance. (Revised 2026-07-06: the original serif-number rule failed in practice — Cormorant's thin numerals read as decoration, not information.)
 - Tables are clean with no vertical borders — only horizontal dividers between rows
 - Charts use the brand colour palette — Espresso as the primary series, Amber as secondary, Stone for tertiary
 - Report exports are triggered by a button with a dropdown (PDF / CSV) — not a separate page
@@ -982,7 +984,7 @@ Status borders: Same semantic colours — they work on dark
 
 **Page structure — every page:**
 ```
-Page header:    Page title (heading-xl, DM Sans) + optional action button (top-right)
+Page header:    Page title (heading-xl, Inter) + optional action button (top-right)
                 Subtitle or breadcrumb below (body-sm, Stone 500)
                 Border-bottom: 1px Stone 200, 24px margin-bottom
 Content area:   Padded by layout system (16px mobile, 24px tablet, 32px desktop)
@@ -1082,7 +1084,7 @@ const config: Config = {
 
       fontFamily: {
         display: ['Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', 'serif'],
-        sans: ['Jost', 'Futura', 'Century Gothic', 'sans-serif'],
+        sans: ['Inter', 'Futura', 'Century Gothic', 'sans-serif'],
       },
 
       fontSize: {
@@ -1177,3 +1179,39 @@ export default config
 ---
 
 *This Design System is the single source of truth for every visual decision in the Wendo RMS. No component should be built without referencing it. Any deviation requires a deliberate decision and a document update — not an ad-hoc choice made under time pressure.*
+
+## 14. Data Surfaces — Office Mode
+
+*Added 2026-07-06. Decision: hybrid design direction.*
+
+### The Hybrid Decision
+
+The warm crema canvas is right for the **floor** — waiters, kitchen and barista displays, the customer-facing rhythm of service. It is not right for dense back-office data work. Payroll, reconciliation, reports and analytics are **office surfaces**: they borrow the visual language of professional spreadsheet software — gridlines, colored header bands, high density, tabular numerals.
+
+- **Floor surfaces** (orders, KDS/BDS, waiter app, clock-in): warm crema canvas, unchanged.
+- **Office surfaces** (payroll, reports, reconciliation, analytics): clean corporate treatment on a near-white canvas (`office.canvas` `#FAFAFA`), with Excel-style tables and sheets.
+- Wendo **espresso** remains the primary action color and **amber** the highlight color on *both* kinds of surface — the brand lives in the accents and typography, not the canvas.
+
+### Typeface for Sheets
+
+Excel-style surfaces use the `font-sheet` stack: `Calibri, Segoe UI, Arial, sans-serif`. This is a deliberate exception to the two-typeface rule — it exists **only** inside `Sheet` and `ExcelTable` components, where the spreadsheet idiom is the point. It must never leak into general UI.
+
+### Sheet Tokens
+
+All Excel-surface colors live under `sheet.*` in `tailwind.config.ts`: gridlines (`sheet.grid`, `sheet.grid-dense`), header bands (`sheet.band.{navy,green,red,purple,teal,gray}`), cell washes (`sheet.tint.*`), selection visuals (`sheet.selection`, `sheet.active`), zebra/hover/totals/locked rows, and the Excel-green status bar (`sheet.statusbar`). Never hardcode these hex values in a page.
+
+### Which Table Component to Use
+
+| Component | Use for | Look |
+|---|---|---|
+| `Table` (`components/ui/Table.tsx`) | Browsing lists — staff, orders, incidents | Soft: horizontal dividers only, generous rows |
+| `ExcelTable` (`components/ui/ExcelTable.tsx`) | Read-only corporate data — registers, liabilities, report tables | Gridlines, navy header band, zebra rows, totals band, expandable child rows |
+| `Sheet` (`components/ui/sheet/`) | Editable grids — payroll entry | Full spreadsheet: colored group bands, frozen columns, cell selection, copy/paste, drag-fill, keyboard navigation |
+
+Pages must not hand-roll `<table>` markup for data surfaces. If one of these components is missing a capability, extend the component — do not fork its styling into a page.
+
+The reference implementation is the HR Payroll page (`app/app/hr/payroll/`): `page.tsx` holds data and persistence logic only; `sheet-config.tsx` declares the column groups; all visual decisions live in the primitives and tokens.
+
+### Font Loading Rule (Bug Fixed 2026-07-06)
+
+Brand fonts are loaded via `next/font` in `app/layout.tsx`, which registers them under hashed family names exposed as CSS variables. The Tailwind `fontFamily` config **must** reference `var(--font-sans)` / `var(--font-display)` — never the literal names "Inter" or "Cormorant Garamond", which are not registered as document fonts and silently fall back to system fonts.

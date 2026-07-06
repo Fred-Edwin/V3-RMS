@@ -1,14 +1,19 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Download, RefreshCw } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
+  ExcelTable,
+  PageHeader,
   PageLayout,
+  Sheet,
   SkeletonTable,
   TourButton,
+  useSheetEngine,
 } from '@/components/ui';
+import type { ExcelColumn, SheetRowIndicator, SheetUpdate } from '@/components/ui';
 import { usePageTour } from '@/hooks/usePageTour';
 import { PAYROLL_TOUR_PAGE_KEY, payrollTourSteps } from './payroll-tour';
 import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
@@ -17,10 +22,9 @@ import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { updateEmployeeProfile } from '@/services/hrService';
 import { payslipService } from '@/services/payslipService';
-import { staffService, type StaffDto } from '@/services/staffService';
+import { staffService } from '@/services/staffService';
 import { waiterLiabilityService } from '@/services/waiterLiabilityService';
 import { useAuthStore } from '@/store/authStore';
-import type { AppRole } from '@/types/auth';
 import type { Payslip } from '@/types/payslip';
 import type { WaiterLiabilitySummaryReport } from '@/types/waiterLiability';
 import { formatCurrency, formatPayPeriod } from '@/components/payslips/payslip-utils';
@@ -32,267 +36,45 @@ import {
 } from '@/lib/payroll-csv';
 import { buildPayrollRegisterWorkbook, downloadBlob } from '@/lib/payroll-xlsx';
 import { buildStaffDetailPatch, formatSheetAccount } from '@/lib/payroll-staff-details';
-import { CARRIED_FIELDS, carryForwardValues, priorPeriod } from '@/lib/payroll-carry-forward';
+import { CARRIED_FIELDS, priorPeriod } from '@/lib/payroll-carry-forward';
 import { cn } from '@/lib/cn';
-
-type RowState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
-
-interface SheetRow {
-  userId: string;
-  name: string;
-  role: string;
-  branchName: string;
-  grossPay: string;
-  paye: string;
-  sha: string;
-  nssfTier1: string;
-  nssfTier2: string;
-  housingLevy: string;
-  ncnsAmount: string;
-  ncnsNote: string;
-  advance: string;
-  incentives: string;
-  overtime: string;
-  allowances: string;
-  kraPIN: string | null;
-  bankAccount: string | null;
-  bankName: string | null;
-  accountNumber: string | null;
-  payslipId: string | null;
-  state: RowState;
-  errorMsg: string;
-  // True when the money figures were pre-filled by carry-forward from a prior
-  // period (an unsaved draft). Cleared once the row is saved or manually edited
-  // away. Used to show the "carried over" tag and to know the row still needs review.
-  carriedOver: boolean;
-}
-
-const EDITABLE_COLUMNS = [
-  'grossPay',
-  'paye',
-  'sha',
-  'nssfTier1',
-  'nssfTier2',
-  'housingLevy',
-  'ncnsAmount',
-  'ncnsNote',
-  'advance',
-  'incentives',
-  'overtime',
-  'allowances',
-] as const;
-
-type EditableColumnKey = (typeof EDITABLE_COLUMNS)[number];
-
-interface SheetCellCoord {
-  rowIndex: number;
-  columnKey: EditableColumnKey;
-}
-
-interface SheetSelection {
-  anchor: SheetCellCoord;
-  focus: SheetCellCoord;
-}
-
-const MONEY_COLUMNS = new Set<EditableColumnKey>(
-  EDITABLE_COLUMNS.filter((column) => column !== 'ncnsNote'),
-);
-
-const EXCLUDED_ROLES = new Set<AppRole>(['KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'SYSTEM_ADMIN']);
-
-const columnIndex = (columnKey: EditableColumnKey): number => EDITABLE_COLUMNS.indexOf(columnKey);
-
-const sameCell = (a: SheetCellCoord | null, b: SheetCellCoord | null): boolean =>
-  !!a && !!b && a.rowIndex === b.rowIndex && a.columnKey === b.columnKey;
-
-const getSelectionBounds = (selection: SheetSelection) => {
-  const anchorColumn = columnIndex(selection.anchor.columnKey);
-  const focusColumn = columnIndex(selection.focus.columnKey);
-
-  return {
-    minRow: Math.min(selection.anchor.rowIndex, selection.focus.rowIndex),
-    maxRow: Math.max(selection.anchor.rowIndex, selection.focus.rowIndex),
-    minCol: Math.min(anchorColumn, focusColumn),
-    maxCol: Math.max(anchorColumn, focusColumn),
-  };
-};
-
-const isCellInSelection = (cell: SheetCellCoord, selection: SheetSelection | null): boolean => {
-  if (!selection) return false;
-  const bounds = getSelectionBounds(selection);
-  const col = columnIndex(cell.columnKey);
-  return cell.rowIndex >= bounds.minRow && cell.rowIndex <= bounds.maxRow && col >= bounds.minCol && col <= bounds.maxCol;
-};
-
-const isBottomRightSelectionCell = (cell: SheetCellCoord, selection: SheetSelection | null): boolean => {
-  if (!selection) return false;
-  const bounds = getSelectionBounds(selection);
-  return cell.rowIndex === bounds.maxRow && columnIndex(cell.columnKey) === bounds.maxCol;
-};
-
-const normalizeClipboardValue = (columnKey: EditableColumnKey, value: string): string | null => {
-  const trimmed = value.trim();
-  if (!MONEY_COLUMNS.has(columnKey)) return trimmed;
-
-  const normalized = trimmed.replace(/,/g, '');
-  if (normalized === '') return '';
-  if (!/^\d{1,8}(\.\d{1,2})?$/.test(normalized)) return null;
-  return normalized;
-};
-
-const parseClipboardGrid = (text: string): string[][] => {
-  const rows = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  if (rows[rows.length - 1] === '') rows.pop();
-  return rows.map((row) => row.split('\t'));
-};
-
-const computeRow = (row: SheetRow) => {
-  const totalDeductions =
-    Number(row.paye || 0) +
-    Number(row.sha || 0) +
-    Number(row.nssfTier1 || 0) +
-    Number(row.nssfTier2 || 0) +
-    Number(row.housingLevy || 0) +
-    Number(row.ncnsAmount || 0) +
-    Number(row.advance || 0);
-  const totalEarnings =
-    Number(row.grossPay || 0) +
-    Number(row.incentives || 0) +
-    Number(row.overtime || 0) +
-    Number(row.allowances || 0);
-  const netSalary = totalEarnings - totalDeductions;
-  return { totalDeductions, netSalary };
-};
-
-const SHEET_ROLE_ORDER: Record<string, number> = {
-  DIRECTOR: 0,
-  HR_MANAGER: 1,
-  MANAGER: 2,
-  ACCOUNTANT: 3,
-  CHEF: 4,
-  BARISTA: 5,
-  WAITER: 6,
-};
-
-const roleLabel = (role: string) =>
-  role.toLowerCase().split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-
-const staffToRow = (staff: StaffDto, branchName: string): SheetRow => ({
-  userId: staff.id,
-  name: staff.name,
-  role: roleLabel(staff.role),
-  branchName,
-  grossPay: '',
-  paye: '',
-  sha: '',
-  nssfTier1: '',
-  nssfTier2: '',
-  housingLevy: '',
-  ncnsAmount: '',
-  ncnsNote: '',
-  advance: '',
-  incentives: '',
-  overtime: '',
-  allowances: '',
-  kraPIN: null,
-  bankAccount: null,
-  bankName: null,
-  accountNumber: null,
-  payslipId: null,
-  state: 'idle',
-  errorMsg: '',
-  carriedOver: false,
-});
-
-const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
-  const ep = payslip.user.employeeProfile;
-  const otherDed = payslip.otherDeductions?.[0];
-  return {
-    grossPay: payslip.grossPay,
-    paye: payslip.paye,
-    sha: payslip.sha,
-    nssfTier1: payslip.nssfTier1,
-    nssfTier2: payslip.nssfTier2,
-    housingLevy: payslip.housingLevy,
-    ncnsAmount: otherDed?.amount ?? '',
-    ncnsNote: otherDed?.label ?? '',
-    advance: payslip.advance ?? '',
-    incentives: payslip.incentives ?? '',
-    overtime: payslip.overtime ?? '',
-    allowances: payslip.allowances ?? '',
-    kraPIN: ep?.kraPIN ?? null,
-    bankAccount: formatSheetAccount(ep?.accountNumber, ep?.bankName),
-    bankName: ep?.bankName ?? null,
-    accountNumber: ep?.accountNumber ?? null,
-    payslipId: payslip.id,
-    state: 'saved',
-  };
-};
-
-/**
- * Map a prior-period payslip onto the current sheet row as a *carry-forward
- * draft*. Recurring/variable field rules live in `carryForwardValues`; here we
- * add the sheet-row bookkeeping. The result is an unsaved draft (`state: 'idle'`,
- * `carriedOver: true`) that HR must review and save.
- */
-const carryForwardRow = (prior: Payslip): Partial<SheetRow> => ({
-  ...carryForwardValues(prior),
-  // This is a fresh draft for the new period, not the prior payslip.
-  payslipId: null,
-  state: 'idle',
-  carriedOver: true,
-});
-
-/** Map a sheet row to the bulkUpsert row payload for a given period. */
-const rowToUpsertPayload = (row: SheetRow, payPeriod: string) => {
-  const otherDeductions = row.ncnsAmount
-    ? [{ label: row.ncnsNote || 'Deduction', amount: Number(row.ncnsAmount).toFixed(2) }]
-    : [];
-  return {
-    userId: row.userId,
-    payDate: lastDayOfMonth(payPeriod),
-    grossPay: row.grossPay || '0',
-    paye: row.paye || '0',
-    sha: row.sha || '0',
-    nssfTier1: row.nssfTier1 || '0',
-    nssfTier2: row.nssfTier2 || '0',
-    housingLevy: row.housingLevy || '0',
-    helb: null,
-    advance: row.advance || null,
-    incentives: row.incentives || null,
-    overtime: row.overtime || null,
-    allowances: row.allowances || null,
-    otherDeductions: otherDeductions.length > 0 ? otherDeductions : undefined,
-  };
-};
-
-/** The current month as a "YYYY-MM" pay-period string. */
-const currentPeriod = (): string => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
-
-const lastDayOfMonth = (payPeriod: string): string => {
-  const [y, m] = payPeriod.split('-').map(Number);
-  const last = new Date(y, m, 0);
-  return last.toISOString().slice(0, 10);
-};
+import {
+  EDITABLE_COLUMNS,
+  EXCLUDED_ROLES,
+  carryForwardRow,
+  computeRow,
+  computeTotals,
+  currentPeriod,
+  normalizeClipboardValue,
+  payslipToRow,
+  rowToUpsertPayload,
+  sheetRoleRank,
+  staffToRow,
+  type EditableColumnKey,
+  type RowState,
+  type SheetRow,
+} from './payroll-sheet';
+import { buildPayrollGroups, type StaffDetailField } from './sheet-config';
 
 type TabId = 'entry' | 'records' | 'stale';
+
+type StaleWaiter = WaiterLiabilitySummaryReport['waiters'][number];
+
+const money = (value: number): string => formatCurrency(value.toFixed(2));
 
 /* ── Auto-save status indicator ─────────────────────────────────── */
 function AutoSaveStatus({ dirty, saving, error }: { dirty: number; saving: number; error: number }) {
   if (error > 0) {
     return (
-      <div className="flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3.5 py-1.5 text-[11.5px] font-medium text-red-600">
-        <span className="size-1.5 shrink-0 rounded-full bg-red-500" />
+      <div className="flex items-center gap-2 rounded-full border border-danger-border bg-danger-bg px-3.5 py-1.5 text-label-sm font-medium text-danger">
+        <span className="size-1.5 shrink-0 rounded-full bg-sheet-dot-error" />
         Auto-save failed — check connection
       </div>
     );
   }
   if (saving > 0) {
     return (
-      <div className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-[11.5px] font-medium text-blue-600">
+      <div className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-1.5 text-label-sm font-medium text-blue-600">
         <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
         Saving…
       </div>
@@ -300,19 +82,32 @@ function AutoSaveStatus({ dirty, saving, error }: { dirty: number; saving: numbe
   }
   if (dirty > 0) {
     return (
-      <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-[11.5px] font-medium text-amber-600">
-        <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
+      <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-label-sm font-medium text-amber-600">
+        <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-sheet-dot-pending" />
         {dirty} row{dirty > 1 ? 's' : ''} pending save…
       </div>
     );
   }
   return (
-    <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-[11.5px] font-medium text-emerald-600">
-      <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+    <div className="flex items-center gap-2 rounded-full border border-success-border bg-success-bg px-3.5 py-1.5 text-label-sm font-medium text-success">
+      <span className="size-1.5 shrink-0 rounded-full bg-success" />
       All changes saved · Staff see updates on refresh
     </div>
   );
 }
+
+/* ── Small filter control (label over control) ──────────────────── */
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-sheet-band font-bold uppercase text-stone-400">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+const filterControlClasses =
+  'h-8 rounded-md border border-stone-300 bg-white px-2.5 font-sans text-label-md text-office-ink outline-none';
 
 export default function HrPayslipsPage(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -346,16 +141,9 @@ export default function HrPayslipsPage(): JSX.Element {
   const [isLoadingStale, setIsLoadingStale] = useState(false);
   const [expandedWaiterId, setExpandedWaiterId] = useState<string | null>(null);
 
-  const [activeCell, setActiveCell] = useState<SheetCellCoord | null>(null);
-  const [selection, setSelection] = useState<SheetSelection | null>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [fillSelection, setFillSelection] = useState<SheetSelection | null>(null);
-
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const rowsRef = useRef<SheetRow[]>([]);
-  const selectionRef = useRef<SheetSelection | null>(null);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
-  useEffect(() => { selectionRef.current = selection; }, [selection]);
 
   // Staff-detail (KRA PIN / bank) edits persist to the employee profile via a
   // separate path from the money-field auto-save (which upserts payslips). Keyed
@@ -409,15 +197,15 @@ export default function HrPayslipsPage(): JSX.Element {
   // editable draft (see carryForwardRow) so HR only edits what changed.
   const buildBranchRows = useCallback((
     branchName: string,
-    staffResult: StaffDto[],
+    staffResult: Awaited<ReturnType<typeof staffService.listStaff>>,
     payslips: Payslip[],
     priorPayslips: Payslip[] = [],
   ): SheetRow[] => {
     const eligible = staffResult
       .filter((s) => !EXCLUDED_ROLES.has(s.role))
       .sort((a, b) => {
-        const ra = SHEET_ROLE_ORDER[a.role] ?? 99;
-        const rb = SHEET_ROLE_ORDER[b.role] ?? 99;
+        const ra = sheetRoleRank(a.role);
+        const rb = sheetRoleRank(b.role);
         if (ra !== rb) return ra - rb;
         return a.name.localeCompare(b.name);
       });
@@ -626,7 +414,7 @@ export default function HrPayslipsPage(): JSX.Element {
     }
   }, [accessToken, activePeriod, actorOrgId, selectedBranchId]);
 
-  const updateRowsBatch = useCallback((updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }>) => {
+  const updateRowsBatch = useCallback((updates: SheetUpdate<EditableColumnKey>[]) => {
     const affectedUserIds = new Set<string>();
 
     setRows((prev) => {
@@ -634,7 +422,7 @@ export default function HrPayslipsPage(): JSX.Element {
       updates.forEach((update) => {
         const row = next[update.rowIndex];
         if (!row) return;
-        row[update.field] = update.value;
+        row[update.columnKey] = update.value;
         row.state = 'dirty';
         row.errorMsg = '';
         row.carriedOver = false;
@@ -646,7 +434,7 @@ export default function HrPayslipsPage(): JSX.Element {
     affectedUserIds.forEach(scheduleAutoSave);
   }, [scheduleAutoSave]);
 
-  const updateRow = (userId: string, field: keyof SheetRow, value: string) => {
+  const updateRow = (userId: string, field: EditableColumnKey, value: string) => {
     setRows((prev) =>
       prev.map((row) =>
         row.userId === userId ? { ...row, [field]: value, state: 'dirty' as RowState, errorMsg: '', carriedOver: false } : row,
@@ -655,11 +443,20 @@ export default function HrPayslipsPage(): JSX.Element {
     scheduleAutoSave(userId);
   };
 
+  /* ── Excel-grid engine (selection, copy/paste, drag-fill, keyboard) ─ */
+  const engine = useSheetEngine<EditableColumnKey>({
+    columnKeys: EDITABLE_COLUMNS,
+    rowCount: rows.length,
+    locked: editLocked,
+    getValue: (rowIndex, columnKey) => rowsRef.current[rowIndex]?.[columnKey] ?? '',
+    onBatchUpdate: updateRowsBatch,
+    normalizePasteValue: normalizeClipboardValue,
+  });
+
   /* ── Staff payment details (KRA PIN / bank) ───────────────────────── */
   // These are employee-profile attributes, not period figures, so they persist
   // to PATCH /hr/profiles/:userId (HR_MANAGER/DIRECTOR-gated) — independent of
   // the payslip money auto-save and always editable, even for published periods.
-  type StaffDetailField = 'kraPIN' | 'bankName' | 'accountNumber';
 
   // Persist all three staff-detail fields together on each debounced flush, so a
   // quick edit of one field can never drop an unsaved edit of another on the same row.
@@ -706,106 +503,6 @@ export default function HrPayslipsPage(): JSX.Element {
     if (staffDetailTimers.current[userId]) clearTimeout(staffDetailTimers.current[userId]);
     void saveStaffDetail(userId);
   };
-
-  const handleCellMouseDown = (cell: SheetCellCoord) => {
-    if (editLocked) return;
-    setActiveCell(cell);
-    setSelection({ anchor: cell, focus: cell });
-    setIsSelecting(true);
-  };
-
-  const handleCellMouseEnter = (cell: SheetCellCoord) => {
-    if (isSelecting && selection) {
-      setSelection({ anchor: selection.anchor, focus: cell });
-      return;
-    }
-
-    if (fillSelection) {
-      setSelection({ anchor: fillSelection.anchor, focus: cell });
-    }
-  };
-
-  const finishPointerAction = useCallback(() => {
-    if (fillSelection && selection && !editLocked) {
-      const sourceBounds = getSelectionBounds(fillSelection);
-      const targetBounds = getSelectionBounds(selection);
-      const draggedPastSource = targetBounds.maxRow > sourceBounds.maxRow || targetBounds.maxCol > sourceBounds.maxCol;
-
-      if (draggedPastSource) {
-        const updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }> = [];
-        const sourceRows = rowsRef.current.slice(sourceBounds.minRow, sourceBounds.maxRow + 1);
-        for (let rowIndex = sourceBounds.maxRow + 1; rowIndex <= targetBounds.maxRow; rowIndex++) {
-          const sourceRow = sourceRows[(rowIndex - sourceBounds.maxRow - 1) % sourceRows.length];
-          if (!sourceRow) continue;
-          for (let colIndex = sourceBounds.minCol; colIndex <= sourceBounds.maxCol; colIndex++) {
-            const field = EDITABLE_COLUMNS[colIndex];
-            if (!field) continue;
-            updates.push({ rowIndex, field, value: sourceRow[field] });
-          }
-        }
-        if (updates.length > 0) updateRowsBatch(updates);
-      }
-    }
-
-    setIsSelecting(false);
-    setFillSelection(null);
-  }, [fillSelection, editLocked, selection, updateRowsBatch]);
-
-  useEffect(() => {
-    window.addEventListener('mouseup', finishPointerAction);
-    return () => window.removeEventListener('mouseup', finishPointerAction);
-  }, [finishPointerAction]);
-
-  const handlePaste = (event: React.ClipboardEvent<HTMLInputElement>, startCell: SheetCellCoord) => {
-    if (editLocked) return;
-
-    const grid = parseClipboardGrid(event.clipboardData.getData('text/plain'));
-    if (grid.length === 0) return;
-    event.preventDefault();
-
-    const startColumnIndex = columnIndex(startCell.columnKey);
-    const updates: Array<{ rowIndex: number; field: EditableColumnKey; value: string }> = [];
-
-    grid.forEach((pastedRow, rowOffset) => {
-      const rowIndex = startCell.rowIndex + rowOffset;
-      if (rowIndex >= rowsRef.current.length) return;
-
-      pastedRow.forEach((rawValue, colOffset) => {
-        const field = EDITABLE_COLUMNS[startColumnIndex + colOffset];
-        if (!field) return;
-        const value = normalizeClipboardValue(field, rawValue);
-        if (value === null) return;
-        updates.push({ rowIndex, field, value });
-      });
-    });
-
-    if (updates.length > 0) updateRowsBatch(updates);
-  };
-
-  useEffect(() => {
-    const handleCopy = (event: ClipboardEvent) => {
-      const currentSelection = selectionRef.current;
-      if (!currentSelection) return;
-      const activeElement = document.activeElement;
-      if (!(activeElement instanceof HTMLElement) || !activeElement.closest('[data-payroll-sheet="true"]')) return;
-
-      const bounds = getSelectionBounds(currentSelection);
-      const text = rowsRef.current
-        .slice(bounds.minRow, bounds.maxRow + 1)
-        .map((row) =>
-          EDITABLE_COLUMNS.slice(bounds.minCol, bounds.maxCol + 1)
-            .map((field) => row[field])
-            .join('\t'),
-        )
-        .join('\n');
-
-      event.clipboardData?.setData('text/plain', text);
-      event.preventDefault();
-    };
-
-    document.addEventListener('copy', handleCopy);
-    return () => document.removeEventListener('copy', handleCopy);
-  }, []);
 
   const [isCopying, setIsCopying] = useState(false);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
@@ -960,25 +657,7 @@ export default function HrPayslipsPage(): JSX.Element {
     if (activeTab === 'stale') void loadStaleSummary();
   }, [activeTab, loadStaleSummary]);
 
-  const totals = useMemo(() => {
-    const sum = (field: keyof SheetRow) =>
-      rows.reduce((acc, r) => acc + Number((r[field] as string) || 0), 0);
-    return {
-      grossPay: sum('grossPay'),
-      paye: sum('paye'),
-      sha: sum('sha'),
-      nssfTier1: sum('nssfTier1'),
-      nssfTier2: sum('nssfTier2'),
-      housingLevy: sum('housingLevy'),
-      ncnsAmount: sum('ncnsAmount'),
-      advance: sum('advance'),
-      incentives: sum('incentives'),
-      overtime: sum('overtime'),
-      allowances: sum('allowances'),
-      totalDeductions: rows.reduce((acc, r) => acc + computeRow(r).totalDeductions, 0),
-      netSalary: rows.reduce((acc, r) => acc + computeRow(r).netSalary, 0),
-    };
-  }, [rows]);
+  const totals = useMemo(() => computeTotals(rows), [rows]);
 
   const statusCounts = useMemo(() => ({
     saved: rows.filter((r) => r.state === 'saved').length,
@@ -1067,86 +746,162 @@ export default function HrPayslipsPage(): JSX.Element {
     enabled: canTour && activeTab === 'entry' && !isLoadingSheet,
   });
 
-  /* ── Shared cell class helpers ─── */
-  const inp = (extra = '') =>
-    `w-full bg-transparent px-1.5 py-1 text-right text-[12px] text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-[#1e72c4] disabled:cursor-not-allowed disabled:text-stone-400 ${extra}`;
+  /* ── Sheet column groups (styling lives in the config + primitives) ─ */
+  const groups = buildPayrollGroups({
+    engine,
+    // Branch + period in the title band so context survives fullscreen mode.
+    periodLabel: `${isAllBranches ? 'ALL BRANCHES' : selectedBranchName.toUpperCase()} — ${formatPayPeriod(activePeriod).toUpperCase()}`,
+    isAllBranches,
+    totals,
+    staffDetailState,
+    onMoneyChange: updateRow,
+    onStaffDetailChange: updateStaffDetail,
+    onStaffDetailBlur: flushStaffDetail,
+  });
 
-  const editableCellStyle = (cell: SheetCellCoord, bg: string): React.CSSProperties => {
-    const selected = isCellInSelection(cell, selection);
-    const active = sameCell(cell, activeCell);
-
-    return {
-      ...cellStyle(selected ? '#dbeafe' : bg),
-      position: 'relative',
-      boxShadow: active
-        ? 'inset 0 0 0 2px #2563eb'
-        : selected
-          ? 'inset 0 0 0 1px #60a5fa'
-          : undefined,
-    };
+  const rowIndicator = (row: SheetRow): SheetRowIndicator | null => {
+    if (row.state === 'dirty' || row.state === 'saving') return { tone: 'pending' };
+    if (row.state === 'error') return { tone: 'error', title: row.errorMsg };
+    if (row.carriedOver && row.state === 'idle') {
+      return { tone: 'info', title: 'Carried over from previous month — review and save' };
+    }
+    return null;
   };
 
-  const cellEvents = (cell: SheetCellCoord) => ({
-    onMouseDown: () => handleCellMouseDown(cell),
-    onMouseEnter: () => handleCellMouseEnter(cell),
-  });
+  // Entry-tab controls — rendered in the normal controls row AND in the
+  // sheet's fullscreen action bar, so period/branch/exports/publish stay
+  // reachable while the sheet covers the page.
+  const entryControls = (
+    <>
+      <FilterField label="Pay Period">
+        <input
+          data-tour="pay-period"
+          type="month"
+          value={activePeriod}
+          onChange={(e) => e.target.value && setActivePeriod(e.target.value)}
+          className={cn(filterControlClasses, 'min-w-[150px]')}
+        />
+      </FilterField>
+      <FilterField label="Branch">
+        <select
+          data-tour="branch"
+          value={selectedBranchId}
+          onChange={(e) => setSelectedBranchId(e.target.value)}
+          className={cn(filterControlClasses, 'min-w-[140px] cursor-pointer')}
+        >
+          {branchOptions.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </FilterField>
 
-  const inputEvents = (cell: SheetCellCoord) => ({
-    onFocus: () => {
-      if (editLocked) return;
-      setActiveCell(cell);
-      setSelection({ anchor: cell, focus: cell });
-    },
-    onPaste: (event: React.ClipboardEvent<HTMLInputElement>) => handlePaste(event, cell),
-  });
+      <div className="h-8 w-px shrink-0 bg-stone-200" />
 
-  const fillHandle = (cell: SheetCellCoord) => {
-    if (editLocked || !isBottomRightSelectionCell(cell, selection)) return null;
-
-    return (
-      <span
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (selection) setFillSelection(selection);
-        }}
-        title="Drag to fill"
-        style={{
-          position: 'absolute',
-          right: -3,
-          bottom: -3,
-          width: 7,
-          height: 7,
-          border: '1px solid white',
-          background: '#2563eb',
-          cursor: 'crosshair',
-          zIndex: 6,
-        }}
+      <AutoSaveStatus
+        dirty={statusCounts.dirty}
+        saving={statusCounts.saving}
+        error={statusCounts.error}
       />
-    );
-  };
+
+      <div className="ml-auto flex items-center gap-2">
+        {/* CSV exports — available in any branch scope, incl. all-branches */}
+        <Button
+          data-tour="export-bank"
+          variant="secondary"
+          size="sm"
+          leftIcon={<Download size={13} />}
+          onClick={handleExportBankFile}
+          disabled={rows.length === 0}
+          title="Strict CSV for the bank, grouped by branch (net pay per employee)"
+          className="h-8 border-sheet-band-green text-sheet-band-green hover:bg-sheet-tint-green-soft"
+        >
+          Bank File
+        </Button>
+        <Button
+          data-tour="export-register"
+          variant="secondary"
+          size="sm"
+          leftIcon={<Download size={13} />}
+          onClick={() => void handleExportRegister()}
+          disabled={rows.length === 0}
+          title="Full payroll register as a formatted Excel workbook — all columns, branch subtotals & grand total"
+          className="h-8 border-stone-300 text-stone-600 hover:bg-stone-100"
+        >
+          Full Register (Excel)
+        </Button>
+
+        {/* Copy from previous month — fills blank recurring cells from the
+            most recent prior period. Per-branch, editable periods only. */}
+        {!isAllBranches && !isPublished && (
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<RefreshCw size={13} />}
+            onClick={() => setShowCopyConfirm(true)}
+            disabled={isCopying || rows.length === 0}
+            title="Fill blank Gross/PAYE/SHA/NSSF/Housing Levy/Allowance cells from the most recent prior month"
+            className="h-8 border-stone-300 text-stone-600 hover:bg-stone-100"
+          >
+            {isCopying ? 'Copying…' : 'Copy from previous month'}
+          </Button>
+        )}
+
+        {/* Publish/Revert are per-branch only — hidden in the consolidated all-branches view */}
+        {isAllBranches ? (
+          <span className="inline-flex h-8 items-center gap-1.5 pl-1.5 text-caption italic text-stone-400">
+            View &amp; export only · pick a branch to edit or publish
+          </span>
+        ) : isPublished ? (
+          <Button
+            data-tour="publish"
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowRevertConfirm(true)}
+            disabled={isPublishing}
+            className="h-8"
+          >
+            ↩ Revert to Draft
+          </Button>
+        ) : (
+          <Button
+            data-tour="publish"
+            variant="primary"
+            size="sm"
+            leftIcon={<Check size={13} />}
+            onClick={() => setShowPublishConfirm(true)}
+            disabled={isPublishing || rows.length === 0}
+            className="h-8"
+          >
+            Publish Payroll
+          </Button>
+        )}
+      </div>
+    </>
+  );
 
   return (
-    <PageLayout className="animate-fade-up !max-w-none !py-0 !px-0 !mx-0 flex flex-col [height:calc(100vh-56px)]">
+    <PageLayout className="animate-fade-up !mx-0 flex !max-w-none flex-col !px-0 !py-0 [height:calc(100vh-56px)] bg-office-canvas">
       {/* Page header */}
-      <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-4">
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a0a00', letterSpacing: '-0.3px', lineHeight: 1.2 }}>Payroll</h1>
-          <p style={{ marginTop: 4, fontSize: 13, color: '#a8a29e' }}>Enter and manage staff payroll per pay period. Staff see figures as drafts in real time.</p>
-        </div>
-        {canTour && <TourButton onClick={startTour} className="flex-shrink-0" />}
+      <div className="px-6 pb-3 pt-5">
+        <PageHeader
+          title="Payroll"
+          subtitle="Enter and manage staff payroll per pay period. Staff see figures as drafts in real time."
+          className="mb-0 border-b-0 pb-0"
+          titleClassName="text-heading-md font-bold text-office-ink"
+          action={canTour ? <TourButton onClick={startTour} className="flex-shrink-0" /> : undefined}
+        />
       </div>
 
       {/* Main tabs (underline style) */}
-      <div data-tour="tabs" className="flex border-b border-stone-200 px-6 flex-shrink-0">
+      <div data-tour="tabs" className="flex flex-shrink-0 border-b border-stone-200 px-6">
         {([['entry', 'Payroll Entry'], ['records', 'Payslip Records'], ['stale', 'Stale-Order Deductions']] as [TabId, string][]).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
             className={cn(
-              'px-4 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
+              '-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-label-md font-medium transition-colors',
               activeTab === id
-                ? 'border-[#6b4226] text-[#1a0a00] font-bold'
+                ? 'border-espresso font-bold text-office-ink'
                 : 'border-transparent text-stone-500 hover:text-stone-700',
             )}
           >
@@ -1157,130 +912,23 @@ export default function HrPayslipsPage(): JSX.Element {
 
       {/* ── PAYROLL ENTRY TAB ──────────────────────────── */}
       {activeTab === 'entry' && (
-        <div className="flex flex-col flex-1 px-6 pt-4 pb-6 gap-3 overflow-hidden">
+        <div className="flex flex-1 flex-col gap-3 overflow-hidden px-6 pb-6 pt-4">
 
           {/* Controls row */}
-          <div className="flex flex-wrap items-end gap-3 mb-2">
-            {/* Pay Period */}
-            <div className="flex flex-col gap-1">
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Pay Period</span>
-              <input
-                data-tour="pay-period"
-                type="month"
-                value={activePeriod}
-                onChange={(e) => e.target.value && setActivePeriod(e.target.value)}
-                style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 150 }}
-              />
-            </div>
-            {/* Branch */}
-            <div className="flex flex-col gap-1">
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Branch</span>
-              <select
-                data-tour="branch"
-                value={selectedBranchId}
-                onChange={(e) => setSelectedBranchId(e.target.value)}
-                style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 140, cursor: 'pointer' }}
-              >
-                {branchOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ width: 1, height: 32, background: '#e7e5e4', flexShrink: 0 }} />
-
-            <AutoSaveStatus
-              dirty={statusCounts.dirty}
-              saving={statusCounts.saving}
-              error={statusCounts.error}
-            />
-
-            <div className="ml-auto flex items-center gap-2">
-              {/* CSV exports — available in any branch scope, incl. all-branches */}
-              <button
-                data-tour="export-bank"
-                onClick={handleExportBankFile}
-                disabled={rows.length === 0}
-                title="Strict CSV for the bank, grouped by branch (net pay per employee)"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #1f6e43', background: 'white', color: '#1f6e43', fontSize: 12, fontWeight: 600, cursor: rows.length === 0 ? 'not-allowed' : 'pointer', opacity: rows.length === 0 ? 0.5 : 1 }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Bank File
-              </button>
-              <button
-                data-tour="export-register"
-                onClick={handleExportRegister}
-                disabled={rows.length === 0}
-                title="Full payroll register as a formatted Excel workbook — all columns, branch subtotals & grand total"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #d6d3d1', background: 'white', color: '#57534e', fontSize: 12, fontWeight: 600, cursor: rows.length === 0 ? 'not-allowed' : 'pointer', opacity: rows.length === 0 ? 0.5 : 1 }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Full Register (Excel)
-              </button>
-
-              {/* Copy from previous month — fills blank recurring cells from the
-                  most recent prior period. Per-branch, editable periods only. */}
-              {!isAllBranches && !isPublished && (
-                <button
-                  onClick={() => setShowCopyConfirm(true)}
-                  disabled={isCopying || rows.length === 0}
-                  title="Fill blank Gross/PAYE/SHA/NSSF/Housing Levy/Allowance cells from the most recent prior month"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #d6d3d1', background: 'white', color: '#57534e', fontSize: 12, fontWeight: 600, cursor: (isCopying || rows.length === 0) ? 'not-allowed' : 'pointer', opacity: (isCopying || rows.length === 0) ? 0.5 : 1 }}
-                >
-                  <RefreshCw size={13} />
-                  {isCopying ? 'Copying…' : 'Copy from previous month'}
-                </button>
-              )}
-
-              {/* Publish/Revert are per-branch only — hidden in the consolidated all-branches view */}
-              {isAllBranches ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 34, paddingLeft: 6, fontSize: 11.5, color: '#a8a29e', fontStyle: 'italic' }}>
-                  View &amp; export only · pick a branch to edit or publish
-                </span>
-              ) : isPublished ? (
-                <button
-                  data-tour="publish"
-                  onClick={() => setShowRevertConfirm(true)}
-                  disabled={isPublishing}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', height: 34, borderRadius: 8, border: '1px solid #ef4444', background: 'white', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  ↩ Revert to Draft
-                </button>
-              ) : (
-                <button
-                  data-tour="publish"
-                  onClick={() => setShowPublishConfirm(true)}
-                  disabled={isPublishing || rows.length === 0}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 34, borderRadius: 8, background: '#1a0a00', color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', opacity: (isPublishing || rows.length === 0) ? 0.5 : 1 }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="9 11 12 14 22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                  Publish Payroll
-                </button>
-              )}
-            </div>
+          <div className="mb-2 flex flex-wrap items-end gap-3">
+            {entryControls}
           </div>
 
           {/* Published banner */}
           {isPublished && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[12px] text-emerald-800 flex-shrink-0">
+            <div className="mb-3 flex flex-shrink-0 items-center gap-2 rounded-lg border border-success-border bg-success-bg px-4 py-2.5 text-label-md font-normal text-success">
               ✓ &nbsp;<strong>{formatPayPeriod(activePeriod)} is published.</strong>&nbsp; Staff can see and print their payslips. Click &ldquo;Revert to Draft&rdquo; to make corrections.
             </div>
           )}
 
           {/* Carry-forward banner — figures pre-filled from a prior month await review */}
           {!isPublished && statusCounts.carried > 0 && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-[12px] text-blue-800 flex-shrink-0">
+            <div className="mb-3 flex flex-shrink-0 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-label-md font-normal text-blue-800">
               <RefreshCw size={13} className="flex-shrink-0" />
               <span>
                 <strong>{statusCounts.carried} row{statusCounts.carried > 1 ? 's' : ''} carried over</strong> from the previous month.
@@ -1290,429 +938,101 @@ export default function HrPayslipsPage(): JSX.Element {
             </div>
           )}
 
-          {/* Sheet container */}
-          <div
-            data-tour="sheet"
-            className="flex flex-col flex-1 rounded-t-[20px] border border-stone-200 bg-white shadow-sm overflow-hidden min-h-0"
-          >
-            {/* Scrollable sheet area */}
-            <div className="overflow-auto flex-1" data-payroll-sheet="true">
-              {isLoadingSheet ? (
-                <div className="p-6"><SkeletonTable rows={6} columns={12} /></div>
-              ) : (
-                <table
-                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: '12px', width: 1920, minWidth: 1920, tableLayout: 'fixed' }}
-                >
-                  <colgroup>
-                    <col style={{ width: 32, minWidth: 32 }} />
-                    <col style={{ width: 200, minWidth: 200 }} />
-                    <col style={{ width: 92, minWidth: 92 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 170, minWidth: 170 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 84, minWidth: 84 }} />
-                    <col style={{ width: 100, minWidth: 100 }} />
-                    <col style={{ width: 100, minWidth: 100 }} />
-                    <col style={{ width: 100, minWidth: 100 }} />
-                    <col style={{ width: 140, minWidth: 140 }} />
-                    <col style={{ width: 150, minWidth: 150 }} />
-                    <col style={{ width: 150, minWidth: 150 }} />
-                  </colgroup>
-
-                  <thead>
-                    {/* Section label row */}
-                    <tr>
-                      <td
-                        style={{ background: '#2e5984', border: '1px solid rgba(255,255,255,0.3)', height: 22, position: 'sticky', top: 0, left: 0, zIndex: 20, width: 32 }}
-                      />
-                      <td
-                        style={{ background: '#2e5984', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', padding: '0 8px', position: 'sticky', top: 0, left: 32, zIndex: 19, verticalAlign: 'middle' }}
-                      >
-                        EMPLOYEES PAYROLLS — {formatPayPeriod(activePeriod).toUpperCase()}
-                      </td>
-                      <td
-                        colSpan={1}
-                        style={{ background: '#1f6e43', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
-                      >
-                        EARNINGS
-                      </td>
-                      <td
-                        colSpan={6}
-                        style={{ background: '#a31515', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
-                      >
-                        DEDUCTIONS
-                      </td>
-                      <td
-                        colSpan={4}
-                        style={{ background: '#5b2d8e', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
-                      >
-                        EXTRAS
-                      </td>
-                      <td
-                        data-tour="computed"
-                        colSpan={2}
-                        style={{ background: '#1a5276', border: '1px solid rgba(255,255,255,0.3)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
-                      >
-                        COMPUTED
-                      </td>
-                      <td
-                        data-tour="staff-details"
-                        colSpan={3}
-                        style={{ background: '#78716c', border: '1px solid rgba(255,255,255,0.25)', height: 22, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'white', textAlign: 'center', verticalAlign: 'middle', position: 'sticky', top: 0, zIndex: 9 }}
-                      >
-                        STAFF DETAILS
-                      </td>
-                    </tr>
-
-                    {/* Column header row */}
-                    <tr>
-                      {/* Corner */}
-                      <th
-                        style={{ background: '#f0f0f0', border: '1px solid #d0d0d0', position: 'sticky', top: 22, left: 0, zIndex: 20, width: 32 }}
-                      />
-                      {/* Name */}
-                      <th
-                        style={{ background: '#f0f0f0', border: '1px solid #d0d0d0', borderRight: '2px solid #d6d3d1', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'left', paddingLeft: 8, color: '#555', position: 'sticky', top: 22, left: 32, zIndex: 19, verticalAlign: 'middle', lineHeight: 1.3 }}
-                      >
-                        NAME
-                      </th>
-                      {/* Gross */}
-                      <th style={colHdrStyle('#1f6e43')}>GROSS<br />Salary</th>
-                      {/* Deductions */}
-                      <th style={colHdrStyle('#a31515')}>PAYE</th>
-                      <th style={colHdrStyle('#a31515')}>SHA<br />(NHIF)</th>
-                      <th style={colHdrStyle('#a31515')}>NSSF<br />(Tier 1)</th>
-                      <th style={colHdrStyle('#a31515')}>NSSF<br />(Tier 2)</th>
-                      <th style={colHdrStyle('#a31515')}>Housing<br />Levy</th>
-                      <th style={colHdrStyle('#a31515')}>N.C.N.S /<br />Deductions</th>
-                      {/* Extras */}
-                      <th style={colHdrStyle('#5b2d8e')}>Advance</th>
-                      <th style={colHdrStyle('#5b2d8e')}>Incentives</th>
-                      <th style={colHdrStyle('#5b2d8e')}>O.T</th>
-                      <th style={colHdrStyle('#5b2d8e')}>Allowances</th>
-                      {/* Computed */}
-                      <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Total<br />Deductions</th>
-                      <th style={{ ...colHdrStyle('#1a5276'), background: '#dce6f1' }}>Net<br />Salary</th>
-                      {/* Staff details (editable) */}
-                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', borderLeft: '2px solid #d6d3d1', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>KRA PIN</th>
-                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>Bank<br />Name</th>
-                      <th style={{ background: '#f5f5f4', border: '1px solid #d0d0d0', borderTop: '3px solid #78716c', height: 40, fontSize: 10.5, fontWeight: 700, textAlign: 'center', color: '#78716c', position: 'sticky', top: 22, zIndex: 9, verticalAlign: 'middle', lineHeight: 1.3, padding: '2px 4px' }}>Account<br />Number</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {rows.map((row, idx) => {
-                      const { totalDeductions, netSalary } = computeRow(row);
-                      // `locked` controls the greyed "published" look; inputs are
-                      // additionally disabled in the read-only all-branches view.
-                      const locked = isPublished;
-                      const inputsDisabled = editLocked;
-                      const isEven = idx % 2 === 1;
-                      const rowBg = locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff';
-                      const c = (columnKey: EditableColumnKey): SheetCellCoord => ({ rowIndex: idx, columnKey });
-
-                      return (
-                        <tr
-                          key={row.userId}
-                          style={{ background: rowBg }}
-                          className={locked ? '' : 'group hover:[&>td]:!bg-[#eef3fa]'}
-                        >
-                          {/* Row number cell — just the number + a tiny dot for save state */}
-                          <td style={rownumCellStyle(isEven ? '#ebebeb' : '#f0f0f0')}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: 2 }}>
-                              <span style={{ fontSize: 10, color: '#888', lineHeight: 1 }}>{idx + 1}</span>
-                              {(row.state === 'dirty' || row.state === 'saving') && (
-                                <span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
-                              )}
-                              {row.state === 'error' && (
-                                <span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} title={row.errorMsg} />
-                              )}
-                              {row.carriedOver && row.state === 'idle' && (
-                                <span style={{ display: 'inline-block', width: 4, height: 4, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} title="Carried over from previous month — review and save" />
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Name (sticky) — clean: name on top, role below */}
-                          <td style={{ border: '1px solid #d0d0d0', borderRight: '2px solid #d6d3d1', padding: '0 8px', verticalAlign: 'middle', overflow: 'hidden', fontSize: 12, position: 'sticky', left: 32, background: locked ? '#f5f5f5' : isEven ? '#f9f9f9' : '#ffffff', zIndex: 4, height: 40 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
-                              <span style={{ fontWeight: 600, color: locked ? '#999' : '#1a0a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
-                              {row.carriedOver && (
-                                <span
-                                  title="Figures carried over from the previous month — review and save"
-                                  style={{ flexShrink: 0, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 4px', lineHeight: 1.3 }}
-                                >
-                                  Carried
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: 9, color: '#b0a9a4', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {row.role}{isAllBranches && row.branchName ? ` · ${row.branchName}` : ''}
-                            </div>
-                          </td>
-
-                          {/* GROSS */}
-                          <td style={editableCellStyle(c('grossPay'), locked ? '#f0f0f0' : isEven ? '#eaf4e6' : '#f0f7ee')} {...cellEvents(c('grossPay'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.grossPay} placeholder="0" {...inputEvents(c('grossPay'))}
-                              onChange={(e) => updateRow(row.userId, 'grossPay', e.target.value)} />
-                            {fillHandle(c('grossPay'))}
-                          </td>
-
-                          {/* PAYE */}
-                          <td style={editableCellStyle(c('paye'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('paye'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.paye} placeholder="0" {...inputEvents(c('paye'))}
-                              onChange={(e) => updateRow(row.userId, 'paye', e.target.value)} />
-                            {fillHandle(c('paye'))}
-                          </td>
-                          {/* SHA */}
-                          <td style={editableCellStyle(c('sha'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('sha'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.sha} placeholder="0" {...inputEvents(c('sha'))}
-                              onChange={(e) => updateRow(row.userId, 'sha', e.target.value)} />
-                            {fillHandle(c('sha'))}
-                          </td>
-                          {/* NSSF T1 */}
-                          <td style={editableCellStyle(c('nssfTier1'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier1'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.nssfTier1} placeholder="0" {...inputEvents(c('nssfTier1'))}
-                              onChange={(e) => updateRow(row.userId, 'nssfTier1', e.target.value)} />
-                            {fillHandle(c('nssfTier1'))}
-                          </td>
-                          {/* NSSF T2 */}
-                          <td style={editableCellStyle(c('nssfTier2'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('nssfTier2'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.nssfTier2} placeholder="0" {...inputEvents(c('nssfTier2'))}
-                              onChange={(e) => updateRow(row.userId, 'nssfTier2', e.target.value)} />
-                            {fillHandle(c('nssfTier2'))}
-                          </td>
-                          {/* Housing Levy */}
-                          <td style={editableCellStyle(c('housingLevy'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee')} {...cellEvents(c('housingLevy'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.housingLevy} placeholder="0" {...inputEvents(c('housingLevy'))}
-                              onChange={(e) => updateRow(row.userId, 'housingLevy', e.target.value)} />
-                            {fillHandle(c('housingLevy'))}
-                          </td>
-
-                          {/* N.C.N.S — stacked amount + note */}
-                          <td style={{ ...editableCellStyle(c('ncnsAmount'), locked ? '#f0f0f0' : isEven ? '#fae8e6' : '#fdf0ee'), padding: 0 }} {...cellEvents(c('ncnsAmount'))}>
-                            <div style={{ display: 'flex', flexDirection: 'column', height: 40 }}>
-                              <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                                <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.ncnsAmount} placeholder="0" {...inputEvents(c('ncnsAmount'))}
-                                  onChange={(e) => updateRow(row.userId, 'ncnsAmount', e.target.value)} />
-                              </div>
-                              <div
-                                style={{
-                                  height: 16,
-                                  borderTop: '1px dashed #e0e0e0',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  position: 'relative',
-                                  background: isCellInSelection(c('ncnsNote'), selection) ? '#dbeafe' : undefined,
-                                  boxShadow: sameCell(c('ncnsNote'), activeCell) ? 'inset 0 0 0 2px #2563eb' : undefined,
-                                }}
-                                {...cellEvents(c('ncnsNote'))}
-                              >
-                                <input disabled={inputsDisabled} style={{ ...inputStyle, fontSize: 10, color: '#a8a29e', fontStyle: 'italic' }} className={inp()} value={row.ncnsNote} placeholder="note…" {...inputEvents(c('ncnsNote'))}
-                                  onChange={(e) => updateRow(row.userId, 'ncnsNote', e.target.value)} />
-                                {fillHandle(c('ncnsNote'))}
-                              </div>
-                            </div>
-                            {fillHandle(c('ncnsAmount'))}
-                          </td>
-
-                          {/* Advance */}
-                          <td style={editableCellStyle(c('advance'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('advance'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.advance} placeholder="—" {...inputEvents(c('advance'))}
-                              onChange={(e) => updateRow(row.userId, 'advance', e.target.value)} />
-                            {fillHandle(c('advance'))}
-                          </td>
-                          {/* Incentives */}
-                          <td style={editableCellStyle(c('incentives'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('incentives'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.incentives} placeholder="—" {...inputEvents(c('incentives'))}
-                              onChange={(e) => updateRow(row.userId, 'incentives', e.target.value)} />
-                            {fillHandle(c('incentives'))}
-                          </td>
-                          {/* OT */}
-                          <td style={editableCellStyle(c('overtime'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('overtime'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.overtime} placeholder="—" {...inputEvents(c('overtime'))}
-                              onChange={(e) => updateRow(row.userId, 'overtime', e.target.value)} />
-                            {fillHandle(c('overtime'))}
-                          </td>
-                          {/* Allowances */}
-                          <td style={editableCellStyle(c('allowances'), locked ? '#f0f0f0' : isEven ? '#ede6f5' : '#f3eefa')} {...cellEvents(c('allowances'))}>
-                            <input disabled={inputsDisabled} style={inputStyle} className={inp()} value={row.allowances} placeholder="—" {...inputEvents(c('allowances'))}
-                              onChange={(e) => updateRow(row.userId, 'allowances', e.target.value)} />
-                            {fillHandle(c('allowances'))}
-                          </td>
-
-                          {/* Total Deductions (computed) */}
-                          <td style={{ border: '1px solid #d0d0d0', textAlign: 'right', paddingRight: 7, fontWeight: 700, fontSize: 12, verticalAlign: 'middle', height: 40, background: locked ? 'rgba(253,232,232,0.5)' : '#fde8e8', color: '#a31515', opacity: locked ? 0.5 : 1 }}>
-                            {Number(row.grossPay || 0) + totalDeductions === 0 ? <span style={{ color: '#ccc' }}>—</span> : formatCurrency(totalDeductions.toFixed(2))}
-                          </td>
-                          {/* Net Salary (computed) */}
-                          <td style={{ border: '1px solid #d0d0d0', textAlign: 'right', paddingRight: 7, fontWeight: 700, fontSize: 12, verticalAlign: 'middle', height: 40, background: locked ? 'rgba(230,243,232,0.5)' : '#e6f3e8', color: '#1f6e43', opacity: locked ? 0.5 : 1 }}>
-                            {Number(row.grossPay || 0) === 0 ? <span style={{ color: '#ccc' }}>—</span> : formatCurrency(netSalary.toFixed(2))}
-                          </td>
-
-                          {/* KRA PIN (editable) */}
-                          <td style={staffCellStyle(!!row.kraPIN, true)}>
-                            <input
-                              value={row.kraPIN ?? ''}
-                              placeholder="Not set"
-                              style={staffInputStyle}
-                              onChange={(e) => updateStaffDetail(row.userId, 'kraPIN', e.target.value)}
-                              onBlur={() => flushStaffDetail(row.userId)}
-                            />
-                          </td>
-                          {/* Bank Name (editable) */}
-                          <td style={staffCellStyle(!!row.bankName, false)}>
-                            <input
-                              value={row.bankName ?? ''}
-                              placeholder="Not set"
-                              style={staffInputStyle}
-                              onChange={(e) => updateStaffDetail(row.userId, 'bankName', e.target.value)}
-                              onBlur={() => flushStaffDetail(row.userId)}
-                            />
-                          </td>
-                          {/* Account Number (editable) */}
-                          <td style={{ ...staffCellStyle(!!row.accountNumber, false), position: 'relative' }}>
-                            <input
-                              value={row.accountNumber ?? ''}
-                              placeholder="Not set"
-                              style={staffInputStyle}
-                              onChange={(e) => updateStaffDetail(row.userId, 'accountNumber', e.target.value)}
-                              onBlur={() => flushStaffDetail(row.userId)}
-                            />
-                            {staffDetailState[row.userId] && staffDetailState[row.userId] !== 'saved' && (
-                              <span
-                                title={staffDetailState[row.userId] === 'error' ? 'Save failed' : staffDetailState[row.userId] === 'saving' ? 'Saving…' : 'Unsaved'}
-                                style={{ position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: '50%', background: staffDetailState[row.userId] === 'error' ? '#ef4444' : '#f59e0b' }}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-
-                    {/* Totals row */}
-                    {rows.length > 0 && (
-                      <tr style={{ borderTop: '2px solid #a8a29e', background: '#f0f0f0' }}>
-                        <td style={{ border: '1px solid #d0d0d0', textAlign: 'center', fontWeight: 700, fontSize: 12, height: 36, verticalAlign: 'middle', position: 'sticky', left: 0, zIndex: 5, background: '#f0f0f0' }}>Σ</td>
-                        <td style={{ border: '1px solid #d0d0d0', borderRight: '2px solid #d6d3d1', padding: '0 8px', textAlign: 'left', fontWeight: 600, color: '#57534e', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', height: 36, verticalAlign: 'middle', position: 'sticky', left: 32, zIndex: 4, background: '#f0f0f0' }}>Totals</td>
-                        <td style={totalCellStyle('earn')}>{formatCurrency(totals.grossPay.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.paye.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.sha.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.nssfTier1.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.nssfTier2.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.housingLevy.toFixed(2))}</td>
-                        <td style={totalCellStyle('ded')}>{formatCurrency(totals.ncnsAmount.toFixed(2))}</td>
-                        <td style={totalCellStyle('extra')}>{formatCurrency(totals.advance.toFixed(2))}</td>
-                        <td style={totalCellStyle('extra')}>{formatCurrency(totals.incentives.toFixed(2))}</td>
-                        <td style={totalCellStyle('extra')}>{formatCurrency(totals.overtime.toFixed(2))}</td>
-                        <td style={totalCellStyle('extra')}>{formatCurrency(totals.allowances.toFixed(2))}</td>
-                        <td style={{ ...totalCellStyle('ded'), background: '#fde8e8', color: '#a31515' }}>{formatCurrency(totals.totalDeductions.toFixed(2))}</td>
-                        <td style={{ ...totalCellStyle('earn'), background: '#e6f3e8', color: '#1f6e43' }}>{formatCurrency(totals.netSalary.toFixed(2))}</td>
-                        <td style={{ border: '1px solid #d0d0d0', borderLeft: '2px solid #e7e5e4', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>
-                          {rows.filter(r => r.kraPIN).length} of {rows.length} set
-                        </td>
-                        <td style={{ border: '1px solid #d0d0d0', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>
-                          {rows.filter(r => r.bankName).length} of {rows.length} set
-                        </td>
-                        <td style={{ border: '1px solid #d0d0d0', textAlign: 'center', fontWeight: 400, fontStyle: 'italic', fontSize: 10, color: '#a8a29e', height: 36, verticalAlign: 'middle' }}>
-                          {rows.filter(r => r.accountNumber).length} of {rows.length} set
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Sheet toolbar (bottom of sheet, inside container). Period selection
-                is driven by the Pay Period picker in the controls row above. */}
-            <div style={{ height: 28, background: '#e0e0e0', borderTop: '1px solid #d0d0d0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 4px', flexShrink: 0 }}>
-              <Button variant="ghost" size="sm" leftIcon={<RefreshCw size={12} />} onClick={() => void loadSheet()} style={{ fontSize: 11, height: 22 }}>
+          {/* The sheet */}
+          <Sheet
+            dataTour="sheet"
+            groups={groups}
+            rows={rows}
+            rowKey={(r) => r.userId}
+            engine={engine}
+            locked={isPublished}
+            disabled={editLocked}
+            rowIndicator={rowIndicator}
+            isLoading={isLoadingSheet}
+            skeletonColumns={12}
+            fullscreenBar={<div className="flex flex-wrap items-end gap-3">{entryControls}</div>}
+            toolbar={
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={<RefreshCw size={12} />}
+                onClick={() => void loadSheet()}
+                className="h-[22px] px-2 text-sheet-header"
+              >
                 Refresh
               </Button>
-            </div>
-
-            {/* Status bar (Excel-style green bar) */}
-            <div style={{ height: 22, background: '#217346', color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', fontSize: 11, flexShrink: 0, fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif" }}>
-              <span>
-                {isAllBranches ? `All branches · ${branches.length} branches` : isPublished ? 'Published' : 'Draft'} · {rows.length} staff
-                {!isAllBranches && statusCounts.saved > 0 && !isPublished && ` · ${statusCounts.saved} saved`}
-                {!isAllBranches && statusCounts.dirty > 0 && ` · ${statusCounts.dirty} pending`}
-                {!isAllBranches && statusCounts.error > 0 && ` · ${statusCounts.error} error`}
-              </span>
-              <div style={{ display: 'flex', gap: 20 }}>
-                <span><span style={{ opacity: 0.65, marginRight: 4 }}>Gross:</span><strong>Ksh {formatCurrency(totals.grossPay.toFixed(2))}</strong></span>
-                <span><span style={{ opacity: 0.65, marginRight: 4 }}>Deductions:</span><strong>Ksh {formatCurrency(totals.totalDeductions.toFixed(2))}</strong></span>
-                <span><span style={{ opacity: 0.65, marginRight: 4 }}>Net:</span><strong>Ksh {formatCurrency(totals.netSalary.toFixed(2))}</strong></span>
-              </div>
-            </div>
-          </div>
+            }
+            statusBar={{
+              left: (
+                <>
+                  {isAllBranches ? `All branches · ${branches.length} branches` : isPublished ? 'Published' : 'Draft'} · {rows.length} staff
+                  {!isAllBranches && statusCounts.saved > 0 && !isPublished && ` · ${statusCounts.saved} saved`}
+                  {!isAllBranches && statusCounts.dirty > 0 && ` · ${statusCounts.dirty} pending`}
+                  {!isAllBranches && statusCounts.error > 0 && ` · ${statusCounts.error} error`}
+                </>
+              ),
+              right: (
+                <>
+                  <span><span className="mr-1 opacity-65">Gross:</span><strong>Ksh {money(totals.grossPay)}</strong></span>
+                  <span><span className="mr-1 opacity-65">Deductions:</span><strong>Ksh {money(totals.totalDeductions)}</strong></span>
+                  <span><span className="mr-1 opacity-65">Net:</span><strong>Ksh {money(totals.netSalary)}</strong></span>
+                </>
+              ),
+            }}
+          />
         </div>
       )}
 
       {/* ── RECORDS TAB ───────────────────────────────── */}
       {activeTab === 'records' && (
-        <div className="px-6 pt-4 pb-6 space-y-4">
+        <div className="space-y-4 px-6 pb-6 pt-4">
           {/* Filter bar */}
-          <div style={{ background: 'white', border: '1px solid #e7e5e4', borderRadius: 16, padding: '14px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-              {/* Pay Period */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Pay Period</span>
+          <div className="rounded-xl border border-stone-200 bg-white px-4 py-3.5 shadow-sm">
+            <div className="flex flex-wrap items-end gap-4">
+              <FilterField label="Pay Period">
                 <input
                   type="month"
                   value={recordPeriod}
                   onChange={(e) => setRecordPeriod(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 150 }}
+                  className={cn(filterControlClasses, 'min-w-[150px]')}
                 />
-              </div>
-              {/* Branch */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Branch</span>
+              </FilterField>
+              <FilterField label="Branch">
                 <select
                   value={recordBranchId}
                   onChange={(e) => setRecordBranchId(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 140, cursor: 'pointer' }}
+                  className={cn(filterControlClasses, 'min-w-[140px] cursor-pointer')}
                 >
                   {branchOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-              </div>
-              {/* Staff Member */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Staff Member</span>
+              </FilterField>
+              <FilterField label="Staff Member">
                 <select
                   value={recordStaffId}
                   onChange={(e) => setRecordStaffId(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 160, cursor: 'pointer' }}
+                  className={cn(filterControlClasses, 'min-w-[160px] cursor-pointer')}
                 >
                   <option value="">All staff</option>
                   {Array.from(new Map(records.map((r) => [r.userId, r.user.name])).entries()).map(([id, name]) => (
                     <option key={id} value={id}>{name}</option>
                   ))}
                 </select>
-              </div>
-              {/* Status */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Status</span>
+              </FilterField>
+              <FilterField label="Status">
                 <select
                   value={recordStatus}
                   onChange={(e) => setRecordStatus(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 8, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 120, cursor: 'pointer' }}
+                  className={cn(filterControlClasses, 'min-w-[120px] cursor-pointer')}
                 >
                   <option value="">All</option>
                   <option value="DRAFT">Draft</option>
                   <option value="PUBLISHED">Published</option>
                 </select>
-              </div>
+              </FilterField>
             </div>
           </div>
 
-          <div style={{ border: '1px solid #e7e5e4', borderRadius: 16, background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
             {isLoadingRecords ? (
               <div className="p-5"><SkeletonTable rows={6} columns={7} /></div>
             ) : (
@@ -1733,121 +1053,108 @@ export default function HrPayslipsPage(): JSX.Element {
         const waiters = staleSummary?.waiters ?? [];
         const hasData = waiters.length > 0;
         const singleBranch = Boolean(selectedBranchId);
-        const dataColCount = singleBranch ? 4 : 5; // #, Waiter, [Branch], Orders, Potential Deduction
         const fmtShortDate = (iso: string) =>
           new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Africa/Nairobi' });
 
-        // Shared Excel-style cell borders
-        const cellBorder = '1px solid #d8d4d0';
+        const staleColumns: ExcelColumn<StaleWaiter>[] = [
+          {
+            key: 'waiter',
+            label: 'Waiter',
+            render: (w) => <span className="font-semibold">{w.waiterName}</span>,
+          },
+          ...(singleBranch
+            ? []
+            : [{
+                key: 'branch',
+                label: 'Branch',
+                tone: 'muted' as const,
+                render: (w: StaleWaiter) => w.branchName,
+              }]),
+          {
+            key: 'orders',
+            label: 'Orders',
+            align: 'center',
+            width: 90,
+            render: (w) => <span className="tabular-nums">{w.orderCount}</span>,
+          },
+          {
+            key: 'amount',
+            label: 'Potential Deduction (Ksh)',
+            numeric: true,
+            tone: 'negative',
+            width: 170,
+            render: (w) => <span className="font-bold">{formatCurrency(w.totalLiability)}</span>,
+          },
+        ];
 
         return (
-          <div className="px-6 pt-4 pb-6 space-y-3">
+          <div className="space-y-3 px-6 pb-6 pt-4">
             {/* Header row: title + action note + branch filter (compact) */}
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div className="max-w-3xl">
-                <h3 className="text-[14px] font-bold text-[#1a0a00]">Potential Stale-Order Deductions</h3>
-                <p className="mt-0.5 text-[12px] leading-snug text-stone-500">
+                <h3 className="text-body-sm font-bold text-office-ink">Potential Stale-Order Deductions</h3>
+                <p className="mt-0.5 text-label-md font-normal leading-snug text-stone-500">
                   Unpaid orders waiters never closed, totalled per waiter. Resolved orders drop off
                   automatically. Key each amount into the <strong>N.C.N.S / Deductions</strong> column on Payroll Entry.
                 </p>
               </div>
-              <div className="flex flex-col gap-1">
-                <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#a8a29e' }}>Branch</span>
+              <FilterField label="Branch">
                 <select
                   value={selectedBranchId}
                   onChange={(e) => setSelectedBranchId(e.target.value)}
-                  style={{ height: 32, padding: '0 10px', border: '1px solid #d6d3d1', borderRadius: 6, fontSize: 12, color: '#1a0a00', background: 'white', outline: 'none', minWidth: 150, cursor: 'pointer' }}
+                  className={cn(filterControlClasses, 'min-w-[150px] cursor-pointer')}
                 >
                   {branchOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-              </div>
+              </FilterField>
             </div>
 
-            {/* Excel-style gridlined table */}
-            {isLoadingStale ? (
-              <div className="rounded-md border border-stone-200 bg-white p-5"><SkeletonTable rows={6} columns={dataColCount} /></div>
-            ) : !hasData ? (
-              <div className="rounded-md border border-stone-200 bg-white p-12 text-center">
-                <p className="text-[13px] font-semibold text-stone-700">No unresolved stale orders</p>
-                <p className="mt-1 text-[12px] text-stone-400">Every order in the selected branch has been closed or accounted for.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-md border border-[#d8d4d0]">
-                <table
-                  className="w-full"
-                  style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: 12.5 }}
-                >
-                  <thead>
-                    <tr style={{ background: '#2e5984', color: 'white' }}>
-                      <th style={{ border: cellBorder, padding: '6px 8px', textAlign: 'center', fontWeight: 700, width: 40 }}>#</th>
-                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Waiter</th>
-                      {!singleBranch && (
-                        <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Branch</th>
-                      )}
-                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: 90 }}>Orders</th>
-                      <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: 170 }}>Potential Deduction (Ksh)</th>
-                      <th style={{ border: cellBorder, padding: '6px 6px', width: 28 }} aria-label="Expand" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {waiters.map((waiter, idx) => {
-                      const isExpanded = expandedWaiterId === waiter.waiterId;
-                      const rowBg = isExpanded ? '#eaf1f8' : idx % 2 === 1 ? '#f6f5f4' : '#ffffff';
-                      return (
-                        <Fragment key={waiter.waiterId}>
-                          <tr
-                            onClick={() => setExpandedWaiterId(isExpanded ? null : waiter.waiterId)}
-                            style={{ background: rowBg, cursor: 'pointer' }}
-                            className="hover:!bg-[#eef3fa]"
-                          >
-                            <td style={{ border: cellBorder, padding: '5px 8px', textAlign: 'center', color: '#78716c', fontWeight: 600 }}>{idx + 1}</td>
-                            <td style={{ border: cellBorder, padding: '5px 10px', fontWeight: 600, color: '#1a0a00' }}>{waiter.waiterName}</td>
-                            {!singleBranch && <td style={{ border: cellBorder, padding: '5px 10px', color: '#57534e' }}>{waiter.branchName}</td>}
-                            <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'center', color: '#1a0a00' }} className="tabular-nums">{waiter.orderCount}</td>
-                            <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'right', fontWeight: 700, color: '#a31515' }} className="tabular-nums whitespace-nowrap">{formatCurrency(waiter.totalLiability)}</td>
-                            <td style={{ border: cellBorder, padding: '5px 4px', textAlign: 'center', color: '#a8a29e', userSelect: 'none' }}>{isExpanded ? '▾' : '▸'}</td>
-                          </tr>
-
-                          {isExpanded && waiter.orders.map((order, oIdx) => (
-                            <tr key={order.id} style={{ background: '#fbfaf9' }}>
-                              <td style={{ border: cellBorder }} />
-                              <td style={{ border: cellBorder, padding: '4px 10px', color: '#57534e' }} className="whitespace-nowrap">
-                                <span style={{ color: '#a8a29e', marginRight: 6 }}>{oIdx + 1}.</span>
-                                Order #{order.dailyNumber}
-                              </td>
-                              {!singleBranch && <td style={{ border: cellBorder, padding: '4px 10px', color: '#78716c' }}>{order.branchName}</td>}
-                              <td style={{ border: cellBorder, padding: '4px 10px', textAlign: 'center', color: '#78716c' }} className="whitespace-nowrap">
-                                {fmtShortDate(order.orderDate)}{order.tableNumber ? ` · T${order.tableNumber}` : ''}
-                              </td>
-                              <td style={{ border: cellBorder, padding: '4px 10px', textAlign: 'right', color: '#a31515', fontWeight: 600 }} className="tabular-nums whitespace-nowrap">{formatCurrency(order.total)}</td>
-                              <td style={{ border: cellBorder }} />
-                            </tr>
-                          ))}
-                        </Fragment>
-                      );
-                    })}
-
-                    {/* Totals row */}
-                    <tr style={{ background: '#dce6f1', fontWeight: 700 }}>
-                      <td style={{ border: cellBorder, padding: '6px 8px' }} />
-                      <td style={{ border: cellBorder, padding: '6px 10px', color: '#1a0a00', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.04em' }}>Total</td>
-                      {!singleBranch && <td style={{ border: cellBorder }} />}
-                      <td style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', color: '#1a0a00' }} className="tabular-nums">{staleSummary!.totalOrders}</td>
-                      <td style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', color: '#a31515' }} className="tabular-nums whitespace-nowrap">Ksh {formatCurrency(staleSummary!.totalLiability)}</td>
-                      <td style={{ border: cellBorder }} />
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {hasData && (
-              <p className="text-[11px] text-stone-400">
-                {staleSummary!.totalWaiters} waiter{staleSummary!.totalWaiters > 1 ? 's' : ''} ·
-                {' '}{staleSummary!.totalOrders} unresolved order{staleSummary!.totalOrders > 1 ? 's' : ''} ·
-                {' '}click a row to view individual orders
-              </p>
-            )}
+            <ExcelTable
+              columns={staleColumns}
+              rows={waiters}
+              rowKey={(w) => w.waiterId}
+              numbered
+              headerTone="navy"
+              isLoading={isLoadingStale}
+              emptyState={
+                <>
+                  <p className="text-body-sm font-semibold text-stone-700">No unresolved stale orders</p>
+                  <p className="mt-1 text-label-md font-normal text-stone-400">Every order in the selected branch has been closed or accounted for.</p>
+                </>
+              }
+              expandable={{
+                isExpanded: (w) => expandedWaiterId === w.waiterId,
+                onToggle: (w) => setExpandedWaiterId(expandedWaiterId === w.waiterId ? null : w.waiterId),
+                childRows: (w) =>
+                  w.orders.map((order, oIdx) => ({
+                    waiter: (
+                      <span className="whitespace-nowrap">
+                        <span className="mr-1.5 text-stone-400">{oIdx + 1}.</span>
+                        Order #{order.dailyNumber}
+                      </span>
+                    ),
+                    ...(singleBranch ? {} : { branch: order.branchName }),
+                    orders: (
+                      <span className="whitespace-nowrap">
+                        {fmtShortDate(order.orderDate)}{order.tableNumber ? ` · T${order.tableNumber}` : ''}
+                      </span>
+                    ),
+                    amount: <span className="font-semibold text-sheet-negative">{formatCurrency(order.total)}</span>,
+                  })),
+              }}
+              totalsRow={hasData ? {
+                waiter: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                orders: staleSummary!.totalOrders,
+                amount: <>Ksh {formatCurrency(staleSummary!.totalLiability)}</>,
+              } : undefined}
+              footnote={hasData ? (
+                <>
+                  {staleSummary!.totalWaiters} waiter{staleSummary!.totalWaiters > 1 ? 's' : ''} ·
+                  {' '}{staleSummary!.totalOrders} unresolved order{staleSummary!.totalOrders > 1 ? 's' : ''} ·
+                  {' '}click a row to view individual orders
+                </>
+              ) : undefined}
+            />
           </div>
         );
       })()}
@@ -1887,112 +1194,4 @@ export default function HrPayslipsPage(): JSX.Element {
       />
     </PageLayout>
   );
-}
-
-/* ── Style helper functions (keep out of render) ─── */
-function colHdrStyle(accentColor: string): React.CSSProperties {
-  return {
-    background: '#f0f0f0',
-    border: '1px solid #d0d0d0',
-    borderTop: `3px solid ${accentColor}`,
-    height: 40,
-    fontSize: 10.5,
-    fontWeight: 700,
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    color: '#555',
-    padding: '2px 4px',
-    lineHeight: 1.3,
-    whiteSpace: 'normal',
-    wordBreak: 'break-word',
-    position: 'sticky',
-    top: 22,
-    zIndex: 9,
-  };
-}
-
-function rownumCellStyle(bg: string): React.CSSProperties {
-  return {
-    background: bg,
-    border: '1px solid #d0d0d0',
-    textAlign: 'center',
-    verticalAlign: 'middle',
-    fontSize: 11,
-    color: '#555',
-    position: 'sticky',
-    left: 0,
-    zIndex: 5,
-    padding: 0,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    height: 40,
-  };
-}
-
-function cellStyle(bg: string): React.CSSProperties {
-  return {
-    border: '1px solid #d0d0d0',
-    padding: 0,
-    verticalAlign: 'middle',
-    height: 40,
-    background: bg,
-  };
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  height: '100%',
-  border: 'none',
-  outline: 'none',
-  background: 'transparent',
-  fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
-  fontSize: 12,
-  color: '#1a0a00',
-  textAlign: 'right',
-  padding: '0 6px',
-};
-
-// Editable staff-detail cell (KRA PIN / bank). Amber wash when empty so HR can
-// still spot missing details at a glance now that the banner is gone.
-function staffCellStyle(hasValue: boolean, leftBorder: boolean): React.CSSProperties {
-  return {
-    border: '1px solid #d0d0d0',
-    ...(leftBorder ? { borderLeft: '2px solid #e7e5e4' } : {}),
-    background: hasValue ? '#fafafa' : '#fffbeb',
-    padding: 0,
-    height: 40,
-    verticalAlign: 'middle',
-  };
-}
-
-const staffInputStyle: React.CSSProperties = {
-  width: '100%',
-  height: '100%',
-  border: 'none',
-  outline: 'none',
-  background: 'transparent',
-  fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif",
-  fontSize: 11,
-  color: '#57534e',
-  textAlign: 'center',
-  padding: '0 6px',
-};
-
-function totalCellStyle(type: 'earn' | 'ded' | 'extra'): React.CSSProperties {
-  const colors = {
-    earn: '#1f6e43',
-    ded: '#a31515',
-    extra: '#5b2d8e',
-  };
-  return {
-    border: '1px solid #d0d0d0',
-    textAlign: 'right',
-    paddingRight: 7,
-    fontWeight: 700,
-    fontSize: 12,
-    verticalAlign: 'middle',
-    height: 36,
-    color: colors[type],
-    background: '#f0f0f0',
-  };
 }

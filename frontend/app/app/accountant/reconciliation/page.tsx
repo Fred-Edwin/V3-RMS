@@ -132,7 +132,7 @@ function SummaryStatCard({
   return (
     <div className={`rounded-xl border px-4 py-4 ${bg}`}>
       <p className={`text-label-sm font-medium uppercase tracking-wider ${text} opacity-80`}>{label}</p>
-      <p className={`mt-1 font-display text-display-lg font-semibold leading-tight ${text}`}>{value}</p>
+      <p className={`mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums ${text}`}>{value}</p>
     </div>
   );
 }

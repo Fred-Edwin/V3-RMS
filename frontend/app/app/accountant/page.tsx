@@ -66,7 +66,7 @@ function KpiCard({
       </span>
       <div className="min-w-0">
         <p className="text-label-sm uppercase tracking-wider text-stone-400">{label}</p>
-        <p className="mt-0.5 font-display text-display-lg font-semibold leading-tight text-stone-900">{value}</p>
+        <p className="mt-0.5 font-sans text-display-lg font-semibold leading-tight tabular-nums text-stone-900">{value}</p>
         {sub && <p className="mt-0.5 text-caption text-stone-500">{sub}</p>}
       </div>
     </div>

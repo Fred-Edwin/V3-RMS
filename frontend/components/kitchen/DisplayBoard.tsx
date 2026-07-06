@@ -435,7 +435,7 @@ export function DisplayBoard({ station }: DisplayBoardProps) {
           aria-label="Tap to enable sound notifications"
         >
           <span className="text-6xl" aria-hidden="true">🔔</span>
-          <p className="text-display-sm font-display text-crema">Tap to enable sound</p>
+          <p className="font-display text-display-lg text-crema">Tap to enable sound</p>
           <p className="text-body-md text-crema/70">Audio alerts will play automatically for new orders</p>
         </button>
       )}

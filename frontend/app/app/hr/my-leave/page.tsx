@@ -123,7 +123,7 @@ function BalanceCard({ balance }: { balance: LeaveBalance }) {
       </p>
 
       <div className="mt-1 flex items-baseline gap-1">
-        <span className="font-display text-display-lg font-bold text-stone-900">
+        <span className="font-sans text-display-lg font-bold tabular-nums text-stone-900">
           {remaining}
         </span>
         <span className="text-body-sm text-stone-400">
@@ -340,7 +340,7 @@ function RequestSheet({
         {startDate && endDate && (
           <div className="mb-4 flex items-center justify-between rounded-xl bg-[#F5F0E8] px-4 py-3">
             <span className="text-body-sm text-stone-500">Working days</span>
-            <span className="font-display text-heading-md font-bold text-[#2C1810]">
+            <span className="font-sans text-heading-md font-bold tabular-nums text-[#2C1810]">
               {workingDays} {workingDays === 1 ? 'day' : 'days'}
             </span>
           </div>

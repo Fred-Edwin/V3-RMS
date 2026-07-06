@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-}
+/* --font-display and --font-sans are defined by next/font variable classes
+   on <html>/<body> (see app/layout.tsx) — do not redeclare them here. */
 
 * {
   box-sizing: border-box;

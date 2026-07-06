@@ -134,7 +134,7 @@ export default function HrDashboardPage(): JSX.Element {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-label-sm text-stone-500">{label}</p>
-                <p className="mt-1 font-display text-display-lg font-semibold" style={{ color }}>
+                <p className="mt-1 font-sans text-display-lg font-semibold tabular-nums" style={{ color }}>
                   {loading ? <span className="inline-block h-8 w-10 animate-pulse rounded bg-stone-200" /> : value}
                 </p>
                 {!loading && sub && (
@@ -334,7 +334,7 @@ export default function HrDashboardPage(): JSX.Element {
                   <div className="px-4 py-4 space-y-3">
                     <div className="text-center">
                       <p
-                        className="font-display text-display-xl font-bold"
+                        className="font-sans text-display-xl font-bold tabular-nums"
                         style={{ color: rateColor }}
                       >
                         {rate !== null ? `${rate}%` : '—'}

@@ -24,7 +24,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   ghost:
     'bg-transparent text-stone-700 hover:bg-stone-100 active:bg-stone-200',
   destructive:
-    'bg-transparent text-[#991B1B] border-[1.5px] border-[#FCA5A5] hover:bg-[#FEF2F2] active:scale-[0.98]',
+    'bg-transparent text-danger border-[1.5px] border-danger-border hover:bg-danger-bg active:scale-[0.98]',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

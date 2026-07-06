@@ -211,7 +211,7 @@ function OutstandingHeader({ report, isLoading }: { report: OutstandingBalancesR
           {isLoading ? (
             <SkeletonBlock className="h-5 w-28 rounded" />
           ) : (
-            <span className="font-display text-display-lg font-semibold text-espresso">
+            <span className="font-sans text-display-lg font-semibold tabular-nums text-espresso">
               {formatCurrency(grandTotal)}
             </span>
           )}

@@ -35,7 +35,7 @@ export function StatCard({
 
       {/* Value + caption */}
       <div className="mt-3 flex items-end justify-between gap-2">
-        <p className={cn('font-display text-display-md font-semibold leading-none text-espresso', valueClassName)}>
+        <p className={cn('font-sans text-display-md font-semibold leading-none tabular-nums text-espresso', valueClassName)}>
           {value}
         </p>
         {caption && (

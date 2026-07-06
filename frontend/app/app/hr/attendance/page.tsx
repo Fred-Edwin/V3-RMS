@@ -445,7 +445,7 @@ export default function AttendancePage(): JSX.Element {
             style={{ borderLeftWidth: 3, borderLeftColor: color }}
           >
             <p className="text-label-sm text-stone-400">{label}</p>
-            <p className="mt-1 font-display text-display-lg font-semibold" style={{ color }}>
+            <p className="mt-1 font-sans text-display-lg font-semibold tabular-nums" style={{ color }}>
               {loading
                 ? <span className="inline-block h-7 w-10 animate-pulse rounded bg-stone-200" />
                 : value}

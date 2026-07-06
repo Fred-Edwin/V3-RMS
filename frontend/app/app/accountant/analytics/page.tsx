@@ -364,7 +364,7 @@ function PaymentTab({
             ].map(({ label, value, color, bg }) => (
               <div key={label} className={`rounded-xl border px-4 py-4 ${bg}`}>
                 <p className={`text-label-sm font-medium uppercase tracking-wider ${color} opacity-70`}>{label}</p>
-                <p className={`mt-1 font-display text-display-lg font-semibold leading-tight ${color}`}>
+                <p className={`mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums ${color}`}>
                   {formatCurrency(value)}
                 </p>
                 <p className={`mt-0.5 text-caption ${color} opacity-60`}>
@@ -776,7 +776,7 @@ function OtherIncomeTab({
               <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A] opacity-70">
                 Total Other Income
               </p>
-              <p className="mt-1 font-display text-display-lg font-semibold leading-tight text-[#92650A]">
+              <p className="mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums text-[#92650A]">
                 {formatCurrency(totalValue)}
               </p>
               <p className="mt-0.5 text-caption text-[#92650A] opacity-60">

@@ -106,7 +106,7 @@ function BalanceCard({
         </div>
       ) : (
         <>
-          <p className="mt-2 font-display text-[28px] font-extrabold leading-none tracking-tight" style={{ color: colors.text }}>
+          <p className="mt-2 font-sans text-[28px] font-extrabold tabular-nums leading-none tracking-tight" style={{ color: colors.text }}>
             {remaining}
             <span className="ml-1 text-[14px] font-medium opacity-60">days left</span>
           </p>
