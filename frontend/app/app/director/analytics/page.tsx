@@ -4,9 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   BarChart2,
   CalendarOff,
   ChevronUp,
@@ -23,13 +20,13 @@ import {
 import {
   Button,
   EmptyState,
+  ExcelTable,
   Input,
   PageLayout,
   Select,
   SkeletonTable,
   StatCard,
-  Table,
-  type TableColumn,
+  type ExcelColumn,
 } from '@/components/ui';
 import { HourlyBarsChart, LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
@@ -101,8 +98,9 @@ const LEAVE_TYPE_FILTERS: { value: LeaveType | ''; label: string }[] = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type BranchReportRow = Record<string, unknown> & BranchOverview['branches'][number];
-type StaffReportRow = Record<string, unknown> & StaffPerformanceRow;
+type BranchReportRow = BranchOverview['branches'][number];
+type StaffReportRow = StaffPerformanceRow;
+type ItemRow = ItemsPerformanceReport['topItems'][number];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -474,79 +472,219 @@ export default function DirectorAnalyticsPage(): JSX.Element {
 
   // ── Columns ───────────────────────────────────────────────────────────────
 
-  const branchColumns: Array<TableColumn<BranchReportRow>> = useMemo(() => [
-    { key: 'name', label: 'Branch' },
+  const branchColumns: Array<ExcelColumn<BranchReportRow>> = useMemo(() => [
+    { key: 'name', label: 'Branch', render: (row) => <span className="font-semibold">{row.name}</span> },
     {
       key: 'revenue',
       label: 'Revenue',
-      render: (value) => <span className="tabular-nums">{formatCurrency(String(value))}</span>,
+      numeric: true,
+      render: (row) => formatCurrency(row.revenue),
     },
     {
       key: 'revShare',
       label: 'Rev Share',
-      render: (_v, row) => {
+      numeric: true,
+      render: (row) => {
         const total = Number.parseFloat(branchOverviewReport?.totalRevenue ?? '0');
         const share = total > 0 ? (Number.parseFloat(String(row.revenue)) / total) * 100 : 0;
-        return <span className="tabular-nums">{share.toFixed(1)}%</span>;
+        return `${share.toFixed(1)}%`;
       },
     },
     {
       key: 'orderCount',
       label: 'Orders',
-      render: (value) => <span className="tabular-nums">{String(value)}</span>,
+      numeric: true,
+      render: (row) => row.orderCount,
     },
     {
       key: 'avgOrderValue',
       label: 'Avg Order Value',
-      render: (_v, row) => {
+      numeric: true,
+      render: (row) => {
         const rev = Number.parseFloat(String(row.revenue));
         const orders = Number(row.orderCount);
-        return <span className="tabular-nums">{orders > 0 ? formatCurrency(rev / orders) : '—'}</span>;
+        return orders > 0 ? formatCurrency(rev / orders) : '—';
       },
     },
     {
       key: 'kitchenPrep',
       label: 'Kitchen Prep',
-      render: (_v, row) => <span className="tabular-nums">{row.averagePrepTimeMinutes.KITCHEN} min</span>,
+      numeric: true,
+      render: (row) => `${row.averagePrepTimeMinutes.KITCHEN} min`,
     },
     {
       key: 'baristaPrep',
       label: 'Barista Prep',
-      render: (_v, row) => <span className="tabular-nums">{row.averagePrepTimeMinutes.BARISTA} min</span>,
+      numeric: true,
+      render: (row) => `${row.averagePrepTimeMinutes.BARISTA} min`,
     },
   ], [branchOverviewReport]);
 
-  const staffColumns: Array<TableColumn<StaffReportRow>> = useMemo(() => [
-    { key: 'name', label: 'Name' },
-    { key: 'role', label: 'Role' },
+  const paymentColumns: Array<ExcelColumn<BranchReportRow>> = useMemo(() => [
+    { key: 'name', label: 'Branch', render: (row) => <span className="font-semibold">{row.name}</span> },
+    { key: 'mpesa', label: 'M-Pesa', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.mpesa) },
+    { key: 'cash', label: 'Cash', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.cash) },
+    { key: 'card', label: 'Card', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.card) },
+    { key: 'houseAccount', label: 'House Acct', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.houseAccount) },
+    { key: 'corporateAccount', label: 'Corporate', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.corporateAccount) },
+    { key: 'customerCredit', label: 'Credit', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown.customerCredit) },
+    {
+      key: 'total',
+      label: 'Total',
+      numeric: true,
+      render: (row) => <span className="font-semibold">{formatCurrency(row.paymentBreakdown.total)}</span>,
+    },
+  ], []);
+
+  const staffColumns: Array<ExcelColumn<StaffReportRow>> = useMemo(() => [
+    { key: 'name', label: 'Name', render: (row) => <span className="font-semibold">{row.name}</span> },
+    { key: 'role', label: 'Role', render: (row) => row.role },
     {
       key: 'ordersHandled',
       label: 'Orders / Tickets',
-      render: (value) => <span className="tabular-nums">{String(value)}</span>,
+      numeric: true,
+      render: (row) => row.ordersHandled,
     },
     {
       key: 'valueOrPrep',
       label: 'Avg Value / Prep',
-      render: (_v, row) =>
-        row.role === 'WAITER' ? (
-          <span className="tabular-nums">{formatCurrency(row.averageOrderValue ?? '0.00')}</span>
-        ) : (
-          <span className="tabular-nums">{row.averagePrepTimeMinutes ?? 0} min</span>
-        ),
+      numeric: true,
+      render: (row) =>
+        row.role === 'WAITER'
+          ? formatCurrency(row.averageOrderValue ?? '0.00')
+          : `${row.averagePrepTimeMinutes ?? 0} min`,
     },
     {
       key: 'scheduledHours',
       label: 'Sched Hrs',
-      render: (value) => <span className="tabular-nums">{Number(value).toFixed(2)}</span>,
+      numeric: true,
+      render: (row) => Number(row.scheduledHours).toFixed(2),
     },
     {
       key: 'actualHours',
       label: 'Actual Hrs',
-      render: (value) => <span className="tabular-nums">{Number(value).toFixed(2)}</span>,
+      numeric: true,
+      render: (row) => Number(row.actualHours).toFixed(2),
+    },
+  ], []);
+
+  const waiterCollectionColumns: Array<ExcelColumn<StaffReportRow>> = useMemo(() => [
+    { key: 'name', label: 'Waiter', render: (row) => <span className="font-semibold">{row.name}</span> },
+    { key: 'ordersHandled', label: 'Orders', numeric: true, render: (row) => row.ordersHandled },
+    {
+      key: 'mpesa',
+      label: 'M-Pesa',
+      numeric: true,
+      render: (row) => (row.paymentBreakdown ? formatCurrency(row.paymentBreakdown.mpesa) : '—'),
+    },
+    {
+      key: 'cash',
+      label: 'Cash',
+      numeric: true,
+      render: (row) => (row.paymentBreakdown ? formatCurrency(row.paymentBreakdown.cash) : '—'),
+    },
+    {
+      key: 'card',
+      label: 'Card',
+      numeric: true,
+      render: (row) => (row.paymentBreakdown ? formatCurrency(row.paymentBreakdown.card) : '—'),
+    },
+    {
+      key: 'total',
+      label: 'Total',
+      numeric: true,
+      render: (row) => (
+        <span className="font-semibold">{row.paymentBreakdown ? formatCurrency(row.paymentBreakdown.total) : '—'}</span>
+      ),
     },
   ], []);
 
   const showCollections = staffRole === 'ALL' || staffRole === 'WAITER';
+
+  const discountTypeColumns: Array<ExcelColumn<DiscountUsageReport['byDiscount'][number]>> = useMemo(() => [
+    {
+      key: 'name',
+      label: 'Discount',
+      render: (row) => (
+        <>
+          <span className="font-semibold">{row.name}</span>
+          <span className="ml-1.5 text-stone-400">
+            {row.type === 'PERCENTAGE' ? `${row.value}%` : `KES ${Number.parseFloat(row.value).toLocaleString('en-KE')}`}
+          </span>
+        </>
+      ),
+    },
+    { key: 'orderCount', label: 'Uses', numeric: true, render: (row) => row.orderCount },
+    {
+      key: 'totalDiscounted',
+      label: 'Discounted',
+      numeric: true,
+      render: (row) => <span className="font-semibold">{formatCurrency(row.totalDiscounted)}</span>,
+    },
+  ], []);
+
+  const discountBranchColumns: Array<ExcelColumn<DiscountUsageReport['byBranch'][number]>> = useMemo(() => [
+    { key: 'name', label: 'Branch', render: (row) => <span className="font-semibold">{row.name}</span> },
+    { key: 'orderCount', label: 'Uses', numeric: true, render: (row) => row.orderCount },
+    {
+      key: 'totalDiscounted',
+      label: 'Discounted',
+      numeric: true,
+      render: (row) => <span className="font-semibold">{formatCurrency(row.totalDiscounted)}</span>,
+    },
+  ], []);
+
+  const discountWaiterColumns: Array<ExcelColumn<DiscountUsageReport['byWaiter'][number]>> = useMemo(() => [
+    {
+      key: 'name',
+      label: 'Waiter',
+      render: (row) => (
+        <span className="flex items-center gap-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-espresso/10 text-[11px] font-bold text-espresso">
+            {row.name.charAt(0).toUpperCase()}
+          </span>
+          <span className="font-semibold">{row.name}</span>
+        </span>
+      ),
+    },
+    { key: 'orderCount', label: 'Uses', numeric: true, render: (row) => row.orderCount },
+    {
+      key: 'totalDiscounted',
+      label: 'Total Discounted',
+      numeric: true,
+      render: (row) => <span className="font-semibold">{formatCurrency(row.totalDiscounted)}</span>,
+    },
+    {
+      key: 'avgPerUse',
+      label: 'Avg per Use',
+      numeric: true,
+      tone: 'muted',
+      render: (row) =>
+        formatCurrency(String(row.orderCount > 0 ? Number.parseFloat(row.totalDiscounted) / row.orderCount : 0)),
+    },
+  ], []);
+
+  const sortedByDiscount = useMemo(
+    () =>
+      discountUsage
+        ? [...discountUsage.byDiscount].sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+        : [],
+    [discountUsage],
+  );
+  const sortedByBranch = useMemo(
+    () =>
+      discountUsage
+        ? [...discountUsage.byBranch].sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+        : [],
+    [discountUsage],
+  );
+  const sortedByWaiter = useMemo(
+    () =>
+      discountUsage
+        ? [...discountUsage.byWaiter].sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
+        : [],
+    [discountUsage],
+  );
 
   // ── Leave derived values ──────────────────────────────────────────────────
 
@@ -575,6 +713,49 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       });
   }, [leaveRequests, leaveStatusFilter, leaveTypeFilter, leaveSearch]);
 
+  const leaveColumns: Array<ExcelColumn<LeaveRequest>> = useMemo(() => [
+    {
+      key: 'employee',
+      label: 'Employee',
+      render: (row) => (
+        <span className="flex items-center gap-2.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-espresso/10 text-[11px] font-bold text-espresso">
+            {row.employeeProfile.user.name.charAt(0).toUpperCase()}
+          </span>
+          <span>
+            <span className="block font-semibold">{row.employeeProfile.user.name}</span>
+            <span className="block text-stone-400">{roleLabel(row.employeeProfile.user.role)}</span>
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'branch',
+      label: 'Branch',
+      tone: 'muted',
+      render: (row) => branches.find((b) => b.id === row.organizationId)?.name ?? '—',
+    },
+    { key: 'type', label: 'Type', render: (row) => <LeaveTypeBadge type={row.leaveType} /> },
+    { key: 'dates', label: 'Dates', tone: 'muted', render: (row) => formatDateRange(row.startDate, row.endDate) },
+    { key: 'days', label: 'Days', numeric: true, render: (row) => `${Number(row.totalDays)}d` },
+    { key: 'status', label: 'Status', render: (row) => <LeaveStatusBadge status={row.status} /> },
+    {
+      key: 'reviewedBy',
+      label: 'Reviewed By',
+      render: (row) => row.reviewedBy ? row.reviewedBy.name : <span className="text-stone-300">—</span>,
+    },
+    {
+      key: 'comment',
+      label: 'Comment',
+      render: (row) =>
+        row.reviewComment ? (
+          <span className="block max-w-[160px] truncate italic text-stone-400">&ldquo;{row.reviewComment}&rdquo;</span>
+        ) : (
+          <span className="text-stone-300">—</span>
+        ),
+    },
+  ], [branches]);
+
   // ── Items sort ────────────────────────────────────────────────────────────
 
   const sortedTopItems = useMemo(() => {
@@ -595,25 +776,65 @@ export default function DirectorAnalyticsPage(): JSX.Element {
     });
   }, [itemsData, itemsSortKey, itemsSortDir]);
 
-  const handleItemsSort = (key: 'revenue' | 'quantitySold') => {
+  const handleItemsSort = useCallback((key: 'revenue' | 'quantitySold') => {
     if (itemsSortKey === key) {
       setItemsSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
     } else {
       setItemsSortKey(key);
       setItemsSortDir('desc');
     }
-  };
+  }, [itemsSortKey]);
 
-  const ItemsSortIcon = ({ col }: { col: 'revenue' | 'quantitySold' }) => {
-    if (itemsSortKey !== col) return <ArrowUpDown size={12} className="ml-1 inline opacity-30" />;
-    return itemsSortDir === 'desc'
-      ? <ArrowDown size={12} className="ml-1 inline text-espresso" />
-      : <ArrowUp size={12} className="ml-1 inline text-espresso" />;
-  };
+  const itemColumns = useMemo((): {
+    compact: Array<ExcelColumn<ItemRow>>;
+    full: Array<ExcelColumn<ItemRow>>;
+  } => {
+    const sortFor = (key: 'revenue' | 'quantitySold') => ({
+      direction: itemsSortKey === key ? itemsSortDir : null,
+      onToggle: () => handleItemsSort(key),
+    });
+    const qtyCompact: ExcelColumn<ItemRow> = {
+      key: 'quantitySold',
+      label: 'Qty',
+      numeric: true,
+      sort: sortFor('quantitySold'),
+      render: (row) => row.quantitySold,
+    };
+    const revenue: ExcelColumn<ItemRow> = {
+      key: 'revenue',
+      label: 'Revenue',
+      numeric: true,
+      sort: sortFor('revenue'),
+      render: (row) => <span className="font-semibold">{formatCurrency(row.revenue)}</span>,
+    };
+    return {
+      compact: [
+        {
+          key: 'name',
+          label: 'Item',
+          render: (row) => (
+            <>
+              <span className="font-semibold">{row.name}</span>
+              <span className="ml-1.5 text-stone-400">{row.categoryName}</span>
+            </>
+          ),
+        },
+        qtyCompact,
+        revenue,
+      ],
+      full: [
+        { key: 'name', label: 'Item', render: (row) => <span className="font-semibold">{row.name}</span> },
+        { key: 'categoryName', label: 'Category', tone: 'muted', render: (row) => row.categoryName },
+        { ...qtyCompact, label: 'Qty Sold' },
+        revenue,
+      ],
+    };
+  }, [handleItemsSort, itemsSortDir, itemsSortKey]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
+    <div className="min-h-full bg-office-canvas">
     <PageLayout className="animate-fade-up space-y-6">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
@@ -766,29 +987,31 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               <h2 className="text-heading-md font-semibold text-stone-900">Branch Performance</h2>
               <p className="mt-0.5 text-body-sm text-stone-500">Revenue, order count and prep-time comparison — {periodLabel}</p>
             </div>
-            {isLoadingAggregate ? (
-              <SkeletonTable rows={5} columns={7} />
-            ) : branchRows.length === 0 ? (
-              <EmptyState icon={<Globe size={22} />} heading="No branch data" body="Select a date range and click Run." />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table columns={branchColumns} data={branchRows} keyField="id" />
-                {/* Totals row */}
-                {branchOverviewReport && (
-                  <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 border-t border-stone-200 pt-3">
-                    <span className="text-label-sm font-semibold text-stone-700">
-                      Total Revenue: {formatCurrency(branchOverviewReport.totalRevenue)}
-                    </span>
-                    <span className="text-label-sm text-stone-500">
-                      Total Orders: {branchOverviewReport.totalOrders}
-                    </span>
-                    <span className="text-label-sm text-stone-500">
-                      Other Income: {formatCurrency(branchOverviewReport.totalOtherIncome)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            <ExcelTable
+              columns={branchColumns}
+              rows={branchRows}
+              rowKey={(row) => row.id}
+              numbered
+              isLoading={isLoadingAggregate}
+              skeletonRows={5}
+              emptyState={
+                <EmptyState icon={<Globe size={22} />} heading="No branch data" body="Select a date range and click Run." />
+              }
+              totalsRow={
+                branchOverviewReport
+                  ? {
+                      name: <span className="uppercase tracking-wide">Total</span>,
+                      revenue: formatCurrency(branchOverviewReport.totalRevenue),
+                      orderCount: branchOverviewReport.totalOrders,
+                    }
+                  : undefined
+              }
+              footnote={
+                branchOverviewReport
+                  ? <>Other Income: {formatCurrency(branchOverviewReport.totalOtherIncome)}</>
+                  : undefined
+              }
+            />
           </div>
         </div>
       )}
@@ -812,33 +1035,12 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               {/* Per-branch payment breakdown */}
               <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm">
                 <h2 className="mb-4 text-heading-md font-semibold text-stone-900">Payment Breakdown by Branch</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        {['Branch', 'M-Pesa', 'Cash', 'Card', 'House Acct', 'Corporate', 'Credit', 'Total'].map((h) => (
-                          <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {branchOverviewReport.branches.map((b, i) => (
-                        <tr key={b.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'}>
-                          <td className="px-3 py-2.5 font-medium text-stone-900">{b.name}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.mpesa)}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.cash)}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.card)}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.houseAccount)}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.corporateAccount)}</td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{formatCurrency(b.paymentBreakdown.customerCredit)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-stone-900">{formatCurrency(b.paymentBreakdown.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ExcelTable
+                  columns={paymentColumns}
+                  rows={branchOverviewReport.branches}
+                  rowKey={(row) => row.id}
+                  headerTone="green"
+                />
               </div>
             </>
           )}
@@ -921,15 +1123,16 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               </div>
             </div>
 
-            {isLoadingStaff ? (
-              <SkeletonTable rows={6} columns={6} />
-            ) : staffRows.length === 0 ? (
-              <EmptyState icon={<Users size={22} />} heading="No staff data" body="Pick a branch, optionally filter by role, then click Run Report." />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table columns={staffColumns} data={staffRows} keyField="id" />
-              </div>
-            )}
+            <ExcelTable
+              columns={staffColumns}
+              rows={staffRows}
+              rowKey={(row) => row.id}
+              numbered
+              isLoading={isLoadingStaff}
+              emptyState={
+                <EmptyState icon={<Users size={22} />} heading="No staff data" body="Pick a branch, optionally filter by role, then click Run Report." />
+              }
+            />
           </div>
 
           {/* Waiter Collections Breakdown */}
@@ -941,45 +1144,25 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   Payment method breakdown per waiter — {staffReport?.organizationName ?? ''} · {periodLabel}
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-body-sm">
-                  <thead>
-                    <tr className="border-b-2 border-stone-200 bg-stone-50">
-                      {['Waiter', 'Orders', 'M-Pesa', 'Cash', 'Card', 'Total'].map((h) => (
-                        <th key={h} className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 last:text-right">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {waiterRows.map((w, i) => (
-                      <tr key={w.id} className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'}>
-                        <td className="px-3 py-2.5 font-medium text-stone-900">{w.name}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.ordersHandled}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.mpesa) : '—'}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.cash) : '—'}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.card) : '—'}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-stone-900">{w.paymentBreakdown ? formatCurrency(w.paymentBreakdown.total) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {waiterCollectionTotals && (
-                    <tfoot>
-                      <tr className="border-t-2 border-stone-200 bg-stone-50">
-                        <td className="px-3 py-2.5 text-label-sm font-semibold uppercase text-stone-700">Total</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">
-                          {waiterRows.reduce((sum, w) => sum + w.ordersHandled, 0)}
-                        </td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.mpesa)}</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.cash)}</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.card)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-stone-900">{formatCurrency(waiterCollectionTotals.total)}</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
+              <ExcelTable
+                columns={waiterCollectionColumns}
+                rows={waiterRows}
+                rowKey={(row) => row.id}
+                numbered
+                headerTone="green"
+                totalsRow={
+                  waiterCollectionTotals
+                    ? {
+                        name: <span className="uppercase tracking-wide">Total</span>,
+                        ordersHandled: waiterRows.reduce((sum, w) => sum + w.ordersHandled, 0),
+                        mpesa: formatCurrency(waiterCollectionTotals.mpesa),
+                        cash: formatCurrency(waiterCollectionTotals.cash),
+                        card: formatCurrency(waiterCollectionTotals.card),
+                        total: formatCurrency(waiterCollectionTotals.total),
+                      }
+                    : undefined
+                }
+              />
             </div>
           )}
         </div>
@@ -1036,40 +1219,12 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   All Items ({sortedTopItems.length})
                 </span>
               </div>
-              <div className="overflow-x-auto rounded-lg border border-stone-200">
-                <table className="w-full text-left text-body-sm">
-                  <thead>
-                    <tr className="border-b-2 border-stone-200 bg-stone-50">
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Category</th>
-                      <th
-                        className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                        onClick={() => handleItemsSort('quantitySold')}
-                      >
-                        Qty Sold<ItemsSortIcon col="quantitySold" />
-                      </th>
-                      <th
-                        className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                        onClick={() => handleItemsSort('revenue')}
-                      >
-                        Revenue<ItemsSortIcon col="revenue" />
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {sortedTopItems.map((item, i) => (
-                      <tr key={item.menuItemId} className="hover:bg-stone-50">
-                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                        <td className="px-3 py-2.5 font-medium text-stone-900">{item.name}</td>
-                        <td className="px-3 py-2.5 text-caption text-stone-400">{item.categoryName}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ExcelTable
+                columns={itemColumns.full}
+                rows={sortedTopItems}
+                rowKey={(row) => row.menuItemId}
+                numbered
+              />
             </div>
           ) : (
             /* ── Top / bottom split view ── */
@@ -1082,41 +1237,13 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                     Top {itemsData.limit} Items
                   </span>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-stone-200">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('quantitySold')}
-                        >
-                          Qty<ItemsSortIcon col="quantitySold" />
-                        </th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('revenue')}
-                        >
-                          Revenue<ItemsSortIcon col="revenue" />
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {sortedTopItems.map((item, i) => (
-                        <tr key={item.menuItemId} className="hover:bg-stone-50">
-                          <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="font-medium text-stone-900">{item.name}</span>
-                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                          </td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ExcelTable
+                  columns={itemColumns.compact}
+                  rows={sortedTopItems}
+                  rowKey={(row) => row.menuItemId}
+                  numbered
+                  headerTone="green"
+                />
               </div>
               {/* Bottom items */}
               <div>
@@ -1126,41 +1253,13 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                     Bottom {itemsData.limit} Items
                   </span>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-stone-200">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('quantitySold')}
-                        >
-                          Qty<ItemsSortIcon col="quantitySold" />
-                        </th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('revenue')}
-                        >
-                          Revenue<ItemsSortIcon col="revenue" />
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {sortedBottomItems.map((item, i) => (
-                        <tr key={item.menuItemId} className="hover:bg-stone-50">
-                          <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="font-medium text-stone-900">{item.name}</span>
-                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                          </td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-medium text-stone-900">{formatCurrency(item.revenue)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ExcelTable
+                  columns={itemColumns.compact}
+                  rows={sortedBottomItems}
+                  rowKey={(row) => row.menuItemId}
+                  numbered
+                  headerTone="red"
+                />
               </div>
             </div>
           )}
@@ -1246,120 +1345,34 @@ export default function DirectorAnalyticsPage(): JSX.Element {
 
               {/* ── By discount type + by branch ──────────────────────── */}
               <div className="grid gap-5 lg:grid-cols-2">
-
-                {/* By Discount Type + By Branch — consolidated */}
-                <div className="col-span-2 rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-                  <div className="grid grid-cols-2 divide-x divide-stone-100">
-                    {/* By Discount Type */}
-                    <div>
-                      <div className="border-b border-stone-100 px-5 py-3.5">
-                        <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Discount Type</h3>
-                      </div>
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-stone-50">
-                            {['Discount', 'Uses', 'Discounted'].map((h) => (
-                              <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {discountUsage.byDiscount
-                            .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
-                            .map((row) => (
-                              <tr key={row.discountId} className="hover:bg-stone-50 transition-colors">
-                                <td className="px-4 py-3">
-                                  <span className="text-body-sm font-medium text-stone-900">{row.name}</span>
-                                  <span className="ml-2 text-caption text-stone-400">
-                                    {row.type === 'PERCENTAGE' ? `${row.value}%` : `KES ${Number.parseFloat(row.value).toLocaleString('en-KE')}`}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-body-sm font-semibold text-espresso">
-                                  {formatCurrency(row.totalDiscounted)}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* By Branch */}
-                    <div>
-                      <div className="border-b border-stone-100 px-5 py-3.5">
-                        <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Branch</h3>
-                      </div>
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-stone-50">
-                            {['Branch', 'Uses', 'Discounted'].map((h) => (
-                              <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {discountUsage.byBranch
-                            .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
-                            .map((row) => (
-                              <tr key={row.organizationId} className="hover:bg-stone-50 transition-colors">
-                                <td className="px-4 py-3 text-body-sm font-medium text-stone-900">{row.name}</td>
-                                <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-body-sm font-semibold text-espresso">
-                                  {formatCurrency(row.totalDiscounted)}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                <div>
+                  <h3 className="mb-2 text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Discount Type</h3>
+                  <ExcelTable
+                    columns={discountTypeColumns}
+                    rows={sortedByDiscount}
+                    rowKey={(row) => row.discountId}
+                  />
+                </div>
+                <div>
+                  <h3 className="mb-2 text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Branch</h3>
+                  <ExcelTable
+                    columns={discountBranchColumns}
+                    rows={sortedByBranch}
+                    rowKey={(row) => row.organizationId}
+                  />
                 </div>
               </div>
 
               {/* ── By Waiter ─────────────────────────────────────────── */}
-              <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-                <div className="border-b border-stone-100 px-5 py-3.5">
-                  <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Waiter</h3>
-                  <p className="mt-0.5 text-caption text-stone-400">Waiters who applied the most discounts in this period</p>
-                </div>
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-stone-50">
-                      {['#', 'Waiter', 'Uses', 'Total Discounted', 'Avg per Use'].map((h) => (
-                        <th key={h} className="px-4 py-2.5 text-label-sm font-medium text-stone-500 last:text-right">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {discountUsage.byWaiter
-                      .sort((a, b) => Number.parseFloat(b.totalDiscounted) - Number.parseFloat(a.totalDiscounted))
-                      .map((row, i) => {
-                        const avg = row.orderCount > 0
-                          ? Number.parseFloat(row.totalDiscounted) / row.orderCount
-                          : 0;
-                        return (
-                          <tr key={row.waiterId} className="hover:bg-stone-50 transition-colors">
-                            <td className="px-4 py-3 tabular-nums text-stone-400 text-body-sm">{i + 1}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2.5">
-                                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-espresso/10 text-label-sm font-bold text-espresso">
-                                  {row.name.charAt(0).toUpperCase()}
-                                </span>
-                                <span className="text-body-sm font-medium text-stone-900">{row.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 tabular-nums text-body-sm text-stone-700">{row.orderCount}</td>
-                            <td className="px-4 py-3 tabular-nums text-body-sm font-semibold text-espresso">
-                              {formatCurrency(row.totalDiscounted)}
-                            </td>
-                            <td className="px-4 py-3 text-right tabular-nums text-body-sm text-stone-500">
-                              {formatCurrency(String(avg))}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
+              <div>
+                <h3 className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">By Waiter</h3>
+                <p className="mb-2 mt-0.5 text-caption text-stone-400">Waiters who applied the most discounts in this period</p>
+                <ExcelTable
+                  columns={discountWaiterColumns}
+                  rows={sortedByWaiter}
+                  rowKey={(row) => row.waiterId}
+                  numbered
+                />
               </div>
 
             </div>
@@ -1397,17 +1410,17 @@ export default function DirectorAnalyticsPage(): JSX.Element {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Approved</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#1A6B3C] tabular-nums">{leaveStats.approved}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-success tabular-nums">{leaveStats.approved}</p>
                 <p className="mt-0.5 text-caption text-stone-400">{leaveStats.totalDaysTaken}d total taken</p>
               </div>
-              <div className="rounded-xl border border-[#F0D080] bg-[#FFFDF5] p-4 shadow-sm">
-                <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A]">Pending</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#92650A] tabular-nums">{leaveStats.pending}</p>
-                <p className="mt-0.5 text-caption text-[#92650A]">Awaiting HR review</p>
+              <div className="rounded-xl border border-warning-border bg-warning-bg p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-warning">Pending</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-warning tabular-nums">{leaveStats.pending}</p>
+                <p className="mt-0.5 text-caption text-warning">Awaiting HR review</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Rejected</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#9B3A2A] tabular-nums">{leaveStats.rejected}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-danger tabular-nums">{leaveStats.rejected}</p>
                 <p className="mt-0.5 text-caption text-stone-400">Declined requests</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
@@ -1435,8 +1448,8 @@ export default function DirectorAnalyticsPage(): JSX.Element {
           )}
 
           {/* ── Request history table ──────────────────────────────────── */}
-          <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
-            <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 py-3">
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <p className="text-heading-sm font-semibold text-stone-900 mr-2">All Requests</p>
               <input
                 type="search"
@@ -1453,7 +1466,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                     onClick={() => setLeaveStatusFilter(f.value)}
                     className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                       leaveStatusFilter === f.value
-                        ? 'bg-[#2C1810] text-white'
+                        ? 'bg-espresso text-white'
                         : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                     }`}
                   >
@@ -1473,87 +1486,25 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               <span className="ml-auto text-caption text-stone-400">{filteredLeave.length} record{filteredLeave.length !== 1 ? 's' : ''}</span>
             </div>
 
-            {isLoadingLeave ? (
-              <div className="divide-y divide-stone-100">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-4 px-5 py-4">
-                    <div className="h-8 w-8 animate-pulse rounded-full bg-stone-200" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3.5 w-36 animate-pulse rounded bg-stone-200" />
-                      <div className="h-3 w-52 animate-pulse rounded bg-stone-100" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredLeave.length === 0 ? (
-              <div className="px-5 py-12">
+            <ExcelTable
+              columns={leaveColumns}
+              rows={filteredLeave}
+              rowKey={(row) => row.id}
+              isLoading={isLoadingLeave}
+              skeletonRows={4}
+              emptyState={
                 <EmptyState
                   icon={<CalendarOff size={22} />}
                   heading="No records found"
                   body={leaveRequests === null ? 'Click Refresh to load leave data.' : 'No requests match the current filters.'}
                 />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-body-sm">
-                  <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50">
-                      <th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Employee</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Branch</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Type</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Dates</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Days</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {filteredLeave.map((req) => {
-                      const branchName = branches.find((b) => b.id === req.organizationId)?.name ?? '—';
-                      return (
-                        <tr key={req.id} className="transition-colors hover:bg-stone-50">
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-2.5">
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-[11px] font-bold text-[#2C1810]">
-                                {req.employeeProfile.user.name.charAt(0).toUpperCase()}
-                              </span>
-                              <div>
-                                <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
-                                <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3.5 text-body-sm text-stone-600">{branchName}</td>
-                          <td className="px-4 py-3.5"><LeaveTypeBadge type={req.leaveType} /></td>
-                          <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
-                          <td className="px-4 py-3.5 tabular-nums font-medium text-stone-700">{Number(req.totalDays)}d</td>
-                          <td className="px-4 py-3.5"><LeaveStatusBadge status={req.status} /></td>
-                          <td className="px-4 py-3.5">
-                            {req.reviewedBy ? (
-                              <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
-                            ) : (
-                              <span className="text-caption text-stone-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 max-w-[160px]">
-                            {req.reviewComment ? (
-                              <span className="truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>
-                            ) : (
-                              <span className="text-caption text-stone-300">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+              }
+            />
           </div>
         </div>
       )}
 
     </PageLayout>
+    </div>
   );
 }

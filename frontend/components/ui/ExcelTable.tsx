@@ -14,6 +14,11 @@ export interface ExcelColumn<T> {
   /** Right-aligns and applies tabular numerals */
   numeric?: boolean
   tone?: 'default' | 'negative' | 'muted'
+  /** Makes the header a sort toggle; `direction: null` means sortable but inactive */
+  sort?: {
+    direction: 'asc' | 'desc' | null
+    onToggle: () => void
+  }
   render?: (row: T, index: number) => React.ReactNode
 }
 
@@ -127,6 +132,15 @@ export function ExcelTable<T>({
                   key={col.key}
                   scope="col"
                   style={col.width ? { width: col.width } : undefined}
+                  aria-sort={
+                    col.sort
+                      ? col.sort.direction === 'asc'
+                        ? 'ascending'
+                        : col.sort.direction === 'desc'
+                          ? 'descending'
+                          : 'none'
+                      : undefined
+                  }
                   className={cn(
                     gridCell,
                     'px-2.5 py-1.5 font-bold',
@@ -135,7 +149,23 @@ export function ExcelTable<T>({
                     stickyHeader && headerToneClasses[headerTone]
                   )}
                 >
-                  {col.label}
+                  {col.sort ? (
+                    <button
+                      type="button"
+                      onClick={col.sort.onToggle}
+                      className={cn(
+                        'inline-flex select-none items-center gap-1 font-bold text-white focus-visible:outline-none focus-visible:shadow-focus',
+                        columnAlign(col) === 'right' && 'flex-row-reverse'
+                      )}
+                    >
+                      {col.label}
+                      <span aria-hidden className={cn('text-[10px]', col.sort.direction === null && 'opacity-40')}>
+                        {col.sort.direction === 'asc' ? '▲' : col.sort.direction === 'desc' ? '▼' : '⇅'}
+                      </span>
+                    </button>
+                  ) : (
+                    col.label
+                  )}
                 </th>
               ))}
               {expandable && (
