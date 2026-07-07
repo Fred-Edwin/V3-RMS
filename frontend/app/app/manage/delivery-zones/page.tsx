@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Bike, Pencil, Trash2 } from 'lucide-react';
 import {
+  Badge,
   Button,
   ConfirmDialog,
   EmptyState,
+  ExcelTable,
   IconButton,
   Input,
   Modal,
@@ -13,9 +15,7 @@ import {
   PageLayout,
   PriceDisplay,
   SkeletonTable,
-  Table,
   Toggle,
-  type TableColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -202,36 +202,23 @@ export default function DeliveryZonesPage(): JSX.Element {
     }
   };
 
-  const columns: TableColumn<ZoneRow>[] = [
-    {
-      key: 'name',
-      label: 'Zone Name',
-    },
+  const columns = [
+    { key: 'name', label: 'Zone Name', render: (row: ZoneRow) => <span className="font-medium text-office-ink">{row.name}</span> },
     {
       key: 'fee',
       label: 'Fee (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row: ZoneRow) => <PriceDisplay amount={Number.parseFloat(row.fee)} />,
     },
     {
       key: 'isActive',
       label: 'Status',
-      render: (value) => (
-        <span
-          className={
-            value
-              ? 'inline-flex rounded-full border border-[#86EFAC] bg-[#EDFAF1] px-2 py-0.5 text-label-sm text-[#1A6B3C]'
-              : 'inline-flex rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-2 py-0.5 text-label-sm text-[#71717A]'
-          }
-        >
-          {value ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (row: ZoneRow) => <Badge tone={row.isActive ? 'success' : 'neutral'}>{row.isActive ? 'Active' : 'Inactive'}</Badge>,
     },
     {
       key: 'actions',
       label: 'Actions',
-      className: 'w-[130px]',
-      render: (_value, row) => (
+      render: (row: ZoneRow) => (
         <div className="flex items-center gap-2">
           <IconButton
             icon={<Pencil size={16} />}
@@ -271,7 +258,7 @@ export default function DeliveryZonesPage(): JSX.Element {
             action={<Button onClick={openCreateModal}>Add Zone</Button>}
           />
         ) : (
-          <Table columns={columns} data={tableData} keyField="id" />
+          <ExcelTable columns={columns} rows={tableData} rowKey={(row) => row.id} headerTone="navy" />
         )}
       </section>
 

@@ -348,8 +348,8 @@ export default function BranchSettingsPage(): JSX.Element {
                     <div className="mt-0.5 flex items-center gap-1.5">
                       {station.isOnline ? (
                         <>
-                          <Wifi size={12} className="text-[#1A6B3C]" />
-                          <span className="text-caption text-[#1A6B3C]">Online</span>
+                          <Wifi size={12} className="text-success" />
+                          <span className="text-caption text-success">Online</span>
                         </>
                       ) : (
                         <>
@@ -516,8 +516,8 @@ export default function BranchSettingsPage(): JSX.Element {
               />
             </div>
           )}
-          <div className="rounded-lg border border-amber/40 bg-[#FDF3DC] p-3">
-            <p className="mb-2 text-label-sm text-[#92650A]">
+          <div className="rounded-lg border border-warning-border bg-warning-bg p-3">
+            <p className="mb-2 text-label-sm text-warning">
               This token will NOT be shown again.
             </p>
             <div className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2">
@@ -531,7 +531,7 @@ export default function BranchSettingsPage(): JSX.Element {
                 aria-label="Copy token"
               >
                 {isCopied ? (
-                  <Check size={16} className="text-[#1A6B3C]" />
+                  <Check size={16} className="text-success" />
                 ) : (
                   <Copy size={16} />
                 )}
