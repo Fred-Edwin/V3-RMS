@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Button, EmptyState, Input, PageHeader, PageLayout, Select, SkeletonTable } from '@/components/ui';
+import { Badge, Button, EmptyState, ExcelTable, Input, PageHeader, PageLayout, Select, SkeletonTable, TabBar } from '@/components/ui';
+import type { BadgeTone } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { incidentService, type Incident, type IncidentType } from '@/services/incidentService';
 import { orderService, type BranchStaleOrder } from '@/services/orderService';
@@ -10,7 +11,6 @@ import { houseAccountService, type HouseAccountDropdownItem } from '@/services/h
 import { useAuthStore } from '@/store/authStore';
 import { useIncidentStore } from '@/store/incidentStore';
 import { getSocket } from '@/lib/socket';
-import { cn } from '@/lib/cn';
 import { ApiError } from '@/types/api';
 
 const INCIDENT_TYPE_OPTIONS = [
@@ -33,15 +33,15 @@ const incidentTypeLabel: Record<IncidentType, string> = {
   ORDER_STALE: 'Order Stale',
 };
 
-const incidentTypeColor: Record<IncidentType, string> = {
-  ORDER_CANCELLED: 'bg-[#FDF2F0] text-[#9B3A2A] border-[#F5A898]',
-  ORDER_ITEM_REMOVED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  TICKET_REJECTED: 'bg-[#FDF2F0] text-[#9B3A2A] border-[#F5A898]',
-  MODIFICATION_REQUESTED: 'bg-[#FDF3DC] text-[#92650A] border-[#F0D080]',
-  MODIFICATION_APPROVED: 'bg-[#EDFAF1] text-[#1A6B3C] border-[#86EFAC]',
-  MODIFICATION_REJECTED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  TICKET_UNCLAIMED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  ORDER_STALE: 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]',
+const incidentTypeTone: Record<IncidentType, BadgeTone> = {
+  ORDER_CANCELLED: 'danger',
+  ORDER_ITEM_REMOVED: 'warning',
+  TICKET_REJECTED: 'danger',
+  MODIFICATION_REQUESTED: 'warning',
+  MODIFICATION_APPROVED: 'success',
+  MODIFICATION_REJECTED: 'warning',
+  TICKET_UNCLAIMED: 'warning',
+  ORDER_STALE: 'warning',
 };
 
 const toYmd = (date: Date): string => {
@@ -364,15 +364,14 @@ export default function IncidentsPage(): JSX.Element {
     };
   }, []);
 
-  const cellBorder = '1px solid #d8d4d0';
   const hasStale = staleOrders.length > 0;
   const staleCount = staleOrders.length;
 
   const tabs = useMemo(
     () => [
-      ['incidents', 'Incidents'],
-      ['stale', staleCount > 0 ? `Stale Orders (${staleCount})` : 'Stale Orders'],
-    ] as [TabId, string][],
+      { value: 'incidents' as TabId, label: 'Incidents' },
+      { value: 'stale' as TabId, label: staleCount > 0 ? `Stale Orders (${staleCount})` : 'Stale Orders' },
+    ],
     [staleCount],
   );
 
@@ -381,20 +380,7 @@ export default function IncidentsPage(): JSX.Element {
       <PageHeader title="Incidents" subtitle="Non-happy-path events and unresolved orders across your branch" />
 
       {/* Tabs */}
-      <div className="flex border-b border-stone-200">
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className={cn(
-              'px-4 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px transition-colors',
-              activeTab === id ? 'border-[#6b4226] text-[#1a0a00] font-bold' : 'border-transparent text-stone-500 hover:text-stone-700',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} variant="underline" />
 
       {/* ── INCIDENTS TAB ── */}
       {activeTab === 'incidents' && (
@@ -422,32 +408,40 @@ export default function IncidentsPage(): JSX.Element {
             <EmptyState icon={<AlertTriangle size={40} />} heading="No incidents" body="No incidents match your filters." />
           ) : (
             <div className="space-y-2">
-              {incidents.map((incident) => (
-                <button
-                  key={incident.id}
-                  type="button"
-                  className="w-full rounded-lg border border-stone-200 bg-white p-3 text-left transition-colors hover:border-stone-300"
-                  onClick={() => setExpandedId(expandedId === incident.id ? null : incident.id)}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-label-sm font-medium ${incidentTypeColor[incident.type]}`}>
-                        {incidentTypeLabel[incident.type]}
-                      </span>
-                      <span className="text-body-sm text-stone-600">{incident.actor?.name ?? 'System'}</span>
-                      {incident.type === 'ORDER_STALE' && Boolean(incident.details.dailyNumber) && (
-                        <span className="text-caption text-stone-400">· Order #{String(incident.details.dailyNumber)}</span>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-caption text-stone-400">{formatTimestamp(incident.createdAt)}</span>
-                  </div>
-                  {expandedId === incident.id && (
-                    <div className="mt-2 rounded-md bg-stone-50 p-2 text-body-sm text-stone-700">
-                      {formatDetails(incident.type, incident.details)}
-                    </div>
-                  )}
-                </button>
-              ))}
+              <ExcelTable
+                columns={[
+                  {
+                    key: 'type',
+                    label: 'Type',
+                    render: (incident) => <Badge tone={incidentTypeTone[incident.type]}>{incidentTypeLabel[incident.type]}</Badge>,
+                  },
+                  {
+                    key: 'actor',
+                    label: 'Actor',
+                    render: (incident) => (
+                      <>
+                        {incident.actor?.name ?? 'System'}
+                        {incident.type === 'ORDER_STALE' && Boolean(incident.details.dailyNumber) && (
+                          <span className="ml-1.5 text-caption text-stone-400">Order #{String(incident.details.dailyNumber)}</span>
+                        )}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'createdAt',
+                    label: 'Time',
+                    render: (incident) => <span className="whitespace-nowrap text-stone-500">{formatTimestamp(incident.createdAt)}</span>,
+                  },
+                ]}
+                rows={incidents}
+                rowKey={(incident) => incident.id}
+                headerTone="gray"
+                expandable={{
+                  isExpanded: (incident) => expandedId === incident.id,
+                  onToggle: (incident) => setExpandedId(expandedId === incident.id ? null : incident.id),
+                  childRows: (incident) => [{ actor: formatDetails(incident.type, incident.details) }],
+                }}
+              />
 
               {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-2">
@@ -478,89 +472,86 @@ export default function IncidentsPage(): JSX.Element {
               <p className="mt-1 text-[12px] text-stone-400">Every order in your branch has been closed, cancelled, or accounted for.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-md border border-[#d8d4d0]">
-              <table className="w-full" style={{ borderCollapse: 'collapse', fontFamily: "'Calibri', 'Segoe UI', Arial, sans-serif", fontSize: 12.5 }}>
-                <thead>
-                  <tr style={{ background: '#2e5984', color: 'white' }}>
-                    <th style={{ border: cellBorder, padding: '6px 8px', textAlign: 'center', fontWeight: 700, width: 40 }}>#</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Order</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'left', fontWeight: 700 }}>Waiter</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: 130 }}>Date / Table</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: 130 }}>Status</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: 110 }}>Amount (Ksh)</th>
-                    <th style={{ border: cellBorder, padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: 280 }}>Resolve</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {staleOrders.map((o, idx) => {
+            <ExcelTable
+              columns={[
+                { key: 'order', label: 'Order', render: (o) => <span className="font-semibold text-office-ink">#{o.dailyNumber}</span> },
+                { key: 'waiter', label: 'Waiter', render: (o) => o.waiterName },
+                {
+                  key: 'dateTable',
+                  label: 'Date / Table',
+                  align: 'center',
+                  render: (o) => (
+                    <span className="whitespace-nowrap">
+                      {fmtShortDate(o.orderDate)}{o.tableNumber ? ` · T${o.tableNumber}` : ''}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  align: 'center',
+                  render: (o) => <span className="whitespace-nowrap">{o.status.replace(/_/g, ' ').toLowerCase()}</span>,
+                },
+                {
+                  key: 'amount',
+                  label: 'Amount (Ksh)',
+                  numeric: true,
+                  render: (o) => <span className="font-bold text-danger">{fmtMoney(o.total)}</span>,
+                },
+                {
+                  key: 'resolve',
+                  label: 'Resolve',
+                  align: 'center',
+                  render: (o) => {
                     const notReady = o.status !== 'READY';
                     return (
-                      <tr key={o.id} style={{ background: idx % 2 === 1 ? '#f6f5f4' : '#ffffff' }}>
-                        <td style={{ border: cellBorder, padding: '5px 8px', textAlign: 'center', color: '#78716c' }}>{idx + 1}</td>
-                        <td style={{ border: cellBorder, padding: '5px 10px', fontWeight: 600, color: '#1a0a00' }}>#{o.dailyNumber}</td>
-                        <td style={{ border: cellBorder, padding: '5px 10px', color: '#57534e' }}>{o.waiterName}</td>
-                        <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'center', color: '#78716c' }} className="whitespace-nowrap">
-                          {fmtShortDate(o.orderDate)}{o.tableNumber ? ` · T${o.tableNumber}` : ''}
-                        </td>
-                        <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'center', color: '#78716c' }} className="whitespace-nowrap">
-                          {o.status.replace(/_/g, ' ').toLowerCase()}
-                        </td>
-                        <td style={{ border: cellBorder, padding: '5px 10px', textAlign: 'right', fontWeight: 700, color: '#a31515' }} className="tabular-nums whitespace-nowrap">
-                          {fmtMoney(o.total)}
-                        </td>
-                        <td style={{ border: cellBorder, padding: '4px 6px' }}>
-                          <div className="flex flex-wrap items-center justify-center gap-1">
-                            {notReady && (
-                              <button
-                                onClick={() => setResolveTarget({ order: o, mode: 'forceReady' })}
-                                className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:bg-stone-50"
-                                title="Force the order ready so it can be closed"
-                              >
-                                Force Ready
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setResolveTarget({ order: o, mode: 'payment' })}
-                              disabled={notReady}
-                              className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={notReady ? 'Force ready first' : 'Record payment and close'}
-                            >
-                              Pay/Close
-                            </button>
-                            <button
-                              onClick={() => setResolveTarget({ order: o, mode: 'house' })}
-                              disabled={notReady}
-                              className="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={notReady ? 'Force ready first' : 'Send to a house account for approval'}
-                            >
-                              House Acct
-                            </button>
-                            <button
-                              onClick={() => setResolveTarget({ order: o, mode: 'cancel' })}
-                              className="rounded border border-red-300 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 hover:bg-red-100"
-                              title="Cancel the order"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                      <div className="flex flex-wrap items-center justify-center gap-1">
+                        {notReady && (
+                          <button
+                            onClick={() => setResolveTarget({ order: o, mode: 'forceReady' })}
+                            className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 hover:bg-stone-50"
+                            title="Force the order ready so it can be closed"
+                          >
+                            Force Ready
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setResolveTarget({ order: o, mode: 'payment' })}
+                          disabled={notReady}
+                          className="rounded border border-success-border bg-success-bg px-2 py-0.5 text-[11px] font-medium text-success hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={notReady ? 'Force ready first' : 'Record payment and close'}
+                        >
+                          Pay/Close
+                        </button>
+                        <button
+                          onClick={() => setResolveTarget({ order: o, mode: 'house' })}
+                          disabled={notReady}
+                          className="rounded border border-blue-300 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={notReady ? 'Force ready first' : 'Send to a house account for approval'}
+                        >
+                          House Acct
+                        </button>
+                        <button
+                          onClick={() => setResolveTarget({ order: o, mode: 'cancel' })}
+                          className="rounded border border-danger-border bg-danger-bg px-2 py-0.5 text-[11px] font-medium text-danger hover:opacity-80"
+                          title="Cancel the order"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     );
-                  })}
-
-                  <tr style={{ background: '#dce6f1', fontWeight: 700 }}>
-                    <td style={{ border: cellBorder, padding: '6px 8px' }} />
-                    <td style={{ border: cellBorder, padding: '6px 10px', color: '#1a0a00', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.04em' }} colSpan={4}>
-                      Total ({staleCount} order{staleCount > 1 ? 's' : ''})
-                    </td>
-                    <td style={{ border: cellBorder, padding: '6px 10px', textAlign: 'right', color: '#a31515' }} className="tabular-nums whitespace-nowrap">
-                      Ksh {fmtMoney(staleTotal)}
-                    </td>
-                    <td style={{ border: cellBorder }} />
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                  },
+                },
+              ]}
+              rows={staleOrders}
+              rowKey={(o) => o.id}
+              numbered
+              headerTone="navy"
+              totalsRow={{
+                order: <span className="text-label-sm uppercase tracking-wide">Total ({staleCount} order{staleCount > 1 ? 's' : ''})</span>,
+                amount: <span className="font-bold text-danger">Ksh {fmtMoney(staleTotal)}</span>,
+              }}
+            />
           )}
         </>
       )}

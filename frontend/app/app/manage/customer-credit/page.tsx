@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useRouter } from 'next/navigation';
 import { Users, Pencil, DollarSign } from 'lucide-react';
 import {
+  Badge,
   Button,
   ConfirmDialog,
   EmptyState,
+  ExcelTable,
   IconButton,
   Input,
   Modal,
@@ -15,9 +17,7 @@ import {
   PageLayout,
   PriceDisplay,
   SkeletonTable,
-  Table,
   Toggle,
-  type TableColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -270,39 +270,30 @@ export default function CustomerCreditPage(): JSX.Element {
     }
   };
 
-  const columns: TableColumn<AccountRow>[] = [
-    { key: 'customerName', label: 'Customer' },
-    { key: 'customerPhone', label: 'Phone' },
+  const columns = [
+    { key: 'customerName', label: 'Customer', render: (row: AccountRow) => <span className="font-medium text-office-ink">{row.customerName}</span> },
+    { key: 'customerPhone', label: 'Phone', render: (row: AccountRow) => row.customerPhone },
     {
       key: 'currentBalance',
       label: 'Balance (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row: AccountRow) => <PriceDisplay amount={Number.parseFloat(row.currentBalance)} />,
     },
     {
       key: 'creditLimit',
       label: 'Credit Limit',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row: AccountRow) => <PriceDisplay amount={Number.parseFloat(row.creditLimit)} />,
     },
     {
       key: 'isActive',
       label: 'Status',
-      render: (value) => (
-        <span
-          className={
-            value
-              ? 'inline-flex rounded-full border border-[#86EFAC] bg-[#EDFAF1] px-2 py-0.5 text-label-sm text-[#1A6B3C]'
-              : 'inline-flex rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-2 py-0.5 text-label-sm text-[#71717A]'
-          }
-        >
-          {value ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (row: AccountRow) => <Badge tone={row.isActive ? 'success' : 'neutral'}>{row.isActive ? 'Active' : 'Inactive'}</Badge>,
     },
     {
       key: 'actions',
       label: 'Actions',
-      className: 'w-[140px]',
-      render: (_value, row) => (
+      render: (row: AccountRow) => (
         <div className="flex items-center gap-2">
           {!isReadOnly && (
             <IconButton
@@ -365,7 +356,7 @@ export default function CustomerCreditPage(): JSX.Element {
             action={!isReadOnly ? <Button onClick={openCreateModal}>Add Account</Button> : undefined}
           />
         ) : (
-          <Table columns={columns} data={tableData} keyField="id" />
+          <ExcelTable columns={columns} rows={tableData} rowKey={(row) => row.id} headerTone="navy" />
         )}
       </section>
 
