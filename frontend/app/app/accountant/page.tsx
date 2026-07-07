@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ArrowDownCircle, AlertTriangle } from 'lucide-react';
-import { Button, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
+import { Button, ExcelTable, PageHeader, PageLayout, SkeletonBlock } from '@/components/ui';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
@@ -48,15 +48,15 @@ function KpiCard({
 }) {
   const accentBg =
     accent === 'red'
-      ? 'bg-[#FEF2F2]'
+      ? 'bg-danger-bg'
       : accent === 'green'
-        ? 'bg-[#EDFAF1]'
+        ? 'bg-success-bg'
         : 'bg-parchment';
   const accentText =
     accent === 'red'
-      ? 'text-[#991B1B]'
+      ? 'text-danger'
       : accent === 'green'
-        ? 'text-[#1A6B3C]'
+        ? 'text-success'
         : 'text-stone-600';
 
   return (
@@ -82,22 +82,6 @@ function KpiSkeleton() {
         <SkeletonBlock className="h-8 w-36 rounded" />
       </div>
     </div>
-  );
-}
-
-function PaymentMethodBadge({ method }: { method: 'mpesa' | 'cash' | 'card' | 'credit' | 'total' }) {
-  const styles = {
-    mpesa: 'bg-[#EDFAF1] text-[#1A6B3C]',
-    cash: 'bg-parchment text-stone-700',
-    card: 'bg-[#EFF6FF] text-[#1D4ED8]',
-    credit: 'bg-[#FDF3DC] text-[#92650A]',
-    total: 'bg-espresso/10 text-espresso',
-  };
-  const labels = { mpesa: 'M-Pesa', cash: 'Cash', card: 'Card', credit: 'Credit', total: 'Total' };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-label-sm font-medium ${styles[method]}`}>
-      {labels[method]}
-    </span>
   );
 }
 
@@ -279,113 +263,82 @@ export default function AccountantDashboardPage(): JSX.Element {
               </div>
             ))}
           </div>
-        ) : sortedBranches.length === 0 ? (
-          <p className="px-5 py-8 text-center text-body-sm text-stone-400">No branch data for today.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px]">
-              <thead>
-                <tr className="border-b border-stone-100 bg-stone-50/60">
-                  <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
-                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
-                    <PaymentMethodBadge method="mpesa" />
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
-                    <PaymentMethodBadge method="cash" />
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
-                    <PaymentMethodBadge method="card" />
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">
-                    <PaymentMethodBadge method="credit" />
-                  </th>
-                  <th className="px-4 py-2.5 text-right text-label-sm font-medium text-amber">
-                    + Other
-                  </th>
-                  <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">
-                    <PaymentMethodBadge method="total" />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {sortedBranches.map((branch, idx) => {
+          <ExcelTable
+            columns={[
+              {
+                key: 'branch',
+                label: 'Branch',
+                render: (branch) => {
+                  const idx = sortedBranches.findIndex((b) => b.id === branch.id);
+                  const isTop = idx === 0 && sortedBranches.length > 1;
+                  const isBottom = idx === sortedBranches.length - 1 && sortedBranches.length > 1;
+                  return (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-office-ink">{branch.name}</span>
+                        {isTop && (
+                          <span className="flex items-center gap-0.5 text-caption font-medium text-success">
+                            <TrendingUp size={11} /> Top
+                          </span>
+                        )}
+                        {isBottom && (
+                          <span className="flex items-center gap-0.5 text-caption font-medium text-red-500">
+                            <TrendingDown size={11} /> Low
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-caption text-stone-400">{branch.orderCount} orders</span>
+                    </>
+                  );
+                },
+              },
+              { key: 'mpesa', label: 'M-Pesa', numeric: true, render: (branch) => formatCurrency(branch.paymentBreakdown.mpesa) },
+              { key: 'cash', label: 'Cash', numeric: true, render: (branch) => formatCurrency(branch.paymentBreakdown.cash) },
+              { key: 'card', label: 'Card', numeric: true, render: (branch) => formatCurrency(branch.paymentBreakdown.card) },
+              {
+                key: 'credit',
+                label: 'Credit',
+                numeric: true,
+                render: (branch) => {
                   const pb = branch.paymentBreakdown;
                   const creditTotal =
                     Number.parseFloat(pb.houseAccount) +
                     Number.parseFloat(pb.corporateAccount) +
                     Number.parseFloat(pb.customerCredit);
+                  return formatCurrency(creditTotal);
+                },
+              },
+              {
+                key: 'other',
+                label: '+ Other',
+                numeric: true,
+                render: (branch) => {
                   const otherTotal = Number.parseFloat(branch.otherIncomeTotal ?? '0');
-                  const isTop = idx === 0 && sortedBranches.length > 1;
-                  const isBottom = idx === sortedBranches.length - 1 && sortedBranches.length > 1;
-
-                  return (
-                    <tr key={branch.id} className="transition-colors hover:bg-stone-50/60">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-body-sm font-medium text-stone-900">{branch.name}</span>
-                          {isTop && (
-                            <span className="flex items-center gap-0.5 text-caption font-medium text-[#1A6B3C]">
-                              <TrendingUp size={11} /> Top
-                            </span>
-                          )}
-                          {isBottom && (
-                            <span className="flex items-center gap-0.5 text-caption font-medium text-red-500">
-                              <TrendingDown size={11} /> Low
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-caption text-stone-400">{branch.orderCount} orders</span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                        {formatCurrency(pb.mpesa)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                        {formatCurrency(pb.cash)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                        {formatCurrency(pb.card)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                        {formatCurrency(creditTotal)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-amber">
-                        {otherTotal > 0 ? formatCurrency(otherTotal) : '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                        {formatCurrency(branch.revenue)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              {/* Totals row */}
-              {paymentTotals && (
-                <tfoot>
-                  <tr className="border-t-2 border-stone-200 bg-stone-50">
-                    <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">All Branches</td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                      {formatCurrency(paymentTotals.mpesa)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                      {formatCurrency(paymentTotals.cash)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                      {formatCurrency(paymentTotals.card)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                      {formatCurrency(paymentTotals.credit)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-amber">
-                      {paymentTotals.other > 0 ? formatCurrency(paymentTotals.other) : '—'}
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
-                      {formatCurrency(todayRevenue)}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+                  return <span className="text-amber">{otherTotal > 0 ? formatCurrency(otherTotal) : '—'}</span>;
+                },
+              },
+              {
+                key: 'total',
+                label: 'Total',
+                numeric: true,
+                render: (branch) => <span className="font-semibold">{formatCurrency(branch.revenue)}</span>,
+              },
+            ]}
+            rows={sortedBranches}
+            rowKey={(branch) => branch.id}
+            headerTone="navy"
+            emptyState={<p className="text-body-sm text-stone-400">No branch data for today.</p>}
+            totalsRow={paymentTotals ? {
+              branch: <span className="text-label-sm uppercase tracking-wide">All Branches</span>,
+              mpesa: formatCurrency(paymentTotals.mpesa),
+              cash: formatCurrency(paymentTotals.cash),
+              card: formatCurrency(paymentTotals.card),
+              credit: formatCurrency(paymentTotals.credit),
+              other: <span className="text-amber">{paymentTotals.other > 0 ? formatCurrency(paymentTotals.other) : '—'}</span>,
+              total: <span className="font-bold text-espresso">{formatCurrency(todayRevenue)}</span>,
+            } : undefined}
+          />
         )}
       </div>
 

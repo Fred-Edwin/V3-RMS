@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useRouter } from 'next/navigation';
 import { Building2, Pencil, DollarSign } from 'lucide-react';
 import {
+  Badge,
   Button,
   ConfirmDialog,
   EmptyState,
+  ExcelTable,
   IconButton,
   Input,
   Modal,
@@ -15,9 +17,8 @@ import {
   PriceDisplay,
   Select,
   SkeletonTable,
-  Table,
   Toggle,
-  type TableColumn,
+  type ExcelColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -258,20 +259,22 @@ export default function CorporateAccountsPage(): JSX.Element {
     }
   };
 
-  const columns: TableColumn<AccountRow>[] = [
-    { key: 'companyName', label: 'Company' },
-    { key: 'contactName', label: 'Contact' },
+  const columns: ExcelColumn<AccountRow>[] = [
+    { key: 'companyName', label: 'Company', render: (row) => row.companyName },
+    { key: 'contactName', label: 'Contact', render: (row) => row.contactName },
     {
       key: 'currentBalance',
       label: 'Balance (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row) => <PriceDisplay amount={Number.parseFloat(String(row.currentBalance))} />,
     },
     {
       key: 'creditLimit',
       label: 'Credit Limit',
-      render: (value) =>
-        value ? (
-          <PriceDisplay amount={Number.parseFloat(String(value))} />
+      numeric: true,
+      render: (row) =>
+        row.creditLimit ? (
+          <PriceDisplay amount={Number.parseFloat(String(row.creditLimit))} />
         ) : (
           <span className="text-body-sm text-stone-400">Uncapped</span>
         ),
@@ -279,28 +282,17 @@ export default function CorporateAccountsPage(): JSX.Element {
     {
       key: 'billingCycleDay',
       label: 'Billing Day',
-      render: (value) => <span className="text-body-sm text-stone-600">Day {String(value)}</span>,
+      render: (row) => <span className="text-body-sm text-stone-600">Day {String(row.billingCycleDay)}</span>,
     },
     {
       key: 'isActive',
       label: 'Status',
-      render: (value) => (
-        <span
-          className={
-            value
-              ? 'inline-flex rounded-full border border-[#86EFAC] bg-[#EDFAF1] px-2 py-0.5 text-label-sm text-[#1A6B3C]'
-              : 'inline-flex rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-2 py-0.5 text-label-sm text-[#71717A]'
-          }
-        >
-          {value ? 'Active' : 'Inactive'}
-        </span>
-      ),
+      render: (row) => <Badge tone={row.isActive ? 'success' : 'neutral'}>{row.isActive ? 'Active' : 'Inactive'}</Badge>,
     },
     {
       key: 'actions',
       label: 'Actions',
-      className: 'w-[140px]',
-      render: (_value, row) => (
+      render: (row) => (
         <div className="flex items-center gap-2">
           {!isReadOnly && (
             <IconButton icon={<Pencil size={16} />} label={`Edit ${row.companyName}`} size="sm" onClick={() => openEditModal(row)} />
@@ -347,7 +339,7 @@ export default function CorporateAccountsPage(): JSX.Element {
             action={!isReadOnly ? <Button onClick={openCreateModal}>Add Company</Button> : undefined}
           />
         ) : (
-          <Table columns={columns} data={tableData} keyField="id" />
+          <ExcelTable columns={columns} rows={tableData} rowKey={(row) => row.id} headerTone="gray" />
         )}
       </section>
 

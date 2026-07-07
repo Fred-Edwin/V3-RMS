@@ -226,7 +226,7 @@ export function TabOrderHistoryTable({
                             {fmt(order.total)}
                           </span>
                           {isExpanded ? (
-                            <ChevronUp size={15} className="shrink-0 text-amber-500" />
+                            <ChevronUp size={15} className="shrink-0 text-warning" />
                           ) : (
                             <ChevronDown size={15} className="shrink-0 text-stone-300" />
                           )}

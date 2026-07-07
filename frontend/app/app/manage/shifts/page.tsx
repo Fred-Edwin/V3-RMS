@@ -15,6 +15,7 @@ import {
   Table,
   type TableColumn,
 } from '@/components/ui';
+import { Sheet, type SheetColumn, type SheetColumnGroup, type SheetRowContext } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/cn';
 import { getTodayYmdInTimeZone, toYmdInTimeZone } from '@/lib/date';
@@ -65,12 +66,12 @@ const overrideReasonOptions = [
 ] as const;
 
 const shiftColorClasses = [
-  'bg-[#FFF2D8] text-[#92650A]',
-  'bg-[#EAF2FF] text-[#2856A3]',
-  'bg-[#EFE8F8] text-[#5B2D8E]',
-  'bg-[#E6F3E8] text-[#1F6E43]',
-  'bg-[#FDF3DC] text-[#92650A]',
-  'bg-[#FEF0E0] text-[#A04F0A]',
+  'bg-amber-100 text-amber-800',
+  'bg-blue-100 text-blue-800',
+  'bg-purple-100 text-purple-800',
+  'bg-green-100 text-green-800',
+  'bg-yellow-100 text-yellow-800',
+  'bg-orange-100 text-orange-800',
 ];
 
 const dateToYmd = (value: Date): string => toYmdInTimeZone(value);
@@ -178,6 +179,7 @@ export default function ShiftManagementPage(): JSX.Element {
   const saveInFlightRef = useRef(false);
   const pendingAutoSaveRef = useRef(false);
   const shiftKeyPressedRef = useRef(false);
+  const scheduleSheetContainerRef = useRef<HTMLDivElement>(null);
 
   const todayDateKey = useMemo(() => getTodayYmdInTimeZone(), []);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
@@ -583,7 +585,7 @@ export default function ShiftManagementPage(): JSX.Element {
       render: (_value, row) => {
         const isOverride = row.clockRecord?.clockInMethod === 'OVERRIDE' || row.clockRecord?.clockOutMethod === 'OVERRIDE';
         if (!row.clockRecord) return <span className="text-stone-500">-</span>;
-        return isOverride ? <span className="inline-flex items-center gap-1 text-[#A04F0A]"><ShieldAlert size={14} />Override</span> : <span className="text-body-sm text-stone-700">GPS</span>;
+        return isOverride ? <span className="inline-flex items-center gap-1 text-warning"><ShieldAlert size={14} />Override</span> : <span className="text-body-sm text-stone-700">GPS</span>;
       },
     },
     {
@@ -620,17 +622,17 @@ export default function ShiftManagementPage(): JSX.Element {
     return (
       <td
         key={dateKey}
-        className={cn('border border-[#d0d0d0] p-0 text-center align-middle', isWeekend && 'bg-[#fafafa]')}
+        className={cn('border border-sheet-grid-dense p-0 text-center align-middle', isWeekend && 'bg-sheet-zebra-dense')}
         title={error ?? undefined}
       >
         <div
           className={cn(
             'relative flex min-h-[38px] items-center justify-center border-2 border-transparent px-1.5 text-[12px] font-bold',
-            selectedShift ? getShiftColorClass(selectedShift.id, shifts) : 'bg-[#f4f4f4] text-stone-500',
-            isSelected && 'border-[#1a73e8] shadow-[inset_0_0_0_1px_#1a73e8]',
-            isMultiSelected && 'border-[#217346] shadow-[inset_0_0_0_1px_#217346]',
-            isDirty && 'after:absolute after:right-0.5 after:top-0.5 after:h-0 after:w-0 after:border-l-[7px] after:border-t-[7px] after:border-l-transparent after:border-t-[#d97706]',
-            error && 'border-[#fca5a5] bg-[#fef2f2] text-[#991b1b]',
+            selectedShift ? getShiftColorClass(selectedShift.id, shifts) : 'bg-sheet-rownum text-stone-500',
+            isSelected && 'border-sheet-active shadow-[inset_0_0_0_1px] shadow-sheet-active',
+            isMultiSelected && 'border-sheet-statusbar shadow-[inset_0_0_0_1px] shadow-sheet-statusbar',
+            isDirty && 'after:absolute after:right-0.5 after:top-0.5 after:h-0 after:w-0 after:border-l-[7px] after:border-t-[7px] after:border-l-transparent after:border-t-warning',
+            error && 'border-danger-border bg-danger-bg text-danger',
             isPastDate && 'opacity-60',
           )}
           onMouseDown={(event) => {
@@ -698,87 +700,107 @@ export default function ShiftManagementPage(): JSX.Element {
     return { assigned, off: Math.max(possible - assigned, 0), minutes };
   }, [assignmentsBySlot, filteredStaff.length, getCellDraftOrCurrent, staffWithHours, weekDays]);
 
+  type ScheduleRow = { person: StaffDto; minutes: number };
+  type Ctx = SheetRowContext<ScheduleRow>;
+
+  const nameColumn: SheetColumn<ScheduleRow> = {
+    key: 'name',
+    header: 'NAME',
+    width: 240,
+    renderCell: (ctx: Ctx) => (
+      <td className="sticky left-8 z-[4] h-10 overflow-hidden border border-sheet-grid-dense border-r-2 border-r-stone-300 bg-inherit px-2 align-middle">
+        <div className="truncate font-bold text-office-ink">{ctx.row.person.name}</div>
+        <div className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-wider text-stone-400">{ctx.row.person.role}</div>
+      </td>
+    ),
+    renderTotal: () => <span className="text-label-sm font-semibold uppercase tracking-wide text-stone-600">Totals</span>,
+    totalClassName: 'border-r-2 border-r-stone-300',
+  };
+
+  const dayColumns: SheetColumn<ScheduleRow>[] = weekDays.map((day) => ({
+    key: dateToYmd(day),
+    header: (
+      <>
+        {day.toLocaleDateString([], { weekday: 'long' })}<br />
+        <span className="text-[11px] font-bold">{day.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+      </>
+    ),
+    width: 128,
+    renderCell: (ctx: Ctx) => renderScheduleCell(ctx.row.person, day),
+  }));
+
+  const hoursColumn: SheetColumn<ScheduleRow> = {
+    key: 'hours',
+    header: 'HOURS',
+    width: 84,
+    headerClassName: 'text-sheet-band-green',
+    renderCell: (ctx: Ctx) => (
+      <td className="h-10 border border-sheet-grid-dense bg-sheet-tint-green-strong text-center align-middle font-extrabold text-sheet-band-green">
+        {formatHours(ctx.row.minutes)}
+      </td>
+    ),
+    renderTotal: () => <span className="text-sheet-band-green">{formatHours(scheduleTotals.minutes)}</span>,
+    totalClassName: 'text-center',
+  };
+
+  const scheduleGroups: SheetColumnGroup<ScheduleRow>[] = [
+    { label: <>Shift roster — {formatWeekRange(weekStart)}</>, tone: 'navy', columns: [nameColumn] },
+    { label: 'Weekly Schedule', tone: 'navy', columns: dayColumns },
+    { label: 'Total', tone: 'green', columns: [hoursColumn] },
+  ];
+
   const scheduleSheet = (
-    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-[20px] border border-stone-200 bg-white shadow-sm', isExpanded && 'rounded-none border-0')}>
+    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', isExpanded && 'rounded-none border-0')}>
       {selectedCellCount > 0 && (
-        <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-[#d0d0d0] bg-[#fff8e8] px-3 font-['Calibri','Segoe_UI',Arial,sans-serif] text-[12px]">
-          <span className="font-bold text-[#6b4226]">{selectedCellCount} cell{selectedCellCount === 1 ? '' : 's'} selected</span>
+        <div className="flex h-10 shrink-0 items-center justify-between gap-3 rounded-t-[20px] border border-b-0 border-stone-200 bg-warning-bg px-3 font-sheet text-[12px]">
+          <span className="font-bold text-warning">{selectedCellCount} cell{selectedCellCount === 1 ? '' : 's'} selected</span>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="secondary" onClick={clearSelectedShiftCells}>Clear shifts</Button>
             <IconButton icon={<X size={15} />} label="Cancel cell selection" size="sm" variant="ghost" onClick={() => setMultiSelectedCells(new Set())} />
           </div>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {isLoading ? (
-          <div className="p-6"><SkeletonTable rows={8} columns={9} /></div>
-        ) : filteredStaff.length === 0 ? (
-          <EmptyState icon={<Search size={24} />} heading="No staff match your filters" body="Try adjusting search or role filters." />
-        ) : (
-          <table className="w-full min-w-[1180px] table-fixed border-collapse font-['Calibri','Segoe_UI',Arial,sans-serif] text-[12px]">
-            <colgroup>
-              <col className="w-[34px]" />
-              <col className="w-[240px]" />
-              {weekDays.map((day) => <col key={dateToYmd(day)} className="w-[128px]" />)}
-              <col className="w-[84px]" />
-            </colgroup>
-            <thead>
-              <tr className="sticky top-0 z-20">
-                <th className="border border-white/30 bg-[#2e5984]"></th>
-                <th className="border border-white/30 bg-[#2e5984] px-2 text-left text-[10px] font-extrabold uppercase tracking-wider text-white">Shift roster - {formatWeekRange(weekStart)}</th>
-                <th colSpan={7} className="border border-white/30 bg-[#2e5984] text-center text-[10px] font-extrabold uppercase tracking-wider text-white">Weekly Schedule</th>
-                <th className="border border-white/30 bg-[#217346] text-center text-[10px] font-extrabold uppercase tracking-wider text-white">Total</th>
-              </tr>
-              <tr className="sticky top-[22px] z-20 h-12">
-                <th className="border border-[#d0d0d0] bg-[#e8ebef] text-stone-500">1</th>
-                <th className="border border-[#d0d0d0] border-r-2 border-r-[#c5c5c5] bg-[#f5f5f5] px-2 text-left text-[14px] font-extrabold text-[#3f7fe8]">NAME</th>
-                {weekDays.map((day) => (
-                  <th key={dateToYmd(day)} className="border border-[#d0d0d0] bg-[#f5f5f5] px-2 text-left text-[14px] font-extrabold leading-tight text-[#3f7fe8]">
-                    {day.toLocaleDateString([], { weekday: 'long' })}<br />
-                    <span className="text-[11px] font-bold">{day.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                  </th>
-                ))}
-                <th className="border border-[#d0d0d0] bg-[#f5f5f5] text-center text-[12px] font-extrabold text-[#217346]">HOURS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffWithHours.map(({ person, minutes }, index) => (
-                <tr key={person.id} className={index % 2 === 1 ? 'bg-[#fbfbfb]' : 'bg-white'}>
-                  <td className="sticky left-0 z-10 border border-[#d0d0d0] bg-[#f0f0f0] text-center text-[11px] font-bold text-stone-500">{index + 2}</td>
-                  <td className="sticky left-[34px] z-10 border border-[#d0d0d0] border-r-2 border-r-[#c5c5c5] bg-inherit px-2">
-                    <div className="truncate font-bold text-[#1a0a00]">{person.name}</div>
-                    <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-stone-400">{person.role}</div>
-                  </td>
-                  {weekDays.map((day) => renderScheduleCell(person, day))}
-                  <td className="border border-[#d0d0d0] bg-[#f0f7ee] text-center font-extrabold text-[#217346]">{formatHours(minutes)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      <div className="flex h-[30px] shrink-0 items-end gap-0.5 overflow-x-auto border-t border-[#d0d0d0] bg-[#e0e0e0] px-1">
-        {[-14, -7, 0, 7, 14].map((offset) => {
-          const start = addDays(weekStart, offset);
-          return (
-            <button
-              key={offset}
-              type="button"
-              onClick={() => setWeekStart(start)}
-              className={cn('h-6 min-w-[118px] rounded-t border border-[#bbb] border-b-0 bg-[#d0d0d0] px-3 text-[11px] text-stone-600', offset === 0 && 'border-t-[3px] border-t-[#217346] bg-white font-extrabold text-[#217346]')}
-            >
-              {formatWeekRange(start)}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex h-6 shrink-0 items-center justify-between gap-4 overflow-hidden bg-[#217346] px-3 font-['Calibri','Segoe_UI',Arial,sans-serif] text-[11px] font-semibold text-white/90">
-        <span>Draft - {filteredStaff.length} staff - {isSavingSchedule ? 'autosaving...' : dirtyCount > 0 ? `${dirtyCount} pending cell${dirtyCount === 1 ? '' : 's'}` : 'saved'}</span>
-        <span>{selectedCellCount > 0 ? `${selectedCellCount} selected` : 'Shift-click to select'}</span>
-        <span>Assigned: {scheduleTotals.assigned}</span>
-        <span>Off: {scheduleTotals.off}</span>
-        <span>Scheduled: {formatHours(scheduleTotals.minutes)} hrs</span>
-      </div>
+      <Sheet<ScheduleRow>
+        groups={scheduleGroups}
+        rows={staffWithHours}
+        rowKey={(row) => row.person.id}
+        engine={{ containerRef: scheduleSheetContainerRef }}
+        expandable={false}
+        isLoading={isLoading}
+        skeletonColumns={9}
+        emptyState={<EmptyState icon={<Search size={24} />} heading="No staff match your filters" body="Try adjusting search or role filters." />}
+        className={cn(!selectedCellCount && 'rounded-t-[20px]', isExpanded && 'rounded-none border-0')}
+        toolbar={
+          <div className="flex w-full items-center gap-0.5 overflow-x-auto">
+            {[-14, -7, 0, 7, 14].map((offset) => {
+              const start = addDays(weekStart, offset);
+              return (
+                <button
+                  key={offset}
+                  type="button"
+                  onClick={() => setWeekStart(start)}
+                  className={cn('h-6 min-w-[118px] rounded-t border border-b-0 border-stone-300 bg-sheet-toolbar px-3 text-[11px] text-stone-600', offset === 0 && 'border-t-[3px] border-t-sheet-statusbar bg-white font-extrabold text-sheet-statusbar')}
+                >
+                  {formatWeekRange(start)}
+                </button>
+              );
+            })}
+          </div>
+        }
+        statusBar={{
+          left: (
+            <span>Draft - {filteredStaff.length} staff - {isSavingSchedule ? 'autosaving...' : dirtyCount > 0 ? `${dirtyCount} pending cell${dirtyCount === 1 ? '' : 's'}` : 'saved'}</span>
+          ),
+          right: (
+            <>
+              <span>{selectedCellCount > 0 ? `${selectedCellCount} selected` : 'Shift-click to select'}</span>
+              <span>Assigned: {scheduleTotals.assigned}</span>
+              <span>Off: {scheduleTotals.off}</span>
+              <span>Scheduled: {formatHours(scheduleTotals.minutes)} hrs</span>
+            </>
+          ),
+        }}
+      />
     </div>
   );
 
@@ -825,7 +847,7 @@ export default function ShiftManagementPage(): JSX.Element {
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
         <input value={scheduleSearch} onChange={(event) => setScheduleSearch(event.target.value)} placeholder="Search staff..." className="h-8 rounded-lg border border-stone-300 bg-white pl-7 pr-3 text-[12px] text-espresso outline-none" />
       </div>
-      <div className={cn('flex h-8 items-center gap-2 rounded-lg border px-3 text-[11.5px] font-semibold', dirtyCount > 0 || isSavingSchedule ? 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]' : 'border-[#86efac] bg-[#edfaf1] text-[#1a6b3c]')}>
+      <div className={cn('flex h-8 items-center gap-2 rounded-lg border px-3 text-[11.5px] font-semibold', dirtyCount > 0 || isSavingSchedule ? 'border-warning-border bg-warning-bg text-warning' : 'border-success-border bg-success-bg text-success')}>
         <span className="h-1.5 w-1.5 rounded-full bg-current" />
         {isSavingSchedule ? 'Saving...' : dirtyCount > 0 ? `${dirtyCount} autosave pending` : 'All changes saved'}
       </div>
@@ -846,7 +868,7 @@ export default function ShiftManagementPage(): JSX.Element {
   return (
     <>
       {isExpanded ? (
-        <div className="fixed inset-0 z-50 flex flex-col gap-3 bg-[#faf7f4] p-4">
+        <div className="fixed inset-0 z-50 flex flex-col gap-3 bg-crema p-4">
           {scheduleToolbar}
           {scheduleSheet}
         </div>
@@ -866,7 +888,7 @@ export default function ShiftManagementPage(): JSX.Element {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={cn('border-b-2 px-7 pb-2.5 text-[13px] font-semibold transition-colors', activeTab === id ? 'border-[#6b4226] text-espresso' : 'border-transparent text-stone-500 hover:text-stone-700')}
+                className={cn('border-b-2 px-7 pb-2.5 text-[13px] font-semibold transition-colors', activeTab === id ? 'border-espresso text-espresso' : 'border-transparent text-stone-500 hover:text-stone-700')}
               >
                 {label}
               </button>

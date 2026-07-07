@@ -17,8 +17,10 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import { Button, EmptyState, Modal, PageLayout, SkeletonBlock } from '@/components/ui';
+import { Button, EmptyState, ExcelTable, Modal, PageLayout, SkeletonBlock, type ExcelColumn } from '@/components/ui';
 import { LineTrendChart } from '@/components/dashboard/PremiumChart';
+import { RankedItemList } from '@/components/dashboard/RankedItemList';
+import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
@@ -112,7 +114,7 @@ function DeltaBadge({ pct }: { pct: number | null }): JSX.Element {
   return (
     <span
       className={`flex items-center gap-0.5 text-caption font-medium ${
-        positive ? 'text-status-ready-text' : 'text-red-600'
+        positive ? 'text-status-ready-text' : 'text-danger'
       }`}
     >
       {positive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
@@ -157,6 +159,28 @@ interface LateOrdersModalProps {
   onClose: () => void;
 }
 
+const lateOrderColumns: Array<ExcelColumn<DirectorPulseLateOrder>> = [
+  {
+    key: 'dailyNumber',
+    label: 'Order #',
+    render: (order) => <span className="font-semibold">#{order.dailyNumber}</span>,
+  },
+  { key: 'waiterName', label: 'Waiter', render: (order) => order.waiterName },
+  {
+    key: 'total',
+    label: 'Total',
+    numeric: true,
+    render: (order) =>
+      `KES ${Number.parseFloat(order.total).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+  },
+  {
+    key: 'age',
+    label: 'Open for',
+    numeric: true,
+    render: (order) => <span className="font-semibold text-amber">{formatAge(order.ageMinutes)}</span>,
+  },
+];
+
 function LateOrdersModal({ branchName, orders, onClose }: LateOrdersModalProps): JSX.Element {
   return (
     <Modal isOpen onClose={onClose} title={`Late Unclosed Orders — ${branchName}`}>
@@ -164,32 +188,12 @@ function LateOrdersModal({ branchName, orders, onClose }: LateOrdersModalProps):
         <p className="mb-4 text-body-sm text-stone-500">
           Orders in READY status for more than 2 hours. Waiter has not closed payment.
         </p>
-        <div className="overflow-x-auto rounded-lg border border-stone-200">
-          <table className="w-full text-left text-body-sm">
-            <thead>
-              <tr className="border-b-2 border-stone-200 bg-stone-50">
-                <th className="px-4 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Order #</th>
-                <th className="px-4 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Waiter</th>
-                <th className="px-4 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Total</th>
-                <th className="px-4 py-2.5 text-right text-label-sm font-medium uppercase tracking-wider text-stone-500">Open for</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-stone-50">
-                  <td className="px-4 py-3 font-semibold text-stone-900">#{order.dailyNumber}</td>
-                  <td className="px-4 py-3 text-stone-700">{order.waiterName}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-stone-700">
-                    KES {Number.parseFloat(order.total).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums font-semibold text-amber">
-                    {formatAge(order.ageMinutes)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ExcelTable
+          columns={lateOrderColumns}
+          rows={orders}
+          rowKey={(order) => order.id}
+          headerTone="red"
+        />
       </div>
     </Modal>
   );
@@ -659,7 +663,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Revenue Today</p>
                 <TrendingUp size={16} className="text-stone-400" />
               </div>
-              <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
+              <p className="mt-2 font-sans text-display-lg font-semibold tabular-nums text-stone-900">
                 {formatCurrency(overviewToday?.totalRevenue ?? '0')}
               </p>
               <DeltaBadge pct={totalRevenueDelta} />
@@ -688,7 +692,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Orders Today</p>
                 <Building2 size={16} className="text-stone-400" />
               </div>
-              <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
+              <p className="mt-2 font-sans text-display-lg font-semibold tabular-nums text-stone-900">
                 {overviewToday?.totalOrders ?? 0}
               </p>
               <DeltaBadge pct={totalOrdersDelta} />
@@ -705,7 +709,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Avg Prep Time</p>
               <Clock size={16} className="text-stone-400" />
             </div>
-            <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
+            <p className="mt-2 font-sans text-display-lg font-semibold tabular-nums text-stone-900">
               {avgPrepTime !== null ? `${avgPrepTime} min` : '—'}
             </p>
             <span className="text-caption text-stone-400">All branches, all stations</span>
@@ -721,7 +725,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               <p className="text-label-sm font-medium uppercase tracking-wider text-stone-500">Staff Clocked In</p>
               <Users size={16} className="text-stone-400" />
             </div>
-            <p className="mt-2 font-sans text-display-lg font-medium tabular-nums text-stone-900">
+            <p className="mt-2 font-sans text-display-lg font-semibold tabular-nums text-stone-900">
               {pulse?.totalClockedIn ?? 0}
             </p>
             <span className="text-caption text-stone-400">
@@ -835,46 +839,14 @@ export default function DirectorCommandCentrePage(): JSX.Element {
                   <ChevronUp size={14} className="text-status-ready-text" />
                   <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Top 5</span>
                 </div>
-                <div className="divide-y divide-stone-100">
-                  {todayItems.topItems.map((item, i) => (
-                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
-                        <div>
-                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
-                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <RankedItemList items={todayItems.topItems} variant="top" formatCurrency={formatCurrency} />
               </div>
               <div>
                 <div className="mb-2 flex items-center gap-1.5">
-                  <TrendingDown size={14} className="text-red-400" />
+                  <TrendingDown size={14} className="text-danger" />
                   <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom 5</span>
                 </div>
-                <div className="divide-y divide-stone-100">
-                  {todayItems.bottomItems.map((item, i) => (
-                    <div key={item.menuItemId} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
-                        <div>
-                          <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="tabular-nums text-label-sm font-semibold text-stone-900">{formatCurrency(item.revenue)}</p>
-                        <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <RankedItemList items={todayItems.bottomItems} variant="bottom" formatCurrency={formatCurrency} />
               </div>
             </div>
           ) : (
@@ -915,7 +887,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Revenue (KES)"
               subtitle="Daily total across all branches"
               data={revenueTrendData}
-              accentColor="#047857"
+              accentColor={CHART_SUCCESS}
               valueFormatter={(value) =>
                 `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`
               }
@@ -926,7 +898,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
               title="Orders"
               subtitle="Daily closed order volume"
               data={ordersTrendData}
-              accentColor="#C4862A"
+              accentColor={CHART_AMBER}
               valueFormatter={(value) => String(Math.round(value))}
               tooltipUnit="Orders"
               summaryLabel="Total Orders"

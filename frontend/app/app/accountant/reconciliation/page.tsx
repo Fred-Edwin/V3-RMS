@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronRight, Download, FileText, Loader2, RefreshCw } from 'lucide-react';
-import { Button, PageHeader, PageLayout, Select, SkeletonBlock } from '@/components/ui';
+import { Badge, Button, ExcelTable, PageHeader, PageLayout, Select, SkeletonBlock, TabBar } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { orderService } from '@/services/orderService';
@@ -110,23 +110,23 @@ function SummaryStatCard({
 }) {
   const bg =
     accent === 'green'
-      ? 'bg-[#EDFAF1] border-[#86EFAC]'
+      ? 'bg-success-bg border-success-border'
       : accent === 'blue'
-        ? 'bg-[#EFF6FF] border-blue-200'
+        ? 'bg-blue-50 border-blue-200'
         : accent === 'amber'
-          ? 'bg-[#FDF3DC] border-[#F0D080]'
+          ? 'bg-warning-bg border-warning-border'
           : accent === 'red'
-            ? 'bg-[#FEF2F2] border-[#FCA5A5]'
+            ? 'bg-danger-bg border-danger-border'
             : 'bg-parchment border-stone-200';
   const text =
     accent === 'green'
-      ? 'text-[#1A6B3C]'
+      ? 'text-success'
       : accent === 'blue'
-        ? 'text-[#1D4ED8]'
+        ? 'text-blue-700'
         : accent === 'amber'
-          ? 'text-[#92650A]'
+          ? 'text-warning'
           : accent === 'red'
-            ? 'text-[#991B1B]'
+            ? 'text-danger'
             : 'text-stone-700';
 
   return (
@@ -161,12 +161,12 @@ function OrderDrillDown({
   const expandedOrderIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
-  const tabs: { key: PaymentTab; label: string }[] = [
-    { key: 'ALL', label: 'All Orders' },
-    { key: 'MPESA', label: 'M-Pesa' },
-    { key: 'CASH', label: 'Cash' },
-    { key: 'CARD', label: 'Card' },
-    { key: 'CREDIT', label: 'Credit' },
+  const tabs: { value: PaymentTab; label: string }[] = [
+    { value: 'ALL', label: 'All Orders' },
+    { value: 'MPESA', label: 'M-Pesa' },
+    { value: 'CASH', label: 'Cash' },
+    { value: 'CARD', label: 'Card' },
+    { value: 'CREDIT', label: 'Credit' },
   ];
 
   const waiterOptions = useMemo(() => [
@@ -318,20 +318,8 @@ function OrderDrillDown({
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-stone-100 px-5 py-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`rounded-md px-3 py-1.5 text-label-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'bg-espresso text-white'
-                : 'text-stone-500 hover:bg-stone-100 hover:text-stone-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="border-b border-stone-100 px-5 py-2">
+        <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} variant="segmented" />
       </div>
 
       {/* Table */}
@@ -449,33 +437,27 @@ function OrderDrillDown({
                                   ))}
                                 </div>
                                 {order.paymentMethod === 'GUEST_SPLIT' && order.splitPaymentLines.length > 0 && (
-                                  <div className="mt-3 overflow-hidden rounded-md border border-stone-200 bg-white">
-                                    <table className="w-full">
-                                      <thead>
-                                        <tr className="border-b border-stone-100 bg-white">
-                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Guest</th>
-                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Method</th>
-                                          <th className="px-3 py-2 text-left text-label-sm font-medium text-stone-500">Code</th>
-                                          <th className="px-3 py-2 text-right text-label-sm font-medium text-stone-500">Amount</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-stone-50">
-                                        {order.splitPaymentLines.map((line) => (
-                                          <tr key={`${order.id}-${line.label}-${line.amount}`}>
-                                            <td className="px-3 py-2 text-body-sm text-stone-700">{line.label}</td>
-                                            <td className="px-3 py-2 text-body-sm text-stone-700">
-                                              {PAYMENT_LABELS[line.method] ?? line.method}
-                                            </td>
-                                            <td className="px-3 py-2 font-mono text-body-sm text-stone-500">
-                                              {line.mpesaCode ?? '—'}
-                                            </td>
-                                            <td className="px-3 py-2 text-right font-mono text-body-sm font-semibold text-stone-900">
-                                              {formatCurrency(line.amount)}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                                  <div className="mt-3">
+                                    <ExcelTable
+                                      columns={[
+                                        { key: 'guest', label: 'Guest', render: (line) => line.label },
+                                        {
+                                          key: 'method',
+                                          label: 'Method',
+                                          render: (line) => PAYMENT_LABELS[line.method] ?? line.method,
+                                        },
+                                        { key: 'code', label: 'Code', render: (line) => line.mpesaCode ?? '—' },
+                                        {
+                                          key: 'amount',
+                                          label: 'Amount',
+                                          numeric: true,
+                                          render: (line) => <span className="font-semibold">{formatCurrency(line.amount)}</span>,
+                                        },
+                                      ]}
+                                      rows={order.splitPaymentLines}
+                                      rowKey={(line) => `${order.id}-${line.label}-${line.amount}`}
+                                      headerTone="gray"
+                                    />
                                   </div>
                                 )}
                                 {order.paymentMethod === 'SPLIT' && order.splitType && (
@@ -485,65 +467,46 @@ function OrderDrillDown({
                                 )}
                               </div>
                             )}
-                            <table className="w-full">
-                              <thead>
-                                <tr className="border-b border-stone-100">
-                                  <th className="px-4 py-2 text-left text-label-sm font-medium text-stone-500">Item</th>
-                                  <th className="px-4 py-2 text-center text-label-sm font-medium text-stone-500">Qty</th>
-                                  <th className="px-4 py-2 text-right text-label-sm font-medium text-stone-500">Unit Price</th>
-                                  <th className="px-4 py-2 text-right text-label-sm font-medium text-stone-500">Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-stone-50">
-                                {expandedDetail.items.map((item) => (
-                                  <tr key={item.id}>
-                                    <td className="px-4 py-2.5 text-body-sm text-stone-700">
+                            <ExcelTable
+                              columns={[
+                                {
+                                  key: 'item',
+                                  label: 'Item',
+                                  render: (item) => (
+                                    <>
                                       {item.name}
-                                      {item.notes && (
-                                        <span className="ml-1.5 text-caption text-stone-400">({item.notes})</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-center text-body-sm text-stone-600">{item.quantity}</td>
-                                    <td className="px-4 py-2.5 text-right font-mono text-body-sm text-stone-500">
-                                      {formatCurrency(item.unitPrice)}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-right font-mono text-body-sm font-medium text-stone-700">
-                                      {formatCurrency(item.subtotal)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                              <tfoot>
-                                {expandedDetail.discountAmount && Number.parseFloat(expandedDetail.discountAmount) > 0 && (
-                                  <tr className="border-t border-stone-100">
-                                    <td colSpan={3} className="px-4 py-2 text-right text-label-sm text-stone-500">
-                                      Subtotal
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-label-sm text-stone-500">
-                                      {formatCurrency(expandedDetail.subtotal)}
-                                    </td>
-                                  </tr>
-                                )}
-                                {expandedDetail.discountAmount && Number.parseFloat(expandedDetail.discountAmount) > 0 && (
-                                  <tr>
-                                    <td colSpan={3} className="px-4 py-2 text-right text-label-sm text-[#1A6B3C]">
-                                      Discount ({expandedDetail.discountPercent}%)
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-mono text-label-sm text-[#1A6B3C]">
-                                      -{formatCurrency(expandedDetail.discountAmount)}
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr className="border-t-2 border-stone-200">
-                                  <td colSpan={3} className="px-4 py-2.5 text-right text-label-sm font-semibold text-stone-700">
-                                    Total
-                                  </td>
-                                  <td className="px-4 py-2.5 text-right font-mono text-label-sm font-bold text-espresso">
-                                    {formatCurrency(expandedDetail.total)}
-                                  </td>
-                                </tr>
-                              </tfoot>
-                            </table>
+                                      {item.notes && <span className="ml-1.5 text-caption text-stone-400">({item.notes})</span>}
+                                    </>
+                                  ),
+                                },
+                                { key: 'qty', label: 'Qty', align: 'center', render: (item) => item.quantity },
+                                { key: 'unitPrice', label: 'Unit Price', numeric: true, render: (item) => formatCurrency(item.unitPrice) },
+                                {
+                                  key: 'subtotal',
+                                  label: 'Subtotal',
+                                  numeric: true,
+                                  render: (item) => <span className="font-medium">{formatCurrency(item.subtotal)}</span>,
+                                },
+                              ]}
+                              rows={expandedDetail.items}
+                              rowKey={(item) => item.id}
+                              headerTone="gray"
+                              totalsRow={{
+                                item: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                                subtotal: <span className="font-bold text-espresso">{formatCurrency(expandedDetail.total)}</span>,
+                              }}
+                            />
+                            {expandedDetail.discountAmount && Number.parseFloat(expandedDetail.discountAmount) > 0 && (
+                              <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 px-4 py-2 text-label-sm">
+                                <span className="text-stone-500">
+                                  Subtotal <span className="ml-2 font-mono">{formatCurrency(expandedDetail.subtotal)}</span>
+                                </span>
+                                <span className="text-success">
+                                  Discount ({expandedDetail.discountPercent}%)
+                                  <span className="ml-2 font-mono">-{formatCurrency(expandedDetail.discountAmount)}</span>
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -858,9 +821,7 @@ function StaleOrdersDrillDown({
                       <td className="px-4 py-3 text-body-sm font-medium text-red-600">{getOrderAge(order.placedAt)}</td>
                       <td className="px-4 py-3 text-body-sm text-stone-700">{order.waiterName}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-label-sm font-medium text-amber-800">
-                          {STATUS_LABELS[order.status] ?? order.status}
-                        </span>
+                        <Badge tone="warning">{STATUS_LABELS[order.status] ?? order.status}</Badge>
                       </td>
                       <td className="px-5 py-3 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
                         {formatCurrency(order.total)}
@@ -870,45 +831,35 @@ function StaleOrdersDrillDown({
                       <tr key={`${order.id}-detail`} className="bg-red-50/20">
                         <td colSpan={7} className="px-6 pb-4 pt-2">
                           <div className="rounded-lg border border-red-100 bg-white shadow-sm">
-                            <table className="w-full">
-                              <thead>
-                                <tr className="border-b border-stone-100">
-                                  <th className="px-4 py-2 text-left text-label-sm font-medium text-stone-500">Item</th>
-                                  <th className="px-4 py-2 text-center text-label-sm font-medium text-stone-500">Qty</th>
-                                  <th className="px-4 py-2 text-right text-label-sm font-medium text-stone-500">Unit Price</th>
-                                  <th className="px-4 py-2 text-right text-label-sm font-medium text-stone-500">Subtotal</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-stone-50">
-                                {order.items.map((item) => (
-                                  <tr key={item.id}>
-                                    <td className="px-4 py-2.5 text-body-sm text-stone-700">
+                            <ExcelTable
+                              columns={[
+                                {
+                                  key: 'item',
+                                  label: 'Item',
+                                  render: (item) => (
+                                    <>
                                       {item.name}
-                                      {item.notes && (
-                                        <span className="ml-1.5 text-caption text-stone-400">({item.notes})</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-center text-body-sm text-stone-600">{item.quantity}</td>
-                                    <td className="px-4 py-2.5 text-right font-mono text-body-sm text-stone-500">
-                                      {formatCurrency(item.unitPrice)}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-right font-mono text-body-sm font-medium text-stone-700">
-                                      {formatCurrency(item.subtotal)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                              <tfoot>
-                                <tr className="border-t-2 border-stone-200">
-                                  <td colSpan={3} className="px-4 py-2.5 text-right text-label-sm font-semibold text-stone-700">
-                                    Total
-                                  </td>
-                                  <td className="px-4 py-2.5 text-right font-mono text-label-sm font-bold text-espresso">
-                                    {formatCurrency(order.total)}
-                                  </td>
-                                </tr>
-                              </tfoot>
-                            </table>
+                                      {item.notes && <span className="ml-1.5 text-caption text-stone-400">({item.notes})</span>}
+                                    </>
+                                  ),
+                                },
+                                { key: 'qty', label: 'Qty', align: 'center', render: (item) => item.quantity },
+                                { key: 'unitPrice', label: 'Unit Price', numeric: true, render: (item) => formatCurrency(item.unitPrice) },
+                                {
+                                  key: 'subtotal',
+                                  label: 'Subtotal',
+                                  numeric: true,
+                                  render: (item) => <span className="font-medium">{formatCurrency(item.subtotal)}</span>,
+                                },
+                              ]}
+                              rows={order.items}
+                              rowKey={(item) => item.id}
+                              headerTone="gray"
+                              totalsRow={{
+                                item: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                                subtotal: <span className="font-bold text-espresso">{formatCurrency(order.total)}</span>,
+                              }}
+                            />
                             <div className="px-4 pb-4">
                               <AccountOrderForm
                                 order={order}
@@ -1125,83 +1076,58 @@ export default function ReconciliationPage(): JSX.Element {
               </p>
             </div>
 
-            {report.waiters.length === 0 ? (
-              <p className="px-5 py-8 text-center text-body-sm text-stone-400">
-                No orders recorded for this date.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px]">
-                  <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50/60">
-                      <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Waiter</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Orders</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1A6B3C]">M-Pesa</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Cash</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1D4ED8]">Card</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#92650A]">Credit</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-700">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {report.waiters.map((waiter) => {
-                      const wCredit =
-                        Number.parseFloat(waiter.paymentBreakdown.houseAccount) +
-                        Number.parseFloat(waiter.paymentBreakdown.corporateAccount) +
-                        Number.parseFloat(waiter.paymentBreakdown.customerCredit);
-                      return (
-                        <tr key={waiter.id} className="transition-colors hover:bg-stone-50/60">
-                          <td className="px-5 py-3.5">
-                            <span className="text-body-sm font-medium text-stone-900">{waiter.name}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-right text-body-sm text-stone-600">
-                            {waiter.ordersHandled}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1A6B3C]">
-                            {formatCurrency(waiter.paymentBreakdown.mpesa)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                            {formatCurrency(waiter.paymentBreakdown.cash)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1D4ED8]">
-                            {formatCurrency(waiter.paymentBreakdown.card)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#92650A]">
-                            {formatCurrency(wCredit)}
-                          </td>
-                          <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                            {formatCurrency(waiter.paymentBreakdown.total)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-stone-200 bg-stone-50">
-                      <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">Total</td>
-                      <td className="px-4 py-3 text-right text-label-sm font-semibold text-stone-700">
-                        {report.orders.length}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#1A6B3C]">
-                        {formatCurrency(report.summary.mpesa)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                        {formatCurrency(report.summary.cash)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#1D4ED8]">
-                        {formatCurrency(report.summary.card)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#92650A]">
-                        {formatCurrency(creditTotal)}
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
-                        {formatCurrency(report.summary.total)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
+            <ExcelTable
+              columns={[
+                { key: 'waiter', label: 'Waiter', render: (w) => <span className="font-medium text-office-ink">{w.name}</span> },
+                { key: 'orders', label: 'Orders', numeric: true, render: (w) => w.ordersHandled },
+                {
+                  key: 'mpesa',
+                  label: 'M-Pesa',
+                  numeric: true,
+                  render: (w) => <span className="text-success">{formatCurrency(w.paymentBreakdown.mpesa)}</span>,
+                },
+                { key: 'cash', label: 'Cash', numeric: true, render: (w) => formatCurrency(w.paymentBreakdown.cash) },
+                {
+                  key: 'card',
+                  label: 'Card',
+                  numeric: true,
+                  render: (w) => <span className="text-blue-700">{formatCurrency(w.paymentBreakdown.card)}</span>,
+                },
+                {
+                  key: 'credit',
+                  label: 'Credit',
+                  numeric: true,
+                  render: (w) => (
+                    <span className="text-warning">
+                      {formatCurrency(
+                        Number.parseFloat(w.paymentBreakdown.houseAccount) +
+                          Number.parseFloat(w.paymentBreakdown.corporateAccount) +
+                          Number.parseFloat(w.paymentBreakdown.customerCredit),
+                      )}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'total',
+                  label: 'Total',
+                  numeric: true,
+                  render: (w) => <span className="font-semibold">{formatCurrency(w.paymentBreakdown.total)}</span>,
+                },
+              ]}
+              rows={report.waiters}
+              rowKey={(w) => w.id}
+              headerTone="navy"
+              emptyState={<p className="text-body-sm text-stone-400">No orders recorded for this date.</p>}
+              totalsRow={{
+                waiter: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                orders: report.orders.length,
+                mpesa: formatCurrency(report.summary.mpesa),
+                cash: formatCurrency(report.summary.cash),
+                card: formatCurrency(report.summary.card),
+                credit: formatCurrency(creditTotal),
+                total: <span className="font-bold">{formatCurrency(report.summary.total)}</span>,
+              }}
+            />
           </div>
 
           {/* Order Detail — collapsible drill-down */}

@@ -19,16 +19,18 @@ import {
 } from 'lucide-react';
 import {
   Button,
+  DateRangeBar,
   EmptyState,
   ExcelTable,
-  Input,
   PageLayout,
   Select,
   SkeletonTable,
   StatCard,
+  TabBar,
   type ExcelColumn,
 } from '@/components/ui';
 import { HourlyBarsChart, LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
+import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -834,7 +836,6 @@ export default function DirectorAnalyticsPage(): JSX.Element {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-full bg-office-canvas">
     <PageLayout className="animate-fade-up space-y-6">
 
       {/* ── Page header ─────────────────────────────────────────────────── */}
@@ -854,26 +855,15 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               Period: <span className="font-medium text-stone-700">{periodLabel}</span>
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            <Button
-              leftIcon={<BarChart2 size={15} />}
-              onClick={handleRun}
-              isLoading={isLoadingAggregate}
-            >
-              Run
-            </Button>
+          <DateRangeBar
+            startDate={startDate}
+            endDate={endDate}
+            onStartChange={setStartDate}
+            onEndChange={setEndDate}
+            onRun={handleRun}
+            isRunning={isLoadingAggregate}
+            runIcon={<BarChart2 size={15} />}
+          >
             <Button
               variant="secondary"
               leftIcon={<Download size={15} />}
@@ -882,29 +872,16 @@ export default function DirectorAnalyticsPage(): JSX.Element {
             >
               Download Report
             </Button>
-          </div>
+          </DateRangeBar>
         </div>
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <div className="border-b border-stone-200">
-        <nav className="-mb-px flex gap-1 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 border-b-2 px-4 py-2.5 text-label-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? 'border-espresso text-espresso'
-                  : 'border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <TabBar
+        tabs={TABS.map((tab) => ({ value: tab, label: tab }))}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* ══════════════════════════════════════════════════════════════════
           TAB 1 — OVERVIEW
@@ -939,7 +916,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   title="Total Revenue (KES)"
                   subtitle="Daily total revenue across all active branches"
                   data={totalRevenueTrendData}
-                  accentColor="#047857"
+                  accentColor={CHART_SUCCESS}
                   valueFormatter={(v) => `KES ${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
                   tooltipUnit="KES"
                   summaryLabel="Total Revenue"
@@ -948,7 +925,7 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   title="Total Orders"
                   subtitle="Daily closed order volume across all active branches"
                   data={totalOrdersTrendData}
-                  accentColor="#C4862A"
+                  accentColor={CHART_AMBER}
                   valueFormatter={(v) => String(Math.round(v))}
                   tooltipUnit="Orders"
                   summaryLabel="Total Orders"
@@ -1505,6 +1482,5 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       )}
 
     </PageLayout>
-    </div>
   );
 }

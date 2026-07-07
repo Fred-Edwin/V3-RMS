@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
 import {
+  Badge,
   Button,
+  ExcelTable,
   IconButton,
   Input,
   Modal,
@@ -12,6 +14,7 @@ import {
   Select,
   SkeletonBlock,
   SkeletonTable,
+  TabBar,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -78,28 +81,16 @@ function OrderHistoryPanel({
     return <p className="px-4 py-4 text-center text-body-sm text-stone-400">No orders on this account.</p>;
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[360px]">
-        <thead>
-          <tr className="border-b border-stone-100 bg-stone-50/60">
-            <th className="px-4 py-2 text-left text-label-sm font-medium text-stone-500">Order #</th>
-            <th className="px-4 py-2 text-left text-label-sm font-medium text-stone-500">Date</th>
-            <th className="px-4 py-2 text-right text-label-sm font-medium text-stone-500">Amount</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-stone-100">
-          {orders.map((o) => (
-            <tr key={o.id} className="hover:bg-stone-50/40">
-              <td className="px-4 py-2.5 text-body-sm font-medium text-stone-700">#{o.dailyNumber}</td>
-              <td className="px-4 py-2.5 text-body-sm text-stone-500">{formatDate(o.createdAt)}</td>
-              <td className="px-4 py-2.5 text-right font-mono text-body-sm tabular-nums text-stone-900">
-                {formatCurrency(o.total)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ExcelTable
+      columns={[
+        { key: 'orderNo', label: 'Order #', render: (o) => <span className="font-medium">#{o.dailyNumber}</span> },
+        { key: 'date', label: 'Date', render: (o) => formatDate(o.createdAt) },
+        { key: 'amount', label: 'Amount', numeric: true, render: (o) => formatCurrency(o.total) },
+      ]}
+      rows={orders}
+      rowKey={(o) => o.id}
+      headerTone="gray"
+    />
   );
 }
 
@@ -329,7 +320,7 @@ function HouseAccountsTab({ accessToken }: { accessToken: string }) {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-[#92650A]' : 'text-stone-400'}`}>
+                    <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-warning' : 'text-stone-400'}`}>
                       {formatCurrency(balance)}
                     </p>
                     <p className="text-caption text-stone-400">
@@ -338,9 +329,9 @@ function HouseAccountsTab({ accessToken }: { accessToken: string }) {
                   </div>
                 </button>
                 <div className="flex items-center gap-2 pl-2">
-                  <span className={`rounded-full px-2 py-0.5 text-label-sm ${account.isActive ? 'bg-[#EDFAF1] text-[#1A6B3C]' : 'bg-stone-100 text-stone-400'}`}>
+                  <Badge tone={account.isActive ? 'success' : 'neutral'}>
                     {account.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  </Badge>
                   {account.isActive && balance > 0 && (
                     <IconButton
                       icon={<DollarSign size={15} />}
@@ -473,7 +464,7 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
                     <p className="text-caption text-stone-400">{account.contactName} · {account.contactPhone}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-[#92650A]' : 'text-stone-400'}`}>
+                    <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-warning' : 'text-stone-400'}`}>
                       {formatCurrency(balance)}
                     </p>
                     <p className="text-caption text-stone-400">
@@ -482,9 +473,9 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
                   </div>
                 </button>
                 <div className="flex items-center gap-2 pl-2">
-                  <span className={`rounded-full px-2 py-0.5 text-label-sm ${account.isActive ? 'bg-[#EDFAF1] text-[#1A6B3C]' : 'bg-stone-100 text-stone-400'}`}>
+                  <Badge tone={account.isActive ? 'success' : 'neutral'}>
                     {account.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  </Badge>
                   {account.isActive && balance > 0 && (
                     <IconButton
                       icon={<DollarSign size={15} />}
@@ -645,7 +636,7 @@ function CustomerCreditTab({
                       <p className="text-caption text-stone-400">{account.customerPhone}</p>
                     </div>
                     <div className="text-right">
-                      <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-[#92650A]' : 'text-stone-400'}`}>
+                      <p className={`font-mono text-body-sm font-semibold tabular-nums ${balance > 0 ? 'text-warning' : 'text-stone-400'}`}>
                         {formatCurrency(balance)}
                       </p>
                       <p className="text-caption text-stone-400">
@@ -654,9 +645,9 @@ function CustomerCreditTab({
                     </div>
                   </button>
                   <div className="flex items-center gap-2 pl-2">
-                    <span className={`rounded-full px-2 py-0.5 text-label-sm ${account.isActive ? 'bg-[#EDFAF1] text-[#1A6B3C]' : 'bg-stone-100 text-stone-400'}`}>
+                    <Badge tone={account.isActive ? 'success' : 'neutral'}>
                       {account.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    </Badge>
                     {account.isActive && balance > 0 && (
                       <IconButton
                         icon={<DollarSign size={15} />}
@@ -696,10 +687,10 @@ function CustomerCreditTab({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const TABS: { key: CreditTab; label: string }[] = [
-  { key: 'house', label: 'House Accounts' },
-  { key: 'corporate', label: 'Corporate Accounts' },
-  { key: 'customer', label: 'Customer Credit' },
+const TABS: { value: CreditTab; label: string }[] = [
+  { value: 'house', label: 'House Accounts' },
+  { value: 'corporate', label: 'Corporate Accounts' },
+  { value: 'customer', label: 'Customer Credit' },
 ];
 
 export default function AccountantCreditPage(): JSX.Element {
@@ -744,20 +735,8 @@ export default function AccountantCreditPage(): JSX.Element {
       {/* Tab bar + content */}
       <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-stone-100 bg-stone-50/60 p-1.5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`shrink-0 rounded-lg px-4 py-2 text-label-sm font-medium transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-espresso text-white shadow-sm'
-                  : 'text-stone-500 hover:bg-stone-100 hover:text-stone-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="border-b border-stone-100 bg-stone-50/60 p-1.5">
+          <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} variant="segmented" />
         </div>
 
         {/* Tab content */}

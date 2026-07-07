@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Badge,
   EmptyState,
   Input,
   MenuItemCard,
@@ -244,11 +245,7 @@ export default function Page(): JSX.Element {
                           disabled={pendingItemIds.includes(item.id)}
                           label={item.isAvailable ? 'Available' : 'Unavailable'}
                         />
-                        {!item.isAvailable ? (
-                          <span className="inline-flex rounded-full border border-[#F5A898] bg-[#FDF2F0] px-2 py-0.5 text-label-sm text-[#9B3A2A]">
-                            Unavailable
-                          </span>
-                        ) : null}
+                        {!item.isAvailable ? <Badge tone="danger">Unavailable</Badge> : null}
                       </div>
                     </div>
                   );

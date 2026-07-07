@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import {
+  Badge,
   Button,
   EmptyState,
   Input,
@@ -10,6 +11,7 @@ import {
   PageLayout,
   Select,
   SkeletonTable,
+  type BadgeTone,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { incidentService, type Incident, type IncidentType } from '@/services/incidentService';
@@ -37,15 +39,15 @@ const incidentTypeLabel: Record<IncidentType, string> = {
   ORDER_STALE: 'Order Stale',
 };
 
-const incidentTypeColor: Record<IncidentType, string> = {
-  ORDER_CANCELLED: 'bg-[#FDF2F0] text-[#9B3A2A] border-[#F5A898]',
-  ORDER_ITEM_REMOVED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  TICKET_REJECTED: 'bg-[#FDF2F0] text-[#9B3A2A] border-[#F5A898]',
-  MODIFICATION_REQUESTED: 'bg-[#FDF3DC] text-[#92650A] border-[#F0D080]',
-  MODIFICATION_APPROVED: 'bg-[#EDFAF1] text-[#1A6B3C] border-[#86EFAC]',
-  MODIFICATION_REJECTED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  TICKET_UNCLAIMED: 'bg-[#FEF0E0] text-[#A04F0A] border-[#F5B87A]',
-  ORDER_STALE: 'bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]',
+const incidentTypeTone: Record<IncidentType, BadgeTone> = {
+  ORDER_CANCELLED: 'danger',
+  ORDER_ITEM_REMOVED: 'warning',
+  TICKET_REJECTED: 'danger',
+  MODIFICATION_REQUESTED: 'warning',
+  MODIFICATION_APPROVED: 'success',
+  MODIFICATION_REJECTED: 'warning',
+  TICKET_UNCLAIMED: 'warning',
+  ORDER_STALE: 'warning',
 };
 
 const toYmd = (date: Date): string => {
@@ -95,9 +97,9 @@ const formatDetails = (type: IncidentType, details: Record<string, unknown>): Re
           </div>
         )}
         {details.resultedInCancellation === true && (
-          <div className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-caption text-red-700">
+          <Badge tone="danger" size="lg" className="text-caption">
             Order cancelled as a result
-          </div>
+          </Badge>
         )}
       </div>
     );
@@ -262,11 +264,9 @@ export default function DirectorIncidentsPage(): JSX.Element {
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-label-sm font-medium ${incidentTypeColor[incident.type]}`}
-                  >
+                  <Badge tone={incidentTypeTone[incident.type]}>
                     {incidentTypeLabel[incident.type]}
-                  </span>
+                  </Badge>
                   {/* Branch */}
                   <span className="hidden sm:inline text-label-sm font-medium text-stone-700 bg-stone-100 rounded-full px-2 py-0.5">
                     {incident.branchName}

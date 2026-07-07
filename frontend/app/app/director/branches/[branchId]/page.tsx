@@ -10,23 +10,25 @@ import {
   ChevronUp,
   Clock3,
   DollarSign,
-  Download,
-  FileText,
   ShoppingBag,
   TrendingDown,
   Users,
 } from 'lucide-react';
 import {
+  Badge,
   Button,
+  DateRangeBar,
   EmptyState,
-  Input,
+  ExportMenu,
   PageHeader,
   PageLayout,
-  Popover,
   SkeletonTable,
   StatCard,
+  TabBar,
 } from '@/components/ui';
 import { ComparisonBars, HourlyBarsChart, LineTrendChart } from '@/components/dashboard/PremiumChart';
+import { RankedItemList } from '@/components/dashboard/RankedItemList';
+import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -111,14 +113,18 @@ const daysBetween = (start: string, end: string): number => {
   return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000));
 };
 
-const getClockStatus = (assignment: ShiftAssignment): { label: string; isOverride: boolean } => {
+type ClockStatusKind = 'in' | 'out' | 'none';
+
+const getClockStatus = (assignment: ShiftAssignment): { label: string; kind: ClockStatusKind; isOverride: boolean } => {
   const record = assignment.clockRecord;
-  if (!record) return { label: 'Not yet clocked', isOverride: false };
+  if (!record) return { label: 'Not yet clocked', kind: 'none', isOverride: false };
   const isOverride = record.clockInMethod === 'OVERRIDE' || record.clockOutMethod === 'OVERRIDE';
-  if (record.clockInAt && !record.clockOutAt) return { label: 'Clocked in', isOverride };
-  if (record.clockInAt && record.clockOutAt) return { label: 'Clocked out', isOverride };
-  return { label: 'Not yet clocked', isOverride };
+  if (record.clockInAt && !record.clockOutAt) return { label: 'Clocked in', kind: 'in', isOverride };
+  if (record.clockInAt && record.clockOutAt) return { label: 'Clocked out', kind: 'out', isOverride };
+  return { label: 'Not yet clocked', kind: 'none', isOverride };
 };
+
+const clockStatusSortRank: Record<ClockStatusKind, number> = { in: 0, none: 1, out: 2 };
 
 type ActiveTab = 'daily' | 'period';
 
@@ -419,30 +425,15 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       </div>
 
       {/* ── Tab switcher ── */}
-      <div className="flex gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1 w-fit">
-        <button
-          type="button"
-          onClick={() => setActiveTab('daily')}
-          className={`rounded-md px-4 py-1.5 text-label-md font-medium transition-colors duration-fast ${
-            activeTab === 'daily'
-              ? 'bg-white text-stone-900 shadow-sm'
-              : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Daily View
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('period')}
-          className={`rounded-md px-4 py-1.5 text-label-md font-medium transition-colors duration-fast ${
-            activeTab === 'period'
-              ? 'bg-white text-stone-900 shadow-sm'
-              : 'text-stone-500 hover:text-stone-700'
-          }`}
-        >
-          Period Report
-        </button>
-      </div>
+      <TabBar
+        variant="segmented"
+        tabs={[
+          { value: 'daily', label: 'Daily View' },
+          { value: 'period', label: 'Period Report' },
+        ]}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* DAILY TAB                                                           */}
@@ -468,21 +459,23 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                 ) : shiftAssignments.length === 0 ? (
                   <EmptyState icon={<Users size={22} />} heading="No assignments for today" body="Staff assigned for today will appear here." />
                 ) : (
-                  shiftAssignments.map((assignment) => {
-                    const status = getClockStatus(assignment);
-                    return (
-                      <div key={assignment.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                        <div>
-                          <p className="text-body-sm font-medium text-stone-900">{assignment.user.name}</p>
-                          <p className="text-caption text-stone-500">{assignment.user.role}</p>
+                  [...shiftAssignments]
+                    .sort((a, b) => clockStatusSortRank[getClockStatus(a).kind] - clockStatusSortRank[getClockStatus(b).kind])
+                    .map((assignment) => {
+                      const status = getClockStatus(assignment);
+                      return (
+                        <div key={assignment.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                          <div>
+                            <p className="text-body-sm font-medium text-stone-900">{assignment.user.name}</p>
+                            <p className="text-caption text-stone-500">{assignment.user.role}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {status.isOverride && <Badge tone="warning">Override</Badge>}
+                            <Badge tone={status.kind === 'in' ? 'success' : 'neutral'}>{status.label}</Badge>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-label-sm font-semibold text-espresso">{status.label}</p>
-                          {status.isOverride && <p className="text-caption text-amber">Override</p>}
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
               </div>
             </div>
@@ -580,22 +573,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                   {dailySummary.topItems.length === 0 ? (
                     <p className="text-body-sm text-stone-500">No sales data for this date.</p>
                   ) : (
-                    <div className="divide-y divide-stone-100">
-                      {dailySummary.topItems.map((item, index) => (
-                        <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">
-                              {index + 1}
-                            </span>
-                            <span className="text-body-sm text-stone-800">{item.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-label-sm font-semibold text-espresso">{formatCurrency(item.revenue)}</p>
-                            <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <RankedItemList items={dailySummary.topItems} variant="top" formatCurrency={formatCurrency} />
                   )}
                 </div>
               </div>
@@ -610,45 +588,18 @@ export default function DirectorBranchDetailPage(): JSX.Element {
       {activeTab === 'period' && (
         <>
           {/* Date range controls */}
-          <div className="flex flex-wrap items-end gap-3 rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-            <Input label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            <Input label="End Date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            <div className="flex items-end gap-2">
-              <Button onClick={handleRunPeriod} isLoading={isLoadingPeriod}>
-                Run
-              </Button>
-              <Popover
-                trigger={
-                  <Button variant="secondary" leftIcon={<Download size={15} />} isLoading={isExportingBranch}>
-                    Export Branch
-                  </Button>
-                }
-                className="w-44"
-              >
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-sm text-stone-700 hover:bg-stone-100" onClick={() => void exportBranchReport('csv')}>
-                  <FileText size={14} /> Download CSV
-                </button>
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-sm text-stone-700 hover:bg-stone-100" onClick={() => void exportBranchReport('pdf')}>
-                  <FileText size={14} /> Download PDF
-                </button>
-              </Popover>
-              <Popover
-                trigger={
-                  <Button variant="secondary" leftIcon={<Download size={15} />} isLoading={isExportingStaff}>
-                    Export Staff
-                  </Button>
-                }
-                className="w-44"
-              >
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-sm text-stone-700 hover:bg-stone-100" onClick={() => void exportStaffReport('csv')}>
-                  <FileText size={14} /> Download CSV
-                </button>
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-body-sm text-stone-700 hover:bg-stone-100" onClick={() => void exportStaffReport('pdf')}>
-                  <FileText size={14} /> Download PDF
-                </button>
-              </Popover>
-            </div>
-          </div>
+          <DateRangeBar
+            className="gap-3 rounded-lg border border-stone-200 bg-white p-4 shadow-sm"
+            startDate={startDate}
+            endDate={endDate}
+            onStartChange={setStartDate}
+            onEndChange={setEndDate}
+            onRun={handleRunPeriod}
+            isRunning={isLoadingPeriod}
+          >
+            <ExportMenu label="Export Branch" isLoading={isExportingBranch} onExport={(format) => void exportBranchReport(format)} />
+            <ExportMenu label="Export Staff" isLoading={isExportingStaff} onExport={(format) => void exportStaffReport(format)} />
+          </DateRangeBar>
 
           {isLoadingPeriod ? (
             <div className="space-y-4">
@@ -684,7 +635,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     title="Revenue (KES)"
                     subtitle={`Daily revenue — ${periodLabel}`}
                     data={periodRevenueTrendData}
-                    accentColor="#047857"
+                    accentColor={CHART_SUCCESS}
                     valueFormatter={(value) => `KES ${value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0)}`}
                     tooltipUnit="KES"
                     summaryLabel="Total Revenue"
@@ -693,7 +644,7 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                     title="Orders"
                     subtitle={`Daily order volume — ${periodLabel}`}
                     data={periodOrdersTrendData}
-                    accentColor="#C4862A"
+                    accentColor={CHART_AMBER}
                     valueFormatter={(value) => String(Math.round(value))}
                     tooltipUnit="Orders"
                     summaryLabel="Total Orders"
@@ -754,46 +705,14 @@ export default function DirectorBranchDetailPage(): JSX.Element {
                         <ChevronUp size={14} className="text-status-ready-text" />
                         <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Top {periodItems.limit}</span>
                       </div>
-                      <div className="divide-y divide-stone-100">
-                        {periodItems.topItems.map((item, i) => (
-                          <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                            <div className="flex items-center gap-2.5">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-espresso text-[10px] font-bold text-crema">{i + 1}</span>
-                              <div>
-                                <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                                <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="tabular-nums text-label-sm font-semibold text-espresso">{formatCurrency(item.revenue)}</p>
-                              <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <RankedItemList items={periodItems.topItems} variant="top" formatCurrency={formatCurrency} />
                     </div>
                     <div>
                       <div className="mb-2 flex items-center gap-1.5">
-                        <TrendingDown size={14} className="text-red-400" />
+                        <TrendingDown size={14} className="text-danger" />
                         <span className="text-label-sm font-semibold uppercase tracking-wider text-stone-500">Bottom {periodItems.limit}</span>
                       </div>
-                      <div className="divide-y divide-stone-100">
-                        {periodItems.bottomItems.map((item, i) => (
-                          <div key={item.menuItemId} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                            <div className="flex items-center gap-2.5">
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[10px] font-bold text-stone-600">{i + 1}</span>
-                              <div>
-                                <span className="text-body-sm font-medium text-stone-900">{item.name}</span>
-                                <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="tabular-nums text-label-sm font-semibold text-stone-700">{formatCurrency(item.revenue)}</p>
-                              <p className="text-caption text-stone-400">{item.quantitySold} sold</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <RankedItemList items={periodItems.bottomItems} variant="bottom" formatCurrency={formatCurrency} />
                     </div>
                   </div>
                 </div>

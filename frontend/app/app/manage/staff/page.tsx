@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search, ArrowLeftRight } from 'lucide-react';
-import { Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
+import { Badge, Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
 import type { AppRole } from '@/types/auth';
 import { ApiError } from '@/types/api';
 import { staffService, type StaffDto } from '@/services/staffService';
@@ -345,8 +345,8 @@ export default function Page(): JSX.Element {
         </div>
 
         {error && (
-          <div className="mx-5 mt-4 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
-            <p className="text-body-sm text-[#991B1B]">{error}</p>
+          <div className="mx-5 mt-4 rounded-lg border border-danger-border bg-danger-bg px-4 py-3">
+            <p className="text-body-sm text-danger">{error}</p>
           </div>
         )}
 
@@ -398,13 +398,9 @@ export default function Page(): JSX.Element {
                   <span className="hidden rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600 sm:inline-flex">
                     {roleLabel[item.role] ?? item.role}
                   </span>
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-label-sm font-medium ${
-                    item.isActive
-                      ? 'bg-[#EDFAF1] text-[#1A6B3C]'
-                      : 'bg-stone-100 text-stone-500'
-                  }`}>
+                  <Badge tone={item.isActive ? 'success' : 'neutral'}>
                     {item.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  </Badge>
                   {role && TRANSFER_ROLES.includes(role) && (
                     <button
                       type="button"
@@ -436,8 +432,8 @@ export default function Page(): JSX.Element {
                     onClick={() => void handleToggleActive(item)}
                     className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast ${
                       item.isActive
-                        ? 'text-stone-400 hover:bg-[#FEF2F2] hover:text-[#991B1B]'
-                        : 'text-stone-400 hover:bg-[#EDFAF1] hover:text-[#1A6B3C]'
+                        ? 'text-stone-400 hover:bg-danger-bg hover:text-danger'
+                        : 'text-stone-400 hover:bg-success-bg hover:text-success'
                     }`}
                     aria-label={item.isActive ? `Deactivate ${item.name}` : `Reactivate ${item.name}`}
                   >
@@ -446,7 +442,7 @@ export default function Page(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(item)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-[#FEF2F2] hover:text-[#991B1B]"
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-danger-bg hover:text-danger"
                     aria-label={`Delete ${item.name}`}
                   >
                     <Trash2 size={14} />
@@ -467,13 +463,13 @@ export default function Page(): JSX.Element {
 
         <form className="space-y-4 p-5" onSubmit={(e) => void handleCreate(e)}>
           {formError && (
-            <div className="rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-4 py-3">
-              <p className="text-body-sm text-[#991B1B]">{formError}</p>
+            <div className="rounded-lg border border-danger-border bg-danger-bg px-4 py-3">
+              <p className="text-body-sm text-danger">{formError}</p>
             </div>
           )}
           {formSuccess && (
-            <div className="rounded-lg border border-[#86EFAC] bg-[#EDFAF1] px-4 py-3">
-              <p className="text-body-sm text-[#1A6B3C]">Staff account created successfully.</p>
+            <div className="rounded-lg border border-success-border bg-success-bg px-4 py-3">
+              <p className="text-body-sm text-success">Staff account created successfully.</p>
             </div>
           )}
 

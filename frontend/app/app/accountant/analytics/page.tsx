@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { Banknote } from 'lucide-react';
-import { Button, EmptyState, PageHeader, PageLayout, Select, SkeletonBlock, SkeletonTable } from '@/components/ui';
+import { Button, EmptyState, ExcelTable, PageHeader, PageLayout, Select, SkeletonBlock, SkeletonTable, TabBar } from '@/components/ui';
 import { LineTrendChart, MultiLineTrendChart } from '@/components/dashboard/PremiumChart';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { RevenueSourcesCard } from '@/components/dashboard/RevenueSourcesCard';
@@ -239,42 +239,36 @@ function OverviewTab({
                   {startDate} – {endDate} · Total: {formatCurrency(overview.totalRevenue)} · {overview.totalOrders} orders
                 </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50/60">
-                      <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Revenue</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-amber">+ Other</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Orders</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {[...overview.branches]
-                      .sort((a, b) => Number.parseFloat(b.revenue) - Number.parseFloat(a.revenue))
-                      .map((branch) => {
-                        const total = Number.parseFloat(overview.totalRevenue);
-                        const rev = Number.parseFloat(branch.revenue);
-                        const pct = total > 0 ? ((rev / total) * 100).toFixed(1) : '0.0';
-                        const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
-                        return (
-                          <tr key={branch.id} className="hover:bg-stone-50/60">
-                            <td className="px-5 py-3 text-body-sm font-medium text-stone-900">{branch.name}</td>
-                            <td className="px-5 py-3 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                              {formatCurrency(branch.revenue)}
-                            </td>
-                            <td className="px-5 py-3 text-right font-mono text-body-sm tabular-nums text-amber">
-                              {otherAmt > 0 ? formatCurrency(otherAmt) : '—'}
-                            </td>
-                            <td className="px-5 py-3 text-right text-body-sm text-stone-600">{branch.orderCount}</td>
-                            <td className="px-5 py-3 text-right text-body-sm text-stone-500">{pct}%</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
+              <ExcelTable
+                columns={[
+                  { key: 'branch', label: 'Branch', render: (branch) => branch.name },
+                  { key: 'revenue', label: 'Revenue', numeric: true, render: (branch) => formatCurrency(branch.revenue) },
+                  {
+                    key: 'other',
+                    label: '+ Other',
+                    numeric: true,
+                    render: (branch) => {
+                      const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
+                      return <span className="text-amber">{otherAmt > 0 ? formatCurrency(otherAmt) : '—'}</span>;
+                    },
+                  },
+                  { key: 'orders', label: 'Orders', numeric: true, render: (branch) => branch.orderCount },
+                  {
+                    key: 'share',
+                    label: 'Share',
+                    numeric: true,
+                    render: (branch) => {
+                      const total = Number.parseFloat(overview.totalRevenue);
+                      const rev = Number.parseFloat(branch.revenue);
+                      const pct = total > 0 ? ((rev / total) * 100).toFixed(1) : '0.0';
+                      return `${pct}%`;
+                    },
+                  },
+                ]}
+                rows={[...overview.branches].sort((a, b) => Number.parseFloat(b.revenue) - Number.parseFloat(a.revenue))}
+                rowKey={(branch) => branch.id}
+                headerTone="navy"
+              />
             </div>
           )}
         </>
@@ -356,10 +350,10 @@ function PaymentTab({
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             {[
-              { label: 'M-Pesa', value: totals.mpesa, color: 'text-[#1A6B3C]', bg: 'bg-[#EDFAF1] border-[#86EFAC]' },
+              { label: 'M-Pesa', value: totals.mpesa, color: 'text-success', bg: 'bg-success-bg border-success-border' },
               { label: 'Cash', value: totals.cash, color: 'text-stone-700', bg: 'bg-parchment border-stone-200' },
-              { label: 'Card', value: totals.card, color: 'text-[#1D4ED8]', bg: 'bg-[#EFF6FF] border-blue-200' },
-              { label: 'Credit', value: totals.credit, color: 'text-[#92650A]', bg: 'bg-[#FDF3DC] border-[#F0D080]' },
+              { label: 'Card', value: totals.card, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+              { label: 'Credit', value: totals.credit, color: 'text-warning', bg: 'bg-warning-bg border-warning-border' },
               { label: '+ Other', value: totals.other, color: 'text-amber', bg: 'bg-amber/10 border-amber/30' },
             ].map(({ label, value, color, bg }) => (
               <div key={label} className={`rounded-xl border px-4 py-4 ${bg}`}>
@@ -382,79 +376,64 @@ function PaymentTab({
               <h3 className="text-heading-sm font-semibold text-stone-900">Payment Breakdown by Branch</h3>
               <p className="mt-0.5 text-caption text-stone-500">{startDate} – {endDate}</p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]">
-                <thead>
-                  <tr className="border-b border-stone-100 bg-stone-50/60">
-                    <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1A6B3C]">M-Pesa</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Cash</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1D4ED8]">Card</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#92650A]">Credit</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-amber">+ Other</th>
-                    <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-700">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {[...overview.branches]
-                    .sort((a, b) => Number.parseFloat(b.revenue) - Number.parseFloat(a.revenue))
-                    .map((branch) => {
-                      const pb = branch.paymentBreakdown;
-                      const creditAmt =
-                        Number.parseFloat(pb.houseAccount) +
-                        Number.parseFloat(pb.corporateAccount) +
-                        Number.parseFloat(pb.customerCredit);
-                      const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
-                      return (
-                        <tr key={branch.id} className="hover:bg-stone-50/60">
-                          <td className="px-5 py-3.5 text-body-sm font-medium text-stone-900">{branch.name}</td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1A6B3C]">
-                            {formatCurrency(pb.mpesa)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                            {formatCurrency(pb.cash)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1D4ED8]">
-                            {formatCurrency(pb.card)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#92650A]">
-                            {formatCurrency(creditAmt)}
-                          </td>
-                          <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-amber">
-                            {otherAmt > 0 ? formatCurrency(otherAmt) : '—'}
-                          </td>
-                          <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                            {formatCurrency(branch.revenue)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-stone-200 bg-stone-50">
-                    <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">Total</td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#1A6B3C]">
-                      {formatCurrency(totals.mpesa)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-stone-900">
-                      {formatCurrency(totals.cash)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#1D4ED8]">
-                      {formatCurrency(totals.card)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-[#92650A]">
-                      {formatCurrency(totals.credit)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-label-sm font-semibold tabular-nums text-amber">
-                      {totals.other > 0 ? formatCurrency(totals.other) : '—'}
-                    </td>
-                    <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
-                      {formatCurrency(overview.totalRevenue)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <ExcelTable
+              columns={[
+                { key: 'branch', label: 'Branch', render: (branch) => branch.name },
+                {
+                  key: 'mpesa',
+                  label: 'M-Pesa',
+                  numeric: true,
+                  render: (branch) => <span className="text-success">{formatCurrency(branch.paymentBreakdown.mpesa)}</span>,
+                },
+                { key: 'cash', label: 'Cash', numeric: true, render: (branch) => formatCurrency(branch.paymentBreakdown.cash) },
+                {
+                  key: 'card',
+                  label: 'Card',
+                  numeric: true,
+                  render: (branch) => <span className="text-blue-700">{formatCurrency(branch.paymentBreakdown.card)}</span>,
+                },
+                {
+                  key: 'credit',
+                  label: 'Credit',
+                  numeric: true,
+                  render: (branch) => {
+                    const pb = branch.paymentBreakdown;
+                    const creditAmt =
+                      Number.parseFloat(pb.houseAccount) +
+                      Number.parseFloat(pb.corporateAccount) +
+                      Number.parseFloat(pb.customerCredit);
+                    return <span className="text-warning">{formatCurrency(creditAmt)}</span>;
+                  },
+                },
+                {
+                  key: 'other',
+                  label: '+ Other',
+                  numeric: true,
+                  render: (branch) => {
+                    const otherAmt = Number.parseFloat(branch.otherIncomeTotal ?? '0');
+                    return <span className="text-amber">{otherAmt > 0 ? formatCurrency(otherAmt) : '—'}</span>;
+                  },
+                },
+                {
+                  key: 'total',
+                  label: 'Total',
+                  numeric: true,
+                  render: (branch) => <span className="font-semibold">{formatCurrency(branch.revenue)}</span>,
+                },
+              ]}
+              rows={[...overview.branches].sort((a, b) => Number.parseFloat(b.revenue) - Number.parseFloat(a.revenue))}
+              rowKey={(branch) => branch.id}
+              headerTone="navy"
+              totalsRow={{
+                branch: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                mpesa: <span className="text-success">{formatCurrency(totals.mpesa)}</span>,
+                cash: formatCurrency(totals.cash),
+                card: <span className="text-blue-700">{formatCurrency(totals.card)}</span>,
+                credit: <span className="text-warning">{formatCurrency(totals.credit)}</span>,
+                other: <span className="text-amber">{totals.other > 0 ? formatCurrency(totals.other) : '—'}</span>,
+                total: <span className="font-bold text-espresso">{formatCurrency(overview.totalRevenue)}</span>,
+              }}
+            />
           </div>
         </>
       ) : (
@@ -619,42 +598,38 @@ function StaffTab({
           {staffReport.staff.length === 0 ? (
             <p className="px-5 py-8 text-center text-body-sm text-stone-400">No waiter data for this period.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px]">
-                <thead>
-                  <tr className="border-b border-stone-100 bg-stone-50/60">
-                    <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Waiter</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Orders</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1A6B3C]">M-Pesa</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Cash</th>
-                    <th className="px-4 py-2.5 text-right text-label-sm font-medium text-[#1D4ED8]">Card</th>
-                    <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-700">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {staffReport.staff.map((row) => (
-                    <tr key={row.id} className="hover:bg-stone-50/60">
-                      <td className="px-5 py-3.5">
-                        <span className="text-body-sm font-medium text-stone-900">{row.name}</span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right text-body-sm text-stone-600">{row.ordersHandled}</td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1A6B3C]">
-                        {formatCurrency(row.paymentBreakdown?.mpesa ?? '0')}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-stone-700">
-                        {formatCurrency(row.paymentBreakdown?.cash ?? '0')}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-mono text-body-sm tabular-nums text-[#1D4ED8]">
-                        {formatCurrency(row.paymentBreakdown?.card ?? '0')}
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                        {formatCurrency(row.paymentBreakdown?.total ?? row.averageOrderValue ?? '0')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ExcelTable
+              columns={[
+                { key: 'waiter', label: 'Waiter', render: (row) => <span className="font-medium text-office-ink">{row.name}</span> },
+                { key: 'orders', label: 'Orders', numeric: true, render: (row) => row.ordersHandled },
+                {
+                  key: 'mpesa',
+                  label: 'M-Pesa',
+                  numeric: true,
+                  render: (row) => <span className="text-success">{formatCurrency(row.paymentBreakdown?.mpesa ?? '0')}</span>,
+                },
+                { key: 'cash', label: 'Cash', numeric: true, render: (row) => formatCurrency(row.paymentBreakdown?.cash ?? '0') },
+                {
+                  key: 'card',
+                  label: 'Card',
+                  numeric: true,
+                  render: (row) => <span className="text-blue-700">{formatCurrency(row.paymentBreakdown?.card ?? '0')}</span>,
+                },
+                {
+                  key: 'total',
+                  label: 'Total',
+                  numeric: true,
+                  render: (row) => (
+                    <span className="font-semibold">
+                      {formatCurrency(row.paymentBreakdown?.total ?? row.averageOrderValue ?? '0')}
+                    </span>
+                  ),
+                },
+              ]}
+              rows={staffReport.staff}
+              rowKey={(row) => row.id}
+              headerTone="navy"
+            />
           )}
         </div>
       ) : (
@@ -772,14 +747,14 @@ function OtherIncomeTab({
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-            <div className="rounded-xl border border-[#F0D080] bg-[#FDF3DC] px-4 py-4">
-              <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A] opacity-70">
+            <div className="rounded-xl border border-warning-border bg-warning-bg px-4 py-4">
+              <p className="text-label-sm font-medium uppercase tracking-wider text-warning opacity-70">
                 Total Other Income
               </p>
-              <p className="mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums text-[#92650A]">
+              <p className="mt-1 font-sans text-display-lg font-semibold leading-tight tabular-nums text-warning">
                 {formatCurrency(totalValue)}
               </p>
-              <p className="mt-0.5 text-caption text-[#92650A] opacity-60">
+              <p className="mt-0.5 text-caption text-warning opacity-60">
                 {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
               </p>
             </div>
@@ -803,45 +778,32 @@ function OtherIncomeTab({
                 <h3 className="text-heading-sm font-semibold text-stone-900">By Category</h3>
                 <p className="mt-0.5 text-caption text-stone-500">{startDate} – {endDate}</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[400px]">
-                  <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50/60">
-                      <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Category</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Entries</th>
-                      <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Total</th>
-                      <th className="px-4 py-2.5 text-right text-label-sm font-medium text-stone-500">Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {byCategory.map((cat) => {
-                      const pct = totalValue > 0 ? ((cat.total / totalValue) * 100).toFixed(1) : '0.0';
-                      return (
-                        <tr key={cat.name} className="hover:bg-stone-50/60">
-                          <td className="px-5 py-3 text-body-sm font-medium text-stone-900">{cat.name}</td>
-                          <td className="px-4 py-3 text-right text-body-sm text-stone-600">{cat.count}</td>
-                          <td className="px-5 py-3 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                            {formatCurrency(cat.total)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-body-sm text-stone-500">{pct}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-stone-200 bg-stone-50">
-                      <td className="px-5 py-3 text-label-sm font-semibold text-stone-700">Total</td>
-                      <td className="px-4 py-3 text-right text-label-sm font-semibold text-stone-700">
-                        {entries.length}
-                      </td>
-                      <td className="px-5 py-3 text-right font-mono text-label-sm font-bold tabular-nums text-espresso">
-                        {formatCurrency(totalValue)}
-                      </td>
-                      <td className="px-4 py-3" />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+              <ExcelTable
+                columns={[
+                  { key: 'category', label: 'Category', render: (cat) => <span className="font-medium text-office-ink">{cat.name}</span> },
+                  { key: 'entries', label: 'Entries', numeric: true, render: (cat) => cat.count },
+                  {
+                    key: 'total',
+                    label: 'Total',
+                    numeric: true,
+                    render: (cat) => <span className="font-semibold">{formatCurrency(cat.total)}</span>,
+                  },
+                  {
+                    key: 'share',
+                    label: 'Share',
+                    numeric: true,
+                    render: (cat) => `${totalValue > 0 ? ((cat.total / totalValue) * 100).toFixed(1) : '0.0'}%`,
+                  },
+                ]}
+                rows={byCategory}
+                rowKey={(cat) => cat.name}
+                headerTone="gray"
+                totalsRow={{
+                  category: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+                  entries: entries.length,
+                  total: <span className="font-bold text-espresso">{formatCurrency(totalValue)}</span>,
+                }}
+              />
             </div>
           )}
 
@@ -850,40 +812,35 @@ function OtherIncomeTab({
             <div className="border-b border-stone-100 px-5 py-4">
               <h3 className="text-heading-sm font-semibold text-stone-900">All Entries</h3>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-stone-100 bg-stone-50/60">
-                    <th className="px-5 py-2.5 text-left text-label-sm font-medium text-stone-500">Date</th>
-                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Category</th>
-                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Branch</th>
-                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Payment</th>
-                    <th className="px-4 py-2.5 text-left text-label-sm font-medium text-stone-500">Recorded By</th>
-                    <th className="px-5 py-2.5 text-right text-label-sm font-medium text-stone-500">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {entries.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-stone-50/60">
-                      <td className="px-5 py-3 text-body-sm text-stone-600">
-                        {new Date(`${entry.entryDate.slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', {
-                          day: 'numeric', month: 'short', year: 'numeric',
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-body-sm font-medium text-stone-900">{entry.category.name}</td>
-                      <td className="px-4 py-3 text-body-sm text-stone-600">{entry.branch.name}</td>
-                      <td className="px-4 py-3 text-body-sm text-stone-600">
-                        {PAYMENT_LABELS[entry.paymentMethod] ?? entry.paymentMethod}
-                      </td>
-                      <td className="px-4 py-3 text-body-sm text-stone-500">{entry.recordedBy.name}</td>
-                      <td className="px-5 py-3 text-right font-mono text-body-sm font-semibold tabular-nums text-stone-900">
-                        {formatCurrency(entry.amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ExcelTable
+              columns={[
+                {
+                  key: 'date',
+                  label: 'Date',
+                  render: (entry) =>
+                    new Date(`${entry.entryDate.slice(0, 10)}T00:00:00`).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    }),
+                },
+                { key: 'category', label: 'Category', render: (entry) => <span className="font-medium text-office-ink">{entry.category.name}</span> },
+                { key: 'branchName', label: 'Branch', render: (entry) => entry.branch.name },
+                {
+                  key: 'payment',
+                  label: 'Payment',
+                  render: (entry) => PAYMENT_LABELS[entry.paymentMethod] ?? entry.paymentMethod,
+                },
+                { key: 'recordedBy', label: 'Recorded By', render: (entry) => entry.recordedBy.name },
+                {
+                  key: 'amount',
+                  label: 'Amount',
+                  numeric: true,
+                  render: (entry) => <span className="font-semibold">{formatCurrency(entry.amount)}</span>,
+                },
+              ]}
+              rows={entries}
+              rowKey={(entry) => entry.id}
+              headerTone="gray"
+            />
           </div>
         </>
       )}
@@ -893,12 +850,12 @@ function OtherIncomeTab({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'overview', label: 'Revenue Overview' },
-  { key: 'payment', label: 'Payment Methods' },
-  { key: 'allocation', label: 'Revenue Allocation' },
-  { key: 'staff', label: 'Staff Collections' },
-  { key: 'other-income', label: 'Other Income' },
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'overview', label: 'Revenue Overview' },
+  { value: 'payment', label: 'Payment Methods' },
+  { value: 'allocation', label: 'Revenue Allocation' },
+  { value: 'staff', label: 'Staff Collections' },
+  { value: 'other-income', label: 'Other Income' },
 ];
 
 export default function AccountantAnalyticsPage(): JSX.Element {
@@ -941,21 +898,7 @@ export default function AccountantAnalyticsPage(): JSX.Element {
       />
 
       {/* Tab bar */}
-      <div className="flex gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1.5 shadow-sm">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`shrink-0 rounded-lg px-4 py-2 text-label-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'bg-espresso text-white shadow-sm'
-                : 'text-stone-500 hover:bg-stone-100 hover:text-stone-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} variant="segmented" />
 
       {/* Tab content */}
       <div>

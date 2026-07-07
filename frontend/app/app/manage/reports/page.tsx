@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   BarChart2,
   CalendarOff,
   ChevronUp,
@@ -19,12 +16,14 @@ import {
 import {
   Button,
   EmptyState,
+  ExcelTable,
   Input,
   PageHeader,
   PageLayout,
   Select,
   SkeletonTable,
   StatCard,
+  TabBar,
   Table,
   type TableColumn,
 } from '@/components/ui';
@@ -71,6 +70,7 @@ const formatDisplayDate = (ymd: string): string => {
 
 const TABS = ['Overview', 'Staff', 'Peak Hours', 'Menu Items', 'Leave'] as const;
 type Tab = (typeof TABS)[number];
+const TAB_OPTIONS = TABS.map((tab) => ({ value: tab, label: tab }));
 
 const LEAVE_STATUS_FILTERS: { value: LeaveStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'All' },
@@ -411,13 +411,6 @@ export default function ManagerAnalyticsPage(): JSX.Element {
     }
   };
 
-  const ItemsSortIcon = ({ col }: { col: 'quantitySold' }) => {
-    if (itemsSortKey !== col) return <ArrowUpDown size={12} className="ml-1 inline opacity-30" />;
-    return itemsSortDir === 'desc'
-      ? <ArrowDown size={12} className="ml-1 inline text-espresso" />
-      : <ArrowUp size={12} className="ml-1 inline text-espresso" />;
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -464,24 +457,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <div className="border-b border-stone-200">
-        <nav className="-mb-px flex gap-1 overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`shrink-0 border-b-2 px-4 py-2.5 text-label-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? 'border-espresso text-espresso'
-                  : 'border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-700'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <TabBar tabs={TAB_OPTIONS} active={activeTab} onChange={setActiveTab} variant="underline" />
 
       {/* ══════════════════════════════════════════════════════════════════
           TAB 1 — OVERVIEW
@@ -659,33 +635,23 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                   All Items ({sortedTopItems.length})
                 </span>
               </div>
-              <div className="overflow-x-auto rounded-lg border border-stone-200">
-                <table className="w-full text-left text-body-sm">
-                  <thead>
-                    <tr className="border-b-2 border-stone-200 bg-stone-50">
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                      <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Category</th>
-                      <th
-                        className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                        onClick={() => handleItemsSort('quantitySold')}
-                      >
-                        Qty Sold<ItemsSortIcon col="quantitySold" />
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {sortedTopItems.map((item, i) => (
-                      <tr key={item.menuItemId} className="hover:bg-stone-50">
-                        <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                        <td className="px-3 py-2.5 font-medium text-stone-900">{item.name}</td>
-                        <td className="px-3 py-2.5 text-caption text-stone-400">{item.categoryName}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ExcelTable
+                columns={[
+                  { key: 'name', label: 'Item', render: (item) => <span className="font-medium text-office-ink">{item.name}</span> },
+                  { key: 'category', label: 'Category', render: (item) => <span className="text-stone-500">{item.categoryName}</span> },
+                  {
+                    key: 'quantitySold',
+                    label: 'Qty Sold',
+                    numeric: true,
+                    sort: { direction: itemsSortDir, onToggle: () => handleItemsSort('quantitySold') },
+                    render: (item) => item.quantitySold,
+                  },
+                ]}
+                rows={sortedTopItems}
+                rowKey={(item) => item.menuItemId}
+                numbered
+                headerTone="gray"
+              />
             </div>
           ) : (
             /* ── Top / bottom split view ── */
@@ -697,34 +663,31 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                     Top {itemsData.limit} Items
                   </span>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-stone-200">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('quantitySold')}
-                        >
-                          Qty<ItemsSortIcon col="quantitySold" />
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {sortedTopItems.map((item, i) => (
-                        <tr key={item.menuItemId} className="hover:bg-stone-50">
-                          <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="font-medium text-stone-900">{item.name}</span>
-                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                          </td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ExcelTable
+                  columns={[
+                    {
+                      key: 'name',
+                      label: 'Item',
+                      render: (item) => (
+                        <>
+                          <span className="font-medium text-office-ink">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'quantitySold',
+                      label: 'Qty',
+                      numeric: true,
+                      sort: { direction: itemsSortDir, onToggle: () => handleItemsSort('quantitySold') },
+                      render: (item) => item.quantitySold,
+                    },
+                  ]}
+                  rows={sortedTopItems}
+                  rowKey={(item) => item.menuItemId}
+                  numbered
+                  headerTone="gray"
+                />
               </div>
               <div>
                 <div className="mb-2 flex items-center gap-2">
@@ -733,34 +696,31 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                     Bottom {itemsData.limit} Items
                   </span>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-stone-200">
-                  <table className="w-full text-left text-body-sm">
-                    <thead>
-                      <tr className="border-b-2 border-stone-200 bg-stone-50">
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">#</th>
-                        <th className="px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500">Item</th>
-                        <th
-                          className="cursor-pointer select-none px-3 py-2.5 text-label-sm font-medium uppercase tracking-wider text-stone-500 hover:text-stone-800"
-                          onClick={() => handleItemsSort('quantitySold')}
-                        >
-                          Qty<ItemsSortIcon col="quantitySold" />
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-stone-100">
-                      {sortedBottomItems.map((item, i) => (
-                        <tr key={item.menuItemId} className="hover:bg-stone-50">
-                          <td className="px-3 py-2.5 tabular-nums text-stone-400">{i + 1}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="font-medium text-stone-900">{item.name}</span>
-                            <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
-                          </td>
-                          <td className="px-3 py-2.5 tabular-nums text-stone-700">{item.quantitySold}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ExcelTable
+                  columns={[
+                    {
+                      key: 'name',
+                      label: 'Item',
+                      render: (item) => (
+                        <>
+                          <span className="font-medium text-office-ink">{item.name}</span>
+                          <span className="ml-1.5 text-caption text-stone-400">{item.categoryName}</span>
+                        </>
+                      ),
+                    },
+                    {
+                      key: 'quantitySold',
+                      label: 'Qty',
+                      numeric: true,
+                      sort: { direction: itemsSortDir, onToggle: () => handleItemsSort('quantitySold') },
+                      render: (item) => item.quantitySold,
+                    },
+                  ]}
+                  rows={sortedBottomItems}
+                  rowKey={(item) => item.menuItemId}
+                  numbered
+                  headerTone="gray"
+                />
               </div>
             </div>
           )}
@@ -784,17 +744,17 @@ export default function ManagerAnalyticsPage(): JSX.Element {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Approved</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#1A6B3C] tabular-nums">{leaveStats.approved}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-success tabular-nums">{leaveStats.approved}</p>
                 <p className="mt-0.5 text-caption text-stone-400">{leaveStats.totalDaysTaken}d total taken</p>
               </div>
-              <div className="rounded-xl border border-[#F0D080] bg-[#FFFDF5] p-4 shadow-sm">
-                <p className="text-label-sm font-medium uppercase tracking-wider text-[#92650A]">Pending</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#92650A] tabular-nums">{leaveStats.pending}</p>
-                <p className="mt-0.5 text-caption text-[#92650A]">Awaiting HR review</p>
+              <div className="rounded-xl border border-warning-border bg-warning-bg p-4 shadow-sm">
+                <p className="text-label-sm font-medium uppercase tracking-wider text-warning">Pending</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-warning tabular-nums">{leaveStats.pending}</p>
+                <p className="mt-0.5 text-caption text-warning">Awaiting HR review</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
                 <p className="text-label-sm font-medium uppercase tracking-wider text-stone-400">Rejected</p>
-                <p className="mt-1.5 font-sans text-display-md font-bold text-[#9B3A2A] tabular-nums">{leaveStats.rejected}</p>
+                <p className="mt-1.5 font-sans text-display-md font-bold text-danger tabular-nums">{leaveStats.rejected}</p>
                 <p className="mt-0.5 text-caption text-stone-400">Declined requests</p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
@@ -840,7 +800,7 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                     onClick={() => setLeaveStatusFilter(f.value)}
                     className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                       leaveStatusFilter === f.value
-                        ? 'bg-[#2C1810] text-white'
+                        ? 'bg-espresso text-white'
                         : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                     }`}
                   >
@@ -889,56 +849,52 @@ export default function ManagerAnalyticsPage(): JSX.Element {
                 />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-body-sm">
-                  <thead>
-                    <tr className="border-b border-stone-100 bg-stone-50">
-                      <th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Employee</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Type</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Dates</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Days</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
-                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {filteredLeave.map((req) => (
-                      <tr key={req.id} className="transition-colors hover:bg-stone-50">
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-[11px] font-bold text-[#2C1810]">
-                              {req.employeeProfile.user.name.charAt(0).toUpperCase()}
-                            </span>
-                            <div>
-                              <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
-                              <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5"><LeaveTypeBadge type={req.leaveType} /></td>
-                        <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
-                        <td className="px-4 py-3.5 tabular-nums font-medium text-stone-700">{Number(req.totalDays)}d</td>
-                        <td className="px-4 py-3.5"><LeaveStatusBadge status={req.status} /></td>
-                        <td className="px-4 py-3.5">
-                          {req.reviewedBy ? (
-                            <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
-                          ) : (
-                            <span className="text-caption text-stone-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 max-w-[160px]">
-                          {req.reviewComment ? (
-                            <span className="truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>
-                          ) : (
-                            <span className="text-caption text-stone-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ExcelTable
+                columns={[
+                  {
+                    key: 'employee',
+                    label: 'Employee',
+                    render: (req) => (
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-crema text-[11px] font-bold text-espresso">
+                          {req.employeeProfile.user.name.charAt(0).toUpperCase()}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-office-ink">{req.employeeProfile.user.name}</p>
+                          <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  { key: 'type', label: 'Type', render: (req) => <LeaveTypeBadge type={req.leaveType} /> },
+                  { key: 'dates', label: 'Dates', render: (req) => formatDateRange(req.startDate, req.endDate) },
+                  {
+                    key: 'days',
+                    label: 'Days',
+                    numeric: true,
+                    render: (req) => <span className="font-medium">{Number(req.totalDays)}d</span>,
+                  },
+                  { key: 'status', label: 'Status', render: (req) => <LeaveStatusBadge status={req.status} /> },
+                  {
+                    key: 'reviewedBy',
+                    label: 'Reviewed By',
+                    render: (req) => req.reviewedBy ? req.reviewedBy.name : <span className="text-stone-300">—</span>,
+                  },
+                  {
+                    key: 'comment',
+                    label: 'Comment',
+                    render: (req) =>
+                      req.reviewComment ? (
+                        <span className="italic text-stone-500">&ldquo;{req.reviewComment}&rdquo;</span>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      ),
+                  },
+                ]}
+                rows={filteredLeave}
+                rowKey={(req) => req.id}
+                headerTone="gray"
+              />
             )}
           </div>
         </div>

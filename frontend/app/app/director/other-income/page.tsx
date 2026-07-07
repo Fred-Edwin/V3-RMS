@@ -6,6 +6,7 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
+  ExcelTable,
   FormField,
   IconButton,
   Input,
@@ -15,10 +16,10 @@ import {
   Select,
   SkeletonTable,
   StatCard,
-  Table,
+  TabBar,
   Toggle,
+  type ExcelColumn,
   type SelectOption,
-  type TableColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -274,18 +275,18 @@ export default function DirectorOtherIncomePage(): JSX.Element {
   ];
 
   // ── Category columns ──────────────────────────────────────────────────────
-  const categoryColumns: TableColumn<CategoryRow>[] = [
+  const categoryColumns: ExcelColumn<CategoryRow>[] = [
     {
       key: 'name',
       label: 'Category Name',
-      render: (_v, row) => <span className="font-medium text-stone-900">{row.name}</span>,
+      render: (row) => <span className="font-medium text-office-ink">{row.name}</span>,
     },
     {
       key: 'branch',
       label: 'Scope',
-      render: (_v, row) =>
+      render: (row) =>
         row.branch ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F0D080] bg-[#FDF3DC] px-2.5 py-0.5 text-label-sm font-medium text-[#92650A]">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-status-pending-border bg-status-pending-bg px-2.5 py-0.5 text-label-sm font-medium text-status-pending-text">
             {row.branch.name}
           </span>
         ) : (
@@ -297,7 +298,8 @@ export default function DirectorOtherIncomePage(): JSX.Element {
     {
       key: 'isActive',
       label: 'Active',
-      render: (_v, row) => (
+      align: 'center',
+      render: (row) => (
         <Toggle
           checked={row.isActive}
           onChange={() => void handleToggleCategoryActive(row)}
@@ -308,7 +310,8 @@ export default function DirectorOtherIncomePage(): JSX.Element {
     {
       key: 'actions',
       label: '',
-      render: (_v, row) => (
+      align: 'center',
+      render: (row) => (
         <IconButton
           icon={<Pencil size={15} />}
           label="Edit category"
@@ -321,47 +324,49 @@ export default function DirectorOtherIncomePage(): JSX.Element {
   ];
 
   // ── Entry columns ─────────────────────────────────────────────────────────
-  const entryColumns: TableColumn<EntryRow>[] = [
+  const entryColumns: ExcelColumn<EntryRow>[] = [
     {
       key: 'category',
       label: 'Category',
-      render: (_v, row) => <span className="font-medium text-stone-900">{row.category.name}</span>,
+      render: (row) => <span className="font-medium text-office-ink">{row.category.name}</span>,
     },
     {
       key: 'amount',
       label: 'Amount',
-      render: (_v, row) => (
-        <span className="font-semibold tabular-nums text-[#2C1810]">{formatCurrency(row.amount)}</span>
+      numeric: true,
+      render: (row) => (
+        <span className="font-semibold tabular-nums text-espresso">{formatCurrency(row.amount)}</span>
       ),
     },
     {
       key: 'paymentMethod',
       label: 'Payment',
-      render: (_v, row) => (
+      render: (row) => (
         <span className="text-stone-600">{PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod}</span>
       ),
     },
     {
       key: 'entryDate',
       label: 'Date',
-      render: (_v, row) => (
+      render: (row) => (
         <span className="text-stone-600">{formatDateDisplay(row.entryDate.slice(0, 10))}</span>
       ),
     },
     {
       key: 'recordedBy',
       label: 'Recorded By',
-      render: (_v, row) => <span className="text-stone-500">{row.recordedBy.name}</span>,
+      render: (row) => <span className="text-stone-500">{row.recordedBy.name}</span>,
     },
     {
       key: 'description',
       label: 'Notes',
-      render: (_v, row) => <span className="italic text-stone-400">{row.description ?? '—'}</span>,
+      render: (row) => <span className="italic text-stone-400">{row.description ?? '—'}</span>,
     },
     {
       key: 'actions',
       label: '',
-      render: (_v, row) => (
+      align: 'center',
+      render: (row) => (
         <button
           type="button"
           onClick={() => setDeleteTarget(row)}
@@ -382,27 +387,16 @@ export default function DirectorOtherIncomePage(): JSX.Element {
       />
 
       {/* Tab switcher */}
-      <div className="mb-6 flex gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1">
-        {(['categories', 'entries'] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
-            className={[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-label-md font-medium transition-colors',
-              activeTab === tab
-                ? 'bg-white text-[#2C1810] shadow-sm'
-                : 'text-stone-500 hover:text-stone-700',
-            ].join(' ')}
-          >
-            {tab === 'categories' ? (
-              <><Tags size={16} />Categories</>
-            ) : (
-              <><Banknote size={16} />Entries</>
-            )}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { value: 'categories', label: 'Categories' },
+          { value: 'entries', label: 'Entries' },
+        ]}
+        active={activeTab}
+        onChange={setActiveTab}
+        variant="segmented"
+        className="mb-6"
+      />
 
       {/* ── CATEGORIES TAB ── */}
       {activeTab === 'categories' && (
@@ -453,7 +447,12 @@ export default function DirectorOtherIncomePage(): JSX.Element {
               }
             />
           ) : (
-            <Table columns={categoryColumns} data={categories as CategoryRow[]} keyField="id" />
+            <ExcelTable
+              columns={categoryColumns}
+              rows={categories as CategoryRow[]}
+              rowKey={(row) => row.id}
+              headerTone="gray"
+            />
           )}
         </>
       )}
@@ -501,7 +500,7 @@ export default function DirectorOtherIncomePage(): JSX.Element {
               <StatCard
                 label="Total Other Income"
                 value={formatCurrency(entriesTotalValue.toFixed(2))}
-                valueClassName="font-sans text-heading-lg font-bold tabular-nums tracking-tight text-[#2C1810]"
+                valueClassName="font-sans text-heading-lg font-bold tabular-nums tracking-tight text-espresso"
               />
               <StatCard
                 label="Entries"
@@ -526,7 +525,20 @@ export default function DirectorOtherIncomePage(): JSX.Element {
               body="No other income has been recorded for the selected filters"
             />
           ) : (
-            <Table columns={entryColumns} data={entries as EntryRow[]} keyField="id" />
+            <ExcelTable
+              columns={entryColumns}
+              rows={entries as EntryRow[]}
+              rowKey={(row) => row.id}
+              headerTone="gray"
+              totalsRow={{
+                category: 'Total',
+                amount: (
+                  <span className="font-semibold tabular-nums text-espresso">
+                    {formatCurrency(entriesTotalValue.toFixed(2))}
+                  </span>
+                ),
+              }}
+            />
           )}
         </>
       )}

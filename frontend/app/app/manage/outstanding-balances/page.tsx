@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Info } from 'lucide-react';
-import { EmptyState, PageHeader, PageLayout, PriceDisplay, SkeletonTable, Table, type TableColumn } from '@/components/ui';
+import { EmptyState, ExcelTable, PageHeader, PageLayout, PriceDisplay, SkeletonTable, TabBar, type ExcelColumn } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
 import { reportService } from '@/services/reportService';
 import { env } from '@/lib/env';
@@ -51,72 +51,78 @@ export default function OutstandingBalancesPage(): JSX.Element {
     void loadReport();
   }, [loadReport]);
 
-  const houseColumns: TableColumn<HouseRow>[] = [
-    { key: 'userName', label: 'Name' },
+  const houseColumns: ExcelColumn<HouseRow>[] = [
+    { key: 'userName', label: 'Name', render: (row) => row.userName },
     {
       key: 'userRole',
       label: 'Role',
-      render: (value) => (
-        <span className="text-body-sm capitalize text-stone-500">{String(value).toLowerCase().replace('_', ' ')}</span>
+      render: (row) => (
+        <span className="text-body-sm capitalize text-stone-500">{row.userRole.toLowerCase().replace('_', ' ')}</span>
       ),
     },
     {
       key: 'currentBalance',
       label: 'Balance (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row) => <PriceDisplay amount={Number.parseFloat(String(row.currentBalance))} />,
     },
     {
       key: 'creditLimit',
       label: 'Credit Limit',
-      render: (value) =>
-        value ? (
-          <PriceDisplay amount={Number.parseFloat(String(value))} />
+      numeric: true,
+      render: (row) =>
+        row.creditLimit ? (
+          <PriceDisplay amount={Number.parseFloat(String(row.creditLimit))} />
         ) : (
           <span className="text-body-sm text-stone-400">Uncapped</span>
         ),
     },
   ];
 
-  const corporateColumns: TableColumn<CorporateRow>[] = [
-    { key: 'companyName', label: 'Company' },
-    { key: 'contactName', label: 'Contact' },
-    { key: 'contactPhone', label: 'Phone' },
+  const corporateColumns: ExcelColumn<CorporateRow>[] = [
+    { key: 'companyName', label: 'Company', render: (row) => row.companyName },
+    { key: 'contactName', label: 'Contact', render: (row) => row.contactName },
+    { key: 'contactPhone', label: 'Phone', render: (row) => row.contactPhone },
     {
       key: 'currentBalance',
       label: 'Balance (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row) => <PriceDisplay amount={Number.parseFloat(String(row.currentBalance))} />,
     },
     {
       key: 'creditLimit',
       label: 'Credit Limit',
-      render: (value) =>
-        value ? (
-          <PriceDisplay amount={Number.parseFloat(String(value))} />
+      numeric: true,
+      render: (row) =>
+        row.creditLimit ? (
+          <PriceDisplay amount={Number.parseFloat(String(row.creditLimit))} />
         ) : (
           <span className="text-body-sm text-stone-400">Uncapped</span>
         ),
     },
   ];
 
-  const creditColumns: TableColumn<CreditRow>[] = [
-    { key: 'customerName', label: 'Customer' },
-    { key: 'customerPhone', label: 'Phone' },
+  const creditColumns: ExcelColumn<CreditRow>[] = [
+    { key: 'customerName', label: 'Customer', render: (row) => row.customerName },
+    { key: 'customerPhone', label: 'Phone', render: (row) => row.customerPhone },
     {
       key: 'currentBalance',
       label: 'Balance (KES)',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row) => <PriceDisplay amount={Number.parseFloat(String(row.currentBalance))} />,
     },
     {
       key: 'creditLimit',
       label: 'Credit Limit',
-      render: (value) => <PriceDisplay amount={Number.parseFloat(String(value))} />,
+      numeric: true,
+      render: (row) => <PriceDisplay amount={Number.parseFloat(String(row.creditLimit))} />,
     },
   ];
 
   const tabs = [
-    { key: 'house' as const, label: 'House Accounts', count: report?.staffBenefits?.length ?? 0 },
-    { key: 'corporate' as const, label: 'Corporate', count: report?.corporateAccounts?.length ?? 0 },
-    { key: 'credit' as const, label: 'Customer Credit', count: report?.customerCreditAccounts?.length ?? 0 },
+    { value: 'house' as const, label: `House Accounts${report?.staffBenefits?.length ? ` (${report.staffBenefits.length})` : ''}` },
+    { value: 'corporate' as const, label: `Corporate${report?.corporateAccounts?.length ? ` (${report.corporateAccounts.length})` : ''}` },
+    { value: 'credit' as const, label: `Customer Credit${report?.customerCreditAccounts?.length ? ` (${report.customerCreditAccounts.length})` : ''}` },
   ];
 
   return (
@@ -150,55 +156,50 @@ export default function OutstandingBalancesPage(): JSX.Element {
 
       {/* Tabs */}
       <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
-        <div className="flex border-b border-stone-200">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-3 text-label-sm font-medium transition-colors ${
-                activeTab === tab.key
-                  ? 'border-b-2 border-espresso text-espresso'
-                  : 'text-stone-500 hover:text-stone-800'
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-caption font-semibold text-stone-600">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} variant="underline" className="px-2" />
 
         <div className="p-4 sm:p-5">
           {isLoading ? (
             <SkeletonTable columns={4} rows={5} />
           ) : !report ? null : activeTab === 'house' ? (
             <>
-              <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <Info size={16} className="mt-0.5 shrink-0 text-amber-600" />
-                <p className="text-body-sm text-amber-800">
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-warning-border bg-warning-bg px-4 py-3">
+                <Info size={16} className="mt-0.5 shrink-0 text-warning" />
+                <p className="text-body-sm text-warning">
                   House account consumption is tracked for cap enforcement only — it is not included in the accounts receivable total above.
                 </p>
               </div>
               {(report.staffBenefits?.length ?? 0) === 0 ? (
                 <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding house accounts" body="All house accounts have a zero balance." />
               ) : (
-                <Table columns={houseColumns} data={(report.staffBenefits ?? []) as HouseRow[]} keyField="id" />
+                <ExcelTable
+                  columns={houseColumns}
+                  rows={(report.staffBenefits ?? []) as HouseRow[]}
+                  rowKey={(row) => row.id}
+                  headerTone="gray"
+                />
               )}
             </>
           ) : activeTab === 'corporate' ? (
             report.corporateAccounts.length === 0 ? (
               <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding corporate accounts" body="All corporate accounts are settled." />
             ) : (
-              <Table columns={corporateColumns} data={report.corporateAccounts as CorporateRow[]} keyField="id" />
+              <ExcelTable
+                columns={corporateColumns}
+                rows={report.corporateAccounts as CorporateRow[]}
+                rowKey={(row) => row.id}
+                headerTone="gray"
+              />
             )
           ) : report.customerCreditAccounts.length === 0 ? (
             <EmptyState icon={<AlertCircle size={24} />} heading="No outstanding customer credit accounts" body="All customer credit accounts are settled." />
           ) : (
-            <Table columns={creditColumns} data={report.customerCreditAccounts as CreditRow[]} keyField="id" />
+            <ExcelTable
+              columns={creditColumns}
+              rows={report.customerCreditAccounts as CreditRow[]}
+              rowKey={(row) => row.id}
+              headerTone="gray"
+            />
           )}
         </div>
       </section>
