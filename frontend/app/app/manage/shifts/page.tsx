@@ -583,7 +583,7 @@ export default function ShiftManagementPage(): JSX.Element {
       render: (_value, row) => {
         const isOverride = row.clockRecord?.clockInMethod === 'OVERRIDE' || row.clockRecord?.clockOutMethod === 'OVERRIDE';
         if (!row.clockRecord) return <span className="text-stone-500">-</span>;
-        return isOverride ? <span className="inline-flex items-center gap-1 text-[#A04F0A]"><ShieldAlert size={14} />Override</span> : <span className="text-body-sm text-stone-700">GPS</span>;
+        return isOverride ? <span className="inline-flex items-center gap-1 text-warning"><ShieldAlert size={14} />Override</span> : <span className="text-body-sm text-stone-700">GPS</span>;
       },
     },
     {
