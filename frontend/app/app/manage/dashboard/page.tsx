@@ -503,7 +503,7 @@ export default function ManagerDashboardPage(): JSX.Element {
           <div className="flex items-start gap-3">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber" />
             <div className="min-w-0 flex-1">
-              <p className="text-body-sm font-semibold text-[#92400E]">
+              <p className="text-body-sm font-semibold text-warning">
                 {idleReadyOrders.length === 1
                   ? '1 order has been ready for over 30 minutes'
                   : `${idleReadyOrders.length} orders have been ready for over 30 minutes`}
@@ -533,10 +533,10 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       {/* Pending Order Cancellation Authorizations */}
       {pendingCancellationAuths.length > 0 && (
-        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3 print:hidden">
+        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
           <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-orange-600 shrink-0" />
-            <p className="text-body-sm font-semibold text-orange-800">
+            <AlertTriangle size={16} className="text-warning shrink-0" />
+            <p className="text-body-sm font-semibold text-warning">
               {pendingCancellationAuths.length === 1
                 ? '1 order cancellation awaiting your approval'
                 : `${pendingCancellationAuths.length} order cancellations awaiting your approval`}
@@ -546,7 +546,7 @@ export default function ManagerDashboardPage(): JSX.Element {
             {pendingCancellationAuths.map((req) => {
               const loading = cancellationOverrideSubmittingId === req.id;
               return (
-                <div key={req.id} className="rounded-lg border border-orange-200 bg-white p-3 flex items-center gap-3">
+                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-body-sm font-semibold text-stone-900">
                       Order #{req.order.dailyNumber}
@@ -563,7 +563,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!cancellationOverrideSubmittingId}
                       onClick={() => void handleCancellationDecision(req.id, 'APPROVED')}
-                      className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -576,7 +576,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!cancellationOverrideSubmittingId}
                       onClick={() => void handleCancellationDecision(req.id, 'REJECTED')}
-                      className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -595,10 +595,10 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       {/* ── Pending House Account Authorizations ───────────────────── */}
       {pendingAuths.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 print:hidden">
+        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-amber-600 shrink-0" />
-            <p className="text-body-sm font-semibold text-amber-800">
+            <Clock size={16} className="text-warning shrink-0" />
+            <p className="text-body-sm font-semibold text-warning">
               {pendingAuths.length === 1
                 ? '1 house account charge awaiting your approval'
                 : `${pendingAuths.length} house account charges awaiting your approval`}
@@ -608,7 +608,7 @@ export default function ManagerDashboardPage(): JSX.Element {
             {pendingAuths.map((req) => {
               const loading = authOverrideSubmittingId === req.id;
               return (
-                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
+                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-body-sm font-semibold text-stone-900">
                       Order #{req.order.dailyNumber}
@@ -626,7 +626,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                         type="button"
                         disabled={!!authOverrideSubmittingId}
                         onClick={() => void handleAuthDecision(req.id, 'APPROVED')}
-                        className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                       >
                         {loading ? (
                           <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -639,7 +639,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                         type="button"
                         disabled={!!authOverrideSubmittingId}
                         onClick={() => void handleAuthDecision(req.id, 'REJECTED')}
-                        className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                       >
                         {loading ? (
                           <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -659,10 +659,10 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       {/* ── Pending Staff Discount Authorizations ──────────────────── */}
       {pendingDiscountAuths.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 print:hidden">
+        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-amber-600 shrink-0" />
-            <p className="text-body-sm font-semibold text-amber-800">
+            <Clock size={16} className="text-warning shrink-0" />
+            <p className="text-body-sm font-semibold text-warning">
               {pendingDiscountAuths.length === 1
                 ? '1 staff discount awaiting your approval'
                 : `${pendingDiscountAuths.length} staff discounts awaiting your approval`}
@@ -674,14 +674,14 @@ export default function ManagerDashboardPage(): JSX.Element {
               const original = Number.parseFloat(req.originalAmount);
               const discounted = original - Number.parseFloat(req.discountAmount);
               return (
-                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
+                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-body-sm font-semibold text-stone-900">
                       Order #{req.order.dailyNumber}
                       <span className="ml-2 font-normal text-stone-500 line-through">
                         KES {original.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="ml-1.5 font-semibold text-green-700">
+                      <span className="ml-1.5 font-semibold text-success">
                         → KES {discounted.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
                       </span>
                     </p>
@@ -694,7 +694,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!discountOverrideSubmittingId}
                       onClick={() => void handleDiscountDecision(req.id, 'APPROVED')}
-                      className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -707,7 +707,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!discountOverrideSubmittingId}
                       onClick={() => void handleDiscountDecision(req.id, 'REJECTED')}
-                      className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -726,10 +726,10 @@ export default function ManagerDashboardPage(): JSX.Element {
 
       {/* ── Pending Customer Discount Authorizations ──────────────── */}
       {pendingCustomerDiscountAuths.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3 print:hidden">
+        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-amber-600 shrink-0" />
-            <p className="text-body-sm font-semibold text-amber-800">
+            <Clock size={16} className="text-warning shrink-0" />
+            <p className="text-body-sm font-semibold text-warning">
               {pendingCustomerDiscountAuths.length === 1
                 ? '1 customer discount awaiting your approval'
                 : `${pendingCustomerDiscountAuths.length} customer discounts awaiting your approval`}
@@ -744,14 +744,14 @@ export default function ManagerDashboardPage(): JSX.Element {
                 ? `${req.discount.value}% off`
                 : `KES ${Number.parseFloat(req.discount.value).toLocaleString('en-KE', { minimumFractionDigits: 2 })} off`;
               return (
-                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
+                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-body-sm font-semibold text-stone-900">
                       Order #{req.order.dailyNumber}
                       <span className="ml-2 font-normal text-stone-500 line-through">
                         KES {original.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="ml-1.5 font-semibold text-green-700">
+                      <span className="ml-1.5 font-semibold text-success">
                         → KES {discounted.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
                       </span>
                     </p>
@@ -764,7 +764,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!customerDiscountOverrideSubmittingId}
                       onClick={() => void handleCustomerDiscountDecision(req.id, 'APPROVED')}
-                      className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -777,7 +777,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                       type="button"
                       disabled={!!customerDiscountOverrideSubmittingId}
                       onClick={() => void handleCustomerDiscountDecision(req.id, 'REJECTED')}
-                      className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -953,7 +953,7 @@ export default function ManagerDashboardPage(): JSX.Element {
                 </div>
                 <div>
                   <div className="mb-2 flex items-center gap-1.5">
-                    <TrendingDown size={14} className="text-red-400" />
+                    <TrendingDown size={14} className="text-danger" />
                     <h4 className="text-heading-sm font-semibold text-stone-900">Bottom 5 Items</h4>
                   </div>
                   <div className="divide-y divide-stone-100">

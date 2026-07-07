@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreditCard, DollarSign } from 'lucide-react';
-import { Button, EmptyState, Input, Modal, PageHeader, PageLayout, PriceDisplay } from '@/components/ui';
+import { Badge, Button, EmptyState, Input, Modal, PageHeader, PageLayout, PriceDisplay } from '@/components/ui';
 import { TabOrderHistoryTable } from '@/components/orders/TabOrderHistoryTable';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -166,15 +166,9 @@ export default function MyTabPage(): JSX.Element {
                 <p className="text-label-sm text-stone-500">Account Holder</p>
                 <p className="mt-0.5 text-body-lg font-semibold text-stone-800">{user?.name ?? account.user.name}</p>
               </div>
-              <span
-                className={
-                  account.isActive
-                    ? 'inline-flex rounded-full border border-[#86EFAC] bg-[#EDFAF1] px-2 py-0.5 text-label-sm text-[#1A6B3C]'
-                    : 'inline-flex rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-2 py-0.5 text-label-sm text-[#71717A]'
-                }
-              >
+              <Badge tone={account.isActive ? 'success' : 'neutral'}>
                 {account.isActive ? 'Active' : 'Inactive'}
-              </span>
+              </Badge>
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
@@ -202,7 +196,7 @@ export default function MyTabPage(): JSX.Element {
               <div className="mt-4">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
                   <div
-                    className={`h-full rounded-full transition-all ${usedPercent >= 90 ? 'bg-red-500' : usedPercent >= 70 ? 'bg-amber-500' : 'bg-green-500'}`}
+                    className={`h-full rounded-full transition-all ${usedPercent >= 90 ? 'bg-danger' : usedPercent >= 70 ? 'bg-warning' : 'bg-success'}`}
                     style={{ width: `${usedPercent}%` }}
                   />
                 </div>
