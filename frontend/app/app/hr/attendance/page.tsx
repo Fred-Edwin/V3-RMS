@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  CalendarDays, ChevronRight, X, CheckCircle2,
+  CalendarDays, X, CheckCircle2,
   AlertTriangle, Clock, XCircle, Download, Users,
 } from 'lucide-react';
-import { PageLayout, PageHeader } from '@/components/ui';
+import { PageLayout, PageHeader, ExcelTable, Badge, type ExcelColumn } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { getAttendanceSummary, getStaffAttendanceDetail } from '@/services/hrService';
@@ -63,22 +63,22 @@ type PresetLabel = typeof PRESETS[number]['label'];
 function StatusBadge({ status, minutesLate }: { status: AttendanceDayRow['status']; minutesLate: number }) {
   if (status === 'PRESENT') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#EDFAF1] px-2.5 py-0.5 text-label-sm font-medium text-[#1A6B3C]">
-        <CheckCircle2 size={11} /> Present
-      </span>
+      <Badge tone="success">
+        <CheckCircle2 size={11} className="mr-1" /> Present
+      </Badge>
     );
   }
   if (status === 'LATE') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF8E1] px-2.5 py-0.5 text-label-sm font-medium text-[#92650A]">
-        <Clock size={11} /> Late {minutesLate > 0 ? `(${minutesLate}m)` : ''}
-      </span>
+      <Badge tone="warning">
+        <Clock size={11} className="mr-1" /> Late {minutesLate > 0 ? `(${minutesLate}m)` : ''}
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[#FEF2F2] px-2.5 py-0.5 text-label-sm font-medium text-[#991B1B]">
-      <XCircle size={11} /> Absent
-    </span>
+    <Badge tone="danger">
+      <XCircle size={11} className="mr-1" /> Absent
+    </Badge>
   );
 }
 
@@ -87,9 +87,9 @@ function StatusBadge({ status, minutesLate }: { status: AttendanceDayRow['status
 
 function RateChip({ rate }: { rate: number }) {
   const color =
-    rate >= 85 ? 'text-[#1A6B3C] bg-[#EDFAF1]' :
-    rate >= 70 ? 'text-[#92650A] bg-[#FFFBEB]' :
-                 'text-[#991B1B] bg-[#FEF2F2]';
+    rate >= 85 ? 'text-success bg-success-bg' :
+    rate >= 70 ? 'text-warning bg-warning-bg' :
+                 'text-danger bg-danger-bg';
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-label-sm font-bold ${color}`}>
       {rate}%
@@ -125,9 +125,9 @@ function DetailDrawer({
   const dayOfWeek = (iso: string) =>
     new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
-  const rateColor =
-    row.attendanceRate >= 85 ? '#1A6B3C' :
-    row.attendanceRate >= 70 ? '#92650A' : '#991B1B';
+  const rateColorClass =
+    row.attendanceRate >= 85 ? 'text-success' :
+    row.attendanceRate >= 70 ? 'text-warning' : 'text-danger';
 
   return (
     <>
@@ -154,9 +154,9 @@ function DetailDrawer({
         <div className="flex items-center gap-5 border-b border-stone-100 px-6 py-3">
           {[
             { label: 'Scheduled', value: row.scheduled, color: 'text-stone-700' },
-            { label: 'Present',   value: row.present,   color: 'text-[#1A6B3C]' },
-            { label: 'Absent',    value: row.absent,    color: 'text-[#991B1B]' },
-            { label: 'Late',      value: row.late,      color: 'text-[#92650A]' },
+            { label: 'Present',   value: row.present,   color: 'text-success' },
+            { label: 'Absent',    value: row.absent,    color: 'text-danger' },
+            { label: 'Late',      value: row.late,      color: 'text-warning' },
           ].map(({ label, value, color }) => (
             <div key={label} className="text-center">
               <p className={`text-[22px] font-extrabold leading-none ${color}`}>{value}</p>
@@ -164,7 +164,7 @@ function DetailDrawer({
             </div>
           ))}
           <div className="ml-auto text-center">
-            <p className="text-[22px] font-extrabold leading-none" style={{ color: rateColor }}>
+            <p className={`text-[22px] font-extrabold leading-none ${rateColorClass}`}>
               {row.attendanceRate}%
             </p>
             <p className="mt-0.5 text-[10px] text-stone-400">Rate</p>
@@ -185,35 +185,35 @@ function DetailDrawer({
               <p className="text-body-sm text-stone-400">No shift assignments in this period.</p>
             </div>
           ) : (
-            <table className="w-full text-body-sm">
-              <thead>
-                <tr className="border-b border-stone-100 bg-stone-50">
-                  <th className="px-6 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Date</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Shift</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Clock In</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Clock Out</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {days.map((d) => (
-                  <tr key={`${d.date}-${d.shiftId}`} className="hover:bg-stone-50">
-                    <td className="px-6 py-3 font-medium text-stone-800">{dayOfWeek(d.date)}</td>
-                    <td className="px-4 py-3 text-stone-500">
-                      <span>{d.shiftName}</span>
-                      <span className="ml-1.5 text-caption text-stone-400">
-                        {d.shiftStart}–{d.shiftEnd}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-stone-600">{fmtTime(d.clockInAt)}</td>
-                    <td className="px-4 py-3 text-stone-600">{fmtTime(d.clockOutAt)}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={d.status} minutesLate={d.minutesLate} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="px-6 py-4">
+              <ExcelTable<AttendanceDayRow>
+                headerTone="gray"
+                rowKey={(d) => `${d.date}-${d.shiftId}`}
+                rows={days}
+                columns={[
+                  { key: 'date', label: 'Date', render: (d) => dayOfWeek(d.date) },
+                  {
+                    key: 'shift',
+                    label: 'Shift',
+                    render: (d) => (
+                      <>
+                        <span>{d.shiftName}</span>
+                        <span className="ml-1.5 text-caption text-stone-400">
+                          {d.shiftStart}–{d.shiftEnd}
+                        </span>
+                      </>
+                    ),
+                  },
+                  { key: 'clockIn', label: 'Clock In', render: (d) => fmtTime(d.clockInAt) },
+                  { key: 'clockOut', label: 'Clock Out', render: (d) => fmtTime(d.clockOutAt) },
+                  {
+                    key: 'status',
+                    label: 'Status',
+                    render: (d) => <StatusBadge status={d.status} minutesLate={d.minutesLate} />,
+                  },
+                ]}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -324,9 +324,9 @@ export default function AttendancePage(): JSX.Element {
     [startDate, endDate],
   );
 
-  const rateColor =
-    totals.rate >= 85 ? '#1A6B3C' :
-    totals.rate >= 70 ? '#92650A' : '#991B1B';
+  const rateColorClass =
+    totals.rate >= 85 ? 'text-success' :
+    totals.rate >= 70 ? 'text-warning' : 'text-danger';
 
   return (
     <PageLayout className="animate-fade-up space-y-5">
@@ -346,7 +346,7 @@ export default function AttendancePage(): JSX.Element {
               onClick={() => applyPreset(p)}
               className={`rounded-full border px-3 py-1 text-label-sm font-medium transition-colors ${
                 activePreset === p.label
-                  ? 'border-[#2C1810] bg-[#2C1810] text-white'
+                  ? 'border-espresso bg-espresso text-white'
                   : 'border-stone-200 text-stone-600 hover:border-stone-400'
               }`}
             >
@@ -429,23 +429,23 @@ export default function AttendancePage(): JSX.Element {
       {/* ── Zone 2: Summary bar ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Days Scheduled', value: totals.scheduled, color: '#2C1810',  sub: 'total shifts' },
-          { label: 'Days Present',   value: totals.present,   color: '#1A6B3C',  sub: 'showed up' },
-          { label: 'Absences',       value: totals.absent,    color: '#991B1B',  sub: 'no-shows' },
+          { label: 'Days Scheduled', value: totals.scheduled, textClass: 'text-espresso', borderClass: 'border-l-espresso',  sub: 'total shifts' },
+          { label: 'Days Present',   value: totals.present,   textClass: 'text-success',  borderClass: 'border-l-success',   sub: 'showed up' },
+          { label: 'Absences',       value: totals.absent,    textClass: 'text-danger',   borderClass: 'border-l-danger',    sub: 'no-shows' },
           {
             label: 'Attendance Rate',
             value: totals.scheduled > 0 ? `${totals.rate}%` : '—',
-            color: rateColor,
+            textClass: rateColorClass,
+            borderClass: rateColorClass === 'text-success' ? 'border-l-success' : rateColorClass === 'text-warning' ? 'border-l-warning' : 'border-l-danger',
             sub: totals.rate >= 85 ? 'On target' : totals.rate >= 70 ? 'Needs attention' : 'Critical',
           },
-        ].map(({ label, value, color, sub }) => (
+        ].map(({ label, value, textClass, borderClass, sub }) => (
           <div
             key={label}
-            className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
-            style={{ borderLeftWidth: 3, borderLeftColor: color }}
+            className={`rounded-xl border border-stone-200 bg-white p-4 shadow-sm border-l-[3px] ${borderClass}`}
           >
             <p className="text-label-sm text-stone-400">{label}</p>
-            <p className="mt-1 font-sans text-display-lg font-semibold tabular-nums" style={{ color }}>
+            <p className={`mt-1 font-sans text-display-lg font-semibold tabular-nums ${textClass}`}>
               {loading
                 ? <span className="inline-block h-7 w-10 animate-pulse rounded bg-stone-200" />
                 : value}
@@ -459,7 +459,7 @@ export default function AttendancePage(): JSX.Element {
 
       {/* Late count below summary — subtle */}
       {!loading && totals.late > 0 && (
-        <p className="flex items-center gap-1.5 text-body-sm text-[#92650A]">
+        <p className="flex items-center gap-1.5 text-body-sm text-warning">
           <Clock size={13} />
           {totals.late} {totals.late === 1 ? 'late arrival' : 'late arrivals'} in this period
         </p>
@@ -488,73 +488,75 @@ export default function AttendancePage(): JSX.Element {
             </p>
           </div>
         ) : (
-          <table className="w-full text-body-sm">
-            <thead>
-              <tr className="border-b border-stone-100 bg-stone-50">
-                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Name</th>
-                {isMultiBranch && (
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Branch</th>
-                )}
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Role</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Scheduled</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Present</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Absent</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Late</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-stone-400">Att. %</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {rows.map((row) => {
-                const isLowRate = row.attendanceRate < 85;
-                return (
-                  <tr
-                    key={row.userId}
-                    className="cursor-pointer transition-colors hover:bg-stone-50"
-                    onClick={() => setDrawerRow(row)}
-                  >
-                    <td className="px-6 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-label-sm font-bold text-[#2C1810]">
-                          {row.name.charAt(0).toUpperCase()}
-                        </span>
-                        <p className="font-semibold text-stone-900">{row.name}</p>
-                      </div>
-                    </td>
-                    {isMultiBranch && (
-                      <td className="px-4 py-3.5 text-stone-500">
-                        {row.organizationName ?? <span className="text-stone-300">—</span>}
-                      </td>
-                    )}
-                    <td className="px-4 py-3.5 text-stone-500">{roleLabel(row.role)}</td>
-                    <td className="px-4 py-3.5 text-center text-stone-700">{row.scheduled}</td>
-                    <td className="px-4 py-3.5 text-center font-medium text-[#1A6B3C]">{row.present}</td>
-                    <td className="px-4 py-3.5 text-center font-medium">
-                      {row.absent > 0
-                        ? <span className="text-[#991B1B]">{row.absent}</span>
-                        : <span className="text-stone-400">0</span>}
-                    </td>
-                    <td className="px-4 py-3.5 text-center font-medium">
-                      {row.late > 0
-                        ? <span className="text-[#92650A]">{row.late}</span>
-                        : <span className="text-stone-400">0</span>}
-                    </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className="inline-flex items-center gap-1.5">
-                        {isLowRate && (
-                          <AlertTriangle size={13} className="text-[#92650A]" />
-                        )}
-                        <RateChip rate={row.attendanceRate} />
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <ChevronRight size={15} className="text-stone-300" />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <ExcelTable<AttendanceStaffRow>
+            headerTone="gray"
+            rowKey={(row) => row.userId}
+            rows={rows}
+            expandable={{
+              isExpanded: () => false,
+              onToggle: (row) => setDrawerRow(row),
+              childRows: () => [],
+            }}
+            columns={[
+              {
+                key: 'name',
+                label: 'Name',
+                render: (row) => (
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-crema text-label-sm font-bold text-espresso">
+                      {row.name.charAt(0).toUpperCase()}
+                    </span>
+                    <p className="font-semibold text-stone-900">{row.name}</p>
+                  </div>
+                ),
+              },
+              ...(isMultiBranch
+                ? [{
+                    key: 'branch',
+                    label: 'Branch',
+                    render: (row: AttendanceStaffRow) =>
+                      row.organizationName ?? <span className="text-stone-300">—</span>,
+                  } as ExcelColumn<AttendanceStaffRow>]
+                : []),
+              { key: 'role', label: 'Role', render: (row) => roleLabel(row.role) },
+              { key: 'scheduled', label: 'Scheduled', align: 'center', render: (row) => row.scheduled },
+              {
+                key: 'present',
+                label: 'Present',
+                align: 'center',
+                render: (row) => <span className="font-medium text-success">{row.present}</span>,
+              },
+              {
+                key: 'absent',
+                label: 'Absent',
+                align: 'center',
+                render: (row) =>
+                  row.absent > 0
+                    ? <span className="font-medium text-danger">{row.absent}</span>
+                    : <span className="font-medium text-stone-400">0</span>,
+              },
+              {
+                key: 'late',
+                label: 'Late',
+                align: 'center',
+                render: (row) =>
+                  row.late > 0
+                    ? <span className="font-medium text-warning">{row.late}</span>
+                    : <span className="font-medium text-stone-400">0</span>,
+              },
+              {
+                key: 'rate',
+                label: 'Att. %',
+                align: 'center',
+                render: (row) => (
+                  <span className="inline-flex items-center gap-1.5">
+                    {row.attendanceRate < 85 && <AlertTriangle size={13} className="text-warning" />}
+                    <RateChip rate={row.attendanceRate} />
+                  </span>
+                ),
+              },
+            ]}
+          />
         )}
       </div>
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, CheckCircle2, XCircle, X, MoreHorizontal, RotateCcw, Ban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { PageLayout, PageHeader, EmptyState } from '@/components/ui';
+import { PageLayout, PageHeader, EmptyState, ExcelTable } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { listLeaveRequests, approveLeaveRequest, rejectLeaveRequest, cancelLeaveRequest, revertLeaveRequest } from '@/services/hrService';
@@ -78,7 +78,7 @@ function ReviewDrawer({
 
         {/* Employee card */}
         <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-4 py-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-label-md font-bold text-[#2C1810]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-crema text-label-md font-bold text-espresso">
             {user.name.charAt(0).toUpperCase()}
           </span>
           <div>
@@ -121,9 +121,9 @@ function ReviewDrawer({
 
         {/* Balance preview */}
         {balanceAfter !== null && (
-          <div className="flex items-center justify-between rounded-lg border border-[#86EFAC] bg-[#EDFAF1] px-3 py-2.5">
-            <span className="text-body-sm font-medium text-[#1A6B3C]">Balance after approval</span>
-            <span className="text-heading-sm font-bold text-[#1A6B3C]">{balanceAfter}d left</span>
+          <div className="flex items-center justify-between rounded-lg border border-success-border bg-success-bg px-3 py-2.5">
+            <span className="text-body-sm font-medium text-success">Balance after approval</span>
+            <span className="text-heading-sm font-bold text-success">{balanceAfter}d left</span>
           </div>
         )}
 
@@ -146,7 +146,7 @@ function ReviewDrawer({
           <button
             onClick={() => void onApprove(comment)}
             disabled={loading}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2C1810] py-2.5 text-label-sm font-bold text-white transition-colors hover:bg-[#4A2C1A] disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-espresso py-2.5 text-label-sm font-bold text-white transition-colors hover:bg-espresso-light disabled:opacity-50"
           >
             <CheckCircle2 size={14} />
             {loading ? 'Approving…' : 'Approve'}
@@ -154,7 +154,7 @@ function ReviewDrawer({
           <button
             onClick={() => void onReject(comment)}
             disabled={loading}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] py-2.5 text-label-sm font-bold text-[#991B1B] transition-colors hover:bg-[#FEE2E2] disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-danger-border bg-danger-bg py-2.5 text-label-sm font-bold text-danger transition-colors hover:bg-danger-bg/80 disabled:opacity-50"
           >
             <XCircle size={14} />
             {loading ? 'Rejecting…' : 'Reject'}
@@ -218,7 +218,7 @@ function HistoryActionMenu({
           {canCancel && (
             <button
               onClick={() => { setOpen(false); onCancel(); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-body-sm text-[#991B1B] transition-colors hover:bg-[#FEF2F2]"
+              className="flex w-full items-center gap-2 px-3 py-2 text-body-sm text-danger transition-colors hover:bg-danger-bg"
             >
               <Ban size={13} />
               Cancel Leave
@@ -355,11 +355,11 @@ export default function LeaveRequestsPage(): JSX.Element {
       {/* ── Pending Queue ─────────────────────────────────────────────────── */}
       <section>
         <div className="mb-3 flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-[#92650A]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-warning">
             Pending Review
           </span>
           {pending.length > 0 && (
-            <span className="inline-flex h-4.5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#9B3A2A] px-1.5 text-[10px] font-bold text-white">
+            <span className="inline-flex h-4.5 min-w-[1.25rem] items-center justify-center rounded-full bg-status-cancelled-text px-1.5 text-[10px] font-bold text-white">
               {pending.length}
             </span>
           )}
@@ -382,46 +382,49 @@ export default function LeaveRequestsPage(): JSX.Element {
             <p className="text-body-sm text-stone-400">No pending requests — you&apos;re all caught up.</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-[#F0D080] bg-[#FFFDF5] shadow-sm overflow-hidden">
-            <table className="w-full text-body-sm">
-              <thead>
-                <tr className="border-b border-[#F0D080] bg-[#FDF3DC]">
-                  <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#92650A]">Employee</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#92650A]">Type</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#92650A]">Dates</th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#92650A]">Days</th>
-                  <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-[#92650A]"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F0D080]/50">
-                {pending.map((req) => (
-                  <tr key={req.id} className="bg-[#FFFDF5] transition-colors hover:bg-[#FDF8E8]">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-label-sm font-bold text-[#2C1810]">
-                          {req.employeeProfile.user.name.charAt(0).toUpperCase()}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
-                          <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
-                        </div>
+          <div className="rounded-xl border border-status-pending-border bg-status-pending-bg p-2 shadow-sm">
+            <ExcelTable
+              headerTone="gray"
+              rowKey={(req) => req.id}
+              rows={pending}
+              columns={[
+                {
+                  key: 'employee',
+                  label: 'Employee',
+                  render: (req) => (
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-crema text-label-sm font-bold text-espresso">
+                        {req.employeeProfile.user.name.charAt(0).toUpperCase()}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
+                        <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3.5"><LeaveTypeBadge type={req.leaveType} /></td>
-                    <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
-                    <td className="px-4 py-3.5 font-semibold text-stone-900">{Number(req.totalDays)}d</td>
-                    <td className="px-4 py-3.5 text-right">
-                      <button
-                        onClick={() => setDrawerRequest(req)}
-                        className="rounded-md bg-[#2C1810] px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-[#4A2C1A]"
-                      >
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ),
+                },
+                { key: 'type', label: 'Type', render: (req) => <LeaveTypeBadge type={req.leaveType} /> },
+                { key: 'dates', label: 'Dates', render: (req) => formatDateRange(req.startDate, req.endDate) },
+                {
+                  key: 'days',
+                  label: 'Days',
+                  render: (req) => <span className="font-semibold text-stone-900">{Number(req.totalDays)}d</span>,
+                },
+                {
+                  key: 'action',
+                  label: '',
+                  align: 'right',
+                  render: (req) => (
+                    <button
+                      onClick={() => setDrawerRequest(req)}
+                      className="rounded-md bg-espresso px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-espresso-light"
+                    >
+                      Review
+                    </button>
+                  ),
+                },
+              ]}
+            />
           </div>
         )}
       </section>
@@ -452,7 +455,7 @@ export default function LeaveRequestsPage(): JSX.Element {
                   onClick={() => setHistoryStatus(tab.value)}
                   className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                     historyStatus === tab.value
-                      ? 'bg-[#2C1810] text-white'
+                      ? 'bg-espresso text-white'
                       : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
                   }`}
                 >
@@ -499,63 +502,65 @@ export default function LeaveRequestsPage(): JSX.Element {
               />
             </div>
           ) : (
-            <table className="w-full text-body-sm">
-              <thead>
-                <tr className="border-b border-stone-100 bg-stone-50">
-                  <th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Employee</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Type</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Dates</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Days</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Reviewed By</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-stone-400">Comment</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-stone-400"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {history.map((req) => (
-                  <tr key={req.id} className="transition-colors hover:bg-stone-50">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5F0E8] text-[11px] font-bold text-[#2C1810]">
-                          {req.employeeProfile.user.name.charAt(0).toUpperCase()}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
-                          <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
-                        </div>
+            <ExcelTable
+              headerTone="gray"
+              rowKey={(req) => req.id}
+              rows={history}
+              columns={[
+                {
+                  key: 'employee',
+                  label: 'Employee',
+                  render: (req) => (
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-crema text-[11px] font-bold text-espresso">
+                        {req.employeeProfile.user.name.charAt(0).toUpperCase()}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-stone-900">{req.employeeProfile.user.name}</p>
+                        <p className="text-caption text-stone-400">{roleLabel(req.employeeProfile.user.role)}</p>
                       </div>
-                    </td>
-                    <td className="px-4 py-3.5"><LeaveTypeBadge type={req.leaveType} /></td>
-                    <td className="px-4 py-3.5 text-stone-600">{formatDateRange(req.startDate, req.endDate)}</td>
-                    <td className="px-4 py-3.5 font-medium text-stone-700">{Number(req.totalDays)}d</td>
-                    <td className="px-4 py-3.5"><LeaveStatusBadge status={req.status} /></td>
-                    <td className="px-4 py-3.5">
-                      {req.reviewedBy ? (
-                        <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
-                      ) : (
-                        <span className="text-caption text-stone-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 max-w-[180px]">
-                      {req.reviewComment ? (
-                        <span className="truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>
-                      ) : (
-                        <span className="text-caption text-stone-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <HistoryActionMenu
-                        request={req}
-                        onRevert={() => void handleRevert(req)}
-                        onCancel={() => void handleCancel(req)}
-                        loading={actionId === req.id}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ),
+                },
+                { key: 'type', label: 'Type', render: (req) => <LeaveTypeBadge type={req.leaveType} /> },
+                { key: 'dates', label: 'Dates', render: (req) => <span className="text-stone-600">{formatDateRange(req.startDate, req.endDate)}</span> },
+                {
+                  key: 'days',
+                  label: 'Days',
+                  render: (req) => <span className="font-medium text-stone-700">{Number(req.totalDays)}d</span>,
+                },
+                { key: 'status', label: 'Status', render: (req) => <LeaveStatusBadge status={req.status} /> },
+                {
+                  key: 'reviewedBy',
+                  label: 'Reviewed By',
+                  render: (req) =>
+                    req.reviewedBy
+                      ? <span className="text-body-sm text-stone-700">{req.reviewedBy.name}</span>
+                      : <span className="text-caption text-stone-300">—</span>,
+                },
+                {
+                  key: 'comment',
+                  label: 'Comment',
+                  render: (req) =>
+                    req.reviewComment
+                      ? <span className="block max-w-[180px] truncate text-caption italic text-stone-400">&ldquo;{req.reviewComment}&rdquo;</span>
+                      : <span className="text-caption text-stone-300">—</span>,
+                },
+                {
+                  key: 'action',
+                  label: '',
+                  align: 'right',
+                  render: (req) => (
+                    <HistoryActionMenu
+                      request={req}
+                      onRevert={() => void handleRevert(req)}
+                      onCancel={() => void handleCancel(req)}
+                      loading={actionId === req.id}
+                    />
+                  ),
+                },
+              ]}
+            />
           )}
         </div>
       </section>
