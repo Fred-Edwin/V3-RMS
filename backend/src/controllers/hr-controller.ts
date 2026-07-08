@@ -175,8 +175,24 @@ export async function getMyLeaveRequests(req: Request, res: Response): Promise<v
 
 export async function listLeaveRequests(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
-  const query = leaveRequestsQuerySchema.parse(req.query);
-  const result = await hrService.listLeaveRequests(actor, query);
+  const { resolvedSinceDays, excludeAcknowledgedByMe, ...query } = leaveRequestsQuerySchema.parse(req.query);
+  const resolvedSince = resolvedSinceDays
+    ? new Date(Date.now() - resolvedSinceDays * 24 * 60 * 60 * 1000)
+    : undefined;
+  const result = await hrService.listLeaveRequests(actor, { ...query, resolvedSince, excludeAcknowledgedByMe });
+  res.json({ success: true, data: result });
+}
+
+export async function acknowledgeLeaveRequest(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const { id } = hrRouteIdParamSchema.parse(req.params);
+  await hrService.acknowledgeLeaveRequest(actor, id);
+  res.json({ success: true });
+}
+
+export async function acknowledgeAllResolvedLeaveRequests(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const result = await hrService.acknowledgeAllResolvedLeaveRequests(actor);
   res.json({ success: true, data: result });
 }
 

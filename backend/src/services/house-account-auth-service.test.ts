@@ -89,7 +89,7 @@ const buildAuthRequest = (overrides = {}) => ({
   resolvedAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
-  order: { id: orderId, dailyNumber: 7, total: { toString: () => '5000.00' } },
+  order: { id: orderId, dailyNumber: 7, total: { toString: () => '5000.00' }, items: [] },
   houseAccount: { id: accountId, user: { id: holderId, name: 'Director' } },
   requestedBy: { id: waiterId, name: 'Waiter' },
   resolvedBy: null,

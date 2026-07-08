@@ -459,15 +459,44 @@ export async function listLeaveRequests(
     status?: import('@prisma/client').LeaveStatus;
     page: number;
     limit: number;
+    resolvedSince?: Date;
+    excludeAcknowledgedByMe?: boolean;
   },
 ) {
+  const { excludeAcknowledgedByMe, ...rest } = params;
+  const excludeAcknowledgedBy = excludeAcknowledgedByMe ? actor.id : undefined;
+
   if (isHrAuthority(actor.role)) {
-    return hrRepository.listLeaveRequests(params);
+    return hrRepository.listLeaveRequests({ ...rest, excludeAcknowledgedBy });
   }
   if (actor.role === 'MANAGER') {
-    return hrRepository.listLeaveRequests({ ...params, organizationId: actor.organizationId ?? undefined });
+    return hrRepository.listLeaveRequests({
+      ...rest,
+      organizationId: actor.organizationId ?? undefined,
+      excludeAcknowledgedBy,
+    });
   }
   throw new ForbiddenError('Access denied');
+}
+
+export async function acknowledgeLeaveRequest(actor: HrActor, id: string) {
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('Access denied');
+  }
+  const request = await hrRepository.findLeaveRequestById(id, actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined);
+  if (!request) throw new NotFoundError('Leave request not found');
+
+  return hrRepository.acknowledgeLeaveRequest(id, actor.id);
+}
+
+export async function acknowledgeAllResolvedLeaveRequests(actor: HrActor) {
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    throw new ForbiddenError('Access denied');
+  }
+  return hrRepository.acknowledgeAllResolvedLeaveRequests({
+    organizationId: actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined,
+    userId: actor.id,
+  });
 }
 
 export async function getMyLeaveRequests(actor: HrActor, page: number, limit: number) {

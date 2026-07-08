@@ -115,6 +115,21 @@ router.get(
   hrController.listLeaveRequests,
 );
 
+// Must register before /:id/acknowledge to avoid Express matching 'acknowledge-all' as an :id
+router.post(
+  '/hr/leave/requests/acknowledge-all',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.acknowledgeAllResolvedLeaveRequests,
+);
+
+router.post(
+  '/hr/leave/requests/:id/acknowledge',
+  authenticate,
+  requireRole(...HR_AND_MANAGER),
+  hrController.acknowledgeLeaveRequest,
+);
+
 router.post(
   '/hr/leave/requests/:id/approve',
   authenticate,

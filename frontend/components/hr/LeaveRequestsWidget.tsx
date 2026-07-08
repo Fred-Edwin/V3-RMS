@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarOff, Check, X } from 'lucide-react';
-import { listLeaveRequests } from '@/services/hrService';
+import { CalendarOff, Check, ChevronDown, X } from 'lucide-react';
+import { acknowledgeAllResolvedLeaveRequests, acknowledgeLeaveRequest, listLeaveRequests } from '@/services/hrService';
 import { useAuthStore } from '@/store/authStore';
-import { useLeaveAcknowledgements } from '@/hooks/useLeaveAcknowledgements';
 import { LeaveTypeBadge, formatDateRange, roleLabel } from '@/components/hr/LeaveTypeBadge';
 import type { LeaveRequest } from '@/types/hr';
+
+/** Resolved (approved/rejected) requests older than this are hidden by default. */
+const RESOLVED_WINDOW_DAYS = 7;
 
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 
@@ -223,34 +225,28 @@ function LeaveCard({
 interface LeaveRequestsWidgetProps {
   /** Pass organizationId to scope to a single branch (Manager). Omit for all branches (Director). */
   organizationId?: string;
+  /** Notified whenever the pending count changes, so a parent "Needs your action" section can decide its empty state. */
+  onPendingCountChange?: (count: number) => void;
 }
 
-export function LeaveRequestsWidget({ organizationId }: LeaveRequestsWidgetProps): JSX.Element | null {
+export function LeaveRequestsWidget({ organizationId, onPendingCountChange }: LeaveRequestsWidgetProps): JSX.Element | null {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const userId = useAuthStore((s) => s.user?.id ?? null);
-  const { acknowledge, isAcknowledged } = useLeaveAcknowledgements(userId);
 
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [drawer, setDrawer] = useState<LeaveRequest | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
     try {
-      // Load PENDING + recently resolved (no status filter = all, server returns up to limit)
-      const [pending, resolved] = await Promise.all([
-        listLeaveRequests({ organizationId, status: 'PENDING', page: 1, limit: 50 }, accessToken),
-        listLeaveRequests({ organizationId, page: 1, limit: 50 }, accessToken),
-      ]);
-      // Merge: pending first, then resolved (APPROVED/REJECTED), deduped
-      const seen = new Set<string>();
-      const merged: LeaveRequest[] = [];
-      for (const r of [...pending.items, ...resolved.items]) {
-        if (!seen.has(r.id)) {
-          seen.add(r.id);
-          merged.push(r);
-        }
-      }
-      setRequests(merged);
+      // Server excludes requests already acknowledged by this user, and limits
+      // resolved (APPROVED/REJECTED) items to the last RESOLVED_WINDOW_DAYS —
+      // pending items are always included regardless of age.
+      const result = await listLeaveRequests(
+        { organizationId, page: 1, limit: 50, resolvedSinceDays: RESOLVED_WINDOW_DAYS, excludeAcknowledgedByMe: true },
+        accessToken,
+      );
+      setRequests(result.items);
     } catch {
       // Non-critical — widget stays empty
     }
@@ -258,61 +254,106 @@ export function LeaveRequestsWidget({ organizationId }: LeaveRequestsWidgetProps
 
   useEffect(() => { void load(); }, [load]);
 
-  // Filter: show PENDING always + APPROVED/REJECTED only if not yet acknowledged
-  const visible = requests.filter((r) => {
-    if (r.status === 'PENDING') return true;
-    if (r.status === 'APPROVED' || r.status === 'REJECTED') return !isAcknowledged(r.id);
-    return false;
-  });
+  useEffect(() => {
+    onPendingCountChange?.(requests.filter((r) => r.status === 'PENDING').length);
+  }, [requests, onPendingCountChange]);
 
-  // Counts for header
-  const pendingCount = visible.filter((r) => r.status === 'PENDING').length;
-  const needsAttentionCount = visible.filter((r) => r.status !== 'PENDING').length;
+  const acknowledge = useCallback(
+    (requestId: string) => {
+      if (!accessToken) return;
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      void acknowledgeLeaveRequest(requestId, accessToken).catch(() => void load());
+    },
+    [accessToken, load],
+  );
 
-  if (visible.length === 0) return null;
+  const acknowledgeAll = useCallback(() => {
+    if (!accessToken) return;
+    setRequests((prev) => prev.filter((r) => r.status === 'PENDING'));
+    void acknowledgeAllResolvedLeaveRequests(accessToken).catch(() => void load());
+  }, [accessToken, load]);
+
+  const pending = requests.filter((r) => r.status === 'PENDING');
+  const resolved = requests.filter((r) => r.status !== 'PENDING');
+
+  if (requests.length === 0) return null;
 
   return (
     <>
-      <div className="rounded-xl border border-[#E0D5C8] bg-[#FAF7F4] p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CalendarOff size={15} className="shrink-0 text-[#6B4C2A]" />
-            <p className="text-body-sm font-semibold text-[#6B4C2A]">
-              Leave Requests
-            </p>
-            {pendingCount > 0 && (
-              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#92650A] px-1.5 text-[10px] font-bold text-white">
-                {pendingCount} pending
-              </span>
-            )}
-            {needsAttentionCount > 0 && (
-              <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-stone-400 px-1.5 text-[10px] font-bold text-white">
-                {needsAttentionCount} to review
-              </span>
+      <div className="space-y-3">
+        {/* ── Needs your action: pending requests only, always visible ── */}
+        {pending.length > 0 && (
+          <div className="rounded-xl border border-[#E0D5C8] bg-[#FAF7F4] p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarOff size={15} className="shrink-0 text-[#6B4C2A]" />
+                <p className="text-body-sm font-semibold text-[#6B4C2A]">Leave Requests</p>
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#92650A] px-1.5 text-[10px] font-bold text-white">
+                  {pending.length} pending
+                </span>
+              </div>
+              <span className="text-caption text-[#9A7A5A]">Tap a card for details</span>
+            </div>
+            <div className="space-y-1.5">
+              {pending.map((req) => (
+                <LeaveCard
+                  key={req.id}
+                  request={req}
+                  onOpen={() => setDrawer(req)}
+                  onAcknowledge={() => acknowledge(req.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Recent decisions: resolved, collapsed by default, de-emphasized ── */}
+        {resolved.length > 0 && (
+          <div className="rounded-xl border border-stone-200 bg-white">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((v) => !v)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-body-sm font-medium text-stone-500">Recent decisions</span>
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-stone-200 px-1.5 text-[10px] font-bold text-stone-600">
+                  {resolved.length}
+                </span>
+              </div>
+              <ChevronDown
+                size={16}
+                className={`shrink-0 text-stone-400 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {historyOpen && (
+              <div className="space-y-2 border-t border-stone-100 px-4 pb-4 pt-3">
+                <div className="space-y-1.5">
+                  {resolved.map((req) => (
+                    <LeaveCard
+                      key={req.id}
+                      request={req}
+                      onOpen={() => setDrawer(req)}
+                      onAcknowledge={() => acknowledge(req.id)}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <p className="text-caption text-stone-400">
+                    Tap <Check size={10} className="inline" /> to dismiss a decision you&apos;ve noted.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={acknowledgeAll}
+                    className="shrink-0 text-caption font-semibold text-stone-600 underline hover:text-stone-800"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-          <span className="text-caption text-[#9A7A5A]">Tap a card for details</span>
-        </div>
-
-        {/* Cards */}
-        <div className="space-y-1.5">
-          {visible.map((req) => (
-            <LeaveCard
-              key={req.id}
-              request={req}
-              onOpen={() => setDrawer(req)}
-              onAcknowledge={() => acknowledge(req.id)}
-            />
-          ))}
-        </div>
-
-        {/* Footer hint — only shown when there are resolved cards awaiting ack */}
-        {needsAttentionCount > 0 && (
-          <p className="text-caption text-[#9A7A5A] pt-1">
-            Tap <Check size={10} className="inline" /> to dismiss decisions you&apos;ve noted.
-            Pending requests stay until HR acts.
-          </p>
         )}
       </div>
 

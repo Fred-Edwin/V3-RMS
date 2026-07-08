@@ -3,7 +3,19 @@ import { prisma } from '../config/database';
 
 const authRequestInclude = {
   order: {
-    select: { id: true, dailyNumber: true, total: true },
+    select: {
+      id: true,
+      dailyNumber: true,
+      total: true,
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+          notes: true,
+          menuItem: { select: { id: true, name: true } },
+        },
+      },
+    },
   },
   houseAccount: {
     select: {

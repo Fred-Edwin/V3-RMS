@@ -119,6 +119,10 @@ export const leaveRequestsQuerySchema = z.object({
   leaveType: z.enum(['ANNUAL', 'SICK', 'EMERGENCY', 'UNPAID']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(500).default(20),
+  /** Only return resolved requests reviewed in the last N days (pending always included). */
+  resolvedSinceDays: z.coerce.number().int().min(1).max(365).optional(),
+  /** Exclude requests the requesting user has already acknowledged. */
+  excludeAcknowledgedByMe: z.coerce.boolean().optional(),
 });
 
 // ─── Attendance Analytics ─────────────────────────────────────────────────────

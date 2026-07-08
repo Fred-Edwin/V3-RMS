@@ -127,6 +127,7 @@ model User {
   managedEmployeeProfiles  EmployeeProfile[]       @relation("EmployeeProfileManager")
   leaveRequestsReviewed    LeaveRequest[]          @relation("LeaveReviewedBy")
   leaveRequestsCancelled   LeaveRequest[]          @relation("LeaveCancelledBy")
+  leaveRequestAcknowledgements LeaveRequestAcknowledgement[]
   disciplinaryRecordsIssued DisciplinaryRecord[]   @relation("DisciplinaryIssuedBy")
   hrDocumentsUploaded      HrDocument[]            @relation("HrDocumentUploadedBy")
   payslips                 Payslip[]               @relation("StaffPayslips")
@@ -1161,10 +1162,25 @@ model LeaveRequest {
   reviewedBy        User?           @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
   cancelledBy       User?           @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
   documents         HrDocument[]
+  acknowledgements  LeaveRequestAcknowledgement[]
 
   @@index([organizationId, status])
   @@index([employeeProfileId])
   @@map("leave_requests")
+}
+
+model LeaveRequestAcknowledgement {
+  id             String   @id @default(uuid())
+  leaveRequestId String   @map("leave_request_id")
+  userId         String   @map("user_id")
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([leaveRequestId, userId])
+  @@index([userId])
+  @@map("leave_request_acknowledgements")
 }
 
 model DisciplinaryRecord {

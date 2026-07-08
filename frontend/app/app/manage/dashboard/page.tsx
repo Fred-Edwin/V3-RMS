@@ -12,6 +12,7 @@ import {
   StatCard,
 } from '@/components/ui';
 import { ComparisonBars, HourlyBarsChart } from '@/components/dashboard/PremiumChart';
+import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApprovalCard';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
@@ -123,6 +124,7 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [isLoadingShifts, setIsLoadingShifts] = useState(true);
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
   const [pendingDiscountAuths, setPendingDiscountAuths] = useState<StaffDiscountAuthRequest[]>([]);
   const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
@@ -434,9 +436,9 @@ export default function ManagerDashboardPage(): JSX.Element {
   const hasClosedOrdersForSelectedDate = (dailySummary?.orderCount ?? 0) > 0;
 
   const idleReadyOrders = useMemo(() => {
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     return activeOrders.filter(
-      (o) => o.status === 'READY' && new Date(o.createdAt) < thirtyMinutesAgo,
+      (o) => o.status === 'READY' && new Date(o.createdAt) < twoHoursAgo,
     );
   }, [activeOrders]);
 
@@ -467,11 +469,6 @@ export default function ManagerDashboardPage(): JSX.Element {
       </div>
 
       <InboxNudge />
-
-      {/* ── Leave Requests Widget ───────────────────────────────────────── */}
-      <div className="print:hidden">
-        <LeaveRequestsWidget />
-      </div>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-2">
         <StatCard
@@ -505,8 +502,8 @@ export default function ManagerDashboardPage(): JSX.Element {
             <div className="min-w-0 flex-1">
               <p className="text-body-sm font-semibold text-warning">
                 {idleReadyOrders.length === 1
-                  ? '1 order has been ready for over 30 minutes'
-                  : `${idleReadyOrders.length} orders have been ready for over 30 minutes`}
+                  ? '1 order has been ready for over 2 hours'
+                  : `${idleReadyOrders.length} orders have been ready for over 2 hours`}
               </p>
               <p className="mt-0.5 text-caption text-stone-500">A waiter may have forgotten to record payment.</p>
               <div className="mt-3 space-y-1.5">
@@ -593,69 +590,27 @@ export default function ManagerDashboardPage(): JSX.Element {
         </div>
       )}
 
-      {/* ── Pending House Account Authorizations ───────────────────── */}
-      {pendingAuths.length > 0 && (
-        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
-          <div className="flex items-center gap-2">
-            <Clock size={16} className="text-warning shrink-0" />
-            <p className="text-body-sm font-semibold text-warning">
-              {pendingAuths.length === 1
-                ? '1 house account charge awaiting your approval'
-                : `${pendingAuths.length} house account charges awaiting your approval`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            {pendingAuths.map((req) => {
-              const loading = authOverrideSubmittingId === req.id;
-              return (
-                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-semibold text-stone-900">
-                      Order #{req.order.dailyNumber}
-                      <span className="ml-2 font-normal text-stone-500">
-                        KES {Number.parseFloat(req.amount).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      </span>
-                    </p>
-                    <p className="text-caption text-stone-500 mt-0.5">
-                      {req.houseAccount.user.name} · via {req.requestedBy.name}
-                    </p>
-                  </div>
-                  {(
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        disabled={!!authOverrideSubmittingId}
-                        onClick={() => void handleAuthDecision(req.id, 'APPROVED')}
-                        className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
-                      >
-                        {loading ? (
-                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        ) : (
-                          <CheckCircle size={13} />
-                        )}
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!!authOverrideSubmittingId}
-                        onClick={() => void handleAuthDecision(req.id, 'REJECTED')}
-                        className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
-                      >
-                        {loading ? (
-                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        ) : (
-                          <XCircle size={13} />
-                        )}
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── Needs your action: house account approvals + pending leave ───── */}
+      <section className="space-y-3 print:hidden">
+        <h2 className="text-label-md font-semibold uppercase tracking-wider text-stone-500">
+          Needs your action
+        </h2>
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && (
+          <EmptyState
+            icon={<CheckCircle size={28} />}
+            heading="Nothing pending right now"
+            body="House account approvals and leave requests needing your decision will show up here."
+            className="rounded-xl border border-stone-200 bg-white py-8"
+          />
+        )}
+        <HouseAccountApprovalCard
+          pendingAuths={pendingAuths}
+          authOverrideSubmittingId={authOverrideSubmittingId}
+          onDecide={(id, decision) => void handleAuthDecision(id, decision)}
+        />
+        {/* Widget renders its own "pending" (action) + "recent decisions" (collapsed) sections */}
+        <LeaveRequestsWidget onPendingCountChange={setPendingLeaveCount} />
+      </section>
 
       {/* ── Pending Staff Discount Authorizations ──────────────────── */}
       {pendingDiscountAuths.length > 0 && (

@@ -23,6 +23,7 @@ import { RankedItemList } from '@/components/dashboard/RankedItemList';
 import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
+import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApprovalCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { getSocket } from '@/lib/socket';
@@ -481,6 +482,7 @@ export default function DirectorCommandCentrePage(): JSX.Element {
   // ── Pending house account authorizations ─────────────────────────────────
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
 
 
   useEffect(() => {
@@ -581,72 +583,27 @@ export default function DirectorCommandCentrePage(): JSX.Element {
 
       <InboxNudge />
 
-      {/* ── Pending House Account Authorizations ─────────────────────────── */}
-      {pendingAuths.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock size={16} className="text-amber-600 shrink-0" />
-            <p className="text-body-sm font-semibold text-amber-800">
-              {pendingAuths.length === 1
-                ? '1 house account charge awaiting your approval'
-                : `${pendingAuths.length} house account charges awaiting your approval`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            {pendingAuths.map((req) => {
-              const loading = authOverrideSubmittingId === req.id;
-              return (
-                <div key={req.id} className="rounded-lg border border-amber-200 bg-white p-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-semibold text-stone-900">
-                      Order #{req.order.dailyNumber}
-                      <span className="ml-2 font-normal text-stone-500">
-                        KES {Number.parseFloat(req.amount).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      </span>
-                    </p>
-                    <p className="text-caption text-stone-500 mt-0.5">
-                      {req.houseAccount.user.name} · via {req.requestedBy.name}
-                    </p>
-                  </div>
-                  {(
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        disabled={!!authOverrideSubmittingId}
-                        onClick={() => void handleAuthDecision(req.id, 'APPROVED')}
-                        className="flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                      >
-                        {loading ? (
-                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        ) : (
-                          <Activity size={13} />
-                        )}
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!!authOverrideSubmittingId}
-                        onClick={() => void handleAuthDecision(req.id, 'REJECTED')}
-                        className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-label-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-                      >
-                        {loading ? (
-                          <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        ) : (
-                          <AlertTriangle size={13} />
-                        )}
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Leave Requests Widget ─────────────────────────────────────────── */}
-      <LeaveRequestsWidget />
+      {/* ── Needs your action: house account approvals + pending leave ────── */}
+      <section className="space-y-3">
+        <h2 className="text-label-md font-semibold uppercase tracking-wider text-stone-500">
+          Needs your action
+        </h2>
+        {pendingAuths.length === 0 && pendingLeaveCount === 0 && (
+          <EmptyState
+            icon={<ChevronRight size={28} />}
+            heading="Nothing pending right now"
+            body="House account approvals and leave requests needing your decision will show up here."
+            className="rounded-xl border border-stone-200 bg-white py-8"
+          />
+        )}
+        <HouseAccountApprovalCard
+          pendingAuths={pendingAuths}
+          authOverrideSubmittingId={authOverrideSubmittingId}
+          onDecide={(id, decision) => void handleAuthDecision(id, decision)}
+        />
+        {/* Widget renders its own "pending" (action) + "recent decisions" (collapsed) sections */}
+        <LeaveRequestsWidget onPendingCountChange={setPendingLeaveCount} />
+      </section>
 
       {/* ── System-wide KPI strip ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

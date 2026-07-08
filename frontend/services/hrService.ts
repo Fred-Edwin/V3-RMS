@@ -93,7 +93,15 @@ export async function getMyLeaveRequests(
 }
 
 export async function listLeaveRequests(
-  params: { organizationId?: string; status?: string; leaveType?: string; page?: number; limit?: number },
+  params: {
+    organizationId?: string;
+    status?: string;
+    leaveType?: string;
+    page?: number;
+    limit?: number;
+    resolvedSinceDays?: number;
+    excludeAcknowledgedByMe?: boolean;
+  },
   token: string,
 ): Promise<LeaveRequestsPage> {
   const q = new URLSearchParams();
@@ -102,7 +110,17 @@ export async function listLeaveRequests(
   if (params.leaveType) q.set('leaveType', params.leaveType);
   if (params.page) q.set('page', String(params.page));
   if (params.limit) q.set('limit', String(params.limit));
+  if (params.resolvedSinceDays) q.set('resolvedSinceDays', String(params.resolvedSinceDays));
+  if (params.excludeAcknowledgedByMe) q.set('excludeAcknowledgedByMe', 'true');
   return apiClient.get<LeaveRequestsPage>(`/hr/leave/requests?${q.toString()}`, token);
+}
+
+export async function acknowledgeLeaveRequest(id: string, token: string): Promise<void> {
+  await apiClient.post(`/hr/leave/requests/${id}/acknowledge`, {}, token);
+}
+
+export async function acknowledgeAllResolvedLeaveRequests(token: string): Promise<{ count: number }> {
+  return apiClient.post(`/hr/leave/requests/acknowledge-all`, {}, token);
 }
 
 export async function approveLeaveRequest(

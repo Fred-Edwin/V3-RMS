@@ -2518,13 +2518,27 @@ Records a balance repayment (decrements `currentBalance`).
 
 ### House Account Authorization
 
-#### GET `/house-account-auth`
+#### GET `/house-auth`
 **Access:** 🔑 MGR, DIR
-Returns pending House Account authorization requests for the branch.
+Returns pending House Account authorization requests for the branch. Each request's
+`order` includes `items` (menu item name, quantity, notes) so approvers can see what
+was ordered before deciding.
 
-#### POST `/house-account-auth/:id/override`
+#### GET `/house-auth/:authRequestId`
+**Access:** 🔑 MGR, DIR, WAITER
+Fetches a specific auth request by ID (account holder or manager/director).
+
+#### GET `/orders/:orderId/house-auth`
+**Access:** 🔑 MGR, DIR, WAITER
+Fetches the pending auth request for an order.
+
+#### POST `/house-auth/:authRequestId/resolve`
 **Access:** 🔑 MGR, DIR
-Approves or rejects a pending House Account payment request.
+Account holder approves or rejects their own pending charge.
+
+#### POST `/house-auth/:authRequestId/override`
+**Access:** 🔑 MGR, DIR
+Manager/director overrides a pending House Account payment request.
 
 **Request Body:**
 ```json
@@ -2534,7 +2548,7 @@ Approves or rejects a pending House Account payment request.
 - On `APPROVE`: order is closed, `houseAccount.currentBalance` incremented atomically.
 - On `REJECT`: order returns to `READY`, `PAYMENT_REJECTED` incident logged, waiter notified.
 
-#### POST `/house-account-auth/:id/force-expire`
+#### POST `/house-auth/:authRequestId/force-expire`
 **Access:** 🔑 MGR, DIR
 Force-expires a stuck authorization request. Escape hatch for genuinely expired orders.
 
@@ -2947,9 +2961,23 @@ Returns leave requests. Managers see only their branch; HR/Director see all.
 
 **Query Params:**
 ```
-status          (optional) — PENDING | APPROVED | REJECTED | CANCELLED
-organizationId  (optional, HR/DIR/SA)
+status                   (optional) — PENDING | APPROVED | REJECTED | CANCELLED
+organizationId            (optional, HR/DIR/SA)
+resolvedSinceDays         (optional) — only include resolved (APPROVED/REJECTED) requests
+                          reviewed in the last N days; PENDING requests are always included
+excludeAcknowledgedByMe   (optional, boolean) — exclude requests the caller has already
+                          acknowledged via POST /hr/leave/requests/:id/acknowledge
 ```
+
+#### POST `/hr/leave/requests/:id/acknowledge`
+**Access:** 🔑 HR, MGR, DIR, SA
+Marks a resolved leave request as seen/dismissed by the caller (per-user, persisted in
+the database). Used by dashboard widgets so old decisions don't pile up indefinitely.
+
+#### POST `/hr/leave/requests/acknowledge-all`
+**Access:** 🔑 HR, MGR, DIR, SA
+Acknowledges every currently resolved (APPROVED/REJECTED) leave request in the caller's
+scope in one call — backs the "Clear all" action on dashboard widgets.
 
 #### GET `/hr/leave/requests/mine`
 **Access:** 🔑 ALL

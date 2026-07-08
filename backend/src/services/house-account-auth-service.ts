@@ -37,6 +37,12 @@ const serializeAuthRequest = (
       id: raw.order.id,
       dailyNumber: raw.order.dailyNumber,
       total: raw.order.total.toString(),
+      items: raw.order.items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        notes: item.notes,
+        menuItem: { id: item.menuItem.id, name: item.menuItem.name },
+      })),
     },
     houseAccount: {
       id: raw.houseAccount.id,
@@ -91,7 +97,21 @@ export const houseAccountAuthService = {
           expiresAt,
         },
         include: {
-          order: { select: { id: true, dailyNumber: true, total: true } },
+          order: {
+            select: {
+              id: true,
+              dailyNumber: true,
+              total: true,
+              items: {
+                select: {
+                  id: true,
+                  quantity: true,
+                  notes: true,
+                  menuItem: { select: { id: true, name: true } },
+                },
+              },
+            },
+          },
           houseAccount: { select: { id: true, user: { select: { id: true, name: true } } } },
           requestedBy: { select: { id: true, name: true } },
           resolvedBy: { select: { id: true, name: true } },

@@ -19,6 +19,12 @@ export interface HouseAccountAuthRequest {
     id: string;
     dailyNumber: number;
     total: string;
+    items: {
+      id: string;
+      quantity: number;
+      notes: string | null;
+      menuItem: { id: string; name: string };
+    }[];
   };
   houseAccount: {
     id: string;

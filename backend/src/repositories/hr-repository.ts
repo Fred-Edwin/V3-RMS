@@ -307,11 +307,21 @@ export async function listLeaveRequests(params: {
   status?: LeaveStatus;
   page: number;
   limit: number;
+  /** Only return resolved (APPROVED/REJECTED) requests reviewed on/after this date. Ignored for PENDING. */
+  resolvedSince?: Date;
+  /** Exclude requests this user has already acknowledged. */
+  excludeAcknowledgedBy?: string;
 }) {
   const where = {
     ...(params.organizationId ? { organizationId: params.organizationId } : {}),
     ...(params.employeeProfileId ? { employeeProfileId: params.employeeProfileId } : {}),
     ...(params.status ? { status: params.status } : {}),
+    ...(params.resolvedSince
+      ? { OR: [{ status: 'PENDING' as const }, { reviewedAt: { gte: params.resolvedSince } }] }
+      : {}),
+    ...(params.excludeAcknowledgedBy
+      ? { acknowledgements: { none: { userId: params.excludeAcknowledgedBy } } }
+      : {}),
   };
 
   const [items, total] = await prisma.$transaction([
@@ -326,6 +336,34 @@ export async function listLeaveRequests(params: {
   ]);
 
   return { items, total, page: params.page, limit: params.limit };
+}
+
+export async function acknowledgeLeaveRequest(leaveRequestId: string, userId: string) {
+  return prisma.leaveRequestAcknowledgement.upsert({
+    where: { leaveRequestId_userId: { leaveRequestId, userId } },
+    create: { leaveRequestId, userId },
+    update: {},
+  });
+}
+
+export async function acknowledgeAllResolvedLeaveRequests(params: {
+  organizationId?: string;
+  userId: string;
+}) {
+  const resolved = await prisma.leaveRequest.findMany({
+    where: {
+      status: { in: ['APPROVED', 'REJECTED'] },
+      ...(params.organizationId ? { organizationId: params.organizationId } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (resolved.length === 0) return { count: 0 };
+
+  return prisma.leaveRequestAcknowledgement.createMany({
+    data: resolved.map((r) => ({ leaveRequestId: r.id, userId: params.userId })),
+    skipDuplicates: true,
+  });
 }
 
 export async function approveLeaveRequest(
