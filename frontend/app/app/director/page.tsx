@@ -583,16 +583,13 @@ export default function DirectorCommandCentrePage(): JSX.Element {
 
       <InboxNudge />
 
-      {/* ── Needs your action: house account approvals + pending leave ────── */}
+      {/* ── House account approvals + leave requests ────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-label-md font-semibold uppercase tracking-wider text-stone-500">
-          Needs your action
-        </h2>
         {pendingAuths.length === 0 && pendingLeaveCount === 0 && (
           <EmptyState
             icon={<ChevronRight size={28} />}
             heading="Nothing pending right now"
-            body="House account approvals and leave requests needing your decision will show up here."
+            body="House account charges awaiting your approval will show up here."
             className="rounded-xl border border-stone-200 bg-white py-8"
           />
         )}
