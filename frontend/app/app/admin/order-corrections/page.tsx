@@ -22,12 +22,13 @@ import {
   Badge,
   type BadgeVariant,
   EmptyState,
+  ExcelTable,
   PageLayout,
   PageHeader,
   Select,
-  SkeletonTable,
   Textarea,
 } from '@/components/ui';
+import { Sheet, type SheetColumn, type SheetColumnGroup } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/cn';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -113,39 +114,6 @@ const isWithin7Days = (createdAt: string): boolean => {
   return new Date(createdAt) >= cutoff;
 };
 
-// ── Excel-style sheet style constants (matches Shift Management / Payroll) ──────
-
-const SHEET_FONT = "'Calibri', 'Segoe UI', Arial, sans-serif";
-const HEADER_BAND = '#2e5984';
-const GRID_LINE = '#d0d0d0';
-const FOOTER_BAR = '#44403c';
-
-const sectionBandStyle: React.CSSProperties = {
-  background: HEADER_BAND,
-  border: '1px solid rgba(255,255,255,0.3)',
-  height: 22,
-  fontSize: 10,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'white',
-  verticalAlign: 'middle',
-};
-
-const colHeaderStyle: React.CSSProperties = {
-  background: '#f0f0f0',
-  border: `1px solid ${GRID_LINE}`,
-  height: 34,
-  fontSize: 10.5,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  color: '#555',
-  textAlign: 'left',
-  padding: '0 8px',
-  verticalAlign: 'middle',
-};
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function OrderCorrectionConsolePage(): JSX.Element {
@@ -159,6 +127,7 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [branches, setBranches] = useState<BranchDto[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const sheetContainerRef = useRef<HTMLDivElement>(null);
 
   // Pagination — page is advanced by infinite scroll, not by UI controls.
   const PER_PAGE = 50;
@@ -236,9 +205,16 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
     void fetchPage(pageRef.current + 1, true);
   }, [fetchPage]);
 
-  const handleSheetScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 240) loadMore();
+  // Sheet doesn't expose an onScroll prop, so we listen on its scroll
+  // container directly to keep infinite-scroll pagination working.
+  useEffect(() => {
+    const el = sheetContainerRef.current;
+    if (!el) return;
+    const handler = () => {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 240) loadMore();
+    };
+    el.addEventListener('scroll', handler);
+    return () => el.removeEventListener('scroll', handler);
   }, [loadMore]);
 
   const loadDetail = useCallback(async (orderId: string) => {
@@ -398,6 +374,134 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
 
   // ── Sheet rendering ─────────────────────────────────────────────────────────
 
+  const orderColumn: SheetColumn<OrderCorrectionListItem> = {
+    key: 'order',
+    header: 'Order',
+    width: 150,
+    headerClassName: 'border-r-2 border-r-stone-300',
+    renderCell: ({ row: order }) => {
+      const rowLocked = !isWithin7Days(order.createdAt);
+      return (
+        <td
+          className={cn(
+            'sticky left-8 z-[3] h-10 border border-sheet-grid border-r-2 border-r-stone-300 px-2',
+            rowLocked ? 'bg-stone-100' : order.id === selectedId ? 'bg-warning-bg' : undefined
+          )}
+        >
+          <div className={cn('font-bold', rowLocked ? 'text-stone-400' : 'text-office-ink')}>#{order.dailyNumber}</div>
+          <div className="text-[10px] text-stone-400">
+            {order.tableNumber ?? TYPE_LABEL[order.type] ?? order.type}
+          </div>
+        </td>
+      );
+    },
+  };
+
+  const dataColumns: SheetColumn<OrderCorrectionListItem>[] = [
+    {
+      key: 'branch',
+      header: 'Branch',
+      width: 150,
+      renderCell: ({ row: order }) => (
+        <td className={cn('border border-sheet-grid px-2', !isWithin7Days(order.createdAt) ? 'text-stone-400' : 'text-stone-600')}>
+          {order.organizationName}
+        </td>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      width: 130,
+      renderCell: ({ row: order }) => (
+        <td className="border border-sheet-grid px-2">
+          <Badge variant={STATUS_VARIANT[order.status]} />
+        </td>
+      ),
+    },
+    {
+      key: 'payment',
+      header: 'Payment',
+      width: 150,
+      renderCell: ({ row: order }) => (
+        <td className="border border-sheet-grid px-2">
+          <div className={!isWithin7Days(order.createdAt) ? 'text-stone-400' : 'text-stone-600'}>
+            {order.paymentMethod ? METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod : '—'}
+          </div>
+          {order.mpesaCode && (
+            <div className="font-mono text-[10px] text-stone-400">{order.mpesaCode}</div>
+          )}
+        </td>
+      ),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      width: 120,
+      renderCell: ({ row: order }) => (
+        <td className={cn('border border-sheet-grid px-2 text-right font-semibold', !isWithin7Days(order.createdAt) ? 'text-stone-400' : 'text-office-ink')}>
+          {formatKES(order.total)}
+        </td>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      width: 130,
+      renderCell: ({ row: order }) => (
+        <td className={cn('border border-sheet-grid px-2', !isWithin7Days(order.createdAt) ? 'text-stone-400' : 'text-stone-600')}>
+          <div>{formatDate(order.orderDate)}</div>
+          <div className="text-[10px] text-stone-400">
+            {new Date(order.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </td>
+      ),
+    },
+  ];
+
+  const actionColumn: SheetColumn<OrderCorrectionListItem> = {
+    key: 'action',
+    header: 'Action',
+    width: 96,
+    renderCell: ({ row: order }) => {
+      const rowLocked = !isWithin7Days(order.createdAt);
+      return (
+        <td className="border border-sheet-grid px-0 text-center">
+          {rowLocked ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-danger"
+              title="Older than 7 days — corrections locked"
+            >
+              <Lock size={10} />
+              Locked
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                const rect = (e.currentTarget.closest('tr') as HTMLElement).getBoundingClientRect();
+                openPopover(order.id, rect);
+              }}
+              className={cn(
+                'inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-bold transition-colors',
+                order.id === selectedId
+                  ? 'border-amber-400 bg-amber-100 text-amber-800'
+                  : 'border-stone-300 bg-white text-stone-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700',
+              )}
+            >
+              <Settings2 size={11} />
+              Correct
+            </button>
+          )}
+        </td>
+      );
+    },
+  };
+
+  const orderCorrectionGroups: SheetColumnGroup<OrderCorrectionListItem>[] = [
+    { label: 'Order Corrections — Cross-Branch Audit View', tone: 'navy', columns: [orderColumn, ...dataColumns] },
+    { label: 'Correct', tone: 'gray', columns: [actionColumn] },
+  ];
+
   const sheet = (
     <div
       className={cn(
@@ -405,194 +509,35 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
         isExpanded && 'rounded-none border-0',
       )}
     >
-      <div className="min-h-0 flex-1 overflow-auto" onScroll={handleSheetScroll}>
-        {isLoading ? (
-          <div className="p-6"><SkeletonTable rows={8} columns={7} /></div>
-        ) : orders.length === 0 ? (
+      <Sheet<OrderCorrectionListItem>
+        groups={orderCorrectionGroups}
+        rows={orders}
+        rowKey={(order) => order.id}
+        engine={{ containerRef: sheetContainerRef }}
+        frozenColumns={1}
+        locked={false}
+        rowIndicator={(order) => (!isWithin7Days(order.createdAt) ? { tone: 'error', title: 'Locked — older than 7 days' } : null)}
+        expandable={false}
+        isLoading={isLoading}
+        skeletonColumns={7}
+        emptyState={
           <EmptyState
             icon={<List size={32} className="text-stone-300" />}
             heading="No orders found"
             body="Adjust filters to find the order you need to correct."
           />
-        ) : (
-          <table
-            style={{
-              borderCollapse: 'collapse',
-              fontFamily: SHEET_FONT,
-              fontSize: 12,
-              width: '100%',
-              minWidth: 920,
-              tableLayout: 'fixed',
-            }}
-          >
-            <colgroup>
-              <col style={{ width: 36 }} />
-              <col style={{ width: 150 }} />
-              <col style={{ width: 150 }} />
-              <col style={{ width: 130 }} />
-              <col style={{ width: 150 }} />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 130 }} />
-              <col style={{ width: 96 }} />
-            </colgroup>
-            <thead>
-              {/* Section band */}
-              <tr>
-                <td style={{ ...sectionBandStyle, position: 'sticky', top: 0, left: 0, zIndex: 21, width: 36 }} />
-                <td
-                  colSpan={6}
-                  style={{ ...sectionBandStyle, padding: '0 8px', textAlign: 'left', position: 'sticky', top: 0, zIndex: 9 }}
-                >
-                  Order Corrections — Cross-Branch Audit View
-                </td>
-                <td
-                  style={{ ...sectionBandStyle, background: FOOTER_BAR, textAlign: 'center', position: 'sticky', top: 0, zIndex: 9 }}
-                >
-                  Correct
-                </td>
-              </tr>
-              {/* Column headers */}
-              <tr>
-                <th style={{ ...colHeaderStyle, textAlign: 'center', position: 'sticky', top: 22, left: 0, zIndex: 21 }} />
-                <th style={{ ...colHeaderStyle, borderRight: '2px solid #c5c5c5', position: 'sticky', top: 22, left: 36, zIndex: 19 }}>Order</th>
-                <th style={{ ...colHeaderStyle, position: 'sticky', top: 22, zIndex: 9 }}>Branch</th>
-                <th style={{ ...colHeaderStyle, position: 'sticky', top: 22, zIndex: 9 }}>Status</th>
-                <th style={{ ...colHeaderStyle, position: 'sticky', top: 22, zIndex: 9 }}>Payment</th>
-                <th style={{ ...colHeaderStyle, textAlign: 'right', position: 'sticky', top: 22, zIndex: 9 }}>Total</th>
-                <th style={{ ...colHeaderStyle, position: 'sticky', top: 22, zIndex: 9 }}>Date</th>
-                <th style={{ ...colHeaderStyle, textAlign: 'center', position: 'sticky', top: 22, zIndex: 9 }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order, idx) => {
-                const rowLocked = !isWithin7Days(order.createdAt);
-                const isEven = idx % 2 === 1;
-                const isSelected = order.id === selectedId;
-                const baseBg = isSelected
-                  ? '#fdf6e9'
-                  : rowLocked
-                    ? '#f3f3f3'
-                    : isEven
-                      ? '#fbfbfb'
-                      : '#ffffff';
-                const textColor = rowLocked ? '#9a948f' : '#1a0a00';
-
-                return (
-                  <tr key={order.id} style={{ background: baseBg }}>
-                    {/* Row-number gutter + lock indicator */}
-                    <td
-                      style={{
-                        border: `1px solid ${GRID_LINE}`,
-                        background: isSelected ? '#f8edd6' : isEven ? '#ebebeb' : '#f0f0f0',
-                        textAlign: 'center',
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 4,
-                        height: 40,
-                      }}
-                    >
-                      <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span style={{ fontSize: 10, color: '#888', lineHeight: 1 }}>{idx + 1}</span>
-                        {rowLocked && <Lock size={9} className="text-red-600" />}
-                      </div>
-                    </td>
-                    {/* Order (sticky) */}
-                    <td
-                      style={{
-                        border: `1px solid ${GRID_LINE}`,
-                        borderRight: '2px solid #c5c5c5',
-                        padding: '0 8px',
-                        position: 'sticky',
-                        left: 36,
-                        background: baseBg,
-                        zIndex: 3,
-                        height: 40,
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, color: textColor }}>#{order.dailyNumber}</div>
-                      <div style={{ fontSize: 10, color: '#a8a29e' }}>
-                        {order.tableNumber ?? TYPE_LABEL[order.type] ?? order.type}
-                      </div>
-                    </td>
-                    {/* Branch */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: '0 8px', color: rowLocked ? '#a8a29e' : '#57534e' }}>
-                      {order.organizationName}
-                    </td>
-                    {/* Status */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: '0 8px' }}>
-                      <Badge variant={STATUS_VARIANT[order.status]} />
-                    </td>
-                    {/* Payment */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: '0 8px' }}>
-                      <div style={{ color: rowLocked ? '#a8a29e' : '#57534e' }}>
-                        {order.paymentMethod ? METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod : '—'}
-                      </div>
-                      {order.mpesaCode && (
-                        <div style={{ fontSize: 10, color: '#a8a29e', fontFamily: 'monospace' }}>{order.mpesaCode}</div>
-                      )}
-                    </td>
-                    {/* Total */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: '0 8px', textAlign: 'right', fontWeight: 600, color: textColor }}>
-                      {formatKES(order.total)}
-                    </td>
-                    {/* Date */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: '0 8px', color: rowLocked ? '#a8a29e' : '#57534e' }}>
-                      <div>{formatDate(order.orderDate)}</div>
-                      <div style={{ fontSize: 10, color: '#a8a29e' }}>
-                        {new Date(order.createdAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    {/* Action */}
-                    <td style={{ border: `1px solid ${GRID_LINE}`, padding: 0, textAlign: 'center' }}>
-                      {rowLocked ? (
-                        <span
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600"
-                          title="Older than 7 days — corrections locked"
-                        >
-                          <Lock size={10} />
-                          Locked
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            const rect = (e.currentTarget.closest('tr') as HTMLElement).getBoundingClientRect();
-                            openPopover(order.id, rect);
-                          }}
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded border px-2 py-1 text-[11px] font-bold transition-colors',
-                            isSelected
-                              ? 'border-amber-400 bg-amber-100 text-amber-800'
-                              : 'border-stone-300 bg-white text-stone-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700',
-                          )}
-                        >
-                          <Settings2 size={11} />
-                          Correct
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-        {/* Infinite-scroll loading indicator */}
-        {isLoadingMore && (
-          <div
-            className="flex items-center justify-center gap-2 py-3 text-[11px] font-semibold text-stone-400"
-            style={{ fontFamily: SHEET_FONT }}
-          >
-            <RefreshCw size={12} className="animate-spin" />
-            Loading more orders…
-          </div>
-        )}
-      </div>
-      {/* Charcoal status footer bar */}
-      <div
-        className="flex h-6 shrink-0 items-center justify-between gap-4 overflow-hidden px-3 text-[11px] font-semibold text-white/90"
-        style={{ background: FOOTER_BAR, fontFamily: SHEET_FONT }}
-      >
+        }
+        className={cn('rounded-t-[20px]', isExpanded && 'rounded-none border-0')}
+      />
+      {/* Infinite-scroll loading indicator */}
+      {isLoadingMore && (
+        <div className="flex items-center justify-center gap-2 py-3 font-sheet text-[11px] font-semibold text-stone-400">
+          <RefreshCw size={12} className="animate-spin" />
+          Loading more orders…
+        </div>
+      )}
+      {/* Charcoal audit footer bar */}
+      <div className="flex h-6 shrink-0 items-center justify-between gap-4 overflow-hidden bg-stone-700 px-3 font-sheet text-[11px] font-semibold text-white/90">
         <span className="flex items-center gap-1.5">
           <Shield size={11} />
           Audited correction console — every change permanently logged
@@ -690,7 +635,7 @@ export default function OrderCorrectionConsolePage(): JSX.Element {
   return (
     <>
       {isExpanded ? (
-        <div className="fixed inset-0 z-40 flex flex-col gap-3 bg-[#faf7f4] p-4">
+        <div className="fixed inset-0 z-40 flex flex-col gap-3 bg-crema p-4">
           {toolbar}
           {sheet}
         </div>
@@ -949,57 +894,57 @@ function CorrectionPopover({
                         <strong className="text-stone-700">{formatKES(detail.total)}</strong>
                       </span>
                     </div>
-                    <table className="w-full border-collapse">
-                      <tbody>
-                        {detail.items.map((item) => (
-                          <tr
-                            key={item.id}
-                            className={cn('border-b border-stone-100', pendingItemId === item.id ? 'bg-red-50' : '')}
-                          >
-                            <td className="px-3.5 py-2 text-[12px]">
+                    <ExcelTable
+                      headerTone="gray"
+                      rowKey={(item) => item.id}
+                      rows={detail.items}
+                      totalsRow={{ item: 'Total', total: formatKES(detail.total) }}
+                      columns={[
+                        {
+                          key: 'item',
+                          label: 'Item',
+                          render: (item) => (
+                            <span className={pendingItemId === item.id ? 'text-danger' : undefined}>
                               <div className="font-medium text-stone-700">{item.name}</div>
                               {item.notes && (
                                 <div className="text-[10.5px] text-stone-400">{item.notes}</div>
                               )}
-                            </td>
-                            <td className="px-2 py-2 text-center text-[12px] text-stone-500 w-8">
-                              ×{item.quantity}
-                            </td>
-                            <td className="px-3.5 py-2 text-right text-[12px] font-semibold text-stone-700 w-20 whitespace-nowrap">
-                              {formatKES(item.subtotal)}
-                            </td>
-                            <td className="px-2 py-2 w-8 text-center">
-                              {guards.canRemoveItem && !locked && (
-                                <button
-                                  onClick={() => {
-                                    setPendingItemId(item.id);
-                                    setActiveAction('remove-item');
-                                    setReason('');
-                                  }}
-                                  className="w-5 h-5 flex items-center justify-center rounded border border-stone-200 text-stone-400
-                                    hover:border-red-300 hover:bg-red-50 hover:text-red-600"
-                                  title="Remove item"
-                                >
-                                  <X size={11} />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        <tr className="bg-stone-50 border-t border-stone-200">
-                          <td
-                            colSpan={2}
-                            className="px-3.5 py-2 text-[11px] uppercase font-bold tracking-widest text-stone-500"
-                          >
-                            Total
-                          </td>
-                          <td className="px-3.5 py-2 text-right text-[13px] font-extrabold text-stone-900 whitespace-nowrap">
-                            {formatKES(detail.total)}
-                          </td>
-                          <td />
-                        </tr>
-                      </tbody>
-                    </table>
+                            </span>
+                          ),
+                        },
+                        {
+                          key: 'qty',
+                          label: 'Qty',
+                          align: 'center',
+                          render: (item) => <span className="text-stone-500">×{item.quantity}</span>,
+                        },
+                        {
+                          key: 'total',
+                          label: 'Subtotal',
+                          numeric: true,
+                          render: (item) => <span className="font-semibold text-stone-700">{formatKES(item.subtotal)}</span>,
+                        },
+                        {
+                          key: 'remove',
+                          label: '',
+                          align: 'center',
+                          render: (item) =>
+                            guards.canRemoveItem && !locked ? (
+                              <button
+                                onClick={() => {
+                                  setPendingItemId(item.id);
+                                  setActiveAction('remove-item');
+                                  setReason('');
+                                }}
+                                className="flex h-5 w-5 items-center justify-center rounded border border-stone-200 text-stone-400 hover:border-danger-border hover:bg-danger-bg hover:text-danger"
+                                title="Remove item"
+                              >
+                                <X size={11} />
+                              </button>
+                            ) : null,
+                        },
+                      ]}
+                    />
                   </div>
 
                   {/* Action picker */}
