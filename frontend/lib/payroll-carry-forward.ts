@@ -32,6 +32,21 @@ export const CARRIED_FIELDS = [
 export type CarriedField = (typeof CARRIED_FIELDS)[number];
 
 /**
+ * True for a money cell that carries no real figure: empty/whitespace, or a
+ * numeric value of zero (e.g. "0", "0.00", "-0"). A payslip left at all-zero
+ * after a publish → revert cycle must still be treated as blank — otherwise
+ * the copy-from-previous-month feature sees "0.00" as an already-filled cell
+ * and refuses to overwrite it, or worse, "successfully" copies zeros forward.
+ */
+export function isBlankMoney(value: string | null | undefined): boolean {
+  if (value == null) return true;
+  const trimmed = value.trim();
+  if (trimmed === '') return true;
+  const n = Number(trimmed);
+  return !Number.isNaN(n) && n === 0;
+}
+
+/**
  * The subset of a prior payslip needed to carry figures forward. Kept minimal
  * (and structurally compatible with the fuller `Payslip` type) so this module
  * has no dependency on API/response shapes.
@@ -44,6 +59,16 @@ export interface CarryForwardSource {
   nssfTier2: string;
   housingLevy: string;
   allowances?: string | null;
+}
+
+/**
+ * True when every recurring carried field on a payslip-like source is blank
+ * (per `isBlankMoney`) — i.e. it holds no real, usable figures. Used to skip
+ * a period whose only saved data is a zeroed-out publish/revert artifact when
+ * searching backward for a prior period to carry forward from.
+ */
+export function isAllZeroSource(source: CarryForwardSource): boolean {
+  return CARRIED_FIELDS.every((field) => isBlankMoney(source[field]));
 }
 
 /** The blank-able variable fields plus the recurring carried figures. */

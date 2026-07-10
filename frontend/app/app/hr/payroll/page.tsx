@@ -36,7 +36,7 @@ import {
 } from '@/lib/payroll-csv';
 import { buildPayrollRegisterWorkbook, downloadBlob } from '@/lib/payroll-xlsx';
 import { buildStaffDetailPatch, formatSheetAccount } from '@/lib/payroll-staff-details';
-import { CARRIED_FIELDS, priorPeriod } from '@/lib/payroll-carry-forward';
+import { CARRIED_FIELDS, isAllZeroSource, isBlankMoney, priorPeriod } from '@/lib/payroll-carry-forward';
 import { cn } from '@/lib/cn';
 import {
   EDITABLE_COLUMNS,
@@ -245,6 +245,13 @@ export default function HrPayslipsPage(): JSX.Element {
   // months) that has any saved payslips for this branch, and return them. Used
   // to seed a fresh period via carry-forward. Returns [] if nothing is found —
   // e.g. a branch's very first payroll run.
+  //
+  // A period is only usable as a carry-forward source if at least one payslip
+  // in it has real (non-zero) figures. A period that was published all-zero
+  // and then reverted still has its payslip rows in the DB (revert only flips
+  // isLocked back to false — it never clears the amounts), so without this
+  // check that zeroed period would be "found" and either block the copy
+  // entirely (every field looks already-filled) or silently copy zeros.
   const MAX_CARRY_LOOKBACK = 3;
   const fetchPriorPayslips = useCallback(
     async (orgId: string, fromPeriod: string): Promise<Payslip[]> => {
@@ -257,7 +264,8 @@ export default function HrPayslipsPage(): JSX.Element {
           page: 1,
           perPage: 200,
         });
-        if (result.items.length > 0) return result.items;
+        const usable = result.items.filter((p) => !isAllZeroSource(p));
+        if (usable.length > 0) return usable;
       }
       return [];
     },
@@ -535,8 +543,13 @@ export default function HrPayslipsPage(): JSX.Element {
         const carried = carryForwardRow(source);
         const patch: Partial<SheetRow> = {};
         for (const field of CARRIED_FIELDS) {
-          // Only fill blank recurring cells — never clobber a value HR already typed.
-          if (!row[field] && carried[field]) patch[field] = carried[field] as string;
+          // Only fill blank recurring cells — never clobber a value HR already
+          // typed. "Blank" includes stale zero figures (e.g. left over from a
+          // publish → revert cycle), not just the empty string — otherwise a
+          // 0.00 cell reads as "already filled" and copy silently no-ops.
+          if (isBlankMoney(row[field]) && !isBlankMoney(carried[field])) {
+            patch[field] = carried[field] as string;
+          }
         }
         if (Object.keys(patch).length > 0) patches.set(row.userId, patch);
       }

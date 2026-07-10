@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CARRIED_FIELDS,
   carryForwardValues,
+  isAllZeroSource,
+  isBlankMoney,
   priorPeriod,
   type CarryForwardSource,
 } from './payroll-carry-forward';
@@ -51,5 +53,45 @@ describe('carryForwardValues', () => {
   it('treats a missing allowance as blank rather than "null"', () => {
     const result = carryForwardValues({ ...prior, allowances: null });
     expect(result.allowances).toBe('');
+  });
+});
+
+describe('isBlankMoney', () => {
+  it('treats empty, whitespace, null and undefined as blank', () => {
+    expect(isBlankMoney('')).toBe(true);
+    expect(isBlankMoney('   ')).toBe(true);
+    expect(isBlankMoney(null)).toBe(true);
+    expect(isBlankMoney(undefined)).toBe(true);
+  });
+
+  it('treats zero-valued strings as blank', () => {
+    expect(isBlankMoney('0')).toBe(true);
+    expect(isBlankMoney('0.00')).toBe(true);
+    expect(isBlankMoney('-0')).toBe(true);
+  });
+
+  it('treats a real figure as not blank', () => {
+    expect(isBlankMoney('80000.00')).toBe(false);
+    expect(isBlankMoney('0.01')).toBe(false);
+  });
+});
+
+describe('isAllZeroSource', () => {
+  const zeroed: CarryForwardSource = {
+    grossPay: '0.00',
+    paye: '0.00',
+    sha: '0.00',
+    nssfTier1: '0.00',
+    nssfTier2: '0.00',
+    housingLevy: '0.00',
+    allowances: '0.00',
+  };
+
+  it('is true for a payslip left all-zero (e.g. published then reverted)', () => {
+    expect(isAllZeroSource(zeroed)).toBe(true);
+  });
+
+  it('is false as soon as one recurring field has a real figure', () => {
+    expect(isAllZeroSource({ ...zeroed, grossPay: '80000.00' })).toBe(false);
   });
 });
