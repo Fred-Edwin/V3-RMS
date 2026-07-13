@@ -63,6 +63,19 @@ async function main() {
     },
   });
 
+  // Mirrors a normal onboarded staff member — HR always creates the employee
+  // profile record during onboarding, so payroll-sheet edits to KRA PIN/bank
+  // fields are always an UPDATE against an existing row, never a first CREATE.
+  await prisma.employeeProfile.upsert({
+    where: { userId: WAITER_ID },
+    update: {},
+    create: {
+      userId: WAITER_ID,
+      employmentType: 'FULL_TIME',
+      startDate: new Date('2026-01-01'),
+    },
+  });
+
   console.log('E2E fixtures seeded.');
   console.log(`HR login: e2e-hr-manager@wendo.test / ${E2E_PASSWORD}`);
 }

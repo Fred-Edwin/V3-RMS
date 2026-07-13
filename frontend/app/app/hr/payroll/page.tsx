@@ -20,7 +20,8 @@ import { PayslipDetailModal } from '@/components/payslips/PayslipDetailModal';
 import { PayslipTable } from '@/components/payslips/PayslipTable';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
-import { updateEmployeeProfile } from '@/services/hrService';
+import { listEmployeeProfiles, updateEmployeeProfile } from '@/services/hrService';
+import type { EmployeeProfile } from '@/types/hr';
 import { payslipService } from '@/services/payslipService';
 import { staffService } from '@/services/staffService';
 import { waiterLiabilityService } from '@/services/waiterLiabilityService';
@@ -206,10 +207,19 @@ export default function HrPayslipsPage(): JSX.Element {
   // this branch. When a staff member has NO payslip in the current period but
   // DOES have one in the prior period, the recurring figures carry forward as an
   // editable draft (see carryForwardRow) so HR only edits what changed.
+  //
+  // `profiles` is the live employee-profile list (independent of any payslip)
+  // and is always the source of truth for the staff-detail columns (KRA PIN /
+  // Bank Name / Account Number). A payslip's embedded employeeProfile snapshot
+  // is only ever as fresh as the last payslip write for that period, so a staff
+  // member with no current- or prior-period payslip has no payslip to read a
+  // profile from at all — without this map their saved staff-detail edits would
+  // appear to "disappear" on every reload even though they persisted correctly.
   const buildBranchRows = useCallback((
     branchName: string,
     staffResult: Awaited<ReturnType<typeof staffService.listStaff>>,
     payslips: Payslip[],
+    profiles: EmployeeProfile[],
     priorPayslips: Payslip[] = [],
   ): SheetRow[] => {
     const eligible = staffResult
@@ -222,30 +232,27 @@ export default function HrPayslipsPage(): JSX.Element {
       });
     const payslipMap = new Map(payslips.map((p) => [p.userId, p]));
     const priorMap = new Map(priorPayslips.map((p) => [p.userId, p]));
+    const profileMap = new Map(profiles.map((p) => [p.userId, p]));
 
     return eligible.map((staff) => {
       const base = staffToRow(staff, branchName);
+
+      const ep = profileMap.get(staff.id);
+      base.kraPIN = ep?.kraPIN ?? null;
+      base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
+      base.bankName = ep?.bankName ?? null;
+      base.accountNumber = ep?.accountNumber ?? null;
+
       const existing = payslipMap.get(staff.id);
       if (existing) {
-        const ep = existing.user.employeeProfile;
-        base.kraPIN = ep?.kraPIN ?? null;
-        base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
-        base.bankName = ep?.bankName ?? null;
-        base.accountNumber = ep?.accountNumber ?? null;
         Object.assign(base, payslipToRow(existing));
         return base;
       }
 
-      // No current-period payslip — carry forward from the prior period if we
-      // have one for this staff member. Staff details (KRA PIN/bank) come from
-      // the live employee profile, not the old payslip.
+      // No current-period payslip — carry forward the recurring figures from
+      // the prior period if we have one for this staff member.
       const prior = priorMap.get(staff.id);
       if (prior) {
-        const ep = prior.user.employeeProfile;
-        base.kraPIN = ep?.kraPIN ?? null;
-        base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
-        base.bankName = ep?.bankName ?? null;
-        base.accountNumber = ep?.accountNumber ?? null;
         Object.assign(base, carryForwardRow(prior));
       }
       return base;
@@ -287,6 +294,12 @@ export default function HrPayslipsPage(): JSX.Element {
     if (!accessToken) return;
     setIsLoadingSheet(true);
     try {
+      // Employee profiles are org-independent for HR_MANAGER/DIRECTOR (the only
+      // roles that reach this page) — the endpoint returns every branch's
+      // profiles for HR authority, so one fetch covers both the all-branches
+      // and single-branch paths below.
+      const profiles = await listEmployeeProfiles(accessToken);
+
       // All-branches mode: no branch selected. Fan out across every active branch
       // and concatenate into one consolidated, read-only sheet (editing/publish are
       // per-branch, so the combined view is view + export only).
@@ -299,7 +312,7 @@ export default function HrPayslipsPage(): JSX.Element {
               staffService.listStaff(accessToken, { organizationId: branch.id, isActive: true }),
               payslipService.listHrPayslips(accessToken, { payPeriod: activePeriod, organizationId: branch.id, page: 1, perPage: 200 }),
             ]);
-            return buildBranchRows(branch.name, staffResult, payslipResult.items);
+            return buildBranchRows(branch.name, staffResult, payslipResult.items, profiles);
           }),
         );
 
@@ -329,7 +342,7 @@ export default function HrPayslipsPage(): JSX.Element {
         ? await fetchPriorPayslips(orgId, activePeriod)
         : [];
 
-      const sheetRows = buildBranchRows(branchName, staffResult, payslipResult.items, priorPayslips);
+      const sheetRows = buildBranchRows(branchName, staffResult, payslipResult.items, profiles, priorPayslips);
       const allPublished = payslipResult.items.length > 0 && payslipResult.items.every((p) => p.isLocked);
       setIsPublished(allPublished);
       setRows(sheetRows);

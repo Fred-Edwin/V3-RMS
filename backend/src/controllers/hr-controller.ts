@@ -92,6 +92,12 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     jobTitle: body.jobTitle,
     reportingManagerId: body.reportingManagerId === null ? null : body.reportingManagerId,
     notes: body.notes,
+    kraPIN: body.kraPIN === null ? null : body.kraPIN,
+    bankName: body.bankName === null ? null : body.bankName,
+    accountNumber: body.accountNumber === null ? null : body.accountNumber,
+    accountName: body.accountName === null ? null : body.accountName,
+    bankBranch: body.bankBranch === null ? null : body.bankBranch,
+    helbNumber: body.helbNumber === null ? null : body.helbNumber,
   });
 
   res.json({ success: true, data: { profile } });

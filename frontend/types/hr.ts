@@ -55,6 +55,11 @@ export interface EmployeeProfile {
   jobTitle: string | null;
   reportingManagerId: string | null;
   notes: string | null;
+  kraPIN: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+  bankBranch: string | null;
   createdAt: string;
   updatedAt: string;
   user: EmployeeProfileUser;

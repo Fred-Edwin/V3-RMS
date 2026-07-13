@@ -200,3 +200,58 @@ test.describe('Payroll sheet autosave', () => {
     await expectNumericValue(cellsAfter.nth(9).locator('input'), advanceValue);
   });
 });
+
+test.describe('Payroll sheet staff details', () => {
+  // Reproduces: HR edits KRA PIN / Bank Name / Account Number for a staff
+  // member who has no payslip yet in the current period (the common case for
+  // a brand-new pay period before anyone has entered money figures). The edit
+  // PATCHes the employee profile directly and persists correctly, but the
+  // sheet used to source these three columns from the payslip's embedded
+  // employeeProfile snapshot — which doesn't exist for a staff member with no
+  // payslip this period (and no usable prior-period payslip either) — so on
+  // reload the columns fell back to blank even though the save succeeded.
+  test('KRA PIN / bank details persist after reload for a staff member with no payslip yet this period', async ({ page }) => {
+    await login(page);
+    await goToPayrollForBranch(page);
+
+    const row = waiterRow(page);
+    await expect(row).toBeVisible();
+    const cells = row.locator('td');
+
+    // Column order: ... 13 totalDeductions, 14 netSalary, 15 kraPIN, 16 bankName, 17 accountNumber.
+    const kraPinInput = cells.nth(15).locator('input');
+    const bankNameInput = cells.nth(16).locator('input');
+    const accountNumberInput = cells.nth(17).locator('input');
+
+    const unique = Date.now() % 100000;
+    const kraPin = `A${unique}Z`;
+    const bankName = 'Equity Bank';
+    const accountNumber = `${1000000 + unique}`;
+
+    await kraPinInput.click();
+    await kraPinInput.fill(kraPin);
+    await kraPinInput.blur();
+
+    await bankNameInput.click();
+    await bankNameInput.fill(bankName);
+    await bankNameInput.blur();
+
+    await accountNumberInput.click();
+    await accountNumberInput.fill(accountNumber);
+    await accountNumberInput.blur();
+
+    // Staff-detail saves debounce 1500ms and save-on-blur when dirty; give the
+    // PATCH plenty of room to land.
+    await page.waitForTimeout(2500);
+
+    await page.reload();
+    await goToPayrollForBranch(page);
+    const rowAfterReload = waiterRow(page);
+    await expect(rowAfterReload).toBeVisible();
+    const cellsAfter = rowAfterReload.locator('td');
+
+    await expect(cellsAfter.nth(15).locator('input')).toHaveValue(kraPin);
+    await expect(cellsAfter.nth(16).locator('input')).toHaveValue(bankName);
+    await expect(cellsAfter.nth(17).locator('input')).toHaveValue(accountNumber);
+  });
+});
