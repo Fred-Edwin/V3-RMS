@@ -144,6 +144,17 @@ export default function HrPayslipsPage(): JSX.Element {
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const rowsRef = useRef<SheetRow[]>([]);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
+  // Serializes autosave requests per row: a request for a given userId always
+  // awaits the previous in-flight request for that same row before sending its
+  // own snapshot. Without this, two overlapping requests (e.g. HR edits a field,
+  // waits past the debounce, then edits another field before the first request's
+  // response lands) can commit out of network order — a slow, earlier/staler
+  // full-row snapshot can land in the DB *after* a faster, newer one and silently
+  // revert every field in the row (including zeroing fields the stale snapshot
+  // captured before they were filled in). Serializing removes the race entirely:
+  // by the time the second request builds its payload, the first has already
+  // been persisted.
+  const rowSaveQueue = useRef<Record<string, Promise<void>>>({});
 
   // Staff-detail (KRA PIN / bank) edits persist to the employee profile via a
   // separate path from the money-field auto-save (which upserts payslips). Keyed
@@ -333,11 +344,13 @@ export default function HrPayslipsPage(): JSX.Element {
     void loadSheet();
   }, [loadSheet]);
 
-  const autoSaveRow = useCallback(async (userId: string) => {
+  const autoSaveRowNow = useCallback(async (userId: string) => {
     if (!accessToken) return;
     const orgId = selectedBranchId || actorOrgId;
     if (!orgId) return;
 
+    // Read the row fresh — this may run after waiting on a queued prior save,
+    // so pick up whatever the row looks like right now, not at schedule time.
     const row = rowsRef.current.find((r) => r.userId === userId);
     if (!row || row.state === 'saved') return;
 
@@ -376,6 +389,18 @@ export default function HrPayslipsPage(): JSX.Element {
     }
   }, [accessToken, activePeriod, actorOrgId, selectedBranchId]);
 
+  // Runs autoSaveRowNow strictly after any save already queued for this row has
+  // settled, so requests for the same row are never in flight concurrently and
+  // can never commit to the DB out of order. See rowSaveQueue comment above.
+  const autoSaveRow = useCallback((userId: string): Promise<void> => {
+    const prior = rowSaveQueue.current[userId] ?? Promise.resolve();
+    const next = prior
+      .catch(() => { /* a prior failure shouldn't block this row's queue forever */ })
+      .then(() => autoSaveRowNow(userId));
+    rowSaveQueue.current[userId] = next;
+    return next;
+  }, [autoSaveRowNow]);
+
   const scheduleAutoSave = useCallback((userId: string) => {
     if (debounceTimers.current[userId]) clearTimeout(debounceTimers.current[userId]);
     debounceTimers.current[userId] = setTimeout(() => { void autoSaveRow(userId); }, 1500);
@@ -390,6 +415,15 @@ export default function HrPayslipsPage(): JSX.Element {
     if (!accessToken) return true;
     const orgId = selectedBranchId || actorOrgId;
     if (!orgId) return false;
+
+    // Cancel debounced autosaves and wait out any already-in-flight per-row
+    // save before reading rows for the flush — otherwise a debounced or
+    // in-flight autosave could still land after this flush's write and
+    // re-introduce the same out-of-order-commit race this queue exists to
+    // prevent (see rowSaveQueue comment above).
+    Object.values(debounceTimers.current).forEach(clearTimeout);
+    debounceTimers.current = {};
+    await Promise.allSettled(Object.values(rowSaveQueue.current));
 
     const pending = rowsRef.current.filter((r) => r.state !== 'saved');
     if (pending.length === 0) return true;
