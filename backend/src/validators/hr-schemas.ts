@@ -12,7 +12,7 @@ export const createEmployeeProfileSchema = z.object({
   emergencyName: z.string().min(1).optional(),
   emergencyRelation: z.string().min(1).optional(),
   emergencyPhone: z.string().min(1).optional(),
-  employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CASUAL']),
+  employmentType: z.enum(['FULL_TIME', 'PART_TIME', 'CASUAL']).optional(),
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional(),
   probationEndDate: z.string().datetime().optional(),
@@ -45,6 +45,31 @@ export const updateEmployeeProfileSchema = z.object({
   helbNumber: z.string().min(1).optional().nullable(),
 });
 
+/**
+ * Self-service profile update — personal fields only. `.strict()` rejects any
+ * extra key, so HR-only fields (employmentType, contractTypeId, startDate,
+ * endDate, probationEndDate, jobTitle, reportingManagerId, notes) fail
+ * validation instead of being silently ignored.
+ */
+export const selfServiceProfileSchema = z
+  .object({
+    nationalId: z.string().min(1).optional().nullable(),
+    dateOfBirth: z.string().datetime().optional().nullable(),
+    personalPhone: z.string().min(1).optional().nullable(),
+    personalEmail: z.string().email().optional().nullable(),
+    physicalAddress: z.string().min(1).optional().nullable(),
+    emergencyName: z.string().min(1).optional().nullable(),
+    emergencyRelation: z.string().min(1).optional().nullable(),
+    emergencyPhone: z.string().min(1).optional().nullable(),
+    kraPIN: z.string().min(1).optional().nullable(),
+    bankName: z.string().min(1).optional().nullable(),
+    accountNumber: z.string().min(1).optional().nullable(),
+    accountName: z.string().min(1).optional().nullable(),
+    bankBranch: z.string().min(1).optional().nullable(),
+    helbNumber: z.string().min(1).optional().nullable(),
+  })
+  .strict();
+
 export const updatePaymentDetailsSchema = z.object({
   kraPIN: z.string().min(1).optional().nullable(),
   bankName: z.string().min(1).optional().nullable(),
@@ -52,6 +77,59 @@ export const updatePaymentDetailsSchema = z.object({
   accountName: z.string().min(1).optional().nullable(),
   bankBranch: z.string().min(1).optional().nullable(),
   helbNumber: z.string().min(1).optional().nullable(),
+});
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+const leavePolicyEntrySchema = z.object({
+  leaveType: z.enum(['ANNUAL', 'SICK', 'EMERGENCY', 'UNPAID']),
+  totalDays: z.number().int().min(0).max(365),
+});
+
+const leavePoliciesArraySchema = z
+  .array(leavePolicyEntrySchema)
+  .min(1, 'At least one leave policy entry is required')
+  .refine(
+    (policies) => new Set(policies.map((p) => p.leaveType)).size === policies.length,
+    'Duplicate leave types are not allowed',
+  );
+
+export const createContractTypeSchema = z.object({
+  name: z.string().min(1).max(100),
+  durationMonths: z.number().int().min(1).max(120).optional().nullable(),
+  leavePolicies: leavePoliciesArraySchema,
+});
+
+export const updateContractTypeSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  durationMonths: z.number().int().min(1).max(120).optional().nullable(),
+  isActive: z.boolean().optional(),
+  leavePolicies: leavePoliciesArraySchema.optional(),
+});
+
+export const contractTypesQuerySchema = z.object({
+  includeInactive: z.coerce.boolean().optional(),
+});
+
+export const assignContractSchema = z.object({
+  contractTypeId: z.string().uuid().nullable(),
+});
+
+// ─── HR Document upload ───────────────────────────────────────────────────────
+
+export const uploadHrDocumentSchema = z.object({
+  employeeUserId: z.string().uuid(),
+  documentType: z.enum([
+    'CONTRACT',
+    'ID_COPY',
+    'CERTIFICATE',
+    'MEDICAL_CERTIFICATE',
+    'INCIDENT_REPORT',
+    'WARNING_LETTER',
+    'OTHER',
+  ]),
+  leaveRequestId: z.string().uuid().optional(),
+  disciplinaryRecordId: z.string().uuid().optional(),
 });
 
 // ─── Leave Balances ───────────────────────────────────────────────────────────

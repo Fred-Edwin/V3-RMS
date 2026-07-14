@@ -6,6 +6,12 @@ import {
   createEmployeeProfileSchema,
   updateEmployeeProfileSchema,
   updatePaymentDetailsSchema,
+  selfServiceProfileSchema,
+  createContractTypeSchema,
+  updateContractTypeSchema,
+  contractTypesQuerySchema,
+  assignContractSchema,
+  uploadHrDocumentSchema,
   updateLeaveBalanceSchema,
   createLeaveRequestSchema,
   reviewLeaveRequestSchema,
@@ -103,6 +109,18 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
   res.json({ success: true, data: { profile } });
 }
 
+export async function updateMyProfile(req: Request, res: Response): Promise<void> {
+  const body = selfServiceProfileSchema.parse(req.body);
+  const actor = getActor(req);
+
+  const profile = await hrService.updateMyProfile(actor, {
+    ...body,
+    dateOfBirth: body.dateOfBirth === null ? null : body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
+  });
+
+  res.json({ success: true, data: { profile } });
+}
+
 export async function updateMyPaymentDetails(req: Request, res: Response): Promise<void> {
   const body = updatePaymentDetailsSchema.parse(req.body);
   const actorId = req.user!.id;
@@ -122,6 +140,38 @@ export async function updateMyPaymentDetails(req: Request, res: Response): Promi
     helbNumber: body.helbNumber,
   });
 
+  res.json({ success: true, data: { profile } });
+}
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+export async function listContractTypes(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const query = contractTypesQuerySchema.parse(req.query);
+  const contractTypes = await hrService.listContractTypes(actor, query.includeInactive ?? false);
+  res.json({ success: true, data: { contractTypes } });
+}
+
+export async function createContractType(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const body = createContractTypeSchema.parse(req.body);
+  const contractType = await hrService.createContractType(actor, body);
+  res.status(201).json({ success: true, data: { contractType } });
+}
+
+export async function updateContractType(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const { id } = hrRouteIdParamSchema.parse(req.params);
+  const body = updateContractTypeSchema.parse(req.body);
+  const contractType = await hrService.updateContractType(actor, id, body);
+  res.json({ success: true, data: { contractType } });
+}
+
+export async function assignContract(req: Request, res: Response): Promise<void> {
+  const actor = getActor(req);
+  const { userId } = userIdParamSchema.parse(req.params);
+  const body = assignContractSchema.parse(req.body);
+  const profile = await hrService.assignContract(actor, userId, body.contractTypeId);
   res.json({ success: true, data: { profile } });
 }
 
@@ -299,18 +349,17 @@ export async function uploadHrDocument(req: Request, res: Response): Promise<voi
     return;
   }
 
-  const { employeeUserId, documentType, leaveRequestId, disciplinaryRecordId } = req.body as {
-    employeeUserId: string;
-    documentType: string;
-    leaveRequestId?: string;
-    disciplinaryRecordId?: string;
-  };
+  // Multipart form fields arrive as strings; normalize empty optionals before validation
+  const { employeeUserId, documentType, leaveRequestId, disciplinaryRecordId } =
+    uploadHrDocumentSchema.parse({
+      employeeUserId: req.body.employeeUserId,
+      documentType: req.body.documentType,
+      leaveRequestId: req.body.leaveRequestId || undefined,
+      disciplinaryRecordId: req.body.disciplinaryRecordId || undefined,
+    });
 
-  const profile = await hrRepository.findProfileByUserId(employeeUserId);
-  if (!profile) {
-    res.status(404).json({ error: 'Employee profile not found' });
-    return;
-  }
+  // Ownership + doc-type restrictions enforced in the service
+  const profile = await hrService.authorizeDocumentUpload(actor, employeeUserId, documentType);
 
   const fileUrl = await uploadImageBuffer(req.file.buffer, 'hr-documents');
   const doc = await hrRepository.createHrDocument({

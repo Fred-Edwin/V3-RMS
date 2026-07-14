@@ -2,8 +2,8 @@ import type { UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { authRepository } from '../repositories/auth-repository';
 import { staffRepository } from '../repositories/staff-repository';
-import * as hrRepository from '../repositories/hr-repository';
 import { hashPassword } from '../utils/password';
+import { PROFILE_EXCLUDED_ROLES } from '../utils/hr-constants';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
@@ -144,6 +144,9 @@ export const staffService = {
     const passwordHash = await hashPassword(data.temporaryPassword);
     // Org-level roles (DIRECTOR, ACCOUNTANT) have no branch assignment
     const isOrgLevelRole = data.role === 'DIRECTOR' || data.role === 'ACCOUNTANT';
+    // EmployeeProfile is auto-created atomically with the user. Contract type
+    // (and therefore leave balances) is assigned later by HR on the staff
+    // detail page — no employmentType is guessed here.
     const created = await staffRepository.create({
       name: data.name,
       email: data.email,
@@ -152,23 +155,8 @@ export const staffService = {
       organizationId:
         actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null,
       passwordHash,
+      withEmployeeProfile: !PROFILE_EXCLUDED_ROLES.includes(data.role),
     });
-
-    // Auto-create HR employee profile for branch-level staff
-    const rolesWithoutProfile: UserRole[] = ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN'];
-    if (!rolesWithoutProfile.includes(data.role)) {
-      try {
-        const profile = await hrRepository.createProfile({
-          userId: created.id,
-          employmentType: 'FULL_TIME',
-          startDate: new Date(),
-        });
-        await hrRepository.seedLeaveBalances(profile.id, new Date().getFullYear());
-        logger.info({ userId: created.id, profileId: profile.id }, 'Auto-created employee profile');
-      } catch (err) {
-        logger.warn({ err, userId: created.id }, 'Failed to auto-create employee profile');
-      }
-    }
 
     return {
       ...created,
