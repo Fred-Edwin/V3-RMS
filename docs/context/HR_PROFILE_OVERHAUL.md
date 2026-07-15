@@ -14,7 +14,7 @@ just the planned ones).
 ## Status
 
 - [x] Session 1 — Backend (schema, contract/leave-policy, auto-profile, self-service API) — **Complete 2026-07-14** (see "Session 1 — As Built" below)
-- [ ] Session 2 — UI (staff list table, self-service UI, HR contract screens, document upload UI) — Unblocked, not started
+- [x] Session 2 — UI (staff list table, self-service UI, HR contract screens, document upload UI) — **Complete 2026-07-14** (see "Session 2 — As Built" below). Remaining: production Cloudinary env-var check (ops, pre-ship).
 
 ---
 
@@ -334,6 +334,95 @@ Do not assume the planned shapes above are exactly what was built.**
   field on the self-service schema; contract-type schema rules.
 
 All 453 backend tests pass; `pnpm build` clean.
+
+---
+
+## Session 2 — As Built (2026-07-14)
+
+### One small backend addition (beyond Session 1)
+
+- `hrRepository.listProfiles` include extended with `leaveBalances: true` and
+  `_count: { select: { documents: true } }` — feeds the staff list's
+  Leave Left and Docs columns. Frontend `EmployeeProfile` type gained
+  `contractTypeId`, `contractType`, `helbNumber`, optional `leaveBalances`,
+  optional `_count.documents`; `employmentType` is now `EmploymentType | null`.
+
+### Staff list (`frontend/app/app/hr/staff/page.tsx`) — rewritten
+
+- Now an `ExcelTable` (navy band, numbered). Columns: Employee (name +
+  job title/role), Branch, Contract ("Not assigned" amber pill when null),
+  Started, Leave Left (sum of `totalDays − used − pending` across current-year
+  balances; red when negative), Details Filled (`x/13` completeness pill over
+  the 13 self-service personal fields, excluding `helbNumber`), Docs count,
+  Status, actions (transfer + open).
+- **Default filter is ACTIVE** — inactive staff hidden unless the Inactive
+  stat card is clicked. Third stat card: "No contract assigned" (active staff
+  without a contract; warn styling).
+- "New Profile" modal/button, the missing-profiles alert, and the
+  `staffWithoutProfiles` computation are **deleted**. Header action is now a
+  link to Contract Types. `createEmployeeProfile` still exists in
+  `hrService.ts` but has no remaining UI caller.
+
+### Contract Types screen (`frontend/app/app/hr/contract-types/page.tsx`) — new
+
+- HR_AUTHORITY-only (client-side gate + API enforces). ExcelTable listing:
+  name, duration (months / "Open-ended"), per-leave-type entitlement columns,
+  assigned-staff count, active status, edit.
+- Create/Edit modal: name, optional duration, **all four leave types always
+  submitted** (0 allowed) — satisfies the backend's min-1-policy rule without
+  add/remove row UI. Edit adds an isActive checkbox (deactivate = soft
+  delete) and a not-retroactive warning when staff are on the contract.
+- Nav: added "Contract Types" to HR_MANAGER desktop sidebar and mobile
+  overflow tabs (`frontend/app/app/layout.tsx`, `ScrollText` icon).
+  DIRECTOR/SYSTEM_ADMIN reach it via the Staff Profiles header button/URL.
+
+### HR staff detail (`frontend/app/app/hr/staff/[userId]/page.tsx`)
+
+- Header: contract-type badge (amber "No contract assigned" when null);
+  employment-type badge only shown when set.
+- Overview: new full-width "Contract & Leave Policy" card. HR sees a
+  contract select (active types + the currently-assigned inactive one, marked
+  "— inactive"), Assign/Clear button (disabled when unchanged), the selected
+  contract's leave entitlement preview, and a note pointing at the LeaveTab
+  pencil-edit for one-off balance overrides (that affordance already existed).
+  Non-HR viewers (managers) see a read-only contract line.
+- Overview: new "Banking & Statutory" InfoCard (KRA PIN, bank details, HELB)
+  so HR can verify staff-filled data.
+- Documents tab: upload form (doc-type select with all 7 types, file input
+  PDF/JPG/PNG ≤10 MB, posts to `/hr/documents/upload`, refreshes list).
+- Edit modal: Employment Type gains a "— Not set —" option; empty value is
+  omitted from the PATCH (the HR update schema has no null for it).
+
+### Self-service profile (`frontend/app/app/profile/page.tsx`)
+
+- New "Employee Details" section for roles with an EmployeeProfile
+  (mirror list of backend `PROFILE_EXCLUDED_ROLES`; section also hides
+  gracefully if the profile GET fails). Form covers all 14 self-service
+  fields; empty inputs are sent as `null` (backend rejects empty strings);
+  saves via new `hrService.updateMyEmployeeProfile` → `PATCH /hr/profiles/me`.
+- New "My Documents" section: lists own documents
+  (`GET /hr/documents/:userId`, self-access) and uploads restricted to
+  `SELF_UPLOADABLE_DOCUMENT_TYPES` (`ID_COPY, CERTIFICATE,
+  MEDICAL_CERTIFICATE, OTHER`) — constant mirrored in `frontend/types/hr.ts`.
+- Existing name/phone edit and its MANAGER/DIRECTOR/SYSTEM_ADMIN gate are
+  unchanged.
+
+### New frontend service functions (`frontend/services/hrService.ts`)
+
+`updateMyEmployeeProfile`, `assignContract`, `listContractTypes`,
+`createContractType`, `updateContractType`. New types in
+`frontend/types/hr.ts`: `ContractType`, `ContractTypeSummary`, `LeavePolicy`,
+`LeavePolicyInput`, `Create/UpdateContractTypeInput`,
+`SelfServiceProfileInput`, `SELF_UPLOADABLE_DOCUMENT_TYPES`.
+`employmentTypeLabel` now accepts null → "Not set".
+
+### Verification
+
+- Backend: `pnpm build` clean, 453/453 tests pass.
+- Frontend: `pnpm build` clean; `/app/hr/contract-types` route emitted.
+- **Outstanding (ops, before shipping upload UI to prod):** confirm
+  `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`
+  are set in the droplet's backend `.env`. Local dev creds are placeholders.
 
 ---
 

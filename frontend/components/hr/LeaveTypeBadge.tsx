@@ -89,6 +89,7 @@ export function roleLabel(role: string): string {
   return map[role] ?? role;
 }
 
-export function employmentTypeLabel(type: string): string {
+export function employmentTypeLabel(type: string | null | undefined): string {
+  if (!type) return 'Not set';
   return type === 'FULL_TIME' ? 'Full-time' : type === 'PART_TIME' ? 'Part-time' : 'Casual';
 }

@@ -1,20 +1,82 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Bell, BellOff, ShieldCheck, User, Building2 } from 'lucide-react';
-import { Avatar, Button, ConfirmDialog, Input, PageLayout, SupportContact } from '@/components/ui';
+import { LogOut, Bell, BellOff, ShieldCheck, User, Building2, ContactRound, FileText, Upload } from 'lucide-react';
+import { Avatar, Button, ConfirmDialog, Input, PageLayout, Select, SupportContact } from '@/components/ui';
 import { useFcmToken } from '@/hooks/useFcmToken';
 import { performLogout } from '@/lib/logout';
 import { authService } from '@/services/authService';
 import { staffService, type StaffDto } from '@/services/staffService';
+import {
+  getEmployeeProfile, updateMyEmployeeProfile, getHrDocuments, uploadHrDocument,
+} from '@/services/hrService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
 import type { AppRole } from '@/types/auth';
+import {
+  SELF_UPLOADABLE_DOCUMENT_TYPES,
+  type EmployeeProfile, type HrDocument, type HrDocumentType, type SelfServiceProfileInput,
+} from '@/types/hr';
 
 const canUseStaffProfileEndpoints = (role: AppRole | null): boolean => {
   return role === 'MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
 };
+
+// Roles whose accounts get an EmployeeProfile (mirror of backend PROFILE_EXCLUDED_ROLES)
+const hasEmployeeProfile = (role: AppRole | null): boolean => {
+  if (!role) return false;
+  return !['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'].includes(role);
+};
+
+const SELF_DOC_TYPE_LABELS: Record<string, string> = {
+  ID_COPY: 'ID Copy',
+  CERTIFICATE: 'Certificate',
+  MEDICAL_CERTIFICATE: 'Medical Certificate',
+  OTHER: 'Other',
+};
+
+interface EmployeeDetailsForm {
+  nationalId: string;
+  dateOfBirth: string;
+  personalPhone: string;
+  personalEmail: string;
+  physicalAddress: string;
+  emergencyName: string;
+  emergencyRelation: string;
+  emergencyPhone: string;
+  kraPIN: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  bankBranch: string;
+  helbNumber: string;
+}
+
+const emptyDetailsForm: EmployeeDetailsForm = {
+  nationalId: '', dateOfBirth: '', personalPhone: '', personalEmail: '', physicalAddress: '',
+  emergencyName: '', emergencyRelation: '', emergencyPhone: '',
+  kraPIN: '', bankName: '', accountName: '', accountNumber: '', bankBranch: '', helbNumber: '',
+};
+
+function detailsFormFrom(p: EmployeeProfile): EmployeeDetailsForm {
+  return {
+    nationalId: p.nationalId ?? '',
+    dateOfBirth: p.dateOfBirth?.slice(0, 10) ?? '',
+    personalPhone: p.personalPhone ?? '',
+    personalEmail: p.personalEmail ?? '',
+    physicalAddress: p.physicalAddress ?? '',
+    emergencyName: p.emergencyName ?? '',
+    emergencyRelation: p.emergencyRelation ?? '',
+    emergencyPhone: p.emergencyPhone ?? '',
+    kraPIN: p.kraPIN ?? '',
+    bankName: p.bankName ?? '',
+    accountName: p.accountName ?? '',
+    accountNumber: p.accountNumber ?? '',
+    bankBranch: p.bankBranch ?? '',
+    helbNumber: p.helbNumber ?? '',
+  };
+}
 
 const roleLabels: Record<AppRole, string> = {
   SYSTEM_ADMIN: 'System Admin',
@@ -85,6 +147,89 @@ export default function Page(): JSX.Element {
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [profileStatus, setProfileStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [passwordStatus, setPasswordStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // ── Self-service employee details ──
+  const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
+  const [detailsForm, setDetailsForm] = useState<EmployeeDetailsForm>(emptyDetailsForm);
+  const [detailsSaving, setDetailsSaving] = useState(false);
+  const [detailsStatus, setDetailsStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // ── My documents ──
+  const [myDocuments, setMyDocuments] = useState<HrDocument[]>([]);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<HrDocumentType>('ID_COPY');
+  const [docUploading, setDocUploading] = useState(false);
+
+  const loadEmployeeProfile = useCallback(async (): Promise<void> => {
+    if (!user || !accessToken || !hasEmployeeProfile(role)) return;
+    try {
+      const [p, docs] = await Promise.all([
+        getEmployeeProfile(user.id, accessToken),
+        getHrDocuments(user.id, accessToken),
+      ]);
+      setEmployeeProfile(p);
+      setDetailsForm(detailsFormFrom(p));
+      setMyDocuments(docs);
+    } catch {
+      // No employee profile (or no access) — hide the section rather than error
+      setEmployeeProfile(null);
+    }
+  }, [user, accessToken, role]);
+
+  useEffect(() => { void loadEmployeeProfile(); }, [loadEmployeeProfile]);
+
+  const handleSaveEmployeeDetails = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!accessToken) return;
+    setDetailsSaving(true);
+    setDetailsStatus(null);
+    try {
+      // Empty inputs are sent as null (clear); the backend rejects empty strings
+      const toNullable = (v: string): string | null => (v.trim() === '' ? null : v.trim());
+      const payload: SelfServiceProfileInput = {
+        nationalId: toNullable(detailsForm.nationalId),
+        dateOfBirth: detailsForm.dateOfBirth ? new Date(detailsForm.dateOfBirth).toISOString() : null,
+        personalPhone: toNullable(detailsForm.personalPhone),
+        personalEmail: toNullable(detailsForm.personalEmail),
+        physicalAddress: toNullable(detailsForm.physicalAddress),
+        emergencyName: toNullable(detailsForm.emergencyName),
+        emergencyRelation: toNullable(detailsForm.emergencyRelation),
+        emergencyPhone: toNullable(detailsForm.emergencyPhone),
+        kraPIN: toNullable(detailsForm.kraPIN),
+        bankName: toNullable(detailsForm.bankName),
+        accountName: toNullable(detailsForm.accountName),
+        accountNumber: toNullable(detailsForm.accountNumber),
+        bankBranch: toNullable(detailsForm.bankBranch),
+        helbNumber: toNullable(detailsForm.helbNumber),
+      };
+      const updated = await updateMyEmployeeProfile(payload, accessToken);
+      setEmployeeProfile(updated);
+      setDetailsForm(detailsFormFrom(updated));
+      setDetailsStatus({ type: 'success', message: 'Your employee details have been saved.' });
+    } catch (error: unknown) {
+      const message = error instanceof ApiError ? error.message : 'Failed to save employee details.';
+      setDetailsStatus({ type: 'error', message });
+    } finally {
+      setDetailsSaving(false);
+    }
+  };
+
+  const handleUploadDocument = async (): Promise<void> => {
+    if (!user || !accessToken || !docFile) return;
+    setDocUploading(true);
+    try {
+      await uploadHrDocument(
+        { file: docFile, employeeUserId: user.id, documentType: docType },
+        accessToken,
+      );
+      setDocFile(null);
+      setMyDocuments(await getHrDocuments(user.id, accessToken));
+    } catch {
+      setDetailsStatus({ type: 'error', message: 'Document upload failed. Only PDF, JPG, or PNG up to 10 MB.' });
+    } finally {
+      setDocUploading(false);
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async (): Promise<void> => {
@@ -275,6 +420,134 @@ export default function Page(): JSX.Element {
               </div>
             </div>
           </SectionCard>
+
+          {/* ── Employee Details (self-service) ── */}
+          {employeeProfile && (
+            <SectionCard>
+              <SectionHeader
+                icon={<ContactRound size={18} />}
+                title="Employee Details"
+                subtitle="Fill in your personal, emergency, and banking details for HR"
+              />
+              <form className="px-8 py-6 space-y-6" onSubmit={handleSaveEmployeeDetails}>
+                {detailsStatus && (
+                  <div className={`rounded-lg border px-4 py-3 text-body-sm ${
+                    detailsStatus.type === 'success'
+                      ? 'border-[#86EFAC] bg-[#EDFAF1] text-[#1A6B3C]'
+                      : 'border-[#FCA5A5] bg-[#FEF2F2] text-[#991B1B]'
+                  }`}>
+                    {detailsStatus.message}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <p className="text-label-sm font-semibold uppercase tracking-wide text-stone-500">Personal</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input label="National ID" value={detailsForm.nationalId} onChange={(e) => setDetailsForm((p) => ({ ...p, nationalId: e.target.value }))} />
+                    <Input label="Date of Birth" type="date" value={detailsForm.dateOfBirth} onChange={(e) => setDetailsForm((p) => ({ ...p, dateOfBirth: e.target.value }))} />
+                    <Input label="Personal Phone" value={detailsForm.personalPhone} onChange={(e) => setDetailsForm((p) => ({ ...p, personalPhone: e.target.value }))} placeholder="+254 7XX XXX XXX" />
+                    <Input label="Personal Email" type="email" value={detailsForm.personalEmail} onChange={(e) => setDetailsForm((p) => ({ ...p, personalEmail: e.target.value }))} />
+                  </div>
+                  <Input label="Physical Address" value={detailsForm.physicalAddress} onChange={(e) => setDetailsForm((p) => ({ ...p, physicalAddress: e.target.value }))} />
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-label-sm font-semibold uppercase tracking-wide text-stone-500">Emergency Contact</p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Input label="Name" value={detailsForm.emergencyName} onChange={(e) => setDetailsForm((p) => ({ ...p, emergencyName: e.target.value }))} />
+                    <Input label="Relationship" value={detailsForm.emergencyRelation} onChange={(e) => setDetailsForm((p) => ({ ...p, emergencyRelation: e.target.value }))} />
+                    <Input label="Phone" value={detailsForm.emergencyPhone} onChange={(e) => setDetailsForm((p) => ({ ...p, emergencyPhone: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-label-sm font-semibold uppercase tracking-wide text-stone-500">Banking & Statutory</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input label="KRA PIN" value={detailsForm.kraPIN} onChange={(e) => setDetailsForm((p) => ({ ...p, kraPIN: e.target.value }))} />
+                    <Input label="HELB Number (if any)" value={detailsForm.helbNumber} onChange={(e) => setDetailsForm((p) => ({ ...p, helbNumber: e.target.value }))} />
+                    <Input label="Bank Name" value={detailsForm.bankName} onChange={(e) => setDetailsForm((p) => ({ ...p, bankName: e.target.value }))} />
+                    <Input label="Bank Branch" value={detailsForm.bankBranch} onChange={(e) => setDetailsForm((p) => ({ ...p, bankBranch: e.target.value }))} />
+                    <Input label="Account Name" value={detailsForm.accountName} onChange={(e) => setDetailsForm((p) => ({ ...p, accountName: e.target.value }))} />
+                    <Input label="Account Number" value={detailsForm.accountNumber} onChange={(e) => setDetailsForm((p) => ({ ...p, accountNumber: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <Button type="submit" isLoading={detailsSaving}>
+                    Save employee details
+                  </Button>
+                </div>
+              </form>
+            </SectionCard>
+          )}
+
+          {/* ── My Documents (self-service uploads) ── */}
+          {employeeProfile && (
+            <SectionCard>
+              <SectionHeader
+                icon={<FileText size={18} />}
+                title="My Documents"
+                subtitle="Upload your ID copy, certificates, or medical documents for your HR file"
+              />
+              <div className="px-8 py-6 space-y-5">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-52">
+                    <Select
+                      label="Document Type"
+                      value={docType}
+                      onChange={(e) => setDocType(e.target.value as HrDocumentType)}
+                      options={SELF_UPLOADABLE_DOCUMENT_TYPES.map((t) => ({
+                        value: t,
+                        label: SELF_DOC_TYPE_LABELS[t] ?? t,
+                      }))}
+                    />
+                  </div>
+                  <div className="min-w-48 flex-1">
+                    <label className="mb-1.5 block text-label-sm font-medium text-stone-700">File (PDF, JPG, or PNG — max 10 MB)</label>
+                    <input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+                      className="block w-full text-body-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-parchment file:px-3 file:py-2 file:text-label-sm file:font-semibold file:text-stone-700 hover:file:bg-stone-100"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => void handleUploadDocument()}
+                    isLoading={docUploading}
+                    disabled={!docFile}
+                    leftIcon={<Upload size={14} />}
+                  >
+                    Upload
+                  </Button>
+                </div>
+
+                {myDocuments.length === 0 ? (
+                  <p className="text-body-sm text-stone-400">No documents on file yet.</p>
+                ) : (
+                  <ul className="divide-y divide-stone-100 rounded-lg border border-stone-100">
+                    {myDocuments.map((doc) => (
+                      <li key={doc.id}>
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-stone-50"
+                        >
+                          <FileText size={16} className="shrink-0 text-stone-400" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-body-sm font-medium text-stone-800">{doc.fileName}</p>
+                            <p className="text-caption text-stone-400">
+                              {doc.documentType.replace(/_/g, ' ')} · {new Date(doc.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </SectionCard>
+          )}
 
           {/* ── Edit Profile ── */}
           <SectionCard>

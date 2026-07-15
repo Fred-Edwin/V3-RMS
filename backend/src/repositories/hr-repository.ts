@@ -167,6 +167,8 @@ export async function listProfiles(organizationId?: string) {
       contractType: {
         select: { id: true, name: true, durationMonths: true, isActive: true },
       },
+      leaveBalances: true,
+      _count: { select: { documents: true } },
     },
     orderBy: { user: { name: 'asc' } },
   });

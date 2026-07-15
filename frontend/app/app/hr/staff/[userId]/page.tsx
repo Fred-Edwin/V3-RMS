@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ChevronLeft, Pencil, Shield, FileText, Calendar, User,
-  AlertTriangle, Lock, ArrowLeftRight,
+  AlertTriangle, Lock, ArrowLeftRight, ScrollText, Upload,
 } from 'lucide-react';
 import { PageLayout, Button, Modal, Input, Select } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
@@ -12,10 +12,14 @@ import { useToast } from '@/hooks/useToast';
 import {
   getEmployeeProfile, updateEmployeeProfile,
   getDisciplinaryRecords, getHrDocuments,
+  listContractTypes, assignContract, uploadHrDocument,
 } from '@/services/hrService';
 import { staffService } from '@/services/staffService';
 import type { StaffDto } from '@/services/staffService';
-import type { EmployeeProfile, DisciplinaryRecord, HrDocument, EmploymentType } from '@/types/hr';
+import type {
+  EmployeeProfile, DisciplinaryRecord, HrDocument, EmploymentType,
+  ContractType, HrDocumentType,
+} from '@/types/hr';
 import {
   roleLabel, employmentTypeLabel,
 } from '@/components/hr/LeaveTypeBadge';
@@ -61,9 +65,19 @@ export default function EmployeeProfilePage(): JSX.Element {
   const [editOpen, setEditOpen] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
+  // ── Contract assignment (HR only) ──
+  const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
+  const [selectedContractId, setSelectedContractId] = useState('');
+  const [assigningContract, setAssigningContract] = useState(false);
+
+  // ── Document upload ──
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadType, setUploadType] = useState<HrDocumentType>('CONTRACT');
+  const [uploading, setUploading] = useState(false);
+
   const [editForm, setEditForm] = useState({
     jobTitle: '',
-    employmentType: 'FULL_TIME' as EmploymentType,
+    employmentType: '' as EmploymentType | '',
     startDate: '',
     probationEndDate: '',
     endDate: '',
@@ -98,9 +112,10 @@ export default function EmployeeProfilePage(): JSX.Element {
       setTransfers(transferHistory);
       // Only roles that can be a reporting manager
       setManagers(staff.filter((s) => ['MANAGER', 'HR_MANAGER', 'DIRECTOR'].includes(s.role)));
+      setSelectedContractId(p.contractTypeId ?? '');
       setEditForm({
         jobTitle: p.jobTitle ?? '',
-        employmentType: p.employmentType,
+        employmentType: p.employmentType ?? '',
         startDate: p.startDate.slice(0, 10),
         probationEndDate: p.probationEndDate?.slice(0, 10) ?? '',
         endDate: p.endDate?.slice(0, 10) ?? '',
@@ -124,13 +139,58 @@ export default function EmployeeProfilePage(): JSX.Element {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Contract types are HR-only; include inactive so a currently-assigned but
+  // deactivated contract still resolves to its policy details.
+  useEffect(() => {
+    if (!accessToken || !isHrAuth) return;
+    void listContractTypes(accessToken, true).then(setContractTypes).catch(() => undefined);
+  }, [accessToken, isHrAuth]);
+
+  const handleAssignContract = async (): Promise<void> => {
+    if (!accessToken || !userId) return;
+    setAssigningContract(true);
+    try {
+      await assignContract(userId, selectedContractId || null, accessToken);
+      toast({
+        variant: 'success',
+        title: selectedContractId ? 'Contract assigned' : 'Contract cleared',
+        message: selectedContractId
+          ? 'Leave balances for this year have been synced from the contract policy.'
+          : 'Existing leave balances were left unchanged.',
+      });
+      await load();
+    } catch (err) {
+      toast({ variant: 'error', title: 'Failed to update contract', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setAssigningContract(false);
+    }
+  };
+
+  const handleUpload = async (): Promise<void> => {
+    if (!accessToken || !userId || !uploadFile) return;
+    setUploading(true);
+    try {
+      await uploadHrDocument(
+        { file: uploadFile, employeeUserId: userId, documentType: uploadType },
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Document uploaded' });
+      setUploadFile(null);
+      setDocuments(await getHrDocuments(userId, accessToken));
+    } catch (err) {
+      toast({ variant: 'error', title: 'Upload failed', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleEdit = async () => {
     if (!accessToken || !userId) return;
     setEditSubmitting(true);
     try {
       await updateEmployeeProfile(userId, {
         jobTitle: editForm.jobTitle || undefined,
-        employmentType: editForm.employmentType,
+        employmentType: editForm.employmentType || undefined,
         startDate: editForm.startDate ? new Date(editForm.startDate).toISOString() : undefined,
         dateOfBirth: editForm.dateOfBirth ? new Date(editForm.dateOfBirth).toISOString() : undefined,
         probationEndDate: editForm.probationEndDate ? new Date(editForm.probationEndDate).toISOString() : undefined,
@@ -223,9 +283,22 @@ export default function EmployeeProfilePage(): JSX.Element {
                 }`}>
                   {profile.user.isActive ? 'Active' : 'Inactive'}
                 </span>
-                <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600">
-                  {employmentTypeLabel(profile.employmentType)}
-                </span>
+                {profile.contractType ? (
+                  <span className="flex items-center gap-1 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600">
+                    <ScrollText size={11} />
+                    {profile.contractType.name}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 rounded-full bg-[#FDF3DC] px-2.5 py-0.5 text-label-sm text-[#92650A]">
+                    <ScrollText size={11} />
+                    No contract assigned
+                  </span>
+                )}
+                {profile.employmentType && (
+                  <span className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-label-sm text-stone-600">
+                    {employmentTypeLabel(profile.employmentType)}
+                  </span>
+                )}
                 <span className="text-label-sm text-stone-400">
                   Started {startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · {tenure}
                 </span>
@@ -288,6 +361,90 @@ export default function EmployeeProfilePage(): JSX.Element {
             <InfoRow label="Reporting Manager" value={profile.reportingManager?.name} />
             <InfoRow label="Branch" value={profile.user.organization?.name} />
           </InfoCard>
+          <InfoCard title="Banking & Statutory">
+            <InfoRow label="KRA PIN" value={profile.kraPIN} />
+            <InfoRow label="Bank" value={profile.bankName} />
+            <InfoRow label="Account Name" value={profile.accountName} />
+            <InfoRow label="Account Number" value={profile.accountNumber} />
+            <InfoRow label="Bank Branch" value={profile.bankBranch} />
+            <InfoRow label="HELB Number" value={profile.helbNumber} />
+          </InfoCard>
+
+          {/* ── Contract & Leave Policy (HR-only management) ─────────────── */}
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm lg:col-span-2">
+            <div className="mb-3 flex items-center gap-2">
+              <ScrollText size={15} className="text-stone-500" />
+              <h3 className="text-label-md font-semibold text-stone-700">Contract & Leave Policy</h3>
+            </div>
+            {isHrAuth ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-64">
+                    <Select
+                      label="Contract Type"
+                      value={selectedContractId}
+                      onChange={(e) => setSelectedContractId(e.target.value)}
+                      options={[
+                        { value: '', label: '— No contract —' },
+                        ...contractTypes
+                          .filter((ct) => ct.isActive || ct.id === profile.contractTypeId)
+                          .map((ct) => ({
+                            value: ct.id,
+                            label: `${ct.name}${ct.durationMonths ? ` (${ct.durationMonths} mo)` : ''}${ct.isActive ? '' : ' — inactive'}`,
+                          })),
+                      ]}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => void handleAssignContract()}
+                    isLoading={assigningContract}
+                    disabled={selectedContractId === (profile.contractTypeId ?? '')}
+                  >
+                    {selectedContractId ? 'Assign Contract' : 'Clear Contract'}
+                  </Button>
+                  {contractTypes.length === 0 && (
+                    <button
+                      onClick={() => router.push('/app/hr/contract-types')}
+                      className="text-label-sm font-medium text-stone-500 underline underline-offset-2 hover:text-stone-700"
+                    >
+                      No contract types defined yet — create one
+                    </button>
+                  )}
+                </div>
+
+                {(() => {
+                  const selected = contractTypes.find((ct) => ct.id === selectedContractId);
+                  if (!selected) return null;
+                  return (
+                    <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3">
+                      <p className="mb-2 text-caption font-semibold uppercase tracking-wide text-stone-400">
+                        Leave entitlement under {selected.name}
+                      </p>
+                      <div className="flex flex-wrap gap-4">
+                        {selected.leavePolicies.map((p) => (
+                          <span key={p.id} className="text-body-sm text-stone-700">
+                            <span className="font-semibold tabular-nums">{p.totalDays}</span>{' '}
+                            <span className="text-stone-500">{p.leaveType.toLowerCase()} days</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <p className="text-caption text-stone-400">
+                  Assigning a contract syncs this year&apos;s leave balances to the contract&apos;s policy (used and pending
+                  days are preserved). For one-off adjustments, use the pencil icon on the balance cards in the Leave tab.
+                </p>
+              </div>
+            ) : (
+              <p className="text-body-sm text-stone-600">
+                {profile.contractType
+                  ? `${profile.contractType.name}${profile.contractType.durationMonths ? ` (${profile.contractType.durationMonths} months)` : ''}`
+                  : 'No contract assigned yet.'}
+              </p>
+            )}
+          </div>
           {isHrAuth && profile.notes && (
             <div className="rounded-xl border border-[#FCD34D] bg-[#FFFBEB] p-4 shadow-sm">
               <div className="mb-2 flex items-center gap-1.5 text-label-sm font-semibold text-[#92400E]">
@@ -315,6 +472,50 @@ export default function EmployeeProfilePage(): JSX.Element {
 
       {activeTab === 'documents' && (
         <div className="space-y-3">
+          {/* Upload form — page is only reachable by HR and managers, both may upload */}
+          <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <Upload size={15} className="text-stone-500" />
+              <h3 className="text-label-md font-semibold text-stone-700">Upload Document</h3>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-56">
+                <Select
+                  label="Document Type"
+                  value={uploadType}
+                  onChange={(e) => setUploadType(e.target.value as HrDocumentType)}
+                  options={[
+                    { value: 'CONTRACT', label: 'Contract' },
+                    { value: 'ID_COPY', label: 'ID Copy' },
+                    { value: 'CERTIFICATE', label: 'Certificate' },
+                    { value: 'MEDICAL_CERTIFICATE', label: 'Medical Certificate' },
+                    { value: 'INCIDENT_REPORT', label: 'Incident Report' },
+                    { value: 'WARNING_LETTER', label: 'Warning Letter' },
+                    { value: 'OTHER', label: 'Other' },
+                  ]}
+                />
+              </div>
+              <div className="min-w-52 flex-1">
+                <label className="mb-1.5 block text-label-sm font-medium text-stone-700">File (PDF, JPG, or PNG — max 10 MB)</label>
+                <input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-body-sm text-stone-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[#F5F0E8] file:px-3 file:py-2 file:text-label-sm file:font-semibold file:text-[#2C1810] hover:file:bg-[#EDE7DC]"
+                />
+              </div>
+              <Button
+                onClick={() => void handleUpload()}
+                isLoading={uploading}
+                disabled={!uploadFile}
+                className="flex items-center gap-1.5"
+              >
+                <Upload size={13} />
+                Upload
+              </Button>
+            </div>
+          </div>
+
           {documents.length === 0 ? (
             <div className="rounded-xl border border-stone-200 bg-white px-5 py-10 shadow-sm text-center">
               <FileText size={28} className="mx-auto mb-2 text-stone-300" />
@@ -409,8 +610,9 @@ export default function EmployeeProfilePage(): JSX.Element {
             <Select
               label="Employment Type"
               value={editForm.employmentType}
-              onChange={(e) => setEditForm((p) => ({ ...p, employmentType: e.target.value as EmploymentType }))}
+              onChange={(e) => setEditForm((p) => ({ ...p, employmentType: e.target.value as EmploymentType | '' }))}
               options={[
+                { value: '', label: '— Not set —' },
                 { value: 'FULL_TIME', label: 'Full-time' },
                 { value: 'PART_TIME', label: 'Part-time' },
                 { value: 'CASUAL', label: 'Casual' },
