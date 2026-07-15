@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import * as hrRepository from '../repositories/hr-repository';
 import { fcmService } from './fcm-service';
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
+import { SELF_UPLOADABLE_DOCUMENT_TYPES } from '../utils/hr-constants';
 import type { UserRole } from '@prisma/client';
 import { logger } from '../utils/logger';
 
@@ -45,11 +46,9 @@ export async function createEmployeeProfile(
     throw new ConflictError('An employee profile already exists for this user');
   }
 
+  // No leave balances seeded here — balances are contract-driven and populate
+  // once HR assigns a contract type (see assignContract).
   const profile = await hrRepository.createProfile(data);
-
-  // Seed leave balances for current calendar year
-  const currentYear = new Date().getFullYear();
-  await hrRepository.seedLeaveBalances(profile.id, currentYear);
 
   logger.info({ profileId: profile.id, userId: data.userId }, 'Employee profile created');
   return profile;
@@ -93,6 +92,113 @@ export async function updateEmployeeProfile(
   if (!profile) throw new NotFoundError('Employee profile not found');
 
   return hrRepository.updateProfile(profile.id, data);
+}
+
+/** Self-service: staff update their own personal details. HR-only fields are
+ *  rejected at the validator layer (strict schema), so only allowlisted
+ *  personal fields ever reach this function. */
+export async function updateMyProfile(
+  actor: HrActor,
+  data: hrRepository.SelfServiceProfileData,
+) {
+  const profile = await hrRepository.findProfileByUserId(actor.id);
+  if (!profile) {
+    throw new NotFoundError('You do not have an employee profile set up yet. Contact HR.');
+  }
+
+  return hrRepository.updateProfile(profile.id, data);
+}
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+export async function listContractTypes(actor: HrActor, includeInactive = false) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can manage contract types');
+  }
+  return hrRepository.listContractTypes(includeInactive);
+}
+
+export async function createContractType(
+  actor: HrActor,
+  data: hrRepository.CreateContractTypeData,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can manage contract types');
+  }
+
+  const duplicate = await hrRepository.findContractTypeByName(data.name);
+  if (duplicate) {
+    throw new ConflictError(`A contract type named "${data.name}" already exists`);
+  }
+
+  const contractType = await hrRepository.createContractType(data);
+  logger.info({ contractTypeId: contractType.id, name: data.name }, 'Contract type created');
+  return contractType;
+}
+
+export async function updateContractType(
+  actor: HrActor,
+  id: string,
+  data: hrRepository.UpdateContractTypeData,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can manage contract types');
+  }
+
+  const existing = await hrRepository.findContractTypeById(id);
+  if (!existing) throw new NotFoundError('Contract type not found');
+
+  if (data.name && data.name.toLowerCase() !== existing.name.toLowerCase()) {
+    const duplicate = await hrRepository.findContractTypeByName(data.name);
+    if (duplicate && duplicate.id !== id) {
+      throw new ConflictError(`A contract type named "${data.name}" already exists`);
+    }
+  }
+
+  const updated = await hrRepository.updateContractType(id, data);
+  logger.info({ contractTypeId: id }, 'Contract type updated');
+  return updated;
+}
+
+/**
+ * HR assigns (or clears) a staff member's contract type. On assignment, leave
+ * balances for the current leave year are synced from the contract's
+ * LeavePolicy. usedDays/pendingDays are preserved — if the new policy grants
+ * fewer days than already used, availability goes negative and HR corrects it
+ * manually via the existing balance-adjustment endpoint (no silent clamping).
+ */
+export async function assignContract(
+  actor: HrActor,
+  userId: string,
+  contractTypeId: string | null,
+) {
+  if (!isHrAuthority(actor.role)) {
+    throw new ForbiddenError('Only HR Manager or Director can assign contracts');
+  }
+
+  const profile = await hrRepository.findProfileByUserId(userId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  if (contractTypeId) {
+    const contractType = await hrRepository.findContractTypeById(contractTypeId);
+    if (!contractType) throw new NotFoundError('Contract type not found');
+    if (!contractType.isActive) {
+      throw new ValidationError('Cannot assign an inactive contract type');
+    }
+  }
+
+  const leaveYear = new Date().getFullYear();
+  const updated = await hrRepository.assignContractAndSyncBalances(
+    profile.id,
+    contractTypeId,
+    leaveYear,
+  );
+
+  logger.info(
+    { profileId: profile.id, userId, contractTypeId, assignedBy: actor.id },
+    'Contract type assigned',
+  );
+  return updated;
 }
 
 // ─── Leave Balances ───────────────────────────────────────────────────────────
@@ -587,6 +693,43 @@ export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: st
   }
 
   return hrRepository.acknowledgeDisciplinaryRecord(recordId, record.organizationId);
+}
+
+// ─── HR Documents ─────────────────────────────────────────────────────────────
+
+/**
+ * Permission check for HR document uploads.
+ * - HR_MANAGER / DIRECTOR / SYSTEM_ADMIN: any profile, any document type
+ * - MANAGER: own-branch profiles only, any document type
+ * - All other staff: own profile only, self-serviceable document types only
+ * Returns the target profile when allowed; throws otherwise.
+ */
+export async function authorizeDocumentUpload(
+  actor: HrActor,
+  employeeUserId: string,
+  documentType: import('@prisma/client').HrDocumentType,
+) {
+  // Ownership/doc-type checks come before the profile lookup so non-privileged
+  // staff get 403, not a 404 that leaks whether another user has a profile
+  if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
+    if (actor.id !== employeeUserId) {
+      throw new ForbiddenError('You can only upload documents to your own profile');
+    }
+    if (!SELF_UPLOADABLE_DOCUMENT_TYPES.includes(documentType)) {
+      throw new ForbiddenError(
+        `Document type ${documentType} can only be uploaded by HR`,
+      );
+    }
+  }
+
+  const profile = await hrRepository.findProfileByUserId(employeeUserId);
+  if (!profile) throw new NotFoundError('Employee profile not found');
+
+  if (actor.role === 'MANAGER' && actor.organizationId !== profile.user.organizationId) {
+    throw new ForbiddenError('You can only upload documents for staff in your own branch');
+  }
+
+  return profile;
 }
 
 // ─── Attendance Analytics ─────────────────────────────────────────────────────

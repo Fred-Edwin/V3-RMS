@@ -16,6 +16,10 @@ import type {
   AttendanceStaffRow,
   AttendanceDayRow,
   AttendanceSummaryFilters,
+  ContractType,
+  CreateContractTypeInput,
+  UpdateContractTypeInput,
+  SelfServiceProfileInput,
 } from '@/types/hr';
 
 // ─── Employee Profiles ────────────────────────────────────────────────────────
@@ -45,6 +49,55 @@ export async function updateEmployeeProfile(
 ): Promise<EmployeeProfile> {
   const data = await apiClient.patch<{ profile: EmployeeProfile }>(`/hr/profiles/${userId}`, input, token);
   return data.profile;
+}
+
+export async function updateMyEmployeeProfile(
+  input: SelfServiceProfileInput,
+  token: string,
+): Promise<EmployeeProfile> {
+  const data = await apiClient.patch<{ profile: EmployeeProfile }>('/hr/profiles/me', input, token);
+  return data.profile;
+}
+
+export async function assignContract(
+  userId: string,
+  contractTypeId: string | null,
+  token: string,
+): Promise<EmployeeProfile> {
+  const data = await apiClient.patch<{ profile: EmployeeProfile }>(
+    `/hr/profiles/${userId}/contract`,
+    { contractTypeId },
+    token,
+  );
+  return data.profile;
+}
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+export async function listContractTypes(
+  token: string,
+  includeInactive = false,
+): Promise<ContractType[]> {
+  const q = includeInactive ? '?includeInactive=true' : '';
+  const data = await apiClient.get<{ contractTypes: ContractType[] }>(`/hr/contract-types${q}`, token);
+  return data.contractTypes;
+}
+
+export async function createContractType(
+  input: CreateContractTypeInput,
+  token: string,
+): Promise<ContractType> {
+  const data = await apiClient.post<{ contractType: ContractType }>('/hr/contract-types', input, token);
+  return data.contractType;
+}
+
+export async function updateContractType(
+  id: string,
+  input: UpdateContractTypeInput,
+  token: string,
+): Promise<ContractType> {
+  const data = await apiClient.patch<{ contractType: ContractType }>(`/hr/contract-types/${id}`, input, token);
+  return data.contractType;
 }
 
 // ─── Leave Balances ───────────────────────────────────────────────────────────

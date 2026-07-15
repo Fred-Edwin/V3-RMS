@@ -102,7 +102,11 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: UI System Overhaul (design tokens, Sheet/ExcelTable data components)
+Phase: HR Profile & Contract Overhaul (auto-profile cleanup, contract/leave-policy linkage, self-service staff details, document uploads, staff list Excel-table)
+Status: Session 1 (Backend) complete 2026-07-14 — Session 2 (UI) unblocked, not started
+Plan file: docs/context/HR_PROFILE_OVERHAUL.md
+
+Also in progress: UI System Overhaul (design tokens, Sheet/ExcelTable data components)
 Status: Round 0 complete 2026-07-06 — Rounds 1–6 pending
 Plan file: docs/context/UI_SYSTEM_ROADMAP.md
 

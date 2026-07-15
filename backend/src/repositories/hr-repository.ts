@@ -19,7 +19,7 @@ export interface CreateEmployeeProfileData {
   emergencyName?: string;
   emergencyRelation?: string;
   emergencyPhone?: string;
-  employmentType: EmploymentType;
+  employmentType?: EmploymentType;
   startDate: Date;
   endDate?: Date;
   probationEndDate?: Date;
@@ -29,14 +29,14 @@ export interface CreateEmployeeProfileData {
 }
 
 export interface UpdateEmployeeProfileData {
-  nationalId?: string;
-  dateOfBirth?: Date;
-  personalPhone?: string;
-  personalEmail?: string;
-  physicalAddress?: string;
-  emergencyName?: string;
-  emergencyRelation?: string;
-  emergencyPhone?: string;
+  nationalId?: string | null;
+  dateOfBirth?: Date | null;
+  personalPhone?: string | null;
+  personalEmail?: string | null;
+  physicalAddress?: string | null;
+  emergencyName?: string | null;
+  emergencyRelation?: string | null;
+  emergencyPhone?: string | null;
   employmentType?: EmploymentType;
   startDate?: Date;
   endDate?: Date | null;
@@ -50,6 +50,39 @@ export interface UpdateEmployeeProfileData {
   accountName?: string | null;
   bankBranch?: string | null;
   helbNumber?: string | null;
+}
+
+/** Personal fields staff may edit on their own profile via self-service. */
+export interface SelfServiceProfileData {
+  nationalId?: string | null;
+  dateOfBirth?: Date | null;
+  personalPhone?: string | null;
+  personalEmail?: string | null;
+  physicalAddress?: string | null;
+  emergencyName?: string | null;
+  emergencyRelation?: string | null;
+  emergencyPhone?: string | null;
+  kraPIN?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  bankBranch?: string | null;
+  helbNumber?: string | null;
+}
+
+export interface CreateContractTypeData {
+  organizationId?: string | null;
+  name: string;
+  durationMonths?: number | null;
+  leavePolicies: Array<{ leaveType: LeaveType; totalDays: number }>;
+}
+
+export interface UpdateContractTypeData {
+  name?: string;
+  durationMonths?: number | null;
+  isActive?: boolean;
+  /** When provided, replaces the full leave-policy set for this contract type. */
+  leavePolicies?: Array<{ leaveType: LeaveType; totalDays: number }>;
 }
 
 export interface CreateLeaveRequestData {
@@ -94,6 +127,9 @@ const profileWithUser = {
   reportingManager: {
     select: { id: true, name: true, role: true },
   },
+  contractType: {
+    select: { id: true, name: true, durationMonths: true, isActive: true },
+  },
   leaveBalances: true,
 } as const;
 
@@ -128,6 +164,11 @@ export async function listProfiles(organizationId?: string) {
           organization: { select: { id: true, name: true } },
         },
       },
+      contractType: {
+        select: { id: true, name: true, durationMonths: true, isActive: true },
+      },
+      leaveBalances: true,
+      _count: { select: { documents: true } },
     },
     orderBy: { user: { name: 'asc' } },
   });
@@ -184,34 +225,72 @@ export async function findLeaveBalance(
   });
 }
 
-export async function seedLeaveBalances(employeeProfileId: string, leaveYear: number) {
-  const defaults: Array<{ leaveType: LeaveType; totalDays: number }> = [
-    { leaveType: 'ANNUAL', totalDays: 21 },
-    { leaveType: 'SICK', totalDays: 10 },
-    { leaveType: 'EMERGENCY', totalDays: 5 },
-    { leaveType: 'UNPAID', totalDays: 30 },
-  ];
+/**
+ * Assign a contract type to a profile and sync leave balances for the given
+ * year from the contract's LeavePolicy rows, atomically:
+ * - policy leave types are upserted with the policy's totalDays
+ * - existing balances for leave types NOT in the policy get totalDays: 0
+ * - usedDays/pendingDays are never touched, so a downgrade below already-used
+ *   days shows as negative availability rather than being silently clamped
+ *
+ * Passing contractTypeId: null clears the contract and leaves balances as-is.
+ */
+export async function assignContractAndSyncBalances(
+  employeeProfileId: string,
+  contractTypeId: string | null,
+  leaveYear: number,
+) {
+  if (contractTypeId === null) {
+    return prisma.employeeProfile.update({
+      where: { id: employeeProfileId },
+      data: { contractTypeId: null },
+      include: profileWithUser,
+    });
+  }
 
-  return prisma.$transaction(
-    defaults.map((d) =>
-      prisma.leaveBalance.upsert({
+  const policies = await prisma.leavePolicy.findMany({ where: { contractTypeId } });
+  const existing = await prisma.leaveBalance.findMany({
+    where: { employeeProfileId, leaveYear },
+    select: { leaveType: true },
+  });
+  const policyTypes = new Set(policies.map((p) => p.leaveType));
+  const orphanedTypes = existing.map((b) => b.leaveType).filter((t) => !policyTypes.has(t));
+
+  // Balance writes run before the profile update so the returned profile's
+  // leaveBalances include reflects the freshly synced values
+  return prisma.$transaction(async (tx) => {
+    for (const p of policies) {
+      await tx.leaveBalance.upsert({
         where: {
           employeeProfileId_leaveType_leaveYear: {
             employeeProfileId,
-            leaveType: d.leaveType,
+            leaveType: p.leaveType,
             leaveYear,
           },
         },
         create: {
           employeeProfileId,
-          leaveType: d.leaveType,
-          totalDays: d.totalDays,
+          leaveType: p.leaveType,
+          totalDays: p.totalDays,
           leaveYear,
         },
-        update: {},
-      }),
-    ),
-  );
+        update: { totalDays: p.totalDays },
+      });
+    }
+    for (const leaveType of orphanedTypes) {
+      await tx.leaveBalance.update({
+        where: {
+          employeeProfileId_leaveType_leaveYear: { employeeProfileId, leaveType, leaveYear },
+        },
+        data: { totalDays: 0 },
+      });
+    }
+    return tx.employeeProfile.update({
+      where: { id: employeeProfileId },
+      data: { contractTypeId },
+      include: profileWithUser,
+    });
+  });
 }
 
 export async function updateLeaveBalance(
@@ -262,6 +341,79 @@ export async function decrementLeavePending(
   return prisma.leaveBalance.update({
     where: { employeeProfileId_leaveType_leaveYear: { employeeProfileId, leaveType, leaveYear } },
     data: { pendingDays: { decrement: days } },
+  });
+}
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+const contractTypeInclude = {
+  leavePolicies: { orderBy: { leaveType: 'asc' as const } },
+  _count: { select: { employeeProfiles: true } },
+} as const;
+
+export async function listContractTypes(includeInactive = false) {
+  return prisma.contractType.findMany({
+    where: includeInactive ? undefined : { isActive: true },
+    include: contractTypeInclude,
+    orderBy: { name: 'asc' },
+  });
+}
+
+export async function findContractTypeById(id: string) {
+  return prisma.contractType.findUnique({
+    where: { id },
+    include: contractTypeInclude,
+  });
+}
+
+export async function findContractTypeByName(name: string) {
+  return prisma.contractType.findFirst({
+    where: { name: { equals: name, mode: 'insensitive' }, isActive: true },
+  });
+}
+
+export async function createContractType(data: CreateContractTypeData) {
+  return prisma.contractType.create({
+    data: {
+      organizationId: data.organizationId ?? null,
+      name: data.name,
+      durationMonths: data.durationMonths ?? null,
+      leavePolicies: {
+        create: data.leavePolicies.map((p) => ({
+          leaveType: p.leaveType,
+          totalDays: p.totalDays,
+        })),
+      },
+    },
+    include: contractTypeInclude,
+  });
+}
+
+export async function updateContractType(id: string, data: UpdateContractTypeData) {
+  const { leavePolicies, ...fields } = data;
+
+  if (!leavePolicies) {
+    return prisma.contractType.update({
+      where: { id },
+      data: fields,
+      include: contractTypeInclude,
+    });
+  }
+
+  // Nested writes run in a single transaction — replaces the full policy set
+  return prisma.contractType.update({
+    where: { id },
+    data: {
+      ...fields,
+      leavePolicies: {
+        deleteMany: {},
+        create: leavePolicies.map((p) => ({
+          leaveType: p.leaveType,
+          totalDays: p.totalDays,
+        })),
+      },
+    },
+    include: contractTypeInclude,
   });
 }
 

@@ -1,8 +1,9 @@
 /**
  * seed-employee-profiles.ts
  *
- * One-off script: creates an EmployeeProfile + seeds leave balances for every
- * active user that does not already have one.
+ * One-off script: creates an EmployeeProfile for every active user that does
+ * not already have one. Leave balances are NOT seeded — they populate when HR
+ * assigns a contract type (contract-driven leave policy).
  *
  * Excluded roles: DIRECTOR, HR_MANAGER, SYSTEM_ADMIN (org-level, no branch duties)
  *                  KITCHEN_DISPLAY, BARISTA_DISPLAY (shared display accounts, not individual staff)
@@ -20,8 +21,9 @@
 
 import 'dotenv/config';
 import { prisma } from '../config/database';
+import { PROFILE_EXCLUDED_ROLES } from '../utils/hr-constants';
 
-const EXCLUDED_ROLES = ['DIRECTOR', 'HR_MANAGER', 'SYSTEM_ADMIN', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY'];
+const EXCLUDED_ROLES = PROFILE_EXCLUDED_ROLES;
 
 const run = async (): Promise<void> => {
   console.log('🔍  Finding staff without an employee profile…');
@@ -68,27 +70,19 @@ const run = async (): Promise<void> => {
   }
   console.log('');
 
-  const leaveYear = new Date().getFullYear();
   let created = 0;
   let failed = 0;
 
   for (const user of users) {
     try {
-      const profile = await prisma.employeeProfile.create({
+      // Contract type (and therefore leave balances) is assigned later by HR —
+      // no employmentType is guessed and no flat balances are seeded here.
+      await prisma.employeeProfile.create({
         data: {
           userId: user.id,
-          employmentType: 'FULL_TIME',
           startDate: new Date(),
         },
       });
-
-      // Seed leave balances — must match hrRepository.seedLeaveBalances defaults
-      await prisma.$transaction([
-        prisma.leaveBalance.upsert({ where: { employeeProfileId_leaveType_leaveYear: { employeeProfileId: profile.id, leaveType: 'ANNUAL',    leaveYear } }, create: { employeeProfileId: profile.id, leaveType: 'ANNUAL',    leaveYear, totalDays: 21 }, update: {} }),
-        prisma.leaveBalance.upsert({ where: { employeeProfileId_leaveType_leaveYear: { employeeProfileId: profile.id, leaveType: 'SICK',      leaveYear } }, create: { employeeProfileId: profile.id, leaveType: 'SICK',      leaveYear, totalDays: 10 }, update: {} }),
-        prisma.leaveBalance.upsert({ where: { employeeProfileId_leaveType_leaveYear: { employeeProfileId: profile.id, leaveType: 'EMERGENCY', leaveYear } }, create: { employeeProfileId: profile.id, leaveType: 'EMERGENCY', leaveYear, totalDays: 5  }, update: {} }),
-        prisma.leaveBalance.upsert({ where: { employeeProfileId_leaveType_leaveYear: { employeeProfileId: profile.id, leaveType: 'UNPAID',    leaveYear } }, create: { employeeProfileId: profile.id, leaveType: 'UNPAID',    leaveYear, totalDays: 30 }, update: {} }),
-      ]);
 
       console.log(`   ✓ ${user.name}`);
       created++;

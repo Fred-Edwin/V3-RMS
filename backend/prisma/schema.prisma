@@ -54,6 +54,7 @@ model Organization {
   payslips                 Payslip[]
   staffTransfersFrom       StaffTransfer[]      @relation("StaffTransferFrom")
   staffTransfersTo         StaffTransfer[]      @relation("StaffTransferTo")
+  contractTypes            ContractType[]
 
   @@map("organizations")
 }
@@ -1091,7 +1092,8 @@ model EmployeeProfile {
   emergencyName     String?        @map("emergency_name")
   emergencyRelation String?        @map("emergency_relation")
   emergencyPhone    String?        @map("emergency_phone")
-  employmentType    EmploymentType @map("employment_type")
+  employmentType    EmploymentType? @map("employment_type")
+  contractTypeId    String?        @map("contract_type_id")
   startDate         DateTime       @map("start_date")
   endDate           DateTime?      @map("end_date")
   probationEndDate  DateTime?      @map("probation_end_date")
@@ -1109,13 +1111,44 @@ model EmployeeProfile {
 
   user              User             @relation("EmployeeProfileUser", fields: [userId], references: [id])
   reportingManager  User?            @relation("EmployeeProfileManager", fields: [reportingManagerId], references: [id])
+  contractType      ContractType?    @relation(fields: [contractTypeId], references: [id])
   leaveBalances     LeaveBalance[]
   leaveRequests     LeaveRequest[]
   documents         HrDocument[]
   disciplinaryRecords DisciplinaryRecord[]
 
   @@index([userId])
+  @@index([contractTypeId])
   @@map("employee_profiles")
+}
+
+model ContractType {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")
+  name           String
+  durationMonths Int?     @map("duration_months")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  leavePolicies    LeavePolicy[]
+  employeeProfiles EmployeeProfile[]
+
+  @@index([organizationId])
+  @@map("contract_types")
+}
+
+model LeavePolicy {
+  id             String    @id @default(uuid())
+  contractTypeId String    @map("contract_type_id")
+  leaveType      LeaveType @map("leave_type")
+  totalDays      Int       @map("total_days")
+
+  contractType   ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([contractTypeId, leaveType])
+  @@map("leave_policies")
 }
 
 model LeaveBalance {

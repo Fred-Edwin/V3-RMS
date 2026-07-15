@@ -46,6 +46,22 @@ router.patch(
   hrController.updateMyPaymentDetails,
 );
 
+// Self-service: staff update their own personal details — must be before /:userId
+router.patch(
+  '/hr/profiles/me',
+  authenticate,
+  requireRole(...ALL_STAFF),
+  hrController.updateMyProfile,
+);
+
+// HR assigns/changes a staff member's contract type (re-seeds leave balances)
+router.patch(
+  '/hr/profiles/:userId/contract',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.assignContract,
+);
+
 // Self-access OR management — access control handled in service
 router.get(
   '/hr/profiles/:userId',
@@ -59,6 +75,29 @@ router.patch(
   authenticate,
   requireRole(...HR_AUTHORITY),
   hrController.updateProfile,
+);
+
+// ─── Contract Types ───────────────────────────────────────────────────────────
+
+router.get(
+  '/hr/contract-types',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.listContractTypes,
+);
+
+router.post(
+  '/hr/contract-types',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.createContractType,
+);
+
+router.patch(
+  '/hr/contract-types/:id',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.updateContractType,
 );
 
 // ─── Leave Balances ───────────────────────────────────────────────────────────
@@ -183,11 +222,13 @@ router.post(
 
 // ─── HR Documents ─────────────────────────────────────────────────────────────
 
-// Upload before /:userId to avoid Express matching 'upload' as a userId
+// Upload before /:userId to avoid Express matching 'upload' as a userId.
+// Open to all staff: non-HR uploaders are restricted in the service to their
+// own profile + self-serviceable document types.
 router.post(
   '/hr/documents/upload',
   authenticate,
-  requireRole(...HR_AND_MANAGER),
+  requireRole(...ALL_STAFF),
   upload.single('file'),
   hrController.uploadHrDocument,
 );

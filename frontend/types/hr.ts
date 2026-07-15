@@ -37,6 +37,13 @@ export interface EmployeeProfileUser {
   organization: { id: string; name: string } | null;
 }
 
+export interface ContractTypeSummary {
+  id: string;
+  name: string;
+  durationMonths: number | null;
+  isActive: boolean;
+}
+
 export interface EmployeeProfile {
   id: string;
   userId: string;
@@ -48,7 +55,8 @@ export interface EmployeeProfile {
   emergencyName: string | null;
   emergencyRelation: string | null;
   emergencyPhone: string | null;
-  employmentType: EmploymentType;
+  employmentType: EmploymentType | null;
+  contractTypeId: string | null;
   startDate: string;
   endDate: string | null;
   probationEndDate: string | null;
@@ -60,12 +68,83 @@ export interface EmployeeProfile {
   accountNumber: string | null;
   accountName: string | null;
   bankBranch: string | null;
+  helbNumber: string | null;
   createdAt: string;
   updatedAt: string;
   user: EmployeeProfileUser;
-  reportingManager: { id: string; name: string; role: string } | null;
-  leaveBalances: LeaveBalance[];
+  contractType: ContractTypeSummary | null;
+  /** Only present on list/detail responses that include it */
+  reportingManager?: { id: string; name: string; role: string } | null;
+  leaveBalances?: LeaveBalance[];
+  _count?: { documents: number };
 }
+
+// ─── Contract Types & Leave Policies ─────────────────────────────────────────
+
+export interface LeavePolicy {
+  id: string;
+  contractTypeId: string;
+  leaveType: LeaveType;
+  totalDays: number;
+}
+
+export interface ContractType {
+  id: string;
+  organizationId: string | null;
+  name: string;
+  durationMonths: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  leavePolicies: LeavePolicy[];
+  _count: { employeeProfiles: number };
+}
+
+export interface LeavePolicyInput {
+  leaveType: LeaveType;
+  totalDays: number;
+}
+
+export interface CreateContractTypeInput {
+  name: string;
+  durationMonths?: number | null;
+  leavePolicies: LeavePolicyInput[];
+}
+
+export interface UpdateContractTypeInput {
+  name?: string;
+  durationMonths?: number | null;
+  isActive?: boolean;
+  leavePolicies?: LeavePolicyInput[];
+}
+
+/** Personal fields staff may edit on their own profile (PATCH /hr/profiles/me).
+ *  The backend schema is strict — do not add HR-only fields here. */
+export interface SelfServiceProfileInput {
+  nationalId?: string | null;
+  dateOfBirth?: string | null;
+  personalPhone?: string | null;
+  personalEmail?: string | null;
+  physicalAddress?: string | null;
+  emergencyName?: string | null;
+  emergencyRelation?: string | null;
+  emergencyPhone?: string | null;
+  kraPIN?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  bankBranch?: string | null;
+  helbNumber?: string | null;
+}
+
+/** Document types non-HR staff can upload for themselves — mirror of
+ *  backend SELF_UPLOADABLE_DOCUMENT_TYPES in utils/hr-constants.ts */
+export const SELF_UPLOADABLE_DOCUMENT_TYPES: HrDocumentType[] = [
+  'ID_COPY',
+  'CERTIFICATE',
+  'MEDICAL_CERTIFICATE',
+  'OTHER',
+];
 
 // ─── Leave Balance ────────────────────────────────────────────────────────────
 
@@ -249,7 +328,7 @@ export interface CreateDisciplinaryRecordInput {
 
 export interface CreateEmployeeProfileInput {
   userId: string;
-  employmentType: EmploymentType;
+  employmentType?: EmploymentType;
   startDate: string;
   nationalId?: string;
   dateOfBirth?: string;

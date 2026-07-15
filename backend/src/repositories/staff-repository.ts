@@ -124,9 +124,17 @@ export const staffRepository = {
     role: UserRole;
     organizationId: string | null;
     passwordHash: string;
+    /** Create the EmployeeProfile atomically with the user (contract type left unset). */
+    withEmployeeProfile?: boolean;
   }) => {
+    const { withEmployeeProfile, ...userData } = data;
     return prisma.user.create({
-      data,
+      data: {
+        ...userData,
+        ...(withEmployeeProfile
+          ? { employeeProfile: { create: { startDate: new Date() } } }
+          : {}),
+      },
       select: staffSelect,
     });
   },

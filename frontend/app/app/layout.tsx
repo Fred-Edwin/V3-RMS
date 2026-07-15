@@ -22,6 +22,7 @@ import {
   LogOut,
   MessageSquare,
   Percent,
+  ScrollText,
   Settings2,
   ShieldAlert,
   ShoppingCart,
@@ -187,6 +188,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
       { label: 'Shifts', href: '/app/hr/shifts', icon: Calendar },
       { label: 'Payroll', href: '/app/hr/payroll', icon: FileText },
+      { label: 'Contracts', href: '/app/hr/contract-types', icon: ScrollText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -403,6 +405,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'HR Overview', href: '/app/hr', icon: LayoutDashboard },
         { label: 'Staff Profiles', href: '/app/hr/staff', icon: Users },
+        { label: 'Contract Types', href: '/app/hr/contract-types', icon: ScrollText },
         { label: 'Leave Requests', href: '/app/hr/leave', icon: Calendar },
         { label: 'Leave Calendar', href: '/app/hr/leave/calendar', icon: Calendar },
         { label: 'Attendance', href: '/app/hr/attendance', icon: BarChart2 },
