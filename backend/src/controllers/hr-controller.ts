@@ -399,6 +399,12 @@ export async function getHrDocuments(req: Request, res: Response): Promise<void>
   res.json({ success: true, data: { documents } });
 }
 
+export async function deleteHrDocument(req: Request, res: Response): Promise<void> {
+  const { id } = hrRouteIdParamSchema.parse(req.params);
+  await hrService.deleteHrDocument(id);
+  res.json({ success: true });
+}
+
 // ─── Attendance Analytics ─────────────────────────────────────────────────────
 
 export async function getAttendanceSummary(req: Request, res: Response): Promise<void> {

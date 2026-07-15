@@ -291,6 +291,10 @@ export async function getHrDocuments(userId: string, token: string): Promise<HrD
   return data.documents;
 }
 
+export async function deleteHrDocument(id: string, token: string): Promise<void> {
+  await apiClient.delete(`/hr/documents/${id}`, token);
+}
+
 // ─── Attendance Analytics ─────────────────────────────────────────────────────
 
 export async function getAttendanceSummary(

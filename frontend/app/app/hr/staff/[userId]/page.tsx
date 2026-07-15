@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ChevronLeft, Pencil, Shield, FileText, Calendar, User,
-  AlertTriangle, Lock, ArrowLeftRight, ScrollText, Upload,
+  ChevronLeft, Pencil, Shield, FileText, Image as ImageIcon, Calendar, User,
+  AlertTriangle, Lock, ArrowLeftRight, ScrollText, Upload, Trash2, Link2, Eye,
 } from 'lucide-react';
-import { PageLayout, Button, Modal, Input, Select } from '@/components/ui';
+import {
+  PageLayout, Button, Modal, Input, Select, ExcelTable, ConfirmDialog, type ExcelColumn,
+} from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import {
   getEmployeeProfile, updateEmployeeProfile,
   getDisciplinaryRecords, getHrDocuments,
-  listContractTypes, assignContract, uploadHrDocument,
+  listContractTypes, assignContract, uploadHrDocument, deleteHrDocument,
 } from '@/services/hrService';
 import { staffService } from '@/services/staffService';
 import type { StaffDto } from '@/services/staffService';
@@ -74,6 +76,9 @@ export default function EmployeeProfilePage(): JSX.Element {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadType, setUploadType] = useState<HrDocumentType>('CONTRACT');
   const [uploading, setUploading] = useState(false);
+  const [documentFilter, setDocumentFilter] = useState<'ALL' | HrDocumentType>('ALL');
+  const [deleteTarget, setDeleteTarget] = useState<HrDocument | null>(null);
+  const [deletingDocument, setDeletingDocument] = useState(false);
 
   const [editForm, setEditForm] = useState({
     jobTitle: '',
@@ -184,6 +189,21 @@ export default function EmployeeProfilePage(): JSX.Element {
     }
   };
 
+  const handleDeleteDocument = async (): Promise<void> => {
+    if (!accessToken || !userId || !deleteTarget) return;
+    setDeletingDocument(true);
+    try {
+      await deleteHrDocument(deleteTarget.id, accessToken);
+      toast({ variant: 'success', title: 'Document deleted' });
+      setDeleteTarget(null);
+      setDocuments(await getHrDocuments(userId, accessToken));
+    } catch (err) {
+      toast({ variant: 'error', title: 'Failed to delete document', message: err instanceof Error ? err.message : 'Please try again.' });
+    } finally {
+      setDeletingDocument(false);
+    }
+  };
+
   const handleEdit = async () => {
     if (!accessToken || !userId) return;
     setEditSubmitting(true);
@@ -243,6 +263,108 @@ export default function EmployeeProfilePage(): JSX.Element {
   const tenure = monthsDiff >= 12
     ? `${Math.floor(monthsDiff / 12)} yr${Math.floor(monthsDiff / 12) > 1 ? 's' : ''} ${monthsDiff % 12} mo`
     : `${monthsDiff} mo`;
+
+  const isImageDocument = (doc: HrDocument): boolean => /\.(jpe?g|png)$/i.test(doc.fileName);
+  const isLinkedDocument = (doc: HrDocument): boolean =>
+    Boolean(doc.disciplinaryRecordId || doc.leaveRequestId);
+
+  const filteredDocuments = documents.filter((d) => {
+    if (documentFilter === 'ALL') return true;
+    if (documentFilter === 'WARNING_LETTER' || documentFilter === 'INCIDENT_REPORT') {
+      return d.documentType === 'WARNING_LETTER' || d.documentType === 'INCIDENT_REPORT';
+    }
+    return d.documentType === documentFilter;
+  });
+
+  const documentColumns: ExcelColumn<HrDocument>[] = [
+    {
+      key: 'file',
+      label: 'File',
+      render: (d) => (
+        <div className="flex items-center gap-2 min-w-[160px]">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#F5F0E8]">
+            {isImageDocument(d)
+              ? <ImageIcon size={13} className="text-[#2C1810]" />
+              : <FileText size={13} className="text-[#2C1810]" />}
+          </div>
+          <span className="truncate font-medium text-stone-800">{d.fileName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      render: (d) => <span className="whitespace-nowrap">{d.documentType.replace(/_/g, ' ')}</span>,
+    },
+    {
+      key: 'uploadedBy',
+      label: 'Uploaded By',
+      render: (d) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <span>{d.uploadedBy.name}</span>
+          {d.uploadedBy.id === profile.userId && (
+            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              Self
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'date',
+      label: 'Date',
+      render: (d) => (
+        <span className="whitespace-nowrap text-stone-600">
+          {new Date(d.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </span>
+      ),
+    },
+    {
+      key: 'linkedTo',
+      label: 'Linked To',
+      render: (d) =>
+        isLinkedDocument(d) ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFFBEB] px-2 py-0.5 text-label-sm font-medium text-[#92400E]">
+            <Link2 size={11} />
+            {d.disciplinaryRecordId ? 'Disciplinary' : 'Leave request'}
+          </span>
+        ) : (
+          <span className="text-stone-400">—</span>
+        ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      width: 70,
+      render: (d) => (
+        <div className="flex items-center justify-end gap-0.5">
+          <a
+            href={d.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+            aria-label={`View ${d.fileName}`}
+            title="View"
+          >
+            <Eye size={13} />
+          </a>
+          {isHrAuth && (
+            <button
+              type="button"
+              onClick={() => !isLinkedDocument(d) && setDeleteTarget(d)}
+              disabled={isLinkedDocument(d)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+              aria-label={`Delete ${d.fileName}`}
+              title={isLinkedDocument(d) ? 'Linked documents cannot be deleted' : 'Delete'}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   const tabs: { id: Tab; label: string; icon: typeof User }[] = [
     { id: 'overview', label: 'Overview', icon: User },
@@ -516,36 +638,55 @@ export default function EmployeeProfilePage(): JSX.Element {
             </div>
           </div>
 
-          {documents.length === 0 ? (
-            <div className="rounded-xl border border-stone-200 bg-white px-5 py-10 shadow-sm text-center">
-              <FileText size={28} className="mx-auto mb-2 text-stone-300" />
-              <p className="text-heading-sm font-semibold text-stone-700">No documents yet</p>
-              <p className="mt-1 text-body-sm text-stone-400">No documents have been attached to this profile.</p>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {documents.map((doc) => (
-                <a
-                  key={doc.id}
-                  href={doc.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+          {/* Filter chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(
+              [
+                { id: 'ALL', label: 'All' },
+                { id: 'CONTRACT', label: 'Contract' },
+                { id: 'ID_COPY', label: 'ID' },
+                { id: 'CERTIFICATE', label: 'Certificates' },
+                { id: 'MEDICAL_CERTIFICATE', label: 'Medical' },
+                { id: 'WARNING_LETTER', label: 'Disciplinary' },
+                { id: 'INCIDENT_REPORT', label: 'Disciplinary' },
+                { id: 'OTHER', label: 'Other' },
+              ] as { id: 'ALL' | HrDocumentType; label: string }[]
+            )
+              .filter((f, i, arr) => arr.findIndex((x) => x.label === f.label) === i)
+              .map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setDocumentFilter(f.id)}
+                  className={`rounded-full px-3 py-1 text-label-sm font-medium transition-colors ${
+                    documentFilter === f.id
+                      ? 'bg-[#2C1810] text-white'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F5F0E8]">
-                    <FileText size={18} className="text-[#2C1810]" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-body-sm font-semibold text-stone-800">{doc.fileName}</p>
-                    <p className="text-caption text-stone-500">{doc.documentType.replace(/_/g, ' ')}</p>
-                    <p className="text-caption text-stone-400">
-                      {new Date(doc.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
-                  </div>
-                </a>
+                  {f.label}
+                </button>
               ))}
-            </div>
-          )}
+          </div>
+
+          <ExcelTable
+            columns={documentColumns}
+            rows={filteredDocuments}
+            rowKey={(d) => d.id}
+            numbered
+            headerTone="navy"
+            emptyState={
+              <div className="text-center">
+                <FileText size={28} className="mx-auto mb-2 text-stone-300" />
+                <p className="text-heading-sm font-semibold text-stone-700">No documents</p>
+                <p className="mt-1 text-body-sm text-stone-400">
+                  {documentFilter === 'ALL'
+                    ? 'No documents have been attached to this profile.'
+                    : 'No documents match this filter.'}
+                </p>
+              </div>
+            }
+          />
         </div>
       )}
 
@@ -660,6 +801,16 @@ export default function EmployeeProfilePage(): JSX.Element {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteDocument()}
+        title="Delete document?"
+        description={`Delete ${deleteTarget?.fileName ?? 'this document'}? This cannot be undone.`}
+        confirmLabel="Delete"
+        isLoading={deletingDocument}
+      />
     </PageLayout>
   );
 }

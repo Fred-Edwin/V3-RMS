@@ -704,6 +704,19 @@ export async function listHrDocuments(employeeProfileId: string) {
   });
 }
 
+export async function findHrDocumentById(id: string) {
+  return prisma.hrDocument.findUnique({
+    where: { id },
+    include: {
+      uploadedBy: { select: { id: true, name: true } },
+    },
+  });
+}
+
+export async function deleteHrDocument(id: string) {
+  return prisma.hrDocument.delete({ where: { id } });
+}
+
 // ─── HR Dashboard aggregations ────────────────────────────────────────────────
 
 export async function getHrDashboardStats(organizationId?: string) {

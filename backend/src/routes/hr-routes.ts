@@ -240,6 +240,13 @@ router.get(
   hrController.getHrDocuments,
 );
 
+router.delete(
+  '/hr/documents/:id',
+  authenticate,
+  requireRole(...HR_AUTHORITY),
+  hrController.deleteHrDocument,
+);
+
 // ─── Attendance Analytics ─────────────────────────────────────────────────────
 
 router.get(

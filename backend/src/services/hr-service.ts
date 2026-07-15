@@ -3,6 +3,7 @@ import * as hrRepository from '../repositories/hr-repository';
 import { fcmService } from './fcm-service';
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
 import { SELF_UPLOADABLE_DOCUMENT_TYPES } from '../utils/hr-constants';
+import { destroyUploadedFile } from '../utils/cloudinary';
 import type { UserRole } from '@prisma/client';
 import { logger } from '../utils/logger';
 
@@ -730,6 +731,28 @@ export async function authorizeDocumentUpload(
   }
 
   return profile;
+}
+
+/**
+ * HR-only deletion. Documents linked to a disciplinary record or leave
+ * request are case evidence and cannot be deleted, even by HR_AUTHORITY.
+ */
+export async function deleteHrDocument(documentId: string) {
+  const document = await hrRepository.findHrDocumentById(documentId);
+  if (!document) throw new NotFoundError('Document not found');
+
+  if (document.disciplinaryRecordId || document.leaveRequestId) {
+    throw new ConflictError(
+      'This document is linked to a disciplinary record or leave request and cannot be deleted',
+    );
+  }
+
+  // Best-effort: destroyUploadedFile never throws by design, but the DB
+  // delete must proceed regardless if that contract is ever violated.
+  await destroyUploadedFile(document.fileUrl).catch((error) =>
+    logger.warn(`Cloudinary cleanup failed during document delete: ${error}`),
+  );
+  return hrRepository.deleteHrDocument(documentId);
 }
 
 // ─── Attendance Analytics ─────────────────────────────────────────────────────
