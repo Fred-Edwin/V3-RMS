@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as hrRepository from '../repositories/hr-repository';
 import * as hrService from './hr-service';
+import * as cloudinaryUtils from '../utils/cloudinary';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 
 vi.mock('../config/database', () => ({
@@ -16,6 +17,8 @@ vi.mock('../repositories/hr-repository', () => ({
   createContractType: vi.fn(),
   updateContractType: vi.fn(),
   assignContractAndSyncBalances: vi.fn(),
+  findHrDocumentById: vi.fn(),
+  deleteHrDocument: vi.fn(),
 }));
 
 vi.mock('./fcm-service', () => ({
@@ -24,6 +27,10 @@ vi.mock('./fcm-service', () => ({
 
 vi.mock('../utils/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn() },
+}));
+
+vi.mock('../utils/cloudinary', () => ({
+  destroyUploadedFile: vi.fn(),
 }));
 
 const hrActor: hrService.HrActor = {
@@ -250,5 +257,66 @@ describe('authorizeDocumentUpload', () => {
     await expect(
       hrService.authorizeDocumentUpload(hrActor, waiterActor.id, 'ID_COPY'),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('deleteHrDocument', () => {
+  const unlinkedDocument = {
+    id: 'doc-1',
+    employeeProfileId: waiterProfile.id,
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1234567890/hr-documents/doc-1.pdf',
+    leaveRequestId: null,
+    disciplinaryRecordId: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws NotFoundError when the document does not exist', async () => {
+    vi.mocked(hrRepository.findHrDocumentById).mockResolvedValue(null);
+    await expect(hrService.deleteHrDocument('missing-id')).rejects.toBeInstanceOf(NotFoundError);
+    expect(hrRepository.deleteHrDocument).not.toHaveBeenCalled();
+  });
+
+  it('refuses deletion when linked to a disciplinary record', async () => {
+    vi.mocked(hrRepository.findHrDocumentById).mockResolvedValue({
+      ...unlinkedDocument,
+      disciplinaryRecordId: 'record-1',
+    } as never);
+
+    await expect(hrService.deleteHrDocument('doc-1')).rejects.toBeInstanceOf(ConflictError);
+    expect(hrRepository.deleteHrDocument).not.toHaveBeenCalled();
+  });
+
+  it('refuses deletion when linked to a leave request', async () => {
+    vi.mocked(hrRepository.findHrDocumentById).mockResolvedValue({
+      ...unlinkedDocument,
+      leaveRequestId: 'leave-1',
+    } as never);
+
+    await expect(hrService.deleteHrDocument('doc-1')).rejects.toBeInstanceOf(ConflictError);
+    expect(hrRepository.deleteHrDocument).not.toHaveBeenCalled();
+  });
+
+  it('deletes unlinked documents and best-effort cleans up Cloudinary', async () => {
+    vi.mocked(hrRepository.findHrDocumentById).mockResolvedValue(unlinkedDocument as never);
+    vi.mocked(cloudinaryUtils.destroyUploadedFile).mockResolvedValue(undefined);
+    vi.mocked(hrRepository.deleteHrDocument).mockResolvedValue(unlinkedDocument as never);
+
+    await expect(hrService.deleteHrDocument('doc-1')).resolves.toBe(unlinkedDocument);
+    expect(cloudinaryUtils.destroyUploadedFile).toHaveBeenCalledWith(unlinkedDocument.fileUrl);
+    expect(hrRepository.deleteHrDocument).toHaveBeenCalledWith('doc-1');
+  });
+
+  it('still deletes the DB row when Cloudinary cleanup rejects unexpectedly', async () => {
+    // destroyUploadedFile is documented as best-effort/non-throwing, but the
+    // DB delete must not be blocked even if that contract is ever violated.
+    vi.mocked(hrRepository.findHrDocumentById).mockResolvedValue(unlinkedDocument as never);
+    vi.mocked(cloudinaryUtils.destroyUploadedFile).mockRejectedValue(new Error('cloudinary down'));
+    vi.mocked(hrRepository.deleteHrDocument).mockResolvedValue(unlinkedDocument as never);
+
+    await expect(hrService.deleteHrDocument('doc-1')).resolves.toBe(unlinkedDocument);
+    expect(hrRepository.deleteHrDocument).toHaveBeenCalledWith('doc-1');
   });
 });
