@@ -145,14 +145,14 @@ model User {
 model StaffTransfer {
   id                   String       @id @default(uuid())
   userId               String       @map("user_id")
-  fromOrganizationId   String       @map("from_organization_id")
+  fromOrganizationId   String?      @map("from_organization_id")
   toOrganizationId     String       @map("to_organization_id")
   notes                String?
   transferredAt        DateTime     @default(now()) @map("transferred_at")
   authorizedById       String       @map("authorized_by_id")
 
   user                 User         @relation("StaffTransferUser", fields: [userId], references: [id])
-  fromOrganization     Organization @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
+  fromOrganization     Organization? @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
   toOrganization       Organization @relation("StaffTransferTo", fields: [toOrganizationId], references: [id])
   authorizedBy         User         @relation("StaffTransferAuthorizedBy", fields: [authorizedById], references: [id])
 

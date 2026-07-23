@@ -3,12 +3,12 @@ import { apiClient } from '@/lib/apiClient';
 export interface StaffTransfer {
   id: string;
   userId: string;
-  fromOrganizationId: string;
+  fromOrganizationId: string | null;
   toOrganizationId: string;
   notes: string | null;
   transferredAt: string;
   authorizedById: string;
-  fromOrganization: { id: string; name: string };
+  fromOrganization: { id: string; name: string } | null;
   toOrganization: { id: string; name: string };
   authorizedBy: { id: string; name: string; role: string };
   user?: { id: string; name: string; role: string };

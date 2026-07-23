@@ -36,7 +36,7 @@ export const staffTransferService = {
 
     return staffTransferRepository.create({
       userId: input.userId,
-      fromOrganizationId: staff.organizationId ?? '',
+      fromOrganizationId: staff.organizationId,
       toOrganizationId: input.toOrganizationId,
       authorizedById: actor.id,
       notes: input.notes,

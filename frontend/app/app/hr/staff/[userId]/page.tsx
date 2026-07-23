@@ -716,7 +716,7 @@ export default function EmployeeProfilePage(): JSX.Element {
               <tbody className="divide-y divide-stone-100">
                 {transfers.map((t) => (
                   <tr key={t.id} className="hover:bg-stone-50">
-                    <td className="px-5 py-3.5 font-medium text-stone-800">{t.fromOrganization.name}</td>
+                    <td className="px-5 py-3.5 font-medium text-stone-800">{t.fromOrganization?.name ?? 'Unassigned'}</td>
                     <td className="px-4 py-3.5 font-medium text-stone-800">{t.toOrganization.name}</td>
                     <td className="px-4 py-3.5 text-stone-500">
                       {new Date(t.transferredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

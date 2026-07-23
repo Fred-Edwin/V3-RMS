@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 export interface CreateTransferData {
   userId: string;
-  fromOrganizationId: string;
+  fromOrganizationId: string | null;
   toOrganizationId: string;
   authorizedById: string;
   notes?: string;
