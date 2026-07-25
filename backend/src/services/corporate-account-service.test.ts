@@ -127,11 +127,32 @@ describe('corporateAccountService.updateAccount', () => {
 describe('corporateAccountService.recordSettlement', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it('records settlement when amount is valid', async () => {
+  it('records settlement when amount is valid and returns the settlement + updated balance', async () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
-    vi.mocked(prisma.$transaction).mockImplementation((fn) => (fn as (tx: unknown) => Promise<unknown>)({ corporateAccountSettlement: { create: vi.fn() }, corporateAccount: { update: vi.fn() } }));
-    await corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', paymentMethod: 'CASH', note: 'Cash' });
+    const createdSettlement = {
+      id: 'settlement-id',
+      corporateAccountId: accountId,
+      amount: new Prisma.Decimal(5000),
+      paymentMethod: 'CASH',
+      note: 'Cash',
+      settledById: directorId,
+      createdAt: new Date(),
+    };
+    const updatedAccount = buildAccount({ currentBalance: new Prisma.Decimal(5000) });
+    vi.mocked(prisma.$transaction).mockImplementation((fn) =>
+      (fn as (tx: unknown) => Promise<unknown>)({
+        corporateAccountSettlement: { create: vi.fn().mockResolvedValue(createdSettlement) },
+        corporateAccount: { update: vi.fn().mockResolvedValue(updatedAccount) },
+      }),
+    );
+    const result = await corporateAccountService.recordSettlement(directorActor, accountId, {
+      amount: '5000',
+      paymentMethod: 'CASH',
+      note: 'Cash',
+    });
     expect(prisma.$transaction).toHaveBeenCalled();
+    expect(result.settlement.id).toBe('settlement-id');
+    expect(result.currentBalance.toString()).toBe('5000');
   });
 
   it('throws NotFoundError when account not found', async () => {

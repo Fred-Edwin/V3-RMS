@@ -15,7 +15,7 @@ interface PrintTargetModalProps {
   isOpen: boolean;
   onClose: () => void;
   /** What is being printed — drives the modal copy only. */
-  kind: 'BILL' | 'RECEIPT';
+  kind: 'BILL' | 'RECEIPT' | 'SETTLEMENT';
   /** Called with the chosen station id, or null to let any station claim it. */
   onConfirm: (targetStationId: string | null) => void;
   isSubmitting?: boolean;
@@ -114,7 +114,7 @@ export function PrintTargetModal({
   const noStations = !isLoading && stations.length === 0;
   const useNullTargetFallback = loadFailed || noStations;
 
-  const kindLabel = kind === 'BILL' ? 'bill' : 'receipt';
+  const kindLabel = kind === 'BILL' ? 'bill' : kind === 'SETTLEMENT' ? 'settlement receipt' : 'receipt';
 
   const handleConfirm = (): void => {
     // Fallback path: no usable station list — create a null-target job.
@@ -140,7 +140,7 @@ export function PrintTargetModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={kind === 'BILL' ? 'Print Bill' : 'Print Receipt'}
+      title={kind === 'BILL' ? 'Print Bill' : kind === 'SETTLEMENT' ? 'Print Settlement Receipt' : 'Print Receipt'}
       maxWidth="sm"
       footer={
         <div className="flex gap-3">

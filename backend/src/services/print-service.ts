@@ -3,6 +3,7 @@ import type { PrintJobStatus, ReceiptType, Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { printRepository, type PrintJobRecord, type PrintJobSummaryRecord, type PrintStationRecord } from '../repositories/print-repository';
 import { otherIncomeRepository } from '../repositories/other-income-repository';
+import { branchRepository } from '../repositories/branch-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { formatNairobiDate, formatNairobiTime } from '../utils/date-only';
 
@@ -274,6 +275,93 @@ export const printService = {
         copies: 1,
         activeKey,
         receiptData: receiptData as unknown as Prisma.InputJsonValue,
+      });
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+        if (existingActive) {
+          return existingActive;
+        }
+      }
+      throw error;
+    }
+  },
+
+  createCorporateSettlementPrintJob: async (
+    settlementId: string,
+    organizationId: string,
+    requestedById: string,
+    targetStationId?: string | null,
+  ): Promise<PrintJobSummaryRecord> => {
+    const settlement = await printRepository.findSettlementForReceipt(settlementId);
+    if (!settlement) {
+      throw new NotFoundError('Settlement not found');
+    }
+
+    // The branch printing the receipt (chosen by the settling user) is not
+    // necessarily related to the settlement — CorporateAccount is branch-agnostic
+    // by design (FR-CRD-02). We only use this branch for its printer/letterhead.
+    const targetBranch = await branchRepository.findById(organizationId);
+    if (!targetBranch) {
+      throw new NotFoundError('Selected branch not found');
+    }
+
+    if (targetStationId) {
+      const station = await printRepository.findPrintStationById(targetStationId, organizationId);
+      if (!station) {
+        throw new ValidationError('Selected print station does not belong to this branch');
+      }
+      if (!station.isActive) {
+        throw new ValidationError('Selected print station is no longer active');
+      }
+    }
+
+    // Idempotency: return existing PENDING/PRINTING job for this settlement rather than duplicating
+    const activeKey = `settlement:${settlementId}`;
+    const existing = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+    if (existing) {
+      return existing;
+    }
+
+    const receiptData: ReceiptData = {
+      branchName: targetBranch.name,
+      branchPhone: targetBranch.phone ?? null,
+      mpesaPaybill: targetBranch.mpesaPaybill ?? null,
+      accountNumber: targetBranch.accountNumber ?? null,
+      googleReviewUrl: targetBranch.googleReviewUrl ?? null,
+      orderNumber: `SETL-${settlement.id.slice(0, 8).toUpperCase()}`,
+      dailyNumber: 0,
+      orderDate: formatDate(settlement.createdAt),
+      orderTime: formatTime(settlement.createdAt),
+      orderType: `Corporate Settlement — ${settlement.corporateAccount.companyName}`,
+      tableNumber: null,
+      waiterName: settlement.settledBy.name,
+      waiterFirstName: getFirstName(settlement.settledBy.name),
+      items: [
+        {
+          name: `Settlement — ${settlement.corporateAccount.companyName} (${settlement.corporateAccount.contactName})`,
+          quantity: 1,
+          unitPrice: toDecimalNumber(settlement.amount),
+          total: toDecimalNumber(settlement.amount),
+        },
+      ],
+      subtotal: toDecimalNumber(settlement.amount),
+      deliveryFee: 0,
+      total: toDecimalNumber(settlement.amount),
+      paymentMethod: settlement.paymentMethod,
+      paidAt: settlement.createdAt.toISOString(),
+    };
+
+    try {
+      return await printRepository.createPrintJob({
+        organizationId,
+        corporateAccountSettlementId: settlementId,
+        requestedById,
+        receiptType: 'SETTLEMENT',
+        copies: 1,
+        activeKey,
+        receiptData: receiptData as unknown as Prisma.InputJsonValue,
+        targetStationId: targetStationId ?? null,
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {

@@ -35,6 +35,24 @@ export interface PrintJobSummaryRecord {
   createdAt: Date;
 }
 
+// ─── Corporate account settlement data needed to assemble receipt ─────────
+
+export interface SettlementForReceipt {
+  id: string;
+  amount: Prisma.Decimal;
+  paymentMethod: string;
+  note: string | null;
+  createdAt: Date;
+  settledBy: {
+    name: string;
+  };
+  corporateAccount: {
+    companyName: string;
+    contactName: string;
+    currentBalance: Prisma.Decimal;
+  };
+}
+
 // ─── Print Station DTOs ────────────────────────────────────────────────────
 
 export interface PrintStationRecord {
@@ -99,6 +117,7 @@ export const printRepository = {
   createPrintJob: async (data: {
     organizationId: string;
     orderId?: string;
+    corporateAccountSettlementId?: string;
     requestedById: string;
     receiptType: ReceiptType;
     copies: number;
@@ -110,6 +129,7 @@ export const printRepository = {
       data: {
         organizationId: data.organizationId,
         orderId: data.orderId ?? null,
+        corporateAccountSettlementId: data.corporateAccountSettlementId ?? null,
         requestedById: data.requestedById,
         receiptType: data.receiptType,
         copies: data.copies,
@@ -366,6 +386,27 @@ export const printRepository = {
         splitPaymentLines: {
           select: { label: true, amount: true, method: true, mpesaCode: true },
           orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+  },
+
+  findSettlementForReceipt: async (
+    settlementId: string,
+  ): Promise<SettlementForReceipt | null> => {
+    return prisma.corporateAccountSettlement.findFirst({
+      where: { id: settlementId },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        note: true,
+        createdAt: true,
+        settledBy: {
+          select: { name: true },
+        },
+        corporateAccount: {
+          select: { companyName: true, contactName: true, currentBalance: true },
         },
       },
     });

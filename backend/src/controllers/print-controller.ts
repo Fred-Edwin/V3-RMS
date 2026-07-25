@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { printService } from '../services/print-service';
 import {
   BranchIdQuerySchema,
+  CreateCorporateSettlementPrintJobSchema,
   CreateOtherIncomePrintJobSchema,
   CreatePrintJobSchema,
   CreatePrintStationSchema,
@@ -13,6 +14,8 @@ import {
 import { UnauthorizedError } from '../utils/errors';
 
 const ELEVATED_ROLES = new Set(['DIRECTOR', 'SYSTEM_ADMIN']);
+// Corporate account settlement (and its receipt) may also be handled by ACCOUNTANT, per FR-CRD-02.
+const SETTLEMENT_RECEIPT_ROLES = new Set(['DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
 
 const requireActor = (req: Request) => {
   if (!req.user) {
@@ -65,6 +68,31 @@ export const printController = {
     }
 
     const job = await printService.createOtherIncomePrintJob(entryId, organizationId, actor.id);
+
+    res.status(201).json({
+      success: true,
+      data: job,
+      message: 'Print job created',
+    });
+  },
+
+  createCorporateSettlementPrintJob: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { settlementId, targetStationId } = CreateCorporateSettlementPrintJobSchema.parse(req.body);
+    const { branchId } = BranchIdQuerySchema.parse(req.query);
+
+    const organizationId =
+      branchId && actor.role && SETTLEMENT_RECEIPT_ROLES.has(actor.role) ? branchId : actor.organizationId;
+    if (!organizationId) {
+      throw new UnauthorizedError('Select a branch to print the settlement receipt at');
+    }
+
+    const job = await printService.createCorporateSettlementPrintJob(
+      settlementId,
+      organizationId,
+      actor.id,
+      targetStationId ?? null,
+    );
 
     res.status(201).json({
       success: true,

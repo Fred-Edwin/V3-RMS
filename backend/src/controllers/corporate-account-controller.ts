@@ -53,9 +53,13 @@ export const corporateAccountController = {
     const actor = requireActor(req);
     const { id } = CorporateAccountIdParamSchema.parse(req.params);
     const data = RecordCorporateSettlementSchema.parse(req.body);
-    await corporateAccountService.recordSettlement(actor, id, data);
+    const result = await corporateAccountService.recordSettlement(actor, id, data);
     res.status(200).json({
       success: true,
+      data: {
+        settlementId: result.settlement.id,
+        currentBalance: result.currentBalance,
+      },
       message: 'Settlement recorded successfully',
     });
   },
