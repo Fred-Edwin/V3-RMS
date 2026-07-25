@@ -58,7 +58,11 @@ export const corporateAccountService = {
   updateAccount: (id: string, data: UpdateCorporateAccountInput, token: string): Promise<CorporateAccount> =>
     apiClient.patch(`/corporate-accounts/${id}`, data, token),
 
-  recordSettlement: (id: string, data: RecordCorporateSettlementInput, token: string): Promise<void> =>
+  recordSettlement: (
+    id: string,
+    data: RecordCorporateSettlementInput,
+    token: string,
+  ): Promise<{ settlementId: string; currentBalance: string }> =>
     apiClient.post(`/corporate-accounts/${id}/settlements`, data, token),
 
   getOrderHistory: async (

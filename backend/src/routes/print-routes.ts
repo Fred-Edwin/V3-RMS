@@ -8,12 +8,20 @@ const printRoutes = Router();
 
 // ── Print Jobs (JWT auth, branch staff) ──────────────────────────────────────
 
-// IMPORTANT: /print-jobs/other-income must be registered BEFORE /print-jobs/:id
+// IMPORTANT: /print-jobs/other-income and /print-jobs/corporate-settlement must be registered BEFORE /print-jobs/:id
 printRoutes.post(
   '/print-jobs/other-income',
   authenticate,
   requireRole('WAITER', 'MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
   printController.createOtherIncomePrintJob,
+);
+
+// Only roles that can settle a corporate account (FR-CRD-02) may print its settlement receipt.
+printRoutes.post(
+  '/print-jobs/corporate-settlement',
+  authenticate,
+  requireRole('DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT'),
+  printController.createCorporateSettlementPrintJob,
 );
 
 printRoutes.post(

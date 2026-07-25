@@ -59,7 +59,18 @@ export const corporateAccountService = {
     actor: Actor,
     id: string,
     input: RecordCorporateSettlementInput,
-  ): Promise<void> => {
+  ): Promise<{
+    settlement: {
+      id: string;
+      corporateAccountId: string;
+      amount: Prisma.Decimal;
+      paymentMethod: string;
+      note: string | null;
+      settledById: string;
+      createdAt: Date;
+    };
+    currentBalance: Prisma.Decimal;
+  }> => {
     requireDirectorOrAdmin(actor);
 
     const account = await corporateAccountRepository.findById(id);
@@ -72,8 +83,8 @@ export const corporateAccountService = {
       throw new ValidationError('Settlement amount exceeds the outstanding balance');
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.corporateAccountSettlement.create({
+    return prisma.$transaction(async (tx) => {
+      const settlement = await tx.corporateAccountSettlement.create({
         data: {
           corporateAccountId: id,
           amount,
@@ -82,10 +93,11 @@ export const corporateAccountService = {
           settledById: actor.id,
         },
       });
-      await tx.corporateAccount.update({
+      const updatedAccount = await tx.corporateAccount.update({
         where: { id },
         data: { currentBalance: { decrement: amount } },
       });
+      return { settlement, currentBalance: updatedAccount.currentBalance };
     });
   },
 

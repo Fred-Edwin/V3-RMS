@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
+import { ChevronDown, ChevronRight, DollarSign, Printer } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -16,6 +16,7 @@ import {
   SkeletonTable,
   TabBar,
 } from '@/components/ui';
+import { PrintTargetModal } from '@/components/orders/PrintTargetModal';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import {
@@ -33,6 +34,7 @@ import {
   type CustomerCreditAccount,
   type RecordCustomerCreditSettlementInput,
 } from '@/services/customerCreditService';
+import { printService } from '@/services/printService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -379,6 +381,9 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
   const [loadingOrders, setLoadingOrders] = useState<string | null>(null);
   const [settlementTarget, setSettlementTarget] = useState<CorporateAccount | null>(null);
   const [isSettling, setIsSettling] = useState(false);
+  const [settledReceipt, setSettledReceipt] = useState<{ settlementId: string; companyName: string } | null>(null);
+  const [printTargetModalOpen, setPrintTargetModalOpen] = useState(false);
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -424,8 +429,9 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
         paymentMethod: paymentMethod as 'MPESA' | 'CASH' | 'CARD',
         note: note || undefined,
       };
-      await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
+      const result = await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
       toast({ variant: 'success', title: 'Settlement recorded' });
+      setSettledReceipt({ settlementId: result.settlementId, companyName: settlementTarget.companyName });
       setSettlementTarget(null);
       await load();
     } catch (error) {
@@ -433,6 +439,27 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
       toast({ variant: 'error', title: 'Settlement failed', message });
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const handlePrintSettlementReceipt = async (targetStationId: string | null): Promise<void> => {
+    if (!settledReceipt) return;
+    setIsPrintingReceipt(true);
+    try {
+      await printService.createCorporateSettlementPrintJob(
+        settledReceipt.settlementId,
+        accessToken,
+        undefined,
+        targetStationId,
+      );
+      toast({ variant: 'success', title: 'Settlement receipt sent to printer' });
+      setPrintTargetModalOpen(false);
+      setSettledReceipt(null);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to print settlement receipt.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintingReceipt(false);
     }
   };
 
@@ -508,6 +535,38 @@ function CorporateAccountsTab({ accessToken }: { accessToken: string }) {
         showPaymentMethod
         onClose={() => { if (!isSettling) setSettlementTarget(null); }}
         onSubmit={(amount, note, paymentMethod) => void handleSettle(amount, note, paymentMethod)}
+      />
+
+      <Modal
+        isOpen={Boolean(settledReceipt)}
+        onClose={() => setSettledReceipt(null)}
+        title={`Settlement Recorded — ${settledReceipt?.companyName ?? ''}`}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setSettledReceipt(null)}>
+              Done
+            </Button>
+            <Button onClick={() => setPrintTargetModalOpen(true)}>
+              <Printer size={16} className="mr-2 shrink-0" />
+              Print Receipt
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-body-sm text-stone-600">
+          The settlement was recorded successfully. You can print a thermal receipt as proof of
+          payment now, or close this and print it later from the print jobs list.
+        </p>
+      </Modal>
+
+      <PrintTargetModal
+        isOpen={printTargetModalOpen}
+        onClose={() => {
+          if (!isPrintingReceipt) setPrintTargetModalOpen(false);
+        }}
+        kind="SETTLEMENT"
+        isSubmitting={isPrintingReceipt}
+        onConfirm={(targetStationId) => void handlePrintSettlementReceipt(targetStationId)}
       />
     </>
   );

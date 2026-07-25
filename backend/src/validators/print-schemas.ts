@@ -53,6 +53,12 @@ export const CreateOtherIncomePrintJobSchema = z.object({
   entryId: z.string().uuid('entryId must be a valid UUID'),
 });
 
+// POST /print-jobs/corporate-settlement
+export const CreateCorporateSettlementPrintJobSchema = z.object({
+  settlementId: z.string().uuid('settlementId must be a valid UUID'),
+  targetStationId: z.string().uuid('targetStationId must be a valid UUID').nullish(),
+});
+
 // Route param
 export const routeIdParamSchema = z.object({
   id: z.string().uuid(),
@@ -65,3 +71,4 @@ export type UpdatePrintJobStatusInput = z.infer<typeof UpdatePrintJobStatusSchem
 export type StationJobQueryInput = z.infer<typeof StationJobQuerySchema>;
 export type CreatePrintStationInput = z.infer<typeof CreatePrintStationSchema>;
 export type CreateOtherIncomePrintJobInput = z.infer<typeof CreateOtherIncomePrintJobSchema>;
+export type CreateCorporateSettlementPrintJobInput = z.infer<typeof CreateCorporateSettlementPrintJobSchema>;

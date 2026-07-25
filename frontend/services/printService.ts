@@ -31,6 +31,25 @@ export const printService = {
   createOtherIncomePrintJob: (entryId: string, token: string): Promise<PrintJobSummary> =>
     apiClient.post<PrintJobSummary>('/print-jobs/other-income', { entryId }, token),
 
+  /**
+   * Print a corporate account settlement receipt. `branchId` selects which
+   * branch's printer receives the job — required for DIRECTOR/SYSTEM_ADMIN/
+   * ACCOUNTANT users with no home branch (CorporateAccount itself has none).
+   */
+  createCorporateSettlementPrintJob: (
+    settlementId: string,
+    token: string,
+    branchId?: string,
+    targetStationId?: string | null,
+  ): Promise<PrintJobSummary> => {
+    const qs = branchId ? `?branchId=${branchId}` : '';
+    return apiClient.post<PrintJobSummary>(
+      `/print-jobs/corporate-settlement${qs}`,
+      { settlementId, ...(targetStationId ? { targetStationId } : {}) },
+      token,
+    );
+  },
+
   getPrintJobs: (
     token: string,
     params?: { status?: string; page?: number; perPage?: number },

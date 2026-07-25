@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Pencil, DollarSign } from 'lucide-react';
+import { Building2, Pencil, DollarSign, Printer } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -20,6 +20,7 @@ import {
   Toggle,
   type ExcelColumn,
 } from '@/components/ui';
+import { PrintTargetModal } from '@/components/orders/PrintTargetModal';
 import { useToast } from '@/hooks/useToast';
 import {
   corporateAccountService,
@@ -28,6 +29,7 @@ import {
   type UpdateCorporateAccountInput,
   type RecordCorporateSettlementInput,
 } from '@/services/corporateAccountService';
+import { printService } from '@/services/printService';
 import { env } from '@/lib/env';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/types/api';
@@ -93,6 +95,9 @@ export default function CorporateAccountsPage(): JSX.Element {
   const [settlementTarget, setSettlementTarget] = useState<AccountRow | null>(null);
   const [settlementForm, setSettlementForm] = useState<SettlementFormState>(defaultSettlementForm);
   const [isSettling, setIsSettling] = useState(false);
+  const [settledResult, setSettledResult] = useState<{ settlementId: string; companyName: string } | null>(null);
+  const [printTargetModalOpen, setPrintTargetModalOpen] = useState(false);
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   const [deactivateTarget, setDeactivateTarget] = useState<AccountRow | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
@@ -209,6 +214,7 @@ export default function CorporateAccountsPage(): JSX.Element {
   const openSettlementModal = (account: AccountRow) => {
     setSettlementTarget(account);
     setSettlementForm(defaultSettlementForm);
+    setSettledResult(null);
     setSettlementModalOpen(true);
   };
 
@@ -229,17 +235,43 @@ export default function CorporateAccountsPage(): JSX.Element {
         paymentMethod: settlementForm.paymentMethod,
         note: settlementForm.note.trim() || undefined,
       };
-      await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
+      const result = await corporateAccountService.recordSettlement(settlementTarget.id, payload, accessToken);
       await loadAccounts();
       toast({ variant: 'success', title: 'Settlement recorded' });
-      setSettlementModalOpen(false);
-      setSettlementTarget(null);
+      setSettledResult({ settlementId: result.settlementId, companyName: settlementTarget.companyName });
       setSettlementForm(defaultSettlementForm);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to record settlement.';
       toast({ variant: 'error', title: 'Settlement failed', message });
     } finally {
       setIsSettling(false);
+    }
+  };
+
+  const closeSettlementModal = () => {
+    setSettlementModalOpen(false);
+    setSettlementTarget(null);
+    setSettledResult(null);
+  };
+
+  const handlePrintSettlementReceipt = async (targetStationId: string | null): Promise<void> => {
+    if (!accessToken || !settledResult) return;
+    setIsPrintingReceipt(true);
+    try {
+      await printService.createCorporateSettlementPrintJob(
+        settledResult.settlementId,
+        accessToken,
+        undefined,
+        targetStationId,
+      );
+      toast({ variant: 'success', title: 'Settlement receipt sent to printer' });
+      setPrintTargetModalOpen(false);
+      closeSettlementModal();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Unable to print settlement receipt.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintingReceipt(false);
     }
   };
 
@@ -423,70 +455,93 @@ export default function CorporateAccountsPage(): JSX.Element {
       <Modal
         isOpen={settlementModalOpen}
         onClose={() => {
-          if (!isSettling) {
-            setSettlementModalOpen(false);
-            setSettlementTarget(null);
-          }
+          if (!isSettling) closeSettlementModal();
         }}
-        title={`Record Settlement — ${settlementTarget?.companyName ?? ''}`}
+        title={
+          settledResult
+            ? `Settlement Recorded — ${settledResult.companyName}`
+            : `Record Settlement — ${settlementTarget?.companyName ?? ''}`
+        }
         footer={
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSettlementModalOpen(false);
-                setSettlementTarget(null);
-              }}
-              disabled={isSettling}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" form="corp-settlement-form" isLoading={isSettling}>
-              Record Settlement
-            </Button>
-          </div>
+          settledResult ? (
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeSettlementModal}>
+                Done
+              </Button>
+              <Button onClick={() => setPrintTargetModalOpen(true)}>
+                <Printer size={16} className="mr-2 shrink-0" />
+                Print Receipt
+              </Button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeSettlementModal} disabled={isSettling}>
+                Cancel
+              </Button>
+              <Button type="submit" form="corp-settlement-form" isLoading={isSettling}>
+                Record Settlement
+              </Button>
+            </div>
+          )
         }
       >
-        <form id="corp-settlement-form" className="space-y-4" onSubmit={(event) => void handleRecordSettlement(event)}>
-          {settlementTarget && (
-            <p className="text-body-sm text-stone-500">
-              Current balance:{' '}
-              <span className="font-semibold text-stone-800">
-                KES{' '}
-                {Number.parseFloat(String(settlementTarget.currentBalance)).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-              </span>
-            </p>
-          )}
-          <Input
-            label="Amount (KES)"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={settlementForm.amount}
-            onChange={(e) => setSettlementForm((c) => ({ ...c, amount: e.target.value }))}
-            placeholder="e.g. 15000.00"
-            disabled={isSettling}
-          />
-          <Select
-            label="Payment Method"
-            value={settlementForm.paymentMethod}
-            onChange={(e) => setSettlementForm((c) => ({ ...c, paymentMethod: e.target.value as 'MPESA' | 'CASH' | 'CARD' }))}
-            disabled={isSettling}
-            options={[
-              { value: 'MPESA', label: 'M-Pesa' },
-              { value: 'CASH', label: 'Cash' },
-              { value: 'CARD', label: 'Card' },
-            ]}
-          />
-          <Input
-            label="Note (optional)"
-            value={settlementForm.note}
-            onChange={(e) => setSettlementForm((c) => ({ ...c, note: e.target.value }))}
-            placeholder="e.g. Bank transfer ref #123"
-            disabled={isSettling}
-          />
-        </form>
+        {settledResult ? (
+          <p className="text-body-sm text-stone-600">
+            The settlement was recorded successfully. You can print a thermal receipt as proof of
+            payment now, or close this and print it later from the print jobs list.
+          </p>
+        ) : (
+          <form id="corp-settlement-form" className="space-y-4" onSubmit={(event) => void handleRecordSettlement(event)}>
+            {settlementTarget && (
+              <p className="text-body-sm text-stone-500">
+                Current balance:{' '}
+                <span className="font-semibold text-stone-800">
+                  KES{' '}
+                  {Number.parseFloat(String(settlementTarget.currentBalance)).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                </span>
+              </p>
+            )}
+            <Input
+              label="Amount (KES)"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={settlementForm.amount}
+              onChange={(e) => setSettlementForm((c) => ({ ...c, amount: e.target.value }))}
+              placeholder="e.g. 15000.00"
+              disabled={isSettling}
+            />
+            <Select
+              label="Payment Method"
+              value={settlementForm.paymentMethod}
+              onChange={(e) => setSettlementForm((c) => ({ ...c, paymentMethod: e.target.value as 'MPESA' | 'CASH' | 'CARD' }))}
+              disabled={isSettling}
+              options={[
+                { value: 'MPESA', label: 'M-Pesa' },
+                { value: 'CASH', label: 'Cash' },
+                { value: 'CARD', label: 'Card' },
+              ]}
+            />
+            <Input
+              label="Note (optional)"
+              value={settlementForm.note}
+              onChange={(e) => setSettlementForm((c) => ({ ...c, note: e.target.value }))}
+              placeholder="e.g. Bank transfer ref #123"
+              disabled={isSettling}
+            />
+          </form>
+        )}
       </Modal>
+
+      <PrintTargetModal
+        isOpen={printTargetModalOpen}
+        onClose={() => {
+          if (!isPrintingReceipt) setPrintTargetModalOpen(false);
+        }}
+        kind="SETTLEMENT"
+        isSubmitting={isPrintingReceipt}
+        onConfirm={(targetStationId) => void handlePrintSettlementReceipt(targetStationId)}
+      />
 
       <ConfirmDialog
         isOpen={Boolean(deactivateTarget)}

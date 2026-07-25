@@ -135,6 +135,15 @@ model User {
   createdPayslips          Payslip[]               @relation("PayslipsCreated")
   staffTransfers           StaffTransfer[]         @relation("StaffTransferUser")
   staffTransfersAuthorized StaffTransfer[]         @relation("StaffTransferAuthorizedBy")
+  purchaseOrdersCreated    PurchaseOrder[]         @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersSent       PurchaseOrder[]         @relation("PurchaseOrderSentBy")
+  productionOrdersStarted  ProductionOrder[]       @relation("ProductionOrderStartedBy")
+  productionOrdersCompleted ProductionOrder[]      @relation("ProductionOrderCompletedBy")
+  stockCountsStarted       StockCount[]            @relation("StockCountStartedBy")
+  stockCountsSubmitted     StockCount[]            @relation("StockCountSubmittedBy")
+  stockCountsApproved      StockCount[]            @relation("StockCountApprovedBy")
+  wasteLogsLogged          WasteLog[]              @relation("WasteLogLoggedBy")
+  inventoryTransactionsPerformed InventoryTransaction[] @relation("InventoryTransactionPerformedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -458,6 +467,8 @@ enum UserRole {
   BARISTA_DISPLAY
   STEWARD
   HOUSEKEEPING
+  STORE_MANAGER
+  STORE_ATTENDANT
 }
 
 enum PrepStation {
@@ -594,6 +605,7 @@ model PrintJob {
   id             String          @id @default(uuid())
   organizationId String          @map("organization_id")
   orderId        String?         @map("order_id")
+  corporateAccountSettlementId String? @map("corporate_account_settlement_id")
   activeKey      String?         @unique @map("active_key")
   receiptType    ReceiptType     @default(RECEIPT) @map("receipt_type")
   copies         Int             @default(1)
@@ -613,6 +625,7 @@ model PrintJob {
 
   organization   Organization    @relation(fields: [organizationId], references: [id])
   order          Order?          @relation(fields: [orderId], references: [id])
+  corporateAccountSettlement CorporateAccountSettlement? @relation(fields: [corporateAccountSettlementId], references: [id])
   requestedBy    User            @relation("PrintJobRequester", fields: [requestedById], references: [id])
   targetStation  PrintStation?   @relation("PrintJobTargetStation", fields: [targetStationId], references: [id])
   claimedByStation PrintStation? @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
@@ -621,6 +634,7 @@ model PrintJob {
   @@index([organizationId, status])
   @@index([organizationId, status, targetStationId])
   @@index([orderId])
+  @@index([corporateAccountSettlementId])
   @@map("print_jobs")
 }
 
@@ -654,6 +668,7 @@ enum PrintJobStatus {
 enum ReceiptType {
   BILL
   RECEIPT
+  SETTLEMENT
 }
 
 // ─── Credit Account Models ────────────────────────────────────────────────────
@@ -755,6 +770,7 @@ model CorporateAccountSettlement {
 
   corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id])
   settledBy        User             @relation("CorporateAccountSettledBy", fields: [settledById], references: [id])
+  printJobs        PrintJob[]
 
   @@index([corporateAccountId])
   @@map("corporate_account_settlements")
@@ -1349,4 +1365,407 @@ enum HrDocumentType {
   INCIDENT_REPORT
   WARNING_LETTER
   OTHER
+}
+
+// =============================================================================
+// Inventory & Procurement — Central Store (Phase 1)
+//
+// Company-wide, unscoped by organizationId (no @@index([organizationId]),
+// no organization relation) — same pattern as MenuItem/CorporateAccount.
+// The Central Store is its own Location, never a branch (D-1, see
+// docs/context/INVENTORY_FEATURE_PLAN.md §0/§2). Phase 1 creates exactly one
+// Location row. Phase 2 adds one Location per (branch, department) pair,
+// at which point those rows *will* need a link back to Organization —
+// deliberately not modeled yet (see docs/context/INVENTORY_FEATURE_PLAN.md §8).
+//
+// Stock on hand is always derived from InventoryTransaction — never a mutable
+// counter (see InventoryItem.currentCost note below for the one derived
+// exception: weighted-average cost, which IS persisted because it must be
+// read on every write and recomputing it from the full ledger on every read
+// would be wasteful; it is still only ever mutated by the ledger-writing
+// service methods, never directly).
+// =============================================================================
+
+enum LocationType {
+  CENTRAL_STORE
+  BRANCH_DEPARTMENT // Phase 2 — not created in Phase 1
+}
+
+model Location {
+  id        String       @id @default(uuid())
+  name      String
+  type      LocationType
+  isActive  Boolean      @default(true) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  purchaseOrders    PurchaseOrder[]
+  productionOrders  ProductionOrder[]
+  stockCounts       StockCount[]
+  wasteLogs         WasteLog[]
+  transactions      InventoryTransaction[]
+
+  @@map("inventory_locations")
+}
+
+enum InventoryItemType {
+  RAW_INGREDIENT
+  PREPPED_ITEM
+  PASS_THROUGH_ITEM
+}
+
+// Which branch department(s) will eventually requisition this item.
+// Phase 2-facing only — no dispatch/requisition logic reads this in Phase 1.
+enum Department {
+  KITCHEN
+  PASTRY
+  BARISTA
+  SERVICE
+  HOUSEKEEPING
+}
+
+model InventoryItem {
+  id               String            @id @default(uuid())
+  name             String
+  type             InventoryItemType
+  category         String
+  buyUnit          String            @map("buy_unit")
+  usageUnit        String            @map("usage_unit")
+  // 1 buy unit = `conversionFactor` usage units, e.g. 1 kg = 1000 g (D-7)
+  conversionFactor Decimal           @db.Decimal(12, 4) @map("conversion_factor")
+  reorderLevel     Decimal           @db.Decimal(12, 4) @map("reorder_level") // in usage units
+  // Weighted-average cost per usage unit (D-8). Persisted because every
+  // receive/production/waste/adjustment write needs to read-then-update it;
+  // recomputed only by inventoryCostingService, never set directly elsewhere.
+  currentCost      Decimal           @default(0) @db.Decimal(12, 4) @map("current_cost")
+  departmentScope  Department[]      @map("department_scope")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  defaultSupplierId String?    @map("default_supplier_id")
+  defaultSupplier   Supplier?  @relation("ItemDefaultSupplier", fields: [defaultSupplierId], references: [id])
+
+  supplierPrices       SupplierItemPrice[]
+  purchaseOrderLines   PurchaseOrderLine[]
+  prepRecipeAsOutput   PrepRecipe?             @relation("PrepRecipeOutput")
+  prepRecipeInputLines PrepRecipeLine[]
+  productionOutputLines ProductionOrderOutputLine[]
+  productionInputLines  ProductionOrderInputLine[]
+  stockCountLines      StockCountLine[]
+  wasteLogs            WasteLog[]
+  transactions         InventoryTransaction[]
+
+  @@index([type])
+  @@index([category])
+  @@map("inventory_items")
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  contactName String?  @map("contact_name")
+  phone       String?
+  email       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  itemsAsDefault    InventoryItem[]      @relation("ItemDefaultSupplier")
+  itemPrices        SupplierItemPrice[]
+  purchaseOrders    PurchaseOrder[]
+
+  @@index([name])
+  @@map("inventory_suppliers")
+}
+
+// Append-only price history per supplier per item, captured at PO receiving
+// time from the invoice price. Never updated in place — a new row per change.
+model SupplierItemPrice {
+  id         String   @id @default(uuid())
+  supplierId String   @map("supplier_id")
+  itemId     String   @map("item_id")
+  price      Decimal  @db.Decimal(12, 4) // KES per buy unit
+  effectiveDate DateTime @map("effective_date")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  supplier Supplier      @relation(fields: [supplierId], references: [id])
+  item     InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([supplierId, itemId])
+  @@index([itemId])
+  @@map("inventory_supplier_item_prices")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  poNumber    String              @unique @map("po_number")
+  supplierId  String              @map("supplier_id")
+  locationId  String              @map("location_id") // always the Central Store in Phase 1
+  status      PurchaseOrderStatus @default(DRAFT)
+  notes       String?
+  createdById String              @map("created_by_id") // STORE_ATTENDANT or STORE_MANAGER who drafted it
+  sentById    String?             @map("sent_by_id")     // STORE_MANAGER who sent/approved it
+  sentAt      DateTime?           @map("sent_at")
+  closedAt    DateTime?           @map("closed_at")
+  cancelledAt DateTime?           @map("cancelled_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  supplier  Supplier            @relation(fields: [supplierId], references: [id])
+  location  Location            @relation(fields: [locationId], references: [id])
+  createdBy User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  sentBy    User?               @relation("PurchaseOrderSentBy", fields: [sentById], references: [id])
+  lines     PurchaseOrderLine[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@map("inventory_purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id                String   @id @default(uuid())
+  purchaseOrderId   String   @map("purchase_order_id")
+  itemId            String   @map("item_id")
+  // Three-quantity discipline (D-6) applied to PO receiving: ordered vs actual received.
+  orderedQty        Decimal  @db.Decimal(12, 4) @map("ordered_qty") // buy units
+  receivedQty       Decimal  @default(0) @db.Decimal(12, 4) @map("received_qty") // buy units
+  expectedUnitPrice Decimal  @db.Decimal(12, 4) @map("expected_unit_price") // KES per buy unit
+  actualUnitPrice   Decimal? @db.Decimal(12, 4) @map("actual_unit_price") // KES per buy unit, from invoice
+  receivedAt        DateTime? @map("received_at")
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  item          InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@map("inventory_purchase_order_lines")
+}
+
+// Prep Recipe (Central Store tier): raw ingredients → prepped item, with
+// expected yield. One recipe per prepped output item.
+model PrepRecipe {
+  id             String   @id @default(uuid())
+  name           String
+  outputItemId   String   @unique @map("output_item_id")
+  expectedYield  Decimal  @db.Decimal(12, 4) @map("expected_yield") // usage units of output
+  batchLabel     String?  @map("batch_label") // e.g. "1 batch = 5kg raw chicken"
+  instructions   String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  outputItem      InventoryItem     @relation("PrepRecipeOutput", fields: [outputItemId], references: [id])
+  inputLines      PrepRecipeLine[]
+  productionOrders ProductionOrder[]
+
+  @@map("inventory_prep_recipes")
+}
+
+model PrepRecipeLine {
+  id           String  @id @default(uuid())
+  prepRecipeId String  @map("prep_recipe_id")
+  itemId       String  @map("item_id") // a raw ingredient
+  quantity     Decimal @db.Decimal(12, 4) // usage units, per one batch
+
+  prepRecipe PrepRecipe    @relation(fields: [prepRecipeId], references: [id])
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([prepRecipeId])
+  @@index([itemId])
+  @@map("inventory_prep_recipe_lines")
+}
+
+enum ProductionOrderStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// A prep run at the Central Store. Started against a recipe + batch
+// multiplier (scales expected inputs/yield); completed with actuals, which
+// drive prep_consume/prep_produce ledger writes and the rolled-up unit cost.
+model ProductionOrder {
+  id               String                 @id @default(uuid())
+  prepRecipeId     String                 @map("prep_recipe_id")
+  locationId       String                 @map("location_id")
+  status           ProductionOrderStatus  @default(IN_PROGRESS)
+  batchMultiplier  Decimal                @db.Decimal(8, 4) @map("batch_multiplier")
+  expectedYield    Decimal                @db.Decimal(12, 4) @map("expected_yield") // usage units, scaled
+  actualYield      Decimal?               @db.Decimal(12, 4) @map("actual_yield")   // usage units
+  totalInputCost   Decimal?               @db.Decimal(12, 4) @map("total_input_cost")
+  unitCost         Decimal?               @db.Decimal(12, 4) @map("unit_cost") // totalInputCost / actualYield
+  startedById      String                 @map("started_by_id")
+  completedById    String?                @map("completed_by_id")
+  startedAt        DateTime               @default(now()) @map("started_at")
+  completedAt      DateTime?              @map("completed_at")
+
+  prepRecipe   PrepRecipe                  @relation(fields: [prepRecipeId], references: [id])
+  location     Location                    @relation(fields: [locationId], references: [id])
+  startedBy    User                        @relation("ProductionOrderStartedBy", fields: [startedById], references: [id])
+  completedBy  User?                       @relation("ProductionOrderCompletedBy", fields: [completedById], references: [id])
+  inputLines   ProductionOrderInputLine[]
+  outputLines  ProductionOrderOutputLine[]
+
+  @@index([prepRecipeId])
+  @@index([status])
+  @@map("inventory_production_orders")
+}
+
+// Actual raw-ingredient quantities consumed, recorded at completion.
+model ProductionOrderInputLine {
+  id                String  @id @default(uuid())
+  productionOrderId String  @map("production_order_id")
+  itemId            String  @map("item_id")
+  quantity          Decimal @db.Decimal(12, 4) // usage units actually consumed
+  unitCost          Decimal @db.Decimal(12, 4) @map("unit_cost") // item's weighted-avg cost at time of consumption
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  item            InventoryItem   @relation(fields: [itemId], references: [id])
+
+  @@index([productionOrderId])
+  @@map("inventory_production_order_input_lines")
+}
+
+// Actual prepped-item output, recorded at completion (normally one line —
+// the recipe's output item — kept as a table for symmetry and future
+// composite-prep support per plan §8).
+model ProductionOrderOutputLine {
+  id                String  @id @default(uuid())
+  productionOrderId String  @map("production_order_id")
+  itemId            String  @map("item_id")
+  quantity          Decimal @db.Decimal(12, 4) // usage units actually produced
+  unitCost          Decimal @db.Decimal(12, 4) @map("unit_cost") // rolled-up cost for this run
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  item            InventoryItem   @relation(fields: [itemId], references: [id])
+
+  @@index([productionOrderId])
+  @@map("inventory_production_order_output_lines")
+}
+
+enum StockCountStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED   // attendant finished counting, awaiting manager approval
+  APPROVED    // manager approved — adjustment transactions posted
+}
+
+model StockCount {
+  id            String            @id @default(uuid())
+  locationId    String            @map("location_id")
+  label         String
+  status        StockCountStatus  @default(NOT_STARTED)
+  blindCount    Boolean           @default(true) @map("blind_count") // OD-4: hides expected qty while counting
+  scheduledDate DateTime          @db.Date @map("scheduled_date")
+  startedById   String?           @map("started_by_id")
+  submittedById String?           @map("submitted_by_id")
+  submittedAt   DateTime?         @map("submitted_at")
+  approvedById  String?           @map("approved_by_id") // STORE_MANAGER who approved — posts adjustments
+  approvedAt    DateTime?         @map("approved_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  location    Location         @relation(fields: [locationId], references: [id])
+  startedBy   User?            @relation("StockCountStartedBy", fields: [startedById], references: [id])
+  submittedBy User?            @relation("StockCountSubmittedBy", fields: [submittedById], references: [id])
+  approvedBy  User?            @relation("StockCountApprovedBy", fields: [approvedById], references: [id])
+  lines       StockCountLine[]
+
+  @@index([locationId])
+  @@index([status])
+  @@map("inventory_stock_counts")
+}
+
+model StockCountLine {
+  id            String   @id @default(uuid())
+  stockCountId  String   @map("stock_count_id")
+  itemId        String   @map("item_id")
+  shelfLocation String?  @map("shelf_location") // shelf-to-sheet walking order
+  // Snapshot at count creation — the ledger-derived on-hand qty at that
+  // moment. Never shown to the counter when blindCount is true (UI concern).
+  expectedQty   Decimal  @db.Decimal(12, 4) @map("expected_qty")
+  countedQty    Decimal? @db.Decimal(12, 4) @map("counted_qty")
+
+  stockCount StockCount    @relation(fields: [stockCountId], references: [id])
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@unique([stockCountId, itemId])
+  @@index([stockCountId])
+  @@map("inventory_stock_count_lines")
+}
+
+enum WasteReason {
+  SPOILED
+  PREP_ERROR
+  DROPPED
+  EXPIRED
+  OTHER
+}
+
+model WasteLog {
+  id         String      @id @default(uuid())
+  locationId String      @map("location_id")
+  itemId     String      @map("item_id")
+  quantity   Decimal     @db.Decimal(12, 4) // usage units
+  reason     WasteReason
+  note       String?
+  loggedById String      @map("logged_by_id")
+  loggedAt   DateTime    @default(now()) @map("logged_at")
+
+  location Location      @relation(fields: [locationId], references: [id])
+  item     InventoryItem @relation(fields: [itemId], references: [id])
+  loggedBy User          @relation("WasteLogLoggedBy", fields: [loggedById], references: [id])
+
+  @@index([locationId])
+  @@index([itemId])
+  @@map("inventory_waste_logs")
+}
+
+// Full enum ships in Phase 1; later phases only append usage, never
+// restructure (see docs/context/INVENTORY_FEATURE_PLAN.md §1 transaction
+// table). Only RECEIVE, PREP_CONSUME, PREP_PRODUCE, WASTE, ADJUSTMENT are
+// actually written by Phase 1 services.
+enum InventoryTransactionType {
+  RECEIVE        // Phase 1 — Central Store — +
+  PREP_CONSUME   // Phase 1 — Central Store — -
+  PREP_PRODUCE   // Phase 1 — Central Store — +
+  WASTE          // Phase 1 — Any — -
+  ADJUSTMENT     // Phase 1 — Any — +/-
+  DISPATCH_OUT   // Phase 2 — Central Store — -
+  DISPATCH_IN    // Phase 2 — Branch Department — +
+  MARKET_RECEIVE // Phase 2 — Branch Department — +
+  SALE           // Phase 3 — Branch Department — -
+}
+
+// Append-only ledger — the single source of truth for stock on hand at every
+// location. Never updated or deleted after insert. Stock on hand for an
+// item+location is always SUM(quantity) over this table, never a stored
+// counter (see module header note re: currentCost being the one persisted
+// derived value, for cost — quantity itself is never persisted anywhere else).
+model InventoryTransaction {
+  id           String                    @id @default(uuid())
+  itemId       String                    @map("item_id")
+  locationId   String                    @map("location_id")
+  type         InventoryTransactionType
+  quantity     Decimal                   @db.Decimal(12, 4) // usage units, signed: + increases stock, - decreases
+  unitCost     Decimal                   @db.Decimal(12, 4) @map("unit_cost") // KES per usage unit at time of transaction
+  reference    String                    // e.g. PO number, production order id, count id, waste log id
+  note         String?
+  performedById String                   @map("performed_by_id")
+  occurredAt   DateTime                  @default(now()) @map("occurred_at")
+
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  location    Location      @relation(fields: [locationId], references: [id])
+  performedBy User          @relation("InventoryTransactionPerformedBy", fields: [performedById], references: [id])
+
+  @@index([itemId, locationId])
+  @@index([locationId])
+  @@index([type])
+  @@index([occurredAt])
+  @@map("inventory_transactions")
 }
