@@ -42,6 +42,7 @@ export default function HistoryPage(): JSX.Element {
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
+  const [isPrintBillSubmitting, setIsPrintBillSubmitting] = useState(false);
 
   // Branch selector — only for cross-branch roles (DIRECTOR, ACCOUNTANT)
   const [branches, setBranches] = useState<BranchDto[]>([]);
@@ -118,6 +119,25 @@ export default function HistoryPage(): JSX.Element {
       toast({ variant: 'error', title: 'Print failed', message });
     } finally {
       setIsPrintSubmitting(false);
+    }
+  };
+
+  const handlePrintBill = async (orderId: string, targetStationId: string | null) => {
+    if (!accessToken || isPrintBillSubmitting) return;
+    setIsPrintBillSubmitting(true);
+    try {
+      await printService.createPrintJob(orderId, accessToken, 'BILL', targetStationId);
+      toast({ variant: 'success', title: 'Bill sent to printer' });
+    } catch (error) {
+      const message =
+        error instanceof ApiError && error.statusCode === 404
+          ? 'No printer configured for this branch'
+          : error instanceof ApiError
+            ? error.message
+            : 'Unable to send to printer.';
+      toast({ variant: 'error', title: 'Print failed', message });
+    } finally {
+      setIsPrintBillSubmitting(false);
     }
   };
 
@@ -272,6 +292,8 @@ export default function HistoryPage(): JSX.Element {
         onPayment={() => {/* read-only in history */}}
         onPrintReceipt={(orderId, targetStationId) => void handlePrintReceipt(orderId, targetStationId)}
         isPrintSubmitting={isPrintSubmitting}
+        onPrintBill={(orderId, targetStationId) => void handlePrintBill(orderId, targetStationId)}
+        isPrintBillSubmitting={isPrintBillSubmitting}
         isOwner={isOwner}
         isManager={isManager}
       />
