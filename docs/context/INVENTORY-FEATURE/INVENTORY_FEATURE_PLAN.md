@@ -9,7 +9,12 @@ The underlying domain model is documented in the client-process research doc
 
 ## Status
 
-- [ ] Phase 1 (Central Store) — Not started (re-scoped 2026-07-22, see §0 below)
+- [ ] Phase 1 (Central Store) — Not started (re-scoped 2026-07-22, see §0 below).
+      Build is split across 9 sequential sessions — see
+      `docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md` for the
+      session-by-session scope, status, and handoff notes. That file is the
+      entry point for any agent picking up Phase 1 work; this file remains the
+      spec it implements.
 - [ ] Phase 2 (Central Store → Branch Departments) — Not started
 - [ ] Phase 3 (Branch Departments → Customers) — Not started
 
@@ -592,9 +597,9 @@ A prototype and a full Phase 1 build (backend + frontend) were built on branch
 `proto/inventory-phase1` between 2026-07-22 and 2026-07-25. The branch was deleted
 2026-07-28 to restart the feature from scratch — nothing from that build (schema,
 services, routes, screens, mock data) carried forward. Only this plan, the domain
-model doc, and the client reference photos in `docs/context/inventory-real-data/`
-were kept. Do not assume any inventory schema, code, or routes exist in the codebase
-until this feature is rebuilt.
+model doc, and the client reference photos in
+`docs/context/INVENTORY-FEATURE/inventory-real-data/` were kept. Do not assume any
+inventory schema, code, or routes exist in the codebase until this feature is rebuilt.
 
 ---
 

@@ -48,6 +48,7 @@ export { KDSCard } from './KDSCard'
 export type { KDSItem, TicketStatus } from './KDSCard'
 export { MenuItemCard } from './MenuItemCard'
 export { StaffCard } from './StaffCard'
+export { IconTile } from './IconTile'
 
 // Wave 7 — Overlays
 export { Modal } from './Modal'

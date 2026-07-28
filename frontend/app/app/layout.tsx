@@ -13,20 +13,26 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Coffee,
   CreditCard,
+  FileBarChart,
   FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Package,
   Percent,
+  Receipt,
   ScrollText,
   Settings2,
   ShieldAlert,
   ShoppingCart,
   Tags,
+  Trash2,
+  Truck,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -56,7 +62,7 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STEWARD' | 'HOUSEKEEPING';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STEWARD' | 'HOUSEKEEPING' | 'STORE_ATTENDANT' | 'STORE_MANAGER';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -214,6 +220,43 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
+    ],
+  },
+  // Mobile-only per feature plan §8.0 — no sidebarSectionsByRole entry, so this
+  // role never qualifies for usesDualShell/useSidebarOnlyShell below and always
+  // renders the plain MobileLayout branch.
+  STORE_ATTENDANT: {
+    tabs: [
+      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
+      { label: 'Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
+      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
+    ],
+    overflowTabs: [
+      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+    ],
+  },
+  // Desktop is the primary shell for this role (usesDualShell below); this is
+  // only the narrow-viewport fallback until Session 8 builds the real Manager
+  // mobile screens per feature plan §8.1. Reuses Session 7's desktop pages.
+  STORE_MANAGER: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
+      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
+      { label: 'Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
+    ],
+    overflowTabs: [
+      { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
+      { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
+      { label: 'Supplier Invoices', href: '/app/inventory/supplier-invoices', icon: Receipt },
+      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
+      { label: 'Prep Recipes', href: '/app/inventory/prep-recipes', icon: ScrollText },
+      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
 };
@@ -445,6 +488,46 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
   ],
+  // Session 7 — Manager desktop screens (feature plan §8.1). Order follows
+  // the session plan's screen list: landing dashboard, then Stock on Hand
+  // (read) separate from Item Catalog (admin/setup) per the two screens'
+  // distinct purposes, though they share underlying table plumbing.
+  STORE_MANAGER: [
+    {
+      label: 'Central Store',
+      items: [
+        { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
+        { label: 'Stock on Hand', href: '/app/inventory/stock', icon: Package },
+        { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
+        { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
+        { label: 'Supplier Invoices', href: '/app/inventory/supplier-invoices', icon: Receipt },
+        { label: 'Purchase Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+        { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
+      ],
+    },
+    {
+      label: 'Prep',
+      items: [
+        { label: 'Prep Entry', href: '/app/inventory/prep', icon: Coffee },
+        { label: 'Prep Recipes', href: '/app/inventory/prep-recipes', icon: ScrollText },
+      ],
+    },
+    {
+      label: 'Counting',
+      items: [
+        { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+        { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      ],
+    },
+    {
+      label: 'Insights',
+      items: [{ label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart }],
+    },
+    {
+      label: 'Account',
+      items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+    },
+  ],
 };
 
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
@@ -609,7 +692,8 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     role === 'DIRECTOR' ||
     role === 'SYSTEM_ADMIN' ||
     role === 'ACCOUNTANT' ||
-    role === 'HR_MANAGER';
+    role === 'HR_MANAGER' ||
+    role === 'STORE_MANAGER';
 
   const useSidebarOnlyShell =
     !usesDualShell &&

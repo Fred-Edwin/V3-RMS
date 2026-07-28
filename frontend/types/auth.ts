@@ -10,7 +10,9 @@ export type AppRole =
   | 'BARISTA_DISPLAY'
   | 'HR_MANAGER'
   | 'STEWARD'
-  | 'HOUSEKEEPING';
+  | 'HOUSEKEEPING'
+  | 'STORE_MANAGER'
+  | 'STORE_ATTENDANT';
 
 export interface AuthUser {
   id: string;

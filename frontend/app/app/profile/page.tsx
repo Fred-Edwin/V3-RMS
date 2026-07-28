@@ -91,6 +91,8 @@ const roleLabels: Record<AppRole, string> = {
   HR_MANAGER: 'HR Manager',
   STEWARD: 'Steward',
   HOUSEKEEPING: 'Housekeeping',
+  STORE_MANAGER: 'Store Manager',
+  STORE_ATTENDANT: 'Store Attendant',
 };
 
 function InfoRow({ label, value }: { label: string; value: string }) {
