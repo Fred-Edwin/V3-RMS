@@ -61,6 +61,13 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 12. Always use pnpm to run the project.
 13. Use Windows PowerShell commands.
 
+## Task Tracking
+
+For any multi-step task, use a todo list (e.g. the TodoWrite tool) and keep it updated
+as you go — mark items complete as soon as they're done, don't batch updates to the
+end. This is for the owner's visual feedback while work is in progress, not just your
+own bookkeeping, so update it live rather than only at the start/end of a task.
+
 ## Frontend Hook Stability Rules (Read Before Editing Pages/Hooks)
 
 1. Hooks that return action functions used in `useEffect`/`useCallback` dependencies must return stable references (use selectors + `useCallback` when needed).
