@@ -19,7 +19,7 @@ Discovery is **complete**, in two rounds:
 2. **2026-07-22 client walkthrough of the Phase 1 prototype**, cross-checked against 26
    photos of the client's actual paper records, surfaced a structural correction (see §0)
    that this revision applies throughout. The prototype built under the old model
-   (`frontend/app/proto/inventory/`) predates this correction — see §9.
+   predated this correction and no longer exists in the codebase — see §10.
 
 ---
 
@@ -73,7 +73,7 @@ one exception, used close to as-is).
 SUPPLIER
    ↓  Purchase Order → Receiving
 CENTRAL STORE  (raw ingredients + pass-through items)
-   ↓  Production Order (Prep Recipe: raw → prepped)
+   ↓  Prep (raw → prepped, logged as actuals — see D-12)
 CENTRAL STORE  (prepped items)
    ↓  Requisition → Dispatch (prepped + pass-through, department-scoped)
 BRANCH DEPARTMENT  (prepped + pass-through items)
@@ -89,7 +89,7 @@ location — it's a grouping of its departments.
 
 **Three item types** (the foundation — each moves differently):
 
-| Type | Definition | Example | Prep recipe? |
+| Type | Definition | Example | Appears in Prep? |
 |---|---|---|---|
 | Raw ingredient | Bought from supplier, consumed in prep | Chicken breast, flour, oil | Consumed as input |
 | Prepped item | Produced by the Central Store from raw ingredients | Marinated chicken, beef patties | Produced as output |
@@ -108,11 +108,17 @@ Store leg, cost is whatever was paid at the market that day.
 department(s) that actually requisition it. A department's requisition screen, stock
 sheet, and usage recipes only ever show its own relevant items.
 
-**Two-tier recipes:**
+**Prep is actuals-first, no recipe required (D-12); Usage Recipe is the one true
+recipe tier:**
 
-- **Prep Recipe** (Central Store): raw ingredients → prepped item, with expected yield.
+- **Prep** (Central Store): raw ingredients → prepped item. Logged as a `PrepRecord` —
+  the attendant records what was actually used and actually produced, no predefined
+  recipe needed. An optional, Manager-authored `PrepRecipe` can exist purely as a
+  soft reference (typical quantities), never a precondition. See §4 and D-12.
 - **Usage Recipe** (branch department): prepped + pass-through + market items → menu
-  item sold, scoped to the department that sells it.
+  item sold, scoped to the department that sells it. This one *is* a predefined recipe
+  (Phase 3) — it drives automatic deduction on order close, which needs a plan to
+  explode against, unlike Prep which is recorded after the fact.
 
 **Everything is a ledger entry.** Every stock movement is an append-only
 `InventoryTransaction` with location, item, quantity, cost, user, timestamp. Stock on
@@ -132,10 +138,11 @@ Phase 1; later phases append types, never restructure:
 | `sale` | 3 | Branch Department | − |
 
 **Cost follows stock.** Raw/pass-through cost comes from supplier invoices at receiving.
-Prepped cost is rolled up per production run (actual input cost ÷ **actual** yield).
-Market item cost comes from what the department recorded paying that day. Cost travels
-with dispatches, so each branch department produces a true food-cost figure even though
-most purchasing happens at the Central Store.
+Prepped cost is rolled up per Prep Record (actual input cost ÷ **actual** yield, logged
+at the time of prepping — see D-12). Market item cost comes from what the department
+recorded paying that day. Cost travels with dispatches, so each branch department
+produces a true food-cost figure even though most purchasing happens at the Central
+Store.
 
 **Variance is isolated by location** — the strategic payoff:
 
@@ -152,11 +159,11 @@ most purchasing happens at the Central Store.
 | # | Decision | Rationale |
 |---|---|---|
 | D-1 | **The Central Store is its own location type — not a branch, not `Branch.isHub`.** Resolved 2026-07-22 (supersedes the original D-1/OD-1, which had proposed extending `Branch`). | The client corrected this directly: the store is "more like a central store," never a point of sale, and must not be modeled as a branch variant. |
-| D-1a | **A branch is not itself a stock-holding location — its departments are.** Each branch has up to five department-locations (Kitchen, Pastry, Barista, Service, Housekeeping), each with independent stock, requisitioning independently from the Central Store. Confirmed by the client's existing paper trail (five parallel daily stock-sheet templates). | Matches operational reality: five department heads, five separate counts, five separate requisitions — never one branch-level number. |
+| D-1a | **A branch is not itself a stock-holding location — its departments are.** Every branch runs all five departments (Kitchen, Pastry, Barista, Service, Housekeeping) — confirmed 2026-07-28, no per-branch configuration needed (resolves OD-12). Each is its own location with independent stock, requisitioning independently from the Central Store. Confirmed by the client's existing paper trail (five parallel daily stock-sheet templates). | Matches operational reality: five department heads, five separate counts, five separate requisitions — never one branch-level number. |
 | D-1b | **Items are department-scoped.** Every catalog item declares which department(s) requisition it; a department's screens show only its own slice. | Barista never orders chicken; Service never orders coffee beans — confirmed by the client's sheets, which never cross-list items between departments. |
 | D-1c | **No cross-department or cross-branch transfers in v1.** A department's stock only grows via Central Store dispatch or direct market purchase. | Confirmed explicitly by the client: "no sideways transfers." Keeps the ledger's inbound paths to exactly two per department. |
-| D-2 | **New role for the Central Store** (working name `STORE_KEEPER`). None of the existing 10 roles fits procurement/receiving/dispatch. Full RBAC wiring per non-negotiables. | Storekeeper and production supervisor may be the same person initially; keep permissions separable. |
-| D-2a | **New role for branch department heads** (working name `DEPARTMENT_HEAD`, parameterized by department type) — or reuse existing branch roles (chef, barista, waiter-lead) with an inventory permission layered on. Schema decision pending at Phase 1 design. | Each department head requisitions and counts their own department; existing chef/barista/waiter roles may already map closely enough to avoid a new role explosion. |
+| D-2 | **Two roles at the Central Store — resolved 2026-07-28, no `STORE_KEEPER`/production-supervisor split (closes OD-2).** `STORE_MANAGER` — full control: catalog, suppliers, supplier AP/invoicing, PO send/approval, prep, stock-count approval, reports. `STORE_ATTENDANT` — day-to-day labour: receiving, prep entry, stock-count submission, waste logging; sees operational cost/price data (current cost, PO prices, invoice prices at receiving) but has **no access at all to Supplier AP** (invoicing, amounts owed, settlement — not even read-only). Full detail in §8. | One manager in charge of everything, one attendant doing the floor work — matches how the client actually staffs the store. The only walled-off data is accounts-payable/settlement, not operational costs. |
+| D-2a | **New role for branch department heads** (working name `DEPARTMENT_HEAD`, parameterized by department type) — or reuse existing branch roles (chef, barista, waiter-lead) with an inventory permission layered on. Schema decision pending at Phase 2 design. | Each department head requisitions and counts their own department; existing chef/barista/waiter roles may already map closely enough to avoid a new role explosion. |
 | D-3 | **Deduction fires on order close** (Phase 3), via background job (BullMQ) — never in the synchronous order path. | One well-defined moment, tied to revenue (food cost % needs it), composes with Phase 11/12 cancellation/correction flows. Items removed before close never deduct; prepared-then-cancelled food is captured via the existing incident log → waste entries. |
 | D-4 | **Base-recipe deduction only in v1 — no modifier-aware deduction.** `OrderItem` carries free-text `notes`, not structured modifiers; there is nothing machine-readable to hook into. Modifier variance leaks into department variance (small for a coffee bistro). | Structured modifiers are a separate future workstream touching cart, order flow, and prep-ticket reconciliation. Accepted knowingly. |
 | D-5 | **Dispatches use an explicit In-Transit state.** Each ledger write is atomic (Prisma `$transaction`), but the dispatch document lives in `DISPATCHED`/in-transit between `dispatch_out` and `dispatch_in`. | Matches Odoo's transit-location pattern; makes the three-quantity line meaningful. |
@@ -166,48 +173,43 @@ most purchasing happens at the Central Store.
 | D-9 | **Inventory never blocks selling.** Menu items without usage recipes sell normally; deduction skips them and a coverage report shows gaps. Negative theoretical stock is allowed and flagged, never an order error. | Service > bookkeeping, always. |
 | D-10 | **Every new table carries `organizationId`** and follows the existing controller → service → repository split, Zod validation, and auth/RBAC middleware. | Project non-negotiables. |
 | D-11 | **Direct market purchases are ledger-tracked (`market_receive`), not treated as an untracked expense.** Logged by the branch department at time of purchase — no supplier PO, no Central Store leg, cost is whatever was paid that day. | Client confirmed produce-heavy dishes need working recipes/costing/variance; excluding market goods from the ledger would leave every dish with fresh produce uncosted. |
+| D-12 | **Prep has no predefined recipe requirement — resolved 2026-07-28.** The Store Attendant does not work from an authored recipe. They log a **Prep Record**: the output item, the inputs actually used (item + quantity per input), and the actual yield produced. Cost is computed the same way as before (total input cost ÷ actual yield) — this math only needs actuals, not a plan. See §4 for the full mechanic, including the optional "promote to Prep Recipe" path. | Matches how the client's kitchen actually works — nobody there authors a recipe before prepping; they just prep and it gets recorded. Forcing a recipe-first flow would be inventing a step that doesn't exist in the real process. |
+| D-13 | **Supplier AP/invoicing is in v1 scope, resolved 2026-07-28 (closes OD-9).** A `SupplierInvoice` tracks what Wendo owes a given supplier — separate from `receive` transactions, which only capture unit price. Full mechanic in §4a. Store Manager only; Store Attendant has zero access (not even read-only). | Client wants to track what's owed per supplier, not just what was paid per item — otherwise there's no answer to "how much do we owe Supplier X right now." |
+| D-14 | **Blind counting is a permanent role rule, not a toggle — resolved 2026-07-28 (closes OD-4).** During a stock count, `expectedQty` is **always hidden from Store Attendant** and **always visible to Store Manager** — never a per-session or Director-level setting. Enforced server-side (the API response itself omits `expectedQty` for an Attendant-authenticated request), not just hidden in the UI. | The attendant should not know what the system expects before they count, so the count reflects what they actually find, not what they think they should report. A frontend-only hide isn't sufficient — same principle as any role-restricted field. |
 
-**v1 scope exclusions** (from the research doc, confirmed): no raw prep at branch
-departments beyond market-item use-as-is; no composite prep (prepped items feeding other
-prep recipes); no returns to the Central Store; no cross-department or cross-branch
-transfers; no invoice OCR; no offline counting; no demand forecasting.
+**v1 scope exclusions** (from the research doc, confirmed): no composite prep (prepped
+items feeding other prep runs); no returns to the Central Store; no cross-department or
+cross-branch transfers; no invoice OCR; no offline counting; no demand forecasting.
 
 ---
 
-## 3. Delivery Process (applies to every phase)
+## 3. UX/UI Approach
 
-**Prototype → client approves → build → pilot with real data → ship.**
-
-1. **Prototype** the phase's key screens cheaply (throwaway page or Figma) — always
-   populated with the client's *real* items, suppliers, and menu. Familiar data gets real
-   feedback; fake data gets polite nods.
-2. **Client approval** of the prototype gates the build.
-3. **Build** per project standards (tests included — a feature without tests is not complete).
-4. **Pilot**: one location runs the phase **in parallel with paper** for the gate period.
-   The gate criterion is always *"staff used it with real data and the numbers reconcile"* —
-   never *"the client liked the screens."*
-5. **Ship**, then start the next phase.
-
-UX rule for all phases — two kinds of screens, designed differently:
-
-- **"Sitting down"** (catalog, recipes, POs, reports): desktop dashboard, existing
-  ExcelTable/Sheet patterns from the UI System Overhaul.
-- **"Standing up"** (receiving, counting, waste, production completion, dispatch,
-  requisitions): mobile-first, big touch targets, numeric keypads, per-line autosave
-  (the pattern proven in the payroll sheet). If receiving a delivery is slower than
-  signing the paper invoice, the storekeeper stops using it and the data rots.
+See §8 for the full decision and the per-screen desktop/mobile breakdown. In short:
+Store Attendant is mobile-only, so every Attendant screen is designed mobile-first with
+big touch targets, numeric keypads, and per-line autosave (the pattern proven in the
+payroll sheet). Store Manager works on both desktop and mobile, and — because visual
+quality is a competitive priority here — Manager screens get **two separate,
+purpose-built UIs** (a dense desktop layout and a distinct mobile layout), not one
+responsive layout stretched across breakpoints. Build now against the current design
+system; expect a restyling pass once the planned whole-product design-system redo
+reaches this module (decision logged 2026-07-28: proceed now, don't block on the redo).
 
 ---
 
 ## 4. Phase 1 — The Central Store (Supplier → Central Store)
 
 Everything inside the Central Store's walls. End state: the store knows what it owns,
-what it made, and what everything cost. Branch departments don't exist in the inventory
-world yet — this phase is scoped to the Central Store location only.
+what it prepped, and what everything cost. Branch departments don't exist in the
+inventory world yet — this phase is scoped to the Central Store location only.
 
 ### Cast
-- **Storekeeper** (new role): receiving, counts, stock records, POs.
-- **Production supervisor / head chef**: production runs, prep recipes, yields.
+- **Store Manager**: full control — catalog, suppliers, supplier AP, PO send/approval,
+  stock-count approval, reports.
+- **Store Attendant**: day-to-day labour — receiving, prep entry, stock-count
+  submission, waste logging. Sees operational cost/price data throughout (current cost,
+  PO prices, invoice prices); has zero access to Supplier AP. Full role/screen detail
+  in §8.
 - **Director / Accountant**: read-only reports.
 
 ### One-time setup
@@ -215,57 +217,90 @@ world yet — this phase is scoped to the Central Store location only.
    unit, usage unit + conversion, reorder level, and the department(s) it will
    eventually be relevant to (captured now even though dispatch is Phase 2, so the
    catalog doesn't need rework later). From the client's real stock list.
-2. **Suppliers** — name, contact, what they supply. The store manager configures which
+2. **Suppliers** — name, contact, what they supply. The Store Manager configures which
    supplier is used for which item (Wendo already splits purchasing across a
    supermarket for pantry/consumables and separate meat/dairy suppliers).
-3. **Prep recipes** — inputs + quantities + expected yield, per prepped item.
-4. **Opening stock count** — physical count, entered as day zero.
+3. **Opening stock count** — physical count, entered as day zero.
+
+No prep-recipe setup step — see D-12 and the Prep mechanic below; recipes are optional
+and created later, if at all.
 
 ### Recurring workflows
 - **Purchasing & receiving:** raise PO (with low-stock suggestions) → on delivery, record
   actual quantity + invoice price per line → `receive` transactions, stock and current
   cost updated. Partial deliveries keep the PO open. Short deliveries and price changes
   are captured, not blocked.
-- **Production:** pick recipe + batch size → system scales ingredients, checks
-  availability → on completion, record actual inputs used + actual yield →
-  `prep_consume` + `prep_produce` written, unit cost computed (input cost ÷ actual
-  yield), yield variance recorded and **shown immediately at entry**.
+- **Prep (D-12 — no predefined recipe required):** attendant picks the *output* item
+  being prepped → logs the inputs actually used (item + quantity, as many lines as
+  needed) → logs the actual yield produced → confirms. This writes `prep_consume` (per
+  input) + `prep_produce` (the output) in one atomic transaction, and computes unit cost
+  = total input cost ÷ actual yield. The entry screen shows a **soft reference**
+  ("Typical: ~6kg chicken → ~5.6kg output"), computed as a rolling average over the last
+  N Prep Records for that same output item — informational only, never blocking, never
+  required to match. Once a pattern is established for a given output item, the Store
+  Manager can **promote** a representative Prep Record into a saved `PrepRecipe`
+  (optional, Manager-authored, used only for the soft-reference nudge and future
+  standardization/training — never a precondition for prepping).
 - **Counting:** count session (shelf-to-sheet order — list matches the physical walking
   order of the store) → expected vs. counted → gap written as `adjustment` with reason.
   Waste logged as it happens via its own 3-tap entry, keeping counts clean.
 
 ### Reports delivered
 Live stock on hand (qty + value) · low-stock alerts · price history per item/supplier ·
-prep yield by recipe/run · count discrepancy · true cost per prepped item.
+prep yield by output item/run · count discrepancy · true cost per prepped item · supplier
+AP aging (see §4a).
 
 ### Screens
-| # | Screen | Context |
-|---|---|---|
-| 1 | Stock on Hand (landing) — search/filter, type badges, low-stock flags; tap item → **movement history** (its ledger slice) | Desktop/tablet |
-| 2 | Item Catalog CRUD (incl. department tags) | Desktop |
-| 3 | Suppliers CRUD + price-history detail, incl. assigning a default supplier per item | Desktop |
-| 4 | PO list (Draft → Sent → Partially Received → Closed) + create with "suggest order" prefill | Desktop |
-| 5 | **Receiving** — per-line ordered qty prefilled, correct to actual, invoice price; inline discrepancy highlight; one confirm. Target: 15 lines < 3 min | Phone, delivery bay |
-| 6 | Prep Recipe editor | Desktop |
-| 7 | Production Run — start (scaled ingredients, availability) / complete (actuals → instant cost + yield variance) | Phone/tablet, kitchen |
-| 8 | Stock Count session — shelf-to-sheet order, per-line autosave, pause/resume → variance summary → confirm | Phone |
-| 9 | Waste Log — item, qty, reason picker, optional note | Phone |
-| 10 | Reports (price history, yields, discrepancy, valuation) | Existing reports nav |
+Full screen-by-screen detail (desktop + mobile, per role) lives in §8 — Roles &
+Screens. Phase 1's screens: Stock on Hand, Item Catalog, Suppliers, Supplier
+Invoices/AP, Purchase Orders, Receiving, Prep entry, Stock Count session, Waste Log,
+Reports.
 
 ### Build notes
 New entities: `InventoryItem` (with department-scope tags), `Supplier`,
-`PurchaseOrder`(+lines), `PrepRecipe`(+lines), `ProductionOrder`(+lines),
-`StockCount`(+lines), `WasteLog` (or waste as transaction + reason),
+`SupplierInvoice`(+payments, see §4a), `PurchaseOrder`(+lines), `PrepRecipe`(+lines,
+optional/Manager-authored), `PrepRecord`(+lines — the actuals-only entry attendants
+log), `StockCount`(+lines), `WasteLog` (or waste as transaction + reason),
 `InventoryTransaction`. Full transaction enum ships now (D-decisions apply: org scoping,
-UOM conversion, weighted-average cost). New `STORE_KEEPER` role + RBAC + Inventory nav
-section. `Location` is introduced now as its own entity (not `Branch.isHub`) — Phase 1
-creates exactly one `Location` row (the Central Store); Phase 2 adds one per branch
-department.
+UOM conversion, weighted-average cost). New `STORE_MANAGER` + `STORE_ATTENDANT` roles +
+RBAC + Inventory nav section. `Location` is introduced now as its own entity (not
+`Branch.isHub`) — Phase 1 creates exactly one `Location` row (the Central Store); Phase 2
+adds one per branch department.
 
 ### Gate
-Storekeeper + Central Store run **one real week in parallel with paper**: every
-delivery, ≥2 production runs, one full count. Pass: ledger reconciles with physical
+Store Manager + Store Attendant run **one real week in parallel with paper**: every
+delivery, ≥2 prep entries, one full count. Pass: ledger reconciles with physical
 count, prices match invoices, staff operate it unassisted.
+
+---
+
+## 4a. Supplier AP / Invoicing
+
+A running tab per supplier — the same mental model as the existing Customer Credit /
+Corporate Account tabs, pointed the other direction (money Wendo owes, not money owed to
+Wendo). Store Manager only; Store Attendant has zero access, not even read-only (D-2,
+D-13).
+
+**How it works:**
+1. Receiving happens as normal (Attendant or Manager) — quantities and invoice price per
+   line are recorded against the PO, exactly as in the base receiving flow.
+2. The Store Manager separately records the **supplier invoice** for that delivery: the
+   amount the supplier is billing and the invoice/reference number. This creates a
+   `SupplierInvoice` linked to the PO, status `UNPAID`.
+3. Whenever Wendo actually pays the supplier (which may be days or weeks after
+   delivery), the Store Manager records a payment against that invoice: amount, method,
+   date. Partial payments are supported.
+4. Status updates automatically from the payments recorded: `UNPAID` →
+   `PARTIALLY_PAID` → `PAID`.
+5. A report shows, per supplier: total invoiced, total paid, total outstanding, and an
+   aging view (how long each unpaid invoice has been outstanding) — the number that
+   actually matters operationally, since a supplier owed money for 45 days behaves
+   differently than one owed for 3.
+
+Build notes: `SupplierInvoice` (linked to `PurchaseOrder`, amount, reference number,
+status) + `SupplierPayment` (linked to `SupplierInvoice`, amount, method, date). No new
+ledger transaction type needed — this tracks money owed, not stock movement, so it's
+parallel to `InventoryTransaction`, not part of it.
 
 ---
 
@@ -277,16 +312,18 @@ introduces the direct-market-purchase path, since it's how branch departments ge
 other major stock category (fresh produce).
 
 ### Cast
-- **Storekeeper** — now also dispatcher: requisition queue, picking, dispatch.
-- **Department heads** (Kitchen, Pastry, Barista, Service, Housekeeping) per branch —
-  morning/afternoon/evening requisition, receiving dispatches, logging market purchases,
-  department-level waste + counts.
+- **Store Manager / Store Attendant** — now also dispatch: requisition queue, picking,
+  dispatch (Manager sends/confirms; Attendant can fulfill day-to-day per the same split
+  as Phase 1 — see §8).
+- **Department heads** (Kitchen, Pastry, Barista, Service, Housekeeping) per branch, all
+  five departments always provisioned (D-1a) — morning/afternoon/evening requisition,
+  receiving dispatches, logging market purchases, department-level waste + counts.
 - **Director** — cross-location visibility.
 
 ### One-time setup
 1. **Branch departments become inventory locations** — five per branch (Kitchen, Pastry,
-   Barista, Service, Housekeeping), each its own ledger scope. Not every branch
-   necessarily runs all five; configurable per branch.
+   Barista, Service, Housekeeping), each its own ledger scope. Every branch runs all
+   five, always provisioned — no per-branch configuration (D-1a, resolves OD-12).
 2. **Dispatchable item list per department** — derived from the department-scope tags
    captured in Phase 1; raw ingredients are invisible to branch departments (Central
    Store rule enforced at the data level) except where a market item is itself raw.
@@ -428,20 +465,118 @@ then do the numbers get used for decisions.
 | # | Decision | Status |
 |---|---|---|
 | OD-1 | ~~Central kitchen schema shape: extend `Branch` vs. new `Location` entity~~ | **Resolved 2026-07-22 — see D-1.** Central Store is its own `Location`, never `Branch.isHub`. |
-| OD-2 | Storekeeper vs. production supervisor: one person or two? Affects role/permission split | Ask client at Phase 1 prototype review |
+| OD-2 | ~~Storekeeper vs. production supervisor: one person or two? Affects role/permission split~~ | **Resolved 2026-07-28 — see D-2.** Two roles, `STORE_MANAGER` and `STORE_ATTENDANT`, no separate production-supervisor role. |
 | OD-2a | Department-head role modeling: new parameterized `DEPARTMENT_HEAD` role vs. layering an inventory permission onto existing chef/barista/waiter-lead roles | Resolve at Phase 2 schema design |
 | OD-3 | ~~Branch requisition/receiving permissions: Manager-only, or nominated senior staffer per branch~~ | **Superseded by D-1a/D-2a** — requisition/receiving is per department head, not a single branch-level permission. Still open: does a Branch Manager retain an override/approval role across all departments in their branch? |
-| OD-4 | Blind counts (hide expected qty during counting — recommended default) with Director-level toggle | Confirm with client |
+| OD-4 | ~~Blind counts (hide expected qty during counting — recommended default) with Director-level toggle~~ | **Resolved 2026-07-28 — see D-14.** Not a toggle — a permanent role rule: expected qty is hidden from Store Attendant always, visible to Store Manager always. |
 | OD-5 | Count rhythm per department (the client's paper sheets show twice-daily opening/closing per department — confirm this is the target rhythm, not weekly) | Confirm with client — likely resolved in favor of daily, pending explicit confirmation |
 | OD-6 | Dispatch rhythm as branches spread geographically (client's sheets show morning + afternoon + evening requisition slots) | Revisit before Phase 2 build as expansion proceeds |
 | OD-7 | Fryer-oil-style session consumption (not per-order) — modeled via waste/adjustment in v1 | Accepted; revisit if material |
-| OD-8 | **Design direction: Wendo brand, Carbon thinking** (settled 2026-07-22). The inventory module keeps the existing Wendo design system (tokens, components, Round 0 Sheet/ExcelTable) but uses IBM Carbon as the *pattern reference* for data-dense UI/UX decisions — table toolbars, side-panel forms, progressive disclosure, confirm-or-correct flows. No Carbon dependency; no design-system fork. | Settled |
-| OD-9 | Supplier accounts payable / invoicing (what's owed per supplier, payment status, generating invoices) — not covered anywhere in this plan; `receive` transactions capture invoice *price*, not invoice *settlement*. | Open — needs owner decision: separate supplier-AP module (mirroring the existing customer-credit/`accountant/credit` pattern) vs. extending Phase 1's `PurchaseOrder` model |
-| OD-10 | **eTIMS integration** (KRA's Electronic Tax Invoice Management System) for supplier purchases — validating/recording the supplier's eTIMS invoice number or control code against a received PO. Not built or mocked in the prototype deliberately — live government tax-compliance API with real legal consequences. | Open — needs owner + accountant/tax-advisor scoping before any build or UI work |
+| OD-8 | **Design direction: Wendo brand, Carbon thinking** (settled 2026-07-22, reaffirmed 2026-07-28 alongside the dual desktop/mobile UI decision in §8). The inventory module keeps the existing Wendo design system as its baseline (tokens, components, Round 0 Sheet/ExcelTable) but uses IBM Carbon as the *pattern reference* for data-dense UI/UX decisions — table toolbars, side-panel forms, progressive disclosure, confirm-or-correct flows. No Carbon dependency; no design-system fork. Superseded in part by the whole-product design-system redo being planned separately — this module builds against the current system now and gets restyled once the redo lands (decision logged 2026-07-28). | Settled |
+| OD-9 | ~~Supplier accounts payable / invoicing (what's owed per supplier, payment status, generating invoices)~~ | **Resolved 2026-07-28 — see D-13 and §4a.** In v1 scope; `SupplierInvoice` + `SupplierPayment`, Store Manager only. |
+| OD-10 | **eTIMS integration** (KRA's Electronic Tax Invoice Management System) for supplier purchases — validating/recording the supplier's eTIMS invoice number or control code against a received PO. Deliberately not built or scoped yet — live government tax-compliance API with real legal consequences. | Open — needs owner + accountant/tax-advisor scoping before any build or UI work |
 | OD-11 | **Does a branch itself need any aggregate view/role**, given departments — not branches — hold stock? (e.g. a Branch Manager dashboard rolling up all five departments at their branch.) Raised 2026-07-22 alongside D-1a. | Open — likely yes for Director/Manager reporting; resolve at Phase 2 schema design |
-| OD-12 | **Not every branch may run all five departments** (a smaller branch might not have its own Pastry or Housekeeping function). Confirm per-branch department configuration is needed vs. all five always provisioned. | Open — confirm with client at Phase 2 prototype review |
+| OD-12 | ~~Not every branch may run all five departments — confirm per-branch configuration is needed~~ | **Resolved 2026-07-28 — see D-1a.** Every branch always runs all five departments; no per-branch configuration. |
 
-## 8. Future Extensions (explicitly deferred, model already accommodates)
+## 8. Roles & Screens (Store Manager, Store Attendant — Phase 1 scope)
+
+This section is the single source of truth for what each Central Store role sees and
+can do, screen by screen. It supersedes Phase 1's old "Screens" table (§4 now points
+here) — Phase 2's and Phase 3's Screens tables (§5, §6) are unchanged and still stand
+for their own phases. Phase 2/3 department-head and Director/Accountant screens will
+get their own version of this section when those phases are designed — this section
+covers Phase 1 (Store Manager, Store Attendant) only.
+
+### 8.0 UI approach (read before designing any screen)
+
+**Decision (2026-07-28):** visual design quality is a competitive priority — the client
+actively compares this product against others in the market — so this module does not
+take the usual pragmatic shortcut of one responsive layout reflowed across breakpoints.
+
+- **Store Attendant is mobile-only.** Every Attendant screen is designed mobile-first,
+  full stop: big touch targets, numeric keypad inputs, one thing at a time, per-line
+  autosave (the pattern already proven in the payroll sheet). There is no desktop
+  version of an Attendant screen to design, because Attendant never has permission to
+  reach a screen that would need one (see the permissions matrix in §8.3 — the RBAC
+  boundary and the mobile-only boundary line up exactly).
+- **Store Manager uses both desktop and mobile, and gets two separate, purpose-built
+  UIs per screen** — a dense desktop layout and a distinct mobile layout — not one
+  component stretched to fit both. This is a deliberate cost: every Manager-facing
+  screen is two designs and two implementations to build and keep visually consistent,
+  not one. §8.1 below documents both layouts for every Manager screen up front, before
+  build starts.
+- **Design system timing:** build now against the current Wendo design system
+  (tokens, ExcelTable/Sheet, Round 0 components — see `docs/DESIGN_SYSTEM.md`), using
+  IBM Carbon only as a pattern reference for data-dense UI decisions (OD-8). Do not
+  block this feature on the planned whole-product design-system redo. Expect a
+  restyling pass on these screens once that redo reaches this module — this is an
+  accepted, deliberate rebuild-later cost, not an oversight.
+
+### 8.1 Store Manager — screens (desktop + mobile per screen)
+
+| # | Screen | Desktop layout | Mobile layout |
+|---|---|---|---|
+| 1 | **Stock on Hand** (landing) | Dense ExcelTable: search/filter, type badges (raw/prepped/pass-through), low-stock flags, sortable columns (name, category, on-hand qty, current cost, value). Row click opens a side panel with the item's movement history (full ledger slice, paginated). | Card list, one item per card: name, type badge, on-hand qty, low-stock flag prominent. Tap card → full-screen movement history (chronological feed, not a table). Search bar pinned to top. |
+| 2 | **Item Catalog CRUD** | Full ExcelTable with inline edit; side panel for create/edit (name, type, buy unit, usage unit, conversion factor, reorder level, department tags, default supplier, current cost shown read-only). Bulk actions (e.g. bulk department-tag assignment) available. | List view, tap item → full-screen edit form, one field group per step (identity → units → department tags → default supplier) rather than one long form, since small-screen long forms are error-prone. |
+| 3 | **Suppliers CRUD + price history** | Table of suppliers (name, contact, item count) + detail side panel with price-history chart per item (reuses the existing `PriceTrendChart` pattern) and "assign as default supplier" action. | List → tap supplier → detail screen, price history as a simple sparkline + list (not a full chart — screen real estate), assign-default action as a button, not inline. |
+| 4 | **Supplier Invoices / AP** (Manager-only, §4a) | Table of invoices (supplier, PO reference, amount, status, days outstanding) with a totals-by-supplier summary panel and an aging view (0–7/8–30/31+ days). Record-invoice and record-payment as modals. | List of invoices, status badge prominent (UNPAID/PARTIALLY_PAID/PAID), tap → detail screen with a "Record Payment" primary action. Aging shown as a compact status chip per invoice, not a separate chart. |
+| 5 | **Purchase Orders** — list | Table: PO number, supplier, status (Draft/Sent/Partially Received/Closed/Cancelled), total value, date. Filter by status. "Create PO" opens a full-screen form with a "suggest order" prefill button (low-stock items). | List of PO cards (number, supplier, status badge). "New PO" is a prominent floating action button → step-by-step item picker (search, tap to add, quantity stepper) rather than a dense multi-row form. |
+| 6 | **Purchase Orders** — send/cancel action | Inline action buttons on the PO detail view (desktop side panel). | Single primary action button on the PO detail screen, with a confirm step (send/cancel are consequential, so a lightweight confirm sheet, not a full modal). |
+| 7 | **Receiving** | Same core flow as mobile (this is inherently a floor task — see §8.0), but on desktop it can show the full PO alongside a wider discrepancy-highlight table if the Manager is doing receiving from the office (rare, but the desktop layout should not break if used this way). | **Primary surface for this screen.** Per-line ordered qty prefilled, correct to actual, invoice price entry; inline discrepancy highlight (red if actual ≠ ordered); one confirm button at the bottom. Target: 15 lines in under 3 minutes. |
+| 8 | **Prep entry** (D-12 — output item, inputs used, actual yield) | Desktop version exists for completeness (Manager reviewing/backfilling), shown as a form with a running cost calculation panel beside it, plus the rolling-average soft-reference shown as a small inline note. | **Primary surface.** Step flow: pick output item → add input lines (item + qty, repeatable, numeric keypad) → enter actual yield → confirm. Soft reference ("Typical: ~6kg → ~5.6kg") shown as a subtle hint above the yield field, never blocking. |
+| 9 | **Prep Recipe editor** (optional, Manager-only — "promote" a Prep Record into a recipe) | Full editor: input lines with quantities, expected yield, batch label, instructions (rich text acceptable). Accessible from a Prep Record's detail view via "Save as Recipe." | Not designed for mobile — this is a deliberate, occasional desktop-only task (recipe authoring is reflective work, not floor work); Manager can view (not create/edit) a saved recipe on mobile if needed. |
+| 10 | **Stock Count** — session creation | Desktop form: label, scheduled date, item selection (by department scope or full catalog), shelf-location ordering. No blind-count toggle — expected qty visibility is a fixed role rule (D-14), not a per-session setting. | Not typically initiated from mobile — session creation is a planning task; Manager creates from desktop, Attendant/Manager execute the count itself on mobile (see §8.2 screen 3). |
+| 11 | **Stock Count** — approval | Desktop: variance summary table (expected vs. counted vs. gap, valued in KES), approve action posts adjustment transactions. Drill into any line for its full ledger history. | Compact variance summary list, tap a line for detail, single "Approve" action pinned to bottom of screen. |
+| 12 | **Waste Log** — review | Desktop table: item, qty, reason, note, logged-by, date — filterable by reason/date range, feeds the waste-cost-by-category report. | Manager can log waste same as Attendant (§8.2 screen 4) but reviewing the full log is a desktop task. |
+| 13 | **Reports** | Full dashboard: stock valuation, low-stock alerts, price history, prep yield by output item, count discrepancy, true cost per prepped item, supplier AP aging — existing reports-nav pattern, ExcelTable-driven, exportable PDF/CSV per project convention. | Single-metric summary cards (e.g. "Total stock value," "3 items low stock," "KES 42,000 owed to suppliers") with tap-through to a simplified single-report mobile view. Not a priority to fully replicate every desktop report on mobile in v1 — flag any report that's desktop-only in the build notes when reached. |
+
+### 8.2 Store Attendant — screens (mobile only)
+
+Every screen below is the *same mobile layout* the Store Manager sees for the
+equivalent "standing up" task (§8.1 rows 7, 8, 10 count-execution, 12) — there is no
+separate Attendant-specific design, only Attendant-specific *permissions* layered on
+top (see §8.3). Attendant's nav is a simplified bottom-tab shell (same pattern as the
+existing Waiter/Chef mobile nav) showing only the screens they can act on.
+
+| # | Screen | What Attendant sees/does |
+|---|---|---|
+| 1 | **Stock on Hand** (read) | Same card-list view as Manager's mobile layout (§8.1 row 1) — full visibility into quantities, current cost, value. Read-only: no edit actions. |
+| 2 | **Purchase Orders** — draft only | Can view PO list and create a new draft PO (item picker, quantities, prices visible) — cannot send it. No "Send" action appears; a pending-send status is visible so Attendant knows it's waiting on the Manager. |
+| 3 | **Receiving** | Full receiving flow (§8.1 row 7 mobile layout) — quantities and invoice prices, both visible and editable. This is Attendant's core daily task. |
+| 4 | **Prep entry** | Full Prep entry flow (§8.1 row 8 mobile layout) — this is Attendant's other core daily task. Cannot author or edit a saved Prep Recipe (view-only if one exists, as a soft reference). |
+| 5 | **Stock Count — execution** | Opens a count session created by the Manager, enters counted quantities per line — **expected qty is never shown** (D-14, always blind for Attendant), pauses/resumes, submits when done. Cannot create a new session and cannot approve — submission hands off to the Manager. |
+| 6 | **Waste Log — entry** | 3-tap entry: item, quantity, reason (picker: spoiled/prep error/dropped/expired/other), optional note. Same screen Manager uses to log waste themselves. |
+
+**Explicitly not in Attendant's nav:** Item Catalog CRUD, Suppliers CRUD, Supplier
+Invoices/AP (zero access, not even read-only — D-2, D-13), PO send/cancel, Prep Recipe
+editor, Stock Count session creation/approval, Reports.
+
+### 8.3 Permissions matrix
+
+The authoritative table for RBAC middleware — every row is an endpoint-group ×
+role check.
+
+| Area | Action | Store Manager | Store Attendant |
+|---|---|---|---|
+| Item Catalog | View (incl. current cost) | ✅ | ✅ |
+| Item Catalog | Create / edit / delete | ✅ | ❌ |
+| Suppliers | View | ✅ | ✅ |
+| Suppliers | Create / edit / delete / assign default | ✅ | ❌ |
+| Supplier AP (invoices, payments, aging) | Any access, incl. read-only | ✅ | ❌ (zero access) |
+| Purchase Orders | View (incl. prices) | ✅ | ✅ |
+| Purchase Orders | Create (draft) | ✅ | ✅ |
+| Purchase Orders | Send / cancel | ✅ | ❌ |
+| Receiving | Record quantity + invoice price | ✅ | ✅ |
+| Prep entry | Log a Prep Record (inputs, yield) | ✅ | ✅ |
+| Prep Recipe | Create / edit ("promote" a record) | ✅ | ❌ (view-only, as soft reference) |
+| Stock Count | Create session | ✅ | ❌ |
+| Stock Count | Execute / submit | ✅ | ✅ |
+| Stock Count | Approve (posts adjustments) | ✅ | ❌ |
+| Waste Log | Log entry | ✅ | ✅ |
+| Waste Log | View full log / review | ✅ | View own entries only (recommended default — confirm with client if full-log view is wanted) |
+| Reports (stock valuation, yields, discrepancy, AP aging, etc.) | Any access | ✅ | ❌ |
+
+## 9. Future Extensions (explicitly deferred, model already accommodates)
 
 Invoice OCR receiving (fills the same receiving screen; no data-model change) ·
 structured modifiers + modifier-aware deduction · demand forecasting / suggested pars
@@ -451,7 +586,7 @@ offline counting.
 
 ---
 
-## 9. Prior Build Attempt (discarded 2026-07-28)
+## 10. Prior Build Attempt (discarded 2026-07-28)
 
 A prototype and a full Phase 1 build (backend + frontend) were built on branch
 `proto/inventory-phase1` between 2026-07-22 and 2026-07-25. The branch was deleted
@@ -465,6 +600,11 @@ until this feature is rebuilt.
 
 *Prepared 2026-07-22. Revised 2026-07-22 same day, post client walkthrough, to correct
 the location model (Central Store, not Central Kitchen-as-branch) and introduce branch
-departments and the direct-market-purchase path. Companion to
+departments and the direct-market-purchase path. Revised again 2026-07-28: closed
+OD-2/OD-9/OD-12 (two Central Store roles, Supplier AP in scope, all five departments
+always provisioned per branch), replaced the recipe-first Prep model with an
+actuals-first Prep Record (D-12), added §4a (Supplier AP) and §8 (Roles & Screens —
+full desktop/mobile spec for Store Manager and Store Attendant), and logged the
+build-now/restyle-later decision on the pending design-system redo. Companion to
 `docs/context/central_kitchen_inventory_model.md` (domain model). Update the Status
 section and log decisions here as phases complete.*
