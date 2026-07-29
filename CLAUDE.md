@@ -117,11 +117,19 @@ Also complete: UI System Overhaul Round 1 (design tokens, Sheet/ExcelTable data 
 Status: Round 0 complete 2026-07-06. Round 1 (Director → Accountant → Manager → HR → Admin sweep) complete 2026-07-08. Rounds 2–6 pending, not started.
 Plan file: docs/context/UI_SYSTEM_ROADMAP.md
 
-Also planned: Inventory & Procurement — Phase 1 (Central Store)
-Status: Planning in progress — no sessions started, no schema/code in the codebase. Prior prototype + Phase 1 build (branch proto/inventory-phase1) was discarded 2026-07-28 to restart clean; only the plan and reference docs were kept. Two Central Store roles resolved (STORE_MANAGER, STORE_ATTENDANT — see the plan's §2/§8), Supplier AP brought into v1 scope. Multi-session build, strictly sequential (no parallel sessions), once planning closes.
-Feature spec: docs/context/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec)
+Current: Inventory & Procurement — Phase 2 (Central Store → Branch Departments)
+Status: Phase 1 (Central Store) complete 2026-07-29 — all 9 sessions shipped (schema,
+costing/ledger core, Catalog/Suppliers/PO/Receiving/Prep/Stock Count/Waste/Supplier AP
+backend, RBAC + reports, Attendant mobile, Manager desktop + mobile, and Session 9's
+integration pass/Gate prep with real client catalog data seeded). Phase 2 planning has
+not started — no sessions, no schema/code for dispatch/requisition/branch departments
+yet. Two Central Store roles shipped (STORE_MANAGER, STORE_ATTENDANT — see the plan's
+§2/§8), Supplier AP live in v1. Multi-session build, strictly sequential (no parallel
+sessions), once Phase 2 planning closes.
+Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec; §5 has the Phase 2 spec)
+Session plan (Phase 1, all complete): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md
 Domain model: docs/context/central_kitchen_inventory_model.md
-Client reference photos: docs/context/inventory-real-data/
+Client reference photos: docs/context/INVENTORY-FEATURE/inventory-real-data/
 
 Previous phases (all complete): full history lives in `docs/context/` as one
 `PHASE_N_*.md` file per phase (Phase 0 through Phase 12, plus Phase 8's addenda —

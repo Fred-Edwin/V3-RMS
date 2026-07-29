@@ -2,20 +2,195 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Pause, Play } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, Pause, Play } from 'lucide-react';
+import { Badge } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
-import { getStockCount, submitStockCount } from '@/services/inventoryService';
+import { approveStockCount, getStockCount, submitStockCount } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
-import type { StockCount } from '@/types/inventory';
+import type { StockCount, StockCountStatus } from '@/types/inventory';
+
+const STATUS_LABEL: Record<StockCountStatus, string> = {
+  IN_PROGRESS: 'In Progress',
+  SUBMITTED: 'Submitted',
+  APPROVED: 'Approved',
+};
+
+// Mobile-only route: Manager's desktop detail view is a slide-over panel on
+// the stock-counts list (StockCountsDesktop), never a Link to this [id]
+// route, so there's no desktop content to show here. STORE_MANAGER's dual
+// shell still mounts this page on both the desktop and mobile copies
+// (app/app/layout.tsx), so without a shell check the desktop-shell copy
+// would double-fetch/render the approval view for nothing — same bug class
+// Session 8 fixed on prep/page.tsx and waste/page.tsx.
+export default function StockCountDetailPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  const isDesktop = useIsDesktopShell();
+  if (isDesktop) return <></>;
+  if (role === 'STORE_MANAGER') {
+    return <StockCountApproval />;
+  }
+  return <StockCountExecution />;
+}
+
+function StockCountApproval(): JSX.Element {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const { toast } = useToast();
+
+  const [count, setCount] = useState<StockCount | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isApproveOpen, setIsApproveOpen] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accessToken || !params.id) return;
+    setIsLoading(true);
+    try {
+      const result = await getStockCount(params.id, accessToken);
+      setCount(result);
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to load count session', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accessToken, params.id, toast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const varianceLines = useMemo(() => {
+    if (!count) return [];
+    return [...count.lines]
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((line) => {
+        const expected = parseFloat(line.expectedQty ?? '0');
+        const counted = line.countedQty !== null ? parseFloat(line.countedQty) : null;
+        const gap = counted !== null ? counted - expected : 0;
+        return { line, expected, counted, gap };
+      });
+  }, [count]);
+
+  const totalGap = varianceLines.reduce((sum, l) => sum + l.gap, 0);
+
+  const handleApprove = async () => {
+    if (!accessToken || !count) return;
+    setIsApproving(true);
+    try {
+      const updated = await approveStockCount(count.id, accessToken);
+      setCount(updated);
+      toast({ variant: 'success', title: 'Count approved', message: `${updated.label} was approved and adjustments were posted.` });
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to approve', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsApproving(false);
+      setIsApproveOpen(false);
+    }
+  };
+
+  return (
+    <div className="min-h-full bg-crema pb-8">
+      <div className="bg-espresso px-4 pb-4 pt-6 text-crema">
+        <button type="button" onClick={() => router.push('/app/inventory/stock-counts')} className="mb-2 flex items-center gap-1 text-label-md text-crema/80">
+          <ArrowLeft size={16} /> Stock Counts
+        </button>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-heading-md font-medium">{count?.label ?? 'Loading…'}</p>
+            {count && <p className="text-label-md text-crema/70">{count.lines.length} items</p>}
+          </div>
+          {count && <Badge tone={count.status === 'IN_PROGRESS' ? 'warning' : count.status === 'SUBMITTED' ? 'neutral' : 'success'}>{STATUS_LABEL[count.status]}</Badge>}
+        </div>
+      </div>
+
+      <div className="px-4 py-4">
+        {isLoading || !count ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-md bg-stone-100" />
+            ))}
+          </div>
+        ) : count.status === 'IN_PROGRESS' ? (
+          <p className="py-10 text-center text-body-sm text-stone-500">This session hasn&apos;t been submitted yet — waiting on the count to be completed.</p>
+        ) : (
+          <>
+            <div className="mb-3 rounded-md border border-stone-200 bg-white p-3">
+              <p className="text-label-sm text-stone-500">Net variance value</p>
+              <p className={cn('text-heading-md font-bold tabular-nums', totalGap < 0 ? 'text-danger' : totalGap > 0 ? 'text-success' : 'text-stone-900')}>
+                {totalGap > 0 ? '+' : ''}{totalGap.toFixed(2)}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {varianceLines.map(({ line, expected, counted, gap }) => (
+                <div key={line.id} className="rounded-md border border-stone-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-body-sm font-semibold text-stone-900">{line.inventoryItem.name}</p>
+                    {counted !== null && (
+                      <span className={cn('shrink-0 text-label-lg font-semibold tabular-nums', gap === 0 ? 'text-stone-500' : gap < 0 ? 'text-danger' : 'text-success')}>
+                        {gap > 0 ? '+' : ''}{gap.toFixed(2)} {line.inventoryItem.usageUnit}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex items-center gap-3 text-label-sm text-stone-500">
+                    <span>Expected: {expected.toFixed(2)} {line.inventoryItem.usageUnit}</span>
+                    <span>Counted: {counted !== null ? `${counted.toFixed(2)} ${line.inventoryItem.usageUnit}` : '—'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {count?.status === 'SUBMITTED' && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setIsApproveOpen(true)}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-amber text-label-lg font-semibold text-espresso"
+          >
+            <CheckCircle2 size={18} /> Approve & Post Adjustments
+          </button>
+        </div>
+      )}
+
+      {isApproveOpen && count && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40" onClick={() => !isApproving && setIsApproveOpen(false)}>
+          <div className="rounded-t-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="text-heading-sm font-semibold text-stone-900">Approve this count?</p>
+            <p className="mt-1.5 text-body-sm text-stone-600">
+              Approving posts adjustment transactions to the ledger for every line&apos;s gap. This cannot be undone.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setIsApproveOpen(false)} disabled={isApproving} className="h-12 flex-1 rounded-md border border-stone-200 text-label-lg font-semibold text-stone-700 disabled:opacity-50">
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleApprove()}
+                disabled={isApproving}
+                className="h-12 flex-1 rounded-md bg-amber text-label-lg font-semibold text-espresso disabled:opacity-50"
+              >
+                {isApproving ? 'Approving…' : 'Approve & Post'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // D-14 (verified on the wire, not assumed): an Attendant-role response for
 // this endpoint never includes expectedQty/gapQty keys at all — confirmed by
 // directly inspecting GET /stock-counts/:id, GET /stock-counts, and the
 // submit response with an Attendant token. This component therefore never
 // reads or renders those fields — there's nothing to hide, the data isn't here.
-export default function StockCountExecutionPage(): JSX.Element {
+function StockCountExecution(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -175,7 +350,7 @@ export default function StockCountExecutionPage(): JSX.Element {
       )}
 
       {count && !isPaused && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white px-4 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white px-4 py-3">
           <div className="mb-2 flex items-center justify-between text-label-md text-stone-500">
             <span>{count.lines.length - countedCount} remaining</span>
             <span>Enter the quantity you physically counted.</span>

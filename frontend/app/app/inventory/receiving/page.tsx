@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
 import { Card, EmptyState } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
@@ -13,10 +14,29 @@ import type { PurchaseOrder } from '@/types/inventory';
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
 
-// Receiving only ever acts against a PO already SENT or PARTIALLY_RECEIVED
-// (purchase-order-service.receiveLine enforces this) — DRAFT/CLOSED/CANCELLED
-// purchase orders don't belong here.
 export default function ReceivingListPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  const router = useRouter();
+
+  // Manager's desktop receiving flow lives inside the Purchase Orders
+  // detail panel (opening a SENT/PARTIALLY_RECEIVED order shows the same
+  // receiving table inline) — no separate desktop route, per §8.1 row 7
+  // ("same core flow as mobile... on desktop it can show the full PO
+  // alongside a wider discrepancy table"). Redirect Manager there instead
+  // of duplicating the flow in a second screen.
+  useEffect(() => {
+    if (role === 'STORE_MANAGER') {
+      router.replace('/app/inventory/purchase-orders');
+    }
+  }, [role, router]);
+
+  if (role === 'STORE_MANAGER') {
+    return <div className="min-h-full bg-crema" />;
+  }
+  return <ReceivingListAttendant />;
+}
+
+function ReceivingListAttendant(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 

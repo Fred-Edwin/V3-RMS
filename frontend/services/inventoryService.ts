@@ -196,11 +196,11 @@ export async function cancelPurchaseOrder(id: string, token: string): Promise<Pu
   return apiClient.post<PurchaseOrder>(`/purchase-orders/${id}/cancel`, {}, token);
 }
 
-/** Low-stock-driven prefill suggestion for a new PO. */
+/** Low-stock-driven prefill suggestion for a new PO — targets 2x reorder level. */
 export async function suggestPurchaseOrder(
   locationId: string,
   token: string,
-): Promise<{ inventoryItemId: string; name: string; suggestedQty: string; defaultSupplierId: string | null }[]> {
+): Promise<{ inventoryItemId: string; name: string; onHandQty: string; suggestedQty: string }[]> {
   return apiClient.get(`/purchase-orders/suggest?locationId=${locationId}`, token);
 }
 

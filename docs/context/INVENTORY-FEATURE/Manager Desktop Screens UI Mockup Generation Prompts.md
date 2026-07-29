@@ -2,14 +2,9 @@
 
 Eleven screens for the Central Store Manager's desktop experience (Wendo Coffee
 Bistro's central supply location). Each prompt below states purpose, required content,
-exact design-system color/type tokens, and style direction only — no layout, structure,
-or composition instructions. The model has full autonomy over hierarchy, structure, and
-composition; these are content briefs, not wireframes.
-
-Every "Design tokens" block below is copied verbatim from `docs/DESIGN_SYSTEM.md` §3
-(Colour System) and §4 (Typography) — these are the actual hex values and typefaces
-this product is built with, not a loose paraphrase, so mockups can be matched against
-the real system rather than approximated by eye.
+color palette, and style direction only — no layout, structure, or composition
+instructions. The model has full autonomy over hierarchy, structure, and composition;
+these are content briefs, not wireframes.
 
 ---
 
@@ -41,30 +36,12 @@ inventory section. It answers: "what needs restocking, what's currently in fligh
 > - A searchable table of every inventory item: name, category, item type, quantity on
 >   hand, value, and whether it's healthy or running low
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative, used for key
->   interactive elements and critical numbers. Never as a large background fill.
-> - Espresso Light #4A2C1A — hover state for Espresso elements.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards and panels, slightly deeper than
->   Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly (one or two touches per
->   screen) for highlights, key numbers, and emphasis. Amber Light #F0C97A for tag/badge
->   backgrounds behind amber elements.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text/labels), Stone 500 #78716C (muted text,
->   captions), Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders),
->   Stone 100 #F4F2EF (hover/subtle fills).
-> - Semantic colours for status, each warm-toned except Ready/Success (the one
->   intentional cool note in the system): low-stock/attention items use Warning
->   (BG #FFFBEB, Text #92400E, Border #FCD34D); healthy/paid/approved status uses
->   Ready/Success (BG #EDFAF1, Text #1A6B3C, Border #86EFAC — muted sage green); badly
->   overdue payables use Error (BG #FEF2F2, Text #991B1B, Border #FCA5A5 — warm red, not
->   alarming).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only — nothing else. Inter for all other text: labels, table data, body
->   copy, and every number. All numeric figures set in Inter, semibold, tabular
->   figures — numbers are data and must be instantly comparable.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -102,23 +79,12 @@ how much of it exists right now.
 >   every stock change (deliveries received, prep consumption/production, waste,
 >   adjustments), with quantities and running balance
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative. Never as a
->   large background fill. Espresso Light #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards/panels, slightly deeper than
->   Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly (one or two touches per
->   screen) for highlights and key numbers.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text/captions),
->   Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders), Stone 100
->   #F4F2EF (hover/subtle fills).
-> - Semantic colour for the low-stock indicator: Warning (BG #FFFBEB, Text #92400E,
->   Border #FCD34D — warm amber, not alarming).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text — labels, table data, body copy. All numeric
->   figures set in Inter, semibold, tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -157,22 +123,12 @@ eventually order it), rather than how much of it currently exists. Used rarely
 >   order this item, and default supplier
 > - A way to assign department tags to many items at once, rather than one at a time
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour for buttons and key interactive
->   elements, deep and authoritative. Never as a large background fill. Espresso Light
->   #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards, panels, and input fields,
->   slightly deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly (one or two touches per
->   screen) for emphasis and primary actions.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text/labels), Stone 500 #78716C (muted
->   text/placeholders), Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (input
->   outlines, light borders), Stone 100 #F4F2EF (hover fills).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text — labels, table data, form fields, body copy.
->   All numeric figures set in Inter, semibold, tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -207,23 +163,12 @@ for a given item.
 >   history over time for a chosen item — shown as a trend so a rising cost is
 >   immediately visible, with the current/latest price called out clearly
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour and the price-trend line's primary
->   colour, deep and authoritative. Never as a large background fill. Espresso Light
->   #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards and the detail panel, slightly
->   deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for the current-price
->   callout figure.
-> - Stone neutrals for text, structure, and chart gridlines: Stone 900 #1C1917 (primary
->   text, never pure black), Stone 700 #44403C (secondary text), Stone 500 #78716C
->   (muted text/captions), Stone 300 #D6D3D1 (dividers/borders/gridlines), Stone 200
->   #E8E5E1 (light borders), Stone 100 #F4F2EF (hover fills).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text — labels, table data, chart axis labels. All
->   numeric figures, including the price callout, set in Inter, semibold, tabular
->   figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -261,28 +206,12 @@ differently from one outstanding 3 days.
 > - The ability to record a new supplier invoice (supplier, linked PO, amount, reference
 >   number) and to record a payment against an existing invoice (amount, method, date)
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative. Never as a
->   large background fill. Espresso Light #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards and modals, slightly deeper than
->   Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for emphasis on
->   headline figures.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text), Stone
->   300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders), Stone 100 #F4F2EF
->   (hover fills).
-> - Semantic colours for invoice status: Unpaid/overdue in the 31+ day band uses Error
->   (BG #FEF2F2, Text #991B1B, Border #FCA5A5 — warm red, not alarming); invoices in the
->   0–7/8–30 day bands use Pending (BG #FDF3DC, Text #92650A, Border #F0D080 — soft warm
->   sand) or Warning (BG #FFFBEB, Text #92400E, Border #FCD34D) as appropriate for
->   escalating urgency; Paid status uses Ready/Success (BG #EDFAF1, Text #1A6B3C, Border
->   #86EFAC — muted sage green, the one intentional cool note in the system).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text. All numeric/currency figures set in Inter,
->   semibold, tabular figures — this is a financial ledger, numbers must align and
->   compare precisely.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -319,28 +248,12 @@ and sending or cancelling an order — actions only the manager can perform.
 > - Two clear actions available only to the manager on an open order: send it to the
 >   supplier, or cancel it outright
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour and the "Send to Supplier" button's
->   colour, deep and authoritative. Never as a large background fill. Espresso Light
->   #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards and detail panels, slightly
->   deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for emphasis on order
->   totals and key figures.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text), Stone
->   300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders), Stone 100 #F4F2EF
->   (hover fills).
-> - Semantic colours for order status: Draft/Sent use Pending (BG #FDF3DC, Text
->   #92650A, Border #F0D080) or InProgress (BG #FEF0E0, Text #A04F0A, Border #F5B87A)
->   as appropriate; Partially Received uses InProgress; Closed uses the neutral Closed
->   token (BG #F4F4F5, Text #71717A, Border #D4D4D8 — cool grey, archived/complete); the
->   Cancel action and Cancelled status use Cancelled (BG #FDF2F0, Text #9B3A2A, Border
->   #F5A898 — muted terracotta, a soft alert rather than an alarming red).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text. All numeric/currency figures set in Inter,
->   semibold, tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -381,22 +294,12 @@ as the primary daily surface, distinguished by a live running-cost calculation.
 >   output item (e.g. "Typical: ~6kg input → ~5.6kg output") — never a validation rule or
 >   requirement
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative. Never as a
->   large background fill. Espresso Light #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for the running-cost panel, slightly
->   deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for the computed cost
->   figures — the visual payoff of this screen.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text — used for
->   the informational rolling-average hint, which should read as secondary/muted, never
->   as a warning), Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (input
->   outlines), Stone 100 #F4F2EF (hover fills).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text. All numeric figures, especially the computed
->   cost figures, set in Inter, semibold, tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -430,23 +333,12 @@ use. Desktop-only; there is no mobile create/edit for this screen.
 > - Space for instructions or notes, for training context
 > - A clear action to save the recipe
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour and the "Save Recipe" button's colour,
->   deep and authoritative. Never as a large background fill. Espresso Light #4A2C1A
->   for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for the editor's card/section grouping,
->   slightly deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for emphasis.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text/labels), Stone 500 #78716C (muted text),
->   Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (input outlines), Stone 100
->   #F4F2EF (hover fills).
-> - Typography: Cormorant Garamond (weights 400/500/600) — this screen is reflective,
->   document-like authoring work, so Cormorant may appropriately appear a little more
->   than usual for the recipe title/name, while still following the rule that it never
->   carries data or numeric figures. Inter for all operational text, labels, form
->   fields, and every number (semibold, tabular figures).
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -486,27 +378,12 @@ sees numbers the attendant who did the counting never saw.
 > - A clear action to approve the count, understood to post the variance as inventory
 >   adjustments
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour and the "Approve" button's colour,
->   deep and authoritative. Never as a large background fill. Espresso Light #4A2C1A
->   for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for cards and the variance table,
->   slightly deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for the total variance
->   figure.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text, used for
->   clean/zero-gap rows so they recede visually), Stone 300 #D6D3D1 (dividers/borders),
->   Stone 200 #E8E5E1 (light borders), Stone 100 #F4F2EF (hover fills).
-> - Semantic colours for the variance view: shortfalls (counted less than expected) use
->   Error (BG #FEF2F2, Text #991B1B, Border #FCA5A5 — warm red, not alarming); overages
->   (counted more than expected) use Ready/Success (BG #EDFAF1, Text #1A6B3C, Border
->   #86EFAC — muted sage green, the one intentional cool note in the system).
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text. All numeric and KES-currency figures set in
->   Inter, semibold, tabular figures — this is a financial reconciliation moment, values
->   must align and compare precisely.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -542,25 +419,12 @@ entry screen used on the floor.
 > - Total waste value over the selected range, to make the cost impact legible at a
 >   glance
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative. Never as a
->   large background fill. Espresso Light #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for the summary strip and table row cards,
->   slightly deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for the total waste
->   value figure.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text/notes),
->   Stone 300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders), Stone 100
->   #F4F2EF (hover fills).
-> - Semantic colour for the reason tags: Cancelled (BG #FDF2F0, Text #9B3A2A, Border
->   #F5A898 — muted terracotta) is the correct restrained-red tone for this "waste"
->   subject matter, deliberately softer than the Error token so the screen reads as
->   calm and analytical, not alarming.
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text. All numeric/currency figures set in Inter,
->   semibold, tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained
@@ -601,26 +465,12 @@ screen is the deep, per-report drill-down and export destination.
 >   Count Discrepancy), with values clearly presented
 > - The ability to export a report as PDF or CSV
 >
-> Design tokens (Wendo RMS design system — use these exact values, not approximations):
-> - Espresso #2C1810 — primary ink/action colour, deep and authoritative. Never as a
->   large background fill. Espresso Light #4A2C1A for hover states.
-> - Crema #F5F0E8 — primary background, a warm cream white. Never pure #FFFFFF.
-> - Parchment #EDE7DC — secondary background for stat cards and report tables, slightly
->   deeper than Crema for gentle layering.
-> - Amber #C4862A — secondary accent, warm gold, used sparingly for the headline
->   figures in the stat cards.
-> - Stone neutrals for text and structure: Stone 900 #1C1917 (primary text, never pure
->   black), Stone 700 #44403C (secondary text), Stone 500 #78716C (muted text), Stone
->   300 #D6D3D1 (dividers/borders), Stone 200 #E8E5E1 (light borders), Stone 100 #F4F2EF
->   (hover fills).
-> - Semantic colours where a report's data is inherently a shortfall/surplus: Error
->   (BG #FEF2F2, Text #991B1B, Border #FCA5A5) for shortfalls/overdue figures, Ready/
->   Success (BG #EDFAF1, Text #1A6B3C, Border #86EFAC — muted sage green) for
->   healthy/surplus figures.
-> - Typography: Cormorant Garamond (weights 400/500/600) for the page's top-level
->   heading only. Inter for all other text — labels, table data, stat card labels. All
->   numeric figures, especially the stat card headline numbers, set in Inter, semibold,
->   tabular figures.
+> Color palette: warm and coffee-inspired, not generic corporate gray. Deep espresso
+> brown as the anchor ink/text color, warm cream and parchment tones for backgrounds and
+> cards, a muted amber/gold as the single accent color for emphasis and key numbers.
+> Sparing use of red and green only where meaning requires it (alerts, positive/negative
+> change). This is a coffee bistro brand — sophisticated and warm, not cold or
+> corporate-generic.
 >
 > Style direction: premium enterprise software, the caliber of Linear, Stripe Dashboard,
 > or a Bloomberg terminal — not a generic admin template. Sophisticated, restrained

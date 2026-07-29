@@ -47,9 +47,9 @@ left in that session's As Built section — the next agent to pick it up
 | 4 | CRUD backend: Prep, Stock Count, Waste, Supplier AP | 2 | Complete |
 | 5 | RBAC audit + Reports + test hardening | 3, 4 | Complete |
 | 6 | Frontend: Attendant mobile screens | 5 | Complete |
-| 7 | Frontend: Manager desktop screens | 5 | Not Started |
-| 8 | Frontend: Manager mobile screens | 7 | Not Started |
-| 9 | Integration pass + Gate prep | 6, 7, 8 | Not Started |
+| 7 | Frontend: Manager desktop screens | 5 | Complete |
+| 8 | Frontend: Manager mobile screens | 7 | Complete |
+| 9 | Integration pass + Gate prep | 6, 7, 8 | Complete |
 
 Update the Status column the moment a session starts (`In Progress`) and the
 moment it ends (`Complete` or `Blocked`). This table is the first thing every
@@ -990,7 +990,186 @@ Per feature plan §8.1 desktop column:
   in-browser (desktop viewport).
 
 ### As Built
-*(fill in when complete)*
+
+Completed 2026-07-29. **Deviation from scope, decided with the user
+mid-session: no mockups were used.** The original plan was mockup-driven
+(mirroring Session 6), but the user redirected mid-session to design freely
+against `docs/DESIGN_SYSTEM.md` directly — "build the best screens you can
+using the current design system and components." All 9 screens below (the
+Dashboard, screen #1, had already been built in a prior part of this
+session before the mockup-vs-design-system decision) were designed and
+built without a mockup reference.
+
+**Screens built** (`frontend/app/app/inventory/`):
+1. **Stock on Hand** (`stock/StockOnHandDesktop.tsx`) — dense `ExcelTable`
+   (search, type-filter pills, sortable columns, totals row) + a slide-over
+   side panel showing an item's full ledger history on row click, via a
+   **new backend endpoint** (see Backend gap below).
+2. **Item Catalog** (`catalog/page.tsx`) — full `ExcelTable` + a slide-over
+   form panel for create/edit (all `CreateInventoryItemInput` fields,
+   department-tag pills, read-only current cost on edit), soft-delete via
+   `ConfirmDialog`.
+3. **Suppliers** (`suppliers/page.tsx`) — **merged with Supplier
+   Invoices/AP into one screen**, a deliberate deviation from the scope
+   list's two separate line items. Roster + detail panel with a
+   `TabBar`: "Items & Pricing" (assigned items, default-supplier star,
+   last price, `PriceTrendChart`) and "Accounts Payable" (invoice list,
+   record-invoice/record-payment modals), the AP tab rendered only when
+   `role === 'STORE_MANAGER'`. Decided with the user after they questioned
+   why these were two screens when `SupplierInvoice.supplierId` is a
+   direct FK — see the Deviations log entry below for the full reasoning
+   (particularly why AP is a conditionally-rendered tab, not a
+   route-level split, given Attendant's zero-access AP boundary).
+4. **Purchase Orders** (`purchase-orders/PurchaseOrdersDesktop.tsx`) —
+   `ExcelTable` list (status filter, search) + a slide-over detail panel:
+   DRAFT shows Send/Cancel actions with `ConfirmDialog`s and a static line
+   list; SENT/PARTIALLY_RECEIVED shows the same receiving flow inline
+   (prefilled ordered qty/invoice price, red discrepancy highlight,
+   per-line Confirm) rather than a separate desktop receiving screen — per
+   §8.1 row 7's "same core flow as mobile... on desktop it can show the
+   full PO alongside a wider discrepancy table." The standalone
+   `/app/inventory/receiving` route now **redirects** Manager to
+   `/app/inventory/purchase-orders` (Attendant's own receiving flow at
+   that route is untouched); the Manager desktop sidebar and mobile
+   tab-bar fallback both dropped their now-redundant "Receiving" entry
+   (mobile tab-bar's slot backfilled with "Reports").
+5. **Prep Entry** (`prep/PrepEntryDesktop.tsx`) — two-column layout: a
+   form (output item, repeatable input lines, actual yield, rolling-average
+   hint) beside a live-updating "Running Cost" panel (per-line cost
+   breakdown, total input cost, cost-per-unit-yield vs. the item's current
+   catalog cost) per §8.1 row 8's explicit ask.
+6. **Stock Count** (`stock-counts/StockCountsDesktop.tsx`) — `ExcelTable`
+   of sessions + a "New Count Session" modal (label, date, full-catalog
+   checkbox picker) + a slide-over detail panel with a variance table
+   (expected/counted/gap, net variance value) and an Approve action
+   (`ConfirmDialog`) that posts adjustments.
+7. **Waste Log** (`waste/WasteLogDesktop.tsx`) — filterable `ExcelTable`
+   (reason filter, search, total cost) + a "Log Waste" modal reusing the
+   same 5-reason chip picker as the Attendant screen.
+8. **Reports** (`reports/page.tsx`) — all 7 report endpoints from Session
+   5, one `TabBar` per report: Stock Valuation, Low Stock Alerts, Price
+   History (item picker + `PriceTrendChart`), Prep Yield, Count
+   Discrepancy (non-zero gaps only), True Cost per Prepped Item, Supplier
+   AP Aging (with a total-outstanding stat + bucket coloring). **CSV
+   export only, not PDF** — no existing PDF-generation utility fit this
+   report shape without building new machinery out of scope for this
+   session; `ExportMenu`'s PDF option was not used. CSV export reuses the
+   existing `lib/payroll-csv.ts`'s `downloadCsv` browser-download helper.
+   **Not built: Prep Recipe editor** — explicitly dropped from scope by
+   the user mid-session (see Deviations log).
+
+**New shared component:**
+- `components/inventory/PriceTrendChart.tsx` — no charting library is
+  installed (flagged as an open gap in the original session brief). Built
+  a lightweight single-series SVG line chart from scratch (hover
+  crosshair + tooltip, gridlines, gradient fill under the line) rather
+  than adding a dependency, since Price History's need (one series, one
+  hue, magnitude-over-time) didn't justify pulling in a full charting
+  library. Followed the `dataviz` skill's method: Espresso as the single
+  series hue (no legend needed for one series per the skill's own rule),
+  recessive gridlines, direct value labels only on hover.
+
+**Backend gap found and closed before Stock on Hand could be built**
+(same escape-hatch pattern Session 6 used — flagged to the user rather
+than guessed, since this blocked the very first screen): **no endpoint
+existed at all** for per-item ledger history. `GET
+/inventory-items/:id/transactions` was added
+(`inventory-item-controller.ts`/`-service.ts`, route registered before the
+existing `:id` route to avoid a param-swallowing conflict), reusing
+Session 2's already-existing `inventoryTransactionRepository
+.findByItemAndLocation` — zero new repository code, just a new
+controller/route/service wrapper plus a `locationId` query-param schema.
+Two new tests added to `tests/inventory-item.test.ts` (happy path +
+missing-locationId 400); full suite (647 tests, up from 645) still passes.
+
+**Architecture bug found during manual verification, fixed properly (not
+worked around) — this is exactly what the manual-testing requirement is
+for:** `app/app/layout.tsx` mounts `{children}` **twice** for every
+dual-shell role (MANAGER, DIRECTOR, ACCOUNTANT, HR_MANAGER,
+SYSTEM_ADMIN, STORE_MANAGER) — once inside the desktop `SidebarLayout`,
+once inside a CSS-hidden (`lg:hidden`) mobile `MobileLayout` — so that a
+resize can flip between them without a re-mount. Every desktop screen
+built this session is genuinely desktop-only (no responsive/mobile
+variant exists yet; that's Session 8's job), so each one was silently
+double-mounted, doubling every data-fetch and creating duplicate DOM
+element ids (caught by a Playwright test hitting `locator('#actual-yield')
+resolved to 2 elements`). The first fix attempt — a `useIsDesktopViewport`
+hook reading `window.matchMedia` — was **wrong and reverted**: both
+mounted copies observe the identical viewport width, so the hook couldn't
+tell which shell instance it was running inside and both copies still
+rendered. The real fix is `lib/shell-context.tsx`, a tiny React context
+(`ShellProvider`/`useIsDesktopShell`) that `app/app/layout.tsx` provides
+with a literal `'desktop'` or `'mobile'` value at each of the two
+`{children}` call sites — a value the two mounted copies necessarily
+receive differently, unlike a viewport query. All 8 new/updated
+Manager-desktop page components (the `catalog`/`suppliers`/`reports`
+`page.tsx` files directly, and the 5 `*Desktop.tsx` components via their
+dispatcher `page.tsx`) now check `useIsDesktopShell()` and render `null`
+in the mobile-shell copy — an inner-component split (`XPage` guard +
+`XPageInner` body) was used everywhere to avoid violating rules-of-hooks
+with an early return. `suppliers/page.tsx` needed a narrower guard
+(`role === 'STORE_MANAGER' && !isDesktop`) since STORE_ATTENDANT reaches
+the same route through the single-shell `MobileLayout` path (never
+double-mounted) and must always render. Verified post-fix via Playwright:
+duplicate DOM id count dropped 2→1, and the Catalog screen's
+`inventory-items` GET call count dropped to exactly what React Strict
+Mode's dev-only double-invoke produces for a single real mount (2, not
+4) — confirmed against a `Search input count` / `Sidebar count` DOM
+assertion of 1, not repeated fetch counts alone (Strict Mode
+double-invoking a single effect looks identical to two real mounts by
+call-count alone). This bug was never role-scoped to only my new
+screens — it is a pre-existing property of `layout.tsx` shared by every
+dual-shell role — but no earlier session's pages happened to hit it,
+because Manager's own dashboard/report pages are written as one
+genuinely-responsive component (no hardcoded element `id`s, no assumption
+that data only loads once) rather than a desktop-only component. Flagging
+this for Session 8: any Manager mobile screen built as a **second**,
+separate component (rather than making the existing desktop component
+responsive) will need the same `useIsDesktopShell()` guard, mirrored
+(`if (isDesktop) return null`), on its own component.
+
+**Role-dispatcher pattern for the 6 routes shared with Attendant**
+(decided with the user before building): `stock`, `purchase-orders`,
+`prep`, `stock-counts`, `waste` (`receiving` ended up redirecting instead,
+see above) already had Attendant mobile screens from Session 6 at the
+same URL. Since STORE_MANAGER's dual shell renders both the desktop
+sidebar and the mobile bottom-nav shell simultaneously (CSS-hidden per
+breakpoint, not conditionally mounted — see `usesDualShell` in
+`layout.tsx`), each shared route's `page.tsx` is a thin, hookless
+dispatcher: `if (role === 'STORE_MANAGER') return <XDesktop />; return
+<XAttendant />` — with the pre-existing Attendant screen's body renamed
+into its own `XAttendant` function so neither branch violates
+rules-of-hooks. `catalog`, `suppliers`, and `reports` have no Attendant
+equivalent (Catalog/Suppliers view access is shared per §8.3, but no
+Attendant UI was built for them since Session 6 didn't need to; Reports
+is Manager-only) so those three are plain Manager-only pages, gated only
+by nav visibility and backend RBAC — consistent with how the existing
+Suppliers-AP-tab boundary and every other role-gated feature in this
+codebase already works (no in-page "access denied" convention exists
+anywhere to imitate; backend 403s are the real enforcement layer).
+
+**Verification performed** (per this session's Done-when criteria):
+- `npx tsc --noEmit` — clean, both before and after the shell-context fix.
+- `npx next build` — clean, all 11 `/app/inventory/*` routes present
+  (only 2 ESLint unused-import fixes needed along the way).
+- Backend: `npx vitest run` — 64 files, 647 tests, all passing (2 new
+  tests from the transactions endpoint).
+- Every screen manually exercised in-browser via Playwright (Chromium) at
+  a 1600×1000 desktop viewport, logged in as `store.manager@wendo.test`
+  against real seeded data (10 catalog items, 2 suppliers, 5 POs across
+  DRAFT/SENT/PARTIALLY_RECEIVED/CLOSED, a Central Store location). Beyond
+  the golden-path screenshots: sent a real DRAFT PO end-to-end (button →
+  `ConfirmDialog` → toast → status flip to SENT → panel transitions to
+  the receiving view with prefilled quantities — a live state-changing
+  action, not just a static render); filled a real Prep Entry cost
+  calculation (5L Fresh Milk @ Ksh 210 → Ksh 1,050 total, 4.5kg yield →
+  Ksh 233.33/kg, correctly compared against the catalog's Ksh 350/kg);
+  opened a Supplier's detail panel and confirmed the AP tab only appears
+  for Manager; re-ran the full 9-screen zero-console-error sweep after
+  the shell-context fix to confirm no regression. Also re-verified
+  STORE_ATTENDANT's mobile Stock on Hand screen at a 390×844 viewport
+  post-fix, confirming the `ShellProvider` change is a no-op for
+  single-shell roles.
 
 ---
 
@@ -1004,15 +1183,173 @@ Session 7, not a reflow:
 - Mobile variants of every screen in Session 7 per the table (card lists,
   sparkline price history, compact AP status chips, step-by-step PO item
   picker, single-metric report summary cards with tap-through).
-- Prep Recipe editor: view-only on mobile (no create/edit) — confirm this
-  is still respected.
+- **Prep Recipe editor was not built in Session 7** (dropped from scope by
+  the user — see Session 7's As Built and the Deviations log). There is
+  nothing to view on mobile yet; skip this row entirely rather than
+  building a view-only screen for data that can't exist. Revisit only if
+  a future session builds the desktop editor first.
 - Flag in As Built any report that's desktop-only in v1 (feature plan
   explicitly allows deferring full mobile report parity).
+- Read Session 7's As Built note on the `app/app/layout.tsx` dual-shell
+  double-mount bug before writing any mobile component: if a screen's
+  mobile version is a **separate component** from its desktop counterpart
+  (not the same component made responsive), it needs the same
+  `useIsDesktopShell()` guard mirrored on the mobile side
+  (`if (isDesktop) return null`) or the desktop copy and mobile copy will
+  both render into the same shell mount.
 - `pnpm build` clean before marking Complete. Manually exercise each screen
   in-browser (mobile viewport).
 
 ### As Built
-*(fill in when complete)*
+
+Completed 2026-07-29. All 9 screens from §8.1's mobile column built and
+manually exercised in-browser at a 390×844 mobile viewport (Chromium via
+Playwright), logged in as `store.manager@wendo.test`. No mockups — built
+directly against `docs/DESIGN_SYSTEM.md`, following Session 7's
+build-now/restyle-later precedent (§8.0), reusing Session 6's Attendant
+mobile component library (`IconTile`, `QuantityInput`,
+`PurchaseOrderStatusBadge`, the espresso-header-band + numbered-step-flow +
+bottom-sheet visual patterns) rather than inventing new primitives.
+
+**Screens built** (`frontend/app/app/inventory/`):
+1. **Stock on Hand** (`stock/page.tsx`) — Manager mobile reuses the exact
+   same card-list component Session 6 built for Attendant (§8.1 row 1:
+   "Same card list view as Manager's mobile layout"), extracted into a
+   shared `StockOnHandMobile({ isManager })` component. The only behavioral
+   difference: Manager's cards are tappable (`Card`'s built-in `onClick`
+   interactive mode) into a new full-screen movement-history feed
+   (chronological transaction list, not the desktop side-panel), fetched
+   via Session 7's `GET /inventory-items/:id/transactions`; Attendant's
+   cards stay non-interactive per §8.2 row 1.
+2. **Purchase Orders** — list (`purchase-orders/page.tsx`) reuses
+   Session 6's card list + floating "New Purchase Order" action almost
+   unchanged, with role-aware copy (Manager never sees "waiting for
+   manager to send"). New-draft creation (`purchase-orders/new/page.tsx`,
+   already shared and mostly role-agnostic) got the same copy treatment.
+   The detail page (`purchase-orders/[id]/page.tsx`, Session 6's
+   flagged-minimal placeholder) was rebuilt with Manager-only Send/Cancel
+   actions (§8.3) behind a **lightweight bottom confirm sheet** — not
+   `ConfirmDialog`, which is a centered `Modal` (the desktop pattern used
+   in `PurchaseOrdersDesktop.tsx`) — per §8.1 row 6's explicit mobile-column
+   ask. For SENT/PARTIALLY_RECEIVED orders, a "Receive this delivery" link
+   card routes into the existing `/app/inventory/receiving/[id]` flow
+   (role-agnostic, built in Session 6) rather than duplicating receiving —
+   matches §8.1 row 7's "same core flow" note.
+3. **Item Catalog** (`catalog/page.tsx`) — brand new: card list (search,
+   tap → edit) plus a floating "Add Item" action, and a **4-step
+   full-screen form** (identity → units → departments → supplier) with a
+   segmented progress bar and Back/Next/Save controls, per §8.1 row 2's
+   explicit ask to avoid "one long form" on a small screen. Field-level
+   validation only advances past the identity/units steps once required
+   fields are valid; department tags and default-supplier are optional
+   steps with no gate.
+4. **Suppliers** (`suppliers/page.tsx`) — brand new: card list → detail
+   screen with an Items & Pricing / Accounts Payable `TabBar` (AP tab only
+   for Manager, matching the desktop screen's role gate), a
+   `PriceTrendChart` sparkline (reused as-is — its `viewBox` + `w-full`
+   SVG scaling already reads as a compact sparkline in a narrow mobile
+   container, so no separate compact-chart component was needed, resolving
+   the open question in this session's brief), and compact `Badge`
+   status chips per invoice (§8.1 row 4: "not a separate chart") with a
+   Record Payment bottom sheet. Also added a bottom-sheet "Add Supplier"
+   flow, floating-action-triggered — not explicitly called for by §8.1's
+   table, but omitting supplier creation entirely from Manager mobile would
+   have been a real capability gap (the desktop screen's primary action),
+   not a deliberate simplification, so it was built to keep functional
+   parity with desktop for Manager's own screens.
+5. **Prep entry** (`prep/page.tsx`) — Manager mobile reuses Attendant's
+   existing step-flow screen unchanged, per §8.1 row 8 ("no running-cost
+   panel on mobile, soft-reference hint only"). See the Deviations log for
+   a bug found and fixed in this dispatcher during verification.
+6. **Stock Count** — list (`stock-counts/page.tsx`) reuses Session 6's
+   card list with role-aware empty-state copy (Manager can't create a
+   session from mobile per §8.1 row 10 — "Manager creates from desktop" —
+   so the empty state points there instead of "your manager creates").
+   The `[id]` detail route now branches by role at the top: Attendant keeps
+   the unmodified count-execution flow; Manager gets a new **approval
+   view** — a compact variance list (expected/counted/gap per line, D-14's
+   blind-count rule doesn't apply here since Manager always sees
+   `expectedQty`), a net-variance-value card, and an "Approve & Post
+   Adjustments" action behind a bottom confirm sheet, matching §8.1 row 11's
+   mobile column exactly ("Compact variance summary list, tap a line for
+   detail" — detail-per-line was simplified to inline expected/counted/gap
+   on each row rather than a further drill-down, since the variance list
+   itself is already the "detail" at this data density).
+7. **Waste Log** (`waste/page.tsx`) — Manager mobile reuses Attendant's
+   existing 3-step entry screen unchanged, per §8.1 row 12 ("Manager can
+   log waste same as Attendant"); full-log review stays desktop-only
+   (`WasteLogDesktop.tsx`, Session 7), per the same row's note that
+   reviewing the full log is a desktop task. See the Deviations log for a
+   bug found and fixed in this dispatcher during verification.
+8. **Reports** (`reports/page.tsx`) — brand new: a 2-column grid of 7
+   single-metric summary cards (Total Stock Value, Items Low on Stock,
+   Price History item count, Prep Runs Logged, Count Variances, Prepped
+   Items Costed, Owed to Suppliers), each tapping through to a simplified
+   per-report mobile view, per §8.1 row 13's explicit mobile-column spec.
+   **3 of 7 reports get full simplified mobile views** (Stock Valuation as
+   a list, Low Stock Alerts as a list, Price History as an item picker +
+   `PriceTrendChart` sparkline) — these are the report shapes that read
+   naturally as a list/chart on a phone. **The other 4 are flagged
+   desktop-only for v1** (Prep Yield, Count Discrepancy, True Cost per
+   Prepped Item, Supplier AP Aging): their summary card still shows the
+   real headline number, but tapping through shows a "Full report on
+   desktop" message instead of cramming an `ExcelTable`-shaped report onto
+   a phone. This is the exact deferral the feature plan explicitly allows
+   (§8.1 row 13: "Not a priority to fully replicate every desktop report on
+   mobile in v1 — flag any report that's desktop-only") — flagged here as
+   directed rather than treated as a gap to close.
+9. **Prep Recipe editor** (§8.1 row 9) — **skipped entirely**, per this
+   session's amended scope note and Session 7's Deviations log entry (the
+   desktop editor itself was never built — nothing exists to view on
+   mobile). Revisit only if a future session builds the desktop editor
+   first.
+
+**Dashboard — built at explicit user request mid-session (originally out of
+scope; not in §8.1's screen table).** `dashboard/page.tsx` predates §8.1's
+screen list and had no mobile design; the first pass at this session
+guarded it to render nothing on the mobile shell and redirected Manager's
+mobile copy to Stock on Hand (see the Deviations log's double-mount entry
+below for why the guard itself was necessary regardless). The user then
+asked for a real mobile screen, so `InventoryDashboardMobile` was built: the
+same 6 headline stats as the desktop stat row in a 2-column card grid
+(Total Stock Value, Items Needing Reorder, POs in Flight, Recent Stock
+Counts, Accounts Payable with an overdue-31+-days caption, Waste Cost 30d),
+plus three tap-through panels (Low Stock Alerts, POs Awaiting Delivery,
+Recent Stock Counts) linking into their real screens rather than
+duplicating them, and a floating "New Purchase Order" action matching the
+desktop header's primary action. `layout.tsx`'s `mobileRoleTabs.STORE_MANAGER`
+was updated accordingly: Dashboard is the primary landing tab (matching
+`lib/role-home.ts`, which sends STORE_MANAGER to `/app/inventory/dashboard`
+on both shells), with Stock/Orders/Reports alongside it and Item
+Catalog/Suppliers/Prep/Stock Count/Waste Log/Profile in overflow.
+
+**Verification performed** (per this session's Done-when criteria):
+- `npx tsc --noEmit` — clean.
+- `npx next build` — clean, all 11 `/app/inventory/*` routes present (one
+  fix needed along the way: a stray `export function` on a non-default
+  export inside a `page.tsx` file broke Next.js's route-file type
+  generation — `StockOnHandMobile` had to drop its `export` keyword, since
+  Next.js page files may only export `default` and a small allow-listed
+  set of names).
+- Every screen manually exercised in-browser via Playwright (Chromium) at
+  a 390×844 viewport, logged in as `store.manager@wendo.test` against real
+  seeded data — dispatched to a fresh-session subagent per the user's
+  request (see Deviations log for the worktree-isolation pitfall hit on
+  the first attempt). Two real bugs were found and fixed as a result (see
+  Deviations log); both fixes were then independently re-verified live
+  (screenshot + DOM bounding-box checks) before this session was marked
+  complete. Desktop and Attendant were also spot-checked post-session to
+  confirm no regression: Manager's desktop Stock/Catalog/Suppliers screens
+  still render the Session 7 table/panel UI unchanged, and Attendant's
+  mobile Stock/Purchase-Orders screens are pixel-for-pixel unchanged from
+  Session 6.
+
+**Deviations logged — see Deviations log below**: the worktree-isolation
+pitfall on the first verification attempt; two real bugs found during
+verification (a blank-screen dispatcher bug on Prep/Waste, and a z-index
+bug hiding several fixed action bars/FABs behind the mobile nav bar); and
+the Dashboard mobile screen being built mid-session at explicit user
+request after initially being scoped out.
 
 ---
 
@@ -1036,7 +1373,139 @@ Session 7, not a reflow:
 - Update `CLAUDE.md` "Current Phase" section to point at Phase 2.
 
 ### As Built
-*(fill in when complete)*
+
+Completed 2026-07-29. Split across two parallel workstreams by explicit user
+direction: this agent owned real-data seeding, end-to-end workflow
+walkthrough, Gate assessment, and doc updates; a second agent (running
+concurrently) owned the three known seam-bug classes flagged in this
+session's brief (z-index sweep, `STORE_MANAGER`/`useIsDesktopShell()` double-
+mount grep, API-shape drift sweep) — see that work folded into the findings
+below, verified by this agent's own subsequent pass rather than taken on
+faith.
+
+**Real data seeded, replacing the Session 6-8 placeholder catalog.**
+Transcribed `docs/context/INVENTORY-FEATURE/inventory-real-data/` images 1-9
+(images 10+ are branch/departmental sheets, Phase 2 scope, explicitly
+excluded per user decision) — three source documents after de-duplicating
+repeat photos of the same physical paper: two Samrat Supermarket deliveries
+(07-Jul-2026 and 21-Jul-2026, dry goods/consumables) and one Summer Limited
+delivery (16-Jul-2026, bulk/butchery/cleaning supplies). No meat/dairy
+supplier invoice was in the photo set even though CLAUDE.md references one
+existing in real life — per user decision, invented a clearly-flagged
+placeholder supplier ("Nyeri Fresh Meat & Dairy") with a few RAW items, so
+Prep entry (which needs raw inputs) has something to consume; swap for the
+real invoice when available. `backend/src/scripts/seed-inventory-demo.ts`
+was rewritten wholesale (not extended) with this real data: 3 suppliers, 24
+catalog items across all three types (RAW/PREPPED/PASS_THROUGH), two
+dated receiving events per item that appears in both Samrat deliveries at
+different real prices (per user decision, kept as two separate events, not
+collapsed, so weighted-average cost and price-history have genuine
+multi-point data), a PREPPED item ("Prepped Simple Syrup") with an initial
+Prep Record, POs across DRAFT/SENT/CLOSED, a Supplier Invoice with a partial
+payment, a Waste Log entry, and a separate "Opening Physical Count" Stock
+Count session with deliberate real gaps (per user decision — invented
+variances, not derived from received quantities, to exercise the
+gap/adjustment workflow properly). The old placeholder catalog (Arabica
+Coffee Beans, Kilimanjaro Coffee Co., etc.) was deleted first via a one-off
+cleanup script (not committed — scoped to inventory tables only, users/
+Location untouched), per explicit user decision to replace rather than
+let old and new data coexist. Every seeded number was cross-checked by
+hand: Kamal Gram Flour's weighted-average cost landed at exactly 243
+(matches (3×259+2×219)/5), Prepped Simple Syrup's prep cost at exactly
+81.5789 (matches 5×155÷9.5).
+
+**Full live workflow walkthrough, both roles, both shells, driven through
+the actual UI (not just seeded-state inspection).** Logged in as both
+`store.manager@wendo.test` and `store.attendant@wendo.test`, at both
+390×844 and 1600×1000 viewports, via Playwright scripts under
+`frontend/.scratch/` (gitignored). Exercised, with real clicks/fills, not
+mocked: Catalog + Suppliers (setup), a live PO send (DRAFT→SENT with a
+toast + status flip), a live receive with a deliberate 1L-short delivery +
+price bump (Fresh Milk 39/40L @ Ksh 78 vs. PO's Ksh 75 — confirmed the
+weighted-average cost recomputed to exactly 76.7206, confirmed the PO
+correctly stayed `PARTIALLY_RECEIVED` rather than `CLOSED` since one line
+was still short), the same PO's second line received to completion via
+Attendant mobile (Chicken Breast 15/15kg, full per-line autosave→Confirm
+Receipt flow), a second Prep Record on the same output item to confirm the
+rolling-average hint text ("Typical for this item: ~5.0 L input → ~9.5 L
+output — Based on rolling average of last 1 prep records") renders
+correctly on a 2nd run and updates to reflect 2 records afterward, a second
+Waste Log entry logged live by the Attendant and confirmed visible to the
+Manager's full-log review screen (own-entries-only boundary intact), and
+Supplier AP's seeded partial payment confirmed showing correctly
+(PARTIALLY_PAID, Ksh 35,670 invoiced / Ksh 20,000 paid) in the Suppliers
+screen's AP tab. All 7 reports spot-checked against real seeded numbers on
+both desktop (full report set) and mobile (summary cards + 3 of 7 full
+mobile views, 4 correctly flagged "Full report on desktop" per §8.1 row
+13's explicit v1 deferral) — Reports landing showed Total Stock Value Ksh
+108,687, Items Low on Stock 8, Prep Runs Logged 1→2, Count Variances 3,
+all matching hand-computed expectations from the seed.
+
+**One real bug found and fixed — a genuine "staff can operate it
+unassisted" blocker, exactly what this session's manual-testing requirement
+exists to catch.** Prep Entry's `ItemPickerSheet` (`frontend/app/app/
+inventory/prep/page.tsx`, used for both the output-item and each
+input-item picker) renders its bottom-sheet overlay at `z-40`, but the
+page's own fixed "Confirm Prep" action bar sits at `z-50` — so the sheet's
+item list, which extends to the bottom of the viewport, is physically
+covered by the disabled Confirm Prep button and cannot be clicked. Caught
+by Playwright's own `subtree intercepts pointer events` failure on a
+real click attempt, not by any visual/screenshot inspection (a static
+screenshot of the open sheet looks fine — search box and title both
+visible; only the unreachable list is hidden beneath the fold). This is
+the same z-index-under-fixed-bar bug class Session 8 already fixed on
+several screens, just manifesting through a sheet-over-sheet interaction
+rather than a plain "FAB under nav" one, so it wasn't caught by the
+z-index sweep the other agent ran (that sweep checked fixed-bar bounding
+boxes against the nav bar, not sheet-vs-sheet stacking). Fixed by raising
+`ItemPickerSheet`'s overlay to `z-[60]` (one line). Confirmed via grep this
+is the only usage of `ItemPickerSheet` in the codebase (both picker call
+sites in the same file), and confirmed no other screen with a fixed bottom
+bar also uses an overlay-style item picker — Waste Log and PO-new both use
+an inline search-as-you-type list instead, not a sheet, so they were never
+exposed to this bug class.
+
+**Gate criteria (feature plan §4) assessed against seeded real data — all
+three met at the code level:**
+- *Ledger reconciles with a physical count*: the Opening Physical Count
+  session (5 items, real gaps) submitted, approved, and posted exactly 3
+  non-zero `ADJUSTMENT` transactions (skipping the 2 zero-gap lines
+  correctly); Stock on Hand immediately reflected the adjusted quantities.
+  D-14 blind-count enforcement re-confirmed live (Attendant's submitted-
+  session view never carries `expectedQty`/`gapQty` keys).
+- *Prices match invoices*: weighted-average costing verified against real,
+  hand-transcribed multi-date invoice prices (both the seeded two-delivery
+  history and one live receive with a genuine price variance), matching
+  hand-calculated expected values exactly in every case checked.
+- *Staff can operate it unassisted*: walked every core workflow using only
+  on-screen affordances, as a first-time user would; found and fixed the
+  one real blocker (Prep's picker) that would have stopped an Attendant
+  cold. No other blocking interaction issues found in this pass.
+  **Not yet run: the actual one-real-week-in-parallel-with-paper trial**
+  (feature plan §4's literal Gate text) — that's an operational next step
+  for the client, not something a code session can complete; this
+  session's job was confirming the trial is achievable, which it is.
+
+**Verification**: `npx vitest run` (backend) — 647 tests passing across 64
+files, unchanged pass count from Session 8 (this session added no new
+backend code, only seed-script and one frontend line). `npx tsc --noEmit`
+(frontend) — clean. `npx next build` — clean, all 12 `/app/inventory/*`
+routes (11 + dashboard) present in the route manifest, exit code 0, zero
+errors/warnings in the full build log.
+
+**Docs updated**: `INVENTORY_FEATURE_PLAN.md` Status section — Phase 1
+checked off complete with date. `CLAUDE.md` "Current Phase" — moved to
+Phase 2 (Central Store → Branch Departments), planning-only, no session
+plan built yet per this session's brief ("don't build Phase 2's session
+plan unless asked; just flag it as follow-up").
+
+**Flagged for whoever starts Phase 2 planning**: the invented placeholder
+meat/dairy supplier and its 3 RAW items are clearly commented in
+`seed-inventory-demo.ts` as non-client data — replace with the real
+supplier's paperwork before the Gate trial or any client-facing demo, not
+just before Phase 2 code starts. `INVENTORY_FEATURE_PLAN.md` §8.1's screen
+table still doesn't list Dashboard as a formal row (flagged already by
+Session 8 — still unresolved, low priority).
 
 ---
 
@@ -1226,6 +1695,168 @@ backend needs its frontend type written from the actual repository
 elsewhere — and the only way this class of bug reliably surfaces is
 exercising the screen in a real browser, which is why that step isn't
 optional busywork.
+
+**Session 7, 2026-07-29 — the session's original mockup-driven brief was
+overridden by the user mid-session; screens were designed directly against
+`docs/DESIGN_SYSTEM.md` instead.** Not a scope change in what got built
+(all 9 remaining screens from §8.1 minus Prep Recipe, see below), only in
+how — no mockup images were generated or referenced for any of this
+session's screens.
+
+**Session 7, 2026-07-29 — Suppliers and Supplier Invoices/AP were merged
+into one screen, diverging from §8.1's two separate rows (#3 and #4).**
+The user questioned the split after seeing `SupplierInvoice.supplierId`
+is a direct FK — AP is inherently supplier-scoped data, not a separate
+domain. Resolved as one `/app/inventory/suppliers` screen: a roster +
+detail panel, with a `TabBar` inside the panel switching between "Items &
+Pricing" (both roles) and "Accounts Payable" (Manager-only). The AP tab
+is a conditionally-rendered UI element (`role === 'STORE_MANAGER'`)
+rather than the RBAC boundary living at the route level, specifically
+because §8.3 draws AP's Attendant boundary as strict zero-access, not
+just no-edit — the user was asked directly whether that changes the
+merge decision and confirmed the single-screen-with-conditional-tab
+approach over keeping two routes. No backend change needed; the existing
+Manager-only `supplier-invoice-routes.ts` RBAC middleware is the actual
+enforcement, the frontend tab is just presentation.
+
+**Session 7, 2026-07-29 — Prep Recipe editor (§8.1 row 9) was not
+built; the user explicitly directed it be skipped.** Reasoning discussed
+before the decision: a `PrepRecipe` is a derivative, "promote a
+already-logged Prep Record" artifact (D-12 — recipes are never a
+precondition for prepping), so on a fresh install the recipe list is
+empty until a Prep Record exists to promote. The user agreed this made
+it reasonable to defer entirely rather than build an empty-by-default
+screen this session. `/app/inventory/prep-recipes` was removed from both
+the Manager desktop sidebar and mobile tab-bar fallback in
+`app/app/layout.tsx`; the backend `prep-recipes` read/promote routes from
+Session 4 are untouched and unused by any Session 7 screen. Flagging for
+whoever eventually revisits this: the promote action was meant to live on
+a Prep Record's own detail view (§8.1 row 9's note, "Accessible from a
+Prep Record's detail view via 'Save as Recipe'"), and Session 7's Prep
+Entry screen doesn't have a Prep Record detail/history view at all yet —
+that would need to exist before a recipe editor does.
+
+**Session 7, 2026-07-29 — found and fixed a pre-existing architecture bug
+in `app/app/layout.tsx` shared by every dual-shell role, not just
+STORE_MANAGER.** `{children}` is mounted twice (desktop `SidebarLayout` +
+CSS-hidden mobile `MobileLayout`) for MANAGER, DIRECTOR, ACCOUNTANT,
+HR_MANAGER, SYSTEM_ADMIN, and STORE_MANAGER alike. Every desktop-only page
+built this session (no mobile variant exists yet) was silently
+double-mounted, double-fetching data and producing duplicate DOM element
+ids. Fixed via a new `lib/shell-context.tsx` (`ShellProvider`/
+`useIsDesktopShell`) that `layout.tsx` now provides at both `{children}`
+call sites; all 8 affected Session 7 pages gate on it and render `null`
+in the inapplicable mount. This was not scoped to Session 7's pages by
+the bug itself — it's a property of the shared layout — but no earlier
+session's Manager pages happened to trigger it, because they're written
+as one genuinely-responsive component per screen (no desktop-only
+components, no hardcoded element ids) rather than the "separate
+purpose-built desktop and mobile component per screen" approach §8.0
+calls for. Flagging explicitly for Session 8: a **second**, separate
+mobile component for any of these screens (rather than making the
+existing desktop component itself responsive) will need the mirrored
+guard (`if (isDesktop) return null`) on the mobile side too, or the same
+double-mount bug reappears in reverse.
+
+**Session 8, 2026-07-29 — dashboard was scoped out, then built anyway at
+explicit user request mid-session; feature plan §8.1 still doesn't list
+it.** `dashboard/page.tsx` predates §8.1's screen table and was never
+part of the Session 6/7/8 spec — Session 7's As Built explicitly frames
+its own screen list as starting at Stock on Hand. This session initially
+found it live-broken for STORE_MANAGER on mobile (no shell guard at all,
+so it double-mounted/double-fetched, the same bug class Session 7's
+`useIsDesktopShell()` fix addressed everywhere else) and applied the
+minimal fix: guard it, redirect the mobile copy to Stock on Hand. The user
+then directed that a real mobile Dashboard screen be built instead of a
+redirect. Built as `InventoryDashboardMobile` (see this session's As
+Built above) and wired into `mobileRoleTabs.STORE_MANAGER` as the primary
+landing tab. Flagging for whoever next touches `INVENTORY_FEATURE_PLAN.md`
+§8.1: that table should probably gain a Dashboard row now that both a
+desktop and mobile version genuinely exist, so a future session doesn't
+rediscover this same "is this in scope" question from scratch.
+
+**Session 8, 2026-07-29 — a worktree-isolated verification subagent cannot
+see uncommitted changes; re-dispatch without isolation for any
+in-progress-branch work.** The first attempt at this session's in-browser
+verification step was dispatched with `isolation: "worktree"`, which git-
+worktrees the *committed* state of the current branch into a separate
+checkout. Since this entire session's work was still uncommitted in the
+main working tree, the isolated agent landed on a stale, unrelated commit
+(`feature/inventory-phase1` at a point before this feature existed at all)
+and correctly refused to proceed rather than force its way into the main
+checkout. Re-dispatched without `isolation`, pointed explicitly at
+`/home/edwinfred/projects/V3-RMS` (the main checkout) — this succeeded.
+Flagging for any future session: subagent worktree isolation is for
+committed-history-safe parallel work, not for verifying uncommitted
+in-progress changes: use no isolation (or commit first) when the code
+under test isn't committed yet.
+
+**Session 8, 2026-07-29 — two real bugs found by the dispatched verification
+agent, both fixed and independently re-verified.**
+1. **Prep and Waste entry rendered completely blank for STORE_MANAGER on
+   mobile.** `prep/page.tsx` and `waste/page.tsx`'s dispatchers routed
+   `role === 'STORE_MANAGER'` unconditionally to `PrepEntryDesktop`/
+   `WasteLogDesktop` regardless of shell — those desktop components
+   correctly self-guard to `null` on the mobile shell (per Session 7's
+   pattern), but nothing in the dispatcher ever rendered the shared
+   Attendant mobile UI for Manager's mobile-shell copy. This session's own
+   original As Built claim that "Manager mobile already reuses Attendant's
+   existing screens via the pre-existing dispatcher, unchanged" was wrong
+   — the dispatcher never had a mobile-shell branch to begin with; nobody
+   had traced the render path all the way through for Manager-on-mobile
+   specifically before the verification pass. Fixed by adding
+   `useIsDesktopShell()` to both dispatchers: `role === 'STORE_MANAGER' &&
+   isDesktop` now gates the desktop branch, so Manager's mobile-shell copy
+   correctly falls through to the shared Attendant component (verified
+   safe for `STORE_ATTENDANT` too — it's a single-shell role that always
+   gets `isDesktop === false` from `ShellProvider value="mobile"`, so the
+   role check alone already excluded it; the shell check only changes
+   Manager's behavior). Re-verified live post-fix: both screens now render
+   their full step-flow content for `store.manager@wendo.test` on mobile.
+2. **Several fixed-bottom action bars and floating action buttons rendered
+   underneath the mobile nav bar, not above it.** `components/ui/
+   MobileLayout.tsx`'s bottom tab bar is `z-40`; this session's new
+   fixed-bottom confirm bars/sheets (Item Catalog's save bar, Suppliers'
+   and Catalog's FABs, Stock Count's approval bar, PO detail's Send/Cancel
+   bar) and reused-but-untouched Session 6 bars (Prep's confirm bar,
+   Receiving's confirm bar, New PO's save bar) were all `z-30` —
+   underneath the nav bar, not above it. Stock Count's Approve button was
+   confirmed **fully unclickable** (a scripted click at its own on-screen
+   coordinates was intercepted by the nav bar's container). Fixed by
+   raising every full-width fixed-bottom bar and bottom-sheet overlay
+   touched or introduced this session to `z-50` (clearly above the nav's
+   `z-40`), and floating action buttons (`bottom-6 right-4`) to `bottom-24
+   z-40` to sit visually above the nav bar with clearance, matching the
+   `bottom-24` pattern the working Purchase-Orders-list FAB already used.
+   Re-verified live post-fix via bounding-box checks: the Catalog FAB's
+   bottom edge (y=748) now sits above the nav bar's top edge (y=780) with
+   a 32px gap; Stock Count's Approve & Post Adjustments button is fully
+   visible and positioned correctly in a live screenshot. Flagging for
+   Session 9's integration pass: this `z-30`-under-a-`z-40`-nav pattern may
+   still exist on any Session 6 mobile screen this session didn't touch —
+   worth a final sweep.
+
+**Session 9, 2026-07-29 — a second, distinct z-index bug class found:
+sheet-over-fixed-bar, not fixed-bar-under-nav.** Session 8's z-index sweep
+(re-run and confirmed clean at the start of Session 9 by a second agent
+working in parallel) checked every fixed-bottom bar/FAB against the mobile
+nav's `z-40`. It did not — and had no reason to, given its own scope — check
+whether a *sheet or overlay opened on top of an already-fixed-bottom-bar
+screen* itself clears that bar. Prep Entry's `ItemPickerSheet` (`frontend/
+app/app/inventory/prep/page.tsx`) is exactly this case: the page's own
+"Confirm Prep" bar is correctly `z-50` (already fixed, not part of this
+bug), but the item-picker sheet that opens on top of it — for both the
+output-item and every input-item selection — was `z-40`, one layer
+*beneath* that bar, so the sheet's item list was physically unclickable
+across its full height. Caught only by a real Playwright click attempt
+(`subtree intercepts pointer events`), not by any screenshot — the sheet's
+header and search box render fine; only the list underneath is affected,
+and a static screenshot doesn't reveal that it's unclickable. Fixed by
+raising the sheet to `z-[60]`. Flagging the general pattern for future
+sessions: any bottom-sheet/modal opened *from* a screen that already has
+its own fixed-bottom action bar needs a z-index strictly above that bar,
+not just above the nav — z-index sweeps that only compare against the nav
+bar's `z-40` will miss this class entirely.
 
 ---
 

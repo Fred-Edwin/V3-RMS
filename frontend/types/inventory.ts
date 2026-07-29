@@ -310,12 +310,22 @@ export interface CreateWasteLogInput {
 
 export type SupplierInvoiceStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
 
+export type SupplierPaymentMethod =
+  | 'MPESA'
+  | 'CASH'
+  | 'CARD'
+  | 'SPLIT'
+  | 'GUEST_SPLIT'
+  | 'HOUSE_ACCOUNT'
+  | 'CORPORATE_ACCOUNT'
+  | 'CUSTOMER_CREDIT';
+
 export interface SupplierPayment {
   id: string;
   organizationId: string;
   supplierInvoiceId: string;
   amount: string;
-  method: string;
+  method: SupplierPaymentMethod;
   paidAt: string;
   recordedById: string;
   createdAt: string;
@@ -349,7 +359,7 @@ export interface CreateSupplierInvoiceInput {
 
 export interface RecordSupplierPaymentInput {
   amount: string;
-  method: string;
+  method: SupplierPaymentMethod;
   paidAt: string;
 }
 

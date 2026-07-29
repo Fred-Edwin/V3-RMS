@@ -1,16 +1,42 @@
 /**
  * seed-inventory-demo.ts
  *
- * Demo data for Session 6's Attendant screens (Stock on Hand, Purchase
- * Orders) — realistic Wendo Central Store catalog items, a couple of
- * suppliers, receiving history (so on-hand qty/currentCost are real,
- * ledger-derived numbers, including at least one low-stock item), and
- * purchase orders across a few statuses (DRAFT/SENT/PARTIALLY_RECEIVED/
- * CLOSED) so the PO list isn't empty.
+ * Central Store demo/Gate-trial data — real catalog items, quantities, and
+ * prices transcribed from the client's own supplier paperwork (Session 9,
+ * `docs/context/INVENTORY-FEATURE/inventory-real-data/`, images 1-9: two
+ * Samrat Supermarket deliveries dated 07-Jul-2026 and 21-Jul-2026, plus one
+ * Summer Limited delivery dated 16-Jul-2026). Images 10+ are branch/
+ * departmental sheets (Phase 2 scope) and were not used.
+ *
+ * The client's paperwork covers dry goods/consumables only — no meat/dairy
+ * supplier invoice was in the photo set even though one exists in real life
+ * (see CLAUDE.md). "Nyeri Fresh Meat & Dairy" below is an INVENTED
+ * placeholder supplier + a handful of RAW items/prices, needed so Prep
+ * entry (which consumes RAW inputs to produce a PREPPED output) has
+ * something realistic to run against. Everything under SAMRAT_ITEMS and
+ * SUMMER_ITEMS is real client data; everything under PLACEHOLDER_RAW_ITEMS
+ * is not — swap for the real invoice once available.
+ *
+ * Exercises the full Phase 1 data shape, not just a flat catalog:
+ *   - Two receiving events per Samrat item that appears in both deliveries
+ *     (07-Jul then 21-Jul), at the real different prices, so weighted-
+ *     average cost and price-history reports have genuine multi-point data.
+ *   - One PREPPED item ("Prepped Simple Syrup", from Sugar + Water) with an
+ *     initial PrepRecord, so the rolling-average hint has history to show
+ *     on a second run.
+ *   - A DRAFT and a SENT PurchaseOrder (not just closed/received ones), so
+ *     the PO list isn't all-one-status.
+ *   - A separate opening StockCount session (APPROVED, with deliberate
+ *     gaps) distinct from received quantities, so the count/adjustment
+ *     workflow has real variance to show, not a trivially-zero one.
+ *   - A WasteLog entry and a SupplierInvoice with a partial payment, so AP
+ *     aging and waste-cost reports aren't empty.
  *
  * ONLY runs when NODE_ENV is not "production". Safe to re-run — idempotent
- * on items/suppliers (upsert by name), always adds a fresh batch of POs so
- * you can see the list grow if run more than once.
+ * on items/suppliers (upsert by name); POs/receiving/prep/count/waste/AP
+ * events are only created on first run per item (guarded by "item already
+ * existed" checks), so re-running after the first time is a no-op, not a
+ * duplicate-data generator.
  *
  * Usage:
  *   npx tsx src/scripts/seed-inventory-demo.ts
@@ -21,67 +47,182 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { inventoryTransactionService } from '../services/inventory-transaction-service';
+import { stockCountService } from '../services/stock-count-service';
+import { wasteLogService } from '../services/waste-log-service';
+import { supplierInvoiceService } from '../services/supplier-invoice-service';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-inventory-demo must not run in production. Exiting.');
   process.exit(1);
 }
 
+type ItemType = 'RAW' | 'PREPPED' | 'PASS_THROUGH';
+type DeptTag = 'KITCHEN' | 'PASTRY' | 'BARISTA' | 'SERVICE' | 'HOUSEKEEPING';
+
 type ItemSpec = {
   name: string;
-  type: 'RAW' | 'PREPPED' | 'PASS_THROUGH';
+  type: ItemType;
   buyUnit: string;
   usageUnit: string;
   conversionFactor: string;
   reorderLevel: string;
-  departmentTags: ('KITCHEN' | 'PASTRY' | 'BARISTA' | 'SERVICE' | 'HOUSEKEEPING')[];
-  /** How much to receive in this seed run, in buy units, and at what buy-unit price. */
-  receiveQty: string;
-  receivePrice: string;
-  /** If true, the receive qty is deliberately small relative to reorderLevel (low stock). */
+  departmentTags: DeptTag[];
+  supplier: string;
 };
 
-const ITEMS: ItemSpec[] = [
-  { name: 'Arabica Coffee Beans', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '15', departmentTags: ['BARISTA'], receiveQty: '48.7', receivePrice: '1240' },
-  { name: 'Fresh Milk', type: 'RAW', buyUnit: 'L', usageUnit: 'L', conversionFactor: '1', reorderLevel: '20', departmentTags: ['BARISTA'], receiveQty: '18', receivePrice: '210' },
-  { name: 'Vanilla Syrup', type: 'PREPPED', buyUnit: 'L', usageUnit: 'L', conversionFactor: '1', reorderLevel: '5', departmentTags: ['BARISTA'], receiveQty: '1.2', receivePrice: '680' },
-  { name: 'Greek Yogurt', type: 'PREPPED', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '6', departmentTags: ['KITCHEN', 'PASTRY'], receiveQty: '4.3', receivePrice: '350' },
-  { name: 'Disposable Cups 12oz', type: 'PASS_THROUGH', buyUnit: 'pack', usageUnit: 'pcs', conversionFactor: '50', reorderLevel: '300', receiveQty: '5', receivePrice: '700', departmentTags: ['BARISTA', 'SERVICE'] },
-  { name: 'Brown Sugar', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '8', departmentTags: ['KITCHEN', 'BARISTA'], receiveQty: '12.6', receivePrice: '180' },
-  { name: 'Chicken Breast', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '10', departmentTags: ['KITCHEN'], receiveQty: '22', receivePrice: '480' },
-  { name: 'Flour', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '20', departmentTags: ['KITCHEN', 'PASTRY'], receiveQty: '35', receivePrice: '120' },
-  { name: 'Bottled Water 500ml', type: 'PASS_THROUGH', buyUnit: 'crate', usageUnit: 'pcs', conversionFactor: '24', reorderLevel: '96', departmentTags: ['SERVICE'], receiveQty: '3', receivePrice: '480' },
-  { name: 'Cleaning Detergent', type: 'PASS_THROUGH', buyUnit: 'L', usageUnit: 'L', conversionFactor: '1', reorderLevel: '10', departmentTags: ['HOUSEKEEPING'], receiveQty: '4', receivePrice: '350' },
+/** Real data — Samrat Supermarket (pantry/consumables), both delivery dates. */
+const SAMRAT_ITEMS: ItemSpec[] = [
+  { name: 'Salit Cooking Oil', type: 'RAW', buyUnit: '20L jerrican', usageUnit: 'L', conversionFactor: '20', reorderLevel: '40', departmentTags: ['KITCHEN'], supplier: 'Samrat Supermarket' },
+  { name: 'Kabras Sugar', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '100', departmentTags: ['KITCHEN', 'BARISTA'], supplier: 'Samrat Supermarket' },
+  { name: 'Prestige Margarine', type: 'RAW', buyUnit: '10kg box', usageUnit: 'kg', conversionFactor: '10', reorderLevel: '20', departmentTags: ['KITCHEN', 'PASTRY'], supplier: 'Samrat Supermarket' },
+  { name: 'Chain Kwo Soy Sauce Dark 623ml', type: 'RAW', buyUnit: 'bottle (623ml)', usageUnit: 'ml', conversionFactor: '623', reorderLevel: '2500', departmentTags: ['KITCHEN'], supplier: 'Samrat Supermarket' },
+  { name: 'Kamal Gram Flour', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '10', departmentTags: ['KITCHEN', 'PASTRY'], supplier: 'Samrat Supermarket' },
+  { name: 'Clovers Brown Sugar', type: 'RAW', buyUnit: 'kg pkt', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '15', departmentTags: ['KITCHEN', 'BARISTA'], supplier: 'Samrat Supermarket' },
+  { name: 'Angel Instant Dry Yeast 500g', type: 'RAW', buyUnit: 'pouch (500g)', usageUnit: 'g', conversionFactor: '500', reorderLevel: '1000', departmentTags: ['PASTRY'], supplier: 'Samrat Supermarket' },
+  { name: 'Gathuthi Tea Leaves 500g', type: 'RAW', buyUnit: 'pkt (500g)', usageUnit: 'g', conversionFactor: '500', reorderLevel: '1500', departmentTags: ['BARISTA'], supplier: 'Samrat Supermarket' },
+  { name: 'BSD Natural Yoghurt Cup 450ml', type: 'RAW', buyUnit: 'cup (450ml)', usageUnit: 'ml', conversionFactor: '450', reorderLevel: '900', departmentTags: ['KITCHEN', 'PASTRY'], supplier: 'Samrat Supermarket' },
+  { name: 'Zesta Yellow Mustard 240g', type: 'RAW', buyUnit: 'bottle (240g)', usageUnit: 'g', conversionFactor: '240', reorderLevel: '720', departmentTags: ['KITCHEN'], supplier: 'Samrat Supermarket' },
+  { name: 'Zesta Eggless Mayonnaise 340g', type: 'RAW', buyUnit: 'bottle (340g)', usageUnit: 'g', conversionFactor: '340', reorderLevel: '680', departmentTags: ['KITCHEN'], supplier: 'Samrat Supermarket' },
+  { name: 'S/Garden Whole Mushroom 400g', type: 'RAW', buyUnit: 'pkt (400g)', usageUnit: 'g', conversionFactor: '400', reorderLevel: '1600', departmentTags: ['KITCHEN'], supplier: 'Samrat Supermarket' },
+  { name: 'Royal Cling Film 30x300m', type: 'PASS_THROUGH', buyUnit: 'roll', usageUnit: 'roll', conversionFactor: '1', reorderLevel: '5', departmentTags: ['KITCHEN', 'SERVICE'], supplier: 'Samrat Supermarket' },
+  { name: 'Rubina Air Freshener 100ml Strawberry', type: 'PASS_THROUGH', buyUnit: 'can', usageUnit: 'can', conversionFactor: '1', reorderLevel: '6', departmentTags: ['HOUSEKEEPING'], supplier: 'Samrat Supermarket' },
 ];
 
-const SUPPLIERS = [
-  { name: 'Kilimanjaro Coffee Co.', contactName: 'James Mwangi', phone: '0722100200', email: 'orders@kilimanjarocoffee.co.ke' },
-  { name: 'Kenya Fresh Dairy', contactName: 'Grace Wanjiru', phone: '0733400500', email: 'sales@kenyafreshdairy.co.ke' },
+/** Real data — Summer Limited (bulk/butchery/cleaning supplies). */
+const SUMMER_ITEMS: ItemSpec[] = [
+  { name: '210 Home Baking Flour 2kg', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '15', departmentTags: ['PASTRY'], supplier: 'Summer Limited' },
+  { name: 'Golden Drop Oil 20ltr', type: 'RAW', buyUnit: '20L jerrican', usageUnit: 'L', conversionFactor: '20', reorderLevel: '40', departmentTags: ['KITCHEN'], supplier: 'Summer Limited' },
+  { name: 'Highlands Water 1ltr', type: 'PASS_THROUGH', buyUnit: 'ctn (12x1L)', usageUnit: 'bottle', conversionFactor: '12', reorderLevel: '48', departmentTags: ['SERVICE'], supplier: 'Summer Limited' },
+  { name: 'Toilex White Tissue Wrapped', type: 'PASS_THROUGH', buyUnit: 'ctn (10pack)', usageUnit: 'pack', conversionFactor: '10', reorderLevel: '10', departmentTags: ['HOUSEKEEPING'], supplier: 'Summer Limited' },
+  { name: 'Meta Multipurpose Soap 1kg', type: 'PASS_THROUGH', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '5', departmentTags: ['HOUSEKEEPING'], supplier: 'Summer Limited' },
+  { name: 'Mariandazi 100g', type: 'PASS_THROUGH', buyUnit: 'box (72x100g)', usageUnit: 'pc', conversionFactor: '72', reorderLevel: '72', departmentTags: ['SERVICE'], supplier: 'Summer Limited' },
 ];
+
+/**
+ * INVENTED placeholder — no meat/dairy invoice was in the photo set (see
+ * file header). Swap for the real supplier's paperwork when available.
+ */
+const PLACEHOLDER_RAW_ITEMS: ItemSpec[] = [
+  { name: 'Fresh Milk', type: 'RAW', buyUnit: 'L', usageUnit: 'L', conversionFactor: '1', reorderLevel: '20', departmentTags: ['BARISTA', 'KITCHEN'], supplier: 'Nyeri Fresh Meat & Dairy' },
+  { name: 'Chicken Breast', type: 'RAW', buyUnit: 'kg', usageUnit: 'kg', conversionFactor: '1', reorderLevel: '10', departmentTags: ['KITCHEN'], supplier: 'Nyeri Fresh Meat & Dairy' },
+  { name: 'Fresh Eggs (Tray of 30)', type: 'RAW', buyUnit: 'tray (30pc)', usageUnit: 'pc', conversionFactor: '30', reorderLevel: '90', departmentTags: ['KITCHEN', 'PASTRY'], supplier: 'Nyeri Fresh Meat & Dairy' },
+];
+
+/** One PREPPED item so Prep entry / rolling-average has something to run against. */
+const PREPPED_ITEMS: ItemSpec[] = [
+  { name: 'Prepped Simple Syrup', type: 'PREPPED', buyUnit: 'L', usageUnit: 'L', conversionFactor: '1', reorderLevel: '3', departmentTags: ['BARISTA'], supplier: '' },
+];
+
+const SUPPLIERS: { name: string; contactName: string; phone: string; email: string }[] = [
+  { name: 'Samrat Supermarket', contactName: 'Dattu', phone: '0722160400', email: 'samratnyeri@gmail.com' },
+  { name: 'Summer Limited', contactName: 'Summer Ltd Accounts', phone: '0722204970', email: 'info@summerltd.com' },
+  { name: 'Nyeri Fresh Meat & Dairy', contactName: 'Store Contact (placeholder)', phone: '0700000000', email: 'orders@nyerifreshmeatdairy.example' },
+];
+
+/** [buyQty, unitPrice] per delivery date, real prices from the two Samrat deliveries. */
+const SAMRAT_RECEIVE_HISTORY: Record<string, { date: string; buyQty: string; unitPrice: string }[]> = {
+  'Salit Cooking Oil': [{ date: '2026-07-07', buyQty: '1', unitPrice: '5249' }],
+  'Kabras Sugar': [{ date: '2026-07-21', buyQty: '50', unitPrice: '155' }],
+  'Prestige Margarine': [
+    { date: '2026-07-07', buyQty: '2', unitPrice: '3095' },
+    { date: '2026-07-21', buyQty: '2', unitPrice: '3095' },
+  ],
+  'Chain Kwo Soy Sauce Dark 623ml': [
+    { date: '2026-07-07', buyQty: '8', unitPrice: '365' },
+    { date: '2026-07-21', buyQty: '12', unitPrice: '365' },
+  ],
+  'Kamal Gram Flour': [
+    { date: '2026-07-07', buyQty: '3', unitPrice: '259' },
+    { date: '2026-07-21', buyQty: '2', unitPrice: '219' },
+  ],
+  'Clovers Brown Sugar': [
+    { date: '2026-07-07', buyQty: '4', unitPrice: '235' },
+    { date: '2026-07-21', buyQty: '4', unitPrice: '235' },
+  ],
+  'Angel Instant Dry Yeast 500g': [
+    { date: '2026-07-07', buyQty: '1', unitPrice: '415' },
+    { date: '2026-07-21', buyQty: '3', unitPrice: '415' },
+  ],
+  'Gathuthi Tea Leaves 500g': [
+    { date: '2026-07-07', buyQty: '5', unitPrice: '275' },
+    { date: '2026-07-21', buyQty: '6', unitPrice: '275' },
+  ],
+  'BSD Natural Yoghurt Cup 450ml': [
+    { date: '2026-07-07', buyQty: '2', unitPrice: '170' },
+    { date: '2026-07-21', buyQty: '2', unitPrice: '170' },
+  ],
+  'Zesta Yellow Mustard 240g': [
+    { date: '2026-07-07', buyQty: '3', unitPrice: '185' },
+    { date: '2026-07-21', buyQty: '5', unitPrice: '185' },
+  ],
+  'Zesta Eggless Mayonnaise 340g': [
+    { date: '2026-07-07', buyQty: '4', unitPrice: '255' },
+    { date: '2026-07-21', buyQty: '4', unitPrice: '255' },
+  ],
+  'S/Garden Whole Mushroom 400g': [
+    { date: '2026-07-07', buyQty: '2', unitPrice: '255' },
+    { date: '2026-07-21', buyQty: '6', unitPrice: '255' },
+  ],
+  'Royal Cling Film 30x300m': [
+    { date: '2026-07-07', buyQty: '6', unitPrice: '699' },
+    { date: '2026-07-21', buyQty: '8', unitPrice: '699' },
+  ],
+  'Rubina Air Freshener 100ml Strawberry': [
+    { date: '2026-07-07', buyQty: '8', unitPrice: '135' },
+    { date: '2026-07-21', buyQty: '5', unitPrice: '135' },
+  ],
+};
+
+const SUMMER_RECEIVE_HISTORY: Record<string, { date: string; buyQty: string; unitPrice: string }[]> = {
+  '210 Home Baking Flour 2kg': [{ date: '2026-07-16', buyQty: '3', unitPrice: '1870' }],
+  'Golden Drop Oil 20ltr': [{ date: '2026-07-16', buyQty: '3', unitPrice: '4900' }],
+  'Highlands Water 1ltr': [{ date: '2026-07-16', buyQty: '2', unitPrice: '380' }],
+  'Toilex White Tissue Wrapped': [{ date: '2026-07-16', buyQty: '2', unitPrice: '1190' }],
+  'Meta Multipurpose Soap 1kg': [{ date: '2026-07-16', buyQty: '1', unitPrice: '1540' }],
+  'Mariandazi 100g': [{ date: '2026-07-16', buyQty: '1', unitPrice: '1950' }],
+};
+
+const PLACEHOLDER_RECEIVE: Record<string, { date: string; buyQty: string; unitPrice: string }[]> = {
+  'Fresh Milk': [{ date: '2026-07-20', buyQty: '30', unitPrice: '75' }],
+  'Chicken Breast': [{ date: '2026-07-20', buyQty: '20', unitPrice: '480' }],
+  'Fresh Eggs (Tray of 30)': [{ date: '2026-07-20', buyQty: '4', unitPrice: '450' }],
+};
 
 const d = (v: Prisma.Decimal.Value) => new Prisma.Decimal(v);
 
+const poNumber = (suffix: string) => {
+  const now = new Date();
+  const y = String(now.getFullYear()).slice(2);
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `PO-${y}${m}${dd}-${suffix}`;
+};
+
 const run = async (): Promise<void> => {
-  // Some pre-existing STORE_MANAGER/STORE_ATTENDANT fixture users in this DB
-  // have a null organizationId (from earlier test setup) — filter those out
-  // explicitly rather than picking whichever row `findFirst` happens to hit.
   const storeManager = await prisma.user.findFirst({
     where: { role: 'STORE_MANAGER', organizationId: { not: null } },
-    select: { id: true, organizationId: true },
+    select: { id: true, organizationId: true, role: true },
   });
   if (!storeManager || !storeManager.organizationId) {
     throw new Error('No STORE_MANAGER user with an organizationId found. Run seed-dev.ts first.');
   }
-  const organizationId = storeManager.organizationId;
-
-  const location = await prisma.location.findFirst({
-    where: { organizationId, type: 'CENTRAL_STORE' },
+  const storeAttendant = await prisma.user.findFirst({
+    where: { role: 'STORE_ATTENDANT', organizationId: storeManager.organizationId },
+    select: { id: true, organizationId: true, role: true },
   });
+  if (!storeAttendant || !storeAttendant.organizationId) {
+    throw new Error('No STORE_ATTENDANT user with an organizationId found. Run seed-dev.ts first.');
+  }
+  const organizationId = storeManager.organizationId;
+  const managerActor = { id: storeManager.id, role: 'STORE_MANAGER' as const, organizationId };
+  const attendantActor = { id: storeAttendant.id, role: 'STORE_ATTENDANT' as const, organizationId };
+
+  const location = await prisma.location.findFirst({ where: { organizationId, type: 'CENTRAL_STORE' } });
   if (!location) {
     throw new Error('No CENTRAL_STORE location found. Run seed-dev.ts first.');
   }
 
-  console.log(`Seeding inventory demo data for org ${organizationId}, location ${location.id}\n`);
+  console.log(`Seeding real Central Store data for org ${organizationId}, location ${location.id}\n`);
 
   // --- Suppliers ---
   const supplierByName = new Map<string, string>();
@@ -94,9 +235,17 @@ const run = async (): Promise<void> => {
     console.log(`${existing ? 'SKIP ' : 'OK   '} Supplier: ${s.name}`);
   }
 
-  // --- Items + receive transactions (populates on-hand qty + currentCost) ---
+  // --- Items + receive history (real dated events, populates on-hand qty + weighted-avg currentCost) ---
+  const ALL_ITEMS = [...SAMRAT_ITEMS, ...SUMMER_ITEMS, ...PLACEHOLDER_RAW_ITEMS, ...PREPPED_ITEMS];
+  const RECEIVE_HISTORY: Record<string, { date: string; buyQty: string; unitPrice: string }[]> = {
+    ...SAMRAT_RECEIVE_HISTORY,
+    ...SUMMER_RECEIVE_HISTORY,
+    ...PLACEHOLDER_RECEIVE,
+  };
+
   const itemIdByName = new Map<string, string>();
-  for (const spec of ITEMS) {
+  const newlyCreated = new Set<string>();
+  for (const spec of ALL_ITEMS) {
     const existing = await prisma.inventoryItem.findFirst({ where: { organizationId, name: spec.name } });
     const item = existing ?? (await prisma.inventoryItem.create({
       data: {
@@ -111,95 +260,192 @@ const run = async (): Promise<void> => {
       },
     }));
     itemIdByName.set(spec.name, item.id);
+    if (!existing) newlyCreated.add(spec.name);
     console.log(`${existing ? 'SKIP ' : 'OK   '} Item: ${spec.name}`);
 
+    if (!existing && spec.supplier) {
+      const supplierId = supplierByName.get(spec.supplier);
+      if (supplierId) {
+        await prisma.supplierItem.upsert({
+          where: { supplierId_inventoryItemId: { supplierId, inventoryItemId: item.id } },
+          update: {},
+          create: { organizationId, supplierId, inventoryItemId: item.id, isDefault: true },
+        });
+      }
+    }
+
     if (!existing) {
-      await inventoryTransactionService.recordReceive({
-        organizationId,
-        locationId: location.id,
-        userId: storeManager.id,
-        inventoryItemId: item.id,
-        buyQty: d(spec.receiveQty),
-        unitPrice: d(spec.receivePrice),
-      });
+      const history = RECEIVE_HISTORY[spec.name];
+      if (history) {
+        for (const event of history) {
+          await inventoryTransactionService.recordReceive({
+            organizationId,
+            locationId: location.id,
+            userId: storeManager.id,
+            inventoryItemId: item.id,
+            buyQty: d(event.buyQty),
+            unitPrice: d(event.unitPrice),
+          });
+        }
+      }
     }
   }
 
-  // --- Purchase orders across a few statuses ---
-  const kilimanjaroId = supplierByName.get('Kilimanjaro Coffee Co.')!;
-  const dairyId = supplierByName.get('Kenya Fresh Dairy')!;
-  const beansId = itemIdByName.get('Arabica Coffee Beans')!;
+  // --- Prep record: Prepped Simple Syrup from Kabras Sugar (raw input, already received above) ---
+  const syrupId = itemIdByName.get('Prepped Simple Syrup')!;
+  const sugarId = itemIdByName.get('Kabras Sugar')!;
+  if (newlyCreated.has('Prepped Simple Syrup')) {
+    const prepRecord = await inventoryTransactionService.recordPrep({
+      organizationId,
+      locationId: location.id,
+      outputItemId: syrupId,
+      actualYield: d('9.5'),
+      inputs: [{ inventoryItemId: sugarId, quantity: d('5') }],
+      recordedById: storeAttendant.id,
+    });
+    console.log(`OK    Prep Record for Prepped Simple Syrup (yield ${prepRecord.actualYield?.toString() ?? '9.5'}L)`);
+  }
+
+  // --- Purchase orders across a few statuses (DRAFT + SENT, not just closed/received) ---
+  const samratId = supplierByName.get('Samrat Supermarket')!;
+  const summerId = supplierByName.get('Summer Limited')!;
+  const dairyId = supplierByName.get('Nyeri Fresh Meat & Dairy')!;
+  const marginId = itemIdByName.get('Prestige Margarine')!;
+  const soySauceId = itemIdByName.get('Chain Kwo Soy Sauce Dark 623ml')!;
   const milkId = itemIdByName.get('Fresh Milk')!;
-  const sugarId = itemIdByName.get('Brown Sugar')!;
-  const cupsId = itemIdByName.get('Disposable Cups 12oz')!;
+  const chickenId = itemIdByName.get('Chicken Breast')!;
+  const flourId = itemIdByName.get('210 Home Baking Flour 2kg')!;
 
-  const poNumber = () => {
-    const now = new Date();
-    const y = String(now.getFullYear()).slice(2);
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-    return `PO-${y}${m}${dd}-${suffix}`;
-  };
-
-  const posToCreate: {
-    supplierId: string;
-    status: 'DRAFT' | 'SENT' | 'PARTIALLY_RECEIVED' | 'CLOSED';
-    lines: { inventoryItemId: string; orderedQty: string; unitPrice: string; receivedQty?: string; invoicePrice?: string }[];
-  }[] = [
-    {
-      supplierId: kilimanjaroId,
-      status: 'DRAFT',
-      lines: [
-        { inventoryItemId: beansId, orderedQty: '10', unitPrice: '1240' },
-        { inventoryItemId: milkId, orderedQty: '20', unitPrice: '210' },
-        { inventoryItemId: sugarId, orderedQty: '2', unitPrice: '680' },
-      ],
-    },
-    {
-      supplierId: dairyId,
-      status: 'SENT',
-      lines: [{ inventoryItemId: milkId, orderedQty: '25', unitPrice: '210' }],
-    },
-    {
-      supplierId: kilimanjaroId,
-      status: 'PARTIALLY_RECEIVED',
-      lines: [
-        { inventoryItemId: cupsId, orderedQty: '8', unitPrice: '700', receivedQty: '5', invoicePrice: '700' },
-      ],
-    },
-    {
-      supplierId: kilimanjaroId,
-      status: 'CLOSED',
-      lines: [{ inventoryItemId: beansId, orderedQty: '15', unitPrice: '1240', receivedQty: '15', invoicePrice: '1250' }],
-    },
-  ];
-
-  for (const spec of posToCreate) {
-    const po = await prisma.purchaseOrder.create({
+  const existingDraft = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'DRAFT' } });
+  if (!existingDraft) {
+    const draftPo = await prisma.purchaseOrder.create({
       data: {
         organizationId,
-        supplierId: spec.supplierId,
+        supplierId: samratId,
         locationId: location.id,
-        poNumber: poNumber(),
-        status: spec.status,
-        createdById: storeManager.id,
-        sentAt: spec.status !== 'DRAFT' ? new Date() : null,
-        closedAt: spec.status === 'CLOSED' ? new Date() : null,
+        poNumber: poNumber('DRFT'),
+        status: 'DRAFT',
+        createdById: storeAttendant.id,
         lines: {
-          create: spec.lines.map((l) => ({
-            organizationId,
-            inventoryItemId: l.inventoryItemId,
-            orderedQty: d(l.orderedQty),
-            unitPrice: d(l.unitPrice),
-            receivedQty: l.receivedQty ? d(l.receivedQty) : d(0),
-            invoicePrice: l.invoicePrice ? d(l.invoicePrice) : null,
-            receivedAt: l.receivedQty ? new Date() : null,
-          })),
+          create: [
+            { organizationId, inventoryItemId: marginId, orderedQty: d('2'), unitPrice: d('3095') },
+            { organizationId, inventoryItemId: soySauceId, orderedQty: d('10'), unitPrice: d('365') },
+          ],
         },
       },
     });
-    console.log(`OK    Purchase Order ${po.poNumber} — ${spec.status}`);
+    console.log(`OK    Purchase Order ${draftPo.poNumber} — DRAFT (Attendant-created, awaiting Manager send)`);
+  }
+
+  const existingSent = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'SENT' } });
+  if (!existingSent) {
+    const sentPo = await prisma.purchaseOrder.create({
+      data: {
+        organizationId,
+        supplierId: dairyId,
+        locationId: location.id,
+        poNumber: poNumber('SENT'),
+        status: 'SENT',
+        createdById: storeManager.id,
+        sentAt: new Date(),
+        lines: {
+          create: [
+            { organizationId, inventoryItemId: milkId, orderedQty: d('40'), unitPrice: d('75') },
+            { organizationId, inventoryItemId: chickenId, orderedQty: d('15'), unitPrice: d('480') },
+          ],
+        },
+      },
+    });
+    console.log(`OK    Purchase Order ${sentPo.poNumber} — SENT (ready for a live Receiving walkthrough)`);
+  }
+
+  const existingClosed = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'CLOSED', supplierId: summerId } });
+  if (!existingClosed) {
+    const closedPo = await prisma.purchaseOrder.create({
+      data: {
+        organizationId,
+        supplierId: summerId,
+        locationId: location.id,
+        poNumber: poNumber('CLSD'),
+        status: 'CLOSED',
+        createdById: storeManager.id,
+        sentAt: new Date('2026-07-16'),
+        closedAt: new Date('2026-07-16'),
+        lines: {
+          create: [
+            {
+              organizationId,
+              inventoryItemId: flourId,
+              orderedQty: d('3'),
+              unitPrice: d('1870'),
+              receivedQty: d('3'),
+              invoicePrice: d('1870'),
+              receivedAt: new Date('2026-07-16'),
+            },
+          ],
+        },
+      },
+    });
+    console.log(`OK    Purchase Order ${closedPo.poNumber} — CLOSED`);
+
+    // --- Supplier AP: invoice for this closed PO + one partial payment ---
+    const invoice = await supplierInvoiceService.create(managerActor, {
+      supplierId: summerId,
+      purchaseOrderId: closedPo.id,
+      referenceNumber: 'SINV57141',
+      amount: '35670.00',
+      invoiceDate: new Date('2026-07-16').toISOString(),
+    });
+    await supplierInvoiceService.recordPayment(managerActor, invoice.id, {
+      amount: '20000.00',
+      method: 'MPESA',
+      paidAt: new Date('2026-07-22').toISOString(),
+    });
+    console.log(`OK    Supplier Invoice SINV57141 — KES 35,670 billed, KES 20,000 paid (PARTIALLY_PAID)`);
+  }
+
+  // --- Waste log entry ---
+  const existingWaste = await prisma.wasteLog.findFirst({ where: { organizationId } });
+  if (!existingWaste) {
+    await wasteLogService.create(attendantActor, {
+      locationId: location.id,
+      inventoryItemId: milkId,
+      quantity: '2',
+      reason: 'SPOILED',
+      note: 'Two litres past use-by, discovered during morning prep',
+    });
+    console.log('OK    Waste Log entry — 2L Fresh Milk, SPOILED');
+  }
+
+  // --- Opening stock count: a separate APPROVED session with deliberate gaps ---
+  const existingCount = await prisma.stockCount.findFirst({ where: { organizationId } });
+  if (!existingCount) {
+    const countItems = [sugarId, marginId, soySauceId, milkId, chickenId].filter(Boolean);
+    const created = await stockCountService.create(managerActor, {
+      locationId: location.id,
+      label: 'Opening Physical Count',
+      scheduledDate: new Date('2026-07-23').toISOString(),
+      inventoryItemIds: countItems,
+    });
+
+    // Attendant executes: count values deliberately differ slightly from
+    // expected so the gap/adjustment workflow has real variance to show.
+    const lineDelta: Record<string, string> = {
+      [sugarId]: '-2',
+      [marginId]: '0',
+      [soySauceId]: '-0.5',
+      [milkId]: '1',
+      [chickenId]: '0',
+    };
+    const submitLines = created.lines.map((line) => {
+      const expected = line.expectedQty ? new Prisma.Decimal(line.expectedQty) : new Prisma.Decimal(0);
+      const delta = new Prisma.Decimal(lineDelta[line.inventoryItemId] ?? '0');
+      const counted = Prisma.Decimal.max(expected.add(delta), new Prisma.Decimal(0));
+      return { lineId: line.id, countedQty: counted.toFixed(4) };
+    });
+    await stockCountService.submitCounts(attendantActor, created.id, submitLines);
+    const approved = await stockCountService.approve(managerActor, created.id);
+    console.log(`OK    Stock Count "${approved.label}" — submitted by Attendant, approved by Manager, adjustments posted`);
   }
 
   console.log('\nDone.');

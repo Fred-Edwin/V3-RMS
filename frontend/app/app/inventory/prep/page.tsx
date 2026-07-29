@@ -14,7 +14,9 @@ import {
 } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import type { InventoryItem, RollingAverage } from '@/types/inventory';
+import { PrepEntryDesktop } from './PrepEntryDesktop';
 
 interface InputLine {
   key: string;
@@ -24,7 +26,23 @@ interface InputLine {
 
 const newLine = (): InputLine => ({ key: crypto.randomUUID(), item: null, quantity: '' });
 
+// §8.1 row 8: Manager mobile reuses Attendant's step-flow screen as-is (no
+// running-cost panel on mobile, soft-reference hint only) — only Manager's
+// desktop copy needs its own component. Bug found in Session 8 verification:
+// this dispatcher previously routed STORE_MANAGER unconditionally to
+// PrepEntryDesktop, which self-guards to null on the mobile shell — leaving
+// Manager's mobile Prep screen completely blank. Fixed by checking shell
+// context for Manager instead of assuming desktop.
 export default function PrepEntryPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  const isDesktop = useIsDesktopShell();
+  if (role === 'STORE_MANAGER' && isDesktop) {
+    return <PrepEntryDesktop />;
+  }
+  return <PrepEntryAttendant />;
+}
+
+function PrepEntryAttendant(): JSX.Element {
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
@@ -214,7 +232,7 @@ export default function PrepEntryPage(): JSX.Element {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white px-4 py-3">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white px-4 py-3">
         <button
           type="button"
           onClick={() => void handleConfirm()}
@@ -279,7 +297,7 @@ function ItemPickerSheet({
   );
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/40" onClick={onClose}>
       <div
         className="max-h-[80vh] overflow-y-auto rounded-t-2xl bg-crema p-4"
         onClick={(e) => e.stopPropagation()}

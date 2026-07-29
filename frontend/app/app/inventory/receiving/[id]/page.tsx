@@ -8,6 +8,7 @@ import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { getPurchaseOrder, receivePurchaseOrderLine } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
 import type { PurchaseOrder, PurchaseOrderLine } from '@/types/inventory';
 
@@ -26,12 +27,25 @@ const isDiscrepant = (line: PurchaseOrderLine, draft: DraftLine): boolean => {
   return draft.receivedQty !== '' && received !== ordered;
 };
 
+// Mobile-only route: reached from Attendant's receiving list and from
+// Manager's mobile PO detail ("Receive this delivery" link) — never from
+// Manager's desktop, which shows this same flow inline in the Purchase
+// Orders slide-over panel instead (PurchaseOrdersDesktop.tsx). STORE_MANAGER's
+// dual shell still mounts this page on both the desktop and mobile copies
+// (app/app/layout.tsx), so without a shell guard the desktop-shell copy
+// would silently double-fetch the PO for nothing.
+export default function ReceivingExecutionPage(): JSX.Element {
+  const isDesktop = useIsDesktopShell();
+  if (isDesktop) return <></>;
+  return <ReceivingExecutionPageInner />;
+}
+
 // Receiving is inherently per-line (each line hits its own PO-line receive
 // endpoint, unlike Stock Count's single bulk submit) — so autosave here is a
 // per-line debounce + individual save call, following the payroll sheet's
 // idle|dirty|saving|saved|error row-state pattern, adapted to one call per
 // line instead of one bulk upsert for the whole sheet.
-export default function ReceivingExecutionPage(): JSX.Element {
+function ReceivingExecutionPageInner(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -249,7 +263,7 @@ export default function ReceivingExecutionPage(): JSX.Element {
       </div>
 
       {po && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white px-4 py-3">
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white px-4 py-3">
           <div className="mb-2 grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-body-sm font-bold tabular-nums text-success">{stats.matched}</p>

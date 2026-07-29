@@ -23,8 +23,13 @@ interface DraftLine {
   unitPrice: string;
 }
 
+// Shared route for both roles (§8.1 row 5 / §8.2 row 2) — Manager can send
+// what they draft here, Attendant's draft always waits on the Manager, so
+// only the confirmation/helper copy below differs by role.
 export default function NewPurchaseOrderPage(): JSX.Element {
   const router = useRouter();
+  const role = useAuthStore((state) => state.role);
+  const isManager = role === 'STORE_MANAGER';
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
@@ -121,7 +126,11 @@ export default function NewPurchaseOrderPage(): JSX.Element {
         },
         accessToken,
       );
-      toast({ variant: 'success', title: 'Draft saved', message: 'Your manager will review and send this order.' });
+      toast({
+        variant: 'success',
+        title: 'Draft saved',
+        message: isManager ? 'Open it from the list to send it to the supplier.' : 'Your manager will review and send this order.',
+      });
       router.replace('/app/inventory/purchase-orders');
     } catch (error) {
       toast({ variant: 'error', title: 'Could not save draft', message: error instanceof Error ? error.message : 'Please try again.' });
@@ -132,10 +141,10 @@ export default function NewPurchaseOrderPage(): JSX.Element {
 
   return (
     <div className="min-h-full bg-crema pb-40">
-      {/* Espresso header band — scoped to Inventory Attendant screens only */}
+      {/* Espresso header band — scoped to Inventory mobile screens */}
       <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
         <p className="font-display text-heading-lg font-medium">New Purchase Order</p>
-        <p className="text-label-md text-crema/70">Draft — only a manager can send it</p>
+        <p className="text-label-md text-crema/70">{isManager ? 'Saved as a draft — send it from the list' : 'Draft — only a manager can send it'}</p>
       </div>
 
       <div className="px-4 py-4">
@@ -245,7 +254,7 @@ export default function NewPurchaseOrderPage(): JSX.Element {
       </div>
 
       {/* Bottom summary + save bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white px-4 py-3">
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-stone-200 bg-white px-4 py-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-label-md text-stone-500">Order Total</span>
           <span className="text-heading-sm font-bold text-stone-900">
@@ -261,7 +270,9 @@ export default function NewPurchaseOrderPage(): JSX.Element {
           <Save size={18} />
           {isSaving ? 'Saving…' : 'Save Draft'}
         </button>
-        <p className="mt-1.5 text-center text-label-sm text-stone-400">Only a manager can send purchase orders.</p>
+        <p className="mt-1.5 text-center text-label-sm text-stone-400">
+          {isManager ? 'Sending happens from the order detail screen.' : 'Only a manager can send purchase orders.'}
+        </p>
       </div>
     </div>
   );

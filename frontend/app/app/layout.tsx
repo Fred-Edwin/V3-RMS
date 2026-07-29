@@ -25,7 +25,6 @@ import {
   MessageSquare,
   Package,
   Percent,
-  Receipt,
   ScrollText,
   Settings2,
   ShieldAlert,
@@ -39,6 +38,7 @@ import {
 } from 'lucide-react';
 import { BottomNav, ConfirmDialog, DirectorSidebarNav, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
 import { env } from '@/lib/env';
+import { ShellProvider } from '@/lib/shell-context';
 
 // Paths that belong to the Phase 7 credit accounts feature.
 // When env.creditAccounts is false these are stripped from nav and their pages redirect away.
@@ -237,25 +237,25 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
     ],
   },
-  // Desktop is the primary shell for this role (usesDualShell below); this is
-  // only the narrow-viewport fallback until Session 8 builds the real Manager
-  // mobile screens per feature plan §8.1. Reuses Session 7's desktop pages.
+  // Desktop is the primary shell for this role (usesDualShell below); this
+  // is the narrow-viewport nav for Session 8's real Manager mobile screens
+  // (feature plan §8.1). Dashboard is the landing tab, matching
+  // lib/role-home.ts (STORE_MANAGER lands on /app/inventory/dashboard on
+  // both shells) — its mobile design is a stat-card grid + tap-through
+  // panels into the real screens below, not the desktop table reflowed.
   STORE_MANAGER: {
     tabs: [
       { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
       { label: 'Stock', href: '/app/inventory/stock', icon: Package },
       { label: 'Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
-      { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
+      { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
     ],
     overflowTabs: [
       { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
       { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
-      { label: 'Supplier Invoices', href: '/app/inventory/supplier-invoices', icon: Receipt },
       { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
-      { label: 'Prep Recipes', href: '/app/inventory/prep-recipes', icon: ScrollText },
       { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
-      { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -500,16 +500,13 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Stock on Hand', href: '/app/inventory/stock', icon: Package },
         { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
         { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
-        { label: 'Supplier Invoices', href: '/app/inventory/supplier-invoices', icon: Receipt },
         { label: 'Purchase Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
-        { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
       ],
     },
     {
       label: 'Prep',
       items: [
         { label: 'Prep Entry', href: '/app/inventory/prep', icon: Coffee },
-        { label: 'Prep Recipes', href: '/app/inventory/prep-recipes', icon: ScrollText },
       ],
     },
     {
@@ -712,7 +709,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
         ) : undefined
       }
     >
-      {children}
+      <ShellProvider value="mobile">{children}</ShellProvider>
     </MobileLayout>
   );
 
@@ -725,7 +722,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
             sidebar={sidebar}
             collapsedSidebar={sidebarCollapsed}
             sidebarClassName="bg-[#1A0F0A] border-r border-[#2C1810]/40"
-          >{children}</SidebarLayout>
+          ><ShellProvider value="desktop">{children}</ShellProvider></SidebarLayout>
           {/* Mobile: bottom nav shell */}
           {mobileShell}
         </>
@@ -747,7 +744,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
             ) : undefined
           }
         >
-          {children}
+          <ShellProvider value="mobile">{children}</ShellProvider>
         </MobileLayout>
       )}
 

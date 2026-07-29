@@ -8,7 +8,9 @@ import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderSt
 import { listPurchaseOrders } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import type { PurchaseOrder } from '@/types/inventory';
+import { PurchaseOrdersDesktop } from './PurchaseOrdersDesktop';
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
@@ -17,6 +19,26 @@ const orderTotal = (po: PurchaseOrder): number =>
   po.lines.reduce((sum, line) => sum + parseFloat(line.orderedQty) * parseFloat(line.unitPrice), 0);
 
 export default function PurchaseOrdersPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  if (role === 'STORE_MANAGER') {
+    return <PurchaseOrdersManagerDispatch />;
+  }
+  return <PurchaseOrdersList isManager={false} />;
+}
+
+// STORE_MANAGER's dual shell mounts both the desktop sidebar copy and the
+// CSS-hidden mobile copy simultaneously — see lib/shell-context.tsx.
+function PurchaseOrdersManagerDispatch(): JSX.Element {
+  const isDesktop = useIsDesktopShell();
+  if (isDesktop) return <PurchaseOrdersDesktop />;
+  return <PurchaseOrdersList isManager />;
+}
+
+// Manager mobile reuses the same card list + floating "New PO" action
+// Session 6 built for Attendant (§8.1 row 5 mobile: "List of PO cards...
+// step-by-step item picker") — only the "waiting for manager" DRAFT callout
+// is Attendant-specific, since Manager IS the one who sends it.
+function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
@@ -79,7 +101,13 @@ export default function PurchaseOrdersPage(): JSX.Element {
           <EmptyState
             icon={<FileText size={40} />}
             heading={orders.length === 0 ? 'No purchase orders yet' : 'No orders match your search'}
-            body={orders.length === 0 ? 'Create a draft order to get started — your manager will send it to the supplier.' : 'Try a different search term.'}
+            body={
+              orders.length === 0
+                ? isManager
+                  ? 'Create a draft order to get started, then send it to the supplier.'
+                  : 'Create a draft order to get started — your manager will send it to the supplier.'
+                : 'Try a different search term.'
+            }
           />
         ) : (
           <div className="space-y-3">
@@ -94,9 +122,14 @@ export default function PurchaseOrdersPage(): JSX.Element {
                     <PurchaseOrderStatusBadge status={po.status} />
                   </div>
 
-                  {po.status === 'DRAFT' && (
+                  {po.status === 'DRAFT' && !isManager && (
                     <p className="mt-2 text-label-md font-medium text-warning">
                       Waiting for manager to send
+                    </p>
+                  )}
+                  {po.status === 'DRAFT' && isManager && (
+                    <p className="mt-2 text-label-md font-medium text-warning">
+                      Draft — needs to be sent
                     </p>
                   )}
 
@@ -114,7 +147,7 @@ export default function PurchaseOrdersPage(): JSX.Element {
       {/* Floating new-PO action — thumb-reachable per §12.1 */}
       <Link
         href="/app/inventory/purchase-orders/new"
-        className="fixed bottom-24 right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-amber px-5 text-label-lg font-semibold text-espresso shadow-lg"
+        className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-amber px-5 text-label-lg font-semibold text-espresso shadow-lg"
       >
         <Plus size={20} />
         New Purchase Order

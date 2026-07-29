@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui';
 import { listStockCounts } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import type { StockCount, StockCountStatus } from '@/types/inventory';
+import { StockCountsDesktop } from './StockCountsDesktop';
 
 const STATUS_LABEL: Record<StockCountStatus, string> = {
   IN_PROGRESS: 'In Progress',
@@ -20,8 +22,26 @@ const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
 
 // Session creation is Manager-only (§8.3) — Attendant only ever opens a
-// session already created for them and executes/submits it.
+// session already created for them and executes/submits it. Manager's list
+// is the same card layout, but tapping a SUBMITTED/APPROVED session routes
+// into the approval view (§8.1 row 11 mobile) instead of the execution flow.
 export default function StockCountsListPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  if (role === 'STORE_MANAGER') {
+    return <StockCountsManagerDispatch />;
+  }
+  return <StockCountsList isManager={false} />;
+}
+
+// STORE_MANAGER's dual shell mounts both the desktop sidebar copy and the
+// CSS-hidden mobile copy simultaneously — see lib/shell-context.tsx.
+function StockCountsManagerDispatch(): JSX.Element {
+  const isDesktop = useIsDesktopShell();
+  if (isDesktop) return <StockCountsDesktop />;
+  return <StockCountsList isManager />;
+}
+
+function StockCountsList({ isManager }: { isManager: boolean }): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
@@ -63,7 +83,11 @@ export default function StockCountsListPage(): JSX.Element {
           <EmptyState
             icon={<ClipboardCheck size={40} />}
             heading="No count sessions yet"
-            body="Your manager creates a count session — it will appear here for you to execute."
+            body={
+              isManager
+                ? 'Create a count session from the desktop app to get started.'
+                : 'Your manager creates a count session — it will appear here for you to execute.'
+            }
           />
         ) : (
           <div className="space-y-3">

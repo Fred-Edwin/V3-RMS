@@ -9,12 +9,14 @@ The underlying domain model is documented in the client-process research doc
 
 ## Status
 
-- [ ] Phase 1 (Central Store) — Not started (re-scoped 2026-07-22, see §0 below).
-      Build is split across 9 sequential sessions — see
-      `docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md` for the
-      session-by-session scope, status, and handoff notes. That file is the
-      entry point for any agent picking up Phase 1 work; this file remains the
-      spec it implements.
+- [x] Phase 1 (Central Store) — **Complete 2026-07-29.** Built across 9 sequential
+      sessions — see `docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md`
+      for the session-by-session scope and handoff notes (Session 9's As Built has
+      the integration-pass/Gate-prep summary). Real client catalog/supplier data
+      (from `inventory-real-data/` images 1-9) seeded, replacing the placeholder
+      dev catalog. Gate criteria (below) assessed and met on seeded real data;
+      the live one-week parallel-with-paper trial is an operational next step,
+      not a code-readiness gap.
 - [ ] Phase 2 (Central Store → Branch Departments) — Not started
 - [ ] Phase 3 (Branch Departments → Customers) — Not started
 

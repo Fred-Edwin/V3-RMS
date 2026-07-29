@@ -8,8 +8,10 @@ import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { createWasteLog, getCentralStoreLocation, listInventoryItems } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
+import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
 import type { InventoryItem, WasteReason } from '@/types/inventory';
+import { WasteLogDesktop } from './WasteLogDesktop';
 
 const REASONS: { value: WasteReason; label: string; icon: React.ElementType }[] = [
   { value: 'SPOILED', label: 'Spoiled', icon: AlertCircle },
@@ -19,7 +21,23 @@ const REASONS: { value: WasteReason; label: string; icon: React.ElementType }[] 
   { value: 'OTHER', label: 'Other', icon: HelpCircle },
 ];
 
+// §8.1 row 12: "Manager can log waste same as Attendant... but reviewing
+// the full log is a desktop task" — mobile entry is the shared Attendant
+// screen. Bug found in Session 8 verification: this dispatcher previously
+// routed STORE_MANAGER unconditionally to WasteLogDesktop, which
+// self-guards to null on the mobile shell — leaving Manager's mobile Waste
+// screen completely blank. Fixed by checking shell context for Manager
+// instead of assuming desktop.
 export default function WasteLogEntryPage(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  const isDesktop = useIsDesktopShell();
+  if (role === 'STORE_MANAGER' && isDesktop) {
+    return <WasteLogDesktop />;
+  }
+  return <WasteLogEntryAttendant />;
+}
+
+function WasteLogEntryAttendant(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
