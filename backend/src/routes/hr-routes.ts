@@ -20,6 +20,7 @@ const HR_AND_MANAGER = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER'] as 
 const ALL_STAFF = [
   'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER',
   'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING',
+  'STORE_MANAGER', 'STORE_ATTENDANT',
 ] as const;
 
 // ─── Employee Profiles ────────────────────────────────────────────────────────

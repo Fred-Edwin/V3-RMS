@@ -24,7 +24,10 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { ApiError } from '@/types/api';
 
-type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT' | 'HR_MANAGER'>;
+type AdminUserRole = Extract<
+  AppRole,
+  'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STORE_MANAGER' | 'STORE_ATTENDANT'
+>;
 
 type BranchRow = Record<string, unknown> & {
   id: string;
@@ -281,8 +284,12 @@ export default function Page(): JSX.Element {
     event.preventDefault();
     if (!accessToken) return;
 
-    if (userForm.role === 'MANAGER' && !userForm.organizationId) {
-      toast({ variant: 'warning', title: 'Branch required', message: 'Select a branch before creating a manager.' });
+    const requiresBranch =
+      userForm.role === 'MANAGER' ||
+      userForm.role === 'STORE_MANAGER' ||
+      userForm.role === 'STORE_ATTENDANT';
+    if (requiresBranch && !userForm.organizationId) {
+      toast({ variant: 'warning', title: 'Branch required', message: 'Select a branch before creating this user.' });
       return;
     }
 
@@ -294,8 +301,13 @@ export default function Page(): JSX.Element {
           email: userForm.email.trim(),
           phone: userForm.phone.trim() || undefined,
           role: userForm.role,
-          // Only branch managers are scoped to a branch; all other roles are system-wide
-          organizationId: userForm.role === 'MANAGER' ? userForm.organizationId : undefined,
+          // Branch managers and Store roles are scoped to a branch; all other roles are system-wide
+          organizationId:
+            userForm.role === 'MANAGER' ||
+            userForm.role === 'STORE_MANAGER' ||
+            userForm.role === 'STORE_ATTENDANT'
+              ? userForm.organizationId
+              : undefined,
           temporaryPassword: userForm.temporaryPassword,
         },
         accessToken,
@@ -829,10 +841,14 @@ export default function Page(): JSX.Element {
                 { value: 'DIRECTOR', label: 'Director' },
                 { value: 'ACCOUNTANT', label: 'Accountant' },
                 { value: 'HR_MANAGER', label: 'HR Manager' },
+                { value: 'STORE_MANAGER', label: 'Store Manager' },
+                { value: 'STORE_ATTENDANT', label: 'Store Attendant' },
               ]}
             />
           </FormField>
-          {userForm.role === 'MANAGER' ? (
+          {userForm.role === 'MANAGER' ||
+          userForm.role === 'STORE_MANAGER' ||
+          userForm.role === 'STORE_ATTENDANT' ? (
             <FormField label="Assign to Branch" htmlFor="user-branch" required>
               <Select
                 id="user-branch"

@@ -32,9 +32,11 @@ const ROLE_LABELS: Record<string, string> = {
   WAITER: 'Waiter',
   CHEF: 'Chef',
   BARISTA: 'Barista',
+  STORE_MANAGER: 'Store Manager',
+  STORE_ATTENDANT: 'Store Attendant',
 };
 
-const ALLOWED_ROLES = new Set(['DIRECTOR', 'MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA']);
+const ALLOWED_ROLES = new Set(['DIRECTOR', 'MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'STORE_MANAGER', 'STORE_ATTENDANT']);
 
 export function IssueNoticeModal({ isOpen, onClose, onIssued }: Props) {
   const accessToken = useAuthStore((s) => s.accessToken);

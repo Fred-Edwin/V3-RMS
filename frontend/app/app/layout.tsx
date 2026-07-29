@@ -235,6 +235,9 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
     ],
   },
   // Desktop is the primary shell for this role (usesDualShell below); this
@@ -256,6 +259,9 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
       { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
@@ -521,8 +527,19 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [{ label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart }],
     },
     {
+      label: 'Communications',
+      items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
+    },
+    {
+      label: 'Leave',
+      items: [{ label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff }],
+    },
+    {
       label: 'Account',
-      items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],
+      items: [
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
+        { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      ],
     },
   ],
 };

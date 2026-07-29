@@ -18,6 +18,8 @@ const branchStaffRoles: UserRole[] = [
   'BARISTA_DISPLAY',
   'STEWARD',
   'HOUSEKEEPING',
+  'STORE_MANAGER',
+  'STORE_ATTENDANT',
 ];
 
 const managerCreatableRoles: UserRole[] = [
@@ -28,6 +30,8 @@ const managerCreatableRoles: UserRole[] = [
   'BARISTA_DISPLAY',
   'STEWARD',
   'HOUSEKEEPING',
+  'STORE_MANAGER',
+  'STORE_ATTENDANT',
 ];
 
 interface StaffFiltersInput {
@@ -72,7 +76,7 @@ export const staffService = {
       // Cross-branch roles see all active human staff across all branches
       const results = await staffRepository.findMany({
         isActive: true,
-        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'],
+        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER', 'STORE_ATTENDANT'],
       });
       return results
         .filter((s) => s.id !== actor.id)
