@@ -12,6 +12,7 @@ import {
   Input,
   PageHeader,
   PageLayout,
+  StatCard,
   type ExcelColumn,
   type SelectOption,
   Select,
@@ -46,6 +47,16 @@ const formatKes = (value: number): string =>
 
 const orderTotal = (po: PurchaseOrder): number =>
   po.lines.reduce((sum, line) => sum + parseFloat(line.orderedQty) * parseFloat(line.unitPrice), 0);
+
+const OPEN_STATUSES: PurchaseOrderStatus[] = ['DRAFT', 'SENT', 'PARTIALLY_RECEIVED'];
+const AWAITING_RECEIPT_STATUSES: PurchaseOrderStatus[] = ['SENT', 'PARTIALLY_RECEIVED'];
+
+const daysOpen = (po: PurchaseOrder): number => {
+  const start = new Date(po.createdAt).getTime();
+  const now = Date.now();
+  if (!Number.isFinite(start) || start > now) return 0;
+  return Math.floor((now - start) / 86_400_000);
+};
 
 const STATUS_FILTERS: SelectOption[] = [
   { value: '', label: 'All Statuses' },
@@ -159,6 +170,13 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((po) => ({ po }));
   }, [orders, search, statusFilter]);
+
+  const openOrders = useMemo(() => orders.filter((po) => OPEN_STATUSES.includes(po.status)), [orders]);
+  const committedTotal = useMemo(() => openOrders.reduce((sum, po) => sum + orderTotal(po), 0), [openOrders]);
+  const awaitingReceiptCount = useMemo(
+    () => orders.filter((po) => AWAITING_RECEIPT_STATUSES.includes(po.status)).length,
+    [orders],
+  );
 
   const handleSend = async () => {
     if (!accessToken || !selectedPo) return;
@@ -318,6 +336,17 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
     { key: 'lines', label: 'Lines', numeric: true, render: (row) => row.po.lines.length },
     { key: 'total', label: 'Total', numeric: true, render: (row) => <span className="font-semibold">{formatKes(orderTotal(row.po))}</span> },
     { key: 'createdAt', label: 'Date', render: (row) => formatDate(row.po.createdAt) },
+    {
+      key: 'daysOpen',
+      label: 'Days Open',
+      numeric: true,
+      render: (row) =>
+        OPEN_STATUSES.includes(row.po.status) ? (
+          <span className={cn('font-medium', daysOpen(row.po) > 7 && 'text-danger')}>{daysOpen(row.po)}</span>
+        ) : (
+          <span className="text-stone-400">—</span>
+        ),
+    },
   ];
 
   const isDiscrepant = (line: PurchaseOrder['lines'][number], draft: DraftLine): boolean => {
@@ -346,14 +375,19 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
         ]}
         active={activeTab}
         onChange={setActiveTab}
-        variant="segmented"
-        className="mb-4"
+        className="mb-5"
       />
 
       {activeTab === 'invoices' ? (
         <SupplierInvoicesAP mode="desktop" />
       ) : (
         <>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Open Orders" value={openOrders.length} />
+        <StatCard label="Awaiting Receipt" value={awaitingReceiptCount} />
+        <StatCard label="Total Committed" value={formatKes(committedTotal)} />
+      </div>
+
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-56">
@@ -490,6 +524,22 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
                 </>
               ) : selectedPo.status === 'DRAFT' || selectedPo.status === 'CANCELLED' || selectedPo.status === 'CLOSED' ? (
                 <>
+                  <div className="mb-5 grid grid-cols-3 gap-3">
+                    <div className="rounded-md border border-stone-100 bg-stone-50 p-3">
+                      <p className="text-label-sm text-stone-500">Total</p>
+                      <p className="mt-1 text-body-md font-bold tabular-nums text-stone-900">{formatKes(orderTotal(selectedPo))}</p>
+                    </div>
+                    <div className="rounded-md border border-stone-100 bg-stone-50 p-3">
+                      <p className="text-label-sm text-stone-500">Lines</p>
+                      <p className="mt-1 text-body-md font-bold tabular-nums text-stone-900">{selectedPo.lines.length}</p>
+                    </div>
+                    <div className="rounded-md border border-stone-100 bg-stone-50 p-3">
+                      <p className="text-label-sm text-stone-500">Days Open</p>
+                      <p className="mt-1 text-body-md font-bold tabular-nums text-stone-900">
+                        {OPEN_STATUSES.includes(selectedPo.status) ? daysOpen(selectedPo) : '—'}
+                      </p>
+                    </div>
+                  </div>
                   <p className="mb-2 text-label-sm font-semibold uppercase tracking-wide text-stone-500">Lines</p>
                   <ul className="divide-y divide-stone-100 rounded-md border border-stone-100">
                     {selectedPo.lines.map((line) => {

@@ -488,6 +488,40 @@ build` clean in `frontend`. No Playwright/browser verification was run per
 owner instruction; live visual verification remains pending owner review.
 2026-07-30.
 
+**Follow-up design pass (2026-07-30) — Purchase Orders + Supplier Invoices
+layout refinement.** After the AP workbench above shipped, the owner asked
+for a second look specifically at layout quality on both Purchases tabs,
+prompted by live screenshots. Findings and fixes, agreed before
+implementation:
+
+- Purchase Orders tab read as an earlier, un-audited design generation next
+  to its own Supplier Invoices sibling tab — plain table, no summary
+  signal, no aging/urgency cue, and a bare bulleted line list in the detail
+  panel where Supplier Invoices already had a metric-grid treatment →
+  added a `StatCard` row (Open Orders / Awaiting Receipt / Total
+  Committed), a **Days Open** column for non-terminal POs (Draft/Sent/
+  Partially Received) with `text-danger` styling past 7 days open, and a
+  Total/Lines/Days-Open metric grid at the top of the Draft/Cancelled/
+  Closed detail panel — mirrors the Stock on Hand / Item Catalog / Supplier
+  Invoices stat-row convention and the existing `daysOutstanding`-style age
+  calc already used in AP.
+- Supplier Invoices' "Payment Age" panel restated the table's own "Days
+  Unpaid" column as three flat stacked boxes with no comparative context →
+  owner considered merging it into a single segmented bar under the
+  Outstanding stat card (tested, then reverted), and decided the aging
+  signal was better as its **own dedicated panel** in the right rail — kept
+  the panel, but redesigned each bucket as a horizontal bar (Badge label +
+  amount/count, proportional bar beneath) instead of a card each, so
+  relative weight between buckets reads at a glance. Totals by Supplier was
+  promoted above Payment Age in the right rail per the original critique
+  (more actionable — "who do I owe" vs. an aggregate already visible in the
+  table).
+
+**Verification:** `pnpm exec tsc --noEmit` clean; `pnpm build` clean in
+`frontend`. No backend changes. No Playwright/browser verification was run
+per owner instruction; live visual verification remains pending owner
+review.
+
 *(Template for future flows:)*
 
 ```

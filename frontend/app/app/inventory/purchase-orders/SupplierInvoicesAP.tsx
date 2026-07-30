@@ -96,14 +96,14 @@ const daysOutstanding = (invoice: SupplierInvoice): number => {
   return Math.floor((now - start) / 86_400_000);
 };
 
-const agingLabel = (days: number, status: InvoiceStatus): string => {
+const paymentAgeLabel = (days: number, status: InvoiceStatus): string => {
   if (status === 'PAID') return 'Settled';
   if (days <= 7) return '0-7 days';
   if (days <= 30) return '8-30 days';
   return '31+ days';
 };
 
-const agingTone = (days: number, status: InvoiceStatus): 'success' | 'warning' | 'danger' | 'neutral' => {
+const paymentAgeTone = (days: number, status: InvoiceStatus): 'success' | 'warning' | 'danger' | 'neutral' => {
   if (status === 'PAID') return 'success';
   if (days <= 7) return 'neutral';
   if (days <= 30) return 'warning';
@@ -234,7 +234,7 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
     return Array.from(grouped.values()).sort((a, b) => b.outstanding - a.outstanding);
   }, [invoices]);
 
-  const agingBuckets = useMemo(() => {
+  const paymentAgeBuckets = useMemo(() => {
     const buckets = [
       { label: '0-7 days', min: 0, max: 7, total: 0, count: 0, tone: 'neutral' as const },
       { label: '8-30 days', min: 8, max: 30, total: 0, count: 0, tone: 'warning' as const },
@@ -373,7 +373,7 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
       { key: 'status', label: 'Status', render: (row) => <Badge tone={invoiceStatusTone[row.invoice.status]}>{statusLabel(row.invoice.status)}</Badge> },
       {
         key: 'age',
-        label: 'Days Outstanding',
+        label: 'Days Unpaid',
         numeric: true,
         render: (row) => row.invoice.status === 'PAID' ? <span className="text-stone-500">Settled</span> : daysOutstanding(row.invoice),
       },
@@ -496,7 +496,7 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
                               <p className="text-label-sm font-medium text-success">Fully paid</p>
                             )}
                           </div>
-                          <Badge tone={agingTone(days, invoice.status)}>{agingLabel(days, invoice.status)}</Badge>
+                          <Badge tone={paymentAgeTone(days, invoice.status)}>{paymentAgeLabel(days, invoice.status)}</Badge>
                         </div>
                       </Card>
                     </button>
@@ -598,19 +598,34 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
         <div className="space-y-4">
           <Card className="p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-heading-sm font-semibold text-stone-900">Aging</h2>
-              <span className="text-label-sm text-stone-500">{openInvoiceCount} open</span>
+              <h2 className="text-heading-sm font-semibold text-stone-900">Payment Age</h2>
+              <span className="text-label-sm text-stone-500">{formatKes(totalOutstanding)} open</span>
             </div>
-            <div className="space-y-2.5">
-              {agingBuckets.map((bucket) => (
-                <div key={bucket.label} className="rounded-md border border-stone-100 bg-white p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <Badge tone={bucket.tone}>{bucket.label}</Badge>
-                    <span className="text-label-sm text-stone-500">{bucket.count} invoice{bucket.count === 1 ? '' : 's'}</span>
+            <div className="space-y-3">
+              {paymentAgeBuckets.map((bucket) => {
+                const pct = totalOutstanding > 0.005 ? (bucket.total / totalOutstanding) * 100 : 0;
+                return (
+                  <div key={bucket.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <Badge tone={bucket.tone}>{bucket.label}</Badge>
+                      <span className="text-label-sm tabular-nums text-stone-500">
+                        {formatKes(bucket.total)} · {bucket.count} invoice{bucket.count === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                      <div
+                        className={cn(
+                          'h-full rounded-full',
+                          bucket.tone === 'danger' && 'bg-danger',
+                          bucket.tone === 'warning' && 'bg-warning',
+                          bucket.tone === 'neutral' && 'bg-stone-400',
+                        )}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <p className="mt-2 text-heading-sm font-bold tabular-nums text-stone-900">{formatKes(bucket.total)}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
 
@@ -716,7 +731,7 @@ function InvoiceDetailBody({
         <DetailMetric label="Invoice Amount" value={formatKes(invoice.amount)} />
         <DetailMetric label="Paid" value={formatKes(invoice.amountPaid)} />
         <DetailMetric label="Outstanding" value={formatKes(outstanding)} tone={outstanding > 0.005 ? 'danger' : 'default'} />
-        <DetailMetric label="Age" value={agingLabel(days, invoice.status)} />
+        <DetailMetric label="Payment Age" value={paymentAgeLabel(days, invoice.status)} />
       </div>
 
       <div className="mt-5 rounded-md border border-stone-100">
