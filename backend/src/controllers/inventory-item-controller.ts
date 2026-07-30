@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { inventoryItemService } from '../services/inventory-item-service';
 import {
+  AdjustCostSchema,
   CreateInventoryItemSchema,
   InventoryIdParamSchema,
   LowStockQuerySchema,
@@ -56,6 +57,14 @@ export const inventoryItemController = {
     res.status(200).json({ success: true, data: item, message: 'Inventory item updated successfully' });
   },
 
+  adjustCost: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = InventoryIdParamSchema.parse(req.params);
+    const data = AdjustCostSchema.parse(req.body);
+    const item = await inventoryItemService.adjustCost(actor, id, data);
+    res.status(200).json({ success: true, data: item, message: 'Cost adjusted successfully' });
+  },
+
   deactivate: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = InventoryIdParamSchema.parse(req.params);
@@ -76,5 +85,12 @@ export const inventoryItemController = {
     const { locationId } = transactionsQuerySchema.parse(req.query);
     const transactions = await inventoryItemService.getTransactions(actor, id, locationId);
     res.status(200).json({ success: true, data: transactions });
+  },
+
+  getSuppliers: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = InventoryIdParamSchema.parse(req.params);
+    const suppliers = await inventoryItemService.getSuppliers(actor, id);
+    res.status(200).json({ success: true, data: suppliers });
   },
 };

@@ -38,28 +38,88 @@ export const inventoryReportRepository = {
     return new Map(rows.map((row) => [row.inventoryItemId, row._sum.quantity ?? new Prisma.Decimal(0)]));
   },
 
-  /** Price history for one item across its received PO lines, optionally filtered to one supplier. */
+  /**
+   * Price history for one item, optionally filtered to one supplier — sourced
+   * from the RECEIVE ledger (`InventoryTransaction`), not `PurchaseOrderLine`
+   * directly. Every PO receipt writes both rows, but ad-hoc/seeded receives
+   * (`inventoryTransactionService.recordReceive` called without a PO line —
+   * e.g. `seed-inventory-demo.ts`'s dated real-price history) only write the
+   * ledger row, so a PO-line-only query was silently blind to that data.
+   *
+   * Ad-hoc receives have no supplier attribution via their own PO (there
+   * isn't one) — but Phase 1 items are typically assigned to exactly one
+   * supplier via `SupplierItem`, and the caller (Suppliers' Items & Pricing
+   * list) only ever asks for this item's history *because* it's looking at
+   * that exact supplier-item relationship. So when `supplierId` is given,
+   * ad-hoc rows are included if-and-only-if that supplier is the one
+   * assigned to this item — not for any arbitrary supplier — so a
+   * multi-supplier item (if one ever exists) can't have its ad-hoc history
+   * wrongly attributed to whichever supplier happens to be asked about.
+   */
   findReceivedLinesForItem: async (
     organizationId: string,
     inventoryItemId: string,
     supplierId?: string,
   ) => {
-    return prisma.purchaseOrderLine.findMany({
+    const item = await prisma.inventoryItem.findFirst({
+      where: { id: inventoryItemId, organizationId },
+      select: { conversionFactor: true },
+    });
+    if (!item) return [];
+
+    let itemBelongsToSupplier = false;
+    if (supplierId) {
+      const assignment = await prisma.supplierItem.findFirst({
+        where: { organizationId, inventoryItemId, supplierId },
+        select: { id: true },
+      });
+      itemBelongsToSupplier = !!assignment;
+    }
+
+    const transactions = await prisma.inventoryTransaction.findMany({
       where: {
         organizationId,
         inventoryItemId,
-        receivedAt: { not: null },
-        purchaseOrder: supplierId ? { supplierId } : undefined,
+        type: 'RECEIVE',
+        ...(supplierId
+          ? {
+              OR: [
+                { purchaseOrderLine: { purchaseOrder: { supplierId } } },
+                ...(itemBelongsToSupplier ? [{ purchaseOrderLineId: null }] : []),
+              ],
+            }
+          : {}),
       },
       select: {
         id: true,
-        invoicePrice: true,
-        unitPrice: true,
-        receivedQty: true,
-        receivedAt: true,
-        purchaseOrder: { select: { id: true, poNumber: true, supplierId: true, supplier: { select: { name: true } } } },
+        unitCost: true,
+        quantity: true,
+        createdAt: true,
+        purchaseOrderLine: {
+          select: {
+            id: true,
+            invoicePrice: true,
+            purchaseOrder: { select: { id: true, poNumber: true, supplierId: true, supplier: { select: { name: true } } } },
+          },
+        },
       },
-      orderBy: { receivedAt: 'asc' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return transactions.map((tx) => {
+      // unitCost is per usage unit (e.g. per gram); convert to buy-unit so
+      // ad-hoc-receive rows land in the same unit as PO-line invoicePrice/
+      // unitPrice, which are natively buy-unit — otherwise the series would
+      // jump discontinuously between the two kinds of row.
+      const buyUnitPrice = tx.unitCost.mul(item.conversionFactor);
+      return {
+        id: tx.purchaseOrderLine?.id ?? tx.id,
+        unitPrice: buyUnitPrice,
+        invoicePrice: tx.purchaseOrderLine?.invoicePrice ?? null,
+        receivedQty: tx.quantity,
+        receivedAt: tx.createdAt,
+        purchaseOrder: tx.purchaseOrderLine?.purchaseOrder ?? null,
+      };
     });
   },
 

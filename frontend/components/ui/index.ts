@@ -54,6 +54,7 @@ export { IconTile } from './IconTile'
 export { Modal } from './Modal'
 export { BottomSheet } from './BottomSheet'
 export { Popover } from './Popover'
+export { HelpTip } from './HelpTip'
 export { ConfirmDialog } from './ConfirmDialog'
 
 // Wave 8 — Toast

@@ -1,4 +1,4 @@
-import { forwardRef, useId } from 'react'
+import { forwardRef, useId, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -32,6 +32,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const id = providedId ?? generatedId
     const hasError = !!errorMessage
 
+    // rightIcon can be an arbitrary-width label (e.g. a unit suffix like
+    // "pouch (500g)"), not just a small icon glyph — a fixed pr-10 overlaps
+    // long labels with the input's own value. Measure it and reserve exactly
+    // that much space instead.
+    const rightIconRef = useRef<HTMLSpanElement>(null)
+    const [rightIconWidth, setRightIconWidth] = useState(0)
+    useLayoutEffect(() => {
+      if (!rightIcon || !rightIconRef.current) {
+        setRightIconWidth(0)
+        return
+      }
+      setRightIconWidth(rightIconRef.current.offsetWidth)
+    }, [rightIcon])
+
     const inputBase = cn(
       'w-full h-11 bg-parchment border-[1.5px] rounded-sm text-body-md font-sans text-stone-900 placeholder:text-stone-400 transition-colors duration-fast',
       'focus:outline-none focus:shadow-focus',
@@ -40,7 +54,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         : 'border-stone-200 focus:border-espresso',
       disabled && 'bg-stone-100 opacity-50 cursor-not-allowed',
       leftIcon ? 'pl-10' : prefix ? 'pl-3' : 'px-3',
-      rightIcon ? 'pr-10' : 'pr-3',
+      !rightIcon && 'pr-3',
       inputClassName
     )
 
@@ -80,12 +94,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                   ? `${id}-helper`
                   : undefined
             }
-            className={cn(inputBase, prefix && 'pl-[calc(theme(spacing.3)*2+4ch)]')}
+            className={cn(inputBase)}
+            style={rightIcon ? { paddingRight: rightIconWidth ? rightIconWidth + 20 : 40 } : undefined}
             {...props}
           />
 
           {rightIcon && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+            <span
+              ref={rightIconRef}
+              className="absolute right-3 top-1/2 -translate-y-1/2 whitespace-nowrap text-stone-400 pointer-events-none"
+            >
               {rightIcon}
             </span>
           )}

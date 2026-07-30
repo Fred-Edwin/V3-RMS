@@ -1,11 +1,13 @@
 import type { Request } from 'express';
-import { Prisma, type InventoryItem, type InventoryTransaction } from '@prisma/client';
+import { Prisma, type InventoryItem, type InventoryTransaction, type SupplierItem } from '@prisma/client';
+import { prisma } from '../config/database';
 import { inventoryItemRepository } from '../repositories/inventory-item-repository';
 import { supplierRepository } from '../repositories/supplier-repository';
 import { inventoryTransactionRepository } from '../repositories/inventory-transaction-repository';
 import { inventoryReportRepository } from '../repositories/inventory-report-repository';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import type {
+  AdjustCostInput,
   CreateInventoryItemInput,
   UpdateInventoryItemInput,
 } from '../validators/inventory-item-schemas';
@@ -32,18 +34,19 @@ export const inventoryItemService = {
     actor: Actor,
     isActive?: boolean,
     locationId?: string,
-  ): Promise<(InventoryItem & { onHandQty?: string })[]> => {
+  ): Promise<(InventoryItem & { onHandQty?: string; lastReceivedUnitCost?: string })[]> => {
     const organizationId = requireOrganization(actor);
     const items = await inventoryItemRepository.findAllByOrganization(organizationId, { isActive });
     if (!locationId) return items;
 
-    const onHandByItemId = await inventoryReportRepository.sumQuantityByItemGrouped(
-      organizationId,
-      locationId,
-    );
+    const [onHandByItemId, lastReceivedByItemId] = await Promise.all([
+      inventoryReportRepository.sumQuantityByItemGrouped(organizationId, locationId),
+      inventoryTransactionRepository.findLatestReceiveUnitCostByItemGrouped(organizationId),
+    ]);
     return items.map((item) => ({
       ...item,
       onHandQty: (onHandByItemId.get(item.id) ?? new Prisma.Decimal(0)).toString(),
+      lastReceivedUnitCost: lastReceivedByItemId.get(item.id)?.toString(),
     }));
   },
 
@@ -124,6 +127,46 @@ export const inventoryItemService = {
   },
 
   /**
+   * Manual cost override — Manager-only (route-gated). The weighted-average
+   * currentCost can drift from reality (a supplier's real current price, a
+   * data-entry mistake in an old receipt) with no way to correct it short
+   * of fabricating a fake receive. This sets currentCost directly rather
+   * than blending it, and posts a zero-quantity ADJUSTMENT transaction
+   * carrying the required reason — an audit trail entry, not a silent
+   * overwrite, following the same InventoryTransaction-as-audit-log pattern
+   * as Stock Count adjustments and receiving reversals.
+   */
+  adjustCost: async (actor: Actor, itemId: string, input: AdjustCostInput): Promise<InventoryItem> => {
+    const organizationId = requireOrganization(actor);
+    const item = await inventoryItemRepository.findById(itemId, organizationId);
+    if (!item) {
+      throw new NotFoundError('Inventory item not found');
+    }
+
+    const newBuyUnitCost = new Prisma.Decimal(input.newBuyUnitCost);
+    const newUsageUnitCost = newBuyUnitCost.div(item.conversionFactor);
+
+    await prisma.$transaction(async (tx) => {
+      await inventoryItemRepository.updateCurrentCost(itemId, organizationId, newUsageUnitCost, tx);
+      await inventoryTransactionRepository.create(
+        {
+          organizationId,
+          locationId: input.locationId,
+          inventoryItemId: itemId,
+          type: 'ADJUSTMENT',
+          quantity: new Prisma.Decimal(0),
+          unitCost: newUsageUnitCost,
+          userId: actor.id,
+          reason: `Cost adjustment: ${input.reason}`,
+        },
+        tx,
+      );
+    });
+
+    return inventoryItemService.getById(actor, itemId);
+  },
+
+  /**
    * Movement history (the full ledger slice) for one item at one location —
    * powers Stock on Hand's side-panel drill-in (§8.1 row 1). Reuses Session
    * 2's `findByItemAndLocation`, newest first (that repository method
@@ -145,5 +188,23 @@ export const inventoryItemService = {
       locationId,
     );
     return [...transactions].reverse();
+  },
+
+  /**
+   * Every supplier currently assigned to this item (Item Catalog's Default
+   * Supplier control needs this to know the current default when editing an
+   * *existing* item, not just at creation — the field was previously
+   * create-only because there was no read path for it).
+   */
+  getSuppliers: async (
+    actor: Actor,
+    itemId: string,
+  ): Promise<(SupplierItem & { supplier: { id: string; name: string } })[]> => {
+    const organizationId = requireOrganization(actor);
+    const item = await inventoryItemRepository.findById(itemId, organizationId);
+    if (!item) {
+      throw new NotFoundError('Inventory item not found');
+    }
+    return supplierRepository.findSuppliersForItem(itemId, organizationId);
   },
 };

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../config/database';
 import { purchaseOrderRepository } from '../repositories/purchase-order-repository';
 import { inventoryItemRepository } from '../repositories/inventory-item-repository';
+import { inventoryTransactionRepository } from '../repositories/inventory-transaction-repository';
 import { supplierRepository } from '../repositories/supplier-repository';
 import { inventoryTransactionService } from './inventory-transaction-service';
 import { purchaseOrderService } from './purchase-order-service';
@@ -20,6 +21,15 @@ vi.mock('../repositories/purchase-order-repository', () => ({
     transitionStatus: vi.fn(),
     updateLineReceipt: vi.fn(),
     findLineById: vi.fn(),
+    replaceLines: vi.fn(),
+    resetLineReceipt: vi.fn(),
+  },
+}));
+
+vi.mock('../repositories/inventory-transaction-repository', () => ({
+  inventoryTransactionRepository: {
+    create: vi.fn(),
+    findLatestReceiveByPurchaseOrderLine: vi.fn(),
   },
 }));
 
@@ -275,5 +285,151 @@ describe('purchaseOrderService.create', () => {
         lines: [{ inventoryItemId: itemId, orderedQty: '10', unitPrice: '300' }],
       }),
     ).rejects.toThrow('supplierId does not reference a known supplier');
+  });
+});
+
+describe('purchaseOrderService.updateLines', () => {
+  it('replaces a DRAFT order\'s lines', async () => {
+    vi.mocked(purchaseOrderRepository.findById)
+      .mockResolvedValueOnce(buildPo({ status: 'DRAFT' }) as never)
+      .mockResolvedValueOnce(buildPo({ status: 'DRAFT' }) as never);
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue({ id: itemId } as never);
+    vi.mocked(purchaseOrderRepository.replaceLines).mockResolvedValue(undefined);
+
+    await purchaseOrderService.updateLines(actor, poId, {
+      lines: [{ inventoryItemId: itemId, orderedQty: '20', unitPrice: '305' }],
+    });
+
+    expect(purchaseOrderRepository.replaceLines).toHaveBeenCalledWith(
+      poId,
+      organizationId,
+      [{ inventoryItemId: itemId, orderedQty: '20', unitPrice: '305' }],
+      prisma,
+    );
+  });
+
+  it('rejects editing lines on a non-DRAFT order (409)', async () => {
+    vi.mocked(purchaseOrderRepository.findById).mockResolvedValue(buildPo({ status: 'SENT' }) as never);
+
+    await expect(
+      purchaseOrderService.updateLines(actor, poId, {
+        lines: [{ inventoryItemId: itemId, orderedQty: '20', unitPrice: '305' }],
+      }),
+    ).rejects.toThrow(ConflictError);
+    expect(purchaseOrderRepository.replaceLines).not.toHaveBeenCalled();
+  });
+});
+
+describe('purchaseOrderService.unsend', () => {
+  it('transitions SENT -> DRAFT', async () => {
+    vi.mocked(purchaseOrderRepository.transitionStatus).mockResolvedValue(true);
+    vi.mocked(purchaseOrderRepository.findById).mockResolvedValue(buildPo({ status: 'DRAFT' }) as never);
+
+    const result = await purchaseOrderService.unsend(actor, poId);
+
+    expect(purchaseOrderRepository.transitionStatus).toHaveBeenCalledWith(
+      poId,
+      organizationId,
+      ['SENT'],
+      'DRAFT',
+      { sentAt: null },
+    );
+    expect(result.status).toBe('DRAFT');
+  });
+
+  it('rejects unsending a PARTIALLY_RECEIVED order with a message pointing at reversing receipts first', async () => {
+    vi.mocked(purchaseOrderRepository.transitionStatus).mockResolvedValue(false);
+    vi.mocked(purchaseOrderRepository.findById).mockResolvedValue(
+      buildPo({ status: 'PARTIALLY_RECEIVED' }) as never,
+    );
+
+    await expect(purchaseOrderService.unsend(actor, poId)).rejects.toThrow(
+      'reverse those receipts before unsending',
+    );
+  });
+});
+
+describe('purchaseOrderService.reverseLineReceipt', () => {
+  it('posts an offsetting ADJUSTMENT at the reversed receipt\'s own price and resets the line', async () => {
+    const receivedLine = buildPoLine({ receivedQty: d(5), invoicePrice: d(310), receivedAt: new Date() });
+    vi.mocked(purchaseOrderRepository.findById)
+      .mockResolvedValueOnce(buildPo({ status: 'PARTIALLY_RECEIVED', lines: [receivedLine] }) as never)
+      .mockResolvedValueOnce(buildPo({ status: 'SENT', lines: [buildPoLine()] }) as never)
+      .mockResolvedValueOnce(buildPo({ status: 'SENT', lines: [buildPoLine()] }) as never);
+    vi.mocked(inventoryTransactionRepository.findLatestReceiveByPurchaseOrderLine).mockResolvedValue({
+      id: '99999999-9999-4999-8999-999999999999',
+      organizationId,
+      locationId,
+      inventoryItemId: itemId,
+      type: 'RECEIVE',
+      quantity: d(5000),
+      unitCost: d(0.31),
+      userId,
+      reason: null,
+      purchaseOrderLineId: lineId,
+      prepRecordId: null,
+      wasteLogId: null,
+      stockCountLineId: null,
+      createdAt: new Date(),
+    } as never);
+    vi.mocked(inventoryTransactionRepository.create).mockResolvedValue({} as never);
+    vi.mocked(purchaseOrderRepository.resetLineReceipt).mockResolvedValue(undefined);
+    vi.mocked(purchaseOrderRepository.transitionStatus).mockResolvedValue(true);
+
+    const result = await purchaseOrderService.reverseLineReceipt(actor, poId, lineId);
+
+    expect(inventoryTransactionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        locationId,
+        inventoryItemId: itemId,
+        type: 'ADJUSTMENT',
+        unitCost: d(0.31),
+        purchaseOrderLineId: lineId,
+      }),
+      prisma,
+    );
+    // Reversal quantity must be the negation of the original receive quantity.
+    const calls = vi.mocked(inventoryTransactionRepository.create).mock.calls;
+    const adjustmentArg = calls[0]?.[0];
+    expect((adjustmentArg as { quantity: Prisma.Decimal }).quantity.toString()).toBe(d(-5000).toString());
+
+    expect(purchaseOrderRepository.resetLineReceipt).toHaveBeenCalledWith(lineId, organizationId, prisma);
+    expect(result.status).toBe('SENT');
+  });
+
+  it('drops back to SENT (not PARTIALLY_RECEIVED) when the reversed line was the only one received', async () => {
+    const receivedLine = buildPoLine({ receivedQty: d(5), invoicePrice: d(310), receivedAt: new Date() });
+    vi.mocked(purchaseOrderRepository.findById)
+      .mockResolvedValueOnce(buildPo({ status: 'PARTIALLY_RECEIVED', lines: [receivedLine] }) as never)
+      .mockResolvedValueOnce(buildPo({ status: 'PARTIALLY_RECEIVED', lines: [buildPoLine({ receivedQty: d(0) })] }) as never)
+      .mockResolvedValueOnce(buildPo({ status: 'SENT', lines: [buildPoLine()] }) as never);
+    vi.mocked(inventoryTransactionRepository.findLatestReceiveByPurchaseOrderLine).mockResolvedValue({
+      quantity: d(5000),
+      unitCost: d(0.31),
+    } as never);
+    vi.mocked(inventoryTransactionRepository.create).mockResolvedValue({} as never);
+    vi.mocked(purchaseOrderRepository.resetLineReceipt).mockResolvedValue(undefined);
+    vi.mocked(purchaseOrderRepository.transitionStatus).mockResolvedValue(true);
+
+    await purchaseOrderService.reverseLineReceipt(actor, poId, lineId);
+
+    expect(purchaseOrderRepository.transitionStatus).toHaveBeenCalledWith(
+      poId,
+      organizationId,
+      ['SENT', 'PARTIALLY_RECEIVED', 'CLOSED'],
+      'SENT',
+      {},
+      prisma,
+    );
+  });
+
+  it('rejects reversing a line that has not been received (409)', async () => {
+    vi.mocked(purchaseOrderRepository.findById).mockResolvedValue(
+      buildPo({ status: 'SENT', lines: [buildPoLine({ receivedQty: d(0) })] }) as never,
+    );
+
+    await expect(purchaseOrderService.reverseLineReceipt(actor, poId, lineId)).rejects.toThrow(ConflictError);
+    expect(inventoryTransactionRepository.create).not.toHaveBeenCalled();
   });
 });

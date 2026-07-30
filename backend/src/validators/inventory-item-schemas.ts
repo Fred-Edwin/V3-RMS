@@ -50,5 +50,20 @@ export const LowStockQuerySchema = z.object({
   locationId: z.string().uuid('locationId must be a valid UUID'),
 });
 
+/**
+ * Manual cost override — `newBuyUnitCost` is entered in buy-unit terms (how
+ * a Manager thinks about price, e.g. "Ksh 330 per pouch") and converted to a
+ * per-usage-unit currentCost in the service, matching how currentCost is
+ * stored (D-7). Requires a reason so the resulting ADJUSTMENT transaction
+ * (quantity 0, reason recorded) is a proper audit trail, not a silent
+ * overwrite of the weighted-average result.
+ */
+export const AdjustCostSchema = z.object({
+  newBuyUnitCost: nonNegativeQuantitySchema,
+  reason: z.string().trim().min(1, 'A reason is required').max(500),
+  locationId: z.string().uuid('locationId must be a valid UUID'),
+});
+
 export type CreateInventoryItemInput = z.infer<typeof CreateInventoryItemSchema>;
 export type UpdateInventoryItemInput = z.infer<typeof UpdateInventoryItemSchema>;
+export type AdjustCostInput = z.infer<typeof AdjustCostSchema>;

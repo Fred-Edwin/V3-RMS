@@ -88,6 +88,17 @@ export async function deactivateInventoryItem(id: string, token: string): Promis
   return apiClient.delete<InventoryItem>(`/inventory-items/${id}`, token);
 }
 
+/** Manual cost override — Manager-only. `newBuyUnitCost` is entered in buy-unit terms
+ * (e.g. Ksh 350 per pouch); the backend converts to a per-usage-unit currentCost. Posts
+ * an auditable zero-qty ADJUSTMENT transaction carrying the reason, not a silent overwrite. */
+export async function adjustInventoryItemCost(
+  id: string,
+  input: { newBuyUnitCost: string; reason: string; locationId: string },
+  token: string,
+): Promise<InventoryItem> {
+  return apiClient.post<InventoryItem>(`/inventory-items/${id}/adjust-cost`, input, token);
+}
+
 /** Movement history (full ledger slice) for one item at one location — Stock on Hand's side panel. */
 export async function getInventoryItemTransactions(
   id: string,
@@ -98,6 +109,10 @@ export async function getInventoryItemTransactions(
     `/inventory-items/${id}/transactions?locationId=${locationId}`,
     token,
   );
+}
+
+export async function getInventoryItemSuppliers(id: string, token: string): Promise<SupplierItem[]> {
+  return apiClient.get<SupplierItem[]>(`/inventory-items/${id}/suppliers`, token);
 }
 
 // ─── Suppliers ──────────────────────────────────────────────────────────────
@@ -186,14 +201,41 @@ export async function receivePurchaseOrderLine(
   );
 }
 
+/** Edit a DRAFT PO's lines — Manager-only. Rejected by the backend once the order has left DRAFT. */
+export async function updatePurchaseOrderLines(
+  id: string,
+  lines: CreatePurchaseOrderInput['lines'],
+  token: string,
+): Promise<PurchaseOrder> {
+  return apiClient.patch<PurchaseOrder>(`/purchase-orders/${id}/lines`, { lines }, token);
+}
+
 /** Send a DRAFT PO to the supplier — Manager-only (§8.3). */
 export async function sendPurchaseOrder(id: string, token: string): Promise<PurchaseOrder> {
   return apiClient.post<PurchaseOrder>(`/purchase-orders/${id}/send`, {}, token);
 }
 
+/** Pull a SENT PO back to DRAFT — Manager-only. Rejected once any line has been received. */
+export async function unsendPurchaseOrder(id: string, token: string): Promise<PurchaseOrder> {
+  return apiClient.post<PurchaseOrder>(`/purchase-orders/${id}/unsend`, {}, token);
+}
+
 /** Cancel a PO — Manager-only (§8.3). */
 export async function cancelPurchaseOrder(id: string, token: string): Promise<PurchaseOrder> {
   return apiClient.post<PurchaseOrder>(`/purchase-orders/${id}/cancel`, {}, token);
+}
+
+/** Reverse a mistaken receiving confirm on one line — Manager-only. Posts an offsetting ledger adjustment. */
+export async function reversePurchaseOrderLineReceipt(
+  purchaseOrderId: string,
+  lineId: string,
+  token: string,
+): Promise<PurchaseOrder> {
+  return apiClient.post<PurchaseOrder>(
+    `/purchase-orders/${purchaseOrderId}/lines/${lineId}/reverse-receipt`,
+    {},
+    token,
+  );
 }
 
 /** Low-stock-driven prefill suggestion for a new PO — targets 2x reorder level. */

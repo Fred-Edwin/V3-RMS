@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Plus, Search, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Banknote, Plus, Search, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -10,20 +10,26 @@ import {
   EmptyState,
   ExcelTable,
   FormField,
+  HelpTip,
   IconButton,
-  IconTile,
   Input,
+  Modal,
   PageHeader,
   PageLayout,
   Select,
+  StatCard,
   Toggle,
   type ExcelColumn,
   type SelectOption,
 } from '@/components/ui';
-import { itemTypeLabel, resolveItemIcon } from '@/components/inventory/item-type-icon';
+import { itemTypeLabel } from '@/components/inventory/item-type-icon';
 import {
+  adjustInventoryItemCost,
+  assignSupplierItem,
   createInventoryItem,
   deactivateInventoryItem,
+  getCentralStoreLocation,
+  getInventoryItemSuppliers,
   listInventoryItems,
   listSuppliers,
   updateInventoryItem,
@@ -32,6 +38,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
+import { buyUnitCostValue, formatBuyUnitCost } from '@/lib/inventory-format';
 import type {
   CreateInventoryItemInput,
   DepartmentTag,
@@ -110,30 +117,52 @@ export default function ItemCatalogPage(): JSX.Element {
   return <ItemCatalogMobile />;
 }
 
+type CatalogTypeFilter = 'ALL' | InventoryItemType;
+type CatalogDepartmentFilter = 'ALL' | DepartmentTag;
+
+const CATALOG_TYPE_FILTERS: { value: CatalogTypeFilter; label: string }[] = [
+  { value: 'ALL', label: 'All Types' },
+  { value: 'RAW', label: 'Raw Ingredient' },
+  { value: 'PREPPED', label: 'Prepped' },
+  { value: 'PASS_THROUGH', label: 'Pass-Through' },
+];
+
 function ItemCatalogPageInner(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
 
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [locationId, setLocationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<CatalogTypeFilter>('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState<CatalogDepartmentFilter>('ALL');
+  const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [panelItem, setPanelItem] = useState<InventoryItem | 'new' | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [originalDefaultSupplierId, setOriginalDefaultSupplierId] = useState<string>('');
 
   const [deactivateTarget, setDeactivateTarget] = useState<InventoryItem | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
+
+  const [adjustCostTarget, setAdjustCostTarget] = useState<InventoryItem | null>(null);
+  const [adjustCostForm, setAdjustCostForm] = useState({ newBuyUnitCost: '', reason: '' });
+  const [isSavingCostAdjustment, setIsSavingCostAdjustment] = useState(false);
+  const [adjustCostError, setAdjustCostError] = useState<string | undefined>();
 
   const load = useCallback(async () => {
     if (!accessToken) return;
     setIsLoading(true);
     try {
+      const location = await getCentralStoreLocation(accessToken);
+      setLocationId(location?.id ?? null);
       const [itemResult, supplierResult] = await Promise.all([
-        listInventoryItems(accessToken, {}),
+        listInventoryItems(accessToken, location ? { locationId: location.id } : {}),
         listSuppliers(accessToken, true),
       ]);
       setItems(itemResult);
@@ -153,10 +182,23 @@ function ItemCatalogPageInner(): JSX.Element {
     const q = search.trim().toLowerCase();
     return items
       .filter((item) => showInactive || item.isActive)
+      .filter((item) => typeFilter === 'ALL' || item.type === typeFilter)
+      .filter((item) => departmentFilter === 'ALL' || item.departmentTags.includes(departmentFilter))
+      .filter((item) => !lowStockOnly || parseFloat(item.onHandQty ?? '0') <= parseFloat(item.reorderLevel))
       .filter((item) => !q || item.name.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((item) => ({ item }));
-  }, [items, search, showInactive]);
+  }, [items, search, showInactive, typeFilter, departmentFilter, lowStockOnly]);
+
+  const activeItems = useMemo(() => items.filter((i) => i.isActive), [items]);
+  const totalCatalogValue = useMemo(
+    () => activeItems.reduce((sum, item) => sum + parseFloat(item.onHandQty ?? '0') * parseFloat(item.currentCost), 0),
+    [activeItems],
+  );
+  const lowStockCount = useMemo(
+    () => activeItems.filter((item) => parseFloat(item.onHandQty ?? '0') <= parseFloat(item.reorderLevel)).length,
+    [activeItems],
+  );
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -164,10 +206,22 @@ function ItemCatalogPageInner(): JSX.Element {
     setPanelItem('new');
   };
 
-  const openEdit = (item: InventoryItem) => {
+  const openEdit = async (item: InventoryItem) => {
     setForm(toFormState(item));
     setErrors({});
+    setOriginalDefaultSupplierId('');
     setPanelItem(item);
+    if (!accessToken) return;
+    try {
+      const itemSuppliers = await getInventoryItemSuppliers(item.id, accessToken);
+      const currentDefault = itemSuppliers.find((si) => si.isDefault);
+      if (currentDefault) {
+        setOriginalDefaultSupplierId(currentDefault.supplierId);
+        setForm((f) => ({ ...f, defaultSupplierId: currentDefault.supplierId }));
+      }
+    } catch {
+      // Non-fatal — the field just falls back to "no default" if this lookup fails.
+    }
   };
 
   const closePanel = () => {
@@ -230,6 +284,13 @@ function ItemCatalogPageInner(): JSX.Element {
           },
           accessToken,
         );
+        if (form.defaultSupplierId && form.defaultSupplierId !== originalDefaultSupplierId) {
+          await assignSupplierItem(
+            form.defaultSupplierId,
+            { inventoryItemId: panelItem.id, isDefault: true, lastPrice: buyUnitCostValue(panelItem).toFixed(2) },
+            accessToken,
+          );
+        }
         toast({ variant: 'success', title: 'Item updated', message: `${form.name.trim()} was updated.` });
       }
       closePanel();
@@ -238,6 +299,39 @@ function ItemCatalogPageInner(): JSX.Element {
       toast({ variant: 'error', title: 'Failed to save item', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const openAdjustCost = (item: InventoryItem) => {
+    setAdjustCostForm({ newBuyUnitCost: buyUnitCostValue(item).toFixed(2), reason: '' });
+    setAdjustCostError(undefined);
+    setAdjustCostTarget(item);
+  };
+
+  const handleSaveCostAdjustment = async () => {
+    if (!accessToken || !adjustCostTarget || !locationId) return;
+    if (!adjustCostForm.newBuyUnitCost || parseFloat(adjustCostForm.newBuyUnitCost) < 0) {
+      setAdjustCostError('Enter a valid cost');
+      return;
+    }
+    if (!adjustCostForm.reason.trim()) {
+      setAdjustCostError('A reason is required');
+      return;
+    }
+    setIsSavingCostAdjustment(true);
+    try {
+      await adjustInventoryItemCost(
+        adjustCostTarget.id,
+        { newBuyUnitCost: adjustCostForm.newBuyUnitCost, reason: adjustCostForm.reason.trim(), locationId },
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Cost updated', message: `${adjustCostTarget.name}'s cost was adjusted.` });
+      setAdjustCostTarget(null);
+      void load();
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to adjust cost', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsSavingCostAdjustment(false);
     }
   };
 
@@ -258,12 +352,17 @@ function ItemCatalogPageInner(): JSX.Element {
 
   const columns: ExcelColumn<ItemRow>[] = [
     {
+      key: '__row',
+      label: '#',
+      align: 'right',
+      render: (row, index) => <span className="text-stone-400">{index + 1}</span>,
+    },
+    {
       key: 'name',
       label: 'Item',
       render: (row) => (
-        <button type="button" onClick={() => openEdit(row.item)} className="flex items-center gap-2.5 text-left hover:underline">
-          <IconTile icon={resolveItemIcon(row.item.name, row.item.type)} size="sm" />
-          <span className="font-medium text-office-ink">{row.item.name}</span>
+        <button type="button" onClick={() => openEdit(row.item)} className="text-left font-medium text-office-ink hover:underline">
+          {row.item.name}
         </button>
       ),
     },
@@ -272,7 +371,7 @@ function ItemCatalogPageInner(): JSX.Element {
     { key: 'usageUnit', label: 'Usage Unit', render: (row) => row.item.usageUnit },
     { key: 'conversionFactor', label: 'Conversion', numeric: true, render: (row) => row.item.conversionFactor },
     { key: 'reorderLevel', label: 'Reorder Level', numeric: true, render: (row) => `${row.item.reorderLevel} ${row.item.usageUnit}` },
-    { key: 'currentCost', label: 'Current Cost', numeric: true, render: (row) => formatKes(row.item.currentCost) },
+    { key: 'currentCost', label: 'Current Cost', numeric: true, render: (row) => formatBuyUnitCost(row.item) },
     {
       key: 'departmentTags',
       label: 'Departments',
@@ -298,14 +397,24 @@ function ItemCatalogPageInner(): JSX.Element {
       label: '',
       align: 'right',
       render: (row) => (
-        <IconButton
-          icon={<Trash2 size={15} />}
-          label="Deactivate item"
-          variant="ghost"
-          size="sm"
-          onClick={() => setDeactivateTarget(row.item)}
-          disabled={!row.item.isActive}
-        />
+        <div className="flex items-center justify-end gap-1">
+          <IconButton
+            icon={<Banknote size={15} />}
+            label="Adjust cost"
+            variant="ghost"
+            size="sm"
+            onClick={() => openAdjustCost(row.item)}
+            disabled={!row.item.isActive || !locationId}
+          />
+          <IconButton
+            icon={<Trash2 size={15} />}
+            label="Deactivate item"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDeactivateTarget(row.item)}
+            disabled={!row.item.isActive}
+          />
+        </div>
       ),
     },
   ];
@@ -315,8 +424,31 @@ function ItemCatalogPageInner(): JSX.Element {
       <PageHeader
         title="Item Catalog"
         subtitle={`${items.filter((i) => i.isActive).length} active items`}
-        action={<Button leftIcon={<Plus size={18} />} onClick={openCreate}>Add Item</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <HelpTip title="Item Catalog">
+              <p>Every item the Central Store stocks — raw ingredients, prepped items, and pass-through goods.</p>
+              <p className="mt-2">
+                Current Cost is a weighted average of what you&rsquo;ve actually paid, blended across deliveries — it
+                updates automatically when you receive a purchase order. To correct it directly (e.g. after a data
+                entry mistake), use the banknote icon on a row.
+              </p>
+            </HelpTip>
+            <Button leftIcon={<Plus size={18} />} onClick={openCreate}>Add Item</Button>
+          </div>
+        }
       />
+
+      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Active Items" value={activeItems.length} />
+        <StatCard label="Total Catalog Value" value={formatKes(totalCatalogValue)} />
+        <StatCard
+          label="Needing Reorder"
+          value={lowStockCount}
+          valueClassName={lowStockCount > 0 ? 'text-warning' : undefined}
+        />
+        <StatCard label="Suppliers" value={suppliers.length} />
+      </div>
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -328,6 +460,40 @@ function ItemCatalogPageInner(): JSX.Element {
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search items…" className="pl-9" />
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 px-4 py-3">
+          {CATALOG_TYPE_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setTypeFilter(f.value)}
+              className={cn(
+                'whitespace-nowrap rounded-full border px-3.5 py-1.5 text-label-md font-medium transition-colors',
+                typeFilter === f.value ? 'border-espresso bg-espresso text-crema' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100',
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-stone-200" />
+          <div className="w-48">
+            <Select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value as CatalogDepartmentFilter)}
+              options={[{ value: 'ALL', label: 'All Departments' }, ...DEPARTMENT_TAGS.map((t) => ({ value: t, label: departmentLabel[t] }))]}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setLowStockOnly((v) => !v)}
+            className={cn(
+              'whitespace-nowrap rounded-full border px-3.5 py-1.5 text-label-md font-medium transition-colors',
+              lowStockOnly ? 'border-warning bg-warning-bg text-warning' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-100',
+            )}
+          >
+            Low Stock Only
+          </button>
         </div>
 
         <ExcelTable
@@ -414,8 +580,16 @@ function ItemCatalogPageInner(): JSX.Element {
                 </div>
               </FormField>
 
-              {panelItem === 'new' && suppliers.length > 0 && (
-                <FormField label="Default Supplier" htmlFor="default-supplier" helperText="Optional — can be assigned later from the Suppliers screen">
+              {suppliers.length > 0 && (
+                <FormField
+                  label="Default Supplier"
+                  htmlFor="default-supplier"
+                  helperText={
+                    panelItem === 'new'
+                      ? 'Optional — can be changed later from here or the Suppliers screen'
+                      : 'Used to pre-fill new purchase orders for this item'
+                  }
+                >
                   <Select
                     id="default-supplier"
                     options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
@@ -427,8 +601,12 @@ function ItemCatalogPageInner(): JSX.Element {
               )}
 
               {panelItem !== 'new' && (
-                <FormField label="Current Cost" htmlFor="current-cost" helperText="Read-only — derived automatically from received purchases">
-                  <Input id="current-cost" value={formatKes(panelItem.currentCost)} disabled />
+                <FormField
+                  label="Current Cost"
+                  htmlFor="current-cost"
+                  helperText="Derived automatically from received purchases — use Adjust Cost from the table to correct it"
+                >
+                  <Input id="current-cost" value={formatBuyUnitCost(panelItem)} disabled />
                 </FormField>
               )}
 
@@ -457,6 +635,45 @@ function ItemCatalogPageInner(): JSX.Element {
         confirmLabel="Deactivate"
         isLoading={isDeactivating}
       />
+
+      <Modal
+        isOpen={!!adjustCostTarget}
+        onClose={() => setAdjustCostTarget(null)}
+        title={adjustCostTarget ? `Adjust Cost — ${adjustCostTarget.name}` : 'Adjust Cost'}
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setAdjustCostTarget(null)}>Cancel</Button>
+            <Button onClick={() => void handleSaveCostAdjustment()} isLoading={isSavingCostAdjustment}>Save</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-body-sm text-stone-600">
+            The Current Cost shown in the catalog is a weighted average of actual purchases. Use this only to
+            correct a specific error — it will not be blended with history, and every adjustment is recorded.
+          </p>
+          <FormField
+            label={`New Cost (Ksh per ${adjustCostTarget?.buyUnit ?? 'buy unit'})`}
+            htmlFor="adjust-cost-value"
+            required
+          >
+            <Input
+              id="adjust-cost-value"
+              inputMode="decimal"
+              value={adjustCostForm.newBuyUnitCost}
+              onChange={(e) => setAdjustCostForm((f) => ({ ...f, newBuyUnitCost: e.target.value }))}
+            />
+          </FormField>
+          <FormField label="Reason" htmlFor="adjust-cost-reason" required errorMessage={adjustCostError}>
+            <Input
+              id="adjust-cost-reason"
+              value={adjustCostForm.reason}
+              onChange={(e) => setAdjustCostForm((f) => ({ ...f, reason: e.target.value }))}
+              placeholder="e.g. Corrected a mis-entered receiving price"
+            />
+          </FormField>
+        </div>
+      </Modal>
     </PageLayout>
   );
 }
@@ -488,6 +705,7 @@ function ItemCatalogMobile(): JSX.Element {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [originalDefaultSupplierId, setOriginalDefaultSupplierId] = useState<string>('');
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -522,11 +740,23 @@ function ItemCatalogMobile(): JSX.Element {
     setEditingItem('new');
   };
 
-  const openEdit = (item: InventoryItem) => {
+  const openEdit = async (item: InventoryItem) => {
     setForm(toFormState(item));
     setErrors({});
     setStep('identity');
+    setOriginalDefaultSupplierId('');
     setEditingItem(item);
+    if (!accessToken) return;
+    try {
+      const itemSuppliers = await getInventoryItemSuppliers(item.id, accessToken);
+      const currentDefault = itemSuppliers.find((si) => si.isDefault);
+      if (currentDefault) {
+        setOriginalDefaultSupplierId(currentDefault.supplierId);
+        setForm((f) => ({ ...f, defaultSupplierId: currentDefault.supplierId }));
+      }
+    } catch {
+      // Non-fatal — the field just falls back to "no default" if this lookup fails.
+    }
   };
 
   const closeForm = () => setEditingItem(null);
@@ -597,6 +827,13 @@ function ItemCatalogMobile(): JSX.Element {
           },
           accessToken,
         );
+        if (form.defaultSupplierId && form.defaultSupplierId !== originalDefaultSupplierId) {
+          await assignSupplierItem(
+            form.defaultSupplierId,
+            { inventoryItemId: editingItem.id, isDefault: true, lastPrice: buyUnitCostValue(editingItem).toFixed(2) },
+            accessToken,
+          );
+        }
         toast({ variant: 'success', title: 'Item updated', message: `${form.name.trim()} was updated.` });
       }
       closeForm();
@@ -667,7 +904,7 @@ function ItemCatalogMobile(): JSX.Element {
               </FormField>
               {editingItem !== 'new' && (
                 <FormField label="Current Cost" htmlFor="m-current-cost" helperText="Read-only — derived automatically from received purchases">
-                  <Input id="m-current-cost" value={formatKes(editingItem.currentCost)} disabled />
+                  <Input id="m-current-cost" value={formatBuyUnitCost(editingItem)} disabled />
                 </FormField>
               )}
             </div>
@@ -696,19 +933,23 @@ function ItemCatalogMobile(): JSX.Element {
 
           {step === 'supplier' && (
             <div>
-              {editingItem === 'new' ? (
-                <FormField label="Default Supplier" htmlFor="m-default-supplier" helperText="Optional — can be assigned later from the Suppliers screen">
-                  <Select
-                    id="m-default-supplier"
-                    options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
-                    placeholder="No default supplier"
-                    value={form.defaultSupplierId}
-                    onChange={(e) => setForm((f) => ({ ...f, defaultSupplierId: e.target.value }))}
-                  />
-                </FormField>
-              ) : (
-                <p className="text-body-sm text-stone-500">Default supplier is managed from the Suppliers screen.</p>
-              )}
+              <FormField
+                label="Default Supplier"
+                htmlFor="m-default-supplier"
+                helperText={
+                  editingItem === 'new'
+                    ? 'Optional — can be changed later from here or the Suppliers screen'
+                    : 'Used to pre-fill new purchase orders for this item'
+                }
+              >
+                <Select
+                  id="m-default-supplier"
+                  options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+                  placeholder="No default supplier"
+                  value={form.defaultSupplierId}
+                  onChange={(e) => setForm((f) => ({ ...f, defaultSupplierId: e.target.value }))}
+                />
+              </FormField>
             </div>
           )}
         </div>
@@ -773,7 +1014,6 @@ function ItemCatalogMobile(): JSX.Element {
           <div className="space-y-3">
             {filteredItems.map((item) => (
               <Card key={item.id} onClick={() => openEdit(item)} className="flex items-center gap-3 p-3">
-                <IconTile icon={resolveItemIcon(item.name, item.type)} />
                 <div className="min-w-0 flex-1">
                   <p className="text-body-md font-semibold leading-snug text-stone-900">{item.name}</p>
                   <span className="inline-block rounded-full bg-stone-100 px-2 py-0.5 text-label-sm text-stone-600">{itemTypeLabel[item.type]}</span>

@@ -22,6 +22,8 @@ export interface InventoryItem {
   updatedAt: string;
   /** Only present when the caller passed `locationId` (e.g. Stock on Hand). */
   onHandQty?: string;
+  /** Unit cost from the most recent RECEIVE transaction, distinct from currentCost's weighted average. Only present when the caller passed `locationId`. */
+  lastReceivedUnitCost?: string;
 }
 
 export type LocationType = 'CENTRAL_STORE' | 'BRANCH_DEPARTMENT';
@@ -60,6 +62,8 @@ export interface SupplierItem {
   updatedAt: string;
   /** Only present on `GET /suppliers/:id/items` — {id, name}. */
   inventoryItem?: { id: string; name: string };
+  /** Only present on `GET /inventory-items/:id/suppliers` — {id, name}. */
+  supplier?: { id: string; name: string };
 }
 
 export interface CreateInventoryItemInput {
@@ -132,9 +136,11 @@ export interface PurchaseOrderLine {
   unitPrice: string;
   invoicePrice: string | null;
   receivedAt: string | null;
-  /** Backend only includes {id, name, buyUnit} on this nested relation
-   * (purchase-order-repository.ts's detailInclude) — not the full InventoryItem. */
-  inventoryItem: { id: string; name: string; buyUnit: string };
+  /** Backend only includes this subset on the nested relation
+   * (purchase-order-repository.ts's detailInclude) — not the full InventoryItem.
+   * currentCost/conversionFactor let the UI flag a stale line price against
+   * the item's current buy-unit cost. */
+  inventoryItem: { id: string; name: string; buyUnit: string; currentCost: string; conversionFactor: string };
 }
 
 export interface PurchaseOrder {
@@ -410,9 +416,10 @@ export interface SupplierApAgingReport {
 
 export interface PriceHistoryLine {
   purchaseOrderLineId: string;
-  poNumber: string;
-  supplierId: string;
-  supplierName: string;
+  /** Null for ad-hoc ledger receives with no linked PO (no supplier to attribute). */
+  poNumber: string | null;
+  supplierId: string | null;
+  supplierName: string | null;
   unitPrice: string;
   invoicePrice: string | null;
   receivedQty: string;

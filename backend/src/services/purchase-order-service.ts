@@ -13,6 +13,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../utils/errors';
 import type {
   CreatePurchaseOrderInput,
   ReceivePurchaseOrderLineInput,
+  UpdatePurchaseOrderLinesInput,
 } from '../validators/purchase-order-schemas';
 
 type Actor = NonNullable<Request['user']>;
@@ -72,6 +73,140 @@ export const purchaseOrderService = {
       createdById: actor.id,
       lines: input.lines,
     });
+  },
+
+  /**
+   * Edit lines — Manager-only, DRAFT only. A mis-keyed draft (wrong item,
+   * qty, or price) previously had no fix short of cancel-and-recreate; this
+   * lets the Manager correct it in place before sending.
+   */
+  updateLines: async (
+    actor: Actor,
+    id: string,
+    input: UpdatePurchaseOrderLinesInput,
+  ): Promise<PurchaseOrderWithLines> => {
+    const organizationId = requireOrganization(actor);
+    const po = await purchaseOrderRepository.findById(id, organizationId);
+    if (!po) {
+      throw new NotFoundError('Purchase order not found');
+    }
+    if (po.status !== 'DRAFT') {
+      throw new ConflictError('Only a DRAFT purchase order can have its lines edited');
+    }
+
+    for (const line of input.lines) {
+      const item = await inventoryItemRepository.findById(line.inventoryItemId, organizationId);
+      if (!item) {
+        throw new ValidationError(`Line references unknown inventory item: ${line.inventoryItemId}`);
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await purchaseOrderRepository.replaceLines(id, organizationId, input.lines, tx);
+    });
+
+    return purchaseOrderService.getById(actor, id);
+  },
+
+  /**
+   * Unsend — Manager-only. SENT -> DRAFT, so a Manager who sent a PO too
+   * early (before double-checking a line) can pull it back for editing.
+   * Blocked once any line has been received — reversing a ledger write is
+   * a different, riskier operation than reversing a status flag (see
+   * reverseLineReceipt), so a PO that's PARTIALLY_RECEIVED cannot be
+   * unsent in one step; each received line must be reversed first.
+   */
+  unsend: async (actor: Actor, id: string): Promise<PurchaseOrderWithLines> => {
+    const organizationId = requireOrganization(actor);
+    const transitioned = await purchaseOrderRepository.transitionStatus(
+      id,
+      organizationId,
+      ['SENT'],
+      'DRAFT',
+      { sentAt: null },
+    );
+    if (!transitioned) {
+      const existing = await purchaseOrderRepository.findById(id, organizationId);
+      if (!existing) throw new NotFoundError('Purchase order not found');
+      throw new ConflictError(
+        existing.status === 'PARTIALLY_RECEIVED'
+          ? 'This order already has received lines — reverse those receipts before unsending'
+          : 'Purchase order must be SENT to unsend',
+      );
+    }
+    return purchaseOrderService.getById(actor, id);
+  },
+
+  /**
+   * Reverse a line's most recent receipt — for a mis-tapped Confirm during
+   * receiving. Posts an offsetting ADJUSTMENT transaction at the reversed
+   * receipt's own recorded price (not current cost) so on-hand qty ends up
+   * correct; matches the Stock Count adjustment precedent
+   * (inventoryTransactionService is the only writer of currentCost, and its
+   * weighted-average formula is not cleanly invertible once later receipts
+   * may have landed — see the design note this was scoped against). The
+   * item's currentCost is therefore not rolled back to its exact
+   * pre-receipt value; this is the same accepted trade-off the Stock Count
+   * adjustment path already lives with, not a new limitation.
+   */
+  reverseLineReceipt: async (actor: Actor, purchaseOrderId: string, lineId: string): Promise<PurchaseOrderWithLines> => {
+    const organizationId = requireOrganization(actor);
+    const po = await purchaseOrderRepository.findById(purchaseOrderId, organizationId);
+    if (!po) {
+      throw new NotFoundError('Purchase order not found');
+    }
+    if (po.status !== 'SENT' && po.status !== 'PARTIALLY_RECEIVED' && po.status !== 'CLOSED') {
+      throw new ConflictError('This order has no receipt to reverse');
+    }
+
+    const line = po.lines.find((l) => l.id === lineId);
+    if (!line) {
+      throw new NotFoundError('Purchase order line not found on this purchase order');
+    }
+    if (line.receivedQty.lessThanOrEqualTo(0)) {
+      throw new ConflictError('This line has not been received yet');
+    }
+
+    const lastReceive = await inventoryTransactionRepository.findLatestReceiveByPurchaseOrderLine(
+      organizationId,
+      lineId,
+    );
+    if (!lastReceive) {
+      throw new ConflictError('No receiving record found for this line to reverse');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await inventoryTransactionRepository.create(
+        {
+          organizationId,
+          locationId: po.locationId,
+          inventoryItemId: line.inventoryItemId,
+          type: 'ADJUSTMENT',
+          quantity: lastReceive.quantity.neg(),
+          unitCost: lastReceive.unitCost,
+          userId: actor.id,
+          reason: 'Receiving correction — reversed a mistaken confirm',
+          purchaseOrderLineId: lineId,
+        },
+        tx,
+      );
+
+      await purchaseOrderRepository.resetLineReceipt(lineId, organizationId, tx);
+
+      const refreshedPo = await purchaseOrderRepository.findById(purchaseOrderId, organizationId, tx);
+      const anyLineReceived = refreshedPo!.lines.some((l) => l.receivedQty.greaterThan(0));
+
+      await purchaseOrderRepository.transitionStatus(
+        purchaseOrderId,
+        organizationId,
+        ['SENT', 'PARTIALLY_RECEIVED', 'CLOSED'],
+        anyLineReceived ? 'PARTIALLY_RECEIVED' : 'SENT',
+        {},
+        tx,
+      );
+    });
+
+    return purchaseOrderService.getById(actor, purchaseOrderId);
   },
 
   /** Send — Manager-only per §8.3. DRAFT -> SENT. */

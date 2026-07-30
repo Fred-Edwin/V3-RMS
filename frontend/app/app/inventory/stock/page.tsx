@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Search } from 'lucide-react';
-import { Card, IconTile } from '@/components/ui';
+import { Card, HelpTip, IconTile } from '@/components/ui';
 import { EmptyState } from '@/components/ui';
 import { itemTypeLabel, resolveItemIcon } from '@/components/inventory/item-type-icon';
 import {
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
+import { formatBuyUnitQuantity, formatBuyUnitCost } from '@/lib/inventory-format';
 import type { InventoryItem, InventoryItemType, InventoryTransaction } from '@/types/inventory';
 import { StockOnHandDesktop } from './StockOnHandDesktop';
 
@@ -141,9 +142,18 @@ function StockOnHandMobile({ isManager }: { isManager: boolean }): JSX.Element {
     <div className="min-h-full bg-crema">
       {/* Espresso header band — scoped to Inventory Attendant screens only */}
       <div className="relative bg-espresso px-4 pb-5 pt-6 text-crema">
-        <div className="mb-4 flex items-center gap-2">
-          <p className="font-display text-heading-lg font-medium">Stock on Hand</p>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-label-sm text-crema/70">Central Store</span>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <p className="font-display text-heading-lg font-medium">Stock on Hand</p>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-label-sm text-crema/70">Central Store</span>
+          </div>
+          <HelpTip
+            title="Stock on Hand"
+            triggerClassName="flex h-7 w-7 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <p>The Central Store&rsquo;s live inventory — what you have, what it&rsquo;s worth, and whether it&rsquo;s running low.</p>
+            {isManager && <p className="mt-2">Tap an item to see its full movement history.</p>}
+          </HelpTip>
         </div>
         <div className="flex items-stretch gap-2">
           <div className="min-w-0 flex-1 rounded-md bg-white/10 px-2.5 py-2">
@@ -235,9 +245,9 @@ function StockOnHandMobile({ isManager }: { isManager: boolean }): JSX.Element {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-heading-sm font-bold tabular-nums text-stone-900">
-                      {formatQty(item.onHandQty)} <span className="text-label-md font-medium text-stone-500">{item.usageUnit}</span>
+                      {formatBuyUnitQuantity(item.onHandQty ?? '0', item)}
                     </p>
-                    <p className="text-label-sm text-stone-400">Ksh {parseFloat(item.currentCost).toFixed(2)} / {item.usageUnit}</p>
+                    <p className="text-label-sm text-stone-400">{formatBuyUnitCost(item)}</p>
                   </div>
                 </Card>
               );

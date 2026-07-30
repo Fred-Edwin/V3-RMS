@@ -9,7 +9,9 @@ import { prisma } from '../config/database';
 type TxClient = Prisma.TransactionClient;
 
 export type PurchaseOrderWithLines = PurchaseOrder & {
-  lines: (PurchaseOrderLine & { inventoryItem: { id: string; name: string; buyUnit: string } })[];
+  lines: (PurchaseOrderLine & {
+    inventoryItem: { id: string; name: string; buyUnit: string; currentCost: Prisma.Decimal; conversionFactor: Prisma.Decimal };
+  })[];
   supplier: { id: string; name: string };
 };
 
@@ -30,7 +32,9 @@ export type CreatePurchaseOrderInput = {
 const detailInclude = {
   supplier: { select: { id: true, name: true } },
   lines: {
-    include: { inventoryItem: { select: { id: true, name: true, buyUnit: true } } },
+    include: {
+      inventoryItem: { select: { id: true, name: true, buyUnit: true, currentCost: true, conversionFactor: true } },
+    },
   },
 } as const;
 
@@ -91,7 +95,7 @@ export const purchaseOrderRepository = {
     organizationId: string,
     fromStatuses: PurchaseOrderStatus[],
     toStatus: PurchaseOrderStatus,
-    extra: { sentAt?: Date; cancelledAt?: Date; closedAt?: Date } = {},
+    extra: { sentAt?: Date | null; cancelledAt?: Date | null; closedAt?: Date | null } = {},
     tx: TxClient = prisma,
   ): Promise<boolean> => {
     const result = await tx.purchaseOrder.updateMany({
@@ -123,5 +127,40 @@ export const purchaseOrderRepository = {
     tx: TxClient = prisma,
   ): Promise<PurchaseOrderLine | null> => {
     return tx.purchaseOrderLine.findFirst({ where: { id: lineId, organizationId } });
+  },
+
+  /**
+   * Replace a DRAFT PO's lines wholesale — simplest correct semantics for an
+   * edit form that lets the Manager add/remove/change lines freely. Only
+   * ever called after the caller has confirmed the PO is still DRAFT.
+   */
+  replaceLines: async (
+    purchaseOrderId: string,
+    organizationId: string,
+    lines: CreatePurchaseOrderLineInput[],
+    tx: TxClient,
+  ): Promise<void> => {
+    await tx.purchaseOrderLine.deleteMany({ where: { purchaseOrderId, organizationId } });
+    await tx.purchaseOrderLine.createMany({
+      data: lines.map((line) => ({
+        organizationId,
+        purchaseOrderId,
+        inventoryItemId: line.inventoryItemId,
+        orderedQty: new Prisma.Decimal(line.orderedQty),
+        unitPrice: new Prisma.Decimal(line.unitPrice),
+      })),
+    });
+  },
+
+  /** Reverses a line's most recent receipt back to not-yet-received. */
+  resetLineReceipt: async (
+    lineId: string,
+    organizationId: string,
+    tx: TxClient = prisma,
+  ): Promise<void> => {
+    await tx.purchaseOrderLine.updateMany({
+      where: { id: lineId, organizationId },
+      data: { receivedQty: 0, invoicePrice: null, receivedAt: null },
+    });
   },
 };

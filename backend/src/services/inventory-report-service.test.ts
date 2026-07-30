@@ -204,3 +204,31 @@ describe('inventoryReportService.getSupplierApAging', () => {
     ]);
   });
 });
+
+describe('inventoryReportService.getPriceHistory', () => {
+  it('maps a null purchaseOrder (ad-hoc ledger receive with no linked PO) to null poNumber/supplierId/supplierName instead of throwing', async () => {
+    vi.mocked(inventoryReportRepository.findReceivedLinesForItem).mockResolvedValue([
+      {
+        id: 'tx1',
+        unitPrice: d(330),
+        invoicePrice: null,
+        receivedQty: d(1),
+        receivedAt: new Date('2026-07-07'),
+        purchaseOrder: null,
+      },
+      {
+        id: 'poline1',
+        unitPrice: d(340),
+        invoicePrice: d(340),
+        receivedQty: d(2),
+        receivedAt: new Date('2026-07-21'),
+        purchaseOrder: { id: 'po1', poNumber: 'PO-0001', supplierId: 'sup1', supplier: { name: 'Samrat Supermarket' } },
+      },
+    ] as never);
+
+    const result = await inventoryReportService.getPriceHistory(actor, itemId);
+
+    expect(result[0]).toMatchObject({ poNumber: null, supplierId: null, supplierName: null });
+    expect(result[1]).toMatchObject({ poNumber: 'PO-0001', supplierId: 'sup1', supplierName: 'Samrat Supermarket' });
+  });
+});

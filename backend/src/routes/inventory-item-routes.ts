@@ -34,6 +34,14 @@ inventoryItemRoutes.get(
 );
 
 inventoryItemRoutes.get(
+  '/inventory-items/:id/suppliers',
+  authenticate,
+  branchScope,
+  managerOnly,
+  inventoryItemController.getSuppliers,
+);
+
+inventoryItemRoutes.get(
   '/inventory-items/:id',
   authenticate,
   branchScope,
@@ -55,6 +63,14 @@ inventoryItemRoutes.patch(
   branchScope,
   managerOnly,
   inventoryItemController.update,
+);
+
+inventoryItemRoutes.post(
+  '/inventory-items/:id/adjust-cost',
+  authenticate,
+  branchScope,
+  managerOnly,
+  inventoryItemController.adjustCost,
 );
 
 inventoryItemRoutes.delete(

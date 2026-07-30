@@ -13,9 +13,10 @@ import {
   Trash2,
   Truck,
 } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, IconTile, Input, PageHeader, PageLayout, StatCard, Table, type TableColumn } from '@/components/ui';
-import { itemTypeLabel, resolveItemIcon } from '@/components/inventory/item-type-icon';
+import { Badge, Button, Card, EmptyState, HelpTip, Input, PageHeader, PageLayout, StatCard, Table, type TableColumn } from '@/components/ui';
+import { itemTypeLabel } from '@/components/inventory/item-type-icon';
 import { cn } from '@/lib/cn';
+import { formatBuyUnitCost } from '@/lib/inventory-format';
 import {
   getCentralStoreLocation,
   getLowStockAlertsReport,
@@ -67,7 +68,9 @@ interface ItemRow extends Record<string, unknown> {
   id: string;
   name: string;
   type: InventoryItem['type'];
+  buyUnit: string;
   usageUnit: string;
+  conversionFactor: string;
   onHandQty: string;
   currentCost: string;
   value: number;
@@ -169,7 +172,9 @@ function InventoryDashboardPageInner(): JSX.Element {
           id: item.id,
           name: item.name,
           type: item.type,
+          buyUnit: item.buyUnit,
           usageUnit: item.usageUnit,
+          conversionFactor: item.conversionFactor,
           onHandQty,
           currentCost: item.currentCost,
           value: parseFloat(onHandQty) * parseFloat(item.currentCost),
@@ -184,15 +189,16 @@ function InventoryDashboardPageInner(): JSX.Element {
 
   const columns: TableColumn<ItemRow>[] = [
     {
+      key: '__row',
+      label: '#',
+      className: 'text-right tabular-nums text-stone-400 w-10',
+      render: (_v, row) => itemRows.findIndex((r) => r.id === row.id) + 1,
+    },
+    {
       key: 'name',
       label: 'Item',
       sortable: true,
-      render: (_v, row) => (
-        <div className="flex items-center gap-2.5">
-          <IconTile icon={resolveItemIcon(row.name, row.type)} size="sm" />
-          <span className="font-medium text-stone-900">{row.name}</span>
-        </div>
-      ),
+      render: (_v, row) => <span className="font-medium text-stone-900">{row.name}</span>,
     },
     {
       key: 'type',
@@ -209,7 +215,7 @@ function InventoryDashboardPageInner(): JSX.Element {
       key: 'currentCost',
       label: 'Unit Cost',
       className: 'text-right tabular-nums',
-      render: (_v, row) => formatKes(row.currentCost),
+      render: (_v, row) => formatBuyUnitCost(row),
     },
     {
       key: 'value',
@@ -231,9 +237,21 @@ function InventoryDashboardPageInner(): JSX.Element {
         title="Inventory Dashboard"
         subtitle="Here's what needs your attention at the Central Store today."
         action={
-          <Link href="/app/inventory/purchase-orders/new">
-            <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <HelpTip title="Inventory Dashboard">
+              <p>
+                A daily snapshot of the Central Store: total stock value, what needs reordering, purchase orders
+                still in flight, and recent counts.
+              </p>
+              <p className="mt-2">
+                The items table below shows current on-hand quantity and cost for everything in the catalog. For
+                an item&rsquo;s full movement history, open it from Stock on Hand.
+              </p>
+            </HelpTip>
+            <Link href="/app/inventory/purchase-orders/new">
+              <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
+            </Link>
+          </div>
         }
       />
 

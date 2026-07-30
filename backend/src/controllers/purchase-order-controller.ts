@@ -8,6 +8,7 @@ import {
   PurchaseOrderStatusQuerySchema,
   ReceivePurchaseOrderLineSchema,
   SuggestOrderQuerySchema,
+  UpdatePurchaseOrderLinesSchema,
 } from '../validators/purchase-order-schemas';
 
 const requireActor = (req: Request) => {
@@ -39,6 +40,28 @@ export const purchaseOrderController = {
       data: purchaseOrder,
       message: 'Purchase order created successfully',
     });
+  },
+
+  updateLines: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = PurchaseOrderIdParamSchema.parse(req.params);
+    const data = UpdatePurchaseOrderLinesSchema.parse(req.body);
+    const purchaseOrder = await purchaseOrderService.updateLines(actor, id, data);
+    res.status(200).json({ success: true, data: purchaseOrder, message: 'Purchase order updated successfully' });
+  },
+
+  unsend: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = PurchaseOrderIdParamSchema.parse(req.params);
+    const purchaseOrder = await purchaseOrderService.unsend(actor, id);
+    res.status(200).json({ success: true, data: purchaseOrder, message: 'Purchase order returned to draft' });
+  },
+
+  reverseLineReceipt: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id, lineId } = PurchaseOrderLineIdParamSchema.parse(req.params);
+    const purchaseOrder = await purchaseOrderService.reverseLineReceipt(actor, id, lineId);
+    res.status(200).json({ success: true, data: purchaseOrder, message: 'Receipt reversed' });
   },
 
   send: async (req: Request, res: Response): Promise<void> => {

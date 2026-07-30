@@ -22,6 +22,11 @@ export const CreatePurchaseOrderSchema = z.object({
   lines: z.array(purchaseOrderLineInputSchema).min(1, 'At least one line is required'),
 });
 
+/** DRAFT-only edit — supplier/location are fixed once created, only lines change. */
+export const UpdatePurchaseOrderLinesSchema = z.object({
+  lines: z.array(purchaseOrderLineInputSchema).min(1, 'At least one line is required'),
+});
+
 export const ReceivePurchaseOrderLineSchema = z.object({
   receivedQty: quantitySchema,
   invoicePrice: nonNegativeQuantitySchema,
@@ -36,4 +41,5 @@ export const SuggestOrderQuerySchema = z.object({
 });
 
 export type CreatePurchaseOrderInput = z.infer<typeof CreatePurchaseOrderSchema>;
+export type UpdatePurchaseOrderLinesInput = z.infer<typeof UpdatePurchaseOrderLinesSchema>;
 export type ReceivePurchaseOrderLineInput = z.infer<typeof ReceivePurchaseOrderLineSchema>;

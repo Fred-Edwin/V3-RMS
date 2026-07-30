@@ -58,12 +58,20 @@ const buildItem = (overrides: Partial<{
 
 // Wires prisma.$transaction to just invoke the callback with a stub tx client,
 // matching the mocking pattern used across the existing service test suite.
-const stubTx = {} as never;
+// supplierItem/purchaseOrderLine stubs back recordReceive's lastPrice
+// auto-update (no existing SupplierItem assignment by default, so that path
+// is a no-op unless a test explicitly wires findMany to return one).
+const stubTx = {
+  supplierItem: { findMany: vi.fn().mockResolvedValue([]), upsert: vi.fn() },
+  purchaseOrderLine: { findUnique: vi.fn().mockResolvedValue(null) },
+} as never;
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(prisma.$transaction).mockImplementation((fn) =>
     (fn as (tx: unknown) => Promise<unknown>)(stubTx),
   );
+  (stubTx as { supplierItem: { findMany: ReturnType<typeof vi.fn> } }).supplierItem.findMany.mockResolvedValue([]);
+  (stubTx as { purchaseOrderLine: { findUnique: ReturnType<typeof vi.fn> } }).purchaseOrderLine.findUnique.mockResolvedValue(null);
 });
 
 describe('weightedAverageCost', () => {
@@ -212,6 +220,80 @@ describe('inventoryTransactionService.recordReceive', () => {
         unitPrice: '100',
       }),
     ).rejects.toThrow('Inventory item not found');
+  });
+
+  it('updates SupplierItem.lastPrice for the PO line\'s own supplier when purchaseOrderLineId is given', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValueOnce(buildItem({ currentCost: d(0) }));
+    vi.mocked(inventoryTransactionRepository.sumQuantityByItemAndLocation).mockResolvedValueOnce(d(0));
+    vi.mocked(inventoryTransactionRepository.create).mockResolvedValueOnce({ id: 'tx-1' } as never);
+    const tx = stubTx as unknown as {
+      purchaseOrderLine: { findUnique: ReturnType<typeof vi.fn> };
+      supplierItem: { upsert: ReturnType<typeof vi.fn> };
+    };
+    tx.purchaseOrderLine.findUnique.mockResolvedValueOnce({ purchaseOrder: { supplierId: 'sup-1' } });
+
+    await inventoryTransactionService.recordReceive({
+      organizationId,
+      locationId,
+      userId,
+      inventoryItemId: itemId,
+      buyQty: '2',
+      unitPrice: '650',
+      purchaseOrderLineId: 'line-1',
+    });
+
+    expect(tx.supplierItem.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { supplierId_inventoryItemId: { supplierId: 'sup-1', inventoryItemId: itemId } },
+        update: { lastPrice: expect.objectContaining({}) },
+      }),
+    );
+  });
+
+  it('updates SupplierItem.lastPrice for an ad-hoc receive (no PO line) only when the item has exactly one supplier assignment', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValueOnce(buildItem({ currentCost: d(0) }));
+    vi.mocked(inventoryTransactionRepository.sumQuantityByItemAndLocation).mockResolvedValueOnce(d(0));
+    vi.mocked(inventoryTransactionRepository.create).mockResolvedValueOnce({ id: 'tx-1' } as never);
+    const tx = stubTx as unknown as {
+      supplierItem: { findMany: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
+    };
+    tx.supplierItem.findMany.mockResolvedValueOnce([{ supplierId: 'sup-1' }]);
+
+    await inventoryTransactionService.recordReceive({
+      organizationId,
+      locationId,
+      userId,
+      inventoryItemId: itemId,
+      buyQty: '2',
+      unitPrice: '650',
+    });
+
+    expect(tx.supplierItem.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { supplierId_inventoryItemId: { supplierId: 'sup-1', inventoryItemId: itemId } },
+      }),
+    );
+  });
+
+  it('does not guess a supplier for an ad-hoc receive when the item has zero or multiple supplier assignments', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValueOnce(buildItem({ currentCost: d(0) }));
+    vi.mocked(inventoryTransactionRepository.sumQuantityByItemAndLocation).mockResolvedValueOnce(d(0));
+    vi.mocked(inventoryTransactionRepository.create).mockResolvedValueOnce({ id: 'tx-1' } as never);
+    const tx = stubTx as unknown as {
+      supplierItem: { findMany: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
+    };
+    tx.supplierItem.findMany.mockResolvedValueOnce([{ supplierId: 'sup-1' }, { supplierId: 'sup-2' }]);
+
+    await inventoryTransactionService.recordReceive({
+      organizationId,
+      locationId,
+      userId,
+      inventoryItemId: itemId,
+      buyQty: '2',
+      unitPrice: '650',
+    });
+
+    expect(tx.supplierItem.upsert).not.toHaveBeenCalled();
   });
 });
 

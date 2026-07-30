@@ -215,7 +215,7 @@ function InventoryReportsPageInner(): JSX.Element {
       csv = toCsv(['Item', 'On Hand', 'Reorder Level', 'Unit'], lowStock.map((l) => [l.name, l.onHandQty, l.reorderLevel, l.usageUnit]));
       filename = 'low-stock-alerts.csv';
     } else if (tab === 'price-history') {
-      csv = toCsv(['PO Number', 'Supplier', 'Unit Price', 'Invoice Price', 'Received Qty', 'Received At'], priceHistory.map((l) => [l.poNumber, l.supplierName, l.unitPrice, l.invoicePrice ?? '', l.receivedQty, l.receivedAt ?? '']));
+      csv = toCsv(['PO Number', 'Supplier', 'Unit Price', 'Invoice Price', 'Received Qty', 'Received At'], priceHistory.map((l) => [l.poNumber ?? '', l.supplierName ?? '', l.unitPrice, l.invoicePrice ?? '', l.receivedQty, l.receivedAt ?? '']));
       filename = 'price-history.csv';
     } else if (tab === 'prep-yield') {
       csv = toCsv(['Output Item', 'Date', 'Input Qty', 'Actual Yield', 'Yield Ratio', 'Unit Cost'], prepYieldRows.map((r) => [r.outputItemName, r.recordedAt, r.totalInputQty, r.actualYield, r.yieldRatio ?? '', r.unitCost]));
@@ -277,7 +277,7 @@ function InventoryReportsPageInner(): JSX.Element {
           <div className="w-64">
             <Select options={itemOptions} value={priceHistoryItemId} onChange={(e) => setPriceHistoryItemId(e.target.value)} />
           </div>
-          <PriceTrendChart points={priceHistory.map((l) => ({ date: l.receivedAt ?? '', price: parseFloat(l.invoicePrice ?? l.unitPrice), label: l.supplierName }))} />
+          <PriceTrendChart points={priceHistory.map((l) => ({ date: l.receivedAt ?? '', price: parseFloat(l.invoicePrice ?? l.unitPrice), label: l.supplierName ?? undefined }))} />
         </Card>
       )}
 
@@ -576,7 +576,7 @@ function MobileReportDetail({
                 ))}
               </select>
             </div>
-            <PriceTrendChart points={priceHistory.map((l) => ({ date: l.receivedAt ?? '', price: parseFloat(l.invoicePrice ?? l.unitPrice), label: l.supplierName }))} />
+            <PriceTrendChart points={priceHistory.map((l) => ({ date: l.receivedAt ?? '', price: parseFloat(l.invoicePrice ?? l.unitPrice), label: l.supplierName ?? undefined }))} />
           </>
         ) : (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-stone-300 px-4 py-10 text-center">

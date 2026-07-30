@@ -6,11 +6,14 @@ import {
   Badge,
   Card,
   ExcelTable,
+  HelpTip,
   IconButton,
   IconTile,
   Input,
   PageHeader,
   PageLayout,
+  Select,
+  StatCard,
   type ExcelColumn,
 } from '@/components/ui';
 import { itemTypeLabel, resolveItemIcon } from '@/components/inventory/item-type-icon';
@@ -23,9 +26,11 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
-import type { InventoryItem, InventoryItemType, InventoryTransaction } from '@/types/inventory';
+import { formatBuyUnitCost, formatBuyUnitQuantity } from '@/lib/inventory-format';
+import type { DepartmentTag, InventoryItem, InventoryItemType, InventoryTransaction } from '@/types/inventory';
 
 type TypeFilter = 'ALL' | InventoryItemType;
+type DepartmentFilter = 'ALL' | DepartmentTag;
 
 const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: 'ALL', label: 'All Items' },
@@ -33,6 +38,16 @@ const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: 'PREPPED', label: 'Prepped' },
   { value: 'PASS_THROUGH', label: 'Pass-Through' },
 ];
+
+const DEPARTMENT_TAGS: DepartmentTag[] = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
+
+const departmentLabel: Record<DepartmentTag, string> = {
+  KITCHEN: 'Kitchen',
+  PASTRY: 'Pastry',
+  BARISTA: 'Barista',
+  SERVICE: 'Service',
+  HOUSEKEEPING: 'Housekeeping',
+};
 
 const TRANSACTION_LABELS: Record<InventoryTransaction['type'], string> = {
   RECEIVE: 'Received',
@@ -83,6 +98,7 @@ function StockOnHandDesktopInner(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState<DepartmentFilter>('ALL');
 
   const [sortKey, setSortKey] = useState<'name' | 'onHandQty' | 'currentCost' | 'value'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -135,6 +151,7 @@ function StockOnHandDesktopInner(): JSX.Element {
     const q = search.trim().toLowerCase();
     const filtered = items
       .filter((item) => typeFilter === 'ALL' || item.type === typeFilter)
+      .filter((item) => departmentFilter === 'ALL' || item.departmentTags.includes(departmentFilter))
       .filter((item) => !q || item.name.toLowerCase().includes(q))
       .map((item) => {
         const onHandQty = item.onHandQty ?? '0';
@@ -154,7 +171,7 @@ function StockOnHandDesktopInner(): JSX.Element {
       return (a.value - b.value) * dir;
     });
     return filtered;
-  }, [items, search, typeFilter, sortKey, sortDir]);
+  }, [items, search, typeFilter, departmentFilter, sortKey, sortDir]);
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) {
@@ -170,6 +187,12 @@ function StockOnHandDesktopInner(): JSX.Element {
 
   const columns: ExcelColumn<ItemRow>[] = [
     {
+      key: '__row',
+      label: '#',
+      align: 'right',
+      render: (row, index) => <span className="text-stone-400">{index + 1}</span>,
+    },
+    {
       key: 'name',
       label: 'Item',
       sort: { direction: sortKey === 'name' ? sortDir : null, onToggle: () => toggleSort('name') },
@@ -177,10 +200,9 @@ function StockOnHandDesktopInner(): JSX.Element {
         <button
           type="button"
           onClick={() => openMovementHistory(row.item)}
-          className="flex items-center gap-2.5 text-left hover:underline"
+          className="text-left font-medium text-office-ink hover:underline"
         >
-          <IconTile icon={resolveItemIcon(row.item.name, row.item.type)} size="sm" />
-          <span className="font-medium text-office-ink">{row.item.name}</span>
+          {row.item.name}
         </button>
       ),
     },
@@ -194,14 +216,25 @@ function StockOnHandDesktopInner(): JSX.Element {
       label: 'On Hand',
       numeric: true,
       sort: { direction: sortKey === 'onHandQty' ? sortDir : null, onToggle: () => toggleSort('onHandQty') },
-      render: (row) => `${formatQty(row.onHandQty)} ${row.item.usageUnit}`,
+      render: (row) => formatBuyUnitQuantity(row.onHandQty, row.item),
+    },
+    {
+      key: 'lastReceivedUnitCost',
+      label: 'Last Received',
+      numeric: true,
+      render: (row) =>
+        row.item.lastReceivedUnitCost === undefined ? (
+          <span className="text-stone-400">—</span>
+        ) : (
+          formatBuyUnitCost({ ...row.item, currentCost: row.item.lastReceivedUnitCost })
+        ),
     },
     {
       key: 'currentCost',
-      label: 'Unit Cost',
+      label: 'Avg. Unit Cost',
       numeric: true,
       sort: { direction: sortKey === 'currentCost' ? sortDir : null, onToggle: () => toggleSort('currentCost') },
-      render: (row) => formatKes(row.item.currentCost),
+      render: (row) => formatBuyUnitCost(row.item),
     },
     {
       key: 'value',
@@ -222,11 +255,30 @@ function StockOnHandDesktopInner(): JSX.Element {
       <PageHeader
         title="Stock on Hand"
         subtitle={`${rows.length} items · ${formatKes(totalValue)} total value${lowStockCount > 0 ? ` · ${lowStockCount} low stock` : ''}`}
+        action={
+          <HelpTip title="Stock on Hand">
+            <p>The Central Store&rsquo;s live inventory — what you have, what it&rsquo;s worth, and whether it&rsquo;s running low.</p>
+            <p className="mt-2">
+              Quantities show in buy units (e.g. pouches, kg) for readability. Click an item name to see its full
+              movement history — every receive, prep use, waste, and adjustment that changed its balance.
+            </p>
+          </HelpTip>
+        }
       />
+
+      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Items" value={rows.length} />
+        <StatCard label="Total Value" value={formatKes(totalValue)} />
+        <StatCard label="Low Stock" value={lowStockCount} valueClassName={lowStockCount > 0 ? 'text-warning' : undefined} />
+        <StatCard
+          label="Avg. Value / Item"
+          value={rows.length > 0 ? formatKes(totalValue / rows.length) : formatKes(0)}
+        />
+      </div>
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {TYPE_FILTERS.map((f) => (
               <button
                 key={f.value}
@@ -242,6 +294,14 @@ function StockOnHandDesktopInner(): JSX.Element {
                 {f.label}
               </button>
             ))}
+            <span className="mx-1 h-5 w-px bg-stone-200" />
+            <div className="w-44">
+              <Select
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value as DepartmentFilter)}
+                options={[{ value: 'ALL', label: 'All Departments' }, ...DEPARTMENT_TAGS.map((t) => ({ value: t, label: departmentLabel[t] }))]}
+              />
+            </div>
           </div>
           <div className="relative w-full sm:w-72">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />

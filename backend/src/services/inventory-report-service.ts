@@ -72,7 +72,14 @@ export const inventoryReportService = {
       }));
   },
 
-  /** Price history for one item, optionally filtered to one supplier — sourced from received PO lines. */
+  /**
+   * Price history for one item, optionally filtered to one supplier —
+   * sourced from the RECEIVE ledger. Ad-hoc receives with no linked PO
+   * (e.g. seeded/manual ledger entries) have no supplier to attribute —
+   * `poNumber`/`supplierId`/`supplierName` are null for those rows rather
+   * than throwing, and they're already excluded server-side once a
+   * `supplierId` filter is applied (see repository).
+   */
   getPriceHistory: async (actor: Actor, inventoryItemId: string, supplierId?: string) => {
     const organizationId = requireOrganization(actor);
     const lines = await inventoryReportRepository.findReceivedLinesForItem(
@@ -83,9 +90,9 @@ export const inventoryReportService = {
 
     return lines.map((line) => ({
       purchaseOrderLineId: line.id,
-      poNumber: line.purchaseOrder.poNumber,
-      supplierId: line.purchaseOrder.supplierId,
-      supplierName: line.purchaseOrder.supplier.name,
+      poNumber: line.purchaseOrder?.poNumber ?? null,
+      supplierId: line.purchaseOrder?.supplierId ?? null,
+      supplierName: line.purchaseOrder?.supplier.name ?? null,
       unitPrice: line.unitPrice,
       invoicePrice: line.invoicePrice,
       receivedQty: line.receivedQty,

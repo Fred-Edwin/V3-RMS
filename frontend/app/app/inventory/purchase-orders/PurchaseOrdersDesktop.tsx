@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Plus, Search, Send, Truck, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, RotateCcw, Search, Send, Truck, Undo2, X, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   ConfirmDialog,
   ExcelTable,
   IconButton,
+  IconTile,
   Input,
   PageHeader,
   PageLayout,
@@ -18,18 +19,24 @@ import {
 } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
+import { itemTypeIcon } from '@/components/inventory/item-type-icon';
 import {
   cancelPurchaseOrder,
   getPurchaseOrder,
+  listInventoryItems,
   listPurchaseOrders,
   receivePurchaseOrderLine,
+  reversePurchaseOrderLineReceipt,
   sendPurchaseOrder,
+  unsendPurchaseOrder,
+  updatePurchaseOrderLines,
 } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
-import type { PurchaseOrder, PurchaseOrderStatus } from '@/types/inventory';
+import { buyUnitCostValue } from '@/lib/inventory-format';
+import type { InventoryItem, PurchaseOrder, PurchaseOrderStatus } from '@/types/inventory';
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
@@ -60,6 +67,14 @@ interface DraftLine {
   state: LineState;
 }
 
+interface EditLine {
+  inventoryItemId: string;
+  name: string;
+  buyUnit: string;
+  qty: string;
+  unitPrice: string;
+}
+
 // app/app/layout.tsx mounts {children} twice for STORE_MANAGER (dual desktop
 // sidebar + CSS-hidden mobile shell) — no mobile variant of this screen
 // exists yet (Session 8), so the mobile-shell copy renders nothing rather
@@ -81,8 +96,16 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
 
   const [selectedPo, setSelectedPo] = useState<PurchaseOrder | null>(null);
   const [drafts, setDrafts] = useState<Record<string, DraftLine>>({});
-  const [confirmAction, setConfirmAction] = useState<'send' | 'cancel' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'send' | 'cancel' | 'unsend' | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [reverseTarget, setReverseTarget] = useState<PurchaseOrder['lines'][number] | null>(null);
+
+  // DRAFT line editing
+  const [isEditingLines, setIsEditingLines] = useState(false);
+  const [editLines, setEditLines] = useState<EditLine[]>([]);
+  const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
+  const [itemPickerSearch, setItemPickerSearch] = useState('');
+  const [isSavingLines, setIsSavingLines] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken) return;
@@ -103,6 +126,7 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
 
   const openDetail = useCallback((po: PurchaseOrder) => {
     setSelectedPo(po);
+    setIsEditingLines(false);
     const nextDrafts: Record<string, DraftLine> = {};
     for (const line of po.lines) {
       nextDrafts[line.id] = {
@@ -160,6 +184,98 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
     } finally {
       setIsActing(false);
       setConfirmAction(null);
+    }
+  };
+
+  const handleUnsend = async () => {
+    if (!accessToken || !selectedPo) return;
+    setIsActing(true);
+    try {
+      await unsendPurchaseOrder(selectedPo.id, accessToken);
+      toast({ variant: 'success', title: 'Purchase order returned to draft', message: `${selectedPo.poNumber} can now be edited.` });
+      await refreshSelected(selectedPo.id);
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to unsend order', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsActing(false);
+      setConfirmAction(null);
+    }
+  };
+
+  const openEditLines = () => {
+    if (!selectedPo) return;
+    setEditLines(
+      selectedPo.lines.map((line) => ({
+        inventoryItemId: line.inventoryItemId,
+        name: line.inventoryItem.name,
+        buyUnit: line.inventoryItem.buyUnit,
+        qty: line.orderedQty,
+        unitPrice: line.unitPrice,
+      })),
+    );
+    setItemPickerSearch('');
+    setIsEditingLines(true);
+    if (accessToken && catalogItems.length === 0) {
+      void listInventoryItems(accessToken, { isActive: true }).then(setCatalogItems).catch(() => {});
+    }
+  };
+
+  const addEditLine = (item: InventoryItem) => {
+    setEditLines((prev) => {
+      if (prev.some((l) => l.inventoryItemId === item.id)) return prev;
+      return [...prev, { inventoryItemId: item.id, name: item.name, buyUnit: item.buyUnit, qty: '1', unitPrice: buyUnitCostValue(item).toString() }];
+    });
+  };
+
+  const removeEditLine = (itemId: string) => {
+    setEditLines((prev) => prev.filter((l) => l.inventoryItemId !== itemId));
+  };
+
+  const updateEditLine = (itemId: string, patch: Partial<Pick<EditLine, 'qty' | 'unitPrice'>>) => {
+    setEditLines((prev) => prev.map((l) => (l.inventoryItemId === itemId ? { ...l, ...patch } : l)));
+  };
+
+  const handleSaveLines = async () => {
+    if (!accessToken || !selectedPo) return;
+    if (editLines.length === 0) {
+      toast({ variant: 'error', title: 'Add at least one item', message: 'A purchase order needs at least one line.' });
+      return;
+    }
+    const invalid = editLines.find((l) => !l.qty || parseFloat(l.qty) <= 0);
+    if (invalid) {
+      toast({ variant: 'error', title: 'Check quantities', message: `${invalid.name} needs a quantity greater than 0.` });
+      return;
+    }
+    setIsSavingLines(true);
+    try {
+      await updatePurchaseOrderLines(
+        selectedPo.id,
+        editLines.map((l) => ({ inventoryItemId: l.inventoryItemId, orderedQty: l.qty, unitPrice: l.unitPrice })),
+        accessToken,
+      );
+      toast({ variant: 'success', title: 'Purchase order updated', message: `${selectedPo.poNumber} was updated.` });
+      setIsEditingLines(false);
+      await refreshSelected(selectedPo.id);
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to save changes', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsSavingLines(false);
+    }
+  };
+
+  const handleReverseReceipt = async () => {
+    if (!accessToken || !selectedPo || !reverseTarget) return;
+    setIsActing(true);
+    try {
+      const updated = await reversePurchaseOrderLineReceipt(selectedPo.id, reverseTarget.id, accessToken);
+      setSelectedPo(updated);
+      toast({ variant: 'success', title: 'Receipt reversed', message: `${reverseTarget.inventoryItem.name} can be received again.` });
+      void load();
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to reverse receipt', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsActing(false);
+      setReverseTarget(null);
     }
   };
 
@@ -264,36 +380,118 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
               </div>
             </div>
 
-            {selectedPo.status === 'DRAFT' && (
+            {selectedPo.status === 'DRAFT' && !isEditingLines && (
               <div className="flex gap-3 border-b border-stone-100 px-6 py-3">
                 <Button leftIcon={<Send size={16} />} onClick={() => setConfirmAction('send')}>Send to Supplier</Button>
+                <Button variant="secondary" leftIcon={<Pencil size={16} />} onClick={openEditLines}>Edit Lines</Button>
                 <Button variant="destructive" leftIcon={<XCircle size={16} />} onClick={() => setConfirmAction('cancel')}>Cancel Order</Button>
               </div>
             )}
-            {(selectedPo.status === 'SENT' || selectedPo.status === 'PARTIALLY_RECEIVED') && (
+            {selectedPo.status === 'SENT' && (
+              <div className="flex gap-3 border-b border-stone-100 px-6 py-3">
+                <Button variant="secondary" leftIcon={<Undo2 size={16} />} onClick={() => setConfirmAction('unsend')}>Unsend</Button>
+                <Button variant="destructive" leftIcon={<XCircle size={16} />} onClick={() => setConfirmAction('cancel')}>Cancel Order</Button>
+              </div>
+            )}
+            {selectedPo.status === 'PARTIALLY_RECEIVED' && (
               <div className="flex gap-3 border-b border-stone-100 px-6 py-3">
                 <Button variant="destructive" leftIcon={<XCircle size={16} />} onClick={() => setConfirmAction('cancel')}>Cancel Order</Button>
               </div>
             )}
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {selectedPo.status === 'DRAFT' || selectedPo.status === 'CANCELLED' || selectedPo.status === 'CLOSED' ? (
+              {selectedPo.status === 'DRAFT' && isEditingLines ? (
+                <>
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-label-sm font-semibold uppercase tracking-wide text-stone-500">Edit Lines</p>
+                    <button type="button" onClick={() => setIsEditingLines(false)} className="text-label-md text-stone-500 underline">
+                      Cancel editing
+                    </button>
+                  </div>
+
+                  {editLines.length > 0 && (
+                    <ul className="mb-4 divide-y divide-stone-100 rounded-md border border-stone-100">
+                      {editLines.map((line) => (
+                        <li key={line.inventoryItemId} className="flex items-end gap-3 px-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-body-sm font-medium text-stone-900">{line.name}</p>
+                          </div>
+                          <QuantityInput
+                            label="Qty"
+                            unit={line.buyUnit}
+                            value={line.qty}
+                            onValueChange={(v) => updateEditLine(line.inventoryItemId, { qty: v })}
+                            className="w-40 shrink-0"
+                          />
+                          <QuantityInput
+                            label="Unit Price"
+                            unit="Ksh"
+                            value={line.unitPrice}
+                            onValueChange={(v) => updateEditLine(line.inventoryItemId, { unitPrice: v })}
+                            className="w-28 shrink-0"
+                          />
+                          <IconButton icon={<X size={15} />} label={`Remove ${line.name}`} variant="ghost" size="sm" onClick={() => removeEditLine(line.inventoryItemId)} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <p className="mb-2 text-label-sm font-semibold uppercase tracking-wide text-stone-500">Add an item</p>
+                  <div className="relative mb-2">
+                    <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <Input value={itemPickerSearch} onChange={(e) => setItemPickerSearch(e.target.value)} placeholder="Search items…" className="pl-9" />
+                  </div>
+                  <ul className="mb-4 max-h-48 divide-y divide-stone-100 overflow-y-auto rounded-md border border-stone-100">
+                    {catalogItems
+                      .filter((item) => item.name.toLowerCase().includes(itemPickerSearch.trim().toLowerCase()))
+                      .filter((item) => !editLines.some((l) => l.inventoryItemId === item.id))
+                      .slice(0, 20)
+                      .map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => addEditLine(item)}
+                            className="flex w-full items-center gap-2.5 px-4 py-2 text-left hover:bg-stone-50"
+                          >
+                            <IconTile icon={itemTypeIcon[item.type]} size="sm" />
+                            <span className="min-w-0 flex-1 truncate text-body-sm text-stone-800">{item.name}</span>
+                            <Plus size={15} className="shrink-0 text-stone-400" />
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+
+                  <div className="flex justify-end gap-3 border-t border-stone-100 pt-4">
+                    <Button variant="secondary" onClick={() => setIsEditingLines(false)}>Cancel</Button>
+                    <Button onClick={() => void handleSaveLines()} isLoading={isSavingLines}>Save Changes</Button>
+                  </div>
+                </>
+              ) : selectedPo.status === 'DRAFT' || selectedPo.status === 'CANCELLED' || selectedPo.status === 'CLOSED' ? (
                 <>
                   <p className="mb-2 text-label-sm font-semibold uppercase tracking-wide text-stone-500">Lines</p>
                   <ul className="divide-y divide-stone-100 rounded-md border border-stone-100">
-                    {selectedPo.lines.map((line) => (
-                      <li key={line.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-body-sm font-medium text-stone-900">{line.inventoryItem.name}</p>
-                          <p className="text-label-sm text-stone-500">
-                            {line.orderedQty} {line.inventoryItem.buyUnit} @ {formatKes(parseFloat(line.unitPrice))}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-body-sm font-semibold text-stone-700">
-                          {formatKes(parseFloat(line.orderedQty) * parseFloat(line.unitPrice))}
-                        </span>
-                      </li>
-                    ))}
+                    {selectedPo.lines.map((line) => {
+                      const currentBuyCost = buyUnitCostValue(line.inventoryItem);
+                      const isStale = selectedPo.status === 'DRAFT' && Math.abs(currentBuyCost - parseFloat(line.unitPrice)) > 0.01;
+                      return (
+                        <li key={line.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-body-sm font-medium text-stone-900">{line.inventoryItem.name}</p>
+                            <p className="text-label-sm text-stone-500">
+                              {line.orderedQty} {line.inventoryItem.buyUnit} @ {formatKes(parseFloat(line.unitPrice))}
+                            </p>
+                            {isStale && (
+                              <p className="mt-0.5 flex items-center gap-1 text-label-sm text-warning">
+                                <AlertTriangle size={12} /> Supplier&rsquo;s current price is {formatKes(currentBuyCost)} — this line may be outdated
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-body-sm font-semibold text-stone-700">
+                            {formatKes(parseFloat(line.orderedQty) * parseFloat(line.unitPrice))}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </>
               ) : (
@@ -320,7 +518,12 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
                             <span className="text-label-sm text-stone-500">Ordered: {line.orderedQty} {line.inventoryItem.buyUnit}</span>
                           </div>
                           {alreadyReceived ? (
-                            <p className="text-label-md text-success">Received {line.receivedQty} {line.inventoryItem.buyUnit} @ {formatKes(parseFloat(line.invoicePrice ?? line.unitPrice))}</p>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-label-md text-success">Received {line.receivedQty} {line.inventoryItem.buyUnit} @ {formatKes(parseFloat(line.invoicePrice ?? line.unitPrice))}</p>
+                              <Button size="sm" variant="ghost" leftIcon={<RotateCcw size={13} />} onClick={() => setReverseTarget(line)}>
+                                Correct this line
+                              </Button>
+                            </div>
                           ) : (
                             <div className="flex items-end gap-3">
                               <QuantityInput
@@ -362,8 +565,17 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
         onClose={() => setConfirmAction(null)}
         onConfirm={handleSend}
         title="Send this purchase order?"
-        description={`${selectedPo?.poNumber ?? 'This order'} will be sent to ${selectedPo?.supplier.name ?? 'the supplier'}. It can no longer be edited after sending.`}
+        description={`${selectedPo?.poNumber ?? 'This order'} will be sent to ${selectedPo?.supplier.name ?? 'the supplier'}. You can still unsend it afterwards if you need to make changes, as long as nothing has been received yet.`}
         confirmLabel="Send Order"
+        isLoading={isActing}
+      />
+      <ConfirmDialog
+        isOpen={confirmAction === 'unsend'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleUnsend}
+        title="Unsend this purchase order?"
+        description={`${selectedPo?.poNumber ?? 'This order'} will return to Draft so you can edit it. You'll need to send it again once you're done.`}
+        confirmLabel="Unsend"
         isLoading={isActing}
       />
       <ConfirmDialog
@@ -373,6 +585,15 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
         title="Cancel this purchase order?"
         description={`${selectedPo?.poNumber ?? 'This order'} will be cancelled and can no longer be actioned. This cannot be undone.`}
         confirmLabel="Cancel Order"
+        isLoading={isActing}
+      />
+      <ConfirmDialog
+        isOpen={!!reverseTarget}
+        onClose={() => setReverseTarget(null)}
+        onConfirm={handleReverseReceipt}
+        title="Correct this receiving line?"
+        description={`This reverses the receipt of ${reverseTarget?.receivedQty ?? ''} ${reverseTarget?.inventoryItem.buyUnit ?? ''} of ${reverseTarget?.inventoryItem.name ?? 'this item'} — stock on hand will be adjusted back down, and you can receive this line again with the correct amounts.`}
+        confirmLabel="Reverse Receipt"
         isLoading={isActing}
       />
     </PageLayout>

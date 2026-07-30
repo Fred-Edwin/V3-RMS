@@ -41,12 +41,28 @@ purchaseOrderRoutes.post(
   purchaseOrderController.create,
 );
 
+purchaseOrderRoutes.patch(
+  '/purchase-orders/:id/lines',
+  authenticate,
+  branchScope,
+  managerOnly,
+  purchaseOrderController.updateLines,
+);
+
 purchaseOrderRoutes.post(
   '/purchase-orders/:id/send',
   authenticate,
   branchScope,
   managerOnly,
   purchaseOrderController.send,
+);
+
+purchaseOrderRoutes.post(
+  '/purchase-orders/:id/unsend',
+  authenticate,
+  branchScope,
+  managerOnly,
+  purchaseOrderController.unsend,
 );
 
 purchaseOrderRoutes.post(
@@ -63,6 +79,14 @@ purchaseOrderRoutes.post(
   branchScope,
   bothRoles,
   purchaseOrderController.receiveLine,
+);
+
+purchaseOrderRoutes.post(
+  '/purchase-orders/:id/lines/:lineId/reverse-receipt',
+  authenticate,
+  branchScope,
+  managerOnly,
+  purchaseOrderController.reverseLineReceipt,
 );
 
 export default purchaseOrderRoutes;

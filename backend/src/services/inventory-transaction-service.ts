@@ -122,6 +122,37 @@ export const inventoryTransactionService = {
 
       await inventoryItemRepository.updateCurrentCost(inventoryItemId, organizationId, newCost, tx);
 
+      // Keep SupplierItem.lastPrice current automatically — it used to only
+      // change when a Manager explicitly re-picked a default supplier, so it
+      // silently went stale the moment a new receipt landed at a different
+      // price. Resolve the supplier from this receipt's PO when there is one;
+      // for ad-hoc receives (no PO line — e.g. seeded ledger history), fall
+      // back to the item's supplier ONLY if it has exactly one assignment,
+      // so an ad-hoc receipt is never misattributed to the wrong supplier on
+      // a multi-supplier item.
+      let supplierIdForPrice: string | null = null;
+      if (purchaseOrderLineId) {
+        const line = await tx.purchaseOrderLine.findUnique({
+          where: { id: purchaseOrderLineId },
+          select: { purchaseOrder: { select: { supplierId: true } } },
+        });
+        supplierIdForPrice = line?.purchaseOrder.supplierId ?? null;
+      } else {
+        const assignments = await tx.supplierItem.findMany({
+          where: { organizationId, inventoryItemId },
+          select: { supplierId: true },
+        });
+        if (assignments.length === 1) supplierIdForPrice = assignments[0]?.supplierId ?? null;
+      }
+
+      if (supplierIdForPrice) {
+        await tx.supplierItem.upsert({
+          where: { supplierId_inventoryItemId: { supplierId: supplierIdForPrice, inventoryItemId } },
+          update: { lastPrice: unitPrice },
+          create: { organizationId, supplierId: supplierIdForPrice, inventoryItemId, lastPrice: unitPrice },
+        });
+      }
+
       return transaction;
     });
   },
