@@ -228,7 +228,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
   STORE_ATTENDANT: {
     tabs: [
       { label: 'Stock', href: '/app/inventory/stock', icon: Package },
-      { label: 'Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
       { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
       { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
     ],
@@ -250,7 +250,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     tabs: [
       { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
       { label: 'Stock', href: '/app/inventory/stock', icon: Package },
-      { label: 'Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
       { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
     ],
     overflowTabs: [
@@ -506,7 +506,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
         { label: 'Stock on Hand', href: '/app/inventory/stock', icon: Package },
         { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
         { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
-        { label: 'Purchase Orders', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+        { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
       ],
     },
     {

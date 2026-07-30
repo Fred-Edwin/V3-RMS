@@ -15,9 +15,11 @@ import {
   type ExcelColumn,
   type SelectOption,
   Select,
+  TabBar,
 } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
+import { SupplierInvoicesAP } from './SupplierInvoicesAP';
 import {
   cancelPurchaseOrder,
   getPurchaseOrder,
@@ -73,6 +75,8 @@ interface EditLine {
   unitPrice: string;
 }
 
+type PurchasesTab = 'orders' | 'invoices';
+
 // app/app/layout.tsx mounts {children} twice for STORE_MANAGER (dual desktop
 // sidebar + CSS-hidden mobile shell) — no mobile variant of this screen
 // exists yet (Session 8), so the mobile-shell copy renders nothing rather
@@ -91,6 +95,7 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | ''>('');
+  const [activeTab, setActiveTab] = useState<PurchasesTab>('orders');
 
   const [selectedPo, setSelectedPo] = useState<PurchaseOrder | null>(null);
   const [drafts, setDrafts] = useState<Record<string, DraftLine>>({});
@@ -323,15 +328,32 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
   return (
     <PageLayout className="animate-fade-up">
       <PageHeader
-        title="Purchase Orders"
-        subtitle={`${orders.length} orders`}
+        title="Purchases"
+        subtitle="Purchase orders and supplier invoices"
         action={
-          <Link href="/app/inventory/purchase-orders/new">
-            <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
-          </Link>
+          activeTab === 'orders' ? (
+            <Link href="/app/inventory/purchase-orders/new">
+              <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
+            </Link>
+          ) : null
         }
       />
 
+      <TabBar
+        tabs={[
+          { value: 'orders', label: 'Purchase Orders' },
+          { value: 'invoices', label: 'Supplier Invoices / AP' },
+        ]}
+        active={activeTab}
+        onChange={setActiveTab}
+        variant="segmented"
+        className="mb-4"
+      />
+
+      {activeTab === 'invoices' ? (
+        <SupplierInvoicesAP mode="desktop" />
+      ) : (
+        <>
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="w-full sm:w-56">
@@ -596,6 +618,8 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
         confirmLabel="Reverse Receipt"
         isLoading={isActing}
       />
+        </>
+      )}
     </PageLayout>
   );
 }

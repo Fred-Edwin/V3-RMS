@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Search } from 'lucide-react';
-import { Card, EmptyState } from '@/components/ui';
+import { Card, EmptyState, TabBar } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { listPurchaseOrders } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -11,6 +11,9 @@ import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import type { PurchaseOrder } from '@/types/inventory';
 import { PurchaseOrdersDesktop } from './PurchaseOrdersDesktop';
+import { SupplierInvoicesAP } from './SupplierInvoicesAP';
+
+type PurchasesTab = 'orders' | 'invoices';
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' });
@@ -45,6 +48,8 @@ function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<PurchasesTab>('orders');
+  const [hasInvoiceDetail, setHasInvoiceDetail] = useState(false);
 
   const loadOrders = useCallback(async () => {
     if (!accessToken) return;
@@ -72,11 +77,32 @@ function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element 
 
   return (
     <div className="min-h-full bg-crema pb-24">
-      {/* Espresso header band — scoped to Inventory Attendant screens only */}
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Purchase Orders</p>
-        <p className="text-label-md text-crema/70">Central Store</p>
-      </div>
+      {!(isManager && activeTab === 'invoices' && hasInvoiceDetail) && (
+        <>
+          <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
+            <p className="font-display text-heading-lg font-medium">{isManager ? 'Purchases' : 'Purchase Orders'}</p>
+            <p className="text-label-md text-crema/70">{isManager ? 'Orders and supplier invoices' : 'Central Store'}</p>
+          </div>
+
+          {isManager && (
+            <TabBar
+              tabs={[
+                { value: 'orders', label: 'Purchase Orders' },
+                { value: 'invoices', label: 'Invoices / AP' },
+              ]}
+              active={activeTab}
+              onChange={setActiveTab}
+              variant="segmented"
+              className="mx-4 mt-4"
+            />
+          )}
+        </>
+      )}
+
+      {isManager && activeTab === 'invoices' ? (
+        <SupplierInvoicesAP mode="mobile" onMobileDetailChange={setHasInvoiceDetail} />
+      ) : (
+        <>
 
       <div className="px-4 py-4">
         {/* Search */}
@@ -152,6 +178,8 @@ function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element 
         <Plus size={20} />
         New Purchase Order
       </Link>
+        </>
+      )}
     </div>
   );
 }

@@ -95,7 +95,7 @@ own stated design intent, and fixing it where it doesn't.
 | 3. Prep entry | In progress — see log below, handed off mid-flow to a fresh session 2026-07-30 |
 | 4. Stock counting | Not started |
 | 5. Waste logging | Not started |
-| 6. Supplier AP | Not started |
+| 6. Supplier AP | Complete 2026-07-30 (single-screen audit; see log below) |
 | 7. Reports | Not started |
 
 ## Owner's mistakes list
@@ -448,6 +448,45 @@ backend) after every change through the icon sweep; backend suite green
 681/681 (re-run after the `recipeInclude` change). No fresh Playwright/live
 pass covers the *final* state (icon sweep + width fix together) — do that
 first in the next session, per point 6 above. 2026-07-30.
+
+### Flow 6 — Supplier AP / Supplier Invoices
+
+**Screens covered:** Store Manager Purchases → Supplier Invoices / AP
+(desktop + mobile). Store Attendant AP access remains zero-access by route
+RBAC and by not rendering the tab.
+
+**Findings:**
+- Navigation model — AP existed only inside each supplier's detail panel,
+  which matched the earlier Session 7 decision but made the real AP question
+  awkward: "who do we owe, how much, and how old is it?" → owner confirmed
+  not to add another sidebar link; renamed the existing Purchase Orders nav
+  destination to **Purchases** and added tabs for **Purchase Orders** and
+  **Supplier Invoices / AP**.
+- Desktop AP — supplier-detail AP could show one supplier's invoices, but
+  lacked the required cross-supplier invoice table, PO reference column,
+  totals-by-supplier panel, and 0-7/8-30/31+ aging view → added a dedicated
+  Manager-only AP workbench under Purchases using the existing
+  `SupplierInvoice` APIs, with an `ExcelTable`, supplier totals, aging
+  buckets, record-invoice modal, record-payment modal, and an invoice detail
+  side panel.
+- Mobile AP — the existing mobile AP was also supplier-detail scoped and did
+  not provide the spec's tap-through invoice detail workflow → added an
+  Invoices / AP tab under Purchases with invoice cards, prominent status
+  badges, compact aging chips per invoice, tap-through detail, and a primary
+  **Record Payment** action.
+- Mistake-proofing — invoice entry made the PO reference optional but useful:
+  selecting a PO pre-fills supplier and amount from that PO; payment entry
+  pre-fills the outstanding amount and blocks overpayment before calling the
+  API.
+- List convention — no decorative icon tiles were added to invoice/payment
+  lists; repeated list summaries use numbered chips where an anchor is
+  needed, matching the owner-wide instruction from Flow 3.
+
+**Verification:** `pnpm --dir frontend exec tsc --noEmit` clean; `pnpm
+build` clean in `backend`; `pnpm test` green in `backend` (681/681); `pnpm
+build` clean in `frontend`. No Playwright/browser verification was run per
+owner instruction; live visual verification remains pending owner review.
+2026-07-30.
 
 *(Template for future flows:)*
 
