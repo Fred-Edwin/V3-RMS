@@ -219,7 +219,7 @@ function StockOnHandMobile({ isManager }: { isManager: boolean }): JSX.Element {
           />
         ) : (
           <div className="space-y-3">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const lowStock = isLowStock(item);
               return (
                 <Card
@@ -231,7 +231,9 @@ function StockOnHandMobile({ isManager }: { isManager: boolean }): JSX.Element {
                     isManager && 'cursor-pointer active:bg-stone-50',
                   )}
                 >
-                  <IconTile icon={resolveItemIcon(item.name, item.type)} />
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-md font-semibold tabular-nums text-stone-500">
+                    {index + 1}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-body-md font-semibold leading-snug text-stone-900">{item.name}</p>
                     <span className="inline-block rounded-full bg-stone-100 px-2 py-0.5 text-label-sm text-stone-600">

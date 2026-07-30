@@ -2,21 +2,23 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardList, Info, Plus, X } from 'lucide-react';
-import { IconTile } from '@/components/ui';
-import { itemTypeIcon } from '@/components/inventory/item-type-icon';
+import { Info, Plus, X } from 'lucide-react';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import {
   createPrepRecord,
   getCentralStoreLocation,
+  getPrepRecipeByOutputItem,
   getPrepRollingAverage,
   listInventoryItems,
 } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
-import type { InventoryItem, RollingAverage } from '@/types/inventory';
+import type { InventoryItem, PrepRecipe, RollingAverage } from '@/types/inventory';
 import { PrepEntryDesktop } from './PrepEntryDesktop';
+import { PrepTabs, type PrepTab } from './PrepTabs';
+import { PrepRecipesTab } from './PrepRecipesTab';
+import { PrepHistoryTab } from './PrepHistoryTab';
 
 interface InputLine {
   key: string;
@@ -43,6 +45,39 @@ export default function PrepEntryPage(): JSX.Element {
 }
 
 function PrepEntryAttendant(): JSX.Element {
+  const role = useAuthStore((state) => state.role);
+  const [tab, setTab] = useState<PrepTab>('log');
+  const isManager = role === 'STORE_MANAGER';
+
+  return (
+    <div className="min-h-full bg-crema pb-24">
+      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
+        <p className="font-display text-heading-lg font-medium">Prep Record</p>
+        <p className="text-label-md text-amber">Log what you actually used and produced</p>
+      </div>
+
+      {isManager && (
+        <div className="bg-white px-4">
+          <PrepTabs active={tab} onChange={setTab} />
+        </div>
+      )}
+
+      {isManager && tab === 'recipes' ? (
+        <div className="px-4 py-4">
+          <PrepRecipesTab />
+        </div>
+      ) : isManager && tab === 'history' ? (
+        <div className="px-4 py-4">
+          <PrepHistoryTab />
+        </div>
+      ) : (
+        <LogPrepMobile />
+      )}
+    </div>
+  );
+}
+
+function LogPrepMobile(): JSX.Element {
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
   const { toast } = useToast();
@@ -58,6 +93,7 @@ function PrepEntryAttendant(): JSX.Element {
   const [pickerForLineKey, setPickerForLineKey] = useState<string | null>(null);
   const [actualYield, setActualYield] = useState('');
   const [rollingAverage, setRollingAverage] = useState<RollingAverage | null>(null);
+  const [recipe, setRecipe] = useState<PrepRecipe | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -92,8 +128,63 @@ function PrepEntryAttendant(): JSX.Element {
       .catch(() => setRollingAverage(null));
   }, [accessToken, outputItem]);
 
+  // Recipe pre-fill (D-12 reopened) — mirrors the desktop behavior: picking
+  // an output item with a saved recipe populates input lines + expected
+  // yield, editable/removable from there. No recipe means the blank-slate
+  // flow exactly as before.
+  useEffect(() => {
+    if (!accessToken || !outputItem) {
+      setRecipe(null);
+      return;
+    }
+    let cancelled = false;
+    const itemsById = new Map(items.map((i) => [i.id, i]));
+    getPrepRecipeByOutputItem(outputItem.id, accessToken)
+      .then((r) => {
+        if (cancelled) return;
+        setRecipe(r);
+        if (r) {
+          setInputLines(
+            r.lines.map((line) => ({
+              key: crypto.randomUUID(),
+              item: itemsById.get(line.inputItemId) ?? null,
+              quantity: line.quantity,
+            })),
+          );
+          setActualYield(r.expectedYield);
+        } else {
+          setInputLines([newLine()]);
+          setActualYield('');
+        }
+      })
+      .catch(() => setRecipe(null));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, outputItem]);
+
   const preppedItems = useMemo(() => items.filter((i) => i.type === 'PREPPED'), [items]);
   const usedInputIds = useMemo(() => new Set(inputLines.map((l) => l.item?.id).filter(Boolean)), [inputLines]);
+
+  // Batch scaling (D-12 "Left open" #2) — mirrors desktop: average of each
+  // ingredient line's actual÷recipe ratio, scaling the recipe's expected
+  // yield to this run's batch size.
+  const scaledExpectedYield = useMemo(() => {
+    if (!recipe) return null;
+    const ratios: number[] = [];
+    for (const recipeLine of recipe.lines) {
+      const recipeQty = parseFloat(recipeLine.quantity);
+      if (!Number.isFinite(recipeQty) || recipeQty <= 0) continue;
+      const actualLine = inputLines.find((l) => l.item?.id === recipeLine.inputItemId);
+      const actualQty = actualLine ? parseFloat(actualLine.quantity) : NaN;
+      if (!Number.isFinite(actualQty) || actualQty <= 0) continue;
+      ratios.push(actualQty / recipeQty);
+    }
+    if (ratios.length === 0) return null;
+    const avgRatio = ratios.reduce((sum, r) => sum + r, 0) / ratios.length;
+    return avgRatio * parseFloat(recipe.expectedYield);
+  }, [recipe, inputLines]);
 
   const addInputLine = () => setInputLines((prev) => [...prev, newLine()]);
   const removeInputLine = (key: string) => setInputLines((prev) => (prev.length > 1 ? prev.filter((l) => l.key !== key) : prev));
@@ -108,7 +199,7 @@ function PrepEntryAttendant(): JSX.Element {
     if (!accessToken || !locationId || !outputItem) return;
     const validLines = inputLines.filter((l) => l.item && l.quantity && parseFloat(l.quantity) > 0);
     if (validLines.length === 0) {
-      toast({ variant: 'error', title: 'Add at least one input', message: 'Log what you actually used to prepare this item.' });
+      toast({ variant: 'error', title: 'Add at least one ingredient', message: 'Log what you actually used to prepare this item.' });
       return;
     }
     if (!actualYield || parseFloat(actualYield) <= 0) {
@@ -123,6 +214,7 @@ function PrepEntryAttendant(): JSX.Element {
           locationId,
           outputItemId: outputItem.id,
           actualYield,
+          scaledExpectedYield: scaledExpectedYield !== null ? String(scaledExpectedYield) : undefined,
           inputs: validLines.map((l) => ({ inventoryItemId: l.item!.id, quantity: l.quantity })),
         },
         accessToken,
@@ -137,12 +229,7 @@ function PrepEntryAttendant(): JSX.Element {
   };
 
   return (
-    <div className="min-h-full bg-crema pb-24">
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Prep Record</p>
-        <p className="text-label-md text-amber">Log what you actually used and produced</p>
-      </div>
-
+    <>
       <div className="px-4 py-4">
         {/* Step 1 */}
         <StepHeader n={1} label="What are you preparing?" />
@@ -152,13 +239,10 @@ function PrepEntryAttendant(): JSX.Element {
           className="mb-6 flex w-full items-center gap-3 rounded-md border border-stone-200 bg-white p-3 text-left"
         >
           {outputItem ? (
-            <>
-              <IconTile icon={itemTypeIcon.PREPPED} />
-              <div className="min-w-0 flex-1">
-                <p className="text-label-sm uppercase tracking-wide text-stone-500">Prepped Item</p>
-                <p className="truncate text-body-md font-semibold text-stone-900">{outputItem.name}</p>
-              </div>
-            </>
+            <div className="min-w-0 flex-1">
+              <p className="text-label-sm uppercase tracking-wide text-stone-500">Prepped Item</p>
+              <p className="truncate text-body-md font-semibold text-stone-900">{outputItem.name}</p>
+            </div>
           ) : (
             <p className="flex-1 text-body-md text-stone-400">Select the item you&apos;re preparing…</p>
           )}
@@ -166,16 +250,28 @@ function PrepEntryAttendant(): JSX.Element {
         </button>
 
         {/* Step 2 */}
-        <StepHeader n={2} label="What did you use? (Inputs)" />
+        <StepHeader n={2} label="What did you use? (Ingredients)" />
+        {recipe && (
+          <div className="mb-3 flex items-start gap-2 rounded-md bg-amber-light/50 p-3 text-label-md text-espresso">
+            <Info size={16} className="mt-0.5 shrink-0 text-amber" />
+            <p>
+              Pre-filled from the <span className="font-medium">{recipe.name}</span> recipe (expects{' '}
+              {scaledExpectedYield !== null ? `${scaledExpectedYield.toFixed(2)} ${recipe.outputItem.usageUnit} for this batch size` : `${recipe.expectedYield} ${recipe.outputItem.usageUnit}`}
+              ) — adjust to what you actually used.
+            </p>
+          </div>
+        )}
         <div className="mb-3 space-y-2">
-          {inputLines.map((line) => (
+          {inputLines.map((line, index) => (
             <div key={line.key} className="flex items-center gap-2 rounded-md border border-stone-200 bg-white p-2.5">
               <button
                 type="button"
                 onClick={() => setPickerForLineKey(line.key)}
                 className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
-                <IconTile icon={line.item ? itemTypeIcon[line.item.type] : ClipboardList} size="sm" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                  {index + 1}
+                </span>
                 <div className="min-w-0">
                   {line.item ? (
                     <>
@@ -183,7 +279,7 @@ function PrepEntryAttendant(): JSX.Element {
                       <p className="text-label-sm text-stone-500">{line.item.usageUnit}</p>
                     </>
                   ) : (
-                    <p className="text-body-sm text-stone-400">Select input item…</p>
+                    <p className="text-body-sm text-stone-400">Select ingredient…</p>
                   )}
                 </div>
               </button>
@@ -191,10 +287,10 @@ function PrepEntryAttendant(): JSX.Element {
                 value={line.quantity}
                 onValueChange={(v) => updateInputQty(line.key, v)}
                 unit={line.item?.usageUnit}
-                className="w-32"
+                className="w-36"
               />
               {inputLines.length > 1 && (
-                <button type="button" onClick={() => removeInputLine(line.key)} className="shrink-0 text-stone-400" aria-label="Remove input">
+                <button type="button" onClick={() => removeInputLine(line.key)} className="shrink-0 text-stone-400" aria-label="Remove ingredient">
                   <X size={18} />
                 </button>
               )}
@@ -206,12 +302,12 @@ function PrepEntryAttendant(): JSX.Element {
           onClick={addInputLine}
           className="mb-6 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-amber py-3 text-label-lg font-medium text-amber"
         >
-          <Plus size={18} /> Add another input
+          <Plus size={18} /> Add another ingredient
         </button>
 
         {/* Step 3 */}
         <StepHeader n={3} label="What did you produce?" />
-        {rollingAverage && rollingAverage.sampleCount > 0 && (
+        {!recipe && rollingAverage && rollingAverage.sampleCount > 0 && (
           <div className="mb-3 flex items-start gap-2 rounded-md bg-amber-light/50 p-3 text-label-md text-espresso">
             <Info size={16} className="mt-0.5 shrink-0 text-amber" />
             <div>
@@ -223,12 +319,11 @@ function PrepEntryAttendant(): JSX.Element {
           </div>
         )}
         <div className="flex items-center gap-3 rounded-md border border-stone-200 bg-white p-3">
-          <IconTile icon={itemTypeIcon.PREPPED} />
           <div className="min-w-0 flex-1">
             <p className="text-label-sm uppercase tracking-wide text-stone-500">Actual Yield Produced</p>
             <p className="truncate text-body-sm font-semibold text-stone-900">{outputItem?.name ?? 'Select an output item first'}</p>
           </div>
-          <QuantityInput value={actualYield} onValueChange={setActualYield} unit={outputItem?.usageUnit} className="w-32" />
+          <QuantityInput value={actualYield} onValueChange={setActualYield} unit={outputItem?.usageUnit} className="w-36" />
         </div>
       </div>
 
@@ -264,7 +359,7 @@ function PrepEntryAttendant(): JSX.Element {
           onClose={() => setPickerForLineKey(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -317,14 +412,16 @@ function ItemPickerSheet({
           <p className="py-6 text-center text-body-sm text-stone-500">No items found.</p>
         ) : (
           <div className="space-y-1.5">
-            {filtered.map((item) => (
+            {filtered.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onPick(item)}
                 className="flex w-full items-center gap-3 rounded-md p-2 text-left hover:bg-stone-100"
               >
-                <IconTile icon={itemTypeIcon[item.type]} size="sm" />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                  {index + 1}
+                </span>
                 <div className="min-w-0">
                   <p className="truncate text-body-sm font-semibold text-stone-900">{item.name}</p>
                   <p className="text-label-sm text-stone-500">{item.usageUnit}</p>

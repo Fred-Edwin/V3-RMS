@@ -120,12 +120,18 @@ export const inventoryReportService = {
 
         const runs = records.map((record) => {
           const totalInputQty = record.lines.reduce((sum, line) => sum.add(line.quantity), ZERO);
+          const hasScaledYield = record.scaledExpectedYield && !record.scaledExpectedYield.isZero();
           return {
             prepRecordId: record.id,
             recordedAt: record.recordedAt,
             recordedById: record.recordedById,
             totalInputQty,
             actualYield: record.actualYield,
+            scaledExpectedYield: record.scaledExpectedYield,
+            /** Variance as a percentage of the scaled-expected yield — null when no recipe existed for this run. */
+            variancePct: hasScaledYield
+              ? record.actualYield.sub(record.scaledExpectedYield!).div(record.scaledExpectedYield!).mul(100)
+              : null,
             unitCost: record.unitCost,
             yieldRatio: totalInputQty.isZero() ? null : record.actualYield.div(totalInputQty),
           };

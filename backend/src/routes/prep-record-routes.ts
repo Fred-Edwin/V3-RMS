@@ -10,7 +10,8 @@ const bothRoles = requireRole('STORE_MANAGER', 'STORE_ATTENDANT');
 const managerOnly = requireRole('STORE_MANAGER');
 
 // PrepRecipe routes registered first — "recipes" would otherwise be
-// swallowed by the /prep-records/:id param route below.
+// swallowed by the /prep-records/:id param route below. `/prep-recipes/by-output`
+// must precede `/prep-recipes/:id` for the same reason.
 prepRecordRoutes.get(
   '/prep-recipes',
   authenticate,
@@ -19,12 +20,39 @@ prepRecordRoutes.get(
   prepRecordController.listRecipes,
 );
 
+/** Recipe lookup by output item — both roles; powers Log Prep's pre-fill (D-12 reopened). */
+prepRecordRoutes.get(
+  '/prep-recipes/by-output',
+  authenticate,
+  branchScope,
+  bothRoles,
+  prepRecordController.getRecipeByOutputItem,
+);
+
+/** Directly author a Prep Recipe (creates the output item + recipe together) — Manager-only. */
+prepRecordRoutes.post(
+  '/prep-recipes',
+  authenticate,
+  branchScope,
+  managerOnly,
+  prepRecordController.createRecipe,
+);
+
 prepRecordRoutes.get(
   '/prep-recipes/:id',
   authenticate,
   branchScope,
   bothRoles,
   prepRecordController.getRecipeById,
+);
+
+/** Edit a recipe's own fields/lines — Manager-only. Never touches past PrepRecords. */
+prepRecordRoutes.patch(
+  '/prep-recipes/:id',
+  authenticate,
+  branchScope,
+  managerOnly,
+  prepRecordController.updateRecipe,
 );
 
 prepRecordRoutes.get(

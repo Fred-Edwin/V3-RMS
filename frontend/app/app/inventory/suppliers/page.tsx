@@ -11,7 +11,6 @@ import {
   FormField,
   HelpTip,
   IconButton,
-  IconTile,
   Input,
   Modal,
   PageHeader,
@@ -1273,9 +1272,11 @@ function SuppliersMobile(): JSX.Element {
           <EmptyState icon={<Search size={40} />} heading="No suppliers yet" body="Suppliers you add will appear here." />
         ) : (
           <div className="space-y-3">
-            {filteredSuppliers.map((supplier) => (
+            {filteredSuppliers.map((supplier, index) => (
               <Card key={supplier.id} onClick={() => void openSupplier(supplier)} className="flex items-center gap-3 p-3">
-                <IconTile icon={User} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-md font-semibold tabular-nums text-stone-500">
+                  {index + 1}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body-md font-semibold text-stone-900">{supplier.name}</p>
                   <p className="truncate text-label-sm text-stone-500">{supplier._count.supplierItems} item{supplier._count.supplierItems === 1 ? '' : 's'}</p>

@@ -130,6 +130,7 @@ export const inventoryReportRepository = {
       select: {
         id: true,
         actualYield: true,
+        scaledExpectedYield: true,
         unitCost: true,
         recordedAt: true,
         recordedById: true,

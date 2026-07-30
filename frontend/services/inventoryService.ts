@@ -3,6 +3,7 @@ import type {
   AssignSupplierItemInput,
   CountDiscrepancyLine,
   CreateInventoryItemInput,
+  CreatePrepRecipeInput,
   CreatePrepRecordInput,
   CreatePurchaseOrderInput,
   CreateStockCountInput,
@@ -33,6 +34,7 @@ import type {
   SupplierWithItemCount,
   TrueCostPerPreppedItemLine,
   UpdateInventoryItemInput,
+  UpdatePrepRecipeInput,
   UpdateSupplierInput,
   WasteLog,
   WasteReason,
@@ -289,6 +291,32 @@ export async function promotePrepRecordToRecipe(
   token: string,
 ): Promise<PrepRecipe> {
   return apiClient.post<PrepRecipe>(`/prep-records/${prepRecordId}/promote`, input, token);
+}
+
+/** Recipe for a given output item, or null if none exists — Log Prep's pre-fill lookup. */
+export async function getPrepRecipeByOutputItem(
+  outputItemId: string,
+  token: string,
+): Promise<PrepRecipe | null> {
+  return apiClient.get<PrepRecipe | null>(`/prep-recipes/by-output?outputItemId=${outputItemId}`, token);
+}
+
+/**
+ * Directly authors a Prep Recipe — Manager-only. Creates the output
+ * InventoryItem (type PREPPED) and the recipe together (D-12 reopened —
+ * see UI_UX_DESIGN_AUDIT.md Flow 3).
+ */
+export async function createPrepRecipe(input: CreatePrepRecipeInput, token: string): Promise<PrepRecipe> {
+  return apiClient.post<PrepRecipe>('/prep-recipes', input, token);
+}
+
+/** Edits a recipe's own fields/lines — Manager-only. Never touches past PrepRecords. */
+export async function updatePrepRecipe(
+  id: string,
+  input: UpdatePrepRecipeInput,
+  token: string,
+): Promise<PrepRecipe> {
+  return apiClient.patch<PrepRecipe>(`/prep-recipes/${id}`, input, token);
 }
 
 // ─── Stock Counts ───────────────────────────────────────────────────────────

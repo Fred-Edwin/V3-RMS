@@ -6,7 +6,12 @@ import {
 } from '../repositories/prep-record-repository';
 import { inventoryTransactionService } from './inventory-transaction-service';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import type { CreatePrepRecordInput, PromotePrepRecipeInput } from '../validators/prep-record-schemas';
+import type {
+  CreatePrepRecipeInput,
+  CreatePrepRecordInput,
+  PromotePrepRecipeInput,
+  UpdatePrepRecipeInput,
+} from '../validators/prep-record-schemas';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -48,6 +53,7 @@ export const prepRecordService = {
       locationId: input.locationId,
       outputItemId: input.outputItemId,
       actualYield: input.actualYield,
+      scaledExpectedYield: input.scaledExpectedYield,
       inputs: input.inputs,
       recordedById: actor.id,
     });
@@ -75,6 +81,57 @@ export const prepRecordService = {
       throw new NotFoundError('Prep recipe not found');
     }
     return recipe;
+  },
+
+  /** Recipe for a given output item, or null if none exists yet — Log Prep's pre-fill lookup. */
+  getRecipeByOutputItem: async (actor: Actor, outputItemId: string): Promise<PrepRecipeWithLines | null> => {
+    const organizationId = requireOrganization(actor);
+    return prepRecordRepository.findRecipeByOutputItem(outputItemId, organizationId);
+  },
+
+  /**
+   * Directly authors a Prep Recipe — Manager-only (route-gated). Creates the
+   * output InventoryItem (type PREPPED) and the recipe together; a prepped
+   * item can no longer be created from Item Catalog (D-12 reopened — see
+   * UI_UX_DESIGN_AUDIT.md Flow 3).
+   */
+  createRecipe: async (actor: Actor, input: CreatePrepRecipeInput): Promise<PrepRecipeWithLines> => {
+    const organizationId = requireOrganization(actor);
+    return prepRecordRepository.createRecipeDirect(organizationId, {
+      outputItemName: input.outputItemName,
+      usageUnit: input.usageUnit,
+      name: input.outputItemName,
+      expectedYield: input.expectedYield,
+      batchLabel: input.batchLabel,
+      instructions: input.instructions,
+      createdById: actor.id,
+      lines: input.inputs.map((line) => ({
+        inputItemId: line.inventoryItemId,
+        quantity: line.quantity,
+      })),
+    });
+  },
+
+  /**
+   * Edits a recipe's own fields/lines — Manager-only. Never touches past
+   * PrepRecords; only changes what pre-fills on future Log Prep runs.
+   */
+  updateRecipe: async (actor: Actor, id: string, input: UpdatePrepRecipeInput): Promise<PrepRecipeWithLines> => {
+    const organizationId = requireOrganization(actor);
+    const updated = await prepRecordRepository.updateRecipe(id, organizationId, {
+      name: input.name,
+      expectedYield: input.expectedYield,
+      batchLabel: input.batchLabel,
+      instructions: input.instructions,
+      lines: input.inputs?.map((line) => ({
+        inputItemId: line.inventoryItemId,
+        quantity: line.quantity,
+      })),
+    });
+    if (!updated) {
+      throw new NotFoundError('Prep recipe not found');
+    }
+    return updated;
   },
 
   /**

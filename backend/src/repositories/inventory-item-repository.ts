@@ -72,8 +72,9 @@ export const inventoryItemRepository = {
   create: async (
     organizationId: string,
     data: CreateInventoryItemInput,
+    tx: TxClient = prisma,
   ): Promise<InventoryItem> => {
-    return prisma.inventoryItem.create({
+    return tx.inventoryItem.create({
       data: {
         organizationId,
         name: data.name,

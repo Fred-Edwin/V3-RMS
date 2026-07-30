@@ -9,7 +9,6 @@ import {
   ConfirmDialog,
   ExcelTable,
   IconButton,
-  IconTile,
   Input,
   PageHeader,
   PageLayout,
@@ -19,7 +18,6 @@ import {
 } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
-import { itemTypeIcon } from '@/components/inventory/item-type-icon';
 import {
   cancelPurchaseOrder,
   getPurchaseOrder,
@@ -446,14 +444,16 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
                       .filter((item) => item.name.toLowerCase().includes(itemPickerSearch.trim().toLowerCase()))
                       .filter((item) => !editLines.some((l) => l.inventoryItemId === item.id))
                       .slice(0, 20)
-                      .map((item) => (
+                      .map((item, index) => (
                         <li key={item.id}>
                           <button
                             type="button"
                             onClick={() => addEditLine(item)}
                             className="flex w-full items-center gap-2.5 px-4 py-2 text-left hover:bg-stone-50"
                           >
-                            <IconTile icon={itemTypeIcon[item.type]} size="sm" />
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                              {index + 1}
+                            </span>
                             <span className="min-w-0 flex-1 truncate text-body-sm text-stone-800">{item.name}</span>
                             <Plus size={15} className="shrink-0 text-stone-400" />
                           </button>

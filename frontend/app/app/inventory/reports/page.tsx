@@ -165,6 +165,17 @@ function InventoryReportsPageInner(): JSX.Element {
     { key: 'recordedAt', label: 'Date', render: (row) => new Date(row.recordedAt).toLocaleDateString('en-KE', { dateStyle: 'medium' }) },
     { key: 'totalInputQty', label: 'Input Qty', numeric: true },
     { key: 'actualYield', label: 'Actual Yield', numeric: true },
+    { key: 'scaledExpectedYield', label: 'Expected (This Batch)', numeric: true, render: (row) => (row.scaledExpectedYield ? parseFloat(row.scaledExpectedYield).toFixed(2) : '—') },
+    {
+      key: 'variancePct',
+      label: 'Variance',
+      numeric: true,
+      render: (row) => {
+        if (!row.variancePct) return '—';
+        const v = parseFloat(row.variancePct);
+        return <span className={v < 0 ? 'font-semibold text-danger' : v > 0 ? 'font-semibold text-success' : 'text-stone-500'}>{v > 0 ? '+' : ''}{v.toFixed(1)}%</span>;
+      },
+    },
     { key: 'yieldRatio', label: 'Yield Ratio', numeric: true, render: (row) => (row.yieldRatio ? parseFloat(row.yieldRatio).toFixed(2) : '—') },
     { key: 'unitCost', label: 'Unit Cost', numeric: true, render: (row) => formatKes(row.unitCost) },
   ];
@@ -218,7 +229,10 @@ function InventoryReportsPageInner(): JSX.Element {
       csv = toCsv(['PO Number', 'Supplier', 'Unit Price', 'Invoice Price', 'Received Qty', 'Received At'], priceHistory.map((l) => [l.poNumber ?? '', l.supplierName ?? '', l.unitPrice, l.invoicePrice ?? '', l.receivedQty, l.receivedAt ?? '']));
       filename = 'price-history.csv';
     } else if (tab === 'prep-yield') {
-      csv = toCsv(['Output Item', 'Date', 'Input Qty', 'Actual Yield', 'Yield Ratio', 'Unit Cost'], prepYieldRows.map((r) => [r.outputItemName, r.recordedAt, r.totalInputQty, r.actualYield, r.yieldRatio ?? '', r.unitCost]));
+      csv = toCsv(
+        ['Output Item', 'Date', 'Input Qty', 'Actual Yield', 'Expected (This Batch)', 'Variance %', 'Yield Ratio', 'Unit Cost'],
+        prepYieldRows.map((r) => [r.outputItemName, r.recordedAt, r.totalInputQty, r.actualYield, r.scaledExpectedYield ?? '', r.variancePct ?? '', r.yieldRatio ?? '', r.unitCost]),
+      );
       filename = 'prep-yield.csv';
     } else if (tab === 'discrepancy') {
       csv = toCsv(['Item', 'Session', 'Expected', 'Counted', 'Gap Value'], discrepancy.map((l) => [l.itemName, l.stockCountLabel, l.expectedQty, l.countedQty ?? '', l.gapValue]));

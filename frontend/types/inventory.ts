@@ -189,6 +189,7 @@ export interface PrepRecord {
   locationId: string;
   outputItemId: string;
   actualYield: string;
+  scaledExpectedYield: string | null;
   unitCost: string;
   recordedById: string;
   recordedAt: string;
@@ -200,6 +201,7 @@ export interface CreatePrepRecordInput {
   locationId: string;
   outputItemId: string;
   actualYield: string;
+  scaledExpectedYield?: string;
   inputs: { inventoryItemId: string; quantity: string }[];
 }
 
@@ -215,7 +217,7 @@ export interface PrepRecipeLine {
   id: string;
   inputItemId: string;
   quantity: string;
-  inputItem: { id: string; name: string };
+  inputItem: { id: string; name: string; usageUnit: string };
 }
 
 export interface PrepRecipe {
@@ -230,7 +232,7 @@ export interface PrepRecipe {
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  outputItem: { id: string; name: string };
+  outputItem: { id: string; name: string; usageUnit: string };
   lines: PrepRecipeLine[];
 }
 
@@ -239,6 +241,23 @@ export interface PromotePrepRecipeInput {
   expectedYield?: string;
   batchLabel?: string;
   instructions?: string;
+}
+
+export interface CreatePrepRecipeInput {
+  outputItemName: string;
+  usageUnit: string;
+  expectedYield: string;
+  batchLabel?: string;
+  instructions?: string;
+  inputs: { inventoryItemId: string; quantity: string }[];
+}
+
+export interface UpdatePrepRecipeInput {
+  name?: string;
+  expectedYield?: string;
+  batchLabel?: string;
+  instructions?: string;
+  inputs?: { inventoryItemId: string; quantity: string }[];
 }
 
 // ─── Stock Counts ───────────────────────────────────────────────────────────
@@ -432,6 +451,8 @@ export interface PrepYieldRun {
   recordedById: string;
   totalInputQty: string;
   actualYield: string;
+  scaledExpectedYield: string | null;
+  variancePct: string | null;
   unitCost: string;
   yieldRatio: string | null;
 }

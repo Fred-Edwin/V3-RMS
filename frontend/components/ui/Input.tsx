@@ -47,7 +47,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     }, [rightIcon])
 
     const inputBase = cn(
-      'w-full h-11 bg-parchment border-[1.5px] rounded-sm text-body-md font-sans text-stone-900 placeholder:text-stone-400 transition-colors duration-fast',
+      // bg-white at rest (not bg-parchment) so an empty-but-interactive
+      // field never reads as disabled — bg-stone-100 + opacity-50 below is
+      // reserved for genuinely disabled fields only.
+      'w-full h-11 bg-white border-[1.5px] rounded-sm text-body-md font-sans text-stone-900 placeholder:text-stone-400 transition-colors duration-fast',
       'focus:outline-none focus:shadow-focus',
       hasError
         ? 'border-danger-border focus:border-danger-border'

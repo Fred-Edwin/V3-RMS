@@ -92,7 +92,7 @@ own stated design intent, and fixing it where it doesn't.
 |---|---|
 | 1. Catalog & Suppliers | Complete 2026-07-30 (Stock on Hand + Suppliers deep-dive; see log below) |
 | 2. PO raise → send → receive | Complete 2026-07-29 (see log below) |
-| 3. Prep entry | Not started |
+| 3. Prep entry | In progress — see log below, handed off mid-flow to a fresh session 2026-07-30 |
 | 4. Stock counting | Not started |
 | 5. Waste logging | Not started |
 | 6. Supplier AP | Not started |
@@ -277,6 +277,177 @@ queries for the sparkline/price data fixes (Chicken Breast confirmed
 returning all 5 real price points post-fix). Live-checked in-browser by the
 owner throughout, not just post-hoc — this flow was driven by iterative
 live feedback rather than a single audit-then-fix pass. 2026-07-30.
+
+### Flow 3 — Prep entry (in progress, handed off mid-flow)
+
+**Screens covered:** Prep Entry (Manager desktop `PrepEntryDesktop.tsx` +
+Attendant/Manager mobile `page.tsx`), new Prep Recipes authoring tab
+(`PrepRecipesTab.tsx`), new shared `ItemCombobox.tsx` component.
+
+**Owner's mistakes list (collected live, not pre-gathered):** unclear where
+prepped items are created; dropdown pickers don't scale past a handful of
+items; general visual/usability polish wanted; input-line quantity units
+should be usage units not buy units (turned out to already be correct in
+code — not a real bug); fewest possible touches per prep run.
+
+**Findings — and a major scope reopening:**
+- **D-12 ("no predefined recipe requirement") reopened at the owner's
+  request.** Investigated first: `PrepRecipe`/`PrepRecipeLine` already
+  existed in schema as a Manager-only "promote a past PrepRecord into a
+  template" feature, but had zero read-side wiring into the entry form and
+  no direct-authoring path — a prepped item could only ever be created via
+  Item Catalog's flat type dropdown, with no recipe attached. Owner decided
+  this was backwards: a prepped item only exists *because* a recipe produces
+  it, so recipe authoring should be how a prepped item is created, not a
+  same-flat-form dropdown option in Item Catalog.
+- **Item Catalog**: removed `PREPPED` from the creatable type options at
+  creation time (`CREATABLE_TYPE_OPTIONS`, both desktop/mobile forms) —
+  editing an *existing* legacy PREPPED item still works and still shows
+  `PREPPED` via the full `TYPE_OPTIONS`, just can't be selected fresh anymore
+  or changed away from PREPPED once set (would orphan its recipe).
+- **New Prep Recipes tab** (Manager-only, top tabs alongside "Log Prep" —
+  explicitly *not* added to the sidebar, per owner instruction, to avoid
+  clutter): Manager authors a recipe directly — item name, ingredients
+  (item + quantity, reusing the new searchable `ItemCombobox`), and one
+  batch's expected yield. Creating a recipe atomically creates the
+  `InventoryItem` (type PREPPED) + `PrepRecipe` + lines in one backend
+  transaction (`prepRecordRepository.createRecipeDirect`). New endpoints:
+  `POST /prep-recipes` (create), `PATCH /prep-recipes/:id` (edit — replaces
+  all lines wholesale, past `PrepRecord`s untouched), `GET
+  /prep-recipes/by-output` (Log Prep's pre-fill lookup) — all Manager-only
+  except the by-output read, which both roles can call.
+- **Log Prep now pre-fills from the recipe** (both desktop and mobile): on
+  output-item selection, ingredient lines + expected yield auto-populate
+  from the saved recipe (still fully editable/removable — never blocking).
+  Falls back to today's exact blank-slate + rolling-average hint if no
+  recipe exists for that item yet.
+- **Terminology fixed after live owner confusion**: "Input Lines" renamed to
+  "Ingredients" everywhere (recipe form + both Log Prep variants). "Usage
+  Unit" was ambiguous/unexplained on the recipe form — clarified as "Yield
+  Unit," moved next to Expected Yield inside a "This batch yields" box, with
+  helper text making the relationship explicit ("How much one full batch of
+  the ingredients above produces").
+- **Batch model decision**: one recipe = one fixed batch (no separate
+  multiplier/scaling concept at authoring time) — the ingredient quantities
+  *are* one batch's definition, matching the domain model doc's own example
+  (`central_kitchen_inventory_model.md` §4 Step 2: "Chicken Breast 1.1kg +
+  Marinade 50ml + Salt 5g → yields 1kg"). **Superseded before this session
+  closed** — see "Left open" below.
+- **Desktop dropdown → searchable combobox**: built `ItemCombobox.tsx`
+  (type-to-filter, keyboard-friendly, matches mobile's existing searchable
+  bottom-sheet pattern) to replace the bare native `<select>` for Output
+  Item and every Input/Ingredient line on desktop. Mobile already had this
+  pattern (`ItemPickerSheet`) — untouched, still correct.
+- **Disabled-vs-empty field ambiguity — fixed globally, not just in Prep
+  Entry** (owner explicitly chose the wider fix over a screen-local one):
+  `Input.tsx` and `Select.tsx` both used `bg-parchment` at rest, identical in
+  weight/tone to the `bg-stone-100 + opacity-50` disabled state — every empty
+  field in the entire product looked disabled. Changed both to `bg-white` at
+  rest; disabled styling untouched. Affects every form field app-wide, not
+  just this flow.
+- **Icon-tiles-in-lists → row numbers, applied app-wide** (owner's
+  instruction, explicitly "everywhere," not scoped to Prep Entry): removed
+  every per-item icon tile in every *list* context and replaced with a plain
+  sequential row number (`index + 1` in a small numbered chip), matching
+  Stock On Hand's existing row-number convention. Touched: Prep Entry/Prep
+  Recipes pickers, `ItemCombobox`'s dropdown rows, Item Catalog's PO
+  add-item picker, Waste Log's search/recent-items, New PO's browse-catalog
+  list, PO edit's add-item picker, Suppliers' mobile roster list. Explicitly
+  **kept** icons only in single-item (non-list) detail contexts: Stock On
+  Hand's movement-history drill-in panel (desktop + mobile), and Log Prep's
+  own "what you're preparing"/"what you produced" single-selection summary
+  cards — these show one already-chosen item, not a list of choices.
+  **Left incomplete**: `ItemCombobox`'s own *trigger button* (the closed,
+  selected-state display) still shows an icon instead of following the same
+  number treatment as its dropdown list — owner flagged this from a
+  screenshot taken after the dropdown-list fix but before this trigger-button
+  spot was caught. Fix identified but not yet applied — see "Left open."
+- **Quantity input width bug**: quantity fields (`w-32`/`w-36`, i.e.
+  128–144px) were too narrow for a real 3-digit quantity plus a unit suffix
+  (e.g. "623 ml") in the bold/large input font — value looked truncated
+  (owner saw "3" where "300"-range values had been entered). Root-caused via
+  a one-off owner-directed Playwright check (typing "1.5" into a fresh field
+  proved the underlying state/keystroke handling was never broken — purely a
+  CSS width/clipping issue). Fixed: desktop widened to `w-40`, mobile to
+  `w-36` (up from `w-32`), consistently across the recipe form and both Log
+  Prep variants.
+
+**Left open (original handoff list, #1-5 now closed — see "Follow-on session" below):**
+1. ~~`ItemCombobox`'s trigger-button icon~~ — closed. On inspection the
+   trigger button never actually rendered an icon (text-only), so this was
+   already correct in the working tree; no code change needed.
+2. ~~Batch scaling~~ — closed. Implemented in both `PrepEntryDesktop.tsx`
+   and `page.tsx`'s `LogPrepMobile`: average of each ingredient line's
+   actual÷recipe ratio, scaling the recipe's expected yield live as
+   quantities are entered. Recipe pre-fill banner and the Actual Yield
+   field's helper text both show the scaled figure once ingredients diverge
+   from the recipe's own batch size.
+3. ~~Persist scaled-expected-yield~~ — closed. `PrepRecord.scaledExpectedYield`
+   (nullable Decimal(12,4)) added via migration
+   `20260730120000_add_prep_record_scaled_expected_yield`, wired through
+   `CreatePrepRecordSchema` → `prepRecordService.create` →
+   `inventoryTransactionService.recordPrep` → `tx.prepRecord.create`. Null
+   when no recipe existed for that run (unscaled logging still works
+   exactly as before, D-12).
+4. ~~New "Prep History" tab~~ — closed. `PrepHistoryTab.tsx` (new file),
+   third Manager-only tab in `PrepTabs.tsx` alongside Log Prep / Prep
+   Recipes. Uses `ExcelTable` (row-numbered, matching the rest of the
+   product) over the existing `GET /prep-records` endpoint — no new backend
+   surface needed beyond the `scaledExpectedYield` field itself, confirming
+   the handover's guess that the endpoint already had everything else.
+5. ~~Update the Prep Yield report~~ — closed. `inventoryReportService.getPrepYield`
+   now returns `scaledExpectedYield`/`variance` per run
+   (`actualYield - scaledExpectedYield`, null when no recipe); reports page
+   table + CSV export both show the new columns.
+6. Flow 3 is **not yet verified end-to-end** for this session's later
+   changes (icon sweep, quantity-width fix, and now batch scaling + Prep
+   History + Prep Yield report) — `tsc`/`next build`/backend test suite
+   (681/681) all clean, but no fresh full-flow live browser check has
+   happened since. Re-verify visually before trusting it's fully done.
+7. Playwright was used once this session, at the owner's **explicit,
+   one-off direction** ("use playwright to verify") to settle the
+   quantity-width question — this is *not* a standing reversal of the
+   project's normal no-Playwright preference (see memory:
+   `feedback_no_playwright_verification`). Default back to owner-driven
+   manual screenshot verification unless told otherwise again.
+
+**Follow-on session (2026-07-30) — implemented items 1-5 above:**
+- Owner gave a further standing instruction mid-session: "Remove all icons if
+  you come across them" — applied immediately to the two remaining
+  single-item summary icons in mobile `page.tsx` (`LogPrepMobile`'s output-item
+  card and actual-yield card), which the original icon sweep had deliberately
+  *kept* as single-item (non-list) contexts. That carve-out is now superseded
+  by the broader instruction — both icons removed, `IconTile`/`itemTypeIcon`
+  imports dropped from `page.tsx` as a result (no longer used anywhere in this
+  file). If icons turn up elsewhere in a future Flow, remove those too rather
+  than re-applying the old single-item-context exception.
+- Migration applied directly to the local dev DB via a hand-written
+  `migration.sql` + `prisma migrate deploy` (not `migrate dev`) — the local DB
+  had pre-existing, unrelated drift on the `payslips` table (stale
+  `gen_random_uuid()`/decimal-default introspection diff, not caused by this
+  session) that made `migrate dev` want to reset the database. `migrate
+  status` confirmed the schema was otherwise up to date, so a hand-authored
+  additive-only migration file was the safe path — didn't touch payslips,
+  didn't reset anything. Still needs the normal commit + `migrate deploy` on
+  the production server per `CLAUDE.md`'s migration workflow.
+
+**New backend surface added this session:**
+- `POST /prep-recipes`, `PATCH /prep-recipes/:id`, `GET
+  /prep-recipes/by-output` (`prep-record-routes.ts`,
+  `prep-record-controller.ts`, `prep-record-service.ts`,
+  `prep-record-repository.ts` — `createRecipeDirect`, `updateRecipe`,
+  `findRecipeByOutputItem`). `inventoryItemRepository.create` gained an
+  optional `tx` param so recipe + item creation is atomic.
+- `recipeInclude` (repository-level Prisma include) widened to select
+  `usageUnit` on both `outputItem` and each line's `inputItem` — needed for
+  the batch-framing UI copy; backend suite re-verified green after this
+  (681/681).
+
+**Verification:** `tsc --noEmit` and `next build` clean (frontend +
+backend) after every change through the icon sweep; backend suite green
+681/681 (re-run after the `recipeInclude` change). No fresh Playwright/live
+pass covers the *final* state (icon sweep + width fix together) — do that
+first in the next session, per point 6 above. 2026-07-30.
 
 *(Template for future flows:)*
 

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, ChefHat, HelpCircle, MessageSquare, Scale, Search, Trash2, Wine } from 'lucide-react';
 import { IconTile } from '@/components/ui';
-import { itemTypeIcon } from '@/components/inventory/item-type-icon';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { createWasteLog, getCentralStoreLocation, listInventoryItems } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -158,14 +157,16 @@ function WasteLogEntryAttendant(): JSX.Element {
             ) : filteredItems.length === 0 ? (
               <p className="p-2 text-body-sm text-stone-500">No items found.</p>
             ) : (
-              filteredItems.map((item) => (
+              filteredItems.map((item, index) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => { setSelectedItem(item); setSearch(''); }}
                   className="flex w-full items-center gap-3 rounded-md p-2 text-left hover:bg-stone-100"
                 >
-                  <IconTile icon={itemTypeIcon[item.type]} size="sm" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                    {index + 1}
+                  </span>
                   <div className="min-w-0">
                     <p className="truncate text-body-sm font-semibold text-stone-900">{item.name}</p>
                     <p className="text-label-sm text-stone-500">{item.usageUnit}</p>
@@ -180,14 +181,16 @@ function WasteLogEntryAttendant(): JSX.Element {
           <div className="mb-6">
             <p className="mb-2 text-label-sm font-medium text-stone-500">Recent items</p>
             <div className="grid grid-cols-3 gap-2">
-              {recentItems.map((item) => (
+              {recentItems.map((item, index) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedItem(item)}
                   className="rounded-md border border-stone-200 bg-white p-2.5 text-left"
                 >
-                  <IconTile icon={itemTypeIcon[item.type]} size="sm" className="mb-1.5" />
+                  <span className="mb-1.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                    {index + 1}
+                  </span>
                   <p className="truncate text-label-md font-semibold text-stone-900">{item.name}</p>
                   <p className="text-label-sm text-stone-500">{item.usageUnit}</p>
                 </button>

@@ -117,6 +117,7 @@ describe('inventoryReportService.getPrepYield', () => {
       {
         id: 'rec1',
         actualYield: d(5.6),
+        scaledExpectedYield: d(6),
         unitCost: d(250),
         recordedAt: new Date('2026-07-01'),
         recordedById: 'u2',
@@ -131,7 +132,7 @@ describe('inventoryReportService.getPrepYield', () => {
 
     const result = (await inventoryReportService.getPrepYield(actor)) as Array<{
       outputItemId: string;
-      runs: Array<{ yieldRatio: Prisma.Decimal | null }>;
+      runs: Array<{ yieldRatio: Prisma.Decimal | null; variancePct: Prisma.Decimal | null }>;
       rollingAverage: { sampleCount: number };
     }>;
 
@@ -141,6 +142,7 @@ describe('inventoryReportService.getPrepYield', () => {
     );
     expect(result[0]?.rollingAverage.sampleCount).toBe(3);
     expect(result[0]?.runs[0]?.yieldRatio?.toString()).toBe('0.93333333333333333333');
+    expect(result[0]?.runs[0]?.variancePct?.toFixed(2)).toBe('-6.67');
   });
 });
 

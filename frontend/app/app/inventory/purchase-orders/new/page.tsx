@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, Plus, Save, Search, ShoppingCart, X } from 'lucide-react';
-import { IconTile, Select } from '@/components/ui';
-import { itemTypeIcon, itemTypeLabel } from '@/components/inventory/item-type-icon';
+import { Select } from '@/components/ui';
+import { itemTypeLabel } from '@/components/inventory/item-type-icon';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import {
   createPurchaseOrder,
@@ -193,11 +193,13 @@ export default function NewPurchaseOrderPage(): JSX.Element {
           </div>
         ) : (
           <div className="mb-6 space-y-2">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const added = Boolean(lines[item.id]);
               return (
                 <div key={item.id} className="flex items-center gap-3 rounded-md border border-stone-200 bg-white p-2.5">
-                  <IconTile icon={itemTypeIcon[item.type]} size="sm" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                    {index + 1}
+                  </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-body-sm font-semibold text-stone-900">{item.name}</p>
                     <p className="text-label-sm text-stone-500">{itemTypeLabel[item.type]} · {formatBuyUnitCost(item)}</p>

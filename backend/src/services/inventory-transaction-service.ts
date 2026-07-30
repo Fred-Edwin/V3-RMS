@@ -25,6 +25,8 @@ export type RecordPrepInput = {
   outputItemId: string;
   /** Actual yield produced, in the output item's usage unit. */
   actualYield: Prisma.Decimal.Value;
+  /** Recipe's expected yield scaled by this run's ingredient ratios — undefined when no recipe exists. */
+  scaledExpectedYield?: Prisma.Decimal.Value;
   inputs: PrepInputLine[];
   recordedById: string;
 };
@@ -214,6 +216,8 @@ export const inventoryTransactionService = {
           locationId,
           outputItemId,
           actualYield,
+          scaledExpectedYield:
+            input.scaledExpectedYield !== undefined ? new Prisma.Decimal(input.scaledExpectedYield) : undefined,
           unitCost,
           recordedById,
           lines: {

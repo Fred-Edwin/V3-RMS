@@ -1664,6 +1664,14 @@ model PrepRecord {
   locationId     String   @map("location_id")
   outputItemId   String   @map("output_item_id")
   actualYield    Decimal  @map("actual_yield") @db.Decimal(12, 4)
+  /**
+   * Recipe's expected yield scaled by the average actual÷recipe ratio across
+   * this run's ingredient lines — null when no recipe existed for the output
+   * item at the time of this run. Stored (not recomputed at report read-time)
+   * so a later recipe edit never retroactively changes historical variance —
+   * see UI_UX_DESIGN_AUDIT.md Flow 3, "Left open" #3.
+   */
+  scaledExpectedYield Decimal? @map("scaled_expected_yield") @db.Decimal(12, 4)
   unitCost       Decimal  @map("unit_cost") @db.Decimal(12, 4)
   recordedById   String   @map("recorded_by_id")
   recordedAt     DateTime @default(now()) @map("recorded_at")

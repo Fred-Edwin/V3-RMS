@@ -53,6 +53,13 @@ const TYPE_OPTIONS: SelectOption[] = [
   { value: 'PASS_THROUGH', label: 'Pass-Through' },
 ];
 
+// Prepped items are created from Prep Recipes now, not here — a prepped
+// item without a recipe defining it doesn't make sense (D-12 reopened, see
+// UI_UX_DESIGN_AUDIT.md Flow 3). Existing PREPPED items are still shown via
+// TYPE_OPTIONS when editing (panelItem !== 'new'), just no longer selectable
+// at creation time.
+const CREATABLE_TYPE_OPTIONS: SelectOption[] = TYPE_OPTIONS.filter((o) => o.value !== 'PREPPED');
+
 const DEPARTMENT_TAGS: DepartmentTag[] = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
 
 const departmentLabel: Record<DepartmentTag, string> = {
@@ -528,11 +535,17 @@ function ItemCatalogPageInner(): JSX.Element {
                 <Input id="item-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Arabica Coffee Beans" />
               </FormField>
 
-              <FormField label="Type" htmlFor="item-type" required>
+              <FormField
+                label="Type"
+                htmlFor="item-type"
+                required
+                helperText={panelItem === 'new' ? 'Prepped items are created from Prep Recipes instead' : undefined}
+              >
                 <Select
                   id="item-type"
-                  options={TYPE_OPTIONS}
+                  options={panelItem === 'new' ? CREATABLE_TYPE_OPTIONS : TYPE_OPTIONS}
                   value={form.type}
+                  disabled={panelItem !== 'new' && form.type === 'PREPPED'}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as InventoryItemType }))}
                 />
               </FormField>
@@ -868,8 +881,19 @@ function ItemCatalogMobile(): JSX.Element {
               <FormField label="Name" htmlFor="m-item-name" required errorMessage={errors.name}>
                 <Input id="m-item-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Arabica Coffee Beans" />
               </FormField>
-              <FormField label="Type" htmlFor="m-item-type" required>
-                <Select id="m-item-type" options={TYPE_OPTIONS} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as InventoryItemType }))} />
+              <FormField
+                label="Type"
+                htmlFor="m-item-type"
+                required
+                helperText={editingItem === 'new' ? 'Prepped items are created from Prep Recipes instead' : undefined}
+              >
+                <Select
+                  id="m-item-type"
+                  options={editingItem === 'new' ? CREATABLE_TYPE_OPTIONS : TYPE_OPTIONS}
+                  value={form.type}
+                  disabled={editingItem !== 'new' && form.type === 'PREPPED'}
+                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as InventoryItemType }))}
+                />
               </FormField>
               {editingItem !== 'new' && (
                 <label className="flex items-center gap-2 text-label-md text-stone-700">

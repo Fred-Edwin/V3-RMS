@@ -2,12 +2,19 @@ import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { prepRecordService } from '../services/prep-record-service';
 import {
+  CreatePrepRecipeSchema,
   CreatePrepRecordSchema,
   PrepRecordIdParamSchema,
   PrepRecordListQuerySchema,
   PromotePrepRecipeSchema,
   RollingAverageQuerySchema,
+  UpdatePrepRecipeSchema,
 } from '../validators/prep-record-schemas';
+import { z } from 'zod';
+
+const OutputItemQuerySchema = z.object({
+  outputItemId: z.string().uuid('outputItemId must be a valid UUID'),
+});
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
@@ -62,5 +69,27 @@ export const prepRecordController = {
     const data = PromotePrepRecipeSchema.parse(req.body);
     const recipe = await prepRecordService.promoteRecord(actor, id, data);
     res.status(201).json({ success: true, data: recipe, message: 'Prep recipe saved successfully' });
+  },
+
+  getRecipeByOutputItem: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { outputItemId } = OutputItemQuerySchema.parse(req.query);
+    const recipe = await prepRecordService.getRecipeByOutputItem(actor, outputItemId);
+    res.status(200).json({ success: true, data: recipe });
+  },
+
+  createRecipe: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = CreatePrepRecipeSchema.parse(req.body);
+    const recipe = await prepRecordService.createRecipe(actor, data);
+    res.status(201).json({ success: true, data: recipe, message: 'Prep recipe created successfully' });
+  },
+
+  updateRecipe: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = PrepRecordIdParamSchema.parse(req.params);
+    const data = UpdatePrepRecipeSchema.parse(req.body);
+    const recipe = await prepRecordService.updateRecipe(actor, id, data);
+    res.status(200).json({ success: true, data: recipe, message: 'Prep recipe updated successfully' });
   },
 };
