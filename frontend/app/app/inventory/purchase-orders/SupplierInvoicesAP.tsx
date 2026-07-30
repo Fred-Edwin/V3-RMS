@@ -596,6 +596,32 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
         </div>
 
         <div className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="border-b border-stone-100 px-4 py-3">
+              <h2 className="text-heading-sm font-semibold text-stone-900">Totals by Supplier</h2>
+            </div>
+            {supplierTotals.length === 0 ? (
+              <p className="px-4 py-8 text-center text-body-sm text-stone-500">Supplier totals will appear once invoices are recorded.</p>
+            ) : (
+              <ul className="max-h-[360px] divide-y divide-stone-100 overflow-y-auto">
+                {supplierTotals.map((supplier, index) => (
+                  <li key={supplier.supplierId} className="flex items-center gap-3 px-4 py-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-body-sm font-semibold text-stone-900">{supplier.supplierName}</p>
+                      <p className="text-label-sm text-stone-500">{supplier.openCount} open · {formatKes(supplier.totalPaid)} paid</p>
+                    </div>
+                    <p className={cn('shrink-0 text-right text-body-sm font-bold tabular-nums', supplier.outstanding > 0.005 ? 'text-danger' : 'text-stone-700')}>
+                      {formatKes(supplier.outstanding)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
           <Card className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-heading-sm font-semibold text-stone-900">Payment Age</h2>
@@ -627,32 +653,6 @@ export function SupplierInvoicesAP({ mode, onMobileDetailChange }: SupplierInvoi
                 );
               })}
             </div>
-          </Card>
-
-          <Card className="overflow-hidden">
-            <div className="border-b border-stone-100 px-4 py-3">
-              <h2 className="text-heading-sm font-semibold text-stone-900">Totals by Supplier</h2>
-            </div>
-            {supplierTotals.length === 0 ? (
-              <p className="px-4 py-8 text-center text-body-sm text-stone-500">Supplier totals will appear once invoices are recorded.</p>
-            ) : (
-              <ul className="max-h-[360px] divide-y divide-stone-100 overflow-y-auto">
-                {supplierTotals.map((supplier, index) => (
-                  <li key={supplier.supplierId} className="flex items-center gap-3 px-4 py-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-stone-100 text-label-sm font-semibold tabular-nums text-stone-500">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-body-sm font-semibold text-stone-900">{supplier.supplierName}</p>
-                      <p className="text-label-sm text-stone-500">{supplier.openCount} open · {formatKes(supplier.totalPaid)} paid</p>
-                    </div>
-                    <p className={cn('shrink-0 text-right text-body-sm font-bold tabular-nums', supplier.outstanding > 0.005 ? 'text-danger' : 'text-stone-700')}>
-                      {formatKes(supplier.outstanding)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
           </Card>
         </div>
       </div>

@@ -65,13 +65,20 @@ own stated design intent, and fixing it where it doesn't.
    through it as an expert critique (hierarchy, spacing, color use,
    consistency with `DESIGN_SYSTEM.md`, interaction quality), the owner
    reacts in real time, agree on a fix list together.
-3. **Work one flow at a time, per the Manual Testing Guide's order.** Within
-   a flow, audit every screen the flow touches (both roles/shells) before
-   fixing anything — judge the whole flow's coherence, not just one screen.
-4. **Fix screen-by-screen once a flow's issues are agreed** — implement,
-   verify live (both shells/roles for that screen), before moving to the
-   next screen in the flow. Don't batch fixes across screens or defer
-   verification to the end of the flow.
+3. **Superseded 2026-07-30 — work one screen at a time, not one flow at a
+   time.** The original plan bundled every screen a flow touches into one
+   session (see Flow 1+2/Flow 3 below for how that played out — Flow 3 in
+   particular ballooned into a multi-session reopening of D-12 mid-flow).
+   Starting with the Supplier AP session, the owner switched to auditing,
+   critiquing, and fixing exactly **one screen** (desktop + mobile) per
+   session, stopping and handing off cleanly even if time/context remains
+   rather than pulling in the next screen on the list. The Manual Testing
+   Guide's flow order is still useful for sequencing *which* screen comes
+   next (don't jump around), but each session's scope is one screen, not
+   one flow.
+4. **Fix screen-by-screen once a screen's issues are agreed** — implement,
+   verify live, before considering the session done. Don't batch fixes
+   across screens or defer verification to the end.
 5. **Log decisions in this file as you go** — not a report to read cold
    after the fact, but a running record so nothing gets lost and a future
    session can see what was decided and why. Use the template below, one
@@ -88,6 +95,8 @@ own stated design intent, and fixing it where it doesn't.
 
 ## Status
 
+Flow-level status (pre-2026-07-30 cadence, kept for history):
+
 | Flow | Status |
 |---|---|
 | 1. Catalog & Suppliers | Complete 2026-07-30 (Stock on Hand + Suppliers deep-dive; see log below) |
@@ -97,6 +106,26 @@ own stated design intent, and fixing it where it doesn't.
 | 5. Waste logging | Not started |
 | 6. Supplier AP | Complete 2026-07-30 (single-screen audit; see log below) |
 | 7. Reports | Not started |
+
+Screen-level status (current cadence, §8.1 = Store Manager screen list in
+`INVENTORY_FEATURE_PLAN.md`):
+
+| §8.1 row | Screen | Status |
+|---|---|---|
+| 1 | Stock on Hand | Complete 2026-07-30 |
+| 2 | Item Catalog CRUD | Complete 2026-07-29 (see Flow 1+2 log) |
+| 3 | Suppliers CRUD + price history | Complete 2026-07-30 |
+| 4 | Supplier Invoices / AP | Complete 2026-07-30, layout follow-up 2026-07-30 |
+| 5, 6 | Purchase Orders (list, send/cancel) | Complete 2026-07-29, layout follow-up 2026-07-30 |
+| 7 | Receiving | Complete 2026-07-29 (folded into PO detail panel, Flow 1+2) |
+| 8 | Prep entry | Design changes done 2026-07-30, **not yet re-verified live end-to-end** — see Flow 3 log point 6 |
+| 9 | Prep Recipe editor | Done alongside row 8, same caveat |
+| 10 | Stock Count — session creation | **Not started** |
+| 11 | Stock Count — approval | **Not started** |
+| 12 | Waste Log — review | **Not started** |
+| 13 | Reports | **Not started** |
+
+Next screen up: **row 10, Stock Count — session creation.**
 
 ## Owner's mistakes list
 
