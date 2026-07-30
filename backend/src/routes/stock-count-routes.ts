@@ -25,12 +25,12 @@ stockCountRoutes.get(
   stockCountController.getById,
 );
 
-/** Session creation — Manager-only (§8.3). */
+/** Session creation — both roles can create a session at any time; only Manager approves it. */
 stockCountRoutes.post(
   '/stock-counts',
   authenticate,
   branchScope,
-  managerOnly,
+  bothRoles,
   stockCountController.create,
 );
 
@@ -50,6 +50,19 @@ stockCountRoutes.post(
   branchScope,
   managerOnly,
   stockCountController.approve,
+);
+
+/**
+ * Correct counted quantities on a SUBMITTED session before approving —
+ * Manager-only. Added 2026-07-30 so a miscounted line can be fixed instead
+ * of forcing an approve-as-is or no action at all.
+ */
+stockCountRoutes.patch(
+  '/stock-counts/:id/lines',
+  authenticate,
+  branchScope,
+  managerOnly,
+  stockCountController.correctLines,
 );
 
 export default stockCountRoutes;

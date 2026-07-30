@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Check, CheckCircle2, Pause, Play } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, Pause, Pencil, Play } from 'lucide-react';
 import { Badge } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
-import { approveStockCount, getStockCount, submitStockCount } from '@/services/inventoryService';
+import { approveStockCount, correctStockCountLines, getStockCount, submitStockCount } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
+import { buyUnitLabel, formatBuyUnitQuantity, toUsageUnitQuantity } from '@/lib/inventory-format';
 import type { StockCount, StockCountStatus } from '@/types/inventory';
 
 const STATUS_LABEL: Record<StockCountStatus, string> = {
@@ -30,9 +31,58 @@ export default function StockCountDetailPage(): JSX.Element {
   const isDesktop = useIsDesktopShell();
   if (isDesktop) return <></>;
   if (role === 'STORE_MANAGER') {
-    return <StockCountApproval />;
+    return <StockCountManagerEntry />;
   }
-  return <StockCountExecution />;
+  return <StockCountExecution showExpectedQty={false} />;
+}
+
+// Manager can create and physically count their own session too (revised
+// 2026-07-30 — creation is no longer Manager-only, and neither is counting
+// your own session). Route by the session's own status rather than always
+// assuming "Manager only ever approves": IN_PROGRESS still needs a counting
+// UI, exactly like Attendant's, just with expectedQty visible per D-14
+// (Manager always sees it, Attendant never does, regardless of who created
+// or is executing the session).
+function StockCountManagerEntry(): JSX.Element {
+  const params = useParams<{ id: string }>();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const { toast } = useToast();
+  const [status, setStatus] = useState<StockCountStatus | null>(null);
+
+  useEffect(() => {
+    if (!accessToken || !params.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getStockCount(params.id, accessToken);
+        if (!cancelled) setStatus(result.status);
+      } catch (error) {
+        if (!cancelled) {
+          toast({ variant: 'error', title: 'Failed to load count session', message: error instanceof Error ? error.message : 'Please try again.' });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, params.id, toast]);
+
+  if (status === null) {
+    return (
+      <div className="min-h-full bg-crema px-4 py-4">
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-md bg-stone-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'IN_PROGRESS') {
+    return <StockCountExecution showExpectedQty />;
+  }
+  return <StockCountApproval />;
 }
 
 function StockCountApproval(): JSX.Element {
@@ -45,6 +95,10 @@ function StockCountApproval(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const load = useCallback(async () => {
     if (!accessToken || !params.id) return;
@@ -62,6 +116,44 @@ function StockCountApproval(): JSX.Element {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const startEditLine = (lineId: string, currentValue: number | null, item: { conversionFactor: string; buyUnit: string; usageUnit: string }) => {
+    setEditingLineId(lineId);
+    if (currentValue === null) {
+      setEditValue('');
+      return;
+    }
+    const factor = parseFloat(item.conversionFactor);
+    const buyQty = !Number.isFinite(factor) || factor <= 0 || item.buyUnit === item.usageUnit ? currentValue : currentValue / factor;
+    setEditValue(buyQty.toFixed(2));
+  };
+
+  const cancelEditLine = () => {
+    setEditingLineId(null);
+    setEditValue('');
+  };
+
+  const saveEditLine = async (lineId: string) => {
+    if (!accessToken || !count) return;
+    if (editValue.trim() === '') {
+      toast({ variant: 'error', title: 'Enter a quantity', message: 'The counted quantity cannot be blank.' });
+      return;
+    }
+    const line = count.lines.find((l) => l.id === lineId);
+    if (!line) return;
+    const usageQty = toUsageUnitQuantity(editValue, line.inventoryItem);
+    setIsSavingEdit(true);
+    try {
+      const updated = await correctStockCountLines(count.id, { lines: [{ lineId, countedQty: String(usageQty) }] }, accessToken);
+      setCount(updated);
+      setEditingLineId(null);
+      setEditValue('');
+    } catch (error) {
+      toast({ variant: 'error', title: 'Failed to update count', message: error instanceof Error ? error.message : 'Please try again.' });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const varianceLines = useMemo(() => {
     if (!count) return [];
@@ -125,22 +217,44 @@ function StockCountApproval(): JSX.Element {
               </p>
             </div>
             <div className="space-y-2">
-              {varianceLines.map(({ line, expected, counted, gap }) => (
-                <div key={line.id} className="rounded-md border border-stone-200 bg-white p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-body-sm font-semibold text-stone-900">{line.inventoryItem.name}</p>
-                    {counted !== null && (
-                      <span className={cn('shrink-0 text-label-lg font-semibold tabular-nums', gap === 0 ? 'text-stone-500' : gap < 0 ? 'text-danger' : 'text-success')}>
-                        {gap > 0 ? '+' : ''}{gap.toFixed(2)} {line.inventoryItem.usageUnit}
-                      </span>
+              {varianceLines.map(({ line, expected, counted, gap }) => {
+                const isEditing = editingLineId === line.id;
+                return (
+                  <div key={line.id} className="rounded-md border border-stone-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-body-sm font-semibold text-stone-900">{line.inventoryItem.name}</p>
+                      {!isEditing && counted !== null && (
+                        <span className={cn('shrink-0 text-label-lg font-semibold tabular-nums', gap === 0 ? 'text-stone-500' : gap < 0 ? 'text-danger' : 'text-success')}>
+                          {gap > 0 ? '+' : ''}{gap.toFixed(2)} {line.inventoryItem.usageUnit}
+                        </span>
+                      )}
+                    </div>
+                    {isEditing ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <QuantityInput value={editValue} onValueChange={setEditValue} unit={buyUnitLabel(line.inventoryItem)} autoFocus className="flex-1" />
+                        <button type="button" onClick={() => void saveEditLine(line.id)} disabled={isSavingEdit} className="shrink-0 text-label-sm font-semibold text-espresso disabled:opacity-50">
+                          Save
+                        </button>
+                        <button type="button" onClick={cancelEditLine} disabled={isSavingEdit} className="shrink-0 text-label-sm text-stone-400">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 text-label-sm text-stone-500">
+                          <span>Expected: {formatBuyUnitQuantity(expected, line.inventoryItem)}</span>
+                          <span>Counted: {counted !== null ? formatBuyUnitQuantity(counted, line.inventoryItem) : '—'}</span>
+                        </div>
+                        {count?.status === 'SUBMITTED' && (
+                          <button type="button" onClick={() => startEditLine(line.id, counted, line.inventoryItem)} className="shrink-0 text-stone-400">
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-label-sm text-stone-500">
-                    <span>Expected: {expected.toFixed(2)} {line.inventoryItem.usageUnit}</span>
-                    <span>Counted: {counted !== null ? `${counted.toFixed(2)} ${line.inventoryItem.usageUnit}` : '—'}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -188,9 +302,10 @@ function StockCountApproval(): JSX.Element {
 // D-14 (verified on the wire, not assumed): an Attendant-role response for
 // this endpoint never includes expectedQty/gapQty keys at all — confirmed by
 // directly inspecting GET /stock-counts/:id, GET /stock-counts, and the
-// submit response with an Attendant token. This component therefore never
-// reads or renders those fields — there's nothing to hide, the data isn't here.
-function StockCountExecution(): JSX.Element {
+// submit response with an Attendant token. When showExpectedQty is false the
+// data isn't even present to render; when true (Manager), the field is read
+// straight off the line, never a separate fetch.
+function StockCountExecution({ showExpectedQty }: { showExpectedQty: boolean }): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -215,7 +330,13 @@ function StockCountExecution(): JSX.Element {
         const next = { ...prev };
         for (const line of result.lines) {
           if (line.countedQty !== null && next[line.id] === undefined) {
-            next[line.id] = line.countedQty;
+            const factor = parseFloat(line.inventoryItem.conversionFactor);
+            const usageQty = parseFloat(line.countedQty);
+            const buyQty =
+              !Number.isFinite(factor) || factor <= 0 || line.inventoryItem.buyUnit === line.inventoryItem.usageUnit
+                ? usageQty
+                : usageQty / factor;
+            next[line.id] = buyQty.toFixed(2);
           }
         }
         return next;
@@ -250,10 +371,17 @@ function StockCountExecution(): JSX.Element {
     if (!accessToken || !count || !allCounted) return;
     setIsSubmitting(true);
     try {
-      const lines = count.lines.map((l) => ({ lineId: l.id, countedQty: countedRef.current[l.id] || '0' }));
+      const lines = count.lines.map((l) => ({
+        lineId: l.id,
+        countedQty: String(toUsageUnitQuantity(countedRef.current[l.id] || '0', l.inventoryItem)),
+      }));
       await submitStockCount(count.id, { lines }, accessToken);
-      toast({ variant: 'success', title: 'Count submitted', message: 'Your manager will review and approve it.' });
-      router.push('/app/inventory/stock-counts');
+      toast({
+        variant: 'success',
+        title: 'Count submitted',
+        message: showExpectedQty ? 'Review the variance and approve when ready.' : 'Your manager will review and approve it.',
+      });
+      router.push(showExpectedQty ? `/app/inventory/stock-counts/${count.id}` : '/app/inventory/stock-counts');
     } catch (error) {
       toast({ variant: 'error', title: 'Could not submit count', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
@@ -332,12 +460,16 @@ function StockCountExecution(): JSX.Element {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-body-sm font-semibold text-stone-900">{line.inventoryItem.name}</p>
-                      <p className="text-label-sm text-stone-500">{line.inventoryItem.usageUnit}</p>
+                      <p className="text-label-sm text-stone-500">
+                        {showExpectedQty && line.expectedQty !== undefined
+                          ? `Expected ${formatBuyUnitQuantity(line.expectedQty, line.inventoryItem)}`
+                          : buyUnitLabel(line.inventoryItem)}
+                      </p>
                     </div>
                     <QuantityInput
                       value={value}
                       onValueChange={(v) => updateCounted(line.id, v)}
-                      unit={line.inventoryItem.usageUnit}
+                      unit={buyUnitLabel(line.inventoryItem)}
                       placeholder="Enter amount"
                       className="w-32"
                     />

@@ -120,12 +120,14 @@ Screen-level status (current cadence, §8.1 = Store Manager screen list in
 | 7 | Receiving | Complete 2026-07-29 (folded into PO detail panel, Flow 1+2) |
 | 8 | Prep entry | Design changes done 2026-07-30, **not yet re-verified live end-to-end** — see Flow 3 log point 6 |
 | 9 | Prep Recipe editor | Done alongside row 8, same caveat |
-| 10 | Stock Count — session creation | **Not started** |
-| 11 | Stock Count — approval | **Not started** |
+| 10 | Stock Count — session creation | Complete 2026-07-30 — session creation/counting model redesigned, see log below |
+| 11 | Stock Count — approval | Complete 2026-07-30 — got a Manager edit-before-approve capability as part of the same session, see log below |
 | 12 | Waste Log — review | **Not started** |
 | 13 | Reports | **Not started** |
 
-Next screen up: **row 10, Stock Count — session creation.**
+Next screen up: **row 12, Waste Log — review.** (A Waste Log improvements
+outline, based on this session's Stock Count findings, was requested but not
+yet produced — pick that up at the start of the next session if still wanted.)
 
 ## Owner's mistakes list
 
@@ -551,6 +553,207 @@ implementation:
 per owner instruction; live visual verification remains pending owner
 review.
 
+### §8.1 rows 10+11 — Stock Count session creation + approval
+
+**Screens covered:** Stock Count list/create (desktop `StockCountsDesktop.tsx`
++ mobile `page.tsx`), Stock Count execution/approval (mobile
+`[id]/page.tsx`). Both Store Manager and Store Attendant.
+
+**Scope note:** this session started as a standard single-screen audit of
+row 10 (session creation) per the audit's own process, but the owner
+redirected mid-session into a genuine product/RBAC change and a from-scratch
+flow redesign once the current screen was reviewed live — captured below in
+the order it happened, not reorganized into a clean "plan then execute."
+
+**Owner-directed RBAC change (not a design-fidelity finding — a product
+decision):**
+- §8.3's original rule ("session creation is Manager-only, Attendant only
+  executes") was overturned by the owner: **either role can create a count
+  session at any time now.** Only **approval** stays Manager-only. D-14
+  (blind counting) is unaffected — `applyBlindCount` strips
+  `expectedQty`/`gapQty` per the *caller's* role at read time, not the
+  session's creator, so an Attendant who creates their own session still
+  can't see expected qty when they get to counting it.
+- Backend: `POST /stock-counts` route flipped from `managerOnly` to
+  `bothRoles` (`stock-count-routes.ts`); `stockCountService.create`'s
+  comment updated to match. One existing route test asserting the old
+  403-for-Attendant behavior was rewritten to assert 201 instead
+  (`tests/stock-count.test.ts`).
+- A Manager who creates and personally counts their own session now gets a
+  real mobile execution UI (previously `StockCountDetailPage` routed every
+  STORE_MANAGER unconditionally to the read-only approval view, which had no
+  counting UI at all for an `IN_PROGRESS` session — a Manager solo-counting
+  on their phone had nowhere to enter numbers). Fixed by routing Manager to
+  `StockCountExecution` while status is `IN_PROGRESS` (with
+  `showExpectedQty` true — Manager always sees expected qty, including
+  during their own entry, confirmed with the owner) and to the approval view
+  once `SUBMITTED`/`APPROVED`.
+
+**Owner-directed flow redesign ("why is there a separate creation and
+counting flow — optimize for speed and simplicity, fewest possible
+touches"):**
+- **Collapsed create-a-session and start-counting into one continuous flow**
+  on both desktop and mobile — replaces the old
+  fill-a-form-then-find-it-in-the-list-then-open-it-to-count chain. New
+  shape, identical on both shells: **scope → entry → mandatory review →
+  submit.**
+  1. **Scope**: pick "Full catalog" or a department — this *is* the item
+     selection now, no separate per-item checklist step. Confirmed with the
+     owner: a scope pick means every item in it is included, not a
+     narrowing filter before an individual opt-in/out pass. (Considered and
+     rejected: keeping an explicit checklist after the scope narrows the
+     list.)
+  2. **Entry**: lands directly on a quantity-per-row list, auto-labeled
+     (`Count — 30 Jul, 14:32`, editable via a pencil-icon inline rename,
+     never blocking start). `createStockCount` fires the moment a scope is
+     picked — invisibly; there's no user-facing "session" concept to manage
+     before counting starts.
+  3. **Review (mandatory)**: confirmed explicitly with the owner — there is
+     no "submit immediately, review optional" path. Once at least one item
+     is counted, "Review & Submit" is the only way forward; it always shows
+     a counted-vs-skipped breakdown with tap-to-edit before the real submit
+     button appears.
+  4. **Submit**: unchanged mechanism (`submitStockCount`), just reached via
+     the new flow. Skipping an item is supported natively — the backend
+     already only required "at least one line," not all lines, so partial
+     submission needed no backend change.
+- New components: `NewCountFlow` (mobile, in `page.tsx`) and
+  `NewCountFlowPanel` (desktop, in `StockCountsDesktop.tsx`) — parallel
+  implementations of the same three-step shape, not a shared component,
+  since desktop renders entry as a stacked list matching the page's own
+  idiom rather than mobile's card-per-item layout with auto-advance-on-Enter
+  and a jump-to-item search.
+- Old `CreateCountSessionSheet`/create-panel-with-checkbox-list code deleted
+  on both shells.
+
+**Owner's live mistakes list (screenshot-driven, collected as the new flow
+was reviewed — same process as prior single-screen sessions):**
+- List page "looks empty" → added a `StatCard` row (In Progress / Awaiting
+  Approval / Last Approved) and a status filter + label search bar above the
+  sessions table, matching Purchase Orders' post-audit pattern.
+- Sessions table itself needed more detail → added a Counted (`n/total`)
+  column.
+- "New Count Session should use the right sidebar modal pattern" → both the
+  old create-panel and the new merged flow use the same right-side
+  slide-over panel convention as the existing detail/approval panel
+  (`fixed inset-0 z-40 flex justify-end`), not a centered `Modal` — this was
+  already the shape by the time the owner reviewed the merged-flow rebuild,
+  carried over correctly.
+- "Improve the Opening Physical Count [variance/approval] UI" → replaced the
+  bare `ExcelTable` variance view with a card-per-line layout (desktop and
+  mobile both already used cards for line-level detail elsewhere in the
+  app; the table read as flat next to the new stat-row treatment and fought
+  visually with inline editing, below). Added a compact `MiniStat` row
+  (Counted / Net Variance / Short / Over) above the line list — the
+  full-size `StatCard` (used on the page-level stat row) read as oversized
+  in the narrower panel context; `MiniStat` is a new, panel-local component,
+  not a `StatCard` variant, since nothing else needs this density yet.
+- **Manager could not correct a miscounted line before approving** — the
+  approval view was read-only; the only actions were approve-as-is or
+  nothing. New Manager-only `PATCH /stock-counts/:id/lines` endpoint
+  (`stockCountService.correctLines`) corrects `countedQty`/`gapQty` on a
+  `SUBMITTED` session without transitioning status or touching
+  `submittedById`/`submittedAt` (the record of who originally submitted is
+  preserved). Reuses the existing `updateLineCount` repository primitive.
+  Wired into both desktop (inline edit-in-place per card) and mobile
+  (`StockCountApproval`) — tap a pencil icon next to Counted, edit, Save/
+  Cancel. 4 new backend tests (2 route-level RBAC, 2 service-level:
+  updates without status change, rejects when not SUBMITTED).
+- **Unit mismatch, found from a live screenshot**: the variance/approval
+  table displayed Expected/Counted in buy-unit (via the existing
+  `formatBuyUnitQuantity` helper — e.g. "0.17 ctn (12x1L)") but every
+  counting/entry field across the whole feature (mobile entry, desktop
+  entry, both edit-in-place paths) took raw usage-unit input (kg/L/pc) —
+  visibly colliding the moment inline editing was added to a buy-unit
+  column. Root cause: two unbridged unit conventions had coexisted in the
+  code the whole time; edit-in-place just made the seam visible. Owner
+  decision: **buy-unit is the single convention everywhere** in this
+  feature now — a person physically counts cartons/boxes on a shelf, not
+  fractional grams. Added two new helpers to `lib/inventory-format.ts`:
+  `buyUnitLabel` (the unit-suffix label for an entry field) and
+  `toUsageUnitQuantity` (converts a typed buy-unit value back to the
+  usage-unit the ledger/backend expects — `expectedQty`/`countedQty` are
+  compared with zero conversion server-side, so this conversion has to
+  happen client-side at the point of building any API payload). Applied
+  everywhere a quantity is entered or displayed: mobile `NewCountFlow`
+  entry/review, desktop `NewCountFlowPanel` entry/review, both
+  edit-in-place paths (desktop card, mobile `StockCountApproval`), and the
+  session-resume pre-fill in `StockCountExecution` (a paused/resumed
+  session's already-typed values now redisplay in buy-unit too, not raw
+  usage-unit). Backend response/storage shape is unchanged — this was a
+  frontend-only convention fix, same pattern as `buyUnitCostValue` already
+  documented in the same file ("never use these to derive a value sent back
+  to the API — always send the raw usage-unit value").
+- **Mobile FAB hidden behind the bottom nav** — Stock Count's new "+"
+  button used `bottom-6 z-30`, but the app-wide FAB convention (confirmed
+  against Waste Log/Item Catalog/Purchase Orders/Suppliers, all already
+  correct) is `bottom-24 z-40` — `bottom-6` sits directly behind the fixed
+  `BottomNav` overlay. Fixed to match convention. **Same bug found
+  independently in Inbox** (`InboxShell.tsx`'s mobile FAB, `absolute
+  bottom-6 z-30` inside its own `h-[100dvh]` container) while investigating
+  a separate "Attendant page missing a back button" report — fixed with an
+  explicit `calc(64px + env(safe-area-inset-bottom) + 16px)` offset instead
+  of the `bottom-24` constant, since that FAB is `absolute` inside a
+  same-height-as-viewport container rather than `fixed` against the real
+  viewport. Desktop's separate Inbox FAB (different code path, own
+  non-overlapping pane) was confirmed correct as-is and left untouched.
+
+**Investigated, not a bug — worth recording so it isn't re-litigated:**
+- A session literally labeled "30" in a screenshot turned out to be
+  pre-existing scratch data created by hand during this session's own
+  testing (confirmed via direct DB query — its `scheduled_date` is a plain
+  midnight date matching the *old* create-form's date input, not the new
+  flow's auto-label timestamp format), not a defect in the new flow.
+
+**Deferred, not fixed — real gaps surfaced but out of this session's
+scope:**
+- **Shelf-location ordering** (part of §8.1 row 10's original spec text) —
+  `InventoryItem` has no shelf/location field in the schema at all; there is
+  nothing to order by today. Adding one means a new column + migration +
+  an Item Catalog input to set it per item — a real schema change, not a
+  screen-level fix, and out of scope for a design-audit session. Owner
+  confirmed: defer and log as a known gap rather than adding the field or
+  faking a department-tag-based stand-in.
+- **Store Attendant has no Dashboard/Home nav tab at all** — confirmed via
+  `layout.tsx`'s `mobileNavConfig`: Attendant's primary tabs are Stock /
+  Purchases / Receiving / Prep (all task screens), with Stock Count / Waste
+  Log / Inbox / Leave / Payslips under "More" — there is no landing/home
+  destination anywhere in the role's nav. This was the real answer behind
+  an owner report of "Prep Record [the Prep tab's screen title] has no way
+  back" — it's not a missing back-arrow on a drill-in, it's the structural
+  absence of a home base for this role. Owner agreed a fix (add a
+  Dashboard tab, mirroring Store Manager's mobile Dashboard pattern) but
+  explicitly deferred building it to its own session — it needs real
+  content design (what stats/shortcuts matter to an Attendant's day), not a
+  copy-paste of Manager's dashboard bolted on at the end of an
+  already-long session. **Next session should pick this up** — see
+  handoff prompt below.
+- **Waste Log improvements outline** — the owner asked for one, based on
+  this session's findings (unit consistency, FAB position, table-vs-card,
+  edit-before-finalize), but it was not produced before the session closed.
+  Revisit at the start of the Waste Log session (§8.1 row 12) if still
+  wanted, rather than guessing at it secondhand here.
+
+**New backend surface added this session:**
+- `POST /stock-counts` RBAC: `managerOnly` → `bothRoles`.
+- `PATCH /stock-counts/:id/lines` (new) — `stockCountController.correctLines`
+  → `stockCountService.correctLines`, Manager-only, reuses
+  `stockCountRepository.updateLineCount`.
+- `stockCountRepository`'s `detailInclude` widened to select `buyUnit` and
+  `conversionFactor` on `inventoryItem` (previously only `id`/`name`/
+  `usageUnit`) — needed for buy-unit formatting on every line everywhere
+  `StockCountWithLines` is returned; no other callers broke since it's an
+  additive select.
+
+**Verification:** `pnpm build` + `pnpm test` clean in `backend` (685/685,
+4 new tests), `npx tsc --noEmit` + `pnpm build` clean in `frontend`, across
+every round of changes in this session. No Playwright/browser verification
+was run per owner instruction; live visual verification remains pending
+owner review — the owner did review several rounds live via their own
+screenshots during this session (that's how the FAB, unit-mismatch, and
+edit-before-approve findings were caught), but the *final* state after the
+last round of fixes has not yet been re-confirmed visually. 2026-07-30.
+
 *(Template for future flows:)*
 
 ```
@@ -563,6 +766,55 @@ review.
 
 **Verification:** tsc / build / Playwright result, date
 ```
+
+---
+
+## Next session prompt (draft — two candidates, pick one)
+
+Two follow-ups came out of the §8.1 rows 10+11 session and neither was
+built: a Store Attendant Dashboard/Home tab (structural gap, not a design
+polish item) and the next screen in the audit's own sequence (row 12, Waste
+Log). Either is a reasonable next session; the Attendant Dashboard is more
+urgent (a real usability hole for a live role) but is a scope-expanding
+build, not a screen audit — the owner should pick which one to run next
+rather than defaulting to sequence order.
+
+**Option A — Store Attendant Dashboard/Home tab (structural gap, new build):**
+
+> Store Attendant's mobile nav has no Dashboard/Home tab — confirmed
+> 2026-07-30 while investigating a "no way back" report on the Prep Record
+> screen (`layout.tsx`'s `mobileNavConfig.STORE_ATTENDANT`: primary tabs are
+> Stock/Purchases/Receiving/Prep, all task screens; Stock Count/Waste
+> Log/Inbox/Leave/Payslips are under "More"). There is no landing/home
+> destination anywhere in this role's nav. Design and build a Dashboard tab
+> for Store Attendant, mirroring Store Manager's existing mobile Dashboard
+> pattern (stat-card grid + tap-through panels) but with Attendant-relevant
+> content — think through what actually matters to an Attendant's day
+> (today's receiving status? open stock counts assigned or in progress?
+> prep still needed?) rather than copying Manager's dashboard content
+> wholesale. Read `docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md`
+> §8.2 (Attendant screens) first. This is a new-build session, not a design
+> audit of an existing screen — treat it accordingly (design the content,
+> not just the visual polish).
+
+**Option B — §8.1 row 12, Waste Log — review (next in the audit's own
+sequence):**
+
+> Audit the Waste Log — review screen (§8.1 row 12), Store Manager-facing,
+> desktop + mobile, following this file's usual one-screen-at-a-time
+> process (Ground truth to read first section, Process section). The owner
+> asked mid-session on 2026-07-30 for a Waste Log improvements outline based
+> on the Stock Count session's findings (unit consistency — buy-unit is now
+> the single convention for quantity entry/display everywhere in this
+> feature per that session's log; FAB position — confirm Waste Log's own
+> FAB, if any, isn't hidden behind the bottom nav the same way Stock
+> Count's and Inbox's were; card-vs-table for any review/summary view;
+> whether Waste Log has an equivalent "can't fix a mistake after logging"
+> gap the way Stock Count's approval view did before this session added
+> Manager edit-before-approve) — that outline was requested but not
+> produced before the session closed. Start by producing it live against
+> the actual current Waste Log screens, then proceed with the normal
+> audit/fix process rather than treating the outline as a pre-built plan.
 
 ---
 

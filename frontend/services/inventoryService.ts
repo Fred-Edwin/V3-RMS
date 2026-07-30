@@ -336,7 +336,7 @@ export async function getStockCount(id: string, token: string): Promise<StockCou
   return apiClient.get<StockCount>(`/stock-counts/${id}`, token);
 }
 
-/** Session creation — Manager-only (§8.3). */
+/** Session creation — either role, at any time (revised 2026-07-30). */
 export async function createStockCount(input: CreateStockCountInput, token: string): Promise<StockCount> {
   return apiClient.post<StockCount>('/stock-counts', input, token);
 }
@@ -354,6 +354,15 @@ export async function submitStockCount(
 /** Approve — posts adjustment transactions, Manager-only (§8.3). */
 export async function approveStockCount(id: string, token: string): Promise<StockCount> {
   return apiClient.post<StockCount>(`/stock-counts/${id}/approve`, {}, token);
+}
+
+/** Correct counted quantities on a SUBMITTED session before approving — Manager-only, added 2026-07-30. */
+export async function correctStockCountLines(
+  id: string,
+  input: SubmitStockCountInput,
+  token: string,
+): Promise<StockCount> {
+  return apiClient.patch<StockCount>(`/stock-counts/${id}/lines`, input, token);
 }
 
 // ─── Waste Log ──────────────────────────────────────────────────────────────

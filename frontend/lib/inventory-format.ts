@@ -77,3 +77,30 @@ export function formatBuyUnitQuantity(usageQty: string | number, item: QuantityU
   const buyQty = qty / factor
   return `${buyQty.toLocaleString('en-KE', { maximumFractionDigits: 2 })} ${item.buyUnit}`
 }
+
+/**
+ * The unit label to show next to a quantity FIELD that accepts a buy-unit
+ * value (e.g. Stock Count entry — someone physically counts cartons/boxes on
+ * a shelf, not fractional grams). Falls back to usageUnit when buyUnit and
+ * usageUnit are the same, matching formatBuyUnitQuantity's fallback.
+ */
+export function buyUnitLabel(item: QuantityUnitInfo): string {
+  return item.buyUnit === item.usageUnit ? item.usageUnit : item.buyUnit
+}
+
+/**
+ * Converts a buy-unit quantity typed by a person (e.g. "0.42" cartons) into
+ * the raw usage-unit quantity the backend/ledger expects (D-7 — the ledger
+ * is always usage-unit-denominated; countedQty/expectedQty on a
+ * StockCountLine are compared directly with no conversion server-side). Use
+ * this on submit for any quantity field that displayed buyUnitLabel to the
+ * user. Returns the input unchanged (as a number) if conversion isn't
+ * applicable (buyUnit === usageUnit, or an invalid factor).
+ */
+export function toUsageUnitQuantity(buyQty: string | number, item: QuantityUnitInfo): number {
+  const qty = typeof buyQty === 'string' ? parseFloat(buyQty) : buyQty
+  const factor = parseFloat(item.conversionFactor)
+  if (!Number.isFinite(qty)) return NaN
+  if (!Number.isFinite(factor) || factor <= 0 || item.buyUnit === item.usageUnit) return qty
+  return qty * factor
+}

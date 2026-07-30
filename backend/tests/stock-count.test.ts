@@ -92,12 +92,13 @@ describe('Stock Count routes', () => {
       expect(res.status).toBe(200);
     });
 
-    it('POST /stock-counts (session creation) blocks attendant (403) — Manager-only', async () => {
+    it('POST /stock-counts (session creation) allows attendant — revised 2026-07-30, no longer Manager-only', async () => {
+      vi.spyOn(stockCountService, 'create').mockResolvedValue(buildBlindCount() as never);
       const res = await request(app)
         .post('/api/v1/stock-counts')
         .set('Authorization', `Bearer ${attendantToken}`)
         .send(validCreateBody);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(201);
     });
 
     it('POST /stock-counts blocks waiter (403)', async () => {
@@ -124,6 +125,25 @@ describe('Stock Count routes', () => {
         .post(`/api/v1/stock-counts/${countId}/approve`)
         .set('Authorization', `Bearer ${attendantToken}`);
       expect(res.status).toBe(403);
+    });
+
+    it('PATCH /stock-counts/:id/lines blocks attendant (403) — Manager-only', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/stock-counts/${countId}/lines`)
+        .set('Authorization', `Bearer ${attendantToken}`)
+        .send({ lines: [{ lineId, countedQty: '9.5' }] });
+      expect(res.status).toBe(403);
+    });
+
+    it('PATCH /stock-counts/:id/lines allows manager to correct a SUBMITTED session', async () => {
+      vi.spyOn(stockCountService, 'correctLines').mockResolvedValue(
+        buildCountWithExpected({ status: 'SUBMITTED' }) as never,
+      );
+      const res = await request(app)
+        .patch(`/api/v1/stock-counts/${countId}/lines`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ lines: [{ lineId, countedQty: '9.5' }] });
+      expect(res.status).toBe(200);
     });
 
     it('returns 401 with no token', async () => {

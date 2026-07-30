@@ -65,9 +65,14 @@ export const stockCountService = {
   },
 
   /**
-   * Creates a count session — Manager-only (§8.3). expectedQty per line is
-   * derived from the ledger (Session 2's sumQuantityByItemAndLocation) at
-   * the moment of session creation — never a separate mutable counter.
+   * Creates a count session — either role, at any time (§8.3, revised
+   * 2026-07-30: session creation is no longer Manager-only). expectedQty per
+   * line is derived from the ledger (Session 2's sumQuantityByItemAndLocation)
+   * at the moment of session creation — never a separate mutable counter.
+   * D-14 still holds regardless of who created the session: applyBlindCount
+   * strips expectedQty/gapQty for any STORE_ATTENDANT caller at read time, so
+   * an Attendant who creates their own session still can't see what's
+   * expected when they later execute it.
    */
   create: async (actor: Actor, input: CreateStockCountInput): Promise<StockCountWithLines> => {
     const organizationId = requireOrganization(actor);
@@ -140,6 +145,46 @@ export const stockCountService = {
 
     const updated = await stockCountRepository.findById(stockCountId, organizationId);
     return applyBlindCount(updated!, actor);
+  },
+
+  /**
+   * Correct counted quantities on a SUBMITTED session before approval —
+   * Manager-only. Added 2026-07-30: the approval view previously had no way
+   * to fix a miscounted line short of approving a known-wrong adjustment.
+   * Deliberately does not transition status or touch submittedById/At (the
+   * record of who originally submitted the count is preserved) — only
+   * countedQty/gapQty change. Session must still be SUBMITTED, not
+   * APPROVED (once approved, adjustments are already posted; correcting
+   * after that would require a reversal, out of scope here).
+   */
+  correctLines: async (
+    actor: Actor,
+    stockCountId: string,
+    lines: SubmitStockCountLineInput[],
+  ): Promise<StockCountWithLines> => {
+    const organizationId = requireOrganization(actor);
+
+    const count = await stockCountRepository.findById(stockCountId, organizationId);
+    if (!count) {
+      throw new NotFoundError('Stock count not found');
+    }
+    if (count.status !== 'SUBMITTED') {
+      throw new ConflictError('Stock count must be SUBMITTED to correct counted quantities');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const line of lines) {
+        const existingLine = await stockCountRepository.findLineById(line.lineId, organizationId, tx);
+        if (!existingLine || existingLine.stockCountId !== stockCountId) {
+          throw new NotFoundError(`Stock count line not found: ${line.lineId}`);
+        }
+        const countedQty = new Prisma.Decimal(line.countedQty);
+        const gapQty = countedQty.sub(existingLine.expectedQty ?? new Prisma.Decimal(0));
+        await stockCountRepository.updateLineCount(line.lineId, organizationId, { countedQty, gapQty }, tx);
+      }
+    });
+
+    return stockCountRepository.findById(stockCountId, organizationId) as Promise<StockCountWithLines>;
   },
 
   /**

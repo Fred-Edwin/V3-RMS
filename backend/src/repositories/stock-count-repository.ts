@@ -4,7 +4,9 @@ import { prisma } from '../config/database';
 type TxClient = Prisma.TransactionClient;
 
 export type StockCountWithLines = StockCount & {
-  lines: (StockCountLine & { inventoryItem: { id: string; name: string; usageUnit: string } })[];
+  lines: (StockCountLine & {
+    inventoryItem: { id: string; name: string; usageUnit: string; buyUnit: string; conversionFactor: Prisma.Decimal };
+  })[];
 };
 
 export type CreateStockCountLineInput = {
@@ -23,7 +25,7 @@ export type CreateStockCountInput = {
 
 const detailInclude = {
   lines: {
-    include: { inventoryItem: { select: { id: true, name: true, usageUnit: true } } },
+    include: { inventoryItem: { select: { id: true, name: true, usageUnit: true, buyUnit: true, conversionFactor: true } } },
     orderBy: { sequence: 'asc' as const },
   },
 } as const;

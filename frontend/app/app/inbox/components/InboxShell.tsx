@@ -219,11 +219,16 @@ export function InboxShell() {
           {activeTab === 'notices' && <NoticeList key={noticeListKey} onSelect={handleSelectNotice} />}
         </div>
 
-        {/* FAB */}
+        {/* FAB — offset for the shared app BottomNav (64px + safe-area),
+            which stays visible under this shell's own h-[100dvh] container
+            whenever no detail view is open (hideBottomNav only toggles true
+            while a detail slide-in is showing). Without this offset the FAB
+            sits at the literal bottom of the viewport, directly behind the
+            fixed nav bar. */}
         {fabVisible && (
           <button type="button" onClick={handleFabClick}
-            className="absolute bottom-6 right-5 z-30 w-14 h-14 rounded-full bg-[#2C1810] shadow-lg flex items-center justify-center text-white hover:bg-[#3D2318] active:scale-95 transition-all"
-            style={{ boxShadow: '0 4px 12px rgba(44,24,16,0.35)' }}>
+            className="absolute right-5 z-30 w-14 h-14 rounded-full bg-[#2C1810] shadow-lg flex items-center justify-center text-white hover:bg-[#3D2318] active:scale-95 transition-all"
+            style={{ bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)', boxShadow: '0 4px 12px rgba(44,24,16,0.35)' }}>
             <FabIcon size={22} />
           </button>
         )}

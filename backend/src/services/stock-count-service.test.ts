@@ -165,3 +165,33 @@ describe('stockCountService.approve', () => {
     expect(inventoryTransactionRepository.create).not.toHaveBeenCalled();
   });
 });
+
+describe('stockCountService.correctLines', () => {
+  it('updates countedQty/gapQty for a SUBMITTED session without touching status', async () => {
+    vi.mocked(stockCountRepository.findById).mockResolvedValue(buildCount() as never);
+    vi.mocked(stockCountRepository.findLineById).mockResolvedValue(
+      buildCount().lines[0] as never,
+    );
+
+    await stockCountService.correctLines(managerActor, countId, [{ lineId: lineId1, countedQty: '9.7' }]);
+
+    expect(stockCountRepository.updateLineCount).toHaveBeenCalledWith(
+      lineId1,
+      organizationId,
+      { countedQty: expect.any(Prisma.Decimal), gapQty: expect.any(Prisma.Decimal) },
+      prisma,
+    );
+    expect(stockCountRepository.transitionStatus).not.toHaveBeenCalled();
+  });
+
+  it('rejects correcting a count that is not SUBMITTED', async () => {
+    vi.mocked(stockCountRepository.findById).mockResolvedValue(
+      buildCount({ status: 'APPROVED' }) as never,
+    );
+
+    await expect(
+      stockCountService.correctLines(managerActor, countId, [{ lineId: lineId1, countedQty: '9.7' }]),
+    ).rejects.toThrow(ConflictError);
+    expect(stockCountRepository.updateLineCount).not.toHaveBeenCalled();
+  });
+});

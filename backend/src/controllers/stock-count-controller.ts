@@ -49,4 +49,12 @@ export const stockCountController = {
     const count = await stockCountService.approve(actor, id);
     res.status(200).json({ success: true, data: count, message: 'Stock count approved successfully' });
   },
+
+  correctLines: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = StockCountIdParamSchema.parse(req.params);
+    const data = SubmitStockCountSchema.parse(req.body);
+    const count = await stockCountService.correctLines(actor, id, data.lines);
+    res.status(200).json({ success: true, data: count, message: 'Counted quantities updated' });
+  },
 };

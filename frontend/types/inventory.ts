@@ -275,7 +275,7 @@ export interface StockCountLine {
   expectedQty?: string;
   countedQty: string | null;
   gapQty?: string;
-  inventoryItem: { id: string; name: string; usageUnit: string };
+  inventoryItem: { id: string; name: string; usageUnit: string; buyUnit: string; conversionFactor: string };
 }
 
 export interface StockCount {
@@ -297,7 +297,7 @@ export interface SubmitStockCountInput {
   lines: { lineId: string; countedQty: string }[];
 }
 
-/** Session creation — Manager-only (§8.3). */
+/** Session creation — either role, at any time (revised 2026-07-30). */
 export interface CreateStockCountInput {
   locationId: string;
   label: string;
