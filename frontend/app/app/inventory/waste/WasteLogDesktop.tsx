@@ -13,6 +13,7 @@ import {
   PageHeader,
   PageLayout,
   Select,
+  StatCard,
   type ExcelColumn,
   type SelectOption,
 } from '@/components/ui';
@@ -26,6 +27,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
+import { buyUnitLabel, formatBuyUnitQuantity, formatKes, toUsageUnitQuantity } from '@/lib/inventory-format';
 import type { InventoryItem, WasteLog, WasteReason } from '@/types/inventory';
 
 const REASONS: { value: WasteReason; label: string; icon: React.ElementType }[] = [
@@ -48,9 +50,6 @@ const REASON_FILTERS: SelectOption[] = [
   { value: '', label: 'All Reasons' },
   ...REASONS.map((r) => ({ value: r.value, label: r.label })),
 ];
-
-const formatKes = (value: number): string =>
-  `Ksh ${value.toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -131,7 +130,8 @@ function WasteLogDesktopInner(): JSX.Element {
     }
     setIsSaving(true);
     try {
-      await createWasteLog({ locationId, inventoryItemId: selectedItemId, quantity, reason, note: note.trim() || undefined }, accessToken);
+      const usageQuantity = selectedItem ? toUsageUnitQuantity(quantity, selectedItem) : parseFloat(quantity);
+      await createWasteLog({ locationId, inventoryItemId: selectedItemId, quantity: String(usageQuantity), reason, note: note.trim() || undefined }, accessToken);
       toast({ variant: 'success', title: 'Waste logged', message: 'The entry was recorded.' });
       setIsFormOpen(false);
       void load();
@@ -156,9 +156,23 @@ function WasteLogDesktopInner(): JSX.Element {
 
   const totalCost = rows.reduce((sum, r) => sum + parseFloat(r.log.quantity) * parseFloat(r.log.inventoryItem.currentCost), 0);
 
+  const costOf = (log: WasteLog) => parseFloat(log.quantity) * parseFloat(log.inventoryItem.currentCost);
+
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekCost = logs.filter((log) => new Date(log.loggedAt).getTime() >= weekAgo).reduce((sum, log) => sum + costOf(log), 0);
+
+  const topReason = useMemo(() => {
+    if (logs.length === 0) return '—';
+    const counts = new Map<WasteReason, number>();
+    for (const log of logs) counts.set(log.reason, (counts.get(log.reason) ?? 0) + 1);
+    const entries: [WasteReason, number][] = Array.from(counts.entries());
+    const [reason] = entries.sort((a, b) => b[1] - a[1])[0];
+    return REASON_LABEL[reason];
+  }, [logs]);
+
   const columns: ExcelColumn<WasteRow>[] = [
     { key: 'item', label: 'Item', render: (row) => <span className="font-medium text-office-ink">{row.log.inventoryItem.name}</span> },
-    { key: 'quantity', label: 'Quantity', numeric: true, render: (row) => `${row.log.quantity} ${row.log.inventoryItem.usageUnit}` },
+    { key: 'quantity', label: 'Quantity', numeric: true, render: (row) => formatBuyUnitQuantity(row.log.quantity, row.log.inventoryItem) },
     { key: 'cost', label: 'Cost', numeric: true, render: (row) => formatKes(parseFloat(row.log.quantity) * parseFloat(row.log.inventoryItem.currentCost)) },
     { key: 'reason', label: 'Reason', render: (row) => <Badge tone="neutral">{REASON_LABEL[row.log.reason]}</Badge> },
     { key: 'note', label: 'Note', render: (row) => row.log.note ?? <span className="text-stone-400">—</span> },
@@ -169,9 +183,15 @@ function WasteLogDesktopInner(): JSX.Element {
     <PageLayout className="animate-fade-up">
       <PageHeader
         title="Waste Log"
-        subtitle={`${rows.length} entries · ${formatKes(totalCost)} total cost`}
+        subtitle={`${rows.length} entries`}
         action={<Button leftIcon={<Plus size={18} />} onClick={openForm}>Log Waste</Button>}
       />
+
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Total Cost" value={formatKes(totalCost)} />
+        <StatCard label="Last 7 Days" value={formatKes(weekCost)} />
+        <StatCard label="Top Reason" value={topReason} />
+      </div>
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -210,7 +230,7 @@ function WasteLogDesktopInner(): JSX.Element {
             <Select id="waste-item" options={itemOptions} placeholder="Select an item…" value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)} />
           </FormField>
           <FormField label="Quantity" htmlFor="waste-qty" required>
-            <QuantityInput id="waste-qty" value={quantity} onValueChange={setQuantity} unit={selectedItem?.usageUnit} />
+            <QuantityInput id="waste-qty" value={quantity} onValueChange={setQuantity} unit={selectedItem ? buyUnitLabel(selectedItem) : undefined} />
           </FormField>
           <FormField label="Reason" htmlFor="waste-reason" required>
             <div className="flex flex-wrap gap-2">

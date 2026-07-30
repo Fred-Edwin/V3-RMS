@@ -227,12 +227,13 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
   // renders the plain MobileLayout branch.
   STORE_ATTENDANT: {
     tabs: [
+      { label: 'Dashboard', href: '/app/inventory/attendant-dashboard', icon: LayoutDashboard },
       { label: 'Stock', href: '/app/inventory/stock', icon: Package },
-      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
       { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
       { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
     ],
     overflowTabs: [
+      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
       { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
       { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },

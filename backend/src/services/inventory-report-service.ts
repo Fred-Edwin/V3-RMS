@@ -139,7 +139,7 @@ export const inventoryReportService = {
 
         return {
           outputItemId: outputItem.id,
-          outputItemName: records[0]?.lines.length ? undefined : outputItem.name,
+          outputItemName: outputItem.name || undefined,
           runs,
           rollingAverage,
         };

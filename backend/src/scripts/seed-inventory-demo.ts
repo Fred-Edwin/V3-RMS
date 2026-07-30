@@ -198,6 +198,12 @@ const poNumber = (suffix: string) => {
   return `PO-${y}${m}${dd}-${suffix}`;
 };
 
+type ApPaymentSeed = {
+  amount: string;
+  method: 'MPESA' | 'CASH' | 'CARD';
+  paidAt: string;
+};
+
 const run = async (): Promise<void> => {
   const storeManager = await prisma.user.findFirst({
     where: { role: 'STORE_MANAGER', organizationId: { not: null } },
@@ -315,6 +321,80 @@ const run = async (): Promise<void> => {
   const milkId = itemIdByName.get('Fresh Milk')!;
   const chickenId = itemIdByName.get('Chicken Breast')!;
   const flourId = itemIdByName.get('210 Home Baking Flour 2kg')!;
+  const sugarIdForPo = itemIdByName.get('Kabras Sugar')!;
+  const clingFilmId = itemIdByName.get('Royal Cling Film 30x300m')!;
+  const oilId = itemIdByName.get('Golden Drop Oil 20ltr')!;
+
+  const ensureClosedPurchaseOrder = async (
+    suffix: string,
+    supplierId: string,
+    sentAt: string,
+    lines: { inventoryItemId: string; qty: string; unitPrice: string }[],
+  ) => {
+    const number = poNumber(suffix);
+    const existing = await prisma.purchaseOrder.findFirst({ where: { organizationId, poNumber: number } });
+    if (existing) return existing;
+
+    return prisma.purchaseOrder.create({
+      data: {
+        organizationId,
+        supplierId,
+        locationId: location.id,
+        poNumber: number,
+        status: 'CLOSED',
+        createdById: storeManager.id,
+        sentAt: new Date(sentAt),
+        closedAt: new Date(sentAt),
+        lines: {
+          create: lines.map((line) => ({
+            organizationId,
+            inventoryItemId: line.inventoryItemId,
+            orderedQty: d(line.qty),
+            unitPrice: d(line.unitPrice),
+            receivedQty: d(line.qty),
+            invoicePrice: d(line.unitPrice),
+            receivedAt: new Date(sentAt),
+          })),
+        },
+      },
+    });
+  };
+
+  const ensureSupplierInvoice = async (
+    input: {
+      supplierId: string;
+      purchaseOrderId?: string;
+      referenceNumber: string;
+      amount: string;
+      invoiceDate: string;
+      payments?: ApPaymentSeed[];
+    },
+  ) => {
+    const existing = await prisma.supplierInvoice.findFirst({
+      where: { organizationId, referenceNumber: input.referenceNumber },
+      select: { id: true },
+    });
+    if (existing) {
+      console.log(`SKIP  Supplier Invoice ${input.referenceNumber}`);
+      return;
+    }
+
+    const invoice = await supplierInvoiceService.create(managerActor, {
+      supplierId: input.supplierId,
+      purchaseOrderId: input.purchaseOrderId,
+      referenceNumber: input.referenceNumber,
+      amount: input.amount,
+      invoiceDate: new Date(input.invoiceDate).toISOString(),
+    });
+    for (const payment of input.payments ?? []) {
+      await supplierInvoiceService.recordPayment(managerActor, invoice.id, {
+        amount: payment.amount,
+        method: payment.method,
+        paidAt: new Date(payment.paidAt).toISOString(),
+      });
+    }
+    console.log(`OK    Supplier Invoice ${input.referenceNumber} — ${input.payments?.length ? 'payment history added' : 'UNPAID'}`);
+  };
 
   const existingDraft = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'DRAFT' } });
   if (!existingDraft) {
@@ -359,9 +439,9 @@ const run = async (): Promise<void> => {
     console.log(`OK    Purchase Order ${sentPo.poNumber} — SENT (ready for a live Receiving walkthrough)`);
   }
 
-  const existingClosed = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'CLOSED', supplierId: summerId } });
-  if (!existingClosed) {
-    const closedPo = await prisma.purchaseOrder.create({
+  let summerClosedPo = await prisma.purchaseOrder.findFirst({ where: { organizationId, status: 'CLOSED', supplierId: summerId } });
+  if (!summerClosedPo) {
+    summerClosedPo = await prisma.purchaseOrder.create({
       data: {
         organizationId,
         supplierId: summerId,
@@ -386,23 +466,64 @@ const run = async (): Promise<void> => {
         },
       },
     });
-    console.log(`OK    Purchase Order ${closedPo.poNumber} — CLOSED`);
-
-    // --- Supplier AP: invoice for this closed PO + one partial payment ---
-    const invoice = await supplierInvoiceService.create(managerActor, {
-      supplierId: summerId,
-      purchaseOrderId: closedPo.id,
-      referenceNumber: 'SINV57141',
-      amount: '35670.00',
-      invoiceDate: new Date('2026-07-16').toISOString(),
-    });
-    await supplierInvoiceService.recordPayment(managerActor, invoice.id, {
-      amount: '20000.00',
-      method: 'MPESA',
-      paidAt: new Date('2026-07-22').toISOString(),
-    });
-    console.log(`OK    Supplier Invoice SINV57141 — KES 35,670 billed, KES 20,000 paid (PARTIALLY_PAID)`);
+    console.log(`OK    Purchase Order ${summerClosedPo.poNumber} — CLOSED`);
   }
+
+  // --- Supplier AP: a small realistic portfolio across statuses and payment-age buckets ---
+  const samratRecentPo = await ensureClosedPurchaseOrder('AP1', samratId, '2026-07-29', [
+    { inventoryItemId: sugarIdForPo, qty: '50', unitPrice: '155' },
+    { inventoryItemId: clingFilmId, qty: '8', unitPrice: '699' },
+  ]);
+  const dairyMidAgePo = await ensureClosedPurchaseOrder('AP2', dairyId, '2026-07-18', [
+    { inventoryItemId: milkId, qty: '45', unitPrice: '75' },
+    { inventoryItemId: chickenId, qty: '22', unitPrice: '480' },
+  ]);
+  const samratOverduePo = await ensureClosedPurchaseOrder('AP3', samratId, '2026-06-18', [
+    { inventoryItemId: marginId, qty: '2', unitPrice: '3095' },
+    { inventoryItemId: soySauceId, qty: '7', unitPrice: '365' },
+  ]);
+  const summerSettledPo = await ensureClosedPurchaseOrder('AP4', summerId, '2026-07-02', [
+    { inventoryItemId: oilId, qty: '1', unitPrice: '4900' },
+  ]);
+
+  await ensureSupplierInvoice({
+    supplierId: summerId,
+    purchaseOrderId: summerClosedPo.id,
+    referenceNumber: 'SINV57141',
+    amount: '35670.00',
+    invoiceDate: '2026-07-16',
+    payments: [{ amount: '20000.00', method: 'MPESA', paidAt: '2026-07-22' }],
+  });
+  await ensureSupplierInvoice({
+    supplierId: samratId,
+    purchaseOrderId: samratRecentPo.id,
+    referenceNumber: 'SAM-AP-0729',
+    amount: '13342.00',
+    invoiceDate: '2026-07-29',
+  });
+  await ensureSupplierInvoice({
+    supplierId: dairyId,
+    purchaseOrderId: dairyMidAgePo.id,
+    referenceNumber: 'NFD-AP-0718',
+    amount: '13935.00',
+    invoiceDate: '2026-07-18',
+    payments: [{ amount: '7500.00', method: 'CASH', paidAt: '2026-07-24' }],
+  });
+  await ensureSupplierInvoice({
+    supplierId: samratId,
+    purchaseOrderId: samratOverduePo.id,
+    referenceNumber: 'SAM-AP-0618',
+    amount: '8745.00',
+    invoiceDate: '2026-06-18',
+  });
+  await ensureSupplierInvoice({
+    supplierId: summerId,
+    purchaseOrderId: summerSettledPo.id,
+    referenceNumber: 'SUM-AP-0702',
+    amount: '4900.00',
+    invoiceDate: '2026-07-02',
+    payments: [{ amount: '4900.00', method: 'CARD', paidAt: '2026-07-05' }],
+  });
 
   // --- Waste log entry ---
   const existingWaste = await prisma.wasteLog.findFirst({ where: { organizationId } });

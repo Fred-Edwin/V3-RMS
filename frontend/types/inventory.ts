@@ -319,7 +319,7 @@ export interface WasteLog {
   note: string | null;
   loggedById: string;
   loggedAt: string;
-  inventoryItem: InventoryItem;
+  inventoryItem: { id: string; name: string; usageUnit: string; buyUnit: string; conversionFactor: string; currentCost: string };
 }
 
 export interface CreateWasteLogInput {

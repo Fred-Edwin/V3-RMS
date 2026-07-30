@@ -92,7 +92,6 @@ function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element 
               ]}
               active={activeTab}
               onChange={setActiveTab}
-              variant="segmented"
               className="mx-4 mt-4"
             />
           )}

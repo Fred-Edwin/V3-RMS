@@ -14,5 +14,5 @@ export const roleHome: Record<AppRole, string> = {
   STEWARD: '/app/dashboard',
   HOUSEKEEPING: '/app/dashboard',
   STORE_MANAGER: '/app/inventory/dashboard',
-  STORE_ATTENDANT: '/app/inventory/stock',
+  STORE_ATTENDANT: '/app/inventory/attendant-dashboard',
 };

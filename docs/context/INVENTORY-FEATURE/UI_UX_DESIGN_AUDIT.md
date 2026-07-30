@@ -122,12 +122,55 @@ Screen-level status (current cadence, §8.1 = Store Manager screen list in
 | 9 | Prep Recipe editor | Done alongside row 8, same caveat |
 | 10 | Stock Count — session creation | Complete 2026-07-30 — session creation/counting model redesigned, see log below |
 | 11 | Stock Count — approval | Complete 2026-07-30 — got a Manager edit-before-approve capability as part of the same session, see log below |
-| 12 | Waste Log — review | **Not started** |
+| 12 | Waste Log — review | In progress 2026-07-30 — desktop unit-consistency bug + Ksh NaN cost bug fixed, stat-card row added; mobile entry walkthrough, table-vs-card confirmation, and edit-in-place correction path still open (session paused to pick up Store Attendant Dashboard build instead, see row below Owner's mistakes list) |
 | 13 | Reports | **Not started** |
 
 Next screen up: **row 12, Waste Log — review.** (A Waste Log improvements
 outline, based on this session's Stock Count findings, was requested but not
 yet produced — pick that up at the start of the next session if still wanted.)
+
+### Waste Log improvements outline (produced 2026-07-30, start of this session)
+
+Checked against the four Stock Count-derived findings the owner asked about:
+
+1. **Unit consistency — CONFIRMED BUG.** Both screens still take/display
+   quantity in raw usage-unit (kg/L/pc), not buy-unit — the exact seam the
+   Stock Count session just closed everywhere else. Mobile
+   `WasteLogEntryAttendant`'s `QuantityInput` uses `selectedItem?.usageUnit`
+   (`frontend/app/app/inventory/waste/page.tsx:209`). Desktop's modal
+   `QuantityInput` uses `selectedItem?.usageUnit`
+   (`WasteLogDesktop.tsx:213`), and the `ExcelTable` Quantity column renders
+   `${row.log.quantity} ${row.log.inventoryItem.usageUnit}`
+   (`WasteLogDesktop.tsx:161`). A person wasting stock thinks in cartons/
+   bottles/bags on a shelf, same as counting them — fix: apply `buyUnitLabel`
+   / `toUsageUnitQuantity` / `formatBuyUnitQuantity` from
+   `lib/inventory-format.ts` (already built for Stock Count) to both entry
+   points and the table column.
+2. **FAB position — not applicable, no bug.** Mobile Waste is a single
+   full-page form (`WasteLogEntryAttendant`), not a list+FAB pattern — there
+   is no FAB to mis-position. Desktop uses a `PageHeader` action `Button`
+   ("Log Waste"), also not a FAB. Confirmed clean, nothing to fix.
+3. **Card vs. table — likely fine, confirm with owner.** Desktop's history
+   view is an `ExcelTable` (`WasteLogDesktop.tsx:187`), which is correct
+   per `DESIGN_SYSTEM.md`'s office idiom for a flat, data-dense historical
+   log — unlike Stock Count's approval view, this isn't a line-level
+   correction UI, it's a read-mostly ledger. Not treating this as a
+   pre-decided finding; confirm live with the owner during the walkthrough
+   rather than changing it unprompted.
+4. **Can't fix a mistake — CONFIRMED, wider gap than Stock Count's was.**
+   There is no update/delete path anywhere in the stack — `waste-log-routes.ts`
+   only wires `GET /waste-logs`, `GET /waste-logs/:id`, `POST /waste-logs`;
+   `wasteLogService` has no `update`/`delete`/`correct` method; the frontend
+   service (`inventoryService.ts`) has no corresponding call. Once logged, a
+   waste entry is permanent — worse than Stock Count's pre-fix state, which
+   was at least reviewable before submit. Complication Stock Count didn't
+   have: `wasteLogService.create` also writes a linked negative-quantity
+   `WASTE` ledger transaction (`inventoryTransactionRepository`,
+   `wasteLogId` FK) in the same transaction — any correction/delete feature
+   must reverse or adjust that ledger row too, not just the `WasteLog` row,
+   or stock-on-hand drifts. Scope this as its own decision with the owner
+   (edit-quantity-only vs. void-with-reversal vs. defer) rather than assuming
+   Stock Count's edit-in-place shape transfers directly.
 
 ## Owner's mistakes list
 
@@ -714,18 +757,26 @@ scope:**
   screen-level fix, and out of scope for a design-audit session. Owner
   confirmed: defer and log as a known gap rather than adding the field or
   faking a department-tag-based stand-in.
-- **Store Attendant has no Dashboard/Home nav tab at all** — confirmed via
-  `layout.tsx`'s `mobileNavConfig`: Attendant's primary tabs are Stock /
-  Purchases / Receiving / Prep (all task screens), with Stock Count / Waste
-  Log / Inbox / Leave / Payslips under "More" — there is no landing/home
-  destination anywhere in the role's nav. This was the real answer behind
-  an owner report of "Prep Record [the Prep tab's screen title] has no way
-  back" — it's not a missing back-arrow on a drill-in, it's the structural
-  absence of a home base for this role. Owner agreed a fix (add a
-  Dashboard tab, mirroring Store Manager's mobile Dashboard pattern) but
-  explicitly deferred building it to its own session — it needs real
-  content design (what stats/shortcuts matter to an Attendant's day), not a
-  copy-paste of Manager's dashboard bolted on at the end of an
+- **Store Attendant has no Dashboard/Home nav tab at all** — **fixed
+  2026-07-30**, own session (Option A of the two-candidate handoff below).
+  New page `app/app/inventory/attendant-dashboard/page.tsx`, added as the
+  first primary nav tab in `layout.tsx`'s `mobileNavConfig.STORE_ATTENDANT`
+  (Dashboard / Stock / Receiving / Prep; Purchases demoted to "More" to make
+  room — confirmed with owner rather than assumed), and set as the role's
+  landing page in `lib/role-home.ts`. Mirrors Store Manager mobile
+  Dashboard's stat-grid + tap-through-panel shape but with Attendant-scoped
+  content only (no valuation/AP figures — RBAC per §8.3 doesn't give
+  Attendant those anyway): stat cards for Orders Awaiting Receipt, Open
+  Stock Counts, Prep Logged Today, Waste Logged Today (cost); tap-through
+  panels into Receiving, Stock Count, and Prep. Owner verified live
+  2026-07-30. Originally confirmed via `layout.tsx`'s `mobileNavConfig`:
+  Attendant's primary tabs were Stock / Purchases / Receiving / Prep (all
+  task screens), with Stock Count / Waste Log / Inbox / Leave / Payslips
+  under "More" — there was no landing/home destination anywhere in the
+  role's nav. This was the real answer behind an owner report of "Prep
+  Record [the Prep tab's screen title] has no way back" — it wasn't a
+  missing back-arrow on a drill-in, it was the structural absence of a home
+  base for this role. Below is the original deferred-item text, kept for
   already-long session. **Next session should pick this up** — see
   handoff prompt below.
 - **Waste Log improvements outline** — the owner asked for one, based on

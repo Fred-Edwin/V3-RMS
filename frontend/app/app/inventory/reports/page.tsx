@@ -52,7 +52,7 @@ const TABS: { value: ReportTab; label: string }[] = [
   { value: 'prep-yield', label: 'Prep Yield' },
   { value: 'discrepancy', label: 'Count Discrepancy' },
   { value: 'prepped-cost', label: 'True Cost per Prepped Item' },
-  { value: 'ap-aging', label: 'Supplier AP Aging' },
+  { value: 'ap-aging', label: 'Supplier Payment Age' },
 ];
 
 const formatKes = (value: string | number): string => {
@@ -204,10 +204,10 @@ function InventoryReportsPageInner(): JSX.Element {
     { key: 'supplierName', label: 'Supplier' },
     { key: 'referenceNumber', label: 'Reference' },
     { key: 'outstanding', label: 'Outstanding', numeric: true, render: (row) => formatKes(row.outstanding) },
-    { key: 'daysOutstanding', label: 'Days Outstanding', numeric: true },
+    { key: 'daysOutstanding', label: 'Days Unpaid', numeric: true },
     {
       key: 'bucket',
-      label: 'Bucket',
+      label: 'Payment Age',
       render: (row) => (
         <span className={row.bucket === '31+' ? 'font-semibold text-danger' : row.bucket === '8-30' ? 'font-semibold text-warning' : 'text-stone-600'}>
           {row.bucket} days
@@ -241,8 +241,8 @@ function InventoryReportsPageInner(): JSX.Element {
       csv = toCsv(['Item', 'Most Recent Cost', 'Average Cost', 'Runs'], preppedCost.map((l) => [l.outputItemName, l.mostRecentUnitCost ?? '', l.avgUnitCost ?? '', l.sampleCount]));
       filename = 'prepped-item-cost.csv';
     } else {
-      csv = toCsv(['Supplier', 'Reference', 'Outstanding', 'Days Outstanding', 'Bucket'], apAgingLines.map((l) => [l.supplierName, l.referenceNumber, l.outstanding, l.daysOutstanding, l.bucket]));
-      filename = 'supplier-ap-aging.csv';
+      csv = toCsv(['Supplier', 'Reference', 'Outstanding', 'Days Unpaid', 'Payment Age'], apAgingLines.map((l) => [l.supplierName, l.referenceNumber, l.outstanding, l.daysOutstanding, l.bucket]));
+      filename = 'supplier-payment-age.csv';
     }
     downloadCsv(filename, csv);
   };
@@ -363,7 +363,7 @@ function InventoryReportsPageInner(): JSX.Element {
 // in the build notes when reached." Stock Valuation, Low Stock, and Price
 // History get full simplified mobile views (list/sparkline — data shapes
 // that read naturally on a phone). Prep Yield, Count Discrepancy, True Cost
-// per Prepped Item, and Supplier AP Aging are flagged desktop-only for v1
+// per Prepped Item, and Supplier Payment Age are flagged desktop-only for v1
 // (per the session plan's As Built notes) — their summary card still shows
 // the headline number, but tapping it explains that the full breakdown is
 // on desktop rather than cramming an ExcelTable-shaped report onto a phone.

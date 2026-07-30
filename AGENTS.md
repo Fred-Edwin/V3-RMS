@@ -61,6 +61,13 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 12. Always use pnpm to run the project.
 13. Use Windows PowerShell commands.
 
+## Task Tracking
+
+For any multi-step task, use a todo list (e.g. the TodoWrite tool) and keep it updated
+as you go — mark items complete as soon as they're done, don't batch updates to the
+end. This is for the owner's visual feedback while work is in progress, not just your
+own bookkeeping, so update it live rather than only at the start/end of a task.
+
 ## Frontend Hook Stability Rules (Read Before Editing Pages/Hooks)
 
 1. Hooks that return action functions used in `useEffect`/`useCallback` dependencies must return stable references (use selectors + `useCallback` when needed).
@@ -102,30 +109,34 @@ types/ — shared TypeScript types
 
 <!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
 
-Phase: 9 (Payslip Visibility Module)
-Status: Planning — not yet started
-Plan file: docs/context/PHASE_9_PAYSLIP_PLAN.md
+Phase: HR Profile & Contract Overhaul (auto-profile cleanup, contract/leave-policy linkage, self-service staff details, document uploads, staff list Excel-table)
+Status: Complete 2026-07-14 (both Session 1 Backend and Session 2 UI shipped). Remaining: production Cloudinary env-var check (ops, pre-ship).
+Plan file: docs/context/HR_PROFILE_OVERHAUL.md
 
-Previous phases (all complete):
-- Phase 8 Complete → docs/context/PHASE_8_CONTEXT.md
-  - Addenda (sealed, consolidated into reference docs):
-    - ACCOUNTANT Role → docs/context/PHASE_8_ACCOUNTANT_ROLE.md
-    - Staff Discount → docs/context/PHASE_8_STAFF_DISCOUNT.md
-    - Customer Discount → docs/context/PHASE_8_CUSTOMER_DISCOUNT.md
-    - HR Module → docs/context/HR_MODULE_CONTEXT.md
-    - Internal Comms → docs/context/COMMS_MODULE_CONTEXT.md
-- Phase 7 Complete → docs/context/PHASE_7_CONTEXT.md
-- Phase 6 Complete → docs/context/PHASE_6_CONTEXT.md
-- Phase 5 Complete → docs/context/PHASE_5_CONTEXT.md
-- Phase 4 Complete → docs/context/PHASE_4_CONTEXT.md
-- Phase 3 Enhancement (Ticket Splitting) → docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md
-- Phase 3 Complete → docs/context/PHASE_3_CONTEXT.md
-- Phase 3.5 Complete → docs/context/PHASE_3.5_CONTEXT.md
-- Phase 2 Complete → docs/context/PHASE_2_CONTEXT.md
-- Phase 1.5 Complete → docs/context/PHASE_1.5_CONTEXT.md
-- Phase 1 Complete → docs/context/PHASE_1_CONTEXT.md
-- Phase 0 Complete → docs/context/PHASE_0_CONTEXT.md
-- UI/UX Refinements (cross-phase) → docs/context/REFINEMENT_CONTEXT.md
+Also complete: UI System Overhaul Round 1 (design tokens, Sheet/ExcelTable data components)
+Status: Round 0 complete 2026-07-06. Round 1 (Director → Accountant → Manager → HR → Admin sweep) complete 2026-07-08. Rounds 2–6 pending, not started.
+Plan file: docs/context/UI_SYSTEM_ROADMAP.md
+
+Current: Inventory & Procurement — Phase 2 (Central Store → Branch Departments)
+Status: Phase 1 (Central Store) complete 2026-07-29 — all 9 sessions shipped (schema,
+costing/ledger core, Catalog/Suppliers/PO/Receiving/Prep/Stock Count/Waste/Supplier AP
+backend, RBAC + reports, Attendant mobile, Manager desktop + mobile, and Session 9's
+integration pass/Gate prep with real client catalog data seeded). Phase 2 planning has
+not started — no sessions, no schema/code for dispatch/requisition/branch departments
+yet. Two Central Store roles shipped (STORE_MANAGER, STORE_ATTENDANT — see the plan's
+§2/§8), Supplier AP live in v1. Multi-session build, strictly sequential (no parallel
+sessions), once Phase 2 planning closes.
+Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec; §5 has the Phase 2 spec)
+Session plan (Phase 1, all complete): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md
+Domain model: docs/context/central_kitchen_inventory_model.md
+Client reference photos: docs/context/INVENTORY-FEATURE/inventory-real-data/
+
+Previous phases (all complete): full history lives in `docs/context/` as one
+`PHASE_N_*.md` file per phase (Phase 0 through Phase 12, plus Phase 8's addenda —
+ACCOUNTANT role, staff/customer discounts, HR module, internal comms — and the
+cross-phase `REFINEMENT_CONTEXT.md`). Read the specific phase file when you need
+that phase's context; don't enumerate them here — this list drifted out of sync
+with the actual files before and isn't worth maintaining by hand.
 
 ## Current Deployment Model (Authoritative)
 
@@ -296,6 +307,42 @@ at build time when env vars are present. The `no-cache` header prevents CDN/brow
 
 **If a device stops receiving pushes:** Token may be stale. Staff should re-visit Profile →
 Push Notifications — if it shows Enabled, they can log out and back in to re-register.
+
+### GitHub CLI (gh) — PR & Deploy Workflow
+
+```powershell
+# After pushing a branch — monitor CI live (no browser needed)
+gh run watch
+
+# Create a draft PR from current branch
+gh pr create --draft
+
+# Convert draft to ready when CI passes
+gh pr ready
+
+# List your open PRs (works from anywhere)
+gh pr list --author '@me' --repo Fred-Edwin/V3-RMS
+
+# Merge PR: squash commit + delete branch
+gh pr merge 45 --squash --delete-branch
+
+# Check deploy status after merging to main
+gh run list --branch main --limit 5 --repo Fred-Edwin/V3-RMS
+
+# View CI logs for a failed run
+gh run view <run-id> --log
+```
+
+PowerShell profile shortcuts (defined in `$PROFILE`):
+
+| Shortcut | What it does |
+|---|---|
+| `watch-run` | Watch latest CI run live |
+| `prm 45` | Merge PR #45 (squash + delete branch) |
+| `pr-draft` | Create draft PR interactively |
+| `my-work` | List your open PRs + issues |
+| `pr-open` | Open current branch's PR in browser |
+| `deploy-status` | Last 5 CI runs on main |
 
 ### Known Gotchas
 

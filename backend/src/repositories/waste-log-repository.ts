@@ -1,7 +1,9 @@
 import { Prisma, type WasteLog, type WasteReason } from '@prisma/client';
 import { prisma } from '../config/database';
 
-export type WasteLogWithItem = WasteLog & { inventoryItem: { id: string; name: string; usageUnit: string } };
+export type WasteLogWithItem = WasteLog & {
+  inventoryItem: { id: string; name: string; usageUnit: string; buyUnit: string; conversionFactor: Prisma.Decimal; currentCost: Prisma.Decimal };
+};
 
 export type CreateWasteLogInput = {
   locationId: string;
@@ -24,7 +26,7 @@ export const wasteLogRepository = {
         ...(filters.loggedById ? { loggedById: filters.loggedById } : {}),
         ...(filters.reason ? { reason: filters.reason } : {}),
       },
-      include: { inventoryItem: { select: { id: true, name: true, usageUnit: true } } },
+      include: { inventoryItem: { select: { id: true, name: true, usageUnit: true, buyUnit: true, conversionFactor: true, currentCost: true } } },
       orderBy: { loggedAt: 'desc' },
     });
   },
@@ -32,7 +34,7 @@ export const wasteLogRepository = {
   findById: async (id: string, organizationId: string): Promise<WasteLogWithItem | null> => {
     return prisma.wasteLog.findFirst({
       where: { id, organizationId },
-      include: { inventoryItem: { select: { id: true, name: true, usageUnit: true } } },
+      include: { inventoryItem: { select: { id: true, name: true, usageUnit: true, buyUnit: true, conversionFactor: true, currentCost: true } } },
     });
   },
 

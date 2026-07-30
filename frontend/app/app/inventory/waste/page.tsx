@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 import { useIsDesktopShell } from '@/lib/shell-context';
 import { cn } from '@/lib/cn';
+import { buyUnitLabel, toUsageUnitQuantity } from '@/lib/inventory-format';
 import type { InventoryItem, WasteReason } from '@/types/inventory';
 import { WasteLogDesktop } from './WasteLogDesktop';
 
@@ -104,7 +105,7 @@ function WasteLogEntryAttendant(): JSX.Element {
         {
           locationId,
           inventoryItemId: selectedItem.id,
-          quantity,
+          quantity: String(toUsageUnitQuantity(quantity, selectedItem)),
           reason,
           note: note.trim() || undefined,
         },
@@ -169,7 +170,7 @@ function WasteLogEntryAttendant(): JSX.Element {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-body-sm font-semibold text-stone-900">{item.name}</p>
-                    <p className="text-label-sm text-stone-500">{item.usageUnit}</p>
+                    <p className="text-label-sm text-stone-500">{buyUnitLabel(item)}</p>
                   </div>
                 </button>
               ))
@@ -192,7 +193,7 @@ function WasteLogEntryAttendant(): JSX.Element {
                     {index + 1}
                   </span>
                   <p className="truncate text-label-md font-semibold text-stone-900">{item.name}</p>
-                  <p className="text-label-sm text-stone-500">{item.usageUnit}</p>
+                  <p className="text-label-sm text-stone-500">{buyUnitLabel(item)}</p>
                 </button>
               ))}
             </div>
@@ -206,7 +207,7 @@ function WasteLogEntryAttendant(): JSX.Element {
           <QuantityInput
             value={quantity}
             onValueChange={setQuantity}
-            unit={selectedItem?.usageUnit ?? ''}
+            unit={selectedItem ? buyUnitLabel(selectedItem) : ''}
             className="flex-1"
             inputClassName="text-heading-md"
           />
