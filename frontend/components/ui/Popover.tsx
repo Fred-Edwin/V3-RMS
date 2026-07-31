@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/cn'
 
-type PopoverPlacement = 'top' | 'bottom' | 'left' | 'right'
+type PopoverPlacement = 'top' | 'bottom' | 'left' | 'right' | 'bottom-end'
 
 interface PopoverProps {
   trigger: React.ReactNode
@@ -38,6 +38,7 @@ export function Popover({ trigger, children, placement = 'bottom', className }: 
 
   const panelPositionClasses: Record<PopoverPlacement, string> = {
     bottom: 'top-full left-0 mt-1',
+    'bottom-end': 'top-full right-0 mt-1',
     top: 'bottom-full left-0 mb-1',
     right: 'left-full top-0 ml-1',
     left: 'right-full top-0 mr-1',

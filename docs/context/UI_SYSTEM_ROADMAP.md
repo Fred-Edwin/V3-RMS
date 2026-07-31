@@ -1,6 +1,6 @@
 # UI System Roadmap — Design Tokens, Data Components & Cleanup
 
-**Status:** Round 0 complete (PR: `feat/design-system-data-components`), Rounds 1–6 pending
+**Status:** Round 0 complete (PR: `feat/design-system-data-components`), Round 1 complete (Director → Accountant → Manager → HR → Admin sweep, 2026-07-08), Rounds 2–6 pending
 **Date:** 2026-07-06
 **Read with:** `docs/DESIGN_SYSTEM.md` §14 (Data Surfaces — Office Mode)
 
@@ -52,12 +52,12 @@ Progress:
 - ✅ **Manager batch 2** — `manage/incidents` (Incidents tab → ExcelTable gray with `expandable.childRows` rendering `formatDetails()` per row — same pattern as HR payroll's stale-order expansion; incident-type color map → Badge tones, already visually collapsed to 4 buckets so no distinctions lost; Stale Orders tab's inline-`style=` raw table → ExcelTable navy with resolve-action buttons kept custom in a `render` cell, `totalsRow` for the liability total; tab strip → TabBar underline) and `manage/customer-credit` (its existing `Table` → ExcelTable navy with numeric Balance/Credit Limit columns; status pill → Badge) — same branch, migrated (awaiting owner manual test). `manage/settings` skipped this batch (no tables, lower priority, owner deferred it).
 - ✅ **Manager batch 3** — `manage/delivery-zones` (existing `Table` → ExcelTable navy with numeric Fee column; status pill → Badge — same shape as `customer-credit`); `manage/settings` (deferred from batch 2 — no tables; online indicator, token-reveal banner, copied checkmark → success/warning tokens); `manage/menu` (no tables — card grid; Unavailable pill → Badge danger) — same branch, migrated (awaiting owner manual test).
 - ✅ **Manager batch 4** — `manage/dashboard` (no tables; hex→token pass across the 4 pending-authorization widgets — amber/orange/green/red → warning/success/danger, kept as copy-pasted-but-tokenized rather than refactored into a shared component) and `manage/my-tab` (active/inactive pill hex → `Badge` success/neutral; balance-used bar → danger/warning/success tokens; `TabOrderHistoryTable`'s expand chevron tokenized but its table stayed hand-rolled — its per-order item panel (waiter line, item grid, sub-total band) doesn't fit `ExcelTable`'s flat `childRows` shape, same exception as `accountant/reconciliation`) — same branch, migrated (awaiting owner manual test). `manage/outstanding-balances` and `manage/payslips` already clean (0 tables/hex found on triage) — Manager sweep complete (excluding the deferred `manage/shifts` grid rebuild).
-- HR: attendance → leave
-- Admin: `admin/order-corrections`
+- ✅ `hr/attendance` + `hr/leave` — migrated onto ExcelTable/Badge (commit `4e46c19`, 2026-07-07): 3 hand-rolled `<table>`s (attendance list, drawer day-by-day detail, leave history) → ExcelTable gray, Pending Review leave queue → ExcelTable gray inside a status-pending-toned card, `StatusBadge` → `Badge` success/warning/danger, hardcoded hex → tokens.
+- ✅ `admin/order-corrections` — main grid rebuilt onto `Sheet` (commit `85167d6`, 2026-07-08): retired the hand-rolled Excel-style order list (27 hardcoded hex values), matching the `manage/shifts` precedent — navy band for data columns, separate gray band for the Action column, frozen Order column, infinite-scroll via native scroll listener since `Sheet` doesn't expose an `onScroll` prop.
 
 **Working process (owner-set, 2026-07-06):** per page — propose the table/component change list → owner approves → migrate → `pnpm build` + `pnpm test` → commit locally (NO push) → owner tests manually → corrections or approval → next page. For Manager, owner opted to batch 3-4 pages per proposal round (2026-07-07) instead of strict one-page-at-a-time, given the larger page count. Push + draft PR only when the owner says the batch is verified.
 
-**Branch state as of this handoff:** `feat/round1-director-dashboard-exceltable`, all commits local (not pushed). Last commit: `manage/shifts` Weekly Schedule Sheet-chrome rebuild, build+test green, owner manually verified. Manager sweep is now fully complete — Round 1 sweep order (Director → Accountant → Manager) is done; HR and Admin remain.
+**Round 1 status:** complete. Sweep order (Director → Accountant → Manager → HR → Admin) finished 2026-07-08 with the `admin/order-corrections` migration. Both HR and Admin commits merged to `main` (see `4e46c19`, `85167d6`); the `feat/round1-director-dashboard-exceltable` branch handoff note below is superseded now that the full sweep has landed.
 
 ### Round 2 — Status system unification
 Create `lib/status.ts` as the single status→tone+label map (order/ticket/leave/payroll/incident). Generalize `Badge` (tone + custom children). Delete the 10+ per-page status color maps (e.g. `hr/my-leave/page.tsx` inline ternary styles).

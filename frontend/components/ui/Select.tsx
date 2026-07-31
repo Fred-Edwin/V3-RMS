@@ -66,7 +66,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               hasError ? `${id}-error` : helperText ? `${id}-helper` : undefined
             }
             className={cn(
-              'w-full h-11 appearance-none bg-parchment border-[1.5px] rounded-sm pl-3 pr-10 text-body-md font-sans text-stone-900 transition-colors duration-fast',
+              // bg-white at rest, matching Input — bg-parchment made an
+              // empty-but-interactive field read identically to disabled
+              // (bg-stone-100 below), which is reserved for disabled only.
+              'w-full h-11 appearance-none bg-white border-[1.5px] rounded-sm pl-3 pr-10 text-body-md font-sans text-stone-900 transition-colors duration-fast',
               'focus:outline-none focus:shadow-focus',
               hasError
                 ? 'border-[#FCA5A5] focus:border-[#FCA5A5]'

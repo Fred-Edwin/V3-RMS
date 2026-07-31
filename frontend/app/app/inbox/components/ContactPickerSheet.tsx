@@ -25,6 +25,8 @@ const ROLE_LABELS: Record<string, string> = {
   BARISTA: 'Barista',
   STEWARD: 'Steward',
   HOUSEKEEPING: 'Housekeeping',
+  STORE_MANAGER: 'Store Manager',
+  STORE_ATTENDANT: 'Store Attendant',
 };
 
 // Grouped sections in display order
@@ -32,6 +34,7 @@ const SECTION_DEFS: { label: string; roles: string[] }[] = [
   { label: 'Leadership',    roles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER'] },
   { label: 'Finance',       roles: ['ACCOUNTANT'] },
   { label: 'System',        roles: ['SYSTEM_ADMIN'] },
+  { label: 'Central Store', roles: ['STORE_MANAGER', 'STORE_ATTENDANT'] },
   { label: 'Service',       roles: ['WAITER'] },
   { label: 'Kitchen',       roles: ['CHEF'] },
   { label: 'Barista',       roles: ['BARISTA'] },

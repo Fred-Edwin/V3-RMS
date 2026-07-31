@@ -16,6 +16,8 @@ const ALL_HUMAN_ROLES = [
   'BARISTA',
   'STEWARD',
   'HOUSEKEEPING',
+  'STORE_MANAGER',
+  'STORE_ATTENDANT',
 ] as const;
 
 // ─── Direct Conversations ──────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Building2, Eye, EyeOff, KeyRound, Pencil, Plus, ShieldCheck, Users } from 'lucide-react';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffService, type StaffDto } from '@/services/staffService';
+import { createCentralStoreLocation } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
 import type { AppRole } from '@/types/auth';
 import {
@@ -24,7 +25,10 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { ApiError } from '@/types/api';
 
-type AdminUserRole = Extract<AppRole, 'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT' | 'HR_MANAGER'>;
+type AdminUserRole = Extract<
+  AppRole,
+  'DIRECTOR' | 'MANAGER' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STORE_MANAGER' | 'STORE_ATTENDANT'
+>;
 
 type BranchRow = Record<string, unknown> & {
   id: string;
@@ -141,15 +145,17 @@ export default function Page(): JSX.Element {
 
     setIsLoading(true);
     try {
-      const [branchData, managers, directors, accountants, hrManagers] = await Promise.all([
-        branchService.listBranches(accessToken),
-        staffService.listStaff(accessToken, { role: 'MANAGER' }),
-        staffService.listStaff(accessToken, { role: 'DIRECTOR' }),
-        staffService.listStaff(accessToken, { role: 'ACCOUNTANT' }),
-        staffService.listStaff(accessToken, { role: 'HR_MANAGER' }),
-      ]);
+      const [branchData, managers, directors, accountants, hrManagers, storeManagers] =
+        await Promise.all([
+          branchService.listBranches(accessToken),
+          staffService.listStaff(accessToken, { role: 'MANAGER' }),
+          staffService.listStaff(accessToken, { role: 'DIRECTOR' }),
+          staffService.listStaff(accessToken, { role: 'ACCOUNTANT' }),
+          staffService.listStaff(accessToken, { role: 'HR_MANAGER' }),
+          staffService.listStaff(accessToken, { role: 'STORE_MANAGER' }),
+        ]);
       setBranches(branchData);
-      setUsers([...directors, ...hrManagers, ...accountants, ...managers]);
+      setUsers([...directors, ...hrManagers, ...accountants, ...managers, ...storeManagers]);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Failed to load admin data.';
       toast({ variant: 'error', title: 'Load failed', message });
@@ -277,12 +283,35 @@ export default function Page(): JSX.Element {
     }
   };
 
+  const handleCreateCentralStoreLocation = async (): Promise<void> => {
+    if (!accessToken) return;
+
+    setIsSubmitting(true);
+    try {
+      await createCentralStoreLocation(accessToken);
+      toast({
+        variant: 'success',
+        title: 'Central Store ready',
+        message: 'The Central Store location was created under the hub organization.',
+      });
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : 'Failed to set up the Central Store.';
+      toast({ variant: 'error', title: 'Central Store setup failed', message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCreateUser = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (!accessToken) return;
 
-    if (userForm.role === 'MANAGER' && !userForm.organizationId) {
-      toast({ variant: 'warning', title: 'Branch required', message: 'Select a branch before creating a manager.' });
+    // Store roles need no branch selection — the backend always assigns them
+    // to the hub (Central Store) organization.
+    const requiresBranch = userForm.role === 'MANAGER';
+    if (requiresBranch && !userForm.organizationId) {
+      toast({ variant: 'warning', title: 'Branch required', message: 'Select a branch before creating this user.' });
       return;
     }
 
@@ -294,7 +323,8 @@ export default function Page(): JSX.Element {
           email: userForm.email.trim(),
           phone: userForm.phone.trim() || undefined,
           role: userForm.role,
-          // Only branch managers are scoped to a branch; all other roles are system-wide
+          // Branch managers are scoped to their branch; store roles are
+          // hub-assigned server-side; all other roles are system-wide
           organizationId: userForm.role === 'MANAGER' ? userForm.organizationId : undefined,
           temporaryPassword: userForm.temporaryPassword,
         },
@@ -475,6 +505,13 @@ export default function Page(): JSX.Element {
         </span>
       );
     }
+    if (role === 'STORE_MANAGER') {
+      return (
+        <span className="inline-flex rounded-full border border-[#2563EB]/20 bg-[#EFF6FF] px-2.5 py-0.5 text-label-sm font-semibold text-[#1D4ED8]">
+          Store Manager
+        </span>
+      );
+    }
     return (
       <span className="inline-flex rounded-full border border-stone-200 bg-stone-100 px-2.5 py-0.5 text-label-sm font-semibold text-stone-700">
         Manager
@@ -546,7 +583,8 @@ export default function Page(): JSX.Element {
     },
   ];
 
-  const activeBranches = branches.filter((b) => b.isActive).length;
+  // The hub org (Central Store) is not a branch — count real branches only.
+  const activeBranches = branches.filter((b) => b.isActive && !b.isHub).length;
   const managerCount = users.filter((u) => u.role === 'MANAGER').length;
   const directorCount = users.filter((u) => u.role === 'DIRECTOR').length;
   const accountantCount = users.filter((u) => u.role === 'ACCOUNTANT').length;
@@ -610,19 +648,32 @@ export default function Page(): JSX.Element {
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           {/* Branches */}
           <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-heading-md font-semibold text-stone-900">Branches</h2>
-              <Button
-                type="button"
-                size="sm"
-                leftIcon={<Plus size={14} />}
-                onClick={() => {
-                  setBranchForm(initialBranchForm);
-                  setCreateBranchModalOpen(true);
-                }}
-              >
-                Add Branch
-              </Button>
+              <div className="flex items-center gap-2">
+                {branches.some((b) => b.isHub && b.isActive) ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={isSubmitting}
+                    onClick={() => void handleCreateCentralStoreLocation()}
+                  >
+                    Set up Central Store
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  leftIcon={<Plus size={14} />}
+                  onClick={() => {
+                    setBranchForm(initialBranchForm);
+                    setCreateBranchModalOpen(true);
+                  }}
+                >
+                  Add Branch
+                </Button>
+              </div>
             </div>
             {isLoading ? (
               <SkeletonTable rows={4} columns={4} />
@@ -829,6 +880,8 @@ export default function Page(): JSX.Element {
                 { value: 'DIRECTOR', label: 'Director' },
                 { value: 'ACCOUNTANT', label: 'Accountant' },
                 { value: 'HR_MANAGER', label: 'HR Manager' },
+                { value: 'STORE_MANAGER', label: 'Store Manager' },
+                { value: 'STORE_ATTENDANT', label: 'Store Attendant' },
               ]}
             />
           </FormField>
@@ -839,12 +892,19 @@ export default function Page(): JSX.Element {
                 placeholder="Select branch"
                 value={userForm.organizationId}
                 onChange={(event) => setUserForm((prev) => ({ ...prev, organizationId: event.target.value }))}
-                options={branches.map((branch) => ({
-                  value: branch.id,
-                  label: branch.name,
-                }))}
+                options={branches
+                  .filter((branch) => !branch.isHub)
+                  .map((branch) => ({
+                    value: branch.id,
+                    label: branch.name,
+                  }))}
               />
             </FormField>
+          ) : null}
+          {userForm.role === 'STORE_MANAGER' || userForm.role === 'STORE_ATTENDANT' ? (
+            <p className="text-caption text-stone-500">
+              Store accounts are assigned to the Central Store (hub) organization automatically.
+            </p>
           ) : null}
           <FormField label="Temporary Password" htmlFor="user-password" required>
             <div className="relative">

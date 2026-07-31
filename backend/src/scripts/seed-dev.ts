@@ -125,6 +125,53 @@ const run = async (): Promise<void> => {
     console.log(`  SKIP  ${directorEmail}`);
     totalSkipped++;
   }
+
+  // --- Central Store (Inventory Phase 1): one Location row + two global
+  // accounts, assigned to the hub org for tenancy scoping only — the Central
+  // Store is its own location type, never a branch (feature plan D-1). ---
+  const centralStore = await prisma.location.upsert({
+    where: { organizationId_type: { organizationId: hubOrg.id, type: 'CENTRAL_STORE' } },
+    update: {},
+    create: {
+      organizationId: hubOrg.id,
+      type: 'CENTRAL_STORE',
+      name: 'Central Store',
+    },
+  });
+  console.log(`  OK    Central Store location (id: ${centralStore.id})`);
+
+  const storeManagerEmail = 'store.manager@wendo.test';
+  const storeAttendantEmail = 'store.attendant@wendo.test';
+
+  const smCreated = await upsertUser(
+    storeManagerEmail,
+    'Dev Store Manager',
+    UserRole.STORE_MANAGER,
+    hubOrg.id,
+    passwordHash,
+  );
+  if (smCreated) {
+    console.log(`  OK    ${storeManagerEmail} — STORE_MANAGER`);
+    totalCreated++;
+  } else {
+    console.log(`  SKIP  ${storeManagerEmail}`);
+    totalSkipped++;
+  }
+
+  const saCreated = await upsertUser(
+    storeAttendantEmail,
+    'Dev Store Attendant',
+    UserRole.STORE_ATTENDANT,
+    hubOrg.id,
+    passwordHash,
+  );
+  if (saCreated) {
+    console.log(`  OK    ${storeAttendantEmail} — STORE_ATTENDANT`);
+    totalCreated++;
+  } else {
+    console.log(`  SKIP  ${storeAttendantEmail}`);
+    totalSkipped++;
+  }
   console.log();
 
   // --- Per-branch accounts ---
@@ -158,6 +205,8 @@ const run = async (): Promise<void> => {
   console.log(`\nGlobal`);
   console.log('─'.repeat(52));
   console.log(`  DIRECTOR          ${directorEmail}`);
+  console.log(`  STORE_MANAGER     ${storeManagerEmail}`);
+  console.log(`  STORE_ATTENDANT   ${storeAttendantEmail}`);
 
   for (const org of orgs) {
     const slug = toSlug(org.name);

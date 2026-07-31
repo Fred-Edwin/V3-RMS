@@ -133,6 +133,17 @@ removed. For the two current branches:
 
 Same pattern repeats for every other active branch (e.g. `...kingz@dev.test`).
 
+**Central Store accounts (global, not per-branch):**
+
+| Role              | Email                        | Count |
+| ----------------- | ----------------------------- | ----- |
+| `STORE_MANAGER`   | store.manager@wendo.test      | 1     |
+| `STORE_ATTENDANT` | store.attendant@wendo.test    | 1     |
+
+These two are seeded once on the hub org (same password `password123`),
+following the existing Director account's "one global account" pattern —
+the Central Store is a single shared location, not one per branch.
+
 > The script prints a full account list when it runs — copy it for reference.
 
 ### Prerequisites

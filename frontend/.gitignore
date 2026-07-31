@@ -48,3 +48,6 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Ad-hoc agent driver scripts for manual in-browser verification (not committed)
+/.scratch/

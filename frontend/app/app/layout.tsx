@@ -13,26 +13,32 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Coffee,
   CreditCard,
+  FileBarChart,
   FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Package,
   Percent,
   ScrollText,
   Settings2,
   ShieldAlert,
   ShoppingCart,
   Tags,
+  Trash2,
+  Truck,
   UserCircle,
   Users,
   UtensilsCrossed,
 } from 'lucide-react';
 import { BottomNav, ConfirmDialog, DirectorSidebarNav, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
 import { env } from '@/lib/env';
+import { ShellProvider } from '@/lib/shell-context';
 
 // Paths that belong to the Phase 7 credit accounts feature.
 // When env.creditAccounts is false these are stripped from nav and their pages redirect away.
@@ -56,7 +62,7 @@ interface AppShellLayoutProps {
   children: React.ReactNode;
 }
 
-type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STEWARD' | 'HOUSEKEEPING';
+type MobileRole = 'WAITER' | 'CHEF' | 'BARISTA' | 'MANAGER' | 'DIRECTOR' | 'SYSTEM_ADMIN' | 'ACCOUNTANT' | 'HR_MANAGER' | 'STEWARD' | 'HOUSEKEEPING' | 'STORE_ATTENDANT' | 'STORE_MANAGER';
 
 interface MobileRoleNavConfig {
   tabs: NavTab[];
@@ -214,6 +220,51 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
+    ],
+  },
+  // Mobile-only per feature plan §8.0 — no sidebarSectionsByRole entry, so this
+  // role never qualifies for usesDualShell/useSidebarOnlyShell below and always
+  // renders the plain MobileLayout branch.
+  STORE_ATTENDANT: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/inventory/attendant-dashboard', icon: LayoutDashboard },
+      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
+      { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
+      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
+    ],
+    overflowTabs: [
+      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
+    ],
+  },
+  // Desktop is the primary shell for this role (usesDualShell below); this
+  // is the narrow-viewport nav for Session 8's real Manager mobile screens
+  // (feature plan §8.1). Dashboard is the landing tab, matching
+  // lib/role-home.ts (STORE_MANAGER lands on /app/inventory/dashboard on
+  // both shells) — its mobile design is a stat-card grid + tap-through
+  // panels into the real screens below, not the desktop table reflowed.
+  STORE_MANAGER: {
+    tabs: [
+      { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
+      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
+      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
+    ],
+    overflowTabs: [
+      { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
+      { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
+      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
+      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle },
+      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
+      { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
+      { label: 'Payslips', href: '/app/payslips', icon: FileText },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
 };
@@ -445,6 +496,58 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
   ],
+  // Session 7 — Manager desktop screens (feature plan §8.1). Order follows
+  // the session plan's screen list: landing dashboard, then Stock on Hand
+  // (read) separate from Item Catalog (admin/setup) per the two screens'
+  // distinct purposes, though they share underlying table plumbing.
+  STORE_MANAGER: [
+    {
+      label: 'Central Store',
+      items: [
+        { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
+        { label: 'Stock on Hand', href: '/app/inventory/stock', icon: Package },
+        { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
+        { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
+        { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
+      ],
+    },
+    {
+      label: 'Prep',
+      items: [
+        { label: 'Prep Entry', href: '/app/inventory/prep', icon: Coffee },
+      ],
+    },
+    {
+      label: 'Counting',
+      items: [
+        { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
+        { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      ],
+    },
+    {
+      label: 'Insights',
+      items: [{ label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart }],
+    },
+    {
+      label: 'Team',
+      items: [{ label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle }],
+    },
+    {
+      label: 'Communications',
+      items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
+    },
+    {
+      label: 'Leave',
+      items: [{ label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff }],
+    },
+    {
+      label: 'Account',
+      items: [
+        { label: 'Payslips', href: '/app/payslips', icon: FileText },
+        { label: 'Profile', href: '/app/profile', icon: UserCircle },
+      ],
+    },
+  ],
 };
 
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
@@ -609,7 +712,8 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     role === 'DIRECTOR' ||
     role === 'SYSTEM_ADMIN' ||
     role === 'ACCOUNTANT' ||
-    role === 'HR_MANAGER';
+    role === 'HR_MANAGER' ||
+    role === 'STORE_MANAGER';
 
   const useSidebarOnlyShell =
     !usesDualShell &&
@@ -628,7 +732,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
         ) : undefined
       }
     >
-      {children}
+      <ShellProvider value="mobile">{children}</ShellProvider>
     </MobileLayout>
   );
 
@@ -641,7 +745,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
             sidebar={sidebar}
             collapsedSidebar={sidebarCollapsed}
             sidebarClassName="bg-[#1A0F0A] border-r border-[#2C1810]/40"
-          >{children}</SidebarLayout>
+          ><ShellProvider value="desktop">{children}</ShellProvider></SidebarLayout>
           {/* Mobile: bottom nav shell */}
           {mobileShell}
         </>
@@ -663,7 +767,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
             ) : undefined
           }
         >
-          {children}
+          <ShellProvider value="mobile">{children}</ShellProvider>
         </MobileLayout>
       )}
 

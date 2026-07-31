@@ -8,53 +8,69 @@ datasource db {
 }
 
 model Organization {
-  id              String           @id @default(uuid())
-  name            String
-  address         String
-  city            String
-  latitude        Decimal          @db.Decimal(10, 7)
-  longitude       Decimal          @db.Decimal(10, 7)
-  phone           String?          @map("phone")
-  mpesaPaybill    String?          @map("mpesa_paybill")
-  accountNumber   String?          @map("account_number")
-  googleReviewUrl String?          @map("google_review_url")
-  kraPIN          String?          @map("kra_pin")
-  isHub           Boolean          @default(false)
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  users           User[]
-  branchMenuItems BranchMenuItem[]
-  deliveryZones   DeliveryZone[]
-  shifts          Shift[]
-  shiftAssignments ShiftAssignment[]
-  orders          Order[]
-  orderCounters   OrderCounter[]
-  prepTickets     PrepTicket[]
-  incidentLogs          IncidentLog[]
-  printJobs             PrintJob[]
-  printStations         PrintStation[]
-  customerCreditAccounts CustomerCreditAccount[]
-  otherIncomeCategories  OtherIncomeCategory[]
-  otherIncomeCategoriesBranch OtherIncomeCategory[] @relation("OtherIncomeCategoryBranch")
-  otherIncomeEntries     OtherIncomeEntry[]
-  otherIncomeEntriesBranch OtherIncomeEntry[]    @relation("OtherIncomeEntryBranch")
-  staffDiscountAuthRequests StaffDiscountAuthRequest[]
-  orderCancellationRequests OrderCancellationRequest[]
-  discounts                 Discount[]
+  id                           String                        @id @default(uuid())
+  name                         String
+  address                      String
+  city                         String
+  latitude                     Decimal                       @db.Decimal(10, 7)
+  longitude                    Decimal                       @db.Decimal(10, 7)
+  phone                        String?                       @map("phone")
+  mpesaPaybill                 String?                       @map("mpesa_paybill")
+  accountNumber                String?                       @map("account_number")
+  googleReviewUrl              String?                       @map("google_review_url")
+  kraPIN                       String?                       @map("kra_pin")
+  isHub                        Boolean                       @default(false)
+  isActive                     Boolean                       @default(true)
+  createdAt                    DateTime                      @default(now()) @map("created_at")
+  updatedAt                    DateTime                      @updatedAt @map("updated_at")
+  users                        User[]
+  branchMenuItems              BranchMenuItem[]
+  deliveryZones                DeliveryZone[]
+  shifts                       Shift[]
+  shiftAssignments             ShiftAssignment[]
+  orders                       Order[]
+  orderCounters                OrderCounter[]
+  prepTickets                  PrepTicket[]
+  incidentLogs                 IncidentLog[]
+  printJobs                    PrintJob[]
+  printStations                PrintStation[]
+  customerCreditAccounts       CustomerCreditAccount[]
+  otherIncomeCategories        OtherIncomeCategory[]
+  otherIncomeCategoriesBranch  OtherIncomeCategory[]         @relation("OtherIncomeCategoryBranch")
+  otherIncomeEntries           OtherIncomeEntry[]
+  otherIncomeEntriesBranch     OtherIncomeEntry[]            @relation("OtherIncomeEntryBranch")
+  staffDiscountAuthRequests    StaffDiscountAuthRequest[]
+  orderCancellationRequests    OrderCancellationRequest[]
+  discounts                    Discount[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
-  directConversations      DirectConversation[]
-  directMessages           DirectMessage[]
-  broadcasts               Broadcast[]
-  broadcastRecipients      BroadcastRecipient[]
-  formalNotices            FormalNotice[]
-  formalNoticeRecipients   FormalNoticeRecipient[]
-  leaveRequests            LeaveRequest[]
-  disciplinaryRecords      DisciplinaryRecord[]
-  payslips                 Payslip[]
-  staffTransfersFrom       StaffTransfer[]      @relation("StaffTransferFrom")
-  staffTransfersTo         StaffTransfer[]      @relation("StaffTransferTo")
-  contractTypes            ContractType[]
+  directConversations          DirectConversation[]
+  directMessages               DirectMessage[]
+  broadcasts                   Broadcast[]
+  broadcastRecipients          BroadcastRecipient[]
+  formalNotices                FormalNotice[]
+  formalNoticeRecipients       FormalNoticeRecipient[]
+  leaveRequests                LeaveRequest[]
+  disciplinaryRecords          DisciplinaryRecord[]
+  payslips                     Payslip[]
+  staffTransfersFrom           StaffTransfer[]               @relation("StaffTransferFrom")
+  staffTransfersTo             StaffTransfer[]               @relation("StaffTransferTo")
+  contractTypes                ContractType[]
+  locations                    Location[]
+  inventoryItems               InventoryItem[]
+  suppliers                    Supplier[]
+  supplierItems                SupplierItem[]
+  purchaseOrders               PurchaseOrder[]
+  purchaseOrderLines           PurchaseOrderLine[]
+  supplierInvoices             SupplierInvoice[]
+  supplierPayments             SupplierPayment[]
+  prepRecipes                  PrepRecipe[]
+  prepRecipeLines              PrepRecipeLine[]
+  prepRecords                  PrepRecord[]
+  prepRecordLines              PrepRecordLine[]
+  stockCounts                  StockCount[]
+  stockCountLines              StockCountLine[]
+  wasteLogs                    WasteLog[]
+  inventoryTransactions        InventoryTransaction[]
 
   @@map("organizations")
 }
@@ -62,7 +78,7 @@ model Organization {
 model OrderCounter {
   id             String       @id @default(uuid())
   organizationId String       @map("organization_id")
-  orderDate      DateTime     @db.Date @map("order_date")
+  orderDate      DateTime     @map("order_date") @db.Date
   lastNumber     Int          @default(0) @map("last_number")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
@@ -74,67 +90,77 @@ model OrderCounter {
 }
 
 model User {
-  id                 String            @id @default(uuid())
-  organizationId     String?           @map("organization_id")
-  name               String
-  email              String            @unique
-  phone              String?
-  passwordHash       String            @map("password_hash")
-  fcmToken           String?           @map("fcm_token")
-  role               UserRole
-  isActive           Boolean           @default(true) @map("is_active")
-  isTestUser         Boolean           @default(false) @map("is_test_user")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @updatedAt @map("updated_at")
-  deletedAt          DateTime?         @map("deleted_at")
-  organization       Organization?     @relation(fields: [organizationId], references: [id])
-  ordersCreated        Order[]           @relation("OrderCreatedBy")
-  ordersCancelled      Order[]           @relation("OrderCancelledBy")
-  orderCancellationRequestsRequested OrderCancellationRequest[] @relation("OrderCancellationRequestedBy")
-  orderCancellationRequestsResolved  OrderCancellationRequest[] @relation("OrderCancellationResolvedBy")
-  shiftAssignments     ShiftAssignment[]
-  clockRecords         ClockRecord[]
-  prepTicketsClaimed   PrepTicket[]      @relation("PrepTicketClaimedBy")
-  prepTicketsRejected  PrepTicket[]      @relation("PrepTicketRejectedBy")
-  refreshTokens        RefreshToken[]
-  modRequestsCreated   OrderModificationRequest[] @relation("ModRequestedBy")
-  modRequestsReviewed  OrderModificationRequest[] @relation("ModReviewedBy")
-  incidentsActed              IncidentLog[]           @relation("IncidentActor")
-  printJobsRequested          PrintJob[]              @relation("PrintJobRequester")
-  houseAccount                HouseAccount?           @relation("HouseAccountHolder")
-  houseAccountsGranted        HouseAccount[]          @relation("HouseAccountGrantedBy")
-  houseAccountSettlements     HouseAccountSettlement[] @relation("HouseAccountSettledBy")
-  houseAuthRequestsRequested  HouseAccountAuthRequest[] @relation("HouseAuthRequestedBy")
-  houseAuthRequestsResolved   HouseAccountAuthRequest[] @relation("HouseAuthResolvedBy")
-  corporateAccountsCreated    CorporateAccount[]      @relation("CorporateAccountCreatedBy")
-  corporateSettlements        CorporateAccountSettlement[] @relation("CorporateAccountSettledBy")
-  customerCreditAccountsCreated CustomerCreditAccount[] @relation("CustomerCreditAccountCreatedBy")
-  customerCreditSettlements   CustomerCreditSettlement[] @relation("CustomerCreditSettledBy")
-  otherIncomeEntries          OtherIncomeEntry[]         @relation("OtherIncomeRecordedBy")
-  ordersDiscounted            Order[]                    @relation("OrderDiscountedBy")
-  staffDiscountRequestsRequested StaffDiscountAuthRequest[] @relation("StaffDiscountRequestedBy")
-  staffDiscountRequestsResolved  StaffDiscountAuthRequest[] @relation("StaffDiscountResolvedBy")
-  discountsCreated            Discount[]                 @relation("DiscountCreatedBy")
-  customerDiscountRequestsRequested CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
-  customerDiscountRequestsResolved  CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
-  directConversationsAsA   DirectConversation[]    @relation("ConvParticipantA")
-  directConversationsAsB   DirectConversation[]    @relation("ConvParticipantB")
-  directMessagesSent       DirectMessage[]         @relation("DirectMessageSender")
-  broadcastsSent           Broadcast[]             @relation("BroadcastSender")
-  broadcastRecipients      BroadcastRecipient[]    @relation("BroadcastRecipientUser")
-  formalNoticesIssued      FormalNotice[]          @relation("FormalNoticeIssuer")
-  formalNoticeRecipients   FormalNoticeRecipient[] @relation("FormalNoticeRecipientUser")
-  employeeProfile          EmployeeProfile?        @relation("EmployeeProfileUser")
-  managedEmployeeProfiles  EmployeeProfile[]       @relation("EmployeeProfileManager")
-  leaveRequestsReviewed    LeaveRequest[]          @relation("LeaveReviewedBy")
-  leaveRequestsCancelled   LeaveRequest[]          @relation("LeaveCancelledBy")
-  leaveRequestAcknowledgements LeaveRequestAcknowledgement[]
-  disciplinaryRecordsIssued DisciplinaryRecord[]   @relation("DisciplinaryIssuedBy")
-  hrDocumentsUploaded      HrDocument[]            @relation("HrDocumentUploadedBy")
-  payslips                 Payslip[]               @relation("StaffPayslips")
-  createdPayslips          Payslip[]               @relation("PayslipsCreated")
-  staffTransfers           StaffTransfer[]         @relation("StaffTransferUser")
-  staffTransfersAuthorized StaffTransfer[]         @relation("StaffTransferAuthorizedBy")
+  id                                 String                        @id @default(uuid())
+  organizationId                     String?                       @map("organization_id")
+  name                               String
+  email                              String                        @unique
+  phone                              String?
+  passwordHash                       String                        @map("password_hash")
+  fcmToken                           String?                       @map("fcm_token")
+  role                               UserRole
+  isActive                           Boolean                       @default(true) @map("is_active")
+  isTestUser                         Boolean                       @default(false) @map("is_test_user")
+  createdAt                          DateTime                      @default(now()) @map("created_at")
+  updatedAt                          DateTime                      @updatedAt @map("updated_at")
+  deletedAt                          DateTime?                     @map("deleted_at")
+  organization                       Organization?                 @relation(fields: [organizationId], references: [id])
+  ordersCreated                      Order[]                       @relation("OrderCreatedBy")
+  ordersCancelled                    Order[]                       @relation("OrderCancelledBy")
+  orderCancellationRequestsRequested OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")
+  orderCancellationRequestsResolved  OrderCancellationRequest[]    @relation("OrderCancellationResolvedBy")
+  shiftAssignments                   ShiftAssignment[]
+  clockRecords                       ClockRecord[]
+  prepTicketsClaimed                 PrepTicket[]                  @relation("PrepTicketClaimedBy")
+  prepTicketsRejected                PrepTicket[]                  @relation("PrepTicketRejectedBy")
+  refreshTokens                      RefreshToken[]
+  modRequestsCreated                 OrderModificationRequest[]    @relation("ModRequestedBy")
+  modRequestsReviewed                OrderModificationRequest[]    @relation("ModReviewedBy")
+  incidentsActed                     IncidentLog[]                 @relation("IncidentActor")
+  printJobsRequested                 PrintJob[]                    @relation("PrintJobRequester")
+  houseAccount                       HouseAccount?                 @relation("HouseAccountHolder")
+  houseAccountsGranted               HouseAccount[]                @relation("HouseAccountGrantedBy")
+  houseAccountSettlements            HouseAccountSettlement[]      @relation("HouseAccountSettledBy")
+  houseAuthRequestsRequested         HouseAccountAuthRequest[]     @relation("HouseAuthRequestedBy")
+  houseAuthRequestsResolved          HouseAccountAuthRequest[]     @relation("HouseAuthResolvedBy")
+  corporateAccountsCreated           CorporateAccount[]            @relation("CorporateAccountCreatedBy")
+  corporateSettlements               CorporateAccountSettlement[]  @relation("CorporateAccountSettledBy")
+  customerCreditAccountsCreated      CustomerCreditAccount[]       @relation("CustomerCreditAccountCreatedBy")
+  customerCreditSettlements          CustomerCreditSettlement[]    @relation("CustomerCreditSettledBy")
+  otherIncomeEntries                 OtherIncomeEntry[]            @relation("OtherIncomeRecordedBy")
+  ordersDiscounted                   Order[]                       @relation("OrderDiscountedBy")
+  staffDiscountRequestsRequested     StaffDiscountAuthRequest[]    @relation("StaffDiscountRequestedBy")
+  staffDiscountRequestsResolved      StaffDiscountAuthRequest[]    @relation("StaffDiscountResolvedBy")
+  discountsCreated                   Discount[]                    @relation("DiscountCreatedBy")
+  customerDiscountRequestsRequested  CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
+  customerDiscountRequestsResolved   CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
+  directConversationsAsA             DirectConversation[]          @relation("ConvParticipantA")
+  directConversationsAsB             DirectConversation[]          @relation("ConvParticipantB")
+  directMessagesSent                 DirectMessage[]               @relation("DirectMessageSender")
+  broadcastsSent                     Broadcast[]                   @relation("BroadcastSender")
+  broadcastRecipients                BroadcastRecipient[]          @relation("BroadcastRecipientUser")
+  formalNoticesIssued                FormalNotice[]                @relation("FormalNoticeIssuer")
+  formalNoticeRecipients             FormalNoticeRecipient[]       @relation("FormalNoticeRecipientUser")
+  employeeProfile                    EmployeeProfile?              @relation("EmployeeProfileUser")
+  managedEmployeeProfiles            EmployeeProfile[]             @relation("EmployeeProfileManager")
+  leaveRequestsReviewed              LeaveRequest[]                @relation("LeaveReviewedBy")
+  leaveRequestsCancelled             LeaveRequest[]                @relation("LeaveCancelledBy")
+  leaveRequestAcknowledgements       LeaveRequestAcknowledgement[]
+  disciplinaryRecordsIssued          DisciplinaryRecord[]          @relation("DisciplinaryIssuedBy")
+  hrDocumentsUploaded                HrDocument[]                  @relation("HrDocumentUploadedBy")
+  payslips                           Payslip[]                     @relation("StaffPayslips")
+  createdPayslips                    Payslip[]                     @relation("PayslipsCreated")
+  staffTransfers                     StaffTransfer[]               @relation("StaffTransferUser")
+  staffTransfersAuthorized           StaffTransfer[]               @relation("StaffTransferAuthorizedBy")
+  purchaseOrdersCreated              PurchaseOrder[]               @relation("PurchaseOrderCreatedBy")
+  supplierInvoicesCreated            SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
+  supplierPaymentsRecorded           SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  prepRecipesCreated                 PrepRecipe[]                  @relation("PrepRecipeCreatedBy")
+  prepRecordsRecorded                PrepRecord[]                  @relation("PrepRecordRecordedBy")
+  stockCountsCreated                 StockCount[]                  @relation("StockCountCreatedBy")
+  stockCountsSubmitted               StockCount[]                  @relation("StockCountSubmittedBy")
+  stockCountsApproved                StockCount[]                  @relation("StockCountApprovedBy")
+  wasteLogsLogged                    WasteLog[]                    @relation("WasteLogLoggedBy")
+  inventoryTransactions              InventoryTransaction[]        @relation("InventoryTransactionUser")
 
   @@index([organizationId])
   @@index([email])
@@ -143,18 +169,18 @@ model User {
 }
 
 model StaffTransfer {
-  id                   String       @id @default(uuid())
-  userId               String       @map("user_id")
-  fromOrganizationId   String?      @map("from_organization_id")
-  toOrganizationId     String       @map("to_organization_id")
-  notes                String?
-  transferredAt        DateTime     @default(now()) @map("transferred_at")
-  authorizedById       String       @map("authorized_by_id")
+  id                 String   @id @default(uuid())
+  userId             String   @map("user_id")
+  fromOrganizationId String?  @map("from_organization_id")
+  toOrganizationId   String   @map("to_organization_id")
+  notes              String?
+  transferredAt      DateTime @default(now()) @map("transferred_at")
+  authorizedById     String   @map("authorized_by_id")
 
-  user                 User         @relation("StaffTransferUser", fields: [userId], references: [id])
-  fromOrganization     Organization? @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
-  toOrganization       Organization @relation("StaffTransferTo", fields: [toOrganizationId], references: [id])
-  authorizedBy         User         @relation("StaffTransferAuthorizedBy", fields: [authorizedById], references: [id])
+  user             User          @relation("StaffTransferUser", fields: [userId], references: [id])
+  fromOrganization Organization? @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
+  toOrganization   Organization  @relation("StaffTransferTo", fields: [toOrganizationId], references: [id])
+  authorizedBy     User          @relation("StaffTransferAuthorizedBy", fields: [authorizedById], references: [id])
 
   @@index([userId])
   @@index([fromOrganizationId])
@@ -175,13 +201,13 @@ model RefreshToken {
 }
 
 model MenuCategory {
-  id           String     @id @default(uuid())
-  name         String     @unique
-  prepStation   PrepStation
-  displayOrder Int        @default(0) @map("display_order")
-  isActive     Boolean    @default(true) @map("is_active")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  id           String      @id @default(uuid())
+  name         String      @unique
+  prepStation  PrepStation
+  displayOrder Int         @default(0) @map("display_order")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
   menuItems    MenuItem[]
 
   @@index([prepStation])
@@ -298,58 +324,58 @@ model ClockRecord {
 }
 
 model Order {
-  id             String         @id @default(uuid())
-  organizationId String         @map("organization_id")
-  dailyNumber    Int            @map("daily_number")
-  orderDate      DateTime       @db.Date @map("order_date")
-  type           OrderType
-  status         OrderStatus    @default(PENDING)
-  tableNumber    String?        @map("table_number")
-  notes          String?
-  subtotal       Decimal        @db.Decimal(10, 2)
-  deliveryFee    Decimal        @default(0) @db.Decimal(10, 2) @map("delivery_fee")
-  total          Decimal        @db.Decimal(10, 2)
-  paymentMethod           PaymentMethod?        @map("payment_method")
-  mpesaCode               String?               @map("mpesa_code")
-  mpesaAmount             Decimal?              @db.Decimal(10, 2) @map("mpesa_amount")
-  cashAmount              Decimal?              @db.Decimal(10, 2) @map("cash_amount")
-  cardAmount              Decimal?              @db.Decimal(10, 2) @map("card_amount")
-  splitType               String?               @map("split_type")
-  paidAt                  DateTime?             @map("paid_at")
-  cancelReason            String?               @map("cancel_reason")
-  cancelledById           String?               @map("cancelled_by_id")
-  deliveryZoneId          String?               @map("delivery_zone_id")
-  houseAccountId          String?               @map("house_account_id")
-  corporateAccountId      String?               @map("corporate_account_id")
-  corporateEmployeeRef    String?               @map("corporate_employee_ref")
-  customerCreditAccountId String?               @map("customer_credit_account_id")
-  discountPercent         Decimal?              @db.Decimal(5, 2) @map("discount_percent")
-  discountAmount          Decimal?              @db.Decimal(10, 2) @map("discount_amount")
-  discountedById          String?               @map("discounted_by_id")
-  discountId              String?               @map("discount_id")
-  createdById             String                @map("created_by_id")
-  createdAt               DateTime              @default(now()) @map("created_at")
-  updatedAt               DateTime              @updatedAt @map("updated_at")
-  closedAt                DateTime?             @map("closed_at")
-  organization            Organization          @relation(fields: [organizationId], references: [id])
-  deliveryZone            DeliveryZone?         @relation(fields: [deliveryZoneId], references: [id])
-  houseAccount            HouseAccount?         @relation(fields: [houseAccountId], references: [id])
-  corporateAccount        CorporateAccount?     @relation(fields: [corporateAccountId], references: [id])
-  customerCreditAccount   CustomerCreditAccount? @relation(fields: [customerCreditAccountId], references: [id])
-  createdBy               User                  @relation("OrderCreatedBy", fields: [createdById], references: [id])
-  cancelledBy             User?                 @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
-  discountedBy            User?                 @relation("OrderDiscountedBy", fields: [discountedById], references: [id])
-  discount                Discount?             @relation(fields: [discountId], references: [id])
-  items                   OrderItem[]
-  prepTickets             PrepTicket[]
-  modificationRequests    OrderModificationRequest[]
-  incidents               IncidentLog[]
-  printJobs               PrintJob[]
-  houseAuthRequests       HouseAccountAuthRequest[]
-  staffDiscountAuthRequests StaffDiscountAuthRequest[]
+  id                           String                        @id @default(uuid())
+  organizationId               String                        @map("organization_id")
+  dailyNumber                  Int                           @map("daily_number")
+  orderDate                    DateTime                      @map("order_date") @db.Date
+  type                         OrderType
+  status                       OrderStatus                   @default(PENDING)
+  tableNumber                  String?                       @map("table_number")
+  notes                        String?
+  subtotal                     Decimal                       @db.Decimal(10, 2)
+  deliveryFee                  Decimal                       @default(0) @map("delivery_fee") @db.Decimal(10, 2)
+  total                        Decimal                       @db.Decimal(10, 2)
+  paymentMethod                PaymentMethod?                @map("payment_method")
+  mpesaCode                    String?                       @map("mpesa_code")
+  mpesaAmount                  Decimal?                      @map("mpesa_amount") @db.Decimal(10, 2)
+  cashAmount                   Decimal?                      @map("cash_amount") @db.Decimal(10, 2)
+  cardAmount                   Decimal?                      @map("card_amount") @db.Decimal(10, 2)
+  splitType                    String?                       @map("split_type")
+  paidAt                       DateTime?                     @map("paid_at")
+  cancelReason                 String?                       @map("cancel_reason")
+  cancelledById                String?                       @map("cancelled_by_id")
+  deliveryZoneId               String?                       @map("delivery_zone_id")
+  houseAccountId               String?                       @map("house_account_id")
+  corporateAccountId           String?                       @map("corporate_account_id")
+  corporateEmployeeRef         String?                       @map("corporate_employee_ref")
+  customerCreditAccountId      String?                       @map("customer_credit_account_id")
+  discountPercent              Decimal?                      @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount               Decimal?                      @map("discount_amount") @db.Decimal(10, 2)
+  discountedById               String?                       @map("discounted_by_id")
+  discountId                   String?                       @map("discount_id")
+  createdById                  String                        @map("created_by_id")
+  createdAt                    DateTime                      @default(now()) @map("created_at")
+  updatedAt                    DateTime                      @updatedAt @map("updated_at")
+  closedAt                     DateTime?                     @map("closed_at")
+  organization                 Organization                  @relation(fields: [organizationId], references: [id])
+  deliveryZone                 DeliveryZone?                 @relation(fields: [deliveryZoneId], references: [id])
+  houseAccount                 HouseAccount?                 @relation(fields: [houseAccountId], references: [id])
+  corporateAccount             CorporateAccount?             @relation(fields: [corporateAccountId], references: [id])
+  customerCreditAccount        CustomerCreditAccount?        @relation(fields: [customerCreditAccountId], references: [id])
+  createdBy                    User                          @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  cancelledBy                  User?                         @relation("OrderCancelledBy", fields: [cancelledById], references: [id])
+  discountedBy                 User?                         @relation("OrderDiscountedBy", fields: [discountedById], references: [id])
+  discount                     Discount?                     @relation(fields: [discountId], references: [id])
+  items                        OrderItem[]
+  prepTickets                  PrepTicket[]
+  modificationRequests         OrderModificationRequest[]
+  incidents                    IncidentLog[]
+  printJobs                    PrintJob[]
+  houseAuthRequests            HouseAccountAuthRequest[]
+  staffDiscountAuthRequests    StaffDiscountAuthRequest[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
-  cancellationRequests OrderCancellationRequest[]
-  splitPaymentLines       SplitPaymentLine[]
+  cancellationRequests         OrderCancellationRequest[]
+  splitPaymentLines            SplitPaymentLine[]
 
   @@unique([organizationId, dailyNumber, orderDate])
   @@index([organizationId])
@@ -391,7 +417,7 @@ model OrderItem {
   orderId    String   @map("order_id")
   menuItemId String   @map("menu_item_id")
   quantity   Int
-  unitPrice  Decimal  @db.Decimal(10, 2) @map("unit_price")
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
   subtotal   Decimal  @db.Decimal(10, 2)
   notes      String?
   order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -458,6 +484,8 @@ enum UserRole {
   BARISTA_DISPLAY
   STEWARD
   HOUSEKEEPING
+  STORE_MANAGER
+  STORE_ATTENDANT
 }
 
 enum PrepStation {
@@ -591,34 +619,34 @@ model IdempotencyKey {
 }
 
 model PrintJob {
-  id             String          @id @default(uuid())
-  organizationId String          @map("organization_id")
-  orderId        String?         @map("order_id")
-  corporateAccountSettlementId String? @map("corporate_account_settlement_id")
-  activeKey      String?         @unique @map("active_key")
-  receiptType    ReceiptType     @default(RECEIPT) @map("receipt_type")
-  copies         Int             @default(1)
-  status         PrintJobStatus  @default(PENDING)
-  receiptData    Json            @map("receipt_data")
-  requestedById  String          @map("requested_by_id")
-  targetStationId String?        @map("target_station_id")
-  claimedByStationId String?     @map("claimed_by_station_id")
-  claimedAt      DateTime?       @map("claimed_at")
-  leaseExpiresAt DateTime?       @map("lease_expires_at")
-  printAttemptCount Int          @default(0) @map("print_attempt_count")
-  printedByStationId String?     @map("printed_by_station_id")
-  printedAt      DateTime?       @map("printed_at")
-  failureReason  String?         @map("failure_reason")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
+  id                           String         @id @default(uuid())
+  organizationId               String         @map("organization_id")
+  orderId                      String?        @map("order_id")
+  corporateAccountSettlementId String?        @map("corporate_account_settlement_id")
+  activeKey                    String?        @unique @map("active_key")
+  receiptType                  ReceiptType    @default(RECEIPT) @map("receipt_type")
+  copies                       Int            @default(1)
+  status                       PrintJobStatus @default(PENDING)
+  receiptData                  Json           @map("receipt_data")
+  requestedById                String         @map("requested_by_id")
+  targetStationId              String?        @map("target_station_id")
+  claimedByStationId           String?        @map("claimed_by_station_id")
+  claimedAt                    DateTime?      @map("claimed_at")
+  leaseExpiresAt               DateTime?      @map("lease_expires_at")
+  printAttemptCount            Int            @default(0) @map("print_attempt_count")
+  printedByStationId           String?        @map("printed_by_station_id")
+  printedAt                    DateTime?      @map("printed_at")
+  failureReason                String?        @map("failure_reason")
+  createdAt                    DateTime       @default(now()) @map("created_at")
+  updatedAt                    DateTime       @updatedAt @map("updated_at")
 
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  order          Order?          @relation(fields: [orderId], references: [id])
+  organization               Organization                @relation(fields: [organizationId], references: [id])
+  order                      Order?                      @relation(fields: [orderId], references: [id])
   corporateAccountSettlement CorporateAccountSettlement? @relation(fields: [corporateAccountSettlementId], references: [id])
-  requestedBy    User            @relation("PrintJobRequester", fields: [requestedById], references: [id])
-  targetStation  PrintStation?   @relation("PrintJobTargetStation", fields: [targetStationId], references: [id])
-  claimedByStation PrintStation? @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
-  printedByStation PrintStation? @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])
+  requestedBy                User                        @relation("PrintJobRequester", fields: [requestedById], references: [id])
+  targetStation              PrintStation?               @relation("PrintJobTargetStation", fields: [targetStationId], references: [id])
+  claimedByStation           PrintStation?               @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
+  printedByStation           PrintStation?               @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])
 
   @@index([organizationId, status])
   @@index([organizationId, status, targetStationId])
@@ -628,19 +656,19 @@ model PrintJob {
 }
 
 model PrintStation {
-  id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
-  name           String       @default("Default Printer")
-  token          String       @unique
-  isActive       Boolean      @default(true) @map("is_active")
-  lastSeenAt     DateTime?    @map("last_seen_at")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  name           String    @default("Default Printer")
+  token          String    @unique
+  isActive       Boolean   @default(true) @map("is_active")
+  lastSeenAt     DateTime? @map("last_seen_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  targetedJobs   PrintJob[]   @relation("PrintJobTargetStation")
-  claimedJobs    PrintJob[]   @relation("PrintJobClaimedBy")
-  printedJobs    PrintJob[]   @relation("PrintJobPrintedBy")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  targetedJobs PrintJob[]   @relation("PrintJobTargetStation")
+  claimedJobs  PrintJob[]   @relation("PrintJobClaimedBy")
+  printedJobs  PrintJob[]   @relation("PrintJobPrintedBy")
 
   @@index([organizationId])
   @@index([token])
@@ -665,17 +693,17 @@ enum ReceiptType {
 model HouseAccount {
   id             String   @id @default(uuid())
   userId         String   @unique @map("user_id")
-  creditLimit    Decimal? @db.Decimal(10, 2) @map("credit_limit")
-  currentBalance Decimal  @default(0) @db.Decimal(10, 2) @map("current_balance")
+  creditLimit    Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
   isActive       Boolean  @default(true) @map("is_active")
   grantedById    String   @map("granted_by_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user        User                     @relation("HouseAccountHolder", fields: [userId], references: [id])
-  grantedBy   User                     @relation("HouseAccountGrantedBy", fields: [grantedById], references: [id])
-  settlements HouseAccountSettlement[]
-  orders      Order[]
+  user         User                      @relation("HouseAccountHolder", fields: [userId], references: [id])
+  grantedBy    User                      @relation("HouseAccountGrantedBy", fields: [grantedById], references: [id])
+  settlements  HouseAccountSettlement[]
+  orders       Order[]
   authRequests HouseAccountAuthRequest[]
 
   @@index([userId])
@@ -684,12 +712,12 @@ model HouseAccount {
 }
 
 model HouseAccountSettlement {
-  id             String       @id @default(uuid())
-  houseAccountId String       @map("house_account_id")
-  amount         Decimal      @db.Decimal(10, 2)
+  id             String   @id @default(uuid())
+  houseAccountId String   @map("house_account_id")
+  amount         Decimal  @db.Decimal(10, 2)
   note           String?
-  settledById    String       @map("settled_by_id")
-  createdAt      DateTime     @default(now()) @map("created_at")
+  settledById    String   @map("settled_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   houseAccount HouseAccount @relation(fields: [houseAccountId], references: [id])
   settledBy    User         @relation("HouseAccountSettledBy", fields: [settledById], references: [id])
@@ -731,8 +759,8 @@ model CorporateAccount {
   contactName     String   @map("contact_name")
   contactPhone    String   @map("contact_phone")
   contactEmail    String?  @map("contact_email")
-  creditLimit     Decimal? @db.Decimal(10, 2) @map("credit_limit")
-  currentBalance  Decimal  @default(0) @db.Decimal(10, 2) @map("current_balance")
+  creditLimit     Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance  Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
   billingCycleDay Int      @default(1) @map("billing_cycle_day")
   isActive        Boolean  @default(true) @map("is_active")
   createdById     String   @map("created_by_id")
@@ -749,13 +777,13 @@ model CorporateAccount {
 }
 
 model CorporateAccountSettlement {
-  id                 String           @id @default(uuid())
-  corporateAccountId String           @map("corporate_account_id")
-  amount             Decimal          @db.Decimal(10, 2)
-  paymentMethod      PaymentMethod    @map("payment_method")
+  id                 String        @id @default(uuid())
+  corporateAccountId String        @map("corporate_account_id")
+  amount             Decimal       @db.Decimal(10, 2)
+  paymentMethod      PaymentMethod @map("payment_method")
   note               String?
-  settledById        String           @map("settled_by_id")
-  createdAt          DateTime         @default(now()) @map("created_at")
+  settledById        String        @map("settled_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
 
   corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id])
   settledBy        User             @relation("CorporateAccountSettledBy", fields: [settledById], references: [id])
@@ -766,17 +794,17 @@ model CorporateAccountSettlement {
 }
 
 model CustomerCreditAccount {
-  id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
-  customerName   String       @map("customer_name")
-  customerPhone  String       @map("customer_phone")
-  creditLimit    Decimal      @db.Decimal(10, 2) @map("credit_limit")
-  currentBalance Decimal      @default(0) @db.Decimal(10, 2) @map("current_balance")
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  customerName   String   @map("customer_name")
+  customerPhone  String   @map("customer_phone")
+  creditLimit    Decimal  @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
   notes          String?
-  isActive       Boolean      @default(true) @map("is_active")
-  createdById    String       @map("created_by_id")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization Organization               @relation(fields: [organizationId], references: [id])
   createdBy    User                       @relation("CustomerCreditAccountCreatedBy", fields: [createdById], references: [id])
@@ -790,15 +818,15 @@ model CustomerCreditAccount {
 }
 
 model CustomerCreditSettlement {
-  id                      String                @id @default(uuid())
-  customerCreditAccountId String                @map("customer_credit_account_id")
-  amount                  Decimal               @db.Decimal(10, 2)
+  id                      String   @id @default(uuid())
+  customerCreditAccountId String   @map("customer_credit_account_id")
+  amount                  Decimal  @db.Decimal(10, 2)
   note                    String?
-  settledById             String                @map("settled_by_id")
-  createdAt               DateTime              @default(now()) @map("created_at")
+  settledById             String   @map("settled_by_id")
+  createdAt               DateTime @default(now()) @map("created_at")
 
   customerCreditAccount CustomerCreditAccount @relation(fields: [customerCreditAccountId], references: [id])
-  settledBy             User                 @relation("CustomerCreditSettledBy", fields: [settledById], references: [id])
+  settledBy             User                  @relation("CustomerCreditSettledBy", fields: [settledById], references: [id])
 
   @@index([customerCreditAccountId])
   @@map("customer_credit_settlements")
@@ -816,7 +844,7 @@ enum OtherIncomePaymentMethod {
 model OtherIncomeCategory {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
-  branchId       String?  @map("branch_id")   // null = available to all branches in the org
+  branchId       String?  @map("branch_id") // null = available to all branches in the org
   name           String
   isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at")
@@ -839,12 +867,12 @@ model OtherIncomeEntry {
   amount         Decimal                  @db.Decimal(10, 2)
   paymentMethod  OtherIncomePaymentMethod @map("payment_method")
   mpesaCode      String?                  @map("mpesa_code")
-  mpesaAmount    Decimal?                 @db.Decimal(10, 2) @map("mpesa_amount")
-  cashAmount     Decimal?                 @db.Decimal(10, 2) @map("cash_amount")
-  cardAmount     Decimal?                 @db.Decimal(10, 2) @map("card_amount")
+  mpesaAmount    Decimal?                 @map("mpesa_amount") @db.Decimal(10, 2)
+  cashAmount     Decimal?                 @map("cash_amount") @db.Decimal(10, 2)
+  cardAmount     Decimal?                 @map("card_amount") @db.Decimal(10, 2)
   splitType      String?                  @map("split_type")
   description    String?
-  entryDate      DateTime                 @db.Date @map("entry_date")
+  entryDate      DateTime                 @map("entry_date") @db.Date
   recordedById   String                   @map("recorded_by_id")
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
@@ -880,14 +908,14 @@ model Discount {
   type             DiscountType
   value            Decimal      @db.Decimal(5, 2)
   requiresApproval Boolean      @default(false) @map("requires_approval")
-  isActive         Boolean      @default(true)  @map("is_active")
+  isActive         Boolean      @default(true) @map("is_active")
   createdById      String       @map("created_by_id")
   createdAt        DateTime     @default(now()) @map("created_at")
   updatedAt        DateTime     @updatedAt @map("updated_at")
 
-  organization     Organization? @relation(fields: [organizationId], references: [id])
-  createdBy        User          @relation("DiscountCreatedBy", fields: [createdById], references: [id])
-  orders           Order[]
+  organization                 Organization?                 @relation(fields: [organizationId], references: [id])
+  createdBy                    User                          @relation("DiscountCreatedBy", fields: [createdById], references: [id])
+  orders                       Order[]
   customerDiscountAuthRequests CustomerDiscountAuthRequest[]
 
   @@index([organizationId])
@@ -902,23 +930,23 @@ enum StaffDiscountAuthStatus {
 }
 
 model StaffDiscountAuthRequest {
-  id              String                   @id @default(uuid())
-  organizationId  String                   @map("organization_id")
-  orderId         String                   @map("order_id")
-  requestedById   String                   @map("requested_by_id")
-  discountPercent Decimal                  @db.Decimal(5, 2)  @map("discount_percent")
-  originalAmount  Decimal                  @db.Decimal(10, 2) @map("original_amount")
-  discountAmount  Decimal                  @db.Decimal(10, 2) @map("discount_amount")
-  status          StaffDiscountAuthStatus  @default(PENDING)
-  resolvedById    String?                  @map("resolved_by_id")
-  resolvedAt      DateTime?                @map("resolved_at")
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  id              String                  @id @default(uuid())
+  organizationId  String                  @map("organization_id")
+  orderId         String                  @map("order_id")
+  requestedById   String                  @map("requested_by_id")
+  discountPercent Decimal                 @map("discount_percent") @db.Decimal(5, 2)
+  originalAmount  Decimal                 @map("original_amount") @db.Decimal(10, 2)
+  discountAmount  Decimal                 @map("discount_amount") @db.Decimal(10, 2)
+  status          StaffDiscountAuthStatus @default(PENDING)
+  resolvedById    String?                 @map("resolved_by_id")
+  resolvedAt      DateTime?               @map("resolved_at")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
 
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  order         Order        @relation(fields: [orderId], references: [id])
-  requestedBy   User         @relation("StaffDiscountRequestedBy", fields: [requestedById], references: [id])
-  resolvedBy    User?        @relation("StaffDiscountResolvedBy", fields: [resolvedById], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  requestedBy  User         @relation("StaffDiscountRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("StaffDiscountResolvedBy", fields: [resolvedById], references: [id])
 
   @@index([organizationId])
   @@index([orderId])
@@ -927,26 +955,26 @@ model StaffDiscountAuthRequest {
 }
 
 model CustomerDiscountAuthRequest {
-  id              String                      @id @default(uuid())
-  organizationId  String                      @map("organization_id")
-  orderId         String                      @map("order_id")
-  discountId      String                      @map("discount_id")
-  requestedById   String                      @map("requested_by_id")
-  discountPercent Decimal?                    @db.Decimal(5, 2)  @map("discount_percent")
-  discountFixed   Decimal?                    @db.Decimal(10, 2) @map("discount_fixed")
-  originalAmount  Decimal                     @db.Decimal(10, 2) @map("original_amount")
-  discountAmount  Decimal                     @db.Decimal(10, 2) @map("discount_amount")
-  status          CustomerDiscountAuthStatus  @default(PENDING)
-  resolvedById    String?                     @map("resolved_by_id")
-  resolvedAt      DateTime?                   @map("resolved_at")
-  createdAt       DateTime                    @default(now()) @map("created_at")
-  updatedAt       DateTime                    @updatedAt @map("updated_at")
+  id              String                     @id @default(uuid())
+  organizationId  String                     @map("organization_id")
+  orderId         String                     @map("order_id")
+  discountId      String                     @map("discount_id")
+  requestedById   String                     @map("requested_by_id")
+  discountPercent Decimal?                   @map("discount_percent") @db.Decimal(5, 2)
+  discountFixed   Decimal?                   @map("discount_fixed") @db.Decimal(10, 2)
+  originalAmount  Decimal                    @map("original_amount") @db.Decimal(10, 2)
+  discountAmount  Decimal                    @map("discount_amount") @db.Decimal(10, 2)
+  status          CustomerDiscountAuthStatus @default(PENDING)
+  resolvedById    String?                    @map("resolved_by_id")
+  resolvedAt      DateTime?                  @map("resolved_at")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt @map("updated_at")
 
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  order         Order        @relation(fields: [orderId], references: [id])
-  discount      Discount     @relation(fields: [discountId], references: [id])
-  requestedBy   User         @relation("CustomerDiscountRequestedBy", fields: [requestedById], references: [id])
-  resolvedBy    User?        @relation("CustomerDiscountResolvedBy", fields: [resolvedById], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id])
+  discount     Discount     @relation(fields: [discountId], references: [id])
+  requestedBy  User         @relation("CustomerDiscountRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("CustomerDiscountResolvedBy", fields: [resolvedById], references: [id])
 
   @@index([organizationId])
   @@index([orderId])
@@ -963,17 +991,17 @@ enum BroadcastScope {
 }
 
 model DirectConversation {
-  id             String    @id @default(uuid())
-  organizationId String    @map("organization_id")
-  participantAId String    @map("participant_a_id")
-  participantBId String    @map("participant_b_id")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  participantAId String   @map("participant_a_id")
+  participantBId String   @map("participant_b_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  participantA   User            @relation("ConvParticipantA", fields: [participantAId], references: [id])
-  participantB   User            @relation("ConvParticipantB", fields: [participantBId], references: [id])
-  messages       DirectMessage[]
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  participantA User            @relation("ConvParticipantA", fields: [participantAId], references: [id])
+  participantB User            @relation("ConvParticipantB", fields: [participantBId], references: [id])
+  messages     DirectMessage[]
 
   @@unique([organizationId, participantAId, participantBId])
   @@index([organizationId])
@@ -994,9 +1022,9 @@ model DirectMessage {
   createdAt      DateTime  @default(now()) @map("created_at")
   deletedAt      DateTime? @map("deleted_at")
 
-  conversation   DirectConversation @relation(fields: [conversationId], references: [id])
-  organization   Organization       @relation(fields: [organizationId], references: [id])
-  sender         User               @relation("DirectMessageSender", fields: [senderId], references: [id])
+  conversation DirectConversation @relation(fields: [conversationId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  sender       User               @relation("DirectMessageSender", fields: [senderId], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([organizationId])
@@ -1016,9 +1044,9 @@ model Broadcast {
   requiresAck    Boolean        @default(false) @map("requires_ack")
   createdAt      DateTime       @default(now()) @map("created_at")
 
-  organization   Organization         @relation(fields: [organizationId], references: [id])
-  sender         User                 @relation("BroadcastSender", fields: [senderId], references: [id])
-  recipients     BroadcastRecipient[]
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  sender       User                 @relation("BroadcastSender", fields: [senderId], references: [id])
+  recipients   BroadcastRecipient[]
 
   @@index([organizationId, createdAt])
   @@map("broadcasts")
@@ -1033,9 +1061,9 @@ model BroadcastRecipient {
   acknowledgedAt DateTime? @map("acknowledged_at")
   createdAt      DateTime  @default(now()) @map("created_at")
 
-  broadcast      Broadcast    @relation(fields: [broadcastId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation("BroadcastRecipientUser", fields: [userId], references: [id])
+  broadcast    Broadcast    @relation(fields: [broadcastId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation("BroadcastRecipientUser", fields: [userId], references: [id])
 
   @@unique([broadcastId, userId])
   @@index([broadcastId])
@@ -1045,36 +1073,36 @@ model BroadcastRecipient {
 }
 
 model FormalNotice {
-  id             String    @id @default(uuid())
-  organizationId String    @map("organization_id")
-  issuerId       String    @map("issuer_id")
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  issuerId       String   @map("issuer_id")
   subject        String
-  bodyHtml       String    @map("body_html")
-  attachmentUrl  String?   @map("attachment_url")
-  attachmentName String?   @map("attachment_name")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  bodyHtml       String   @map("body_html")
+  attachmentUrl  String?  @map("attachment_url")
+  attachmentName String?  @map("attachment_name")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  organization   Organization            @relation(fields: [organizationId], references: [id])
-  issuer         User                    @relation("FormalNoticeIssuer", fields: [issuerId], references: [id])
-  recipients     FormalNoticeRecipient[]
+  organization Organization            @relation(fields: [organizationId], references: [id])
+  issuer       User                    @relation("FormalNoticeIssuer", fields: [issuerId], references: [id])
+  recipients   FormalNoticeRecipient[]
 
   @@index([organizationId, createdAt])
   @@map("formal_notices")
 }
 
 model FormalNoticeRecipient {
-  id                  String    @id @default(uuid())
-  noticeId            String    @map("notice_id")
-  organizationId      String    @map("organization_id")
-  userId              String    @map("user_id")
-  acknowledgedAt      DateTime? @map("acknowledged_at")
-  reminder24SentAt    DateTime? @map("reminder_24_sent_at")
-  escalation48SentAt  DateTime? @map("escalation_48_sent_at")
-  createdAt           DateTime  @default(now()) @map("created_at")
+  id                 String    @id @default(uuid())
+  noticeId           String    @map("notice_id")
+  organizationId     String    @map("organization_id")
+  userId             String    @map("user_id")
+  acknowledgedAt     DateTime? @map("acknowledged_at")
+  reminder24SentAt   DateTime? @map("reminder_24_sent_at")
+  escalation48SentAt DateTime? @map("escalation_48_sent_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
 
-  notice         FormalNotice @relation(fields: [noticeId], references: [id])
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation("FormalNoticeRecipientUser", fields: [userId], references: [id])
+  notice       FormalNotice @relation(fields: [noticeId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation("FormalNoticeRecipientUser", fields: [userId], references: [id])
 
   @@unique([noticeId, userId])
   @@index([noticeId])
@@ -1087,39 +1115,39 @@ model FormalNoticeRecipient {
 // ─── HR Module ────────────────────────────────────────────────────────────────
 
 model EmployeeProfile {
-  id                String         @id @default(uuid())
-  userId            String         @unique @map("user_id")
-  nationalId        String?        @map("national_id")
-  dateOfBirth       DateTime?      @map("date_of_birth")
-  personalPhone     String?        @map("personal_phone")
-  personalEmail     String?        @map("personal_email")
-  physicalAddress   String?        @map("physical_address")
-  emergencyName     String?        @map("emergency_name")
-  emergencyRelation String?        @map("emergency_relation")
-  emergencyPhone    String?        @map("emergency_phone")
-  employmentType    EmploymentType? @map("employment_type")
-  contractTypeId    String?        @map("contract_type_id")
-  startDate         DateTime       @map("start_date")
-  endDate           DateTime?      @map("end_date")
-  probationEndDate  DateTime?      @map("probation_end_date")
-  jobTitle          String?        @map("job_title")
-  reportingManagerId String?       @map("reporting_manager_id")
-  notes             String?
-  kraPIN            String?        @map("kra_pin")
-  bankName          String?        @map("bank_name")
-  accountNumber     String?        @map("account_number")
-  accountName       String?        @map("account_name")
-  bankBranch        String?        @map("bank_branch")
-  helbNumber        String?        @map("helb_number")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  id                 String          @id @default(uuid())
+  userId             String          @unique @map("user_id")
+  nationalId         String?         @map("national_id")
+  dateOfBirth        DateTime?       @map("date_of_birth")
+  personalPhone      String?         @map("personal_phone")
+  personalEmail      String?         @map("personal_email")
+  physicalAddress    String?         @map("physical_address")
+  emergencyName      String?         @map("emergency_name")
+  emergencyRelation  String?         @map("emergency_relation")
+  emergencyPhone     String?         @map("emergency_phone")
+  employmentType     EmploymentType? @map("employment_type")
+  contractTypeId     String?         @map("contract_type_id")
+  startDate          DateTime        @map("start_date")
+  endDate            DateTime?       @map("end_date")
+  probationEndDate   DateTime?       @map("probation_end_date")
+  jobTitle           String?         @map("job_title")
+  reportingManagerId String?         @map("reporting_manager_id")
+  notes              String?
+  kraPIN             String?         @map("kra_pin")
+  bankName           String?         @map("bank_name")
+  accountNumber      String?         @map("account_number")
+  accountName        String?         @map("account_name")
+  bankBranch         String?         @map("bank_branch")
+  helbNumber         String?         @map("helb_number")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
 
-  user              User             @relation("EmployeeProfileUser", fields: [userId], references: [id])
-  reportingManager  User?            @relation("EmployeeProfileManager", fields: [reportingManagerId], references: [id])
-  contractType      ContractType?    @relation(fields: [contractTypeId], references: [id])
-  leaveBalances     LeaveBalance[]
-  leaveRequests     LeaveRequest[]
-  documents         HrDocument[]
+  user                User                 @relation("EmployeeProfileUser", fields: [userId], references: [id])
+  reportingManager    User?                @relation("EmployeeProfileManager", fields: [reportingManagerId], references: [id])
+  contractType        ContractType?        @relation(fields: [contractTypeId], references: [id])
+  leaveBalances       LeaveBalance[]
+  leaveRequests       LeaveRequest[]
+  documents           HrDocument[]
   disciplinaryRecords DisciplinaryRecord[]
 
   @@index([userId])
@@ -1150,25 +1178,25 @@ model LeavePolicy {
   leaveType      LeaveType @map("leave_type")
   totalDays      Int       @map("total_days")
 
-  contractType   ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Cascade)
+  contractType ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Cascade)
 
   @@unique([contractTypeId, leaveType])
   @@map("leave_policies")
 }
 
 model LeaveBalance {
-  id                String      @id @default(uuid())
-  employeeProfileId String      @map("employee_profile_id")
-  leaveType         LeaveType   @map("leave_type")
-  totalDays         Int         @map("total_days")
-  usedDays          Decimal     @default(0) @db.Decimal(5, 1) @map("used_days")
-  pendingDays       Decimal     @default(0) @db.Decimal(5, 1) @map("pending_days")
-  leaveYear         Int         @map("leave_year")
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  id                String    @id @default(uuid())
+  employeeProfileId String    @map("employee_profile_id")
+  leaveType         LeaveType @map("leave_type")
+  totalDays         Int       @map("total_days")
+  usedDays          Decimal   @default(0) @map("used_days") @db.Decimal(5, 1)
+  pendingDays       Decimal   @default(0) @map("pending_days") @db.Decimal(5, 1)
+  leaveYear         Int       @map("leave_year")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
-  leaveRequests     LeaveRequest[]
+  employeeProfile EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  leaveRequests   LeaveRequest[]
 
   @@unique([employeeProfileId, leaveType, leaveYear])
   @@index([employeeProfileId])
@@ -1183,7 +1211,7 @@ model LeaveRequest {
   leaveType         LeaveType   @map("leave_type")
   startDate         DateTime    @map("start_date")
   endDate           DateTime    @map("end_date")
-  totalDays         Decimal     @db.Decimal(5, 1) @map("total_days")
+  totalDays         Decimal     @map("total_days") @db.Decimal(5, 1)
   reason            String
   status            LeaveStatus @default(PENDING)
   reviewedById      String?     @map("reviewed_by_id")
@@ -1194,13 +1222,13 @@ model LeaveRequest {
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
-  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
-  leaveBalance      LeaveBalance    @relation(fields: [leaveBalanceId], references: [id])
-  organization      Organization?   @relation(fields: [organizationId], references: [id])
-  reviewedBy        User?           @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
-  cancelledBy       User?           @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
-  documents         HrDocument[]
-  acknowledgements  LeaveRequestAcknowledgement[]
+  employeeProfile  EmployeeProfile               @relation(fields: [employeeProfileId], references: [id])
+  leaveBalance     LeaveBalance                  @relation(fields: [leaveBalanceId], references: [id])
+  organization     Organization?                 @relation(fields: [organizationId], references: [id])
+  reviewedBy       User?                         @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
+  cancelledBy      User?                         @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
+  documents        HrDocument[]
+  acknowledgements LeaveRequestAcknowledgement[]
 
   @@index([organizationId, status])
   @@index([employeeProfileId])
@@ -1213,8 +1241,8 @@ model LeaveRequestAcknowledgement {
   userId         String   @map("user_id")
   acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
 
-  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id])
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
 
   @@unique([leaveRequestId, userId])
   @@index([userId])
@@ -1240,10 +1268,10 @@ model DisciplinaryRecord {
   expiresAt         DateTime?            @map("expires_at")
   createdAt         DateTime             @default(now()) @map("created_at")
 
-  employeeProfile   EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
-  organization      Organization    @relation(fields: [organizationId], references: [id])
-  issuedBy          User            @relation("DisciplinaryIssuedBy", fields: [issuedById], references: [id])
-  documents         HrDocument[]
+  employeeProfile EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  issuedBy        User            @relation("DisciplinaryIssuedBy", fields: [issuedById], references: [id])
+  documents       HrDocument[]
 
   @@index([organizationId])
   @@index([employeeProfileId])
@@ -1251,20 +1279,20 @@ model DisciplinaryRecord {
 }
 
 model HrDocument {
-  id                    String         @id @default(uuid())
-  employeeProfileId     String         @map("employee_profile_id")
-  leaveRequestId        String?        @map("leave_request_id")
-  disciplinaryRecordId  String?        @map("disciplinary_record_id")
-  documentType          HrDocumentType @map("document_type")
-  fileName              String         @map("file_name")
-  fileUrl               String         @map("file_url")
-  uploadedById          String         @map("uploaded_by_id")
-  createdAt             DateTime       @default(now()) @map("created_at")
+  id                   String         @id @default(uuid())
+  employeeProfileId    String         @map("employee_profile_id")
+  leaveRequestId       String?        @map("leave_request_id")
+  disciplinaryRecordId String?        @map("disciplinary_record_id")
+  documentType         HrDocumentType @map("document_type")
+  fileName             String         @map("file_name")
+  fileUrl              String         @map("file_url")
+  uploadedById         String         @map("uploaded_by_id")
+  createdAt            DateTime       @default(now()) @map("created_at")
 
-  employeeProfile     EmployeeProfile     @relation(fields: [employeeProfileId], references: [id])
-  leaveRequest        LeaveRequest?       @relation(fields: [leaveRequestId], references: [id])
-  disciplinaryRecord  DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
-  uploadedBy          User                @relation("HrDocumentUploadedBy", fields: [uploadedById], references: [id])
+  employeeProfile    EmployeeProfile     @relation(fields: [employeeProfileId], references: [id])
+  leaveRequest       LeaveRequest?       @relation(fields: [leaveRequestId], references: [id])
+  disciplinaryRecord DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
+  uploadedBy         User                @relation("HrDocumentUploadedBy", fields: [uploadedById], references: [id])
 
   @@index([employeeProfileId])
   @@index([leaveRequestId])
@@ -1278,20 +1306,20 @@ model Payslip {
   userId          String   @map("user_id")
   payPeriod       String   @map("pay_period")
   payDate         DateTime @map("pay_date")
-  grossPay        Decimal  @db.Decimal(10, 2) @map("gross_pay")
+  grossPay        Decimal  @map("gross_pay") @db.Decimal(10, 2)
   paye            Decimal  @db.Decimal(10, 2)
   sha             Decimal  @db.Decimal(10, 2)
-  nssfTier1       Decimal  @db.Decimal(10, 2) @map("nssf_tier1")
-  nssfTier2       Decimal  @db.Decimal(10, 2) @map("nssf_tier2")
-  housingLevy     Decimal  @db.Decimal(10, 2) @map("housing_levy")
+  nssfTier1       Decimal  @map("nssf_tier1") @db.Decimal(10, 2)
+  nssfTier2       Decimal  @map("nssf_tier2") @db.Decimal(10, 2)
+  housingLevy     Decimal  @map("housing_levy") @db.Decimal(10, 2)
   helb            Decimal? @db.Decimal(10, 2)
   advance         Decimal? @db.Decimal(10, 2)
   incentives      Decimal? @db.Decimal(10, 2)
   overtime        Decimal? @db.Decimal(10, 2)
   allowances      Decimal? @db.Decimal(10, 2)
   otherDeductions Json?    @map("other_deductions")
-  totalDeductions Decimal  @db.Decimal(10, 2) @map("total_deductions")
-  netPay          Decimal  @db.Decimal(10, 2) @map("net_pay")
+  totalDeductions Decimal  @map("total_deductions") @db.Decimal(10, 2)
+  netPay          Decimal  @map("net_pay") @db.Decimal(10, 2)
   isLocked        Boolean  @default(false) @map("is_locked")
   createdById     String   @map("created_by_id")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -1354,4 +1382,465 @@ enum HrDocumentType {
   INCIDENT_REPORT
   WARNING_LETTER
   OTHER
+}
+
+// ============================================================================
+// Inventory & Procurement — Phase 1 (Central Store)
+// See docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md for the full
+// spec. Location is deliberately its own entity — never Organization.isHub
+// (D-1). Phase 1 creates exactly one Location row (type CENTRAL_STORE).
+// Phase 2 adds one Location per (branch, department) pair.
+// ============================================================================
+
+enum LocationType {
+  CENTRAL_STORE
+  BRANCH_DEPARTMENT
+}
+
+enum DepartmentTag {
+  KITCHEN
+  PASTRY
+  BARISTA
+  SERVICE
+  HOUSEKEEPING
+}
+
+model Location {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  type           LocationType
+  name           String
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  transactions   InventoryTransaction[]
+  stockCounts    StockCount[]
+  wasteLogs      WasteLog[]
+  prepRecords    PrepRecord[]
+  purchaseOrders PurchaseOrder[]
+
+  // Phase 1 creates exactly one CENTRAL_STORE row per organization (feature
+  // plan D-1) — this constraint enforces that invariant at the DB level.
+  // Phase 2's BRANCH_DEPARTMENT rows are per (branch, department) and won't
+  // collide with this since department is not part of this model yet.
+  // A partial unique index (migration 20260731090000, not expressible in
+  // Prisma DSL) additionally enforces that only ONE CENTRAL_STORE row exists
+  // across all organizations — it belongs to the hub org (design doc D-15).
+  @@unique([organizationId, type])
+  @@index([organizationId])
+  @@map("locations")
+}
+
+enum InventoryItemType {
+  RAW
+  PREPPED
+  PASS_THROUGH
+}
+
+model InventoryItem {
+  id               String            @id @default(uuid()) @map("id")
+  organizationId   String            @map("organization_id")
+  name             String
+  type             InventoryItemType
+  buyUnit          String            @map("buy_unit")
+  usageUnit        String            @map("usage_unit")
+  conversionFactor Decimal           @map("conversion_factor") @db.Decimal(12, 4)
+  reorderLevel     Decimal           @map("reorder_level") @db.Decimal(12, 4)
+  departmentTags   DepartmentTag[]   @map("department_tags")
+  currentCost      Decimal           @default(0) @map("current_cost") @db.Decimal(12, 4)
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  organization        Organization           @relation(fields: [organizationId], references: [id])
+  supplierItems       SupplierItem[]
+  purchaseOrderLines  PurchaseOrderLine[]
+  transactions        InventoryTransaction[]
+  prepRecipesAsOutput PrepRecipe[]           @relation("PrepRecipeOutputItem")
+  prepRecipeLines     PrepRecipeLine[]       @relation("PrepRecipeLineInputItem")
+  prepRecordsAsOutput PrepRecord[]           @relation("PrepRecordOutputItem")
+  prepRecordLines     PrepRecordLine[]       @relation("PrepRecordLineInputItem")
+  stockCountLines     StockCountLine[]
+  wasteLogs           WasteLog[]
+
+  @@index([organizationId])
+  @@map("inventory_items")
+}
+
+model Supplier {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  contactName    String?  @map("contact_name")
+  phone          String?
+  email          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  supplierItems    SupplierItem[]
+  purchaseOrders   PurchaseOrder[]
+  supplierInvoices SupplierInvoice[]
+
+  @@index([organizationId])
+  @@map("suppliers")
+}
+
+model SupplierItem {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  supplierId      String   @map("supplier_id")
+  inventoryItemId String   @map("inventory_item_id")
+  isDefault       Boolean  @default(false) @map("is_default")
+  lastPrice       Decimal? @map("last_price") @db.Decimal(12, 4)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, inventoryItemId])
+  @@index([organizationId])
+  @@index([inventoryItemId])
+  @@map("supplier_items")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  supplierId     String              @map("supplier_id")
+  locationId     String              @map("location_id")
+  poNumber       String              @map("po_number")
+  status         PurchaseOrderStatus @default(DRAFT)
+  createdById    String              @map("created_by_id")
+  sentAt         DateTime?           @map("sent_at")
+  cancelledAt    DateTime?           @map("cancelled_at")
+  closedAt       DateTime?           @map("closed_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  supplier         Supplier            @relation(fields: [supplierId], references: [id])
+  location         Location            @relation(fields: [locationId], references: [id])
+  createdBy        User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  lines            PurchaseOrderLine[]
+  supplierInvoices SupplierInvoice[]
+
+  @@unique([organizationId, poNumber])
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([locationId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  purchaseOrderId String    @map("purchase_order_id")
+  inventoryItemId String    @map("inventory_item_id")
+  orderedQty      Decimal   @map("ordered_qty") @db.Decimal(12, 4)
+  receivedQty     Decimal   @default(0) @map("received_qty") @db.Decimal(12, 4)
+  unitPrice       Decimal   @map("unit_price") @db.Decimal(12, 4)
+  invoicePrice    Decimal?  @map("invoice_price") @db.Decimal(12, 4)
+  receivedAt      DateTime? @map("received_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  purchaseOrder PurchaseOrder          @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@index([organizationId])
+  @@index([purchaseOrderId])
+  @@index([inventoryItemId])
+  @@map("purchase_order_lines")
+}
+
+enum SupplierInvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+model SupplierInvoice {
+  id              String                @id @default(uuid())
+  organizationId  String                @map("organization_id")
+  supplierId      String                @map("supplier_id")
+  purchaseOrderId String?               @map("purchase_order_id")
+  referenceNumber String                @map("reference_number")
+  amount          Decimal               @db.Decimal(12, 2)
+  amountPaid      Decimal               @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  status          SupplierInvoiceStatus @default(UNPAID)
+  invoiceDate     DateTime              @map("invoice_date")
+  createdById     String                @map("created_by_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  organization  Organization      @relation(fields: [organizationId], references: [id])
+  supplier      Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     User              @relation("SupplierInvoiceCreatedBy", fields: [createdById], references: [id])
+  payments      SupplierPayment[]
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+  @@map("supplier_invoices")
+}
+
+model SupplierPayment {
+  id                String        @id @default(uuid())
+  organizationId    String        @map("organization_id")
+  supplierInvoiceId String        @map("supplier_invoice_id")
+  amount            Decimal       @db.Decimal(12, 2)
+  method            PaymentMethod
+  paidAt            DateTime      @map("paid_at")
+  recordedById      String        @map("recorded_by_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+  recordedBy      User            @relation("SupplierPaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([organizationId])
+  @@index([supplierInvoiceId])
+  @@map("supplier_payments")
+}
+
+model PrepRecipe {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  outputItemId   String   @map("output_item_id")
+  name           String
+  expectedYield  Decimal  @map("expected_yield") @db.Decimal(12, 4)
+  batchLabel     String?  @map("batch_label")
+  instructions   String?
+  promotedFromId String?  @unique @map("promoted_from_id")
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  outputItem   InventoryItem    @relation("PrepRecipeOutputItem", fields: [outputItemId], references: [id])
+  createdBy    User             @relation("PrepRecipeCreatedBy", fields: [createdById], references: [id])
+  promotedFrom PrepRecord?      @relation("PrepRecordPromotedTo", fields: [promotedFromId], references: [id])
+  lines        PrepRecipeLine[]
+
+  @@index([organizationId])
+  @@index([outputItemId])
+  @@map("prep_recipes")
+}
+
+model PrepRecipeLine {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  prepRecipeId   String  @map("prep_recipe_id")
+  inputItemId    String  @map("input_item_id")
+  quantity       Decimal @db.Decimal(12, 4)
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  prepRecipe   PrepRecipe    @relation(fields: [prepRecipeId], references: [id], onDelete: Cascade)
+  inputItem    InventoryItem @relation("PrepRecipeLineInputItem", fields: [inputItemId], references: [id])
+
+  @@index([organizationId])
+  @@index([prepRecipeId])
+  @@index([inputItemId])
+  @@map("prep_recipe_lines")
+}
+
+model PrepRecord {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  locationId     String   @map("location_id")
+  outputItemId   String   @map("output_item_id")
+  actualYield    Decimal  @map("actual_yield") @db.Decimal(12, 4)
+  /**
+   * Recipe's expected yield scaled by the average actual÷recipe ratio across
+   * this run's ingredient lines — null when no recipe existed for the output
+   * item at the time of this run. Stored (not recomputed at report read-time)
+   * so a later recipe edit never retroactively changes historical variance —
+   * see UI_UX_DESIGN_AUDIT.md Flow 3, "Left open" #3.
+   */
+  scaledExpectedYield Decimal? @map("scaled_expected_yield") @db.Decimal(12, 4)
+  unitCost       Decimal  @map("unit_cost") @db.Decimal(12, 4)
+  recordedById   String   @map("recorded_by_id")
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  location     Location               @relation(fields: [locationId], references: [id])
+  outputItem   InventoryItem          @relation("PrepRecordOutputItem", fields: [outputItemId], references: [id])
+  recordedBy   User                   @relation("PrepRecordRecordedBy", fields: [recordedById], references: [id])
+  lines        PrepRecordLine[]
+  promotedTo   PrepRecipe?            @relation("PrepRecordPromotedTo")
+  transactions InventoryTransaction[]
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([outputItemId])
+  @@map("prep_records")
+}
+
+model PrepRecordLine {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  prepRecordId   String  @map("prep_record_id")
+  inputItemId    String  @map("input_item_id")
+  quantity       Decimal @db.Decimal(12, 4)
+  unitCost       Decimal @map("unit_cost") @db.Decimal(12, 4)
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  prepRecord   PrepRecord    @relation(fields: [prepRecordId], references: [id], onDelete: Cascade)
+  inputItem    InventoryItem @relation("PrepRecordLineInputItem", fields: [inputItemId], references: [id])
+
+  @@index([organizationId])
+  @@index([prepRecordId])
+  @@index([inputItemId])
+  @@map("prep_record_lines")
+}
+
+enum StockCountStatus {
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+}
+
+model StockCount {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  locationId     String           @map("location_id")
+  label          String
+  status         StockCountStatus @default(IN_PROGRESS)
+  scheduledDate  DateTime         @map("scheduled_date")
+  createdById    String           @map("created_by_id")
+  submittedById  String?          @map("submitted_by_id")
+  submittedAt    DateTime?        @map("submitted_at")
+  approvedById   String?          @map("approved_by_id")
+  approvedAt     DateTime?        @map("approved_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  location     Location         @relation(fields: [locationId], references: [id])
+  createdBy    User             @relation("StockCountCreatedBy", fields: [createdById], references: [id])
+  submittedBy  User?            @relation("StockCountSubmittedBy", fields: [submittedById], references: [id])
+  approvedBy   User?            @relation("StockCountApprovedBy", fields: [approvedById], references: [id])
+  lines        StockCountLine[]
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  stockCountId    String   @map("stock_count_id")
+  inventoryItemId String   @map("inventory_item_id")
+  sequence        Int      @default(1)
+  expectedQty     Decimal? @map("expected_qty") @db.Decimal(12, 4)
+  countedQty      Decimal? @map("counted_qty") @db.Decimal(12, 4)
+  gapQty          Decimal? @map("gap_qty") @db.Decimal(12, 4)
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  stockCount    StockCount             @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@index([organizationId])
+  @@index([stockCountId])
+  @@index([inventoryItemId])
+  @@map("stock_count_lines")
+}
+
+enum WasteReason {
+  SPOILED
+  PREP_ERROR
+  DROPPED
+  EXPIRED
+  OTHER
+}
+
+model WasteLog {
+  id              String      @id @default(uuid())
+  organizationId  String      @map("organization_id")
+  locationId      String      @map("location_id")
+  inventoryItemId String      @map("inventory_item_id")
+  quantity        Decimal     @db.Decimal(12, 4)
+  reason          WasteReason
+  note            String?
+  loggedById      String      @map("logged_by_id")
+  loggedAt        DateTime    @default(now()) @map("logged_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  location      Location               @relation(fields: [locationId], references: [id])
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  loggedBy      User                   @relation("WasteLogLoggedBy", fields: [loggedById], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([inventoryItemId])
+  @@map("waste_logs")
+}
+
+// Full ledger enum ships now per feature plan §1 — only receive, prep_consume,
+// prep_produce, waste, adjustment are written in Phase 1. dispatch_out,
+// dispatch_in, market_receive, sale are reserved for Phase 2/3 and must not
+// be restructured when those phases land.
+enum InventoryTransactionType {
+  RECEIVE
+  PREP_CONSUME
+  PREP_PRODUCE
+  WASTE
+  ADJUSTMENT
+  DISPATCH_OUT
+  DISPATCH_IN
+  MARKET_RECEIVE
+  SALE
+}
+
+model InventoryTransaction {
+  id                  String                   @id @default(uuid())
+  organizationId      String                   @map("organization_id")
+  locationId          String                   @map("location_id")
+  inventoryItemId     String                   @map("inventory_item_id")
+  type                InventoryTransactionType
+  quantity            Decimal                  @db.Decimal(12, 4)
+  unitCost            Decimal                  @map("unit_cost") @db.Decimal(12, 4)
+  reason              String?
+  purchaseOrderLineId String?                  @map("purchase_order_line_id")
+  prepRecordId        String?                  @map("prep_record_id")
+  wasteLogId          String?                  @map("waste_log_id")
+  stockCountLineId    String?                  @map("stock_count_line_id")
+  userId              String                   @map("user_id")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+
+  organization      Organization       @relation(fields: [organizationId], references: [id])
+  location          Location           @relation(fields: [locationId], references: [id])
+  inventoryItem     InventoryItem      @relation(fields: [inventoryItemId], references: [id])
+  prepRecord        PrepRecord?        @relation(fields: [prepRecordId], references: [id])
+  wasteLog          WasteLog?          @relation(fields: [wasteLogId], references: [id])
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+  stockCountLine    StockCountLine?    @relation(fields: [stockCountLineId], references: [id])
+  user              User               @relation("InventoryTransactionUser", fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([inventoryItemId])
+  @@index([type])
+  @@map("inventory_transactions")
 }

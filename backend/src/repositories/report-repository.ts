@@ -680,6 +680,9 @@ export const reportRepository = {
     const organizations = await prisma.organization.findMany({
       where: {
         isActive: true,
+        // Sales reports enumerate branches only — the hub org (Central Store)
+        // never sells and must not appear as a branch row (design doc D-15).
+        isHub: false,
       },
       select: {
         id: true,
@@ -968,6 +971,8 @@ export const reportRepository = {
     const organizations = await prisma.organization.findMany({
       where: {
         isActive: true,
+        // Branch sales trends — exclude the hub org (see getBranchOverview).
+        isHub: false,
       },
       select: {
         id: true,
@@ -1657,7 +1662,8 @@ export const reportRepository = {
 
   getDirectorPulse: async (): Promise<import('../types/report.types').DirectorPulseReport> => {
     const organizations = await prisma.organization.findMany({
-      where: { isActive: true },
+      // Branch sales pulse — exclude the hub org (see getBranchOverview).
+      where: { isActive: true, isHub: false },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });

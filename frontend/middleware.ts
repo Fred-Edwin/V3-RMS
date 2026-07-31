@@ -18,6 +18,8 @@ const allRoles: AppRole[] = [
   'SYSTEM_ADMIN',
   'STEWARD',
   'HOUSEKEEPING',
+  'STORE_MANAGER',
+  'STORE_ATTENDANT',
 ];
 
 const decodeRole = (token: string): AppRole | null => {
@@ -90,7 +92,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/inbox')) {
-    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+    return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT' || role === 'HR_MANAGER' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 
   if (pathname.startsWith('/app/hr')) {
@@ -98,13 +100,19 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
     // my-leave: all human staff
     if (pathname === '/app/hr/my-leave') {
       return role === 'WAITER' || role === 'CHEF' || role === 'BARISTA'
-        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING';
+        || role === 'ACCOUNTANT' || role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'STEWARD' || role === 'HOUSEKEEPING' || role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
     }
     return role === 'HR_MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   }
 
   if (pathname.startsWith('/app/accountant')) {
     return role === 'ACCOUNTANT';
+  }
+
+  if (pathname.startsWith('/app/inventory')) {
+    // Session 6 ships Attendant's mobile screens only; Manager's desktop/mobile
+    // screens (Sessions 7/8) will extend this once built.
+    return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 
   if (pathname === '/app/payslips' || pathname.startsWith('/app/payslips/')) {
@@ -117,7 +125,9 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
       || role === 'ACCOUNTANT'
       || role === 'SYSTEM_ADMIN'
       || role === 'STEWARD'
-      || role === 'HOUSEKEEPING';
+      || role === 'HOUSEKEEPING'
+      || role === 'STORE_MANAGER'
+      || role === 'STORE_ATTENDANT';
   }
 
   if (pathname.startsWith('/app')) {

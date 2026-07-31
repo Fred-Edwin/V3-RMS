@@ -1,6 +1,7 @@
 import type { UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { authRepository } from '../repositories/auth-repository';
+import { branchRepository } from '../repositories/branch-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { hashPassword } from '../utils/password';
 import { PROFILE_EXCLUDED_ROLES } from '../utils/hr-constants';
@@ -18,6 +19,8 @@ const branchStaffRoles: UserRole[] = [
   'BARISTA_DISPLAY',
   'STEWARD',
   'HOUSEKEEPING',
+  'STORE_MANAGER',
+  'STORE_ATTENDANT',
 ];
 
 const managerCreatableRoles: UserRole[] = [
@@ -29,6 +32,12 @@ const managerCreatableRoles: UserRole[] = [
   'STEWARD',
   'HOUSEKEEPING',
 ];
+
+// Store roles always live on the hub org (design doc D-15) — they are never
+// branch staff, so branch Managers cannot create them (removed from
+// managerCreatableRoles above) and any creation path routes through the
+// hub-org enforcement in createStaff.
+const storeRoles: UserRole[] = ['STORE_MANAGER', 'STORE_ATTENDANT'];
 
 interface StaffFiltersInput {
   organizationId?: string;
@@ -72,7 +81,7 @@ export const staffService = {
       // Cross-branch roles see all active human staff across all branches
       const results = await staffRepository.findMany({
         isActive: true,
-        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'],
+        allowedRoles: ['DIRECTOR', 'HR_MANAGER', 'MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER', 'STORE_ATTENDANT'],
       });
       return results
         .filter((s) => s.id !== actor.id)
@@ -133,12 +142,42 @@ export const staffService = {
       if (!data.organizationId) {
         throw new ValidationError('organizationId is required for manager accounts');
       }
+    } else if (actor.role === 'STORE_MANAGER') {
+      // Mirrors the branch-Manager pattern: the Store Manager staffs their own
+      // floor, limited to attendants in their own (hub) organization.
+      if (data.role !== 'STORE_ATTENDANT') {
+        throw new ForbiddenError('Store Managers can only create Store Attendant accounts');
+      }
+      if (!actor.organizationId) {
+        throw new ForbiddenError('Store Manager organization is required');
+      }
+      if (data.organizationId && data.organizationId !== actor.organizationId) {
+        throw new ForbiddenError('Store Managers can only create staff in the Central Store organization');
+      }
     } else if (actor.role === 'SYSTEM_ADMIN') {
       if (data.role === 'MANAGER' && !data.organizationId) {
         throw new ValidationError('organizationId is required for manager accounts');
       }
     } else {
       throw new ForbiddenError('You do not have permission to create staff accounts');
+    }
+
+    // Store roles are always assigned to the hub org, regardless of what the
+    // caller sent — Central Store data follows the store user's session org,
+    // so a store user on a branch org would silently branch-scope the entire
+    // inventory (design doc D-15).
+    let storeOrganizationId: string | undefined;
+    if (storeRoles.includes(data.role)) {
+      const hubOrg = await branchRepository.findHub();
+      if (!hubOrg) {
+        throw new ValidationError(
+          'No hub organization is set. Create the Central Store organization and flag it as hub before adding store staff.',
+        );
+      }
+      if (data.organizationId && data.organizationId !== hubOrg.id) {
+        throw new ValidationError('Store staff must belong to the Central Store (hub) organization');
+      }
+      storeOrganizationId = hubOrg.id;
     }
 
     const passwordHash = await hashPassword(data.temporaryPassword);
@@ -153,7 +192,8 @@ export const staffService = {
       phone: data.phone,
       role: data.role,
       organizationId:
-        actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null,
+        storeOrganizationId ??
+        (actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null),
       passwordHash,
       withEmployeeProfile: !PROFILE_EXCLUDED_ROLES.includes(data.role),
     });

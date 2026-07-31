@@ -67,6 +67,12 @@ export const branchRepository = {
     });
   },
 
+  findHub: async () => {
+    return prisma.organization.findFirst({
+      where: { isHub: true, isActive: true },
+    });
+  },
+
   setHub: async (id: string) => {
     return prisma.$transaction(async (tx) => {
       await tx.organization.updateMany({

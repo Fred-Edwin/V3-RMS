@@ -10,21 +10,21 @@ staffRoutes.post(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
   staffController.create,
 );
 staffRoutes.get(
   '/staff/messaging-contacts',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ACCOUNTANT', 'SYSTEM_ADMIN', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER'),
   staffController.messagingContacts,
 );
 staffRoutes.get(
   '/staff',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'STEWARD', 'HOUSEKEEPING'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'KITCHEN_DISPLAY', 'BARISTA_DISPLAY', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER'),
   staffController.list,
 );
 staffRoutes.get(
