@@ -118,14 +118,24 @@ Status: Round 0 complete 2026-07-06. Round 1 (Director → Accountant → Manage
 Plan file: docs/context/UI_SYSTEM_ROADMAP.md
 
 Current: Inventory & Procurement — Phase 2 (Central Store → Branch Departments)
-Status: Phase 1 (Central Store) complete 2026-07-29 — all 9 sessions shipped (schema,
-costing/ledger core, Catalog/Suppliers/PO/Receiving/Prep/Stock Count/Waste/Supplier AP
-backend, RBAC + reports, Attendant mobile, Manager desktop + mobile, and Session 9's
-integration pass/Gate prep with real client catalog data seeded). Phase 2 planning has
-not started — no sessions, no schema/code for dispatch/requisition/branch departments
-yet. Two Central Store roles shipped (STORE_MANAGER, STORE_ATTENDANT — see the plan's
-§2/§8), Supplier AP live in v1. Multi-session build, strictly sequential (no parallel
-sessions), once Phase 2 planning closes.
+Status: Phase 1 (Central Store) complete 2026-07-29 and **merged to main + deployed to
+production 2026-07-31 (PR #34)** — all 9 sessions (schema, costing/ledger core,
+Catalog/Suppliers/PO/Receiving/Prep/Stock Count/Waste/Supplier AP backend, RBAC +
+reports, Attendant mobile, Manager desktop + mobile) plus the Central Store
+organization-scoping resolution (D-15): **all Central Store data and STORE_MANAGER/
+STORE_ATTENDANT users live on the hub Organization** (the org flagged `isHub` — a
+company-level unit, never a branch/point of sale), enforced by service guards and a
+one-Central-Store-system-wide partial unique index. See
+docs/context/INVENTORY-FEATURE/CENTRAL_STORE_SCOPING_DESIGN.md for the full rule
+(incl. the "hub appears in people contexts, never sales contexts" visibility rule)
+and docs/context/INVENTORY-FEATURE/PHASE1_LOCAL_TEST_GUIDE.md for the verified
+walkthrough + production setup sequence (create Central Store org → Set Hub →
+Set up Central Store → create Store Manager → Manager creates Attendants).
+The deploy also ran 20260728101630_drop_legacy_inventory_v2, removing orphaned
+schema left in production by the reverted March 2026 V2.1 inventory build.
+Phase 2 planning has not started — no sessions, no schema/code for dispatch/
+requisition/branch departments yet. Multi-session build, strictly sequential
+(no parallel sessions), once Phase 2 planning closes.
 Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec; §5 has the Phase 2 spec)
 Session plan (Phase 1, all complete): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md
 Domain model: docs/context/central_kitchen_inventory_model.md

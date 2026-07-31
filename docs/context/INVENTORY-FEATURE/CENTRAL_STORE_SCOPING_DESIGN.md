@@ -1,6 +1,11 @@
 # Central Store Organization-Scoping — Design Proposal (for owner review)
 
-**Status: PROPOSED — awaiting owner approval. No schema, migration, or code changes made yet.**
+**Status: IMPLEMENTED & DEPLOYED 2026-07-31.** Owner approved same day; the full
+package (migrations, guards, UI fixes, Store Staff screen) shipped in commits
+`ed54bf4` + `924726b`, was owner-verified end-to-end on a restored production backup
+(see `PHASE1_LOCAL_TEST_GUIDE.md`), and reached production via PR #34. Logged in the
+feature plan as **D-15**. §5's item numbering below reflects the original proposal;
+everything listed was built except where noted.
 Prepared 2026-07-31 on `feature/inventory-phase1`, in response to the scoping gap found
 while building the (now-reverted) "create Central Store Location" admin feature.
 
