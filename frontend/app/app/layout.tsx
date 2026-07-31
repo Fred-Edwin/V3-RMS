@@ -239,6 +239,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
+      { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
   // Desktop is the primary shell for this role (usesDualShell below); this

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Info, Plus, X } from 'lucide-react';
+import { ArrowLeft, Info, Plus, X } from 'lucide-react';
 import { HelpTip } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import {
@@ -46,30 +46,41 @@ export default function PrepEntryPage(): JSX.Element {
 }
 
 function PrepEntryAttendant(): JSX.Element {
+  const router = useRouter();
   const role = useAuthStore((state) => state.role);
   const [tab, setTab] = useState<PrepTab>('log');
   const isManager = role === 'STORE_MANAGER';
+  const dashboardHref = isManager ? '/app/inventory/dashboard' : '/app/inventory/attendant-dashboard';
 
   return (
     <div className="min-h-full bg-crema pb-24">
-      <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
-        <div>
-          <p className="font-display text-heading-lg font-medium">Prep Record</p>
-          <p className="text-label-md text-amber">Log what you actually used and produced</p>
-        </div>
-        <HelpTip
-          title="Prep Record"
-          triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
+        <button
+          type="button"
+          onClick={() => router.push(dashboardHref)}
+          className="mb-2 flex items-center gap-1 text-label-md text-crema/80"
         >
-          <p>
-            When you prepare something — like marinating raw chicken into Marinated Chicken — log it here: what
-            you started with, what you ended up with.
-          </p>
-          <p className="mt-2">
-            This keeps stock accurate for both the raw ingredients you used and the prepped item you made. The
-            &ldquo;Typical&rdquo; hint is just a reference from past batches — enter what actually happened.
-          </p>
-        </HelpTip>
+          <ArrowLeft size={16} /> Dashboard
+        </button>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-heading-lg font-medium">Prep Record</p>
+            <p className="text-label-md text-amber">Log what you actually used and produced</p>
+          </div>
+          <HelpTip
+            title="Prep Record"
+            triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <p>
+              When you prepare something — like marinating raw chicken into Marinated Chicken — log it here: what
+              you started with, what you ended up with.
+            </p>
+            <p className="mt-2">
+              This keeps stock accurate for both the raw ingredients you used and the prepped item you made. The
+              &ldquo;Typical&rdquo; hint is just a reference from past batches — enter what actually happened.
+            </p>
+          </HelpTip>
+        </div>
       </div>
 
       {isManager && (
