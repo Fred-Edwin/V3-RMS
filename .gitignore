@@ -34,3 +34,4 @@ local_before_seed_cleanup.sql
 .vercel
 
 #/receipt-printing-app/receipt-printing-app/
+.local-restore/

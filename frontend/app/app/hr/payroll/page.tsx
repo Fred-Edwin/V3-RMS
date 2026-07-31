@@ -168,9 +168,10 @@ export default function HrPayslipsPage(): JSX.Element {
     branchService.listBranches(accessToken)
       .then((loaded) => {
         // Sort A–Z so the branch dropdown, the all-branches sheet, and the CSV
-        // exports all present branches in the same alphabetical order.
+        // exports all present branches in the same alphabetical order. The hub
+        // org (Central Store) is included: store staff are paid here too.
         const active = loaded
-          .filter((b) => b.isActive && !b.isHub)
+          .filter((b) => b.isActive)
           .sort((a, b) => a.name.localeCompare(b.name));
         setBranches(active);
         // Auto-select first branch if no branch is pre-selected (avoids empty sheet on load)

@@ -260,6 +260,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
       { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
       { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
+      { label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle },
       { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
@@ -526,6 +527,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
     {
       label: 'Insights',
       items: [{ label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart }],
+    },
+    {
+      label: 'Team',
+      items: [{ label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle }],
     },
     {
       label: 'Communications',

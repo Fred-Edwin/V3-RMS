@@ -1425,6 +1425,9 @@ model Location {
   // plan D-1) — this constraint enforces that invariant at the DB level.
   // Phase 2's BRANCH_DEPARTMENT rows are per (branch, department) and won't
   // collide with this since department is not part of this model yet.
+  // A partial unique index (migration 20260731090000, not expressible in
+  // Prisma DSL) additionally enforces that only ONE CENTRAL_STORE row exists
+  // across all organizations — it belongs to the hub org (design doc D-15).
   @@unique([organizationId, type])
   @@index([organizationId])
   @@map("locations")

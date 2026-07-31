@@ -1,6 +1,7 @@
 import type { UserRole } from '@prisma/client';
 import { branchRepository } from '../repositories/branch-repository';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { locationRepository } from '../repositories/location-repository';
+import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 
 interface BranchProfileActor {
   role: UserRole;
@@ -77,6 +78,19 @@ export const branchService = {
     const existing = await branchRepository.findById(id);
     if (!existing) {
       throw new NotFoundError('Branch not found');
+    }
+
+    // Once the Central Store location exists, all inventory data (catalog,
+    // suppliers, POs, ledger) is scoped to the current hub org — moving the
+    // hub flag to another org would strand all of it (design doc D-15).
+    const currentHub = await branchRepository.findHub();
+    if (currentHub && currentHub.id !== id) {
+      const centralStore = await locationRepository.findCentralStore();
+      if (centralStore && centralStore.organizationId === currentHub.id) {
+        throw new ConflictError(
+          'The hub cannot be reassigned: the Central Store and its inventory data belong to the current hub organization',
+        );
+      }
     }
 
     return branchRepository.setHub(id);

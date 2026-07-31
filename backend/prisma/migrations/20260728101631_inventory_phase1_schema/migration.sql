@@ -30,8 +30,10 @@ CREATE TYPE "public"."InventoryTransactionType" AS ENUM ('RECEIVE', 'PREP_CONSUM
 -- the enum.
 
 
-ALTER TYPE "public"."UserRole" ADD VALUE 'STORE_MANAGER';
-ALTER TYPE "public"."UserRole" ADD VALUE 'STORE_ATTENDANT';
+-- IF NOT EXISTS: production already has the STORE_MANAGER label, left behind
+-- by the reverted V2.1 inventory build — see 20260728101630_drop_legacy_inventory_v2.
+ALTER TYPE "public"."UserRole" ADD VALUE IF NOT EXISTS 'STORE_MANAGER';
+ALTER TYPE "public"."UserRole" ADD VALUE IF NOT EXISTS 'STORE_ATTENDANT';
 
 -- CreateTable
 CREATE TABLE "public"."locations" (

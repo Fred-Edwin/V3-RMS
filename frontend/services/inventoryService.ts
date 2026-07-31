@@ -55,6 +55,15 @@ export async function getCentralStoreLocation(token: string): Promise<InventoryL
   return locations.find((l) => l.type === 'CENTRAL_STORE') ?? null;
 }
 
+// One-time setup, SYSTEM_ADMIN only. The backend resolves the owning
+// organization to the hub org itself — no organization is sent from here.
+export async function createCentralStoreLocation(
+  token: string,
+  name?: string,
+): Promise<InventoryLocation> {
+  return apiClient.post<InventoryLocation>('/locations/central-store', name ? { name } : {}, token);
+}
+
 // ─── Inventory Items ───────────────────────────────────────────────────────
 
 export async function listInventoryItems(

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { locationService } from '../services/location-service';
-import { LocationIdParamSchema } from '../validators/location-schemas';
+import { CreateCentralStoreSchema, LocationIdParamSchema } from '../validators/location-schemas';
 
 const requireActor = (req: Request) => {
   if (!req.user) throw new UnauthorizedError('Authentication required');
@@ -20,5 +20,12 @@ export const locationController = {
     const { id } = LocationIdParamSchema.parse(req.params);
     const location = await locationService.getById(actor, id);
     res.status(200).json({ success: true, data: location });
+  },
+
+  createCentralStore: async (req: Request, res: Response): Promise<void> => {
+    requireActor(req);
+    const { name } = CreateCentralStoreSchema.parse(req.body ?? {});
+    const location = await locationService.createCentralStore(name);
+    res.status(201).json({ success: true, data: location });
   },
 };
