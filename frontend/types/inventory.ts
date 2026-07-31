@@ -172,6 +172,14 @@ export interface CreatePurchaseOrderInput {
   lines: CreatePurchaseOrderLineInput[];
 }
 
+/** Low-stock-driven prefill suggestion for a new PO (GET /purchase-orders/suggest). */
+export interface PurchaseOrderSuggestion {
+  inventoryItemId: string;
+  name: string;
+  onHandQty: string;
+  suggestedQty: string;
+}
+
 // ─── Prep Records ───────────────────────────────────────────────────────────
 
 export interface PrepRecordLine {

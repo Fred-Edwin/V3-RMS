@@ -21,6 +21,7 @@ import type {
   PromotePrepRecipeInput,
   PurchaseOrder,
   PurchaseOrderStatus,
+  PurchaseOrderSuggestion,
   RecordSupplierPaymentInput,
   RollingAverage,
   StockCount,
@@ -244,7 +245,7 @@ export async function reversePurchaseOrderLineReceipt(
 export async function suggestPurchaseOrder(
   locationId: string,
   token: string,
-): Promise<{ inventoryItemId: string; name: string; onHandQty: string; suggestedQty: string }[]> {
+): Promise<PurchaseOrderSuggestion[]> {
   return apiClient.get(`/purchase-orders/suggest?locationId=${locationId}`, token);
 }
 

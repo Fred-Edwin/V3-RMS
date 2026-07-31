@@ -12,6 +12,20 @@ export const formatKes = (value: string | number): string => {
   return `Ksh ${Number.isFinite(n) ? n.toLocaleString('en-KE', { maximumFractionDigits: 2 }) : '0'}`
 }
 
+/**
+ * Rounds a decimal string/number to 4 places — the precision the backend's
+ * quantitySchema/nonNegativeQuantitySchema regex accepts (`^\d{1,8}(\.\d{1,4})?$`).
+ * Required whenever a quantity is derived arithmetically (buyUnitCostValue's
+ * multiplication, a stepper's increment) rather than typed by a person —
+ * those can produce long floats (e.g. 365.0157000000001) that fail the
+ * regex and get rejected as "Validation failed" with no field-level detail.
+ */
+export const roundToApiPrecision = (value: string | number): string => {
+  const n = typeof value === 'string' ? parseFloat(value) : value
+  if (!Number.isFinite(n)) return '0'
+  return n.toFixed(4).replace(/\.?0+$/, '') || '0'
+}
+
 interface CostValueInfo {
   currentCost: string
   conversionFactor: string
