@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Truck } from 'lucide-react';
-import { Card, EmptyState } from '@/components/ui';
+import { Card, EmptyState, HelpTip } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { listPurchaseOrders } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -70,9 +70,20 @@ function ReceivingListAttendant(): JSX.Element {
 
   return (
     <div className="min-h-full bg-crema">
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Receiving</p>
-        <p className="text-label-md text-crema/70">Deliveries waiting to be received</p>
+      <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
+        <div>
+          <p className="font-display text-heading-lg font-medium">Receiving</p>
+          <p className="text-label-md text-crema/70">Deliveries waiting to be received</p>
+        </div>
+        <HelpTip
+          title="Receiving"
+          triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          <p>Purchase orders your manager has sent to a supplier, waiting for the delivery to arrive.</p>
+          <p className="mt-2">
+            Tap one to record what actually showed up — quantities and invoice prices — against what was ordered.
+          </p>
+        </HelpTip>
       </div>
 
       <div className="px-4 py-4">

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Info, Plus, X } from 'lucide-react';
+import { HelpTip } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import {
   createPrepRecord,
@@ -51,9 +52,24 @@ function PrepEntryAttendant(): JSX.Element {
 
   return (
     <div className="min-h-full bg-crema pb-24">
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Prep Record</p>
-        <p className="text-label-md text-amber">Log what you actually used and produced</p>
+      <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
+        <div>
+          <p className="font-display text-heading-lg font-medium">Prep Record</p>
+          <p className="text-label-md text-amber">Log what you actually used and produced</p>
+        </div>
+        <HelpTip
+          title="Prep Record"
+          triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          <p>
+            When you prepare something — like marinating raw chicken into Marinated Chicken — log it here: what
+            you started with, what you ended up with.
+          </p>
+          <p className="mt-2">
+            This keeps stock accurate for both the raw ingredients you used and the prepped item you made. The
+            &ldquo;Typical&rdquo; hint is just a reference from past batches — enter what actually happened.
+          </p>
+        </HelpTip>
       </div>
 
       {isManager && (

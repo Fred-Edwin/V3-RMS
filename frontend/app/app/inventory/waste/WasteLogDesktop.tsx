@@ -8,6 +8,7 @@ import {
   Card,
   ExcelTable,
   FormField,
+  HelpTip,
   Input,
   Modal,
   PageHeader,
@@ -184,7 +185,18 @@ function WasteLogDesktopInner(): JSX.Element {
       <PageHeader
         title="Waste Log"
         subtitle={`${rows.length} entries`}
-        action={<Button leftIcon={<Plus size={18} />} onClick={openForm}>Log Waste</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <HelpTip title="Waste Log">
+              <p>Every entry of stock that&rsquo;s been lost or unusable — spoiled, dropped, expired, a prep mistake — logged by anyone on the team.</p>
+              <p className="mt-2">
+                Filter by reason or date to spot patterns (e.g. repeated spoilage of one item). This feeds the
+                waste-cost report. You can log waste yourself here too, same as Attendants do on mobile.
+              </p>
+            </HelpTip>
+            <Button leftIcon={<Plus size={18} />} onClick={openForm}>Log Waste</Button>
+          </div>
+        }
       />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

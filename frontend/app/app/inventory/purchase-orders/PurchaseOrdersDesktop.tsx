@@ -8,6 +8,7 @@ import {
   Card,
   ConfirmDialog,
   ExcelTable,
+  HelpTip,
   IconButton,
   Input,
   PageHeader,
@@ -360,11 +361,32 @@ function PurchaseOrdersDesktopInner(): JSX.Element {
         title="Purchases"
         subtitle="Purchase orders and supplier invoices"
         action={
-          activeTab === 'orders' ? (
-            <Link href="/app/inventory/purchase-orders/new">
-              <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
-            </Link>
-          ) : null
+          <div className="flex items-center gap-2">
+            <HelpTip title="Purchases">
+              {activeTab === 'orders' ? (
+                <>
+                  <p>Order stock from your suppliers. Create a draft, send it, then receive it when it arrives.</p>
+                  <p className="mt-2">
+                    &ldquo;Suggest order&rdquo; prefills a draft with items that are running low, so you don&rsquo;t have to
+                    remember what to reorder.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>What you owe each supplier, based on the invoices they&rsquo;ve sent for received orders.</p>
+                  <p className="mt-2">
+                    Record an invoice when a supplier sends one, and record a payment when you pay it. The aging
+                    view flags anything unpaid for a while.
+                  </p>
+                </>
+              )}
+            </HelpTip>
+            {activeTab === 'orders' ? (
+              <Link href="/app/inventory/purchase-orders/new">
+                <Button leftIcon={<Plus size={18} />}>New Purchase Order</Button>
+              </Link>
+            ) : null}
+          </div>
         }
       />
 

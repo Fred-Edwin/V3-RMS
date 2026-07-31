@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Package, Truck } from 'lucide-react';
-import { IconTile } from '@/components/ui';
+import { HelpTip, IconTile } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { getPurchaseOrder, receivePurchaseOrderLine } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -190,12 +190,24 @@ function ReceivingExecutionPageInner(): JSX.Element {
               {po && <p className="text-label-md text-amber">{po.poNumber}</p>}
             </div>
           </div>
-          {po && (
-            <div className="shrink-0 rounded-lg border border-crema/20 px-3 py-1.5 text-right">
-              <p className="text-body-sm font-bold tabular-nums">{stats.completed} / {stats.total}</p>
-              <p className="text-label-sm text-crema/60">Lines Completed</p>
-            </div>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {po && (
+              <div className="rounded-lg border border-crema/20 px-3 py-1.5 text-right">
+                <p className="text-body-sm font-bold tabular-nums">{stats.completed} / {stats.total}</p>
+                <p className="text-label-sm text-crema/60">Lines Completed</p>
+              </div>
+            )}
+            <HelpTip
+              title="Receiving"
+              triggerClassName="flex h-7 w-7 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              <p>For each line, enter what actually arrived and the price on the invoice — not just what was ordered.</p>
+              <p className="mt-2">
+                Each line saves on its own as you type. A red line means the received quantity doesn&rsquo;t match
+                what was ordered — that&rsquo;s fine, just confirm it&rsquo;s correct before finishing.
+              </p>
+            </HelpTip>
+          </div>
         </div>
       </div>
 

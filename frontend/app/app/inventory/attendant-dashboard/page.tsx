@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChefHat, ClipboardCheck, Package, Truck } from 'lucide-react';
-import { Badge, Card } from '@/components/ui';
+import { Badge, Card, HelpTip } from '@/components/ui';
 import {
   getCentralStoreLocation,
   listPrepRecords,
@@ -100,9 +100,18 @@ export default function AttendantDashboardPage(): JSX.Element {
 
   return (
     <div className="min-h-full bg-crema pb-8">
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Dashboard</p>
-        <p className="text-label-md text-crema/70">Central Store · What&rsquo;s on your plate today</p>
+      <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
+        <div>
+          <p className="font-display text-heading-lg font-medium">Dashboard</p>
+          <p className="text-label-md text-crema/70">Central Store · What&rsquo;s on your plate today</p>
+        </div>
+        <HelpTip
+          title="Dashboard"
+          triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          <p>A quick look at what needs your attention right now — deliveries to receive, counts still open, and what you&rsquo;ve logged today.</p>
+          <p className="mt-2">Tap any card below to jump straight into that task.</p>
+        </HelpTip>
       </div>
 
       <div className="grid grid-cols-2 gap-3 px-4 py-4">

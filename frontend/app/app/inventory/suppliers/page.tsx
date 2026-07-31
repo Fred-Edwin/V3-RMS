@@ -544,7 +544,7 @@ function SuppliersPageInner(): JSX.Element {
           <div className="flex items-center gap-2">
             <HelpTip title="Suppliers">
               <p>Everyone you buy from, what you buy from them, and — for Managers — what you owe them.</p>
-              <p>
+              <p className="mt-2">
                 The star next to an item marks its default supplier (used to pre-fill new purchase orders). Click a
                 hollow star to make that supplier the default instead.
               </p>

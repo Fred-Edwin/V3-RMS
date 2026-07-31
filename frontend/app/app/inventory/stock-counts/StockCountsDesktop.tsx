@@ -8,6 +8,7 @@ import {
   Card,
   ConfirmDialog,
   ExcelTable,
+  HelpTip,
   IconButton,
   Input,
   PageHeader,
@@ -304,7 +305,19 @@ function StockCountsDesktopInner(): JSX.Element {
       <PageHeader
         title="Stock Count"
         subtitle={`${counts.length} sessions`}
-        action={<Button onClick={() => setIsCounting(true)}>New Count Session</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <HelpTip title="Stock Count">
+              <p>Physically count what&rsquo;s on the shelf and compare it to what the system expects, to catch loss or errors.</p>
+              <p className="mt-2">
+                Start a new session, pick which items to count, then count on your phone or here. Once submitted,
+                review the variance and approve to post stock adjustments — Attendants never see the expected
+                quantity while counting, so the count stays honest.
+              </p>
+            </HelpTip>
+            <Button onClick={() => setIsCounting(true)}>New Count Session</Button>
+          </div>
+        }
       />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Info, Plus, X } from 'lucide-react';
-import { Button, Card, FormField, PageHeader, PageLayout } from '@/components/ui';
+import { Button, Card, FormField, HelpTip, PageHeader, PageLayout } from '@/components/ui';
 import { ItemCombobox } from '@/components/inventory/ItemCombobox';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import {
@@ -47,7 +47,40 @@ function PrepEntryDesktopInner(): JSX.Element {
 
   return (
     <PageLayout className="animate-fade-up">
-      <PageHeader title="Prep Entry" subtitle="Log what was actually used and produced" />
+      <PageHeader
+        title="Prep Entry"
+        subtitle="Log what was actually used and produced"
+        action={
+          <HelpTip title="Prep Entry">
+            {tab === 'log' ? (
+              <>
+                <p>
+                  Whenever raw ingredients are turned into a prepped item — say, raw chicken marinated into
+                  Marinated Chicken — log it here: what went in, what came out.
+                </p>
+                <p className="mt-2">
+                  This keeps stock accurate on both sides: the raw ingredients get used up, and the prepped item
+                  gets added. Attendants log this daily from the mobile app; use this desktop form to review or
+                  backfill an entry.
+                </p>
+              </>
+            ) : tab === 'recipes' ? (
+              <>
+                <p>
+                  Save a logged prep as a reusable recipe — e.g. Marinated Chicken always uses 5kg raw chicken +
+                  the usual spices for a 4.5kg yield — so next time it pre-fills instead of starting blank.
+                </p>
+                <p className="mt-2">Recipes are optional and Manager-only to create or edit — Attendants can view one as a reference but not change it.</p>
+              </>
+            ) : (
+              <>
+                <p>Every Prep Record that&rsquo;s been logged, most recent first — what was used, what was produced, and by whom.</p>
+                <p className="mt-2">Use it to spot-check a specific batch of Marinated Chicken, or see how yield has trended over time.</p>
+              </>
+            )}
+          </HelpTip>
+        }
+      />
       <PrepTabs active={tab} onChange={setTab} className="mb-5" />
       {tab === 'log' ? <LogPrepPanel /> : tab === 'recipes' ? <PrepRecipesTab /> : <PrepHistoryTab />}
     </PageLayout>

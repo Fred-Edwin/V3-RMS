@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Check, CheckCircle2, Pause, Pencil, Play } from 'lucide-react';
-import { Badge } from '@/components/ui';
+import { Badge, HelpTip } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { approveStockCount, correctStockCountLines, getStockCount, submitStockCount } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -195,7 +195,19 @@ function StockCountApproval(): JSX.Element {
             <p className="font-display text-heading-md font-medium">{count?.label ?? 'Loading…'}</p>
             {count && <p className="text-label-md text-crema/70">{count.lines.length} items</p>}
           </div>
-          {count && <Badge tone={count.status === 'IN_PROGRESS' ? 'warning' : count.status === 'SUBMITTED' ? 'neutral' : 'success'}>{STATUS_LABEL[count.status]}</Badge>}
+          <div className="flex shrink-0 items-center gap-2">
+            {count && <Badge tone={count.status === 'IN_PROGRESS' ? 'warning' : count.status === 'SUBMITTED' ? 'neutral' : 'success'}>{STATUS_LABEL[count.status]}</Badge>}
+            <HelpTip
+              title="Count Approval"
+              triggerClassName="flex h-7 w-7 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              <p>Compares what was counted against what the system expected, line by line.</p>
+              <p className="mt-2">
+                Approving posts an adjustment for every gap — stock is updated to match the count. This can&rsquo;t
+                be undone, so check any large gaps before approving.
+              </p>
+            </HelpTip>
+          </div>
         </div>
       </div>
 
@@ -400,14 +412,27 @@ function StockCountExecution({ showExpectedQty }: { showExpectedQty: boolean }):
             <p className="font-display text-heading-md font-medium">{count?.label ?? 'Loading…'}</p>
             <p className="text-label-md text-amber">Central Store</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsPaused((p) => !p)}
-            className="flex shrink-0 items-center gap-1.5 rounded-md border border-amber px-3 py-1.5 text-label-md font-medium text-amber"
-          >
-            {isPaused ? <Play size={14} /> : <Pause size={14} />}
-            {isPaused ? 'Resume' : 'Pause'}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPaused((p) => !p)}
+              className="flex items-center gap-1.5 rounded-md border border-amber px-3 py-1.5 text-label-md font-medium text-amber"
+            >
+              {isPaused ? <Play size={14} /> : <Pause size={14} />}
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <HelpTip
+              title="Stock Count Session"
+              triggerClassName="flex h-7 w-7 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              <p>Walk the shelf and enter what you physically count for each item — take your time, you can pause and resume.</p>
+              <p className="mt-2">
+                {showExpectedQty
+                  ? 'As Manager you can see the expected quantity while counting. Submit once every line has a count.'
+                  : 'You won’t see the expected quantity here — that’s intentional, so the count reflects only what you see. Submit once every line has a count.'}
+              </p>
+            </HelpTip>
+          </div>
         </div>
         {count && (
           <div className="mt-3">

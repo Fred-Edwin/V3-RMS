@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Search } from 'lucide-react';
-import { Card, EmptyState, TabBar } from '@/components/ui';
+import { Card, EmptyState, HelpTip, TabBar } from '@/components/ui';
 import { PurchaseOrderStatusBadge } from '@/components/inventory/PurchaseOrderStatusBadge';
 import { listPurchaseOrders } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -79,9 +79,32 @@ function PurchaseOrdersList({ isManager }: { isManager: boolean }): JSX.Element 
     <div className="min-h-full bg-crema pb-24">
       {!(isManager && activeTab === 'invoices' && hasInvoiceDetail) && (
         <>
-          <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-            <p className="font-display text-heading-lg font-medium">{isManager ? 'Purchases' : 'Purchase Orders'}</p>
-            <p className="text-label-md text-crema/70">{isManager ? 'Orders and supplier invoices' : 'Central Store'}</p>
+          <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
+            <div>
+              <p className="font-display text-heading-lg font-medium">{isManager ? 'Purchases' : 'Purchase Orders'}</p>
+              <p className="text-label-md text-crema/70">{isManager ? 'Orders and supplier invoices' : 'Central Store'}</p>
+            </div>
+            <HelpTip
+              title={isManager ? 'Purchases' : 'Purchase Orders'}
+              triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              {isManager ? (
+                <>
+                  <p>Order stock from your suppliers, and track what you owe them.</p>
+                  <p className="mt-2">
+                    Switch to the Invoices / AP tab to record supplier invoices and payments.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>Order stock from your suppliers. Pick items and quantities to create a draft.</p>
+                  <p className="mt-2">
+                    You can create a draft, but only a Manager can send it — it shows &ldquo;Waiting for manager to
+                    send&rdquo; until they do.
+                  </p>
+                </>
+              )}
+            </HelpTip>
           </div>
 
           {isManager && (

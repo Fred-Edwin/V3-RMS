@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Calendar, ChefHat, HelpCircle, MessageSquare, Scale, Search, Trash2, Wine } from 'lucide-react';
-import { IconTile } from '@/components/ui';
+import { HelpTip, IconTile } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { createWasteLog, getCentralStoreLocation, listInventoryItems } from '@/services/inventoryService';
 import { useAuthStore } from '@/store/authStore';
@@ -130,8 +130,17 @@ function WasteLogEntryAttendant(): JSX.Element {
             <p className="font-display text-heading-lg font-medium">Log Waste</p>
             <p className="text-label-md text-crema/70">Central Store</p>
           </div>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-crema/10 text-amber">
-            <Trash2 size={20} />
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-crema/10 text-amber">
+              <Trash2 size={20} />
+            </div>
+            <HelpTip
+              title="Log Waste"
+              triggerClassName="flex h-7 w-7 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              <p>Record stock that&rsquo;s lost or unusable — spoiled, dropped, expired, a prep mistake — so it&rsquo;s removed from stock and reflected in cost reporting.</p>
+              <p className="mt-2">Pick the item, how much, and why. Log it as soon as it happens so stock stays accurate.</p>
+            </HelpTip>
           </div>
         </div>
         <p className="mt-2 text-label-md text-crema/60">Record lost or unusable stock immediately.</p>

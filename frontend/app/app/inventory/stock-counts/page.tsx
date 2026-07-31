@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, ClipboardCheck, Pencil, Plus, Search } from 'lucide-react';
-import { Card, EmptyState, Input } from '@/components/ui';
+import { Card, EmptyState, HelpTip, Input } from '@/components/ui';
 import { Badge } from '@/components/ui';
 import { QuantityInput } from '@/components/inventory/QuantityInput';
 import { createStockCount, getCentralStoreLocation, listInventoryItems, listStockCounts, submitStockCount } from '@/services/inventoryService';
@@ -64,6 +64,8 @@ function StockCountsManagerDispatch(): JSX.Element {
 
 function StockCountsList(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
+  const isManager = role === 'STORE_MANAGER';
   const { toast } = useToast();
 
   const [counts, setCounts] = useState<StockCount[]>([]);
@@ -101,9 +103,28 @@ function StockCountsList(): JSX.Element {
 
   return (
     <div className="min-h-full bg-crema pb-24">
-      <div className="bg-espresso px-4 pb-5 pt-6 text-crema">
-        <p className="font-display text-heading-lg font-medium">Stock Counts</p>
-        <p className="text-label-md text-crema/70">Central Store</p>
+      <div className="flex items-start justify-between gap-3 bg-espresso px-4 pb-5 pt-6 text-crema">
+        <div>
+          <p className="font-display text-heading-lg font-medium">Stock Counts</p>
+          <p className="text-label-md text-crema/70">Central Store</p>
+        </div>
+        <HelpTip
+          title="Stock Counts"
+          triggerClassName="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-crema/70 transition-colors hover:bg-white/10 hover:text-crema focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          <p>Physically count what&rsquo;s on the shelf and compare it to what the system expects, to catch loss or errors.</p>
+          {isManager ? (
+            <p className="mt-2">
+              Tap + to start a new count, or open a submitted one to review the variance and approve it — approving
+              updates stock to match what was actually counted.
+            </p>
+          ) : (
+            <p className="mt-2">
+              You won&rsquo;t see the expected quantity while counting — enter what you actually see, then submit
+              for your manager to review.
+            </p>
+          )}
+        </HelpTip>
       </div>
 
       <div className="px-4 py-4">

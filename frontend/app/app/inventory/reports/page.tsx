@@ -12,7 +12,7 @@ import {
   Utensils,
   Wallet,
 } from 'lucide-react';
-import { Button, Card, ExcelTable, PageHeader, PageLayout, TabBar, type ExcelColumn } from '@/components/ui';
+import { Button, Card, ExcelTable, HelpTip, PageHeader, PageLayout, TabBar, type ExcelColumn } from '@/components/ui';
 import { PriceTrendChart } from '@/components/inventory/PriceTrendChart';
 import { itemTypeLabel } from '@/components/inventory/item-type-icon';
 import {
@@ -254,7 +254,18 @@ function InventoryReportsPageInner(): JSX.Element {
       <PageHeader
         title="Reports"
         subtitle="Central Store performance and reconciliation"
-        action={<Button variant="secondary" leftIcon={<Download size={16} />} onClick={handleExport}>Export CSV</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <HelpTip title="Reports">
+              <p>Central Store performance across stock value, reordering, prep yield, count accuracy, and what you owe suppliers.</p>
+              <p className="mt-2">
+                Each tab is its own report — switch between them above, and export the current one to CSV with the
+                button on the right.
+              </p>
+            </HelpTip>
+            <Button variant="secondary" leftIcon={<Download size={16} />} onClick={handleExport}>Export CSV</Button>
+          </div>
+        }
       />
 
       <TabBar tabs={TABS} active={tab} onChange={setTab} className="mb-5" />
