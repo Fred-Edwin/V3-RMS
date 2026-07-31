@@ -207,65 +207,102 @@ per-unit cost the way the old flour/soap bug did. This fully replaces
 
 ### 2. Production seeding mechanics
 
-**Constraint:** `seed-dev.ts` and `seed-inventory-demo.ts` both hard-exit
-when `NODE_ENV === 'production'`, per the locked guard — untouched.
+**Course correction — 2026-08-01, supersedes the "isolated Organization"
+approach below the fold in this section's original draft.** Between this
+follow-up session and now, Phase 1 shipped with **D-15**
+(`CENTRAL_STORE_SCOPING_DESIGN.md`, `INVENTORY_FEATURE_PLAN.md` §2 table):
+the Central Store is scoped to **the hub Organization**, and a partial
+unique index allows **exactly one `CENTRAL_STORE` location system-wide**.
+There is no longer any way to create a second, isolated demo Organization
+with its own Central Store — the schema itself now forbids it. The
+original plan to spin up a disposable `"Wendo Coffee Bistro — PILOT
+DEMO"` org is **abandoned**.
 
-**Decision: one new script, `seed-pilot-demo.ts`** — allowed to run in
-production, self-contained (doesn't depend on `seed-dev.ts` or
-`seed-inventory-demo.ts`). Creates the isolated demo Organization +
-CENTRAL_STORE Location + STORE_MANAGER/STORE_ATTENDANT users, then seeds
-the full synthetic catalog + transaction history from §1/§3 in the same
-run. Reusing the two existing scripts was rejected: `seed-dev.ts` acts on
-*every* active org (wrong — we want exactly one new org), and
-`seed-inventory-demo.ts` finds "first `STORE_MANAGER` org-wide" (unsafe in
-production once the client's real org also has one).
+**Revised decision:** seed the synthetic demo data (§1/§3) directly into
+the **real, single hub org's Central Store** — the one the owner creates
+by hand through the Admin UI right after the production deploy (Set up
+Central Store → flag hub → create Store Manager → Store Manager creates
+Store Attendant). This is exactly what the already-built local variant,
+`backend/src/scripts/seed-pilot-demo-local.ts`, does against the local
+DB — it finds whatever hub org/location/users already exist rather than
+creating its own. The production script mirrors it exactly, with the
+`NODE_ENV` guard inverted.
 
-**Identification:** `Organization.name = "Wendo Coffee Bistro — PILOT
-DEMO"`. Seed script prints the created org's `id` to stdout at the end —
-required as an explicit `--org-id=<id>` arg to teardown (name-match alone
-is too easy to fat-finger against the wrong row). `kraPIN`/`phone`/etc.
-left blank/placeholder.
+**Two new scripts exist now** (`backend/src/scripts/`):
 
-**Guards:**
-- Requires `NODE_ENV === 'production'` explicitly (inverted from the
-  other two — this script *only* runs in production; local dev already
-  has `seed-inventory-demo.ts`).
-- Idempotent: re-running finds the existing org by name, skips
-  org/location/user creation, only upserts catalog (safe re-run/top-up).
-- Requires `SEED_PILOT_DEMO_CONFIRM=YES` env var to run at all, same
-  pattern as `seed-report-orders.ts`'s `SEED_REPORTS_CONFIRM=YES`.
+- **`seed-pilot-demo.ts`** — production-only (`NODE_ENV === 'production'`
+  required, opposite of every other seed script), gated behind
+  `SEED_PILOT_DEMO_CONFIRM=YES`. Finds the existing hub org + its
+  `CENTRAL_STORE` location + an active `STORE_MANAGER` + `STORE_ATTENDANT`
+  (errors out with a clear message if any are missing — i.e. if the owner
+  hasn't done the manual Admin setup yet), then seeds suppliers, catalog,
+  opening stock, the prep recipe + prior run, the DRAFT/SENT POs, the AP
+  invoice portfolio, the waste entry, and the in-progress stock count —
+  identical logic to `seed-pilot-demo-local.ts`, imported from the same
+  shared `pilot-demo-data.ts`. Idempotent (matches by name/PO
+  number/invoice reference, safe to re-run/top-up).
+- **`teardown-pilot-demo.ts`** — same production + confirm-env gate.
+  Because the data now lives in the **real** hub org (which will hold
+  real pilot data too, not just demo data), teardown can no longer delete
+  "everything where `organizationId = X`" — that would destroy real
+  records. Instead it identifies rows by the **same fixed markers**
+  `seed-pilot-demo.ts` used for idempotency: the exact item/supplier names
+  in `pilot-demo-data.ts`, PO numbers (`PO-DEMO-001`, `PO-DEMO-002`,
+  `PO-DEMO-AP1..3`), invoice references (`NHW-INV-101`, `AFF-INV-207`,
+  `MKB-INV-330`), and the stock count label ("Weekly Spot Count —
+  Pantry"). **Defaults to a dry run** — prints every row it would delete,
+  grouped by table, and deletes nothing unless `--confirm` is passed.
+  Deletes in FK-safe order inside one `prisma.$transaction`
+  (`InventoryTransaction` → `WasteLog` → `PrepRecord` → `PrepRecipe` →
+  `StockCount` → `SupplierInvoice` → `PurchaseOrder` → `SupplierItem` →
+  `InventoryItem` → `Supplier`) — never touches the hub `Organization`,
+  its `CENTRAL_STORE` `Location`, or the Manager/Attendant `User` rows,
+  since those are the owner's real setup, not seed output.
 
-**Invocation (production server, after CI/CD deploy):**
+  This marker-based approach was chosen over tagging every seeded row
+  with a dedicated marker column/manifest: the item/supplier names and
+  document numbers in `pilot-demo-data.ts` are already fixed and unique
+  enough for exact-match deletion, and a schema change or manifest file
+  adds mechanism the one-time pilot demo doesn't need. The residual risk
+  — something else in the org later reusing one of these exact names or
+  numbers — is why teardown always dry-runs first and requires a second,
+  explicit `--confirm` invocation to actually delete.
+
+**Invocation (production server, after CI/CD deploy, after the owner has
+done the manual Admin setup):**
 ```bash
 cd ~/wendo-rms
 docker compose exec api sh -c "SEED_PILOT_DEMO_CONFIRM=YES node dist/scripts/seed-pilot-demo.js"
 ```
-Prints the org id and both login credentials at the end.
 
-**Teardown:** a second script, `teardown-pilot-demo.ts`, production-only,
-same `SEED_PILOT_DEMO_CONFIRM=YES` gate, plus a required `--org-id=<id>`
-arg:
+**Teardown (after recording — always dry-run first):**
 ```bash
-docker compose exec api sh -c "SEED_PILOT_DEMO_CONFIRM=YES node dist/scripts/teardown-pilot-demo.js --org-id=<the-id-printed-above>"
+docker compose exec api sh -c "SEED_PILOT_DEMO_CONFIRM=YES node dist/scripts/teardown-pilot-demo.js"
+# review the printed list, then:
+docker compose exec api sh -c "SEED_PILOT_DEMO_CONFIRM=YES node dist/scripts/teardown-pilot-demo.js --confirm"
 ```
-Looks up the org by id, **asserts `name` equals exactly `"Wendo Coffee
-Bistro — PILOT DEMO"`** before deleting anything, then deletes every row
-scoped by that `organizationId` in FK-safe order inside one
-`prisma.$transaction`, printing per-table row counts.
 
-**Confirmation checkpoints (per ground rules, not yet executed):**
-running `seed-pilot-demo.ts` on the server, and running
-`teardown-pilot-demo.ts` after recording — both need explicit go-ahead
-each time, even though it's the isolated demo org.
+**Confirmation checkpoints (per ground rules, not yet executed):** running
+`seed-pilot-demo.ts` on the server, and running `teardown-pilot-demo.ts
+--confirm` after recording — both need explicit go-ahead each time. This
+now matters more than under the old isolated-org plan, since both scripts
+touch the *real* hub org, not a disposable one.
 
 ### 3. Walkthrough data — concrete records per step
 
-Demo accounts: `manager.demo@wendo-pilot.test` / `attendant.demo@wendo-pilot.test`,
-password `PilotDemo2026!` (SYSTEM_ADMIN uses the existing real prod admin
-account for step 1, no separate demo admin).
+Accounts are now the **real** production Store Manager/Attendant the
+owner creates by hand post-deploy (not disposable demo logins, since
+there's no isolated org to disposably log into anymore — see §2). Local
+rehearsal used `store.manager@wendo.co.ke` / `store.attendant@wendo.co.ke`
+(`PHASE1_LOCAL_TEST_GUIDE.md`); production will use whatever real email
+the owner assigns during the manual Admin setup.
 
-1. **Account creation** — live action: real SYSTEM_ADMIN creates the two
-   demo accounts above on camera.
+1. **Account creation** — live action, unchanged: real SYSTEM_ADMIN
+   creates the Central Store (Set up Central Store → flag hub), then the
+   Store Manager account, then logs in as Manager to create the Store
+   Attendant — all on camera. This step now does double duty: it's both
+   the walkthrough's opening beat *and* the actual one-time production
+   setup `seed-pilot-demo.ts` depends on existing before it can run.
 2. **Catalog + Suppliers** — pre-seeded: all 3 suppliers + full 23-item
    catalog, linked via `SupplierItem`. Show Mt. Kenya Bulk Traders detail
    (10 linked items, the most of the three).
@@ -347,11 +384,17 @@ of blank/logo card in Resolve.
 not verbatim script — owner to decide whether to script it word-for-word
 or narrate off-the-cuff on recording day using the beats as a cue sheet.
 
-### Not yet built
+### Built, not yet run
 
-None of `seed-pilot-demo.ts` / `teardown-pilot-demo.ts` exist yet — this
-section is the plan for them, not an implementation status. Next step is
-writing the actual scripts, once the owner confirms proceeding.
+`seed-pilot-demo.ts` and `teardown-pilot-demo.ts` exist in
+`backend/src/scripts/` (typechecked clean), per the revised §2 mechanics.
+Neither has been run against production — both are gated behind
+`NODE_ENV === 'production'` + `SEED_PILOT_DEMO_CONFIRM=YES`, and running
+either still needs explicit owner go-ahead each time (see §2's
+confirmation checkpoints). Still pending, in order: (1) production deploy
+of Phase 1, (2) owner's manual Admin setup of the real hub org/Central
+Store/Manager/Attendant, (3) `seed-pilot-demo.ts`, (4) recording, (5)
+`teardown-pilot-demo.ts` dry run then `--confirm`.
 
 ## Deployment note
 
