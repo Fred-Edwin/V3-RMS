@@ -1,3 +1,9 @@
+# Single-package "workspace": the packages field exists only so pnpm 9
+# (CI pins pnpm@9 — .github/workflows) accepts this file; local dev runs
+# pnpm 11, which stores its build-script approvals (allowBuilds) here.
+packages:
+  - '.'
+
 allowBuilds:
   '@firebase/util': true
   '@prisma/client': true
