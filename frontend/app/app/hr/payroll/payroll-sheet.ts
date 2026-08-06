@@ -29,6 +29,8 @@ export interface SheetRow {
   overtime: string;
   allowances: string;
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankAccount: string | null;
   bankName: string | null;
   accountNumber: string | null;
@@ -161,6 +163,8 @@ export const staffToRow = (staff: StaffDto, branchName: string): SheetRow => ({
   overtime: '',
   allowances: '',
   kraPIN: null,
+  shifNhifNumber: null,
+  nssfNumber: null,
   bankAccount: null,
   bankName: null,
   accountNumber: null,
@@ -187,6 +191,8 @@ export const payslipToRow = (payslip: Payslip): Partial<SheetRow> => {
     overtime: payslip.overtime ?? '',
     allowances: payslip.allowances ?? '',
     kraPIN: ep?.kraPIN ?? null,
+    shifNhifNumber: ep?.shifNhifNumber ?? null,
+    nssfNumber: ep?.nssfNumber ?? null,
     bankAccount: formatSheetAccount(ep?.accountNumber, ep?.bankName),
     bankName: ep?.bankName ?? null,
     accountNumber: ep?.accountNumber ?? null,

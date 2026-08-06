@@ -26,15 +26,19 @@ describe('cleanStaffValue', () => {
 });
 
 describe('buildStaffDetailPatch', () => {
-  it('trims all three fields for persistence', () => {
+  it('trims all fields for persistence', () => {
     expect(
       buildStaffDetailPatch({
         kraPIN: '  A123B ',
+        shifNhifNumber: ' NHIF-9988 ',
+        nssfNumber: ' NSSF-4455 ',
         bankName: ' Equity Bank ',
         accountNumber: ' 0110123456789 ',
       }),
     ).toEqual({
       kraPIN: 'A123B',
+      shifNhifNumber: 'NHIF-9988',
+      nssfNumber: 'NSSF-4455',
       bankName: 'Equity Bank',
       accountNumber: '0110123456789',
     });
@@ -44,17 +48,37 @@ describe('buildStaffDetailPatch', () => {
     // Regression: HR deletes a wrong account number — it must be cleared, not
     // persisted as "" (which would still count as "set" downstream).
     expect(
-      buildStaffDetailPatch({ kraPIN: 'A123B', bankName: '', accountNumber: '   ' }),
+      buildStaffDetailPatch({
+        kraPIN: 'A123B',
+        shifNhifNumber: '',
+        nssfNumber: '   ',
+        bankName: '',
+        accountNumber: '   ',
+      }),
     ).toEqual({
       kraPIN: 'A123B',
+      shifNhifNumber: null,
+      nssfNumber: null,
       bankName: null,
       accountNumber: null,
     });
   });
 
-  it('always sends all three keys so a single-field edit cannot drop the others', () => {
-    const patch = buildStaffDetailPatch({ kraPIN: null, bankName: null, accountNumber: null });
-    expect(Object.keys(patch).sort()).toEqual(['accountNumber', 'bankName', 'kraPIN']);
+  it('always sends all keys so a single-field edit cannot drop the others', () => {
+    const patch = buildStaffDetailPatch({
+      kraPIN: null,
+      shifNhifNumber: null,
+      nssfNumber: null,
+      bankName: null,
+      accountNumber: null,
+    });
+    expect(Object.keys(patch).sort()).toEqual([
+      'accountNumber',
+      'bankName',
+      'kraPIN',
+      'nssfNumber',
+      'shifNhifNumber',
+    ]);
   });
 });
 

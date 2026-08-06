@@ -72,6 +72,8 @@ export const payslipService = {
   updateMyPaymentDetails: async (
     data: {
       kraPIN?: string | null;
+      shifNhifNumber?: string | null;
+      nssfNumber?: string | null;
       bankName?: string | null;
       accountNumber?: string | null;
       accountName?: string | null;

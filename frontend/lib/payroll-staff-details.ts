@@ -10,12 +10,16 @@
 
 export interface StaffDetailSource {
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankName: string | null;
   accountNumber: string | null;
 }
 
 export interface StaffDetailPatch {
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankName: string | null;
   accountNumber: string | null;
 }
@@ -39,6 +43,8 @@ export function cleanStaffValue(value: string | null | undefined): string | null
 export function buildStaffDetailPatch(row: StaffDetailSource): StaffDetailPatch {
   return {
     kraPIN: cleanStaffValue(row.kraPIN),
+    shifNhifNumber: cleanStaffValue(row.shifNhifNumber),
+    nssfNumber: cleanStaffValue(row.nssfNumber),
     bankName: cleanStaffValue(row.bankName),
     accountNumber: cleanStaffValue(row.accountNumber),
   };

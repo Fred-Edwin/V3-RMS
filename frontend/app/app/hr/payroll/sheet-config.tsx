@@ -6,7 +6,7 @@ import type { SheetCellTint, SheetColumnGroup, SheetEngine, SheetRowContext } fr
 import { formatCurrency } from '@/components/payslips/payslip-utils';
 import { computeRow, type EditableColumnKey, type PayrollTotals, type RowState, type SheetRow } from './payroll-sheet';
 
-export type StaffDetailField = 'kraPIN' | 'bankName' | 'accountNumber';
+export type StaffDetailField = 'kraPIN' | 'shifNhifNumber' | 'nssfNumber' | 'bankName' | 'accountNumber';
 
 export interface PayrollSheetOptions {
   engine: SheetEngine<EditableColumnKey>;
@@ -338,6 +338,8 @@ export function buildPayrollGroups(opts: PayrollSheetOptions): SheetColumnGroup<
       dataTour: 'staff-details',
       columns: [
         staffDetailColumn('kraPIN', 'KRA PIN', 140, { leftDivider: true }),
+        staffDetailColumn('shifNhifNumber', <>SHIF / NHIF<br />Number</>, 140),
+        staffDetailColumn('nssfNumber', <>NSSF<br />Number</>, 140),
         staffDetailColumn('bankName', <>Bank<br />Name</>, 150),
         staffDetailColumn('accountNumber', <>Account<br />Number</>, 150, { showSaveDot: true }),
       ],

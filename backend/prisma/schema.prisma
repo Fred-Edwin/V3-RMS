@@ -1134,6 +1134,8 @@ model EmployeeProfile {
   reportingManagerId String?         @map("reporting_manager_id")
   notes              String?
   kraPIN             String?         @map("kra_pin")
+  shifNhifNumber     String?         @map("shif_nhif_number")
+  nssfNumber         String?         @map("nssf_number")
   bankName           String?         @map("bank_name")
   accountNumber      String?         @map("account_number")
   accountName        String?         @map("account_name")
@@ -1377,6 +1379,8 @@ enum DisciplinaryAction {
 enum HrDocumentType {
   CONTRACT
   ID_COPY
+  NATIONAL_ID_FRONT
+  NATIONAL_ID_BACK
   CERTIFICATE
   MEDICAL_CERTIFICATE
   INCIDENT_REPORT

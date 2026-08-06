@@ -2,7 +2,7 @@ import { prisma } from '../config/database';
 import * as hrRepository from '../repositories/hr-repository';
 import { fcmService } from './fcm-service';
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../utils/errors';
-import { SELF_UPLOADABLE_DOCUMENT_TYPES } from '../utils/hr-constants';
+import { SELF_UPLOADABLE_DOCUMENT_TYPES, REPLACE_ON_REUPLOAD_DOCUMENT_TYPES } from '../utils/hr-constants';
 import { destroyUploadedFile } from '../utils/cloudinary';
 import type { UserRole } from '@prisma/client';
 import { logger } from '../utils/logger';
@@ -731,6 +731,49 @@ export async function authorizeDocumentUpload(
   }
 
   return profile;
+}
+
+/**
+ * Creates an HR document, replacing any existing document of the same type on
+ * the profile when that type is in REPLACE_ON_REUPLOAD_DOCUMENT_TYPES (currently
+ * NATIONAL_ID_FRONT / NATIONAL_ID_BACK). A document linked to a disciplinary
+ * record or leave request is case evidence and is kept — the upload appends
+ * instead of failing, since the staff member did nothing wrong.
+ *
+ * The new file is expected to already be uploaded to Cloudinary (fileUrl points
+ * at it) before this runs, so a failed DB write never orphans the old copy.
+ */
+export async function createHrDocument(data: {
+  employeeProfileId: string;
+  leaveRequestId?: string;
+  disciplinaryRecordId?: string;
+  documentType: import('@prisma/client').HrDocumentType;
+  fileName: string;
+  fileUrl: string;
+  uploadedById: string;
+}) {
+  let toReplace: Array<{ id: string; fileUrl: string }> = [];
+
+  if (REPLACE_ON_REUPLOAD_DOCUMENT_TYPES.includes(data.documentType)) {
+    const existing = await hrRepository.findHrDocumentsByProfileAndType(
+      data.employeeProfileId,
+      data.documentType,
+    );
+    toReplace = existing.filter((doc) => !doc.disciplinaryRecordId && !doc.leaveRequestId);
+  }
+
+  const created = await hrRepository.replaceHrDocuments(
+    toReplace.map((doc) => doc.id),
+    data,
+  );
+
+  for (const doc of toReplace) {
+    await destroyUploadedFile(doc.fileUrl).catch((error) =>
+      logger.warn(`Cloudinary cleanup failed during document replace: ${error}`),
+    );
+  }
+
+  return created;
 }
 
 /**

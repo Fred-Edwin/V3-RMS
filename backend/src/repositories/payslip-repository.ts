@@ -26,6 +26,8 @@ const payslipInclude = {
         select: {
           jobTitle: true,
           kraPIN: true,
+          shifNhifNumber: true,
+          nssfNumber: true,
           bankName: true,
           accountNumber: true,
           accountName: true,

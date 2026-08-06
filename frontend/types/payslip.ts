@@ -14,6 +14,8 @@ export interface PayslipOrganizationSummary {
 export interface PayslipEmployeeProfile {
   jobTitle: string | null;
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankName: string | null;
   accountNumber: string | null;
   accountName: string | null;

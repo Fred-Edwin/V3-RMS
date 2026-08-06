@@ -240,6 +240,8 @@ export default function HrPayslipsPage(): JSX.Element {
 
       const ep = profileMap.get(staff.id);
       base.kraPIN = ep?.kraPIN ?? null;
+      base.shifNhifNumber = ep?.shifNhifNumber ?? null;
+      base.nssfNumber = ep?.nssfNumber ?? null;
       base.bankAccount = formatSheetAccount(ep?.accountNumber, ep?.bankName);
       base.bankName = ep?.bankName ?? null;
       base.accountNumber = ep?.accountNumber ?? null;
@@ -739,6 +741,8 @@ export default function HrPayslipsPage(): JSX.Element {
         name: r.name,
         role: r.role,
         kraPIN: r.kraPIN,
+        shifNhifNumber: r.shifNhifNumber,
+        nssfNumber: r.nssfNumber,
         bankName: r.bankName,
         accountNumber: r.accountNumber,
         grossPay: num(r.grossPay),

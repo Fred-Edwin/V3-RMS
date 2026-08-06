@@ -19,6 +19,8 @@ vi.mock('../repositories/hr-repository', () => ({
   assignContractAndSyncBalances: vi.fn(),
   findHrDocumentById: vi.fn(),
   deleteHrDocument: vi.fn(),
+  findHrDocumentsByProfileAndType: vi.fn(),
+  replaceHrDocuments: vi.fn(),
 }));
 
 vi.mock('./fcm-service', () => ({
@@ -318,5 +320,86 @@ describe('deleteHrDocument', () => {
 
     await expect(hrService.deleteHrDocument('doc-1')).resolves.toBe(unlinkedDocument);
     expect(hrRepository.deleteHrDocument).toHaveBeenCalledWith('doc-1');
+  });
+});
+
+describe('createHrDocument (replace-on-reupload)', () => {
+  const uploadData = {
+    employeeProfileId: waiterProfile.id,
+    documentType: 'NATIONAL_ID_FRONT' as const,
+    fileName: 'id-front.jpg',
+    fileUrl: 'https://res.cloudinary.com/demo/image/upload/v2/hr-documents/id-front-new.jpg',
+    uploadedById: waiterActor.id,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates with no prior deletions when no existing document of that type', async () => {
+    vi.mocked(hrRepository.findHrDocumentsByProfileAndType).mockResolvedValue([]);
+    vi.mocked(hrRepository.replaceHrDocuments).mockResolvedValue({ id: 'new-doc' } as never);
+
+    await hrService.createHrDocument(uploadData);
+
+    expect(hrRepository.replaceHrDocuments).toHaveBeenCalledWith([], uploadData);
+    expect(cloudinaryUtils.destroyUploadedFile).not.toHaveBeenCalled();
+  });
+
+  it('deletes the prior same-type document and cleans up its Cloudinary asset', async () => {
+    const oldDoc = {
+      id: 'old-doc',
+      fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/hr-documents/id-front-old.jpg',
+      disciplinaryRecordId: null,
+      leaveRequestId: null,
+    };
+    vi.mocked(hrRepository.findHrDocumentsByProfileAndType).mockResolvedValue([oldDoc as never]);
+    vi.mocked(hrRepository.replaceHrDocuments).mockResolvedValue({ id: 'new-doc' } as never);
+    vi.mocked(cloudinaryUtils.destroyUploadedFile).mockResolvedValue(undefined);
+
+    await hrService.createHrDocument(uploadData);
+
+    expect(hrRepository.replaceHrDocuments).toHaveBeenCalledWith(['old-doc'], uploadData);
+    expect(cloudinaryUtils.destroyUploadedFile).toHaveBeenCalledWith(oldDoc.fileUrl);
+  });
+
+  it('does not touch the other ID side when replacing one side', async () => {
+    // findHrDocumentsByProfileAndType is queried by exact documentType, so a
+    // NATIONAL_ID_BACK document never appears in the NATIONAL_ID_FRONT lookup.
+    vi.mocked(hrRepository.findHrDocumentsByProfileAndType).mockResolvedValue([]);
+    vi.mocked(hrRepository.replaceHrDocuments).mockResolvedValue({ id: 'new-doc' } as never);
+
+    await hrService.createHrDocument(uploadData);
+
+    expect(hrRepository.findHrDocumentsByProfileAndType).toHaveBeenCalledWith(
+      waiterProfile.id,
+      'NATIONAL_ID_FRONT',
+    );
+  });
+
+  it('keeps a case-linked document instead of deleting it', async () => {
+    const linkedDoc = {
+      id: 'linked-doc',
+      fileUrl: 'https://res.cloudinary.com/demo/image/upload/v1/hr-documents/id-front-linked.jpg',
+      disciplinaryRecordId: 'record-1',
+      leaveRequestId: null,
+    };
+    vi.mocked(hrRepository.findHrDocumentsByProfileAndType).mockResolvedValue([linkedDoc as never]);
+    vi.mocked(hrRepository.replaceHrDocuments).mockResolvedValue({ id: 'new-doc' } as never);
+
+    await hrService.createHrDocument(uploadData);
+
+    expect(hrRepository.replaceHrDocuments).toHaveBeenCalledWith([], uploadData);
+    expect(cloudinaryUtils.destroyUploadedFile).not.toHaveBeenCalled();
+  });
+
+  it('does not replace for non-ID document types like CERTIFICATE (stays append-only)', async () => {
+    vi.mocked(hrRepository.replaceHrDocuments).mockResolvedValue({ id: 'new-doc' } as never);
+
+    const certData = { ...uploadData, documentType: 'CERTIFICATE' as const };
+    await hrService.createHrDocument(certData);
+
+    expect(hrRepository.findHrDocumentsByProfileAndType).not.toHaveBeenCalled();
+    expect(hrRepository.replaceHrDocuments).toHaveBeenCalledWith([], certData);
   });
 });

@@ -23,6 +23,8 @@ export interface PayrollExportRow {
   name: string;
   role: string;
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankName: string | null;
   accountNumber: string | null;
   grossPay: number;
@@ -145,6 +147,8 @@ const REGISTER_HEADER = [
   'Total Deductions',
   'Net Salary',
   'KRA PIN',
+  'SHIF / NHIF Number',
+  'NSSF Number',
   'Bank',
   'Account Number',
 ];
@@ -206,7 +210,7 @@ const totalsRow = (label: string, totals: RegisterTotals): string =>
     money(totals.allowances),
     money(totals.totalDeductions),
     money(totals.netSalary),
-    '', '', '',
+    '', '', '', '', '',
   ]);
 
 export const buildPayrollRegisterCsv = (
@@ -250,6 +254,8 @@ export const buildPayrollRegisterCsv = (
           money(row.totalDeductions),
           money(row.netSalary),
           row.kraPIN ?? '',
+          row.shifNhifNumber ?? '',
+          row.nssfNumber ?? '',
           row.bankName ?? '',
           row.accountNumber ?? '',
         ]),

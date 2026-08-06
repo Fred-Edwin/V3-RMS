@@ -22,7 +22,19 @@ export const PROFILE_EXCLUDED_ROLES: UserRole[] = [
  */
 export const SELF_UPLOADABLE_DOCUMENT_TYPES: HrDocumentType[] = [
   'ID_COPY',
+  'NATIONAL_ID_FRONT',
+  'NATIONAL_ID_BACK',
   'CERTIFICATE',
   'MEDICAL_CERTIFICATE',
   'OTHER',
+];
+
+/**
+ * Document types where re-uploading replaces the previous copy (delete old +
+ * create new) instead of appending. Scoped to ID sides only — staff may hold
+ * multiple certificates, so those stay append-only.
+ */
+export const REPLACE_ON_REUPLOAD_DOCUMENT_TYPES: HrDocumentType[] = [
+  'NATIONAL_ID_FRONT',
+  'NATIONAL_ID_BACK',
 ];

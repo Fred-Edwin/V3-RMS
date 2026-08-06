@@ -57,6 +57,8 @@ const COLUMNS: ColumnDef[] = [
   { header: 'Total Deductions', key: 'totalDeductions', width: 15, money: true },
   { header: 'Net Salary', key: 'netSalary', width: 14, money: true },
   { header: 'KRA PIN', key: 'kraPIN', width: 16 },
+  { header: 'SHIF / NHIF Number', key: 'shifNhifNumber', width: 18 },
+  { header: 'NSSF Number', key: 'nssfNumber', width: 16 },
   { header: 'Bank', key: 'bankName', width: 18 },
   { header: 'Account Number', key: 'accountNumber', width: 18 },
 ];
@@ -196,6 +198,8 @@ export const buildPayrollRegisterWorkbook = async (
         row.totalDeductions,
         row.netSalary,
         row.kraPIN ?? '',
+        row.shifNhifNumber ?? '',
+        row.nssfNumber ?? '',
         row.bankName ?? '',
         row.accountNumber ?? '',
       ]);

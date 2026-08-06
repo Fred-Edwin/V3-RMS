@@ -362,7 +362,7 @@ export async function uploadHrDocument(req: Request, res: Response): Promise<voi
   const profile = await hrService.authorizeDocumentUpload(actor, employeeUserId, documentType);
 
   const fileUrl = await uploadImageBuffer(req.file.buffer, 'hr-documents');
-  const doc = await hrRepository.createHrDocument({
+  const doc = await hrService.createHrDocument({
     employeeProfileId: profile.id,
     leaveRequestId: leaveRequestId || undefined,
     disciplinaryRecordId: disciplinaryRecordId || undefined,

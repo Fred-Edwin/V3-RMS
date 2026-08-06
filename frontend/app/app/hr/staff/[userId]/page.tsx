@@ -273,6 +273,9 @@ export default function EmployeeProfilePage(): JSX.Element {
     if (documentFilter === 'WARNING_LETTER' || documentFilter === 'INCIDENT_REPORT') {
       return d.documentType === 'WARNING_LETTER' || d.documentType === 'INCIDENT_REPORT';
     }
+    if (documentFilter === 'ID_COPY' || documentFilter === 'NATIONAL_ID_FRONT' || documentFilter === 'NATIONAL_ID_BACK') {
+      return d.documentType === 'ID_COPY' || d.documentType === 'NATIONAL_ID_FRONT' || d.documentType === 'NATIONAL_ID_BACK';
+    }
     return d.documentType === documentFilter;
   });
 
@@ -485,6 +488,8 @@ export default function EmployeeProfilePage(): JSX.Element {
           </InfoCard>
           <InfoCard title="Banking & Statutory">
             <InfoRow label="KRA PIN" value={profile.kraPIN} />
+            <InfoRow label="SHIF / NHIF Number" value={profile.shifNhifNumber} />
+            <InfoRow label="NSSF Number" value={profile.nssfNumber} />
             <InfoRow label="Bank" value={profile.bankName} />
             <InfoRow label="Account Name" value={profile.accountName} />
             <InfoRow label="Account Number" value={profile.accountNumber} />
@@ -609,6 +614,8 @@ export default function EmployeeProfilePage(): JSX.Element {
                   options={[
                     { value: 'CONTRACT', label: 'Contract' },
                     { value: 'ID_COPY', label: 'ID Copy' },
+                    { value: 'NATIONAL_ID_FRONT', label: 'National ID — Front' },
+                    { value: 'NATIONAL_ID_BACK', label: 'National ID — Back' },
                     { value: 'CERTIFICATE', label: 'Certificate' },
                     { value: 'MEDICAL_CERTIFICATE', label: 'Medical Certificate' },
                     { value: 'INCIDENT_REPORT', label: 'Incident Report' },
@@ -645,6 +652,8 @@ export default function EmployeeProfilePage(): JSX.Element {
                 { id: 'ALL', label: 'All' },
                 { id: 'CONTRACT', label: 'Contract' },
                 { id: 'ID_COPY', label: 'ID' },
+                { id: 'NATIONAL_ID_FRONT', label: 'ID' },
+                { id: 'NATIONAL_ID_BACK', label: 'ID' },
                 { id: 'CERTIFICATE', label: 'Certificates' },
                 { id: 'MEDICAL_CERTIFICATE', label: 'Medical' },
                 { id: 'WARNING_LETTER', label: 'Disciplinary' },

@@ -13,6 +13,8 @@ const makeRow = (overrides: Partial<PayrollExportRow>): PayrollExportRow => ({
   name: 'Jane Doe',
   role: 'Waiter',
   kraPIN: 'A001234567X',
+  shifNhifNumber: 'NHIF-9988',
+  nssfNumber: 'NSSF-4455',
   bankName: 'Equity',
   accountNumber: '1234567890',
   grossPay: 50000,
@@ -123,6 +125,13 @@ describe('buildBankFileCsv', () => {
     const result = buildBankFileCsv([makeRow({ name: 'Doe, Jane' })]);
     expect(result.csv).toContain('"Doe, Jane"');
   });
+
+  it('does not include SHIF/NHIF or NSSF numbers — the bank parses this file by column position', () => {
+    const result = buildBankFileCsv([makeRow({ name: 'Jane Doe', netSalary: 42395 })]);
+    const rows = parse(result.csv);
+    expect(rows[0]).toEqual(['Branch', 'Employee Name', 'KRA PIN', 'Bank', 'Account Number', 'Net Salary']);
+    expect(rows[0]).toHaveLength(6);
+  });
 });
 
 describe('buildPayrollRegisterCsv', () => {
@@ -170,5 +179,17 @@ describe('buildPayrollRegisterCsv', () => {
   it('handles an empty row set with a zeroed grand total', () => {
     const csv = buildPayrollRegisterCsv([], 'June 2026', 'now');
     expect(csv).toContain('GRAND TOTAL (0 staff)');
+  });
+
+  it('includes SHIF/NHIF and NSSF numbers alongside KRA PIN', () => {
+    const csv = buildPayrollRegisterCsv(
+      [makeRow({ shifNhifNumber: 'NHIF-9988', nssfNumber: 'NSSF-4455' })],
+      'June 2026',
+      'now',
+    );
+    expect(csv).toContain('SHIF / NHIF Number');
+    expect(csv).toContain('NSSF Number');
+    expect(csv).toContain('NHIF-9988');
+    expect(csv).toContain('NSSF-4455');
   });
 });

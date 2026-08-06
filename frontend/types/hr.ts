@@ -19,6 +19,8 @@ export type DisciplinaryAction =
 export type HrDocumentType =
   | 'CONTRACT'
   | 'ID_COPY'
+  | 'NATIONAL_ID_FRONT'
+  | 'NATIONAL_ID_BACK'
   | 'CERTIFICATE'
   | 'MEDICAL_CERTIFICATE'
   | 'INCIDENT_REPORT'
@@ -64,6 +66,8 @@ export interface EmployeeProfile {
   reportingManagerId: string | null;
   notes: string | null;
   kraPIN: string | null;
+  shifNhifNumber: string | null;
+  nssfNumber: string | null;
   bankName: string | null;
   accountNumber: string | null;
   accountName: string | null;
@@ -130,6 +134,8 @@ export interface SelfServiceProfileInput {
   emergencyRelation?: string | null;
   emergencyPhone?: string | null;
   kraPIN?: string | null;
+  shifNhifNumber?: string | null;
+  nssfNumber?: string | null;
   bankName?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;
@@ -141,6 +147,8 @@ export interface SelfServiceProfileInput {
  *  backend SELF_UPLOADABLE_DOCUMENT_TYPES in utils/hr-constants.ts */
 export const SELF_UPLOADABLE_DOCUMENT_TYPES: HrDocumentType[] = [
   'ID_COPY',
+  'NATIONAL_ID_FRONT',
+  'NATIONAL_ID_BACK',
   'CERTIFICATE',
   'MEDICAL_CERTIFICATE',
   'OTHER',
@@ -344,6 +352,8 @@ export interface CreateEmployeeProfileInput {
   reportingManagerId?: string;
   notes?: string;
   kraPIN?: string | null;
+  shifNhifNumber?: string | null;
+  nssfNumber?: string | null;
   bankName?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;

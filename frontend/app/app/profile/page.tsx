@@ -31,6 +31,8 @@ const hasEmployeeProfile = (role: AppRole | null): boolean => {
 
 const SELF_DOC_TYPE_LABELS: Record<string, string> = {
   ID_COPY: 'ID Copy',
+  NATIONAL_ID_FRONT: 'National ID — Front',
+  NATIONAL_ID_BACK: 'National ID — Back',
   CERTIFICATE: 'Certificate',
   MEDICAL_CERTIFICATE: 'Medical Certificate',
   OTHER: 'Other',
@@ -46,6 +48,8 @@ interface EmployeeDetailsForm {
   emergencyRelation: string;
   emergencyPhone: string;
   kraPIN: string;
+  shifNhifNumber: string;
+  nssfNumber: string;
   bankName: string;
   accountName: string;
   accountNumber: string;
@@ -56,7 +60,7 @@ interface EmployeeDetailsForm {
 const emptyDetailsForm: EmployeeDetailsForm = {
   nationalId: '', dateOfBirth: '', personalPhone: '', personalEmail: '', physicalAddress: '',
   emergencyName: '', emergencyRelation: '', emergencyPhone: '',
-  kraPIN: '', bankName: '', accountName: '', accountNumber: '', bankBranch: '', helbNumber: '',
+  kraPIN: '', shifNhifNumber: '', nssfNumber: '', bankName: '', accountName: '', accountNumber: '', bankBranch: '', helbNumber: '',
 };
 
 function detailsFormFrom(p: EmployeeProfile): EmployeeDetailsForm {
@@ -70,6 +74,8 @@ function detailsFormFrom(p: EmployeeProfile): EmployeeDetailsForm {
     emergencyRelation: p.emergencyRelation ?? '',
     emergencyPhone: p.emergencyPhone ?? '',
     kraPIN: p.kraPIN ?? '',
+    shifNhifNumber: p.shifNhifNumber ?? '',
+    nssfNumber: p.nssfNumber ?? '',
     bankName: p.bankName ?? '',
     accountName: p.accountName ?? '',
     accountNumber: p.accountNumber ?? '',
@@ -198,6 +204,8 @@ export default function Page(): JSX.Element {
         emergencyRelation: toNullable(detailsForm.emergencyRelation),
         emergencyPhone: toNullable(detailsForm.emergencyPhone),
         kraPIN: toNullable(detailsForm.kraPIN),
+        shifNhifNumber: toNullable(detailsForm.shifNhifNumber),
+        nssfNumber: toNullable(detailsForm.nssfNumber),
         bankName: toNullable(detailsForm.bankName),
         accountName: toNullable(detailsForm.accountName),
         accountNumber: toNullable(detailsForm.accountNumber),
@@ -466,6 +474,8 @@ export default function Page(): JSX.Element {
                   <p className="text-label-sm font-semibold uppercase tracking-wide text-stone-500">Banking & Statutory</p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input label="KRA PIN" value={detailsForm.kraPIN} onChange={(e) => setDetailsForm((p) => ({ ...p, kraPIN: e.target.value }))} />
+                    <Input label="SHIF / NHIF Number" value={detailsForm.shifNhifNumber} onChange={(e) => setDetailsForm((p) => ({ ...p, shifNhifNumber: e.target.value }))} />
+                    <Input label="NSSF Number" value={detailsForm.nssfNumber} onChange={(e) => setDetailsForm((p) => ({ ...p, nssfNumber: e.target.value }))} />
                     <Input label="HELB Number (if any)" value={detailsForm.helbNumber} onChange={(e) => setDetailsForm((p) => ({ ...p, helbNumber: e.target.value }))} />
                     <Input label="Bank Name" value={detailsForm.bankName} onChange={(e) => setDetailsForm((p) => ({ ...p, bankName: e.target.value }))} />
                     <Input label="Bank Branch" value={detailsForm.bankBranch} onChange={(e) => setDetailsForm((p) => ({ ...p, bankBranch: e.target.value }))} />

@@ -164,6 +164,24 @@ export function PayslipDetailModal({ payslip, isOpen, onClose }: PayslipDetailMo
                     <td />
                   </tr>
                 )}
+                {payslip.user.employeeProfile?.shifNhifNumber && (
+                  <tr>
+                    <td style={{ padding: '3px 0' }}>
+                      <span style={{ color: '#a8a29e' }}>SHIF / NHIF Number: </span>
+                      <strong style={{ color: '#1a0a00' }}>{payslip.user.employeeProfile.shifNhifNumber}</strong>
+                    </td>
+                    <td />
+                  </tr>
+                )}
+                {payslip.user.employeeProfile?.nssfNumber && (
+                  <tr>
+                    <td style={{ padding: '3px 0' }}>
+                      <span style={{ color: '#a8a29e' }}>NSSF Number: </span>
+                      <strong style={{ color: '#1a0a00' }}>{payslip.user.employeeProfile.nssfNumber}</strong>
+                    </td>
+                    <td />
+                  </tr>
+                )}
               </tbody>
             </table>
 

@@ -9,6 +9,8 @@ const makeRow = (overrides: Partial<PayrollExportRow>): PayrollExportRow => ({
   name: 'Jane Doe',
   role: 'Waiter',
   kraPIN: 'A001234567X',
+  shifNhifNumber: 'NHIF-9988',
+  nssfNumber: 'NSSF-4455',
   bankName: 'Equity',
   accountNumber: '1234567890',
   grossPay: 50000,
@@ -106,5 +108,30 @@ describe('buildPayrollRegisterWorkbook', () => {
       }
     });
     expect(grandNet).toBe(3500);
+  });
+
+  it('writes SHIF/NHIF and NSSF numbers in their own columns after KRA PIN', async () => {
+    const blob = await buildPayrollRegisterWorkbook(
+      [makeRow({ shifNhifNumber: 'NHIF-9988', nssfNumber: 'NSSF-4455' })],
+      'June 2026',
+      'x',
+      'Nyeri Town',
+    );
+    const ws = await readBack(blob);
+    const headerRow = ws.getRow(5); // title, period, generated, spacer, header
+    expect(headerRow.getCell(17).value).toBe('KRA PIN');
+    expect(headerRow.getCell(18).value).toBe('SHIF / NHIF Number');
+    expect(headerRow.getCell(19).value).toBe('NSSF Number');
+
+    let shifCell: unknown;
+    let nssfCell: unknown;
+    ws.eachRow((row) => {
+      if (row.getCell(1).value === 'Jane Doe') {
+        shifCell = row.getCell(18).value;
+        nssfCell = row.getCell(19).value;
+      }
+    });
+    expect(shifCell).toBe('NHIF-9988');
+    expect(nssfCell).toBe('NSSF-4455');
   });
 });

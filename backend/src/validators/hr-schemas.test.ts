@@ -4,6 +4,7 @@ import {
   createContractTypeSchema,
   updateContractTypeSchema,
   assignContractSchema,
+  uploadHrDocumentSchema,
 } from './hr-schemas';
 
 describe('selfServiceProfileSchema', () => {
@@ -18,6 +19,8 @@ describe('selfServiceProfileSchema', () => {
       emergencyRelation: 'Brother',
       emergencyPhone: '0700000000',
       kraPIN: 'A012345678Z',
+      shifNhifNumber: 'NHIF-9988',
+      nssfNumber: 'NSSF-4455',
       bankName: 'Equity',
       accountNumber: '1234567890',
       accountName: 'Jane Waiter',
@@ -42,6 +45,16 @@ describe('selfServiceProfileSchema', () => {
       [field]: value,
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('uploadHrDocumentSchema', () => {
+  it.each(['NATIONAL_ID_FRONT', 'NATIONAL_ID_BACK'])('accepts documentType %s', (documentType) => {
+    const result = uploadHrDocumentSchema.safeParse({
+      employeeUserId: '11111111-1111-4111-8111-111111111111',
+      documentType,
+    });
+    expect(result.success).toBe(true);
   });
 });
 

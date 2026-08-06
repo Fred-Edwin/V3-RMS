@@ -45,6 +45,8 @@ export interface UpdateEmployeeProfileData {
   reportingManagerId?: string | null;
   notes?: string;
   kraPIN?: string | null;
+  shifNhifNumber?: string | null;
+  nssfNumber?: string | null;
   bankName?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;
@@ -63,6 +65,8 @@ export interface SelfServiceProfileData {
   emergencyRelation?: string | null;
   emergencyPhone?: string | null;
   kraPIN?: string | null;
+  shifNhifNumber?: string | null;
+  nssfNumber?: string | null;
   bankName?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;
@@ -701,6 +705,53 @@ export async function listHrDocuments(employeeProfileId: string) {
       uploadedBy: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: 'desc' },
+  });
+}
+
+/** Existing documents of a given type on a profile — used to find what a re-upload would replace. */
+export async function findHrDocumentsByProfileAndType(
+  employeeProfileId: string,
+  documentType: import('@prisma/client').HrDocumentType,
+) {
+  return prisma.hrDocument.findMany({
+    where: { employeeProfileId, documentType },
+  });
+}
+
+/**
+ * Deletes `documentIds` and creates the new document in one transaction, so a
+ * re-upload can never leave the profile with zero copies of that document type.
+ */
+export async function replaceHrDocuments(
+  documentIds: string[],
+  createData: {
+    employeeProfileId: string;
+    leaveRequestId?: string;
+    disciplinaryRecordId?: string;
+    documentType: string;
+    fileName: string;
+    fileUrl: string;
+    uploadedById: string;
+  },
+) {
+  return prisma.$transaction(async (tx) => {
+    if (documentIds.length > 0) {
+      await tx.hrDocument.deleteMany({ where: { id: { in: documentIds } } });
+    }
+    return tx.hrDocument.create({
+      data: {
+        employeeProfileId: createData.employeeProfileId,
+        leaveRequestId: createData.leaveRequestId,
+        disciplinaryRecordId: createData.disciplinaryRecordId,
+        documentType: createData.documentType as import('@prisma/client').HrDocumentType,
+        fileName: createData.fileName,
+        fileUrl: createData.fileUrl,
+        uploadedById: createData.uploadedById,
+      },
+      include: {
+        uploadedBy: { select: { id: true, name: true } },
+      },
+    });
   });
 }
 

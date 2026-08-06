@@ -38,6 +38,8 @@ export const updateEmployeeProfileSchema = z.object({
   reportingManagerId: z.string().uuid().optional().nullable(),
   notes: z.string().optional(),
   kraPIN: z.string().min(1).optional().nullable(),
+  shifNhifNumber: z.string().min(1).optional().nullable(),
+  nssfNumber: z.string().min(1).optional().nullable(),
   bankName: z.string().min(1).optional().nullable(),
   accountNumber: z.string().min(1).optional().nullable(),
   accountName: z.string().min(1).optional().nullable(),
@@ -62,6 +64,8 @@ export const selfServiceProfileSchema = z
     emergencyRelation: z.string().min(1).optional().nullable(),
     emergencyPhone: z.string().min(1).optional().nullable(),
     kraPIN: z.string().min(1).optional().nullable(),
+    shifNhifNumber: z.string().min(1).optional().nullable(),
+    nssfNumber: z.string().min(1).optional().nullable(),
     bankName: z.string().min(1).optional().nullable(),
     accountNumber: z.string().min(1).optional().nullable(),
     accountName: z.string().min(1).optional().nullable(),
@@ -72,6 +76,8 @@ export const selfServiceProfileSchema = z
 
 export const updatePaymentDetailsSchema = z.object({
   kraPIN: z.string().min(1).optional().nullable(),
+  shifNhifNumber: z.string().min(1).optional().nullable(),
+  nssfNumber: z.string().min(1).optional().nullable(),
   bankName: z.string().min(1).optional().nullable(),
   accountNumber: z.string().min(1).optional().nullable(),
   accountName: z.string().min(1).optional().nullable(),
@@ -122,6 +128,8 @@ export const uploadHrDocumentSchema = z.object({
   documentType: z.enum([
     'CONTRACT',
     'ID_COPY',
+    'NATIONAL_ID_FRONT',
+    'NATIONAL_ID_BACK',
     'CERTIFICATE',
     'MEDICAL_CERTIFICATE',
     'INCIDENT_REPORT',
