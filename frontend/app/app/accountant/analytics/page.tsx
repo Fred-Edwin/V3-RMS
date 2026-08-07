@@ -556,6 +556,20 @@ function StaffTab({
     }
   }, [accessToken, branchId, startDate, endDate, toast]);
 
+  const waiterCollectionTotals = useMemo(() => {
+    const staff = staffReport?.staff ?? [];
+    if (staff.length === 0) return null;
+    let orders = 0, mpesa = 0, cash = 0, card = 0, total = 0;
+    for (const r of staff) {
+      orders += Number(r.ordersHandled);
+      mpesa += Number.parseFloat(r.paymentBreakdown?.mpesa ?? '0');
+      cash += Number.parseFloat(r.paymentBreakdown?.cash ?? '0');
+      card += Number.parseFloat(r.paymentBreakdown?.card ?? '0');
+      total += Number.parseFloat(r.paymentBreakdown?.total ?? r.averageOrderValue ?? '0');
+    }
+    return { orders, mpesa, cash, card, total };
+  }, [staffReport]);
+
   // Update branchId when branches load
   useEffect(() => {
     if (branches.length > 0 && !branchId) {
@@ -629,6 +643,18 @@ function StaffTab({
               rows={staffReport.staff}
               rowKey={(row) => row.id}
               headerTone="navy"
+              totalsRow={
+                waiterCollectionTotals
+                  ? {
+                      waiter: <span className="uppercase tracking-wide">Total</span>,
+                      orders: waiterCollectionTotals.orders,
+                      mpesa: <span className="text-success">{formatCurrency(waiterCollectionTotals.mpesa)}</span>,
+                      cash: formatCurrency(waiterCollectionTotals.cash),
+                      card: <span className="text-blue-700">{formatCurrency(waiterCollectionTotals.card)}</span>,
+                      total: <span className="font-semibold">{formatCurrency(waiterCollectionTotals.total)}</span>,
+                    }
+                  : undefined
+              }
             />
           )}
         </div>

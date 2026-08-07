@@ -459,6 +459,17 @@ export default function DirectorAnalyticsPage(): JSX.Element {
     [staffRows],
   );
 
+  const staffTotals = useMemo(() => {
+    if (staffRows.length === 0) return null;
+    let ordersHandled = 0, scheduledHours = 0, actualHours = 0;
+    for (const r of staffRows) {
+      ordersHandled += Number(r.ordersHandled);
+      scheduledHours += Number(r.scheduledHours);
+      actualHours += Number(r.actualHours);
+    }
+    return { ordersHandled, scheduledHours, actualHours };
+  }, [staffRows]);
+
   const waiterCollectionTotals = useMemo(() => {
     if (waiterRows.length === 0) return null;
     let mpesa = 0, cash = 0, card = 0, total = 0;
@@ -521,6 +532,20 @@ export default function DirectorAnalyticsPage(): JSX.Element {
       render: (row) => `${row.averagePrepTimeMinutes.BARISTA} min`,
     },
   ], [branchOverviewReport]);
+
+  const paymentBreakdownTotals = useMemo(() => {
+    const branches = branchOverviewReport?.branches ?? [];
+    let mpesa = 0, cash = 0, card = 0, houseAccount = 0, corporateAccount = 0, customerCredit = 0;
+    for (const b of branches) {
+      mpesa += Number.parseFloat(b.paymentBreakdown.mpesa);
+      cash += Number.parseFloat(b.paymentBreakdown.cash);
+      card += Number.parseFloat(b.paymentBreakdown.card);
+      houseAccount += Number.parseFloat(b.paymentBreakdown.houseAccount);
+      corporateAccount += Number.parseFloat(b.paymentBreakdown.corporateAccount);
+      customerCredit += Number.parseFloat(b.paymentBreakdown.customerCredit);
+    }
+    return { mpesa, cash, card, houseAccount, corporateAccount, customerCredit };
+  }, [branchOverviewReport]);
 
   const paymentColumns: Array<ExcelColumn<BranchReportRow>> = useMemo(() => [
     { key: 'name', label: 'Branch', render: (row) => <span className="font-semibold">{row.name}</span> },
@@ -1017,6 +1042,16 @@ export default function DirectorAnalyticsPage(): JSX.Element {
                   rows={branchOverviewReport.branches}
                   rowKey={(row) => row.id}
                   headerTone="green"
+                  totalsRow={{
+                    name: <span className="uppercase tracking-wide">Total</span>,
+                    mpesa: formatCurrency(paymentBreakdownTotals.mpesa),
+                    cash: formatCurrency(paymentBreakdownTotals.cash),
+                    card: formatCurrency(paymentBreakdownTotals.card),
+                    houseAccount: formatCurrency(paymentBreakdownTotals.houseAccount),
+                    corporateAccount: formatCurrency(paymentBreakdownTotals.corporateAccount),
+                    customerCredit: formatCurrency(paymentBreakdownTotals.customerCredit),
+                    total: <span className="font-semibold">{formatCurrency(branchOverviewReport.totalRevenue)}</span>,
+                  }}
                 />
               </div>
             </>
@@ -1108,6 +1143,16 @@ export default function DirectorAnalyticsPage(): JSX.Element {
               isLoading={isLoadingStaff}
               emptyState={
                 <EmptyState icon={<Users size={22} />} heading="No staff data" body="Pick a branch, optionally filter by role, then click Run Report." />
+              }
+              totalsRow={
+                staffTotals
+                  ? {
+                      name: <span className="uppercase tracking-wide">Total</span>,
+                      ordersHandled: staffTotals.ordersHandled,
+                      scheduledHours: staffTotals.scheduledHours.toFixed(2),
+                      actualHours: staffTotals.actualHours.toFixed(2),
+                    }
+                  : undefined
               }
             />
           </div>
