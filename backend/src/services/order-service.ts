@@ -818,11 +818,9 @@ export const orderService = {
       throw new ConflictError('Payment can only be recorded when the order is ready.');
     }
 
-    if (order.type === OrderType.DELIVERY && data.paymentMethod !== PaymentMethod.MPESA) {
-      throw new ValidationError('Delivery orders only accept MPESA payment');
-    }
-
-    // Staff discount authorization — deferred payment flow
+    // Staff discount authorization — deferred payment flow. No real payment method has
+    // been chosen yet at request time (the waiter re-submits payment after approval), so
+    // this must run before the DELIVERY/MPESA-only check below, which doesn't apply here.
     if (data.applyStaffDiscount === true) {
       await staffDiscountAuthService.createAuthRequest(orderId, organizationId, actor);
       const pendingOrder = await orderRepository.findById(orderId, organizationId);
@@ -830,7 +828,9 @@ export const orderService = {
       return serializeOrder(pendingOrder);
     }
 
-    // Customer discount — auto-apply or deferred approval depending on discount.requiresApproval
+    // Customer discount — auto-apply or deferred approval depending on discount.requiresApproval.
+    // Like staff discount, this path always returns early without collecting a real payment
+    // method, so it must run before the DELIVERY/MPESA-only check below.
     if (data.applyDiscountId !== undefined) {
       const result = await customerDiscountAuthService.createAuthRequest(
         orderId,
@@ -852,6 +852,10 @@ export const orderService = {
       // by replacing `order` reference — done by reassigning data flow below
       // We return early so the waiter must re-submit payment after seeing the discounted total
       return serializeOrder(discountedOrder);
+    }
+
+    if (order.type === OrderType.DELIVERY && data.paymentMethod !== PaymentMethod.MPESA) {
+      throw new ValidationError('Delivery orders only accept MPESA payment');
     }
 
     // Validate credit accounts exist, are active, and won't exceed credit limit (fast-fail check)

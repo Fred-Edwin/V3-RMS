@@ -807,11 +807,15 @@ export function OrderDetailBottomSheet({
   function handleConfirmPayment() {
     if (!order) return;
     if (selectedDiscountId === 'staff' && !order.discountAmount) {
-      onPayment(order.id, { paymentMethod: uiPaymentMethod as PaymentMethod, applyStaffDiscount: true });
+      // Discount requests are resolved before any payment method is collected — the
+      // waiter re-submits payment separately once approved. `uiPaymentMethod` can hold
+      // UI-only values (e.g. 'SPLIT_MPESA_CASH') that aren't valid backend PaymentMethod
+      // enum members, so never forward it here (was causing 400s — see incident 2026-08-11).
+      onPayment(order.id, { paymentMethod: 'CASH', applyStaffDiscount: true });
       return;
     }
     if (selectedDiscountId !== null && selectedDiscountId !== 'staff' && !order.discountAmount) {
-      onPayment(order.id, { paymentMethod: uiPaymentMethod as PaymentMethod, applyDiscountId: selectedDiscountId });
+      onPayment(order.id, { paymentMethod: 'CASH', applyDiscountId: selectedDiscountId });
       return;
     }
     if (uiPaymentMethod === 'SPLIT_MPESA_CASH') {
