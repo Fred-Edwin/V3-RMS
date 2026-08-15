@@ -422,11 +422,19 @@ export interface MyPerformanceQuery {
 }
 
 export interface ExportReportQuery {
-  reportType: 'daily_summary' | 'staff_performance' | 'branch_overview' | 'director_analytics' | 'manager_analytics' | 'accountant_reconciliation';
+  reportType:
+    | 'daily_summary'
+    | 'staff_performance'
+    | 'branch_overview'
+    | 'director_analytics'
+    | 'manager_analytics'
+    | 'accountant_reconciliation'
+    | 'corporate_account_statement';
   format: 'csv' | 'pdf';
   startDate: string;
   endDate: string;
   organizationId?: string;
+  corporateAccountId?: string;
 }
 
 export interface AccountantReconciliationQuery {

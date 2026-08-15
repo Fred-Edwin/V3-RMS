@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ChevronDown, ChevronRight, DollarSign, Loader2, Printer } from 'lucide-react';
+import { ChevronDown, ChevronRight, DollarSign, FileText, Loader2, Printer } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -45,6 +45,17 @@ import type { OrderDetail } from '@/types/order';
 import type { OutstandingBalancesReport } from '@/types/report';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+// Statement export is still being redesigned to match invoice-standard conventions
+// (opening/closing balance, statement ref, payment terms) — hidden until that lands.
+const STATEMENT_EXPORT_ENABLED = false;
+
+const toYmd = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const formatCurrency = (value: string | number): string => {
   const num = typeof value === 'string' ? Number.parseFloat(value) : value;
@@ -576,35 +587,73 @@ function CorporateAccountDetail({
   const [settledReceipt, setSettledReceipt] = useState<{ settlementId: string; companyName: string } | null>(null);
   const [printTargetModalOpen, setPrintTargetModalOpen] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
+  const [rangeStartDate, setRangeStartDate] = useState('');
+  const [rangeEndDate, setRangeEndDate] = useState('');
+  const [isExportingStatement, setIsExportingStatement] = useState(false);
+  const hasDateRange = Boolean(rangeStartDate && rangeEndDate);
 
   const loadOrders = useCallback(async () => {
+    if (!hasDateRange) {
+      setOrders([]);
+      return;
+    }
     setIsLoadingOrders(true);
     try {
-      const result = await corporateAccountService.getOrderHistory(account.id, accessToken, 1, 100);
+      const result = await corporateAccountService.getOrderHistory(account.id, accessToken, 1, 100, {
+        startDate: rangeStartDate,
+        endDate: rangeEndDate,
+      });
       setOrders(result.orders);
     } catch {
       toast({ variant: 'error', title: 'Failed to load order history' });
     } finally {
       setIsLoadingOrders(false);
     }
-  }, [account.id, accessToken, toast]);
+  }, [account.id, accessToken, hasDateRange, rangeStartDate, rangeEndDate, toast]);
 
   const loadSettlements = useCallback(async () => {
+    if (!hasDateRange) {
+      setSettlements([]);
+      return;
+    }
     setIsLoadingSettlements(true);
     try {
-      const result = await corporateAccountService.getSettlementHistory(account.id, accessToken, 1, 100);
+      const result = await corporateAccountService.getSettlementHistory(account.id, accessToken, 1, 100, {
+        startDate: rangeStartDate,
+        endDate: rangeEndDate,
+      });
       setSettlements(result.settlements);
     } catch {
       toast({ variant: 'error', title: 'Failed to load settlement history' });
     } finally {
       setIsLoadingSettlements(false);
     }
-  }, [account.id, accessToken, toast]);
+  }, [account.id, accessToken, hasDateRange, rangeStartDate, rangeEndDate, toast]);
 
   useEffect(() => {
     void loadOrders();
     void loadSettlements();
   }, [loadOrders, loadSettlements]);
+
+  const handleExportStatement = async () => {
+    if (!hasDateRange) return;
+    setIsExportingStatement(true);
+    try {
+      await reportService.exportReport(accessToken, {
+        reportType: 'corporate_account_statement',
+        format: 'pdf',
+        startDate: rangeStartDate,
+        endDate: rangeEndDate,
+        corporateAccountId: account.id,
+      });
+      toast({ variant: 'success', title: 'Statement download started' });
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Could not generate statement PDF.';
+      toast({ variant: 'error', title: 'Export failed', message });
+    } finally {
+      setIsExportingStatement(false);
+    }
+  };
 
   const handleSettle = async (amount: string, note: string, paymentMethod?: string) => {
     if (!settlementTarget || !amount || !paymentMethod) return;
@@ -664,13 +713,53 @@ function CorporateAccountDetail({
               </p>
             </div>
           </div>
-          {account.isActive && (
-            <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 gap-2">
+            {STATEMENT_EXPORT_ENABLED && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void handleExportStatement()}
+                disabled={!hasDateRange}
+                isLoading={isExportingStatement}
+              >
+                <FileText size={15} className="mr-1.5" />
+                Statement
+              </Button>
+            )}
+            {account.isActive && (
               <Button size="sm" onClick={() => setSettlementTarget(account)}>
                 <DollarSign size={15} className="mr-1.5" />
                 Record Settlement
               </Button>
-            </div>
+            )}
+          </div>
+        </div>
+
+        {/* Date-range picker — scopes Orders/Settlements tabs and the Statement export */}
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-label-sm font-medium text-stone-600">From</label>
+            <input
+              type="date"
+              value={rangeStartDate}
+              max={rangeEndDate || toYmd(new Date())}
+              onChange={(e) => setRangeStartDate(e.target.value)}
+              className="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-body-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-label-sm font-medium text-stone-600">To</label>
+            <input
+              type="date"
+              value={rangeEndDate}
+              min={rangeStartDate || undefined}
+              max={toYmd(new Date())}
+              onChange={(e) => setRangeEndDate(e.target.value)}
+              className="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-body-sm text-stone-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+            />
+          </div>
+          {!hasDateRange && (
+            <p className="pb-2 text-body-sm text-stone-400">Pick a date range to view orders, settlements, and export a statement.</p>
           )}
         </div>
 
@@ -687,7 +776,7 @@ function CorporateAccountDetail({
             </p>
           </div>
           <div className="px-4 py-2.5">
-            <p className="text-label-sm uppercase tracking-wide text-stone-400">Orders on File</p>
+            <p className="text-label-sm uppercase tracking-wide text-stone-400">Orders in Range</p>
             <p className="mt-0.5 font-mono text-body-md font-semibold tabular-nums text-stone-700">{orders.length}</p>
           </div>
         </div>

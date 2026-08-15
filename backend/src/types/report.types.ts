@@ -449,11 +449,48 @@ export interface DiscountUsageReport {
   byWaiter: DiscountUsageByWaiter[];
 }
 
+export interface CorporateStatementOrderRow {
+  id: string;
+  dailyNumber: number;
+  date: string;
+  employeeRef: string | null;
+  branchName: string;
+  total: string;
+}
+
+export interface CorporateStatementSettlementRow {
+  id: string;
+  date: string;
+  amount: string;
+  paymentMethod: string;
+  recordedBy: string;
+  note: string | null;
+}
+
+export interface CorporateAccountStatementReport {
+  statementReference: string;
+  statementDate: string;
+  dueDate: string;
+  companyName: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string | null;
+  startDate: string;
+  endDate: string;
+  openingBalance: string;
+  orders: CorporateStatementOrderRow[];
+  settlements: CorporateStatementSettlementRow[];
+  totalCharged: string;
+  totalSettled: string;
+  closingBalance: string;
+}
+
 export type ReportType =
   | 'daily_summary'
   | 'staff_performance'
   | 'branch_overview'
   | 'director_analytics'
   | 'manager_analytics'
-  | 'accountant_reconciliation';
+  | 'accountant_reconciliation'
+  | 'corporate_account_statement';
 export type ReportFormat = 'csv' | 'pdf';

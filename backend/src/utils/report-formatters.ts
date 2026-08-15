@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import type {
   AccountantReconciliationReport,
   BranchOverviewReport,
+  CorporateAccountStatementReport,
   DailySummaryReport,
   ReportType,
   StaffPerformanceReport,
@@ -264,7 +265,7 @@ export const toCsv = (type: ReportType, data: unknown): Buffer => {
   if (type === 'branch_overview' || type === 'director_analytics') {
     return toBranchOverviewCsv(data as BranchOverviewReport);
   }
-  // accountant_reconciliation — fallback to empty buffer (PDF-only for reconciliation)
+  // accountant_reconciliation / corporate_account_statement — PDF-only, empty buffer for CSV
   return Buffer.from('', 'utf-8');
 };
 
@@ -513,6 +514,31 @@ const drawFooter = (doc: PDFKit.PDFDocument): void => {
     footerY + 12,
     { align: 'center', width: CONTENT_W },
   );
+  doc.restore();
+};
+
+// ── Business identity (used on client-facing documents like the corporate statement) ──
+const WENDO_PHONE = '0722270952 / 0724379234';
+const WENDO_KRA_PIN = 'P052334921W';
+
+const drawStatementFooter = (doc: PDFKit.PDFDocument): void => {
+  const footerY = doc.page.height - 46;
+  doc.save();
+  doc.rect(0, footerY, PAGE_W, 46).fill(ESPRESSO);
+  doc.fontSize(7.5).font('Helvetica-Bold').fillColor(AMBER);
+  doc.text('Payment Terms', MARGIN, footerY + 8, { lineBreak: false });
+  doc.fontSize(7).font('Helvetica').fillColor(STONE_200);
+  doc.text(
+    'Payment due within 14 days of statement date. For queries, contact your Wendo Coffee Bistro account representative.',
+    MARGIN,
+    footerY + 19,
+    { width: CONTENT_W, lineBreak: false },
+  );
+  doc.fontSize(7).font('Helvetica').fillColor(STONE_200);
+  doc.text(`Tel: ${WENDO_PHONE}  ·  KRA PIN: ${WENDO_KRA_PIN}`, MARGIN, footerY + 31, {
+    width: CONTENT_W,
+    lineBreak: false,
+  });
   doc.restore();
 };
 
@@ -1097,6 +1123,107 @@ const drawReconciliationPdf = (
   }
 };
 
+const drawCorporateStatementPdf = (
+  doc: PDFKit.PDFDocument,
+  data: CorporateAccountStatementReport,
+): void => {
+  drawBrandedHeader(
+    doc,
+    'Statement of Account',
+    `${data.startDate} to ${data.endDate}`,
+  );
+  drawPageBorder(doc);
+
+  // Statement meta (reference / statement date / due date) + Bill-To, side by side
+  const metaY = doc.y;
+  doc.fontSize(8).font('Helvetica-Bold').fillColor(STONE_500);
+  doc.text('BILL TO', MARGIN, metaY, { lineBreak: false });
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(ESPRESSO);
+  doc.text(data.companyName, MARGIN, metaY + 12, { lineBreak: false });
+  doc.fontSize(8.5).font('Helvetica').fillColor(STONE_500);
+  const contactLine = [data.contactName, data.contactPhone, data.contactEmail].filter(Boolean).join('  ·  ');
+  doc.text(contactLine, MARGIN, metaY + 27, { width: CONTENT_W / 2, lineBreak: false });
+
+  const metaColX = MARGIN + CONTENT_W / 2;
+  doc.fontSize(8).font('Helvetica-Bold').fillColor(STONE_500);
+  doc.text('STATEMENT REF', metaColX, metaY, { width: CONTENT_W / 2, align: 'right', lineBreak: false });
+  doc.fontSize(9).font('Helvetica').fillColor(STONE_800);
+  doc.text(data.statementReference, metaColX, metaY + 12, { width: CONTENT_W / 2, align: 'right', lineBreak: false });
+  doc.fontSize(8).font('Helvetica').fillColor(STONE_500);
+  doc.text(`Statement Date: ${data.statementDate}`, metaColX, metaY + 27, { width: CONTENT_W / 2, align: 'right', lineBreak: false });
+  doc.text(`Due Date: ${data.dueDate}`, metaColX, metaY + 39, { width: CONTENT_W / 2, align: 'right', lineBreak: false });
+
+  doc.y = metaY + 54;
+
+  const opening = rev(data.openingBalance);
+  const charged = rev(data.totalCharged);
+  const settled = rev(data.totalSettled);
+  const closing = rev(data.closingBalance);
+
+  drawKpiRow(doc, [
+    { label: 'Opening Balance', value: formatKes(opening) },
+    { label: 'Charged This Period', value: formatKes(charged) },
+    { label: 'Settled This Period', value: formatKes(settled) },
+    { label: 'Closing Balance', value: formatKes(closing) },
+  ]);
+
+  if (data.orders.length > 0) {
+    drawSectionLabel(doc, 'Charges');
+    drawTable(
+      doc,
+      [
+        { header: '#', width: 40, align: 'right' },
+        { header: 'Date', width: 80 },
+        { header: 'Employee Ref', width: 130 },
+        { header: 'Branch', width: 130 },
+        { header: 'Amount', width: 135, align: 'right' },
+      ],
+      data.orders.map((o) => [
+        String(o.dailyNumber),
+        o.date,
+        o.employeeRef ?? '—',
+        o.branchName,
+        formatKes(rev(o.total)),
+      ]),
+      ['', '', '', 'TOTAL CHARGED', formatKes(charged)],
+    );
+  }
+
+  if (data.settlements.length > 0) {
+    doc.moveDown(0.5);
+    drawSectionLabel(doc, 'Payments Received');
+    drawTable(
+      doc,
+      [
+        { header: 'Date', width: 80 },
+        { header: 'Method', width: 80 },
+        { header: 'Recorded By', width: 130 },
+        { header: 'Note', width: 130, align: 'left' },
+        { header: 'Amount', width: 95, align: 'right' },
+      ],
+      data.settlements.map((s) => [
+        s.date,
+        s.paymentMethod,
+        s.recordedBy,
+        s.note ?? '—',
+        formatKes(rev(s.amount)),
+      ]),
+      ['', '', '', 'TOTAL SETTLED', formatKes(settled)],
+    );
+  }
+
+  doc.moveDown(0.8);
+  doc.save();
+  const summaryY = doc.y;
+  doc.rect(MARGIN, summaryY, CONTENT_W, 28).fill(ESPRESSO);
+  doc.fontSize(9.5).font('Helvetica-Bold').fillColor(WHITE);
+  doc.text('AMOUNT DUE', MARGIN + 10, summaryY + 8, { lineBreak: false });
+  doc.fontSize(11).font('Helvetica-Bold').fillColor(AMBER);
+  doc.text(formatKes(closing), MARGIN, summaryY + 7, { width: CONTENT_W - 10, align: 'right', lineBreak: false });
+  doc.restore();
+  doc.y = summaryY + 28;
+};
+
 // ── Type map (needed by toCsv / toPdf) ───────────────────────────────────────
 
 type ReportDataByType = {
@@ -1106,6 +1233,7 @@ type ReportDataByType = {
   director_analytics: BranchOverviewReport;
   manager_analytics: StaffPerformanceReport;
   accountant_reconciliation: AccountantReconciliationReport;
+  corporate_account_statement: CorporateAccountStatementReport;
 };
 
 export const toPdf = async <T extends ReportType>(
@@ -1139,6 +1267,8 @@ export const toPdf = async <T extends ReportType>(
       drawDirectorAnalyticsPdf(doc, data as ReportDataByType['director_analytics']);
     } else if (type === 'accountant_reconciliation') {
       drawReconciliationPdf(doc, data as ReportDataByType['accountant_reconciliation']);
+    } else if (type === 'corporate_account_statement') {
+      drawCorporateStatementPdf(doc, data as ReportDataByType['corporate_account_statement']);
     }
 
     // With bufferPages=true, all pages are in memory. Draw footer on every page.
@@ -1148,6 +1278,7 @@ export const toPdf = async <T extends ReportType>(
     // invisible, then draw the footer only on the real content pages.
     const range = doc.bufferedPageRange();
     const lastIdx = range.start + range.count - 1;
+    const footerFn = type === 'corporate_account_statement' ? drawStatementFooter : drawFooter;
 
     doc.switchToPage(lastIdx);
     const lastPageIsBlank = doc.y <= MARGIN + 2;
@@ -1156,7 +1287,7 @@ export const toPdf = async <T extends ReportType>(
       // Draw footer on all content pages (skip the blank last page).
       for (let i = range.start; i < lastIdx; i++) {
         doc.switchToPage(i);
-        drawFooter(doc);
+        footerFn(doc);
       }
       // Paint the blank page white so it appears truly empty.
       doc.switchToPage(lastIdx);
@@ -1167,7 +1298,7 @@ export const toPdf = async <T extends ReportType>(
       // No trailing blank page — draw footer on every page.
       for (let i = range.start; i <= lastIdx; i++) {
         doc.switchToPage(i);
-        drawFooter(doc);
+        footerFn(doc);
       }
     }
 

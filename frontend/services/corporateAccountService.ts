@@ -90,8 +90,12 @@ export const corporateAccountService = {
     token: string,
     page = 1,
     perPage = 50,
+    dateRange?: { startDate?: string; endDate?: string },
   ): Promise<{ orders: CorporateAccountOrder[]; total: number }> => {
-    const envelope = await apiClient.getWithEnvelope<CorporateAccountOrder[]>(`/corporate-accounts/${id}/orders?page=${page}&perPage=${perPage}`, token);
+    const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+    if (dateRange?.startDate) params.set('startDate', dateRange.startDate);
+    if (dateRange?.endDate) params.set('endDate', dateRange.endDate);
+    const envelope = await apiClient.getWithEnvelope<CorporateAccountOrder[]>(`/corporate-accounts/${id}/orders?${params.toString()}`, token);
     return {
       orders: envelope.data ?? [],
       total: (envelope.pagination as { total: number } | undefined)?.total ?? 0,
@@ -103,8 +107,12 @@ export const corporateAccountService = {
     token: string,
     page = 1,
     perPage = 50,
+    dateRange?: { startDate?: string; endDate?: string },
   ): Promise<{ settlements: CorporateAccountSettlementRecord[]; total: number }> => {
-    const envelope = await apiClient.getWithEnvelope<CorporateAccountSettlementRecord[]>(`/corporate-accounts/${id}/settlements?page=${page}&perPage=${perPage}`, token);
+    const params = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+    if (dateRange?.startDate) params.set('startDate', dateRange.startDate);
+    if (dateRange?.endDate) params.set('endDate', dateRange.endDate);
+    const envelope = await apiClient.getWithEnvelope<CorporateAccountSettlementRecord[]>(`/corporate-accounts/${id}/settlements?${params.toString()}`, token);
     return {
       settlements: envelope.data ?? [],
       total: (envelope.pagination as { total: number } | undefined)?.total ?? 0,

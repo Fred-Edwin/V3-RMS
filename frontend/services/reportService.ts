@@ -137,6 +137,7 @@ export const reportService = {
       startDate: query.startDate,
       endDate: query.endDate,
       organizationId: query.organizationId,
+      corporateAccountId: query.corporateAccountId,
     })}`;
 
     const response = await fetch(`${env.apiUrl}${path}`, {

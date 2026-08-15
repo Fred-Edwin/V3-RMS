@@ -103,6 +103,7 @@ export const corporateAccountService = {
     id: string,
     page: number,
     perPage: number,
+    dateRange?: { startDate?: Date; endDate?: Date },
   ) => {
     if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
       throw new ForbiddenError('Only Directors, Accountants, and System Admins can view corporate account order history');
@@ -111,7 +112,7 @@ export const corporateAccountService = {
     if (!account) {
       throw new NotFoundError('Corporate account not found');
     }
-    return corporateAccountRepository.findOrdersByAccountId(id, page, perPage);
+    return corporateAccountRepository.findOrdersByAccountId(id, page, perPage, dateRange);
   },
 
   getSettlementHistory: async (
@@ -119,6 +120,7 @@ export const corporateAccountService = {
     id: string,
     page: number,
     perPage: number,
+    dateRange?: { startDate?: Date; endDate?: Date },
   ) => {
     if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
       throw new ForbiddenError('Only Directors, Accountants, and System Admins can view corporate account settlement history');
@@ -127,6 +129,6 @@ export const corporateAccountService = {
     if (!account) {
       throw new NotFoundError('Corporate account not found');
     }
-    return corporateAccountRepository.findSettlementsByAccountId(id, page, perPage);
+    return corporateAccountRepository.findSettlementsByAccountId(id, page, perPage, dateRange);
   },
 };

@@ -7,6 +7,8 @@ import {
   RecordCorporateSettlementSchema,
   UpdateCorporateAccountSchema,
 } from '../validators/corporate-account-schemas';
+import { isoDateSchema } from '../validators/order-schemas';
+import { parseDateOnly } from '../utils/date-only';
 import { z } from 'zod';
 
 const requireActor = (req: Request) => {
@@ -17,6 +19,8 @@ const requireActor = (req: Request) => {
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
+  startDate: isoDateSchema.optional(),
+  endDate: isoDateSchema.optional(),
 });
 
 export const corporateAccountController = {
@@ -67,8 +71,12 @@ export const corporateAccountController = {
   getOrderHistory: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = CorporateAccountIdParamSchema.parse(req.params);
-    const { page, perPage } = paginationSchema.parse(req.query);
-    const result = await corporateAccountService.getOrderHistory(actor, id, page, perPage);
+    const { page, perPage, startDate, endDate } = paginationSchema.parse(req.query);
+    const dateRange = {
+      startDate: startDate ? parseDateOnly(startDate) : undefined,
+      endDate: endDate ? parseDateOnly(endDate) : undefined,
+    };
+    const result = await corporateAccountService.getOrderHistory(actor, id, page, perPage, dateRange);
     res.status(200).json({
       success: true,
       data: result.orders,
@@ -84,8 +92,12 @@ export const corporateAccountController = {
   getSettlementHistory: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = CorporateAccountIdParamSchema.parse(req.params);
-    const { page, perPage } = paginationSchema.parse(req.query);
-    const result = await corporateAccountService.getSettlementHistory(actor, id, page, perPage);
+    const { page, perPage, startDate, endDate } = paginationSchema.parse(req.query);
+    const dateRange = {
+      startDate: startDate ? parseDateOnly(startDate) : undefined,
+      endDate: endDate ? parseDateOnly(endDate) : undefined,
+    };
+    const result = await corporateAccountService.getSettlementHistory(actor, id, page, perPage, dateRange);
     res.status(200).json({
       success: true,
       data: result.settlements,

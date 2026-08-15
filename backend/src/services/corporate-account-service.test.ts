@@ -13,6 +13,7 @@ vi.mock('../repositories/corporate-account-repository', () => ({
     create: vi.fn(),
     update: vi.fn(),
     findOrdersByAccountId: vi.fn(),
+    findSettlementsByAccountId: vi.fn(),
   },
 }));
 
@@ -201,7 +202,7 @@ describe('corporateAccountService.getOrderHistory', () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
     vi.mocked(corporateAccountRepository.findOrdersByAccountId).mockResolvedValue({ orders: [], total: 0 });
     await corporateAccountService.getOrderHistory(directorActor, accountId, 1, 20);
-    expect(corporateAccountRepository.findOrdersByAccountId).toHaveBeenCalledWith(accountId, 1, 20);
+    expect(corporateAccountRepository.findOrdersByAccountId).toHaveBeenCalledWith(accountId, 1, 20, undefined);
   });
 
   it('throws NotFoundError when account not found', async () => {
@@ -215,5 +216,53 @@ describe('corporateAccountService.getOrderHistory', () => {
     await expect(
       corporateAccountService.getOrderHistory(managerActor, accountId, 1, 20),
     ).rejects.toThrow('Only Directors, Accountants, and System Admins');
+  });
+
+  it('threads the date range through to the repository', async () => {
+    vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
+    vi.mocked(corporateAccountRepository.findOrdersByAccountId).mockResolvedValue({ orders: [], total: 0 });
+    const dateRange = { startDate: new Date('2026-07-01'), endDate: new Date('2026-07-31') };
+    await corporateAccountService.getOrderHistory(directorActor, accountId, 1, 20, dateRange);
+    expect(corporateAccountRepository.findOrdersByAccountId).toHaveBeenCalledWith(accountId, 1, 20, dateRange);
+  });
+});
+
+describe('corporateAccountService.getSettlementHistory', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('returns settlements for director', async () => {
+    vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
+    vi.mocked(corporateAccountRepository.findSettlementsByAccountId).mockResolvedValue({ settlements: [], total: 0 });
+    await corporateAccountService.getSettlementHistory(directorActor, accountId, 1, 20);
+    expect(corporateAccountRepository.findSettlementsByAccountId).toHaveBeenCalledWith(accountId, 1, 20, undefined);
+  });
+
+  it('threads the date range through to the repository', async () => {
+    vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
+    vi.mocked(corporateAccountRepository.findSettlementsByAccountId).mockResolvedValue({ settlements: [], total: 0 });
+    const dateRange = { startDate: new Date('2026-07-01'), endDate: new Date('2026-07-31') };
+    await corporateAccountService.getSettlementHistory(directorActor, accountId, 1, 20, dateRange);
+    expect(corporateAccountRepository.findSettlementsByAccountId).toHaveBeenCalledWith(accountId, 1, 20, dateRange);
+  });
+
+  it('throws NotFoundError when account not found', async () => {
+    vi.mocked(corporateAccountRepository.findById).mockResolvedValue(null);
+    await expect(
+      corporateAccountService.getSettlementHistory(directorActor, accountId, 1, 20),
+    ).rejects.toThrow('Corporate account not found');
+  });
+
+  it('throws ForbiddenError for manager', async () => {
+    await expect(
+      corporateAccountService.getSettlementHistory(managerActor, accountId, 1, 20),
+    ).rejects.toThrow('Only Directors, Accountants, and System Admins');
+  });
+
+  it('allows accountant', async () => {
+    vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount());
+    vi.mocked(corporateAccountRepository.findSettlementsByAccountId).mockResolvedValue({ settlements: [], total: 0 });
+    await expect(
+      corporateAccountService.getSettlementHistory(accountantActor, accountId, 1, 20),
+    ).resolves.toEqual({ settlements: [], total: 0 });
   });
 });

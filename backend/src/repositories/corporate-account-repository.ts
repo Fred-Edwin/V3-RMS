@@ -3,6 +3,23 @@ import { prisma } from '../config/database';
 
 const createdBySelect = { id: true, name: true } as const;
 
+const toNextDate = (date: Date): Date => {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+};
+
+const buildDateRangeWhere = (dateRange?: {
+  startDate?: Date;
+  endDate?: Date;
+}): Prisma.DateTimeFilter | undefined => {
+  if (!dateRange?.startDate && !dateRange?.endDate) return undefined;
+  const filter: Prisma.DateTimeFilter = {};
+  if (dateRange.startDate) filter.gte = dateRange.startDate;
+  if (dateRange.endDate) filter.lt = toNextDate(dateRange.endDate);
+  return filter;
+};
+
 export type CorporateAccountWithCreator = CorporateAccount & {
   createdBy: { id: string; name: string };
 };
@@ -117,10 +134,13 @@ export const corporateAccountRepository = {
     id: string,
     page: number,
     perPage: number,
+    dateRange?: { startDate?: Date; endDate?: Date },
   ) => {
+    const createdAt = buildDateRangeWhere(dateRange);
+    const where: Prisma.OrderWhereInput = { corporateAccountId: id, ...(createdAt && { createdAt }) };
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: { corporateAccountId: id },
+        where,
         select: {
           id: true,
           dailyNumber: true,
@@ -133,7 +153,7 @@ export const corporateAccountRepository = {
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      prisma.order.count({ where: { corporateAccountId: id } }),
+      prisma.order.count({ where }),
     ]);
     return { orders, total };
   },
@@ -142,18 +162,41 @@ export const corporateAccountRepository = {
     id: string,
     page: number,
     perPage: number,
+    dateRange?: { startDate?: Date; endDate?: Date },
   ): Promise<{ settlements: (CorporateAccountSettlement & { settledBy: { id: string; name: string } })[]; total: number }> => {
+    const createdAt = buildDateRangeWhere(dateRange);
+    const where: Prisma.CorporateAccountSettlementWhereInput = {
+      corporateAccountId: id,
+      ...(createdAt && { createdAt }),
+    };
     const [settlements, total] = await Promise.all([
       prisma.corporateAccountSettlement.findMany({
-        where: { corporateAccountId: id },
+        where,
         include: { settledBy: { select: { id: true, name: true } } },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      prisma.corporateAccountSettlement.count({ where: { corporateAccountId: id } }),
+      prisma.corporateAccountSettlement.count({ where }),
     ]);
     return { settlements, total };
+  },
+
+  /** Sum of charges minus settlements strictly before `beforeDate` — the balance carried into a statement period. */
+  getBalanceBefore: async (id: string, beforeDate: Date): Promise<Prisma.Decimal> => {
+    const [chargesBefore, settlementsBefore] = await Promise.all([
+      prisma.order.aggregate({
+        where: { corporateAccountId: id, createdAt: { lt: beforeDate } },
+        _sum: { total: true },
+      }),
+      prisma.corporateAccountSettlement.aggregate({
+        where: { corporateAccountId: id, createdAt: { lt: beforeDate } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const charged = chargesBefore._sum.total ?? new Prisma.Decimal(0);
+    const settled = settlementsBefore._sum.amount ?? new Prisma.Decimal(0);
+    return charged.minus(settled);
   },
 
   createSettlement: async (data: {

@@ -35,13 +35,26 @@ export const MyPerformanceQuerySchema = dateRangeSchema;
 
 export const ExportQuerySchema = dateRangeSchema
   .extend({
-    reportType: z.enum(['daily_summary', 'staff_performance', 'branch_overview', 'director_analytics', 'manager_analytics', 'accountant_reconciliation']),
+    reportType: z.enum([
+      'daily_summary',
+      'staff_performance',
+      'branch_overview',
+      'director_analytics',
+      'manager_analytics',
+      'accountant_reconciliation',
+      'corporate_account_statement',
+    ]),
     format: z.enum(['csv', 'pdf']),
     organizationId: z.string().uuid().optional(),
+    corporateAccountId: z.string().uuid().optional(),
   })
   .refine((value) => value.reportType !== 'daily_summary' || value.startDate === value.endDate, {
     message: 'daily_summary export requires startDate and endDate to be the same date',
     path: ['startDate'],
+  })
+  .refine((value) => value.reportType !== 'corporate_account_statement' || !!value.corporateAccountId, {
+    message: 'corporateAccountId is required for corporate_account_statement export',
+    path: ['corporateAccountId'],
   });
 
 export const HourlyHeatmapQuerySchema = dateRangeSchema.extend({

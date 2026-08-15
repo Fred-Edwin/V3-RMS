@@ -2,14 +2,16 @@
 import { Prisma } from '@prisma/client';
 import { reportRepository } from '../repositories/report-repository';
 import { branchRepository } from '../repositories/branch-repository';
+import { corporateAccountRepository } from '../repositories/corporate-account-repository';
 import { redisClient } from '../config/redis';
 import { ForbiddenError, ValidationError } from '../utils/errors';
-import { formatDateOnly, parseDateOnly } from '../utils/date-only';
+import { formatDateOnly, getTodayDateOnly, parseDateOnly } from '../utils/date-only';
 import { toCsv, toPdf } from '../utils/report-formatters';
 import type {
   AccountantReconciliationReport,
   BranchTrendsReport,
   BranchOverviewReport,
+  CorporateAccountStatementReport,
   DailySummaryReport,
   DirectorPulseReport,
   DirectorTrendsReport,
@@ -273,7 +275,8 @@ export const reportService = {
       | DailySummaryReport
       | StaffPerformanceReport
       | BranchOverviewReport
-      | AccountantReconciliationReport;
+      | AccountantReconciliationReport
+      | CorporateAccountStatementReport;
     let filenameStem: string;
 
     if (query.reportType === 'daily_summary') {
@@ -302,7 +305,7 @@ export const reportService = {
       const branchOverview = await reportRepository.getBranchOverview(start, end);
       reportData = branchOverview;
       filenameStem = `${query.reportType === 'director_analytics' ? 'director-analytics' : 'branch-overview'}-${query.startDate}-to-${query.endDate}`;
-    } else {
+    } else if (query.reportType === 'accountant_reconciliation') {
       // accountant_reconciliation — uses startDate as the date
       if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
         throw new ForbiddenError('Only accountants and directors can export reconciliation reports');
@@ -316,6 +319,71 @@ export const reportService = {
       );
       reportData = reconciliation;
       filenameStem = `reconciliation-${query.startDate}`;
+    } else {
+      // corporate_account_statement — scoped by corporateAccountId, not organizationId
+      if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
+        throw new ForbiddenError('Only accountants and directors can export corporate account statements');
+      }
+      if (!query.corporateAccountId) {
+        throw new ValidationError('corporateAccountId is required for corporate_account_statement export');
+      }
+      const account = await corporateAccountRepository.findById(query.corporateAccountId);
+      if (!account) {
+        throw new ValidationError('Corporate account not found');
+      }
+      const dateRange = { startDate: start, endDate: end };
+      const [{ orders }, { settlements }, openingBalance] = await Promise.all([
+        corporateAccountRepository.findOrdersByAccountId(query.corporateAccountId, 1, 10000, dateRange),
+        corporateAccountRepository.findSettlementsByAccountId(query.corporateAccountId, 1, 10000, dateRange),
+        corporateAccountRepository.getBalanceBefore(query.corporateAccountId, start),
+      ]);
+
+      const organizationIds = [...new Set(orders.map((o) => o.organizationId))];
+      const organizations = await Promise.all(organizationIds.map((id) => branchRepository.findById(id)));
+      const branchNameById = new Map(organizations.filter((o) => !!o).map((o) => [o!.id, o!.name]));
+
+      const totalCharged = orders.reduce((sum, o) => sum + Number(o.total), 0);
+      const totalSettled = settlements.reduce((sum, s) => sum + Number(s.amount), 0);
+      const openingBalanceNum = Number(openingBalance);
+      const closingBalance = openingBalanceNum + totalCharged - totalSettled;
+
+      const today = getTodayDateOnly();
+      const dueDate = new Date(today);
+      dueDate.setUTCDate(dueDate.getUTCDate() + 14);
+      const statementReference = `STMT-${account.companyName.replace(/[^a-zA-Z0-9]+/g, '').toUpperCase().slice(0, 12)}-${query.startDate.replace(/-/g, '')}-${query.endDate.replace(/-/g, '')}`;
+
+      reportData = {
+        statementReference,
+        statementDate: formatDateOnly(today),
+        dueDate: formatDateOnly(dueDate),
+        companyName: account.companyName,
+        contactName: account.contactName,
+        contactPhone: account.contactPhone,
+        contactEmail: account.contactEmail,
+        startDate: query.startDate,
+        endDate: query.endDate,
+        openingBalance: openingBalanceNum.toFixed(2),
+        orders: orders.map((o) => ({
+          id: o.id,
+          dailyNumber: o.dailyNumber,
+          date: formatDateOnly(o.createdAt),
+          employeeRef: o.corporateEmployeeRef,
+          branchName: branchNameById.get(o.organizationId) ?? 'Unknown branch',
+          total: o.total.toString(),
+        })),
+        settlements: settlements.map((s) => ({
+          id: s.id,
+          date: formatDateOnly(s.createdAt),
+          amount: s.amount.toString(),
+          paymentMethod: s.paymentMethod,
+          recordedBy: s.settledBy.name,
+          note: s.note,
+        })),
+        totalCharged: totalCharged.toFixed(2),
+        totalSettled: totalSettled.toFixed(2),
+        closingBalance: closingBalance.toFixed(2),
+      };
+      filenameStem = `corporate-statement-${account.companyName.replace(/\s+/g, '-').toLowerCase()}-${query.startDate}-to-${query.endDate}`;
     }
 
     const reportType = query.reportType as ReportType;
