@@ -138,6 +138,24 @@ export const corporateAccountRepository = {
     return { orders, total };
   },
 
+  findSettlementsByAccountId: async (
+    id: string,
+    page: number,
+    perPage: number,
+  ): Promise<{ settlements: (CorporateAccountSettlement & { settledBy: { id: string; name: string } })[]; total: number }> => {
+    const [settlements, total] = await Promise.all([
+      prisma.corporateAccountSettlement.findMany({
+        where: { corporateAccountId: id },
+        include: { settledBy: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+      prisma.corporateAccountSettlement.count({ where: { corporateAccountId: id } }),
+    ]);
+    return { settlements, total };
+  },
+
   createSettlement: async (data: {
     corporateAccountId: string;
     amount: string;

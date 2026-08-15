@@ -80,4 +80,21 @@ export const corporateAccountController = {
       },
     });
   },
+
+  getSettlementHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = CorporateAccountIdParamSchema.parse(req.params);
+    const { page, perPage } = paginationSchema.parse(req.query);
+    const result = await corporateAccountService.getSettlementHistory(actor, id, page, perPage);
+    res.status(200).json({
+      success: true,
+      data: result.settlements,
+      pagination: {
+        total: result.total,
+        page,
+        perPage,
+        totalPages: Math.ceil(result.total / perPage),
+      },
+    });
+  },
 };

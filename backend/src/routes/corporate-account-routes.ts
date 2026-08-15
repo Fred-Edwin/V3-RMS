@@ -35,6 +35,13 @@ corporateAccountRoutes.get(
   corporateAccountController.getOrderHistory,
 );
 
+corporateAccountRoutes.get(
+  '/corporate-accounts/:id/settlements',
+  authenticate,
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'),
+  corporateAccountController.getSettlementHistory,
+);
+
 corporateAccountRoutes.post(
   '/corporate-accounts/:id/settlements',
   authenticate,

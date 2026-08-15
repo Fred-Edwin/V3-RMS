@@ -162,11 +162,29 @@ describe('corporateAccountService.recordSettlement', () => {
     ).rejects.toThrow('Corporate account not found');
   });
 
-  it('throws ValidationError when amount exceeds balance', async () => {
+  it('allows settlement amount to exceed balance, leaving a negative (credit) balance', async () => {
     vi.mocked(corporateAccountRepository.findById).mockResolvedValue(buildAccount({ currentBalance: new Prisma.Decimal(100) }));
-    await expect(
-      corporateAccountService.recordSettlement(directorActor, accountId, { amount: '5000', paymentMethod: 'MPESA' }),
-    ).rejects.toThrow('Settlement amount exceeds');
+    const createdSettlement = {
+      id: 'settlement-id',
+      corporateAccountId: accountId,
+      amount: new Prisma.Decimal(5000),
+      paymentMethod: 'MPESA',
+      note: null,
+      settledById: directorId,
+      createdAt: new Date(),
+    };
+    const updatedAccount = buildAccount({ currentBalance: new Prisma.Decimal(-4900) });
+    vi.mocked(prisma.$transaction).mockImplementation((fn) =>
+      (fn as (tx: unknown) => Promise<unknown>)({
+        corporateAccountSettlement: { create: vi.fn().mockResolvedValue(createdSettlement) },
+        corporateAccount: { update: vi.fn().mockResolvedValue(updatedAccount) },
+      }),
+    );
+    const result = await corporateAccountService.recordSettlement(directorActor, accountId, {
+      amount: '5000',
+      paymentMethod: 'MPESA',
+    });
+    expect(result.currentBalance.toString()).toBe('-4900');
   });
 
   it('throws ForbiddenError for manager', async () => {

@@ -5,7 +5,7 @@ import {
   type CorporateAccountDropdownItem,
   type CorporateAccountWithCreator,
 } from '../repositories/corporate-account-repository';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 import type {
   CreateCorporateAccountInput,
   RecordCorporateSettlementInput,
@@ -79,9 +79,6 @@ export const corporateAccountService = {
     }
 
     const amount = new Prisma.Decimal(input.amount);
-    if (amount.greaterThan(account.currentBalance)) {
-      throw new ValidationError('Settlement amount exceeds the outstanding balance');
-    }
 
     return prisma.$transaction(async (tx) => {
       const settlement = await tx.corporateAccountSettlement.create({
@@ -115,5 +112,21 @@ export const corporateAccountService = {
       throw new NotFoundError('Corporate account not found');
     }
     return corporateAccountRepository.findOrdersByAccountId(id, page, perPage);
+  },
+
+  getSettlementHistory: async (
+    actor: Actor,
+    id: string,
+    page: number,
+    perPage: number,
+  ) => {
+    if (actor.role !== 'SYSTEM_ADMIN' && actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
+      throw new ForbiddenError('Only Directors, Accountants, and System Admins can view corporate account settlement history');
+    }
+    const account = await corporateAccountRepository.findById(id);
+    if (!account) {
+      throw new NotFoundError('Corporate account not found');
+    }
+    return corporateAccountRepository.findSettlementsByAccountId(id, page, perPage);
   },
 };
