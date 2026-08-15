@@ -1,35 +1,37 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Banknote, Plus, Printer, Trash2 } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
   EmptyState,
+  ExcelTable,
   Input,
   PageHeader,
   PageLayout,
-  SkeletonTable,
-  Table,
-  type TableColumn,
+  Select,
+  type ExcelColumn,
 } from '@/components/ui';
 import { useToast } from '@/hooks/useToast';
+import { branchService, type BranchDto } from '@/services/branchService';
 import { otherIncomeService } from '@/services/otherIncomeService';
 import { printService } from '@/services/printService';
 import { useAuthStore } from '@/store/authStore';
 import { getTodayYmdInTimeZone } from '@/lib/date';
 import { ApiError } from '@/types/api';
-import type { OtherIncomeEntry } from '@/types/otherIncome';
+import type { OtherIncomeCategoryDropdownItem, OtherIncomeEntry } from '@/types/otherIncome';
 
 const PAYMENT_LABELS: Record<string, string> = {
   CASH: 'Cash',
   MPESA: 'M-Pesa',
   CARD: 'Card',
+  SPLIT: 'Split',
 };
 
-const formatCurrency = (value: string): string => {
-  const num = Number.parseFloat(value);
+const formatCurrency = (value: string | number): string => {
+  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
   if (Number.isNaN(num)) return 'KES 0.00';
   return `KES ${num.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
@@ -39,9 +41,22 @@ const formatDate = (ymd: string): string => {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+/** For SPLIT entries, render the cash/mpesa/card breakdown instead of the bare enum. */
+const formatPaymentCell = (entry: OtherIncomeEntry): string => {
+  if (entry.paymentMethod !== 'SPLIT') {
+    return PAYMENT_LABELS[entry.paymentMethod] ?? entry.paymentMethod;
+  }
+  const parts: string[] = [];
+  if (entry.mpesaAmount) parts.push(`M-Pesa ${formatCurrency(entry.mpesaAmount)}`);
+  if (entry.cashAmount) parts.push(`Cash ${formatCurrency(entry.cashAmount)}`);
+  if (entry.cardAmount) parts.push(`Card ${formatCurrency(entry.cardAmount)}`);
+  return parts.length > 0 ? parts.join(' + ') : 'Split';
+};
+
 type EntryRow = Record<string, unknown> & OtherIncomeEntry;
 
 const CAN_SEE_ALL = new Set(['DIRECTOR', 'SYSTEM_ADMIN', 'MANAGER', 'ACCOUNTANT']);
+const CAN_FILTER_BY_BRANCH = new Set(['DIRECTOR', 'SYSTEM_ADMIN', 'ACCOUNTANT']);
 
 export default function OtherIncomeHistoryPage(): JSX.Element {
   const { toast } = useToast();
@@ -51,22 +66,59 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
 
   const todayYmd = getTodayYmdInTimeZone();
   const isFullViewer = role ? CAN_SEE_ALL.has(role) : false;
+  const canFilterByBranch = role ? CAN_FILTER_BY_BRANCH.has(role) : false;
 
   const [entries, setEntries] = useState<OtherIncomeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [startDate, setStartDate] = useState(todayYmd);
   const [endDate, setEndDate] = useState(todayYmd);
 
+  const [branches, setBranches] = useState<BranchDto[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+
+  const [categories, setCategories] = useState<OtherIncomeCategoryDropdownItem[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+
   const [deleteTarget, setDeleteTarget] = useState<EntryRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPrinting, setIsPrinting] = useState<string | null>(null); // entryId being printed
+
+  useEffect(() => {
+    if (!accessToken || !canFilterByBranch) return;
+    branchService
+      .listBranches(accessToken)
+      .then((data) => setBranches(data.filter((b) => b.isActive && !b.isHub)))
+      .catch(() => {
+        toast({ variant: 'error', title: 'Failed to load branches', message: 'Could not fetch branch list.' });
+      });
+  // accessToken is stable; toast is stable via useCallback in hook
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, canFilterByBranch]);
+
+  useEffect(() => {
+    if (!accessToken || !isFullViewer) return;
+    otherIncomeService
+      .listActiveCategories(accessToken, canFilterByBranch ? selectedBranchId || undefined : undefined)
+      .then(setCategories)
+      .catch(() => {
+        toast({ variant: 'error', title: 'Failed to load categories' });
+      });
+  // accessToken/toast stable; re-fetch only when the branch scope changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, isFullViewer, canFilterByBranch, selectedBranchId]);
 
   const loadEntries = useCallback(async (): Promise<void> => {
     if (!accessToken) return;
     setIsLoading(true);
     try {
       const params = isFullViewer
-        ? { startDate, endDate, perPage: 100 }
+        ? {
+            startDate,
+            endDate,
+            perPage: 100,
+            ...(canFilterByBranch && selectedBranchId ? { branchId: selectedBranchId } : {}),
+            ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
+          }
         : { startDate: todayYmd, endDate: todayYmd, perPage: 50 };
       const { entries: data } = await otherIncomeService.listEntries(params, accessToken);
       setEntries(data);
@@ -76,7 +128,7 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, isFullViewer, startDate, endDate, todayYmd, toast]);
+  }, [accessToken, isFullViewer, startDate, endDate, todayYmd, canFilterByBranch, selectedBranchId, selectedCategoryId, toast]);
 
   useEffect(() => {
     void loadEntries();
@@ -128,59 +180,75 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
 
   const totalValue = entries.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0);
 
-  const columns: TableColumn<EntryRow>[] = [
+  // Category and payment-method breakdown for the currently-loaded range — helps
+  // accountants reconcile against category ledgers and M-Pesa/bank statements.
+  const categoryBreakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of entries) {
+      map.set(e.category.name, (map.get(e.category.name) ?? 0) + Number.parseFloat(e.amount));
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [entries]);
+
+  const paymentBreakdown = useMemo(() => {
+    const totals = { CASH: 0, MPESA: 0, CARD: 0 };
+    for (const e of entries) {
+      if (e.paymentMethod === 'SPLIT') {
+        totals.MPESA += Number.parseFloat(e.mpesaAmount ?? '0');
+        totals.CASH += Number.parseFloat(e.cashAmount ?? '0');
+        totals.CARD += Number.parseFloat(e.cardAmount ?? '0');
+      } else if (e.paymentMethod in totals) {
+        totals[e.paymentMethod as 'CASH' | 'MPESA' | 'CARD'] += Number.parseFloat(e.amount);
+      }
+    }
+    return totals;
+  }, [entries]);
+
+  const columns: ExcelColumn<EntryRow>[] = [
     {
       key: 'category',
       label: 'Category',
-      render: (_v, row) => (
-        <span className="font-medium text-stone-900">{row.category.name}</span>
-      ),
+      render: (row) => <span className="font-medium text-office-ink">{row.category.name}</span>,
     },
     {
       key: 'amount',
       label: 'Amount',
-      render: (_v, row) => (
-        <span className="font-semibold tabular-nums text-[#2C1810]">
-          {formatCurrency(row.amount)}
-        </span>
-      ),
+      numeric: true,
+      render: (row) => <span className="font-semibold">{formatCurrency(row.amount)}</span>,
     },
     {
       key: 'paymentMethod',
       label: 'Payment',
-      render: (_v, row) => (
-        <span className="text-stone-600">{PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod}</span>
-      ),
+      render: (row) => formatPaymentCell(row),
     },
     {
       key: 'entryDate',
       label: 'Date',
-      render: (_v, row) => (
-        <span className="text-stone-600">{formatDate(row.entryDate.slice(0, 10))}</span>
-      ),
+      render: (row) => formatDate(row.entryDate.slice(0, 10)),
     },
+    ...(canFilterByBranch && !selectedBranchId
+      ? [{
+          key: 'branch',
+          label: 'Branch',
+          render: (row: EntryRow) => row.branch.name,
+        } satisfies ExcelColumn<EntryRow>]
+      : []),
     ...(isFullViewer
       ? [{
-          key: 'recordedBy' as const,
+          key: 'recordedBy',
           label: 'Recorded By',
-          render: (_v: unknown, row: EntryRow) => (
-            <span className="text-stone-600">{row.recordedBy.name}</span>
-          ),
-        }]
+          render: (row: EntryRow) => row.recordedBy.name,
+        } satisfies ExcelColumn<EntryRow>]
       : []),
     {
       key: 'description',
       label: 'Notes',
-      render: (_v, row) => (
-        <span className="italic text-stone-500">
-          {row.description ?? '—'}
-        </span>
-      ),
+      render: (row) => <span className="italic text-stone-500">{row.description ?? '—'}</span>,
     },
     {
       key: 'actions',
       label: '',
-      render: (_v, row) => (
+      render: (row) => (
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -221,9 +289,33 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
         }
       />
 
-      {/* Date filter — managers and above only */}
+      {/* Date + branch filter — managers and above only */}
       {isFullViewer && (
         <div className="mb-5 flex flex-wrap items-end gap-3">
+          {canFilterByBranch && (
+            <div className="flex flex-col gap-1">
+              <label className="text-label-sm font-medium uppercase tracking-wide text-stone-500">
+                Branch
+              </label>
+              <Select
+                options={[{ value: '', label: 'All Branches' }, ...branches.map((b) => ({ value: b.id, label: b.name }))]}
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="w-44"
+              />
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="text-label-sm font-medium uppercase tracking-wide text-stone-500">
+              Category
+            </label>
+            <Select
+              options={[{ value: '', label: 'All Categories' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-44"
+            />
+          </div>
           <div className="flex flex-col gap-1">
             <label className="text-label-sm font-medium uppercase tracking-wide text-stone-500">
               From
@@ -259,15 +351,51 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
           <span className="text-body-sm text-stone-600">
             {entries.length} {entries.length === 1 ? 'entry' : 'entries'} ·{' '}
             <span className="font-semibold text-[#2C1810]">
-              {formatCurrency(totalValue.toFixed(2))} total
+              {formatCurrency(totalValue)} total
             </span>
           </span>
         </div>
       )}
 
-      {isLoading ? (
-        <SkeletonTable rows={5} columns={5} />
-      ) : entries.length === 0 ? (
+      {/* Category + payment-method breakdown — reconciliation aid, full viewers only */}
+      {isFullViewer && entries.length > 0 && (
+        <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
+            <p className="mb-2 text-label-sm font-semibold uppercase tracking-wide text-stone-500">
+              By Category
+            </p>
+            <div className="space-y-1.5">
+              {categoryBreakdown.map(([name, amount]) => (
+                <div key={name} className="flex items-center justify-between text-body-sm">
+                  <span className="text-stone-600">{name}</span>
+                  <span className="font-mono font-medium text-stone-900">{formatCurrency(amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
+            <p className="mb-2 text-label-sm font-semibold uppercase tracking-wide text-stone-500">
+              By Payment Method
+            </p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-body-sm">
+                <span className="text-stone-600">M-Pesa</span>
+                <span className="font-mono font-medium text-success">{formatCurrency(paymentBreakdown.MPESA)}</span>
+              </div>
+              <div className="flex items-center justify-between text-body-sm">
+                <span className="text-stone-600">Cash</span>
+                <span className="font-mono font-medium text-stone-900">{formatCurrency(paymentBreakdown.CASH)}</span>
+              </div>
+              <div className="flex items-center justify-between text-body-sm">
+                <span className="text-stone-600">Card</span>
+                <span className="font-mono font-medium text-blue-700">{formatCurrency(paymentBreakdown.CARD)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {entries.length === 0 && !isLoading ? (
         <EmptyState
           icon={<Banknote size={48} className="text-stone-300" />}
           heading="No income recorded yet"
@@ -286,10 +414,17 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
           }
         />
       ) : (
-        <Table
+        <ExcelTable
           columns={columns}
-          data={entries as EntryRow[]}
-          keyField="id"
+          rows={entries as EntryRow[]}
+          rowKey={(row) => row.id}
+          headerTone="navy"
+          isLoading={isLoading}
+          skeletonRows={5}
+          totalsRow={{
+            category: <span className="text-label-sm uppercase tracking-wide">Total</span>,
+            amount: <span className="font-bold text-espresso">{formatCurrency(totalValue)}</span>,
+          }}
         />
       )}
 

@@ -98,6 +98,26 @@ export const otherIncomeRepository = {
     }));
   },
 
+  /**
+   * Active categories across every organization, deduped by name — used for the
+   * accountant's cross-branch history filter, where categories are picked by
+   * label ("Events") rather than by a specific branch's category row.
+   */
+  findAllActiveCategoriesAcrossOrgs: async (): Promise<OtherIncomeCategoryDropdownItem[]> => {
+    const rows = await prisma.otherIncomeCategory.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, branchId: true },
+      orderBy: { name: 'asc' },
+    });
+    const seen = new Map<string, OtherIncomeCategoryDropdownItem>();
+    for (const r of rows) {
+      if (!seen.has(r.name)) {
+        seen.set(r.name, { id: r.id, name: r.name, branchId: null, branchName: null });
+      }
+    }
+    return [...seen.values()];
+  },
+
   /** Active categories visible to the given branch (branch-scoped + org-wide) */
   findActiveCategories: async (
     organizationId: string,
@@ -126,6 +146,16 @@ export const otherIncomeRepository = {
       branchId: r.branchId,
       branchName: r.branch?.name ?? null,
     }));
+  },
+
+  /** Looks up a category's name by id, regardless of organization — used to resolve
+   *  the cross-branch accountant filter (see findAllActiveCategoriesAcrossOrgs). */
+  findEntryCategoryName: async (id: string): Promise<string | null> => {
+    const category = await prisma.otherIncomeCategory.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    return category?.name ?? null;
   },
 
   findCategoryById: async (
@@ -215,6 +245,8 @@ export const otherIncomeRepository = {
       branchId?: string;
       recordedById?: string;
       categoryId?: string;
+      /** Matches by category name across all branches — used instead of categoryId when no branch is selected. */
+      categoryName?: string;
       startDate?: Date;
       endDate?: Date;
       page: number;
@@ -226,6 +258,7 @@ export const otherIncomeRepository = {
     if (filters.branchId) where.branchId = filters.branchId;
     if (filters.recordedById) where.recordedById = filters.recordedById;
     if (filters.categoryId) where.categoryId = filters.categoryId;
+    if (filters.categoryName) where.category = { name: filters.categoryName };
     if (filters.startDate ?? filters.endDate) {
       where.entryDate = {};
       if (filters.startDate) where.entryDate.gte = filters.startDate;

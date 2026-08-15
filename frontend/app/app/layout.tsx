@@ -360,6 +360,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       items: [
         { label: 'Dashboard', href: '/app/accountant', icon: LayoutDashboard },
         { label: 'Reconciliation', href: '/app/accountant/reconciliation', icon: Clock },
+        { label: 'Other Income', href: '/app/other-income/history', icon: Banknote },
         { label: 'My Payments', href: '/app/payslips', icon: FileText },
       ],
     },

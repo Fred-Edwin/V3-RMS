@@ -67,7 +67,7 @@ export const otherIncomeService = {
     return otherIncomeRepository.findActiveCategories(actor.organizationId, actor.organizationId);
   },
 
-  /** Active categories for the record-entry form dropdown. */
+  /** Active categories for the record-entry form dropdown (and cross-branch filter dropdowns). */
   listActiveCategories: async (
     actor: Actor,
     requestedOrgId?: string,
@@ -75,6 +75,13 @@ export const otherIncomeService = {
     if (ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')) {
       const orgId = resolveOrgId(actor, requestedOrgId);
       return otherIncomeRepository.findAllActiveCategories(orgId);
+    }
+    // ACCOUNTANT has no branch on their token; a branchId is optional (means "all branches").
+    if (actor.role === 'ACCOUNTANT') {
+      if (requestedOrgId) {
+        return otherIncomeRepository.findActiveCategories(requestedOrgId, requestedOrgId);
+      }
+      return otherIncomeRepository.findAllActiveCategoriesAcrossOrgs();
     }
     if (!actor.organizationId) {
       throw new ForbiddenError('Branch context missing for your account');
@@ -183,12 +190,21 @@ export const otherIncomeService = {
     const endDate = input.endDate ? new Date(`${input.endDate}T23:59:59`) : undefined;
 
     const filters: Parameters<typeof otherIncomeRepository.findEntries>[1] = {
-      categoryId: input.categoryId,
       startDate,
       endDate,
       page: input.page,
       perPage: input.perPage,
     };
+
+    // Cross-branch view (accountant, no branch selected): the categoryId came from a
+    // name-deduped list, so it only matches one branch's row — filter by name instead
+    // so entries from every branch's "same" category are included.
+    if (input.categoryId && isAccountant && !orgId) {
+      const category = await otherIncomeRepository.findEntryCategoryName(input.categoryId);
+      if (category) filters.categoryName = category;
+    } else if (input.categoryId) {
+      filters.categoryId = input.categoryId;
+    }
 
     if (actor.role === 'WAITER') {
       filters.recordedById = actor.id;

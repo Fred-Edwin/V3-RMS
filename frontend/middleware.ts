@@ -88,7 +88,7 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
 
   if (pathname.startsWith('/app/other-income')) {
-    return role === 'WAITER' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
+    return role === 'WAITER' || role === 'MANAGER' || role === 'DIRECTOR' || role === 'SYSTEM_ADMIN' || role === 'ACCOUNTANT';
   }
 
   if (pathname.startsWith('/app/inbox')) {
