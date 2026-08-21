@@ -18,6 +18,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     id: payload.userId,
     role: payload.role,
     organizationId: payload.organizationId,
+    departmentTag: payload.departmentTag,
   };
 
   next();

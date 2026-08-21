@@ -44,6 +44,7 @@ describe('authService.refresh', () => {
       email: 'manager@wendo.test',
       role: 'MANAGER',
       organizationId: 'org-1',
+      departmentTag: null,
       isActive: true,
       phone: null,
       organization: {

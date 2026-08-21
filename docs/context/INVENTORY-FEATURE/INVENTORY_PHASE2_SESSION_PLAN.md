@@ -167,7 +167,7 @@ which is why related domains are bundled rather than given a session each.
 | # | Session | Depends On | Status |
 |---|---|---|---|
 | 1 | Schema + migration + provisioning + `DEPARTMENT_HEAD` role & assignment | — | Complete (2026-08-21) |
-| 2 | Requisition + Dispatch backend (the approval → fulfil → receive spine) | 1 | Not Started |
+| 2 | Requisition + Dispatch backend (the approval → fulfil → receive spine) | 1 | Complete (2026-08-21) |
 | 3 | Market purchase + par levels + department-scoped stock/counts/waste + RBAC audit + reports | 2 | Not Started |
 | 4 | Frontend: Department Head mobile (7 screens) | 3, **D1 approved** | Not Started |
 | 5 | Frontend: Branch Manager (4 screens, desktop + mobile) | 3, **D2 approved** | Not Started |
@@ -643,6 +643,137 @@ shipping *document only* — never to stock or cost data.
 - Cost travels per line — the department's weighted average uses the **dispatched** cost
 - Resolve **Q2**, **Q5**, **Q6** here and record them in As Built
 
+### As Built (2026-08-21)
+
+**Requisition** — `requisition-repository.ts` / `requisition-service.ts` /
+`requisition-controller.ts` / `requisition-routes.ts` /
+`requisition-schemas.ts`. Raise (DEPARTMENT_HEAD, D-1b item scoping against
+the hub-owned catalog via `InventoryItem.departmentTags`), submit-on-raise
+(no separate DRAFT step — D-19 is on-demand, so raise goes straight to
+`PENDING_MANAGER_APPROVAL`), approve (MANAGER own branch only, may edit any
+subset of lines; unedited lines are approved as requested —
+`requestedQty` is never overwritten, verified live against a real Manager
+approval that trimmed 10 → 7), reject (reason required), cancel
+(raiser, pre-approval only). `listOrderableItems` computes suggested qty
+(`par − onHand`, floored at 0 via `Prisma.Decimal.max`) using the new
+read-only `par-level-repository.ts` (full CRUD is Session 3 scope) and
+`locationRepository.findByOrganizationTypeDepartment` (new method, since
+Session 1 correctly predicted "this repository will grow filters then").
+
+**Dispatch** — `dispatch-repository.ts` (with `findVisibleTo`/`listVisibleTo`,
+the D-16 either-side read, confined to this repository only) /
+`dispatch-service.ts` / `dispatch-controller.ts` / `dispatch-routes.ts` /
+`dispatch-schemas.ts`. Queue (store roles, approved requisitions oldest
+first — a direct cross-branch `Requisition` query by status, since a
+not-yet-dispatched requisition has no `Dispatch` row for `findVisibleTo` to
+match; documented in the queue method as the same kind of confined
+exception `findVisibleTo` is). Fulfil (partial normal, D-6), confirm dispatch
+(atomic `DISPATCH_OUT` write + `IN_TRANSIT` transition + delivery note
+number), receive (atomic `DISPATCH_IN` write + `RECEIVED` transition +
+variance flagging), store-side reject. Unsolicited dispatch (Q5).
+
+**D-16 ledger correctness — verified two ways.** Unit tests assert exactly
+one `DISPATCH_OUT` row (hub org, Central Store location, negative quantity)
+and exactly one `DISPATCH_IN` row (branch org, department location, positive
+quantity) per confirm/receive call, plus the required third-branch-sees-
+nothing test via `findVisibleTo`. Then re-verified live end-to-end against
+the real restored-production DB: raised a requisition for Wendo Nyahururu's
+Kitchen (temporarily assigned a department head for the test, unassigned
+afterward via the Session 1 API — role correctly restored to CHEF), approved
+with an edited quantity (10 → 7, confirmed `requestedQty` stayed "10" in the
+response), fulfilled partially (7 → 5, D-6), confirmed dispatch, received
+with a shortfall (5 → 4, transit loss = 1). Queried `inventory_transactions`
+directly: exactly two rows, `DISPATCH_OUT` at `-5.0000` under the hub org's
+Central Store, `DISPATCH_IN` at `4.0000` under the branch org's Kitchen
+location — matches the model exactly. A third branch's Manager token got
+`404 Dispatch not found` on the same dispatch ID, confirming D-16 live. All
+test data (requisition, dispatch, ledger rows, the temporary department-head
+assignment) was cleaned up afterward; `locations` count returned to exactly
+16, matching Session 1's baseline.
+
+**Real gap found and resolved (owner decision, 2026-08-21): per-location
+costing (D-8).** `InventoryItem.currentCost` is a single scalar owned by the
+hub-org catalog row — it worked in Phase 1 only because Central Store was
+the sole location. Session 1's schema has no field for a branch department
+to hold its own weighted-average cost, so `receive()` cannot write one back
+without either silently no-op'ing (`updateMany` matching zero rows, since no
+`InventoryItem` row has `organizationId` = a branch org) or writing to the
+wrong row. Raised to the owner rather than guessing or forcing it through.
+**Decision: compute per-location weighted-average on demand from the
+`InventoryTransaction` ledger when needed (a future report or department-side
+consumption), rather than storing a cached value.** No schema change. The
+ledger transaction itself (this session's actual job) already carries the
+correct dispatched `unitCost` per line, so nothing is lost — only a *cached*
+average is deferred. Documented in `receive()`'s docstring for whoever reads
+a department's average cost next (flagged below for Session 3/reports).
+
+**FCM** — four new `fcm-service.ts` methods following the existing
+one-method-per-event convention (never a generic "send push"):
+`sendRequisitionSubmittedPush` (branch Managers, on raise),
+`sendRequisitionDecisionPush` (Department Head, on approve/reject),
+`sendDispatchInTransitPush` (Department Head, on confirm dispatch),
+`sendReceiptVariancePush` (Central Store roles, on receive-with-variance).
+Uses the existing `authRepository.findFcmTokensByRole` /
+`findFcmToken` — no new repository methods needed.
+
+**Delivery note printing — deferred, logged here rather than forced.** The
+plan called for reusing "the existing thermal printing infra." On inspection,
+the existing `PrintJob` model is order-shaped (`orderId` required FK,
+`ReceiptType` enum of `BILL`/`RECEIPT`/`SETTLEMENT`) with no path for a
+document not tied to an `Order` — wiring a delivery note through it is a
+real, separate piece of scope (a new `ReceiptType` value or a parallel
+document model, plus a new creation path decoupled from orders), not a
+reuse. `deliveryNoteNumber` is generated (`DN-<yymmdd>-<4 chars>`, mirrors
+`generatePoNumber`) and stored on `Dispatch` as the plan requires, so nothing
+downstream (D3.2's UI, the delivery note number shown to the department head)
+is blocked — only the physical print job itself is not wired up. Flagged for
+whichever session first needs the actual print (likely Session 6, D3.2 "Fill
+an Order").
+
+**JWT/`departmentTag` plumbing (small, additive, not scope creep):**
+`req.user`/`AccessTokenPayload` had no `departmentTag` field — needed to
+resolve `requireDepartmentHead()` in both new services without an extra DB
+round-trip on every request. Added `departmentTag?: DepartmentTag | null` to
+`AccessTokenPayload` (jwt.ts), `Express.UserContext` (express.d.ts), the
+`authenticate` middleware, both `signAccessToken` call sites in
+`auth-service.ts`, and `userAuthSelect`/`userPublicSelect` in
+`auth-repository.ts` — mirrors exactly how `role`/`organizationId` already
+flow through the same path. One existing test
+(`auth-service.test.ts`) needed its mock object updated for the new field;
+no other Phase 1 code was touched.
+
+**`InventoryTransaction` create/createMany extended** with
+`dispatchLineId`/`marketPurchaseLineId` optional fields
+(`inventory-transaction-repository.ts`) — the schema columns already existed
+from Session 1's design; only the repository's input type was missing them.
+
+**Q2 — can a department receive more than dispatched?** Plan's default:
+allow, flag as variance. Implemented exactly as specced —
+`receive()` does not cap `receivedQty` at `dispatchedQty`; any mismatch
+(over or under) sets `hasVariance` and triggers `sendReceiptVariancePush`.
+
+**Q5 — can the Store Manager dispatch without a requisition?** Plan's
+default: yes. `dispatchService.createUnsolicited` takes a `toLocationId` +
+lines directly, `requisitionId: null` (already nullable in Session 1's
+schema). Covered by a unit test.
+
+**Q6 — rejected requisition: edit-and-resubmit or raise fresh?** Plan's
+default: edit + resubmit. `requisitionService.editAndResubmit` requires
+`status === 'REJECTED'` and the actor to be the original raiser, replaces
+lines wholesale via `requisitionRepository.replaceLines`, and transitions
+back to `PENDING_MANAGER_APPROVAL` (clearing `approvedById`/`approvedAt`/
+`rejectionReason`). Covered by a unit test.
+
+**Tests:** `requisition-service.test.ts` (15 tests) +
+`dispatch-service.test.ts` (14 tests) — 29 new tests, all passing on first
+full run. Baseline was 724 tests / 74 files; now **753 tests / 76 files**,
+zero regressions. `pnpm build` and `pnpm test` both clean.
+
+**Not built in this session (deferred to Session 3 as planned):** market
+purchase, par levels CRUD (only the read lookup needed for suggested
+quantities was built), department-scoped stock/counts/waste, RBAC audit,
+reports. No frontend, per scope boundaries.
+
 ---
 
 ## Session 3 — Remaining Backend + RBAC Audit + Reports
@@ -811,6 +942,33 @@ required it — it appeared only in the session plan's own scope line. The dual-
 bridge is unaffected: it lives on `Requisition`/`Dispatch` via
 `fromOrganizationId`/`toOrganizationId` (D-16), not on `Location`.
 **Resolution: field not added.** Session 1 scope corrected above.
+
+**Session 2 (2026-08-21) — D-8 per-location costing has no schema field; resolved
+by computing on demand rather than storing.** D-8 specifies "weighted average
+per item per location," but `InventoryItem.currentCost` is a single scalar
+owned by the hub-org catalog row — this worked in Phase 1 only because
+Central Store was the only location. The first time a branch department
+needs its own average (receiving a dispatch), there is nowhere to write it:
+no `InventoryItem` row has `organizationId` = a branch org, so writing there
+would silently no-op. Raised to the owner rather than guessing or adding a
+schema change mid-session. **Decision: no new model.** A location's
+weighted-average cost is computed on demand from its own
+`InventoryTransaction` history (same formula as `weightedAverageCost()`,
+applied as a query) whenever something needs it next — flagged for whichever
+Session 3+ piece is first to need a department's average cost (most likely a
+report). The dispatch ledger transaction itself already carries the correct
+per-line `unitCost`, so no data is lost, only a cached value is deferred.
+
+**Session 2 (2026-08-21) — delivery note printing not wired to the existing
+thermal print infra.** The plan asked for reuse of "the existing thermal
+printing infra," but the existing `PrintJob` model is order-shaped (required
+`orderId` FK, `ReceiptType` enum with no non-order value) — there is no path
+for a document not tied to an `Order`. Wiring this up is real, separate
+scope (a new receipt type or a parallel print-job path), not a reuse.
+`deliveryNoteNumber` is generated and stored on `Dispatch` as specced, so
+nothing depending on the number itself is blocked — only the physical print
+job. Flagged for whichever session first builds D3.2 ("Fill an Order"),
+likely Session 6.
 
 ---
 

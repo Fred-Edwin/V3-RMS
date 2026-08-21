@@ -2,12 +2,13 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { UnauthorizedError } from './errors';
-import type { UserRole } from '@prisma/client';
+import type { DepartmentTag, UserRole } from '@prisma/client';
 
 export interface AccessTokenPayload {
   userId: string;
   role: UserRole;
   organizationId: string | null;
+  departmentTag?: DepartmentTag | null;
 }
 
 export interface RefreshTokenPayload {

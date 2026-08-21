@@ -1,4 +1,4 @@
-import type { UserRole } from '@prisma/client';
+import type { DepartmentTag, UserRole } from '@prisma/client';
 
 declare global {
   namespace Express {
@@ -6,6 +6,7 @@ declare global {
       id: string;
       role: UserRole;
       organizationId: string | null;
+      departmentTag?: DepartmentTag | null;
     }
 
     interface PrintStationContext {

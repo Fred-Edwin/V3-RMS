@@ -16,6 +16,8 @@ export type CreateInventoryTransactionInput = {
   prepRecordId?: string;
   wasteLogId?: string;
   stockCountLineId?: string;
+  dispatchLineId?: string;
+  marketPurchaseLineId?: string;
 };
 
 export const inventoryTransactionRepository = {
@@ -37,6 +39,8 @@ export const inventoryTransactionRepository = {
         prepRecordId: input.prepRecordId,
         wasteLogId: input.wasteLogId,
         stockCountLineId: input.stockCountLineId,
+        dispatchLineId: input.dispatchLineId,
+        marketPurchaseLineId: input.marketPurchaseLineId,
       },
     });
   },
@@ -59,6 +63,8 @@ export const inventoryTransactionRepository = {
         prepRecordId: input.prepRecordId,
         wasteLogId: input.wasteLogId,
         stockCountLineId: input.stockCountLineId,
+        dispatchLineId: input.dispatchLineId,
+        marketPurchaseLineId: input.marketPurchaseLineId,
       })),
     });
   },

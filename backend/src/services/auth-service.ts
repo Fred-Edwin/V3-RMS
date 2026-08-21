@@ -63,6 +63,7 @@ export const authService = {
       userId: user.id,
       role: user.role,
       organizationId: user.organizationId,
+      departmentTag: user.departmentTag,
     });
     const refreshToken = signRefreshToken({ userId: user.id });
     const refreshTokenHash = hashToken(refreshToken);
@@ -123,6 +124,7 @@ export const authService = {
       userId: user.id,
       role: user.role,
       organizationId: user.organizationId,
+      departmentTag: user.departmentTag,
     });
 
     return {

@@ -7,6 +7,7 @@ const userAuthSelect = {
   email: true,
   role: true,
   organizationId: true,
+  departmentTag: true,
   isActive: true,
   passwordHash: true,
   organization: {
@@ -22,6 +23,7 @@ const userPublicSelect = {
   email: true,
   role: true,
   organizationId: true,
+  departmentTag: true,
   isActive: true,
   phone: true,
   organization: {

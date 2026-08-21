@@ -620,4 +620,134 @@ export const fcmService = {
       logger.warn({ error, payload }, 'Failed to send disciplinary notice FCM push');
     }
   },
+
+  // ==========================================================================
+  // PHASE 2 — Requisition / Dispatch (D-16, D-18)
+  // ==========================================================================
+
+  /** Notifies the branch's Managers a requisition is awaiting their approval. Fire-and-forget. */
+  sendRequisitionSubmittedPush: async (
+    organizationId: string,
+    payload: { requisitionId: string; departmentTag: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      if (tokens.length === 0) return;
+
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Requisition awaiting approval',
+            body: `${payload.departmentTag} has submitted a requisition for your approval`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `requisition-submitted-${payload.requisitionId}`,
+          },
+          fcmOptions: { link: '/app/inventory/requisitions' },
+        },
+        data: { type: 'requisition_submitted', requisitionId: payload.requisitionId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send requisition submitted FCM push');
+    }
+  },
+
+  /** Notifies the Department Head their requisition was approved or rejected. Fire-and-forget. */
+  sendRequisitionDecisionPush: async (
+    departmentHeadId: string,
+    payload: { requisitionId: string; decision: 'APPROVED' | 'REJECTED'; reason?: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(departmentHeadId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+
+      const body =
+        payload.decision === 'APPROVED'
+          ? 'Your requisition was approved and is on its way to the Central Store'
+          : `Your requisition was rejected${payload.reason ? `: ${payload.reason}` : ''}`;
+
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: payload.decision === 'APPROVED' ? 'Requisition approved' : 'Requisition rejected',
+            body,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `requisition-decision-${payload.requisitionId}`,
+          },
+          fcmOptions: { link: '/app/inventory/my-requisitions' },
+        },
+        data: { type: 'requisition_decision', requisitionId: payload.requisitionId, decision: payload.decision },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send requisition decision FCM push');
+    }
+  },
+
+  /** Notifies the Department Head a dispatch is on the way. Fire-and-forget. */
+  sendDispatchInTransitPush: async (
+    departmentHeadId: string,
+    payload: { dispatchId: string; deliveryNoteNumber: string | null },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(departmentHeadId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Delivery on the way',
+            body: `A delivery from the Central Store is in transit${payload.deliveryNoteNumber ? ` (${payload.deliveryNoteNumber})` : ''}`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `dispatch-in-transit-${payload.dispatchId}`,
+          },
+          fcmOptions: { link: '/app/inventory/receive' },
+        },
+        data: { type: 'dispatch_in_transit', dispatchId: payload.dispatchId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send dispatch in-transit FCM push');
+    }
+  },
+
+  /** Notifies the Central Store roles a delivery was received with a variance. Fire-and-forget. */
+  sendReceiptVariancePush: async (
+    hubOrganizationId: string,
+    payload: { dispatchId: string; itemCount: number },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findFcmTokensByRole(hubOrganizationId, [
+        'STORE_MANAGER',
+        'STORE_ATTENDANT',
+      ]);
+      if (tokens.length === 0) return;
+
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: 'Delivery variance recorded',
+            body: `${payload.itemCount} line(s) on a received delivery did not match what was dispatched`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `dispatch-variance-${payload.dispatchId}`,
+          },
+          fcmOptions: { link: '/app/inventory/dispatches' },
+        },
+        data: { type: 'dispatch_variance', dispatchId: payload.dispatchId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send receipt variance FCM push');
+    }
+  },
 };

@@ -1,4 +1,4 @@
-import type { Location } from '@prisma/client';
+import type { DepartmentTag, Location, LocationType } from '@prisma/client';
 import { prisma } from '../config/database';
 
 /**
@@ -30,5 +30,14 @@ export const locationRepository = {
     return prisma.location.create({
       data: { organizationId, type: 'CENTRAL_STORE', name },
     });
+  },
+
+  /** Phase 2: the single BRANCH_DEPARTMENT location for a (branch org, department). */
+  findByOrganizationTypeDepartment: async (
+    organizationId: string,
+    type: LocationType,
+    departmentTag: DepartmentTag,
+  ): Promise<Location | null> => {
+    return prisma.location.findFirst({ where: { organizationId, type, departmentTag } });
   },
 };
