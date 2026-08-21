@@ -26,8 +26,18 @@ DROP TABLE IF EXISTS "public"."suppliers" CASCADE;
 DROP TYPE IF EXISTS "public"."RequisitionStatus";
 DROP TYPE IF EXISTS "public"."StocktakeStation";
 
--- Remove the orphaned migration-history row so the ledger of applied
--- migrations matches the repo again. (The STORE_MANAGER enum label the V2.1
--- migration added cannot be removed — Postgres has no DROP VALUE — which is
--- why 20260728101631 adds it with IF NOT EXISTS instead.)
-DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20260322072523_add_inventory_v2';
+-- NOTE (patched 2026-08-21, Phase 2 Session 1): this migration originally
+-- ended with `DELETE FROM "_prisma_migrations" WHERE "migration_name" =
+-- '20260322072523_add_inventory_v2'` to tidy the orphaned V2.1 history row
+-- out of the ledger. That statement is removed here: a migration writing to
+-- Prisma's own `_prisma_migrations` bookkeeping table breaks `prisma migrate
+-- dev`'s shadow-database replay (P1014, "the underlying table for model
+-- `_prisma_migrations` does not exist") on ANY fresh database, including the
+-- shadow DB every `migrate dev` run creates — this was blocking the migrate
+-- workflow entirely, for every future migration, not just this one. It was
+-- cosmetic (the STORE_MANAGER enum label it referenced can't be un-added
+-- anyway — Postgres has no DROP VALUE — which is why 20260728101631 already
+-- uses ADD VALUE IF NOT EXISTS and never depended on this row being gone).
+-- The real production/local DB already had this DELETE applied when this
+-- migration first ran; removing it from the file only affects future shadow-
+-- DB and fresh-database replays, not the already-migrated real database.

@@ -36,6 +36,7 @@ import wasteLogRoutes from './waste-log-routes';
 import supplierInvoiceRoutes from './supplier-invoice-routes';
 import inventoryReportRoutes from './inventory-report-routes';
 import locationRoutes from './location-routes';
+import departmentRoutes from './department-routes';
 
 const apiRouter = Router();
 
@@ -76,5 +77,6 @@ apiRouter.use(wasteLogRoutes);
 apiRouter.use(supplierInvoiceRoutes);
 apiRouter.use(inventoryReportRoutes);
 apiRouter.use(locationRoutes);
+apiRouter.use(departmentRoutes);
 
 export default apiRouter;

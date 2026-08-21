@@ -129,15 +129,24 @@ const run = async (): Promise<void> => {
   // --- Central Store (Inventory Phase 1): one Location row + two global
   // accounts, assigned to the hub org for tenancy scoping only — the Central
   // Store is its own location type, never a branch (feature plan D-1). ---
-  const centralStore = await prisma.location.upsert({
-    where: { organizationId_type: { organizationId: hubOrg.id, type: 'CENTRAL_STORE' } },
-    update: {},
-    create: {
-      organizationId: hubOrg.id,
-      type: 'CENTRAL_STORE',
-      name: 'Central Store',
-    },
+  // departmentTag is null for CENTRAL_STORE, and Postgres treats each NULL as
+  // distinct for unique-constraint purposes — the compound key shorthand
+  // can't express "find the row where departmentTag is null", so this uses
+  // findFirst + create instead of upsert. The partial unique index
+  // locations_single_central_store (one CENTRAL_STORE system-wide) still
+  // guards against duplicates at the DB level regardless.
+  let centralStore = await prisma.location.findFirst({
+    where: { organizationId: hubOrg.id, type: 'CENTRAL_STORE' },
   });
+  if (!centralStore) {
+    centralStore = await prisma.location.create({
+      data: {
+        organizationId: hubOrg.id,
+        type: 'CENTRAL_STORE',
+        name: 'Central Store',
+      },
+    });
+  }
   console.log(`  OK    Central Store location (id: ${centralStore.id})`);
 
   const storeManagerEmail = 'store.manager@wendo.test';
