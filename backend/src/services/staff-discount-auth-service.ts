@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { staffDiscountAuthRequestRepository } from '../repositories/staff-discount-auth-request-repository';
 import { orderRepository } from '../repositories/order-repository';
 import { socketService } from '../sockets/socket-service';
+import { fcmService } from './fcm-service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import type {
@@ -134,6 +135,20 @@ export const staffDiscountAuthService = {
       originalAmount: originalAmount.toString(),
       discountAmount: discountAmount.toString(),
     });
+
+    // Notify all directors via FCM so it reaches them even with the app closed.
+    // Fire-and-forget — must never block or fail the request.
+    void fcmService
+      .sendStaffDiscountAuthPushToDirectors({
+        orderId,
+        dailyNumber: order.dailyNumber,
+        requesterName: authRequest.requestedBy.name,
+        originalAmount: originalAmount.toString(),
+        discountedAmount: originalAmount.sub(discountAmount).toDecimalPlaces(2).toString(),
+      })
+      .catch((error: unknown) => {
+        logger.warn({ error, orderId }, 'Staff discount director push failed');
+      });
 
     logger.info(
       { authRequestId: authRequest.id, orderId, actorId: actor.id, discountAmount: discountAmount.toString() },

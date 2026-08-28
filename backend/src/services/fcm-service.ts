@@ -273,6 +273,56 @@ export const fcmService = {
   },
 
   /**
+   * Sends an approval request push to every active DIRECTOR when a waiter requests
+   * a staff discount on their own READY order. Directors are system-level (no
+   * organizationId), so recipients are resolved by role alone. Fire-and-forget —
+   * must never block or fail staff-discount request creation.
+   */
+  sendStaffDiscountAuthPushToDirectors: async (
+    payload: {
+      orderId: string;
+      dailyNumber: number;
+      requesterName: string;
+      originalAmount: string;
+      discountedAmount: string;
+    },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) {
+        return;
+      }
+
+      const tokens = await authRepository.findDirectorFcmTokens();
+      if (tokens.length === 0) {
+        return;
+      }
+
+      await Promise.allSettled(
+        tokens.map((token) =>
+          firebaseMessaging!.send({
+            token,
+            webpush: {
+              headers: { Urgency: 'high' },
+              notification: {
+                title: 'Staff discount needs approval',
+                body: `${payload.requesterName} · Order #${payload.dailyNumber} · KES ${payload.originalAmount} → KES ${payload.discountedAmount}`,
+                icon: '/android-chrome-192x192.png',
+                badge: '/android-chrome-192x192.png',
+                tag: `staff-discount-auth-${payload.orderId}`,
+                renotify: true,
+              },
+              fcmOptions: { link: '/app/director' },
+            },
+            data: { type: 'staff_discount_auth', orderId: payload.orderId },
+          }),
+        ),
+      );
+    } catch (error) {
+      logger.warn({ error, orderId: payload.orderId }, 'Failed to send staff discount auth push to directors');
+    }
+  },
+
+  /**
    * Sends an authorization request push to the house account holder.
    * The holder taps the notification to approve or reject the charge.
    */

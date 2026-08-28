@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { staffDiscountAuthRequestRepository } from '../repositories/staff-discount-auth-request-repository';
 import { orderRepository } from '../repositories/order-repository';
 import { socketService } from '../sockets/socket-service';
+import { fcmService } from './fcm-service';
 import type { FullOrderPrismaRecord } from '../repositories/order-repository';
 import { staffDiscountAuthService } from './staff-discount-auth-service';
 
@@ -30,6 +31,12 @@ vi.mock('../sockets/socket-service', () => ({
   socketService: {
     emitStaffDiscountAuthPending: vi.fn(),
     emitStaffDiscountAuthResolved: vi.fn(),
+  },
+}));
+
+vi.mock('./fcm-service', () => ({
+  fcmService: {
+    sendStaffDiscountAuthPushToDirectors: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -139,6 +146,45 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     );
     expect(result.status).toBe('PENDING');
     expect(result.discountAmount).toBe('200');
+  });
+
+  it('fires an FCM push to directors with the order, requester and amounts', async () => {
+    const readyOrder = buildReadyOrder();
+    const pendingRequest = buildPendingAuthRequest();
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(readyOrder);
+    vi.mocked(staffDiscountAuthRequestRepository.findPendingByOrderId).mockResolvedValue(null);
+    vi.mocked(staffDiscountAuthRequestRepository.create).mockResolvedValue(pendingRequest);
+    vi.mocked(orderRepository.updateStatus).mockResolvedValue(readyOrder);
+
+    await staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor);
+
+    expect(fcmService.sendStaffDiscountAuthPushToDirectors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId,
+        dailyNumber: 5,
+        requesterName: 'Waiter One',
+        originalAmount: '1000',
+        discountedAmount: '800',
+      }),
+    );
+  });
+
+  it('still succeeds when the director FCM push rejects', async () => {
+    const readyOrder = buildReadyOrder();
+    const pendingRequest = buildPendingAuthRequest();
+
+    vi.mocked(orderRepository.findById).mockResolvedValue(readyOrder);
+    vi.mocked(staffDiscountAuthRequestRepository.findPendingByOrderId).mockResolvedValue(null);
+    vi.mocked(staffDiscountAuthRequestRepository.create).mockResolvedValue(pendingRequest);
+    vi.mocked(orderRepository.updateStatus).mockResolvedValue(readyOrder);
+    vi.mocked(fcmService.sendStaffDiscountAuthPushToDirectors).mockRejectedValueOnce(
+      new Error('FCM unavailable'),
+    );
+
+    const result = await staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor);
+
+    expect(result.status).toBe('PENDING');
   });
 
   it('throws NotFoundError when order does not exist', async () => {

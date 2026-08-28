@@ -140,4 +140,22 @@ export const authRepository = {
 
     return users.map((u) => u.fcmToken as string);
   },
+
+  /**
+   * Returns the FCM tokens of every active DIRECTOR. Directors are a system-level
+   * role that legitimately spans organizations, so there is deliberately no
+   * organizationId filter here — used for staff-discount approval pushes.
+   */
+  findDirectorFcmTokens: async (): Promise<string[]> => {
+    const users = await prisma.user.findMany({
+      where: {
+        role: 'DIRECTOR',
+        isActive: true,
+        fcmToken: { not: null },
+      },
+      select: { fcmToken: true },
+    });
+
+    return users.map((u) => u.fcmToken as string);
+  },
 };
