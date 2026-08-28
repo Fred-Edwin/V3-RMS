@@ -13,6 +13,7 @@ vi.mock('../repositories/staff-discount-auth-request-repository', () => ({
     findById: vi.fn(),
     findPendingByOrderId: vi.fn(),
     findPendingByOrganization: vi.fn(),
+    findAllPending: vi.fn(),
     resolveIfPending: vi.fn(),
   },
 }));
@@ -48,11 +49,12 @@ const managerActor = {
   organizationId,
 } as NonNullable<Request['user']>;
 
-const otherBranchManagerActor = {
-  id: '66666666-6666-4666-8666-666666666666',
-  role: 'MANAGER',
-  organizationId: '99999999-9999-4999-8999-999999999999',
-} as NonNullable<Request['user']>;
+// Directors are system-level: no organizationId. They approve staff discounts for any branch.
+const directorActor = {
+  id: '77777777-7777-4777-8777-777777777777',
+  role: 'DIRECTOR',
+  organizationId: undefined,
+} as unknown as NonNullable<Request['user']>;
 
 const buildReadyOrder = (): FullOrderPrismaRecord => {
   return {
@@ -182,18 +184,16 @@ describe('staffDiscountAuthService.managerApprove', () => {
     vi.clearAllMocks();
   });
 
-  it('throws ForbiddenError when actor is not a manager or director', async () => {
+  it('throws ForbiddenError when actor is not a director', async () => {
     await expect(
       staffDiscountAuthService.managerApprove(authRequestId, 'APPROVED', waiterActor),
-    ).rejects.toThrow('Only managers and directors can approve');
+    ).rejects.toThrow('Only directors can approve');
   });
 
-  it('throws ForbiddenError for cross-branch manager', async () => {
-    vi.mocked(staffDiscountAuthRequestRepository.findById).mockResolvedValue(buildPendingAuthRequest());
-
+  it('throws ForbiddenError when a manager tries to approve', async () => {
     await expect(
-      staffDiscountAuthService.managerApprove(authRequestId, 'APPROVED', otherBranchManagerActor),
-    ).rejects.toThrow('Access denied');
+      staffDiscountAuthService.managerApprove(authRequestId, 'APPROVED', managerActor),
+    ).rejects.toThrow('Only directors can approve');
   });
 
   it('APPROVED: applies discount, sets order to READY, emits resolved socket', async () => {
@@ -203,7 +203,7 @@ describe('staffDiscountAuthService.managerApprove', () => {
       total: new Prisma.Decimal('800.00'),
       discountPercent: new Prisma.Decimal('20'),
       discountAmount: new Prisma.Decimal('200.00'),
-      discountedById: managerActor.id,
+      discountedById: directorActor.id,
       status: 'AWAITING_AUTHORIZATION' as const,
     };
 
@@ -211,7 +211,7 @@ describe('staffDiscountAuthService.managerApprove', () => {
     vi.mocked(staffDiscountAuthRequestRepository.resolveIfPending).mockResolvedValue({
       ...pendingRequest,
       status: 'APPROVED' as const,
-      resolvedById: managerActor.id,
+      resolvedById: directorActor.id,
       resolvedAt: new Date(),
     });
     vi.mocked(orderRepository.applyDiscount).mockResolvedValue(
@@ -221,14 +221,14 @@ describe('staffDiscountAuthService.managerApprove', () => {
       { ...discountedOrder, status: 'READY' } as unknown as FullOrderPrismaRecord,
     );
 
-    const result = await staffDiscountAuthService.managerApprove(authRequestId, 'APPROVED', managerActor);
+    const result = await staffDiscountAuthService.managerApprove(authRequestId, 'APPROVED', directorActor);
 
     expect(orderRepository.applyDiscount).toHaveBeenCalledWith(
       orderId,
       organizationId,
       '20',
       '200',
-      managerActor.id,
+      directorActor.id,
     );
     expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
     expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
@@ -246,12 +246,12 @@ describe('staffDiscountAuthService.managerApprove', () => {
     vi.mocked(staffDiscountAuthRequestRepository.resolveIfPending).mockResolvedValue({
       ...pendingRequest,
       status: 'REJECTED' as const,
-      resolvedById: managerActor.id,
+      resolvedById: directorActor.id,
       resolvedAt: new Date(),
     });
     vi.mocked(orderRepository.updateStatus).mockResolvedValue(buildReadyOrder());
 
-    const result = await staffDiscountAuthService.managerApprove(authRequestId, 'REJECTED', managerActor);
+    const result = await staffDiscountAuthService.managerApprove(authRequestId, 'REJECTED', directorActor);
 
     expect(orderRepository.applyDiscount).not.toHaveBeenCalled();
     expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
@@ -261,5 +261,30 @@ describe('staffDiscountAuthService.managerApprove', () => {
       expect.objectContaining({ orderId, approved: false }),
     );
     expect(result.status).toBe('REJECTED');
+  });
+});
+
+describe('staffDiscountAuthService.listPending', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns all pending requests across branches for a director', async () => {
+    vi.mocked(staffDiscountAuthRequestRepository.findAllPending).mockResolvedValue([
+      buildPendingAuthRequest(),
+    ]);
+
+    const result = await staffDiscountAuthService.listPending(directorActor);
+
+    expect(staffDiscountAuthRequestRepository.findAllPending).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.status).toBe('PENDING');
+  });
+
+  it('returns an empty list for a non-director (managers no longer approve staff discounts)', async () => {
+    const result = await staffDiscountAuthService.listPending(managerActor);
+
+    expect(result).toEqual([]);
+    expect(staffDiscountAuthRequestRepository.findAllPending).not.toHaveBeenCalled();
   });
 });

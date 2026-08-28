@@ -50,6 +50,8 @@ interface OrderDetailBottomSheetProps {
   isPrintSubmitting?: boolean;
   isOwner?: boolean;
   isManager?: boolean;
+  /** Staff discounts are director-only approvals; managers cannot resolve them. */
+  isDirector?: boolean;
   houseAccounts?: HouseAccountDropdownItem[];
   corporateAccounts?: CorporateAccountDropdownItem[];
   customerCreditAccounts?: CustomerCreditDropdownItem[];
@@ -704,6 +706,7 @@ export function OrderDetailBottomSheet({
   isPrintSubmitting = false,
   isOwner = false,
   isManager = false,
+  isDirector = false,
   houseAccounts = [],
   corporateAccounts = [],
   customerCreditAccounts = [],
@@ -1292,8 +1295,8 @@ export function OrderDetailBottomSheet({
                 <Clock size={16} className="text-[#92400E] shrink-0" />
                 <p className="text-[13px] font-semibold text-[#92400E]">Awaiting Discount Approval</p>
               </div>
-              <p className="text-[13px] text-[#92400E]">A {STAFF_DISCOUNT_PERCENT}% staff discount has been requested. A manager must approve before payment can be collected.</p>
-              {isManager && onStaffDiscountOverride && (
+              <p className="text-[13px] text-[#92400E]">A {STAFF_DISCOUNT_PERCENT}% staff discount has been requested. A director must approve before payment can be collected.</p>
+              {isDirector && onStaffDiscountOverride && (
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" className="flex-1" isLoading={isStaffDiscountOverrideSubmitting} onClick={() => onStaffDiscountOverride(order.id, 'APPROVED')}>Approve Discount</Button>
                   <Button size="sm" variant="destructive" className="flex-1" isLoading={isStaffDiscountOverrideSubmitting} onClick={() => onStaffDiscountOverride(order.id, 'REJECTED')}>Reject</Button>

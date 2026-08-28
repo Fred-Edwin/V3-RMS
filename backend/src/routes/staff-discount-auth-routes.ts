@@ -5,19 +5,19 @@ import { staffDiscountAuthController } from '../controllers/staff-discount-auth-
 
 const staffDiscountAuthRoutes = Router();
 
-// List all pending discount auth requests for the branch — manager/director only
+// List all pending staff-discount auth requests system-wide — director only
 staffDiscountAuthRoutes.get(
   '/staff-discount-auth',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('DIRECTOR'),
   staffDiscountAuthController.listPending,
 );
 
-// Fetch a specific discount auth request by ID
+// Fetch a specific discount auth request by ID (requester or director)
 staffDiscountAuthRoutes.get(
   '/staff-discount-auth/:authRequestId',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR', 'WAITER', 'CHEF', 'BARISTA', 'ACCOUNTANT'),
+  requireRole('DIRECTOR', 'WAITER', 'CHEF', 'BARISTA', 'ACCOUNTANT'),
   staffDiscountAuthController.getById,
 );
 
@@ -29,11 +29,11 @@ staffDiscountAuthRoutes.get(
   staffDiscountAuthController.getPendingByOrderId,
 );
 
-// Manager/director approve or reject a discount request
+// Director approves or rejects a staff-discount request
 staffDiscountAuthRoutes.post(
   '/staff-discount-auth/:authRequestId/override',
   authenticate,
-  requireRole('MANAGER', 'DIRECTOR'),
+  requireRole('DIRECTOR'),
   staffDiscountAuthController.override,
 );
 

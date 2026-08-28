@@ -53,6 +53,16 @@ export const staffDiscountAuthRequestRepository = {
     });
   },
 
+  /** All pending requests across every branch — for directors, who approve staff
+   *  discounts system-wide and have no organizationId to scope by. */
+  findAllPending: async () => {
+    return prisma.staffDiscountAuthRequest.findMany({
+      where: { status: 'PENDING' },
+      include: authRequestInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
   /**
    * Atomic status update — only transitions from PENDING.
    * Returns the updated record, or null if the request was already resolved

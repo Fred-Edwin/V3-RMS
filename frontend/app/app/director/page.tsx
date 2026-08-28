@@ -24,15 +24,18 @@ import { CHART_AMBER, CHART_SUCCESS } from '@/lib/chart-colors';
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { RevenueBreakdownCard } from '@/components/dashboard/RevenueBreakdownCard';
 import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApprovalCard';
+import { StaffDiscountApprovalCard } from '@/components/dashboard/StaffDiscountApprovalCard';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
+import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
 import { reportService } from '@/services/reportService';
 import { useAuthStore } from '@/store/authStore';
 import { LeaveRequestsWidget } from '@/components/hr/LeaveRequestsWidget';
 import { ApiError } from '@/types/api';
 import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
+import type { StaffDiscountAuthRequest } from '@/types/staffDiscountAuth';
 import type {
   BranchOverview,
   DirectorPulseBranchRow,
@@ -484,11 +487,18 @@ export default function DirectorCommandCentrePage(): JSX.Element {
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
   const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
 
+  // ── Pending staff discount authorizations (director-only approval) ────────
+  const [pendingDiscountAuths, setPendingDiscountAuths] = useState<StaffDiscountAuthRequest[]>([]);
+  const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!accessToken) return;
     houseAccountAuthService.listPending(accessToken)
       .then((data) => setPendingAuths(data))
+      .catch(() => { /* non-critical */ });
+    staffDiscountAuthService.listPending(accessToken)
+      .then((data) => setPendingDiscountAuths(data))
       .catch(() => { /* non-critical */ });
   }, [accessToken]);
 
@@ -515,6 +525,50 @@ export default function DirectorCommandCentrePage(): JSX.Element {
       socket.off('order:auth_resolved', handleAuthResolved);
     };
   }, [accessToken]);
+
+  // Keep staff-discount approval card in sync via socket (director fan-out)
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handleDiscountPending = (payload: { orderId: string; authRequestId: string }) => {
+      if (!accessToken) return;
+      staffDiscountAuthService.getById(payload.authRequestId, accessToken)
+        .then((req) => setPendingDiscountAuths((prev) => {
+          if (prev.some((r) => r.id === req.id)) return prev;
+          return [...prev, req];
+        }))
+        .catch(() => { /* non-critical */ });
+    };
+    const handleDiscountResolved = (payload: { orderId: string }) => {
+      setPendingDiscountAuths((prev) => prev.filter((r) => r.orderId !== payload.orderId));
+    };
+    socket.on('order:staff_discount_pending', handleDiscountPending);
+    socket.on('order:staff_discount_resolved', handleDiscountResolved);
+    return () => {
+      socket.off('order:staff_discount_pending', handleDiscountPending);
+      socket.off('order:staff_discount_resolved', handleDiscountResolved);
+    };
+  }, [accessToken]);
+
+  const handleDiscountDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
+    if (!accessToken || discountOverrideSubmittingId) return;
+    setDiscountOverrideSubmittingId(authRequestId);
+    try {
+      await staffDiscountAuthService.override(authRequestId, decision, accessToken);
+      setPendingDiscountAuths((prev) => prev.filter((r) => r.id !== authRequestId));
+      toast({
+        variant: 'success',
+        title: decision === 'APPROVED' ? 'Discount approved' : 'Discount rejected',
+        message: decision === 'APPROVED'
+          ? 'Order returned to the waiter at the discounted total.'
+          : 'Order returned to the waiter at full price.',
+      });
+    } catch {
+      toast({ variant: 'error', title: 'Action failed', message: 'Could not process the decision.' });
+    } finally {
+      setDiscountOverrideSubmittingId(null);
+    }
+  }, [accessToken, discountOverrideSubmittingId, toast]);
 
   const handleAuthDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
     if (!accessToken || authOverrideSubmittingId) return;
@@ -583,13 +637,13 @@ export default function DirectorCommandCentrePage(): JSX.Element {
 
       <InboxNudge />
 
-      {/* ── House account approvals + leave requests ────────────────────────── */}
+      {/* ── House account approvals + staff discounts + leave requests ──────── */}
       <section className="space-y-3">
-        {pendingAuths.length === 0 && pendingLeaveCount === 0 && (
+        {pendingAuths.length === 0 && pendingDiscountAuths.length === 0 && pendingLeaveCount === 0 && (
           <EmptyState
             icon={<ChevronRight size={28} />}
             heading="Nothing pending right now"
-            body="House account charges awaiting your approval will show up here."
+            body="House account charges and staff discounts awaiting your approval will show up here."
             className="rounded-xl border border-stone-200 bg-white py-8"
           />
         )}
@@ -597,6 +651,11 @@ export default function DirectorCommandCentrePage(): JSX.Element {
           pendingAuths={pendingAuths}
           authOverrideSubmittingId={authOverrideSubmittingId}
           onDecide={(id, decision) => void handleAuthDecision(id, decision)}
+        />
+        <StaffDiscountApprovalCard
+          pendingRequests={pendingDiscountAuths}
+          overrideSubmittingId={discountOverrideSubmittingId}
+          onDecide={(id, decision) => void handleDiscountDecision(id, decision)}
         />
         {/* Widget renders its own "pending" (action) + "recent decisions" (collapsed) sections */}
         <LeaveRequestsWidget onPendingCountChange={setPendingLeaveCount} />

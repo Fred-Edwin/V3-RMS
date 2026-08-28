@@ -16,10 +16,8 @@ import { HouseAccountApprovalCard } from '@/components/dashboard/HouseAccountApp
 import { InboxNudge } from '@/components/comms/InboxNudge';
 import { useActiveOrders } from '@/hooks/useActiveOrders';
 import { useToast } from '@/hooks/useToast';
-import { STAFF_DISCOUNT_PERCENT } from '@/lib/discountConstants';
 import { getSocket } from '@/lib/socket';
 import { houseAccountAuthService } from '@/services/houseAccountAuthService';
-import { staffDiscountAuthService } from '@/services/staffDiscountAuthService';
 import { customerDiscountAuthService } from '@/services/customerDiscountAuthService';
 import { orderCancellationAuthService } from '@/services/orderCancellationAuthService';
 import { reportService } from '@/services/reportService';
@@ -30,7 +28,6 @@ import { ApiError } from '@/types/api';
 import type { DailySummary, HourlyHeatmapReport, ItemsPerformanceReport } from '@/types/report';
 import type { ShiftAssignment } from '@/types/shift';
 import type { HouseAccountAuthRequest } from '@/types/houseAccountAuth';
-import type { StaffDiscountAuthRequest } from '@/types/staffDiscountAuth';
 import type { CustomerDiscountAuthRequest } from '@/types/discount';
 import type { OrderCancellationAuthRequest } from '@/types/orderCancellationAuth';
 
@@ -125,8 +122,6 @@ export default function ManagerDashboardPage(): JSX.Element {
   const [pendingAuths, setPendingAuths] = useState<HouseAccountAuthRequest[]>([]);
   const [authOverrideSubmittingId, setAuthOverrideSubmittingId] = useState<string | null>(null);
   const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
-  const [pendingDiscountAuths, setPendingDiscountAuths] = useState<StaffDiscountAuthRequest[]>([]);
-  const [discountOverrideSubmittingId, setDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCustomerDiscountAuths, setPendingCustomerDiscountAuths] = useState<CustomerDiscountAuthRequest[]>([]);
   const [customerDiscountOverrideSubmittingId, setCustomerDiscountOverrideSubmittingId] = useState<string | null>(null);
   const [pendingCancellationAuths, setPendingCancellationAuths] = useState<OrderCancellationAuthRequest[]>([]);
@@ -228,9 +223,6 @@ export default function ManagerDashboardPage(): JSX.Element {
     houseAccountAuthService.listPending(accessToken)
       .then((data) => setPendingAuths(data))
       .catch(() => { /* non-critical */ });
-    staffDiscountAuthService.listPending(accessToken)
-      .then((data) => setPendingDiscountAuths(data))
-      .catch(() => { /* non-critical */ });
     customerDiscountAuthService.listPending(accessToken)
       .then((data) => setPendingCustomerDiscountAuths(data))
       .catch(() => { /* non-critical */ });
@@ -261,30 +253,6 @@ export default function ManagerDashboardPage(): JSX.Element {
     return () => {
       socket.off('order:auth_pending', handleAuthPending);
       socket.off('order:auth_resolved', handleAuthResolved);
-    };
-  }, [accessToken]);
-
-  // Keep staff discount widget in sync via socket
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handleDiscountPending = (payload: { orderId: string; authRequestId: string }) => {
-      if (!accessToken) return;
-      staffDiscountAuthService.getById(payload.authRequestId, accessToken)
-        .then((req) => setPendingDiscountAuths((prev) => {
-          if (prev.some((r) => r.id === req.id)) return prev;
-          return [...prev, req];
-        }))
-        .catch(() => { /* non-critical */ });
-    };
-    const handleDiscountResolved = (payload: { orderId: string }) => {
-      setPendingDiscountAuths((prev) => prev.filter((r) => r.orderId !== payload.orderId));
-    };
-    socket.on('order:staff_discount_pending', handleDiscountPending);
-    socket.on('order:staff_discount_resolved', handleDiscountResolved);
-    return () => {
-      socket.off('order:staff_discount_pending', handleDiscountPending);
-      socket.off('order:staff_discount_resolved', handleDiscountResolved);
     };
   }, [accessToken]);
 
@@ -335,24 +303,6 @@ export default function ManagerDashboardPage(): JSX.Element {
       socket.off('order:cancellation_resolved', handleCancellationResolved);
     };
   }, [accessToken]);
-
-  const handleDiscountDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
-    if (!accessToken || discountOverrideSubmittingId) return;
-    setDiscountOverrideSubmittingId(authRequestId);
-    try {
-      await staffDiscountAuthService.override(authRequestId, decision, accessToken);
-      setPendingDiscountAuths((prev) => prev.filter((r) => r.id !== authRequestId));
-      toast({
-        variant: 'success',
-        title: decision === 'APPROVED' ? 'Discount approved' : 'Discount rejected',
-        message: decision === 'APPROVED' ? 'Order returned to Ready at discounted total.' : 'Order returned to Ready at full price.',
-      });
-    } catch {
-      toast({ variant: 'error', title: 'Action failed', message: 'Could not process the decision.' });
-    } finally {
-      setDiscountOverrideSubmittingId(null);
-    }
-  }, [accessToken, discountOverrideSubmittingId, toast]);
 
   const handleCustomerDiscountDecision = useCallback(async (authRequestId: string, decision: 'APPROVED' | 'REJECTED') => {
     if (!accessToken || customerDiscountOverrideSubmittingId) return;
@@ -611,73 +561,6 @@ export default function ManagerDashboardPage(): JSX.Element {
         {/* Widget renders its own "pending" (action) + "recent decisions" (collapsed) sections */}
         <LeaveRequestsWidget onPendingCountChange={setPendingLeaveCount} />
       </section>
-
-      {/* ── Pending Staff Discount Authorizations ──────────────────── */}
-      {pendingDiscountAuths.length > 0 && (
-        <div className="rounded-xl border border-warning-border bg-warning-bg p-4 space-y-3 print:hidden">
-          <div className="flex items-center gap-2">
-            <Clock size={16} className="text-warning shrink-0" />
-            <p className="text-body-sm font-semibold text-warning">
-              {pendingDiscountAuths.length === 1
-                ? '1 staff discount awaiting your approval'
-                : `${pendingDiscountAuths.length} staff discounts awaiting your approval`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            {pendingDiscountAuths.map((req) => {
-              const loading = discountOverrideSubmittingId === req.id;
-              const original = Number.parseFloat(req.originalAmount);
-              const discounted = original - Number.parseFloat(req.discountAmount);
-              return (
-                <div key={req.id} className="rounded-lg border border-warning-border bg-white p-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-semibold text-stone-900">
-                      Order #{req.order.dailyNumber}
-                      <span className="ml-2 font-normal text-stone-500 line-through">
-                        KES {original.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className="ml-1.5 font-semibold text-success">
-                        → KES {discounted.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      </span>
-                    </p>
-                    <p className="text-caption text-stone-500 mt-0.5">
-                      {req.discountPercent || STAFF_DISCOUNT_PERCENT}% staff discount · requested by {req.requestedBy.name}
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      disabled={!!discountOverrideSubmittingId}
-                      onClick={() => void handleDiscountDecision(req.id, 'APPROVED')}
-                      className="flex items-center gap-1 rounded-md bg-success px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
-                    >
-                      {loading ? (
-                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      ) : (
-                        <CheckCircle size={13} />
-                      )}
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!!discountOverrideSubmittingId}
-                      onClick={() => void handleDiscountDecision(req.id, 'REJECTED')}
-                      className="flex items-center gap-1 rounded-md bg-danger px-2.5 py-1.5 text-label-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
-                    >
-                      {loading ? (
-                        <span className="size-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      ) : (
-                        <XCircle size={13} />
-                      )}
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ── Pending Customer Discount Authorizations ──────────────── */}
       {pendingCustomerDiscountAuths.length > 0 && (

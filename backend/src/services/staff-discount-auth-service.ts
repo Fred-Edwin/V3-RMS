@@ -42,14 +42,16 @@ const serializeAuthRequest = (
 
 export const staffDiscountAuthService = {
   /**
-   * Returns all pending discount requests for the actor's branch.
+   * Returns pending staff-discount requests the actor may approve.
+   * Staff discounts are approved by DIRECTORS only. Directors are a system-level
+   * role with no organizationId, so they see every branch's pending requests.
    */
   listPending: async (actor: Actor): Promise<StaffDiscountAuthRequestRecord[]> => {
-    if (!actor.organizationId) return [];
-    const records = await staffDiscountAuthRequestRepository.findPendingByOrganization(
-      actor.organizationId,
-    );
-    return records.map(serializeAuthRequest);
+    if (actor.role === 'DIRECTOR') {
+      const records = await staffDiscountAuthRequestRepository.findAllPending();
+      return records.map(serializeAuthRequest);
+    }
+    return [];
   },
 
   /**
@@ -77,8 +79,8 @@ export const staffDiscountAuthService = {
     if (!authRequest) throw new NotFoundError('Staff discount auth request not found');
 
     const isRequester = authRequest.requestedById === actor.id;
-    const isManager = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
-    if (!isRequester && !isManager) throw new ForbiddenError('Access denied');
+    const isApprover = actor.role === 'DIRECTOR';
+    if (!isRequester && !isApprover) throw new ForbiddenError('Access denied');
 
     return serializeAuthRequest(authRequest);
   },
@@ -104,7 +106,7 @@ export const staffDiscountAuthService = {
     }
 
     // Prevent duplicate pending requests
-    const existing = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId);
+    const existing = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
     if (existing) {
       throw new ConflictError('A staff discount approval request is already pending for this order');
     }
@@ -142,24 +144,22 @@ export const staffDiscountAuthService = {
   },
 
   /**
-   * Manager or director approves or rejects the discount request.
+   * Director approves or rejects the discount request. Staff discounts are a
+   * director-only authorization — managers cannot approve them (client policy,
+   * 2026-08-28). Directors are system-level with no organizationId, so no branch
+   * scope check applies; a director may resolve any branch's request.
    */
   managerApprove: async (
     authRequestId: string,
     decision: StaffDiscountDecision,
     actor: Actor,
   ): Promise<StaffDiscountAuthRequestRecord> => {
-    if (actor.role !== 'MANAGER' && actor.role !== 'DIRECTOR') {
-      throw new ForbiddenError('Only managers and directors can approve staff discount requests');
+    if (actor.role !== 'DIRECTOR') {
+      throw new ForbiddenError('Only directors can approve staff discount requests');
     }
 
     const authRequest = await staffDiscountAuthRequestRepository.findById(authRequestId);
     if (!authRequest) throw new NotFoundError('Staff discount auth request not found');
-
-    // Scope check — manager must belong to the same branch
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
-      throw new ForbiddenError('Access denied');
-    }
 
     return staffDiscountAuthService._applyDecision(authRequest, decision, actor.id);
   },

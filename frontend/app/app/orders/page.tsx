@@ -330,7 +330,7 @@ export default function OrdersPage(): JSX.Element {
         updateOrderRealTime(orderId, { status: 'AWAITING_AUTHORIZATION' });
         setSelectedOrder((prev) => (prev ? { ...prev, status: 'AWAITING_AUTHORIZATION' } : prev));
         if (payload.applyStaffDiscount) {
-          toast({ variant: 'info', title: 'Discount requested', message: 'A manager has been notified to approve the staff discount.' });
+          toast({ variant: 'info', title: 'Discount requested', message: 'A director has been notified to approve the staff discount.' });
         } else if (payload.applyDiscountId) {
           // Customer discount requiring manager approval
           void customerDiscountAuthService.getPendingByOrderId(orderId, accessToken).then((auth) => {
@@ -771,6 +771,7 @@ export default function OrdersPage(): JSX.Element {
         isPrintSubmitting={isPrintSubmitting}
         isOwner={isOwner}
         isManager={isManager}
+        isDirector={role === 'DIRECTOR'}
         houseAccounts={houseAccounts}
         corporateAccounts={corporateAccounts}
         customerCreditAccounts={customerCreditAccounts}

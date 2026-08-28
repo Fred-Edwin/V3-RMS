@@ -225,7 +225,8 @@ export const socketService = {
   },
 
   /** Notifies the waiter that a staff discount approval is pending, and broadcasts to branch so
-   *  managers see the order card update immediately. */
+   *  managers see the order card update immediately. Staff discounts are approved by DIRECTORS
+   *  only, and directors have no branch room, so we also fan out to every online director. */
   emitStaffDiscountAuthPending: (
     waiterId: string,
     organizationId: string,
@@ -240,9 +241,20 @@ export const socketService = {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:staff_discount_pending', payload);
     io.to(branchRoomName(organizationId)).emit('order:staff_discount_pending', payload);
+    // Directors have no branch room — deliver to every online director so the
+    // approval card on their dashboard updates in real time.
+    void io.fetchSockets().then((sockets) => {
+      for (const s of sockets) {
+        const auth = (s.data as { auth?: { role?: string } }).auth;
+        if (auth?.role === 'DIRECTOR') {
+          s.emit('order:staff_discount_pending', payload);
+        }
+      }
+    });
   },
 
-  /** Notifies the waiter and all branch members that the staff discount was approved or rejected. */
+  /** Notifies the waiter and all branch members that the staff discount was approved or rejected,
+   *  plus every online director so their approval card drops the resolved row. */
   emitStaffDiscountAuthResolved: (
     waiterId: string,
     organizationId: string,
@@ -251,6 +263,14 @@ export const socketService = {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:staff_discount_resolved', payload);
     io.to(branchRoomName(organizationId)).emit('order:staff_discount_resolved', payload);
+    void io.fetchSockets().then((sockets) => {
+      for (const s of sockets) {
+        const auth = (s.data as { auth?: { role?: string } }).auth;
+        if (auth?.role === 'DIRECTOR') {
+          s.emit('order:staff_discount_resolved', payload);
+        }
+      }
+    });
   },
 
   /** Notifies the waiter that a customer discount approval is pending, and broadcasts to branch
