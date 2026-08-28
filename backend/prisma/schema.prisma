@@ -943,6 +943,7 @@ enum StaffDiscountAuthStatus {
   PENDING
   APPROVED
   REJECTED
+  CANCELLED
 }
 
 model StaffDiscountAuthRequest {

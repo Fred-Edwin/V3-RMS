@@ -65,6 +65,12 @@ interface OrderDetailBottomSheetProps {
   pendingStaffDiscountRequestId?: string;
   onStaffDiscountOverride?: (orderId: string, decision: 'APPROVED' | 'REJECTED') => void;
   isStaffDiscountOverrideSubmitting?: boolean;
+  /** Owner taps to request the 20% staff discount (no payment method needed). */
+  onStaffDiscountRequest?: (orderId: string) => void;
+  isStaffDiscountRequestSubmitting?: boolean;
+  /** Owner withdraws their own still-pending staff discount request. */
+  onStaffDiscountWithdraw?: (orderId: string) => void;
+  isStaffDiscountWithdrawSubmitting?: boolean;
   availableDiscounts?: Discount[];
   pendingCustomerDiscountRequestId?: string;
   pendingCustomerDiscountName?: string;
@@ -720,6 +726,10 @@ export function OrderDetailBottomSheet({
   pendingStaffDiscountRequestId,
   onStaffDiscountOverride,
   isStaffDiscountOverrideSubmitting = false,
+  onStaffDiscountRequest,
+  isStaffDiscountRequestSubmitting = false,
+  onStaffDiscountWithdraw,
+  isStaffDiscountWithdrawSubmitting = false,
   availableDiscounts = [],
   pendingCustomerDiscountRequestId,
   pendingCustomerDiscountName,
@@ -809,15 +819,8 @@ export function OrderDetailBottomSheet({
 
   function handleConfirmPayment() {
     if (!order) return;
-    if (selectedDiscountId === 'staff' && !order.discountAmount) {
-      // Discount requests are resolved before any payment method is collected — the
-      // waiter re-submits payment separately once approved. `uiPaymentMethod` can hold
-      // UI-only values (e.g. 'SPLIT_MPESA_CASH') that aren't valid backend PaymentMethod
-      // enum members, so never forward it here (was causing 400s — see incident 2026-08-11).
-      onPayment(order.id, { paymentMethod: 'CASH', applyStaffDiscount: true });
-      return;
-    }
-    if (selectedDiscountId !== null && selectedDiscountId !== 'staff' && !order.discountAmount) {
+    // Staff discount is requested via its own action at the top of the sheet, not here.
+    if (selectedDiscountId !== null && !order.discountAmount) {
       onPayment(order.id, { paymentMethod: 'CASH', applyDiscountId: selectedDiscountId });
       return;
     }
@@ -840,7 +843,6 @@ export function OrderDetailBottomSheet({
 
   const confirmBtnLabel = (() => {
     if (selectedDiscountId !== null && !order.discountAmount) {
-      if (selectedDiscountId === 'staff') return 'Request Discount & Await Approval';
       const d = availableDiscounts.find((x) => x.id === selectedDiscountId);
       return d?.requiresApproval ? 'Request Discount & Await Approval' : 'Apply Discount & Confirm';
     }
@@ -979,6 +981,35 @@ export function OrderDetailBottomSheet({
           {/* ── Payment form (order is READY) ───────────────────────────── */}
           {order.status === 'READY' && (
             <div className="space-y-4">
+              {/* Staff discount — standalone request, no payment method needed.
+                  Shown before the payment section so it doesn't read as a payment option. */}
+              {!order.discountAmount && onStaffDiscountRequest && (
+                isOwner ? (
+                  <div className="rounded-xl border border-[#F0C97A] bg-[#FFFBEB] p-4 space-y-2">
+                    <p className="text-[13px] font-semibold text-[#92400E]">Staff discount</p>
+                    <p className="text-[12px] text-[#92400E]">
+                      {STAFF_DISCOUNT_PERCENT}% off · KES {orderTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      {' → '}KES {(orderTotal * (1 - STAFF_DISCOUNT_PERCENT / 100)).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
+                      {' '}· needs director approval
+                    </p>
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      isLoading={isStaffDiscountRequestSubmitting}
+                      onClick={() => onStaffDiscountRequest(order.id)}
+                    >
+                      Request {STAFF_DISCOUNT_PERCENT}% Staff Discount
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <p className="text-[12px] text-stone-500">
+                      Only the waiter who opened this order can request a staff discount.
+                    </p>
+                  </div>
+                )
+              )}
+
               {order.type === 'DELIVERY' ? (
                 /* Delivery — Mpesa only */
                 <div className="space-y-3">
@@ -1213,12 +1244,13 @@ export function OrderDetailBottomSheet({
                         </div>
                       )}
 
-                      {/* Discount picker */}
+                      {/* Discount picker — customer discounts only. Staff discount has its
+                          own action at the top of the sheet (no payment method needed). */}
                       {!order.discountAmount &&
                         uiPaymentMethod !== 'HOUSE_ACCOUNT' &&
                         uiPaymentMethod !== 'CORPORATE_ACCOUNT' &&
                         uiPaymentMethod !== 'CUSTOMER_CREDIT' &&
-                        (isOwner || availableDiscounts.length > 0) && (
+                        availableDiscounts.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-[11px] font-semibold tracking-[0.06em] uppercase text-stone-500">Apply Discount</p>
                           <select
@@ -1227,7 +1259,6 @@ export function OrderDetailBottomSheet({
                             className="w-full rounded-xl border-[1.5px] border-stone-200 bg-white px-4 py-3 text-[14px] text-stone-900 focus:outline-none focus:border-[#2C1810]"
                           >
                             <option value="">No discount</option>
-                            {isOwner && <option value="staff">Staff Discount ({STAFF_DISCOUNT_PERCENT}%) — needs approval</option>}
                             {availableDiscounts.map((d) => {
                               const valueLabel = d.type === 'PERCENTAGE' ? `${d.value}%` : `KES ${d.value}`;
                               return <option key={d.id} value={d.id}>{d.name} ({valueLabel}) — {d.requiresApproval ? 'needs approval' : 'instant'}</option>;
@@ -1238,17 +1269,14 @@ export function OrderDetailBottomSheet({
 
                       {/* Discount preview */}
                       {selectedDiscountId !== null && !order.discountAmount && (() => {
-                        const isStaff = selectedDiscountId === 'staff';
-                        const customerDiscount = isStaff ? null : availableDiscounts.find((d) => d.id === selectedDiscountId);
-                        const savedAmount = isStaff
-                          ? ((orderTotal * STAFF_DISCOUNT_PERCENT) / 100).toFixed(2)
-                          : customerDiscount
+                        const customerDiscount = availableDiscounts.find((d) => d.id === selectedDiscountId);
+                        const savedAmount = customerDiscount
                           ? customerDiscount.type === 'PERCENTAGE'
                             ? ((orderTotal * parseFloat(customerDiscount.value)) / 100).toFixed(2)
                             : Math.min(parseFloat(customerDiscount.value), orderTotal).toFixed(2)
                           : '0.00';
                         const discountedTotal = (orderTotal - parseFloat(savedAmount)).toFixed(2);
-                        const needsApproval = isStaff || (customerDiscount?.requiresApproval ?? false);
+                        const needsApproval = customerDiscount?.requiresApproval ?? false;
                         return (
                           <div className="rounded-xl border border-[#F0C97A] bg-[#FFFBEB] p-4 space-y-1">
                             <p className="text-[13px] font-semibold text-[#92400E]">Discounted total: KES {discountedTotal}</p>
@@ -1300,6 +1328,20 @@ export function OrderDetailBottomSheet({
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" className="flex-1" isLoading={isStaffDiscountOverrideSubmitting} onClick={() => onStaffDiscountOverride(order.id, 'APPROVED')}>Approve Discount</Button>
                   <Button size="sm" variant="destructive" className="flex-1" isLoading={isStaffDiscountOverrideSubmitting} onClick={() => onStaffDiscountOverride(order.id, 'REJECTED')}>Reject</Button>
+                </div>
+              )}
+              {isOwner && !isDirector && onStaffDiscountWithdraw && (
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="w-full"
+                    isLoading={isStaffDiscountWithdrawSubmitting}
+                    onClick={() => onStaffDiscountWithdraw(order.id)}
+                  >
+                    Withdraw request
+                  </Button>
+                  <p className="text-[11px] text-[#92400E] mt-1.5 text-center">Cancels the request and returns the order to full price.</p>
                 </div>
               )}
             </div>

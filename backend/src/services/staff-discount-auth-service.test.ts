@@ -16,6 +16,7 @@ vi.mock('../repositories/staff-discount-auth-request-repository', () => ({
     findPendingByOrganization: vi.fn(),
     findAllPending: vi.fn(),
     resolveIfPending: vi.fn(),
+    cancelIfPending: vi.fn(),
   },
 }));
 
@@ -332,5 +333,56 @@ describe('staffDiscountAuthService.listPending', () => {
 
     expect(result).toEqual([]);
     expect(staffDiscountAuthRequestRepository.findAllPending).not.toHaveBeenCalled();
+  });
+});
+
+describe('staffDiscountAuthService.withdraw', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('throws ForbiddenError when the actor is not the requester', async () => {
+    vi.mocked(staffDiscountAuthRequestRepository.findById).mockResolvedValue(buildPendingAuthRequest());
+
+    await expect(
+      staffDiscountAuthService.withdraw(authRequestId, managerActor),
+    ).rejects.toThrow('Only the waiter who requested the discount can withdraw it');
+  });
+
+  it('cancels a pending request, returns the order to READY, emits resolved', async () => {
+    const pending = buildPendingAuthRequest();
+    vi.mocked(staffDiscountAuthRequestRepository.findById).mockResolvedValue(pending);
+    vi.mocked(staffDiscountAuthRequestRepository.cancelIfPending).mockResolvedValue({
+      ...pending,
+      status: 'CANCELLED' as const,
+      resolvedById: waiterActor.id,
+      resolvedAt: new Date(),
+    });
+    vi.mocked(orderRepository.updateStatus).mockResolvedValue(buildReadyOrder());
+
+    const result = await staffDiscountAuthService.withdraw(authRequestId, waiterActor);
+
+    expect(staffDiscountAuthRequestRepository.cancelIfPending).toHaveBeenCalledWith(authRequestId, waiterActor.id);
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.applyDiscount).not.toHaveBeenCalled();
+    expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
+      waiterActor.id,
+      organizationId,
+      expect.objectContaining({ orderId, approved: false }),
+    );
+    expect(result.status).toBe('CANCELLED');
+  });
+
+  it('no-ops when the request was already resolved (returns current state, no order change)', async () => {
+    const pending = buildPendingAuthRequest();
+    vi.mocked(staffDiscountAuthRequestRepository.findById)
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce({ ...pending, status: 'APPROVED' as const });
+    vi.mocked(staffDiscountAuthRequestRepository.cancelIfPending).mockResolvedValue(null);
+
+    const result = await staffDiscountAuthService.withdraw(authRequestId, waiterActor);
+
+    expect(orderRepository.updateStatus).not.toHaveBeenCalled();
+    expect(result.status).toBe('APPROVED');
   });
 });

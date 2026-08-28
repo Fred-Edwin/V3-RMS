@@ -21,4 +21,12 @@ export const staffDiscountAuthService = {
       { decision },
       token,
     ),
+
+  /** Requester withdraws their own still-pending request. */
+  withdraw: (authRequestId: string, token: string): Promise<StaffDiscountAuthRequest> =>
+    apiClient.post<StaffDiscountAuthRequest>(
+      `/staff-discount-auth/${authRequestId}/withdraw`,
+      {},
+      token,
+    ),
 };

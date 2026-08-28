@@ -92,4 +92,25 @@ export const staffDiscountAuthRequestRepository = {
       include: authRequestInclude,
     });
   },
+
+  /**
+   * Atomic withdraw — only the requester may cancel, and only while PENDING.
+   * Returns the updated record, or null if it was already resolved/cancelled
+   * or the caller is not the requester.
+   */
+  cancelIfPending: async (id: string, requestedById: string) => {
+    const result = await prisma.staffDiscountAuthRequest.updateMany({
+      where: { id, requestedById, status: 'PENDING' },
+      data: { status: 'CANCELLED', resolvedById: requestedById, resolvedAt: new Date() },
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return prisma.staffDiscountAuthRequest.findFirst({
+      where: { id },
+      include: authRequestInclude,
+    });
+  },
 };

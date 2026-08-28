@@ -50,4 +50,18 @@ export const staffDiscountAuthController = {
       message: `Staff discount ${decision.toLowerCase()}`,
     });
   },
+
+  /** POST /staff-discount-auth/:authRequestId/withdraw — requester cancels their own pending request */
+  withdraw: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError('Authentication required');
+
+    const { authRequestId } = StaffDiscountAuthRequestIdParamSchema.parse(req.params);
+    const result = await staffDiscountAuthService.withdraw(authRequestId, req.user);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Staff discount request withdrawn',
+    });
+  },
 };

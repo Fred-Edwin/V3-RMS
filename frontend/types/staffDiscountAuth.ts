@@ -1,4 +1,4 @@
-export type StaffDiscountAuthStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StaffDiscountAuthStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type StaffDiscountDecision = 'APPROVED' | 'REJECTED';
 
 export interface StaffDiscountAuthRequest {

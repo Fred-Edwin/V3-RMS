@@ -180,6 +180,59 @@ export const staffDiscountAuthService = {
   },
 
   /**
+   * The waiter who requested the discount withdraws it while it is still PENDING.
+   * Sets the request to CANCELLED and returns the order to READY so the waiter
+   * can proceed (pay full price, or request again). No-ops safely if a director
+   * already resolved it in the meantime.
+   */
+  withdraw: async (
+    authRequestId: string,
+    actor: Actor,
+  ): Promise<StaffDiscountAuthRequestRecord> => {
+    const authRequest = await staffDiscountAuthRequestRepository.findById(authRequestId);
+    if (!authRequest) throw new NotFoundError('Staff discount auth request not found');
+
+    if (authRequest.requestedById !== actor.id) {
+      throw new ForbiddenError('Only the waiter who requested the discount can withdraw it');
+    }
+
+    const cancelled = await staffDiscountAuthRequestRepository.cancelIfPending(
+      authRequest.id,
+      actor.id,
+    );
+
+    if (!cancelled) {
+      // Already approved / rejected / cancelled — return the current state, no order change.
+      const current = await staffDiscountAuthRequestRepository.findById(authRequest.id);
+      if (!current) throw new NotFoundError('Staff discount auth request not found');
+      if (current.status === 'PENDING') {
+        // Shouldn't happen (cancelIfPending is atomic on requester+PENDING), but be safe.
+        throw new ConflictError('Could not withdraw the discount request. Please refresh and try again.');
+      }
+      logger.info({ authRequestId: authRequest.id, status: current.status }, 'Staff discount withdraw: already resolved');
+      return serializeAuthRequest(current);
+    }
+
+    // Return the order to READY at full price.
+    await orderRepository.updateStatus(cancelled.orderId, cancelled.organizationId, 'READY');
+
+    // Reuse the resolved event so the director dashboard drops the pending card
+    // and the waiter's order card unlocks. approved:false, no discountedTotal.
+    socketService.emitStaffDiscountAuthResolved(actor.id, cancelled.organizationId, {
+      orderId: cancelled.orderId,
+      dailyNumber: cancelled.order.dailyNumber,
+      approved: false,
+    });
+
+    logger.info(
+      { authRequestId: authRequest.id, orderId: cancelled.orderId, actorId: actor.id },
+      'Staff discount auth request withdrawn by requester',
+    );
+
+    return serializeAuthRequest(cancelled);
+  },
+
+  /**
    * Internal — shared resolution logic.
    */
   _applyDecision: async (

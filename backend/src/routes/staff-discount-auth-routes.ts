@@ -37,4 +37,12 @@ staffDiscountAuthRoutes.post(
   staffDiscountAuthController.override,
 );
 
+// Requester withdraws their own pending staff-discount request
+staffDiscountAuthRoutes.post(
+  '/staff-discount-auth/:authRequestId/withdraw',
+  authenticate,
+  requireRole('WAITER', 'CHEF', 'BARISTA', 'MANAGER', 'DIRECTOR'),
+  staffDiscountAuthController.withdraw,
+);
+
 export default staffDiscountAuthRoutes;

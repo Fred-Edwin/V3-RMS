@@ -91,6 +91,8 @@ export default function OrdersPage(): JSX.Element {
   const [isAuthOverrideSubmitting, setIsAuthOverrideSubmitting] = useState(false);
   const [pendingStaffDiscountRequestId, setPendingStaffDiscountRequestId] = useState<string | null>(null);
   const [isStaffDiscountOverrideSubmitting, setIsStaffDiscountOverrideSubmitting] = useState(false);
+  const [isStaffDiscountRequestSubmitting, setIsStaffDiscountRequestSubmitting] = useState(false);
+  const [isStaffDiscountWithdrawSubmitting, setIsStaffDiscountWithdrawSubmitting] = useState(false);
   const [availableDiscounts, setAvailableDiscounts] = useState<Discount[]>([]);
   const [pendingCustomerDiscountRequestId, setPendingCustomerDiscountRequestId] = useState<string | null>(null);
   const [pendingCustomerDiscountName, setPendingCustomerDiscountName] = useState<string | null>(null);
@@ -535,6 +537,44 @@ export default function OrdersPage(): JSX.Element {
     }
   };
 
+  const handleStaffDiscountRequest = async (orderId: string) => {
+    if (!accessToken || isStaffDiscountRequestSubmitting) return;
+    setIsStaffDiscountRequestSubmitting(true);
+    try {
+      // No payment method is collected — the request short-circuits on the backend.
+      await orderService.recordPayment(orderId, { paymentMethod: 'CASH', applyStaffDiscount: true }, accessToken);
+      updateOrderRealTime(orderId, { status: 'AWAITING_AUTHORIZATION' });
+      setSelectedOrder((prev) => (prev ? { ...prev, status: 'AWAITING_AUTHORIZATION' } : prev));
+      // Fetch the pending request id so the "Withdraw request" button renders.
+      void staffDiscountAuthService.getPendingByOrderId(orderId, accessToken)
+        .then((auth) => setPendingStaffDiscountRequestId(auth.id))
+        .catch(() => { /* non-critical */ });
+      toast({ variant: 'info', title: 'Discount requested', message: 'A director has been notified to approve the staff discount.' });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not request the discount.';
+      toast({ variant: 'error', title: 'Request failed', message });
+    } finally {
+      setIsStaffDiscountRequestSubmitting(false);
+    }
+  };
+
+  const handleStaffDiscountWithdraw = async (orderId: string) => {
+    if (!accessToken || !pendingStaffDiscountRequestId || isStaffDiscountWithdrawSubmitting) return;
+    setIsStaffDiscountWithdrawSubmitting(true);
+    try {
+      await staffDiscountAuthService.withdraw(pendingStaffDiscountRequestId, accessToken);
+      updateOrderRealTime(orderId, { status: 'READY' });
+      setSelectedOrder((prev) => (prev ? { ...prev, status: 'READY' } : prev));
+      setPendingStaffDiscountRequestId(null);
+      toast({ variant: 'success', title: 'Request withdrawn', message: 'Order returned to Ready at full price.' });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not withdraw the request.';
+      toast({ variant: 'error', title: 'Withdraw failed', message });
+    } finally {
+      setIsStaffDiscountWithdrawSubmitting(false);
+    }
+  };
+
   const handleCustomerDiscountOverride = async (orderId: string, decision: 'APPROVED' | 'REJECTED') => {
     if (!accessToken || !pendingCustomerDiscountRequestId || isCustomerDiscountOverrideSubmitting) return;
     setIsCustomerDiscountOverrideSubmitting(true);
@@ -785,6 +825,10 @@ export default function OrdersPage(): JSX.Element {
         pendingStaffDiscountRequestId={pendingStaffDiscountRequestId ?? undefined}
         onStaffDiscountOverride={(orderId, decision) => void handleStaffDiscountOverride(orderId, decision)}
         isStaffDiscountOverrideSubmitting={isStaffDiscountOverrideSubmitting}
+        onStaffDiscountRequest={(orderId) => void handleStaffDiscountRequest(orderId)}
+        isStaffDiscountRequestSubmitting={isStaffDiscountRequestSubmitting}
+        onStaffDiscountWithdraw={(orderId) => void handleStaffDiscountWithdraw(orderId)}
+        isStaffDiscountWithdrawSubmitting={isStaffDiscountWithdrawSubmitting}
         availableDiscounts={availableDiscounts}
         pendingCustomerDiscountRequestId={pendingCustomerDiscountRequestId ?? undefined}
         pendingCustomerDiscountName={pendingCustomerDiscountName ?? undefined}

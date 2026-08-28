@@ -94,6 +94,10 @@ export const orderService = {
       cashAmount?: number;
       cardAmount?: number;
       splitType?: string;
+      /** Short-circuits payment and opens a director approval request instead. */
+      applyStaffDiscount?: boolean;
+      /** Short-circuits payment and opens/auto-applies a customer discount instead. */
+      applyDiscountId?: string;
     },
     accessToken: string,
   ): Promise<OrderDetail> => {
