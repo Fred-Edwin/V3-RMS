@@ -981,33 +981,19 @@ export function OrderDetailBottomSheet({
           {/* ── Payment form (order is READY) ───────────────────────────── */}
           {order.status === 'READY' && (
             <div className="space-y-4">
-              {/* Staff discount — standalone request, no payment method needed.
-                  Shown before the payment section so it doesn't read as a payment option. */}
-              {!order.discountAmount && onStaffDiscountRequest && (
-                isOwner ? (
-                  <div className="rounded-xl border border-[#F0C97A] bg-[#FFFBEB] p-4 space-y-2">
-                    <p className="text-[13px] font-semibold text-[#92400E]">Staff discount</p>
-                    <p className="text-[12px] text-[#92400E]">
-                      {STAFF_DISCOUNT_PERCENT}% off · KES {orderTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      {' → '}KES {(orderTotal * (1 - STAFF_DISCOUNT_PERCENT / 100)).toLocaleString('en-KE', { minimumFractionDigits: 2 })}
-                      {' '}· needs director approval
-                    </p>
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      isLoading={isStaffDiscountRequestSubmitting}
-                      onClick={() => onStaffDiscountRequest(order.id)}
-                    >
-                      Request {STAFF_DISCOUNT_PERCENT}% Staff Discount
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <p className="text-[12px] text-stone-500">
-                      Only the waiter who opened this order can request a staff discount.
-                    </p>
-                  </div>
-                )
+              {/* Staff discount — low-key by design (staff purchases are rare) but still
+                  legible. A plain secondary link, not a call-to-action. Owner-only. */}
+              {!order.discountAmount && onStaffDiscountRequest && isOwner && (
+                <button
+                  type="button"
+                  disabled={isStaffDiscountRequestSubmitting}
+                  onClick={() => onStaffDiscountRequest(order.id)}
+                  className="text-[13px] font-medium text-stone-600 underline underline-offset-2 decoration-stone-300 hover:text-stone-800 disabled:opacity-50"
+                >
+                  {isStaffDiscountRequestSubmitting
+                    ? 'Requesting…'
+                    : `Request staff discount (${STAFF_DISCOUNT_PERCENT}%) — needs director approval`}
+                </button>
               )}
 
               {order.type === 'DELIVERY' ? (
