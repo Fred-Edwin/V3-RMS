@@ -1,4 +1,4 @@
-import { Prisma, type Requisition, type RequisitionStatus } from '@prisma/client';
+import { Prisma, type Requisition, type RequisitionStatus, type DepartmentTag } from '@prisma/client';
 import { prisma } from '../config/database';
 
 type TxClient = Prisma.TransactionClient;
@@ -12,9 +12,40 @@ export type RequisitionLineInput = {
 export type CreateRequisitionInput = {
   organizationId: string;
   locationId: string;
+  departmentTag: DepartmentTag;
   requestedById: string;
   notes?: string;
   lines: RequisitionLineInput[];
+};
+
+const departmentCode: Record<DepartmentTag, string> = {
+  KITCHEN: 'KIT',
+  PASTRY: 'PST',
+  BARISTA: 'BAR',
+  SERVICE: 'SVC',
+  HOUSEKEEPING: 'HSK',
+};
+
+/**
+ * `REQ-<yymmdd>-<dept>-<seq>` — the Requisition Document's own Doc ID,
+ * matching the format on the approved Paper design (e.g. REQ-260821-KIT-03).
+ * Sequence is per (org, department, day), mirroring MPO's per-org-per-day count.
+ */
+const generateRequisitionNumber = async (
+  organizationId: string,
+  departmentTag: DepartmentTag,
+  tx: TxClient,
+): Promise<string> => {
+  const now = new Date();
+  const y = String(now.getFullYear()).slice(2);
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const prefix = `REQ-${y}${m}${d}-${departmentCode[departmentTag]}-`;
+  const countToday = await tx.requisition.count({
+    where: { organizationId, requisitionNumber: { startsWith: prefix } },
+  });
+  const seq = String(countToday + 1).padStart(2, '0');
+  return `${prefix}${seq}`;
 };
 
 const detailInclude = {
@@ -49,11 +80,13 @@ export type RequisitionWithDetail = Requisition & {
 
 export const requisitionRepository = {
   create: async (input: CreateRequisitionInput, tx: TxClient = prisma): Promise<RequisitionWithDetail> => {
+    const requisitionNumber = await generateRequisitionNumber(input.organizationId, input.departmentTag, tx);
     return tx.requisition.create({
       data: {
         organizationId: input.organizationId,
         locationId: input.locationId,
         requestedById: input.requestedById,
+        requisitionNumber,
         notes: input.notes,
         status: 'PENDING_MANAGER_APPROVAL',
         lines: {

@@ -1,0 +1,131 @@
+Summary — Flows A & B, Design Session 2026-08-22
+Flow A — Requisition & Approval ✅ CLOSED
+Department Head raises a requisition → Branch Manager approves, edits, or rejects it.
+
+Screens designed: D1.1 Department Dashboard, D1.2 New Requisition + Review sheet, D1.3 My Requisitions (+ Empty state, + read-only historical Detail Sheet), D2.1 Approvals Queue + Requisition Detail, Branch Stock (desktop) + drawer, Requisition Document (Approved/Rejected) with both a desktop modal viewer and a natively-laid-out mobile viewer.
+
+Decisions made:
+
+Every mobile root screen gets the hamburger/sidebar-drawer trigger (matches the existing Components — Navigation spec); pushed/detail screens keep a back arrow. D1.1 was corrected mid-session from back-arrow to hamburger once we recognized it's the Dept Head's root screen for the inventory section, not a sub-screen.
+Every document-generating action needs three things, established here and reused everywhere after: a loading state on the confirm button (idle → spinner/"Generating…" → auto-opens), a Document Viewer (modal chrome on desktop; a natively-redesigned full-screen layout on mobile — explicitly not a scaled-down clone of the desktop document, that approach was tried and abandoned), and a persistent link from the table row's doc-number column afterward.
+Historical access on My Requisitions uses a lightweight month-jump control + grouped infinite scroll, not a full calendar date-range picker.
+Tapping a historical row opens a read-only bottom sheet (no edit controls) — this was a genuine missing screen, not originally planned, added after walking through the flow end-to-end as the Dept Head.
+Artboard naming convention locked: Screen Name (Role, Device).
+Flow B — Dispatch & Receipt ✅ CLOSED (materially restructured)
+Store Manager fulfils an approved requisition → Department Head receives it, variance flagged if it doesn't match.
+
+Biggest decision: the original spec's three separate Store Manager screens (D3.1 Dispatch Queue, D3.2 Fill an Order, D3.3 Dispatches List) were consolidated into one screen — "Requisitions" — a single table tracking every requisition through real stages New → Dispatched → Received (the "Picking" stage was dropped as fabricated; nothing in the backend tracks a mid-fulfilment state). Selecting a row opens a right-side drawer with two modes driven by the row's stage: New → fill-order form; Dispatched/Received → read-only summary with variance flagged inline and a "View Dispatch Note" action. This mirrors the Branch Stock+Drawer pattern already used in Flow A. Both desktop and mobile versions built (mobile pushes full screens instead of a drawer).
+
+Other decisions:
+
+Store Manager sidebar identity: "Central Store", nav = Dashboard / Requisitions / Dispatches (no separate "Dispatch Queue" item).
+Confirmed "Dispatch Note" as the canonical document name (not renamed to "Delivery Note") — it's the system-of-record for the whole dispatch event, carrying both a DISPATCHED and a RECEIVED/RECEIVED-VARIANCE stamp.
+Mobile Dispatch Note viewer got compact horizontal stamp badges (double-ring border, condensed Oswald type) instead of the desktop's diagonal ink stamps — same authority, no clutter at mobile width.
+Fixed a real bug found via this process: the desktop Requisition Doc Viewer's backdrop was cloned from the wrong source (an already-drawer-open screen, causing double-scrim darkening) — corrected to clone the plain closed table.
+Cross-cutting patterns now established (apply to all future flows)
+One table + stage-tabs + selectable-row + side-drawer is the reusable shape for any "review a queue of items and act on the selected one" screen.
+Every generated document gets the same three-part treatment: loading state → Document Viewer (desktop modal / mobile native layout) → persistent table-row link.
+Fixed-width column pattern for any Requested/Dispatched/Received-style numeric comparison rows (a real alignment bug was found and fixed twice — desktop drawer and mobile — from not giving these columns explicit widths).
+Flow C (Market Purchase) was scoped but explicitly not designed this session — it's rescoped with a new sub-flow (working decision D-20) and handed off via the plan doc and prompt already provided for the next session.
+
+
+
+
+
+Flow C — Market Purchase: Summary for Future Agents
+Status: ✅ Closed. Both sub-flows fully designed, approved, and documented in INVENTORY_PHASE2_DESIGN_FIRST_PLAN.md.
+
+What was designed
+C1 — D1.5 Log Market Purchase (Dept Head, mobile): unchanged from the original spec. Same-day, spontaneous market buys — item picker → qty + price paid → running list → confirm. No approval, no PO, per D-11.
+
+C2 — Market Purchase Order (renamed from "Market Order"): the planned/consolidated buying flow.
+
+Request Market Items (Dept Head, mobile)
+Branch Stock → Market Purchase Orders tab (Branch Manager, desktop) — table, one row per consolidated order
+Draft Drawer — department-grouped, editable quantities
+Reconciling Drawer — actual qty + price paid per line
+Completed Drawer — read-only, variance banner
+Receive Market Purchase Order (Dept Head, mobile) — scoped to just their department's portion
+Market Purchase Order document + viewer (desktop modal + mobile native) — built and verified at realistic scale (22 items, 3 departments)
+Key decisions made (now recorded as D-22 in INVENTORY_FEATURE_PLAN.md, superseding an earlier same-session draft that was itself corrected)
+Department Heads never go to the market themselves. An unnamed delivery function does the actual shopping (no role confirmed yet — kept generic on the document, interim call). The Branch Manager approves and reconciles; they don't shop.
+One consolidated Market Purchase Order, not one per department. All departments' requests land in a single active draft, grouped inside it — not separate approvable objects per department.
+Stages: Draft → Approved → Sent to Market → Reconciling → Completed → Received (+ Rejected). "Approved" (pre-send lock) and "Completed" (post-reconciliation signoff) are deliberately distinct checkpoints — approve and send are two separate actions, not one.
+Who receives: the requesting Dept Head, mirroring Flow B — preserves the request/approve/receive separation-of-actors pattern.
+Navigation: Market Purchase Orders is a section tab on the existing Branch Stock screen (not a new page) — both options were prototyped side-by-side before choosing.
+What future agents need to know
+I also wrote docs/context/INVENTORY-FEATURE/PAPER_DESIGN_PATTERNS.md specifically so this doesn't have to be re-explained — it's now linked from both CLAUDE.md and the top of the design-first plan file. It covers the canvas conventions, the tab-vs-new-page decision process, the consolidated-vs-per-actor modeling lesson (this flow's costliest mistake, made and corrected twice), drawer/document patterns, and a recurring Paper-tool bug (cloning a hidden node can silently drop flexDirection). A fresh agent starting Flow D or E should read that file before opening Paper.
+
+
+
+Flow E — Staff & Department Head Assignment: Summary for Future Agents
+What was built
+Three screens in Paper (file "Wendo RMS"), all approved:
+
+Staff (Branch Manager, desktop) — the redesigned staff roster
+Staff Detail Panel — right-side drawer, opens on row click
+Add Staff — right-side drawer, opens from the "+ Add Staff" button
+Why this became a full redesign, not a small addition
+The original plan framed this as a minor bolt-on to the existing Staff/HR screen. In practice the existing coded page (frontend/app/app/manage/staff/page.tsx) was a flat list with 5 unlabeled icon buttons per row and no department data at all (StaffDto has no departmentTag), so there was no clean place to hang head-assignment onto. The owner rejected working within that shape and asked for a genuine redesign.
+
+The three design iterations (useful if this ever needs revisiting)
+Department-grouped cards + colored "Change" button per group — rejected as too much chrome/color, didn't match the file's minimal system.
+ExcelTable-style grid with colored department header bands — explicitly rejected: "I don't want the Excel table component design... not this many colors."
+Final: plain ledger-style table — modeled directly on the existing Ledger Table inside D4.1 All Locations Overview (9WE-0): no card wrapper, no header fill, no zebra striping, no avatars, hairline dividers, generous row rhythm, color reserved only for the status dot.
+Key decisions baked into the final design
+Table is one continuous, ungrouped list. No department label rows, no per-group staff counts — those were explicitly removed for visual clutter. Department is its own column instead.
+Sort order: by department block — Service → Barista → Kitchen → Pastry → Housekeeping → Unassigned — alphabetical by name within each block.
+Status column carries dual meaning economically: ACTIVE / INACTIVE normally; a department head shows only DEPT. HEAD (no redundant "ACTIVE" line above it — a head is implicitly active).
+Department head assignment lives entirely in the row drawer, never in the table. The table has zero interactive controls. Opening any person's row shows a "[Department] Head: [name] · Change" section scoped to their department.
+Row actions moved into the drawer as a divided Actions list: Reset Password, Transfer Branch, Deactivate, then Delete separated below a divider and styled danger — replacing the old page's 5 same-weight icon buttons.
+Add Staff is a right-side drawer, not a centered modal — for consistency with the detail panel (clicking into a person and creating one now share the same interaction pattern).
+Role → department mapping is not 1:1 (confirmed by owner): Waiter → Service, Barista → Barista, Chef → Kitchen or Pastry (explicit manager choice, never inferred), Housekeeping + Steward → Housekeeping. Manager and kiosk/display accounts (Kitchen Display, Barista Display, System Admin) have no department and sit in a real, visible Unassigned block (shown as — in the Department column, never hidden).
+Add Staff drawer includes a new Department field, chosen explicitly at creation — new staff shouldn't land in Unassigned by default.
+What this surfaces for whoever does the Stage 3 backend audit / Stage 4 build
+Backend endpoints for head assignment already exist and are unaffected (GET .../departments, GET .../eligible-staff, PATCH/DELETE .../head, built in Session 1).
+Gap 1: StaffDto / the staff list endpoint needs a departmentTag field — the table and both drawers depend on it per person.
+Gap 2: department membership (not just headship) needs to become editable via the staff update endpoint — without it, the table has no way to populate itself for existing staff.
+Where this is documented
+Full detail is in docs/context/INVENTORY-FEATURE/INVENTORY_PHASE2_DESIGN_FIRST_PLAN.md, Flow E section (marked ✅ CLOSED 2026-08-24). That's the canonical writeup — this message is a condensed pointer to it.
+
+
+
+Flow D — Stock Visibility & History — Summary for Handover
+Status: 7 of 8 screens designed and built in Paper. D4.2 Reports pinned, not designed.
+
+Screens built
+Screen	Role / Device	Notes
+D1.6 My Department's Stock	Dept Head, mobile	Card list with full figure row (Opening/Received/Waste/Closing) minus Value(KES); Cards/Sheet view toggle; Count Stock and Log Waste as launched-flow action buttons, not tabs or separate nav items
+Stock Sheet Viewer (mobile)	Dept Head, mobile	Document view, grouped by category (Chicken/Beef/Fish...) matching the client's real paper sheet exactly
+D1.6 Item Movement History	Dept Head, mobile	Bottom-sheet drill-down opened by tapping a stock card; Today/Yesterday sectioned movement log
+D1.7 Count Session	Dept Head, mobile	Redesigned in new visual language (not a Phase 1 clone); horizontal row layout; D1.4-style confirm checkmark per row; live progress bar; expandable "add a note" only on variance rows
+D1.7 Waste Log Entry	Dept Head, mobile	Reuses D1.5's item-picker → stepper → confirm shape; fixed reason picklist, not free text
+D4.1 All Locations Overview	Director, desktop	Branch-tab → department-tab drilldown, read-only (no drawer — oversight, not operation); date picker added for historical dates; Export Ledger action
+Stock Sheet Viewer (desktop)	Shared, desktop	Modal chrome matches Requisition Doc Viewer exactly; built natively for its 640px container (not cloned from the print doc)
+Stock Sheet — Print	Shared, print	Standalone A4 (794px) artboard, on its own canvas row — the actual PDF generated by the "Export"/"Sheet" actions above
+Decisions made during this design pass
+D1.6 and D1.7 consolidate into one nav entry, not three. My Department's Stock is the single screen a Dept Head opens; Count Stock and Log Waste are actions that push a focused full-screen flow and return to the stock list on completion. Rejected: tabs on one screen (state-loss ambiguity if switched mid-count) and three separate screens (too much nav).
+
+Dept Head sees expected quantities during a count — not a blind count. D-14's blind-count rule is scoped specifically to Store Attendant at the Central Store (an internal-control measure); it does not extend to a Dept Head counting their own department's stock. This resolves the plan's open Q1.
+
+The Stock Sheet is a real document, not just a card-view alternative. It reuses the existing Document Viewer / Generate Document pattern (same as Requisition/Dispatch/MPO) rather than inventing a new mechanism — mobile viewer, desktop viewer, and a standalone print artboard all exist.
+
+Schema gap surfaced: InventoryItem has no category/group field. The Stock Sheet's category grouping (Chicken/Beef/Pork/Fish, matching the real paper sheet) requires a new field — only departmentTags and the raw/prepped/pass-through type enum exist today. Flag this explicitly for the Stage 3 backend audit; do not assume it's free to build.
+
+D4.1 is read-only oversight — no drawer, no edit affordances. Confirmed explicitly: a Director scans, does not act, on this screen.
+
+D4.2 Reports is pinned, not designed, by deliberate decision. It needs Phase 3's financial figures (food cost %, profitability) to be meaningful, and a coded Inventory Reports page already exists (frontend/app/app/inventory/reports/page.tsx, 7 tabs, ExcelTable-driven) that any redesign must reconcile against rather than starting from a blank canvas. Revisit once the full feature is designed.
+
+PDF/document actions follow the established pattern everywhere, not ad hoc. D4.1 got an "Export Ledger" action and D1.6 got a Stock Sheet toggle — both reuse the same Generate Document → Viewer chrome used across Flows A/B/C, rather than inventing a new report-PDF shape.
+
+Process/pattern lessons captured (now in PAPER_DESIGN_PATTERNS.md §8–13)
+Badges are dot + colored text only, never a filled pill — caught and fixed twice this session.
+Match the actual existing screen with the closest analog problem (e.g. Branch Stock's real stat-strip/tab pattern) rather than building a plausible-looking generic dashboard component from instinct.
+duplicate_nodes appends to the end of a parent's children, not beside the source — always verify order with get_node_info after duplicating into a non-empty container.
+Don't clone a component across a large width change (e.g. 794px print doc → 640px modal) — build native for the target width instead; this cost a long debugging cycle.
+When a screenshot appears to show a layout bug that style fixes don't visibly resolve, verify with real coordinate math (get_node_info/get_computed_styles) rather than continuing to iterate against a possibly-misleading screenshot.
+Print artboards should go on their own dedicated canvas row from the moment they're created, not patched into position later.
+Canvas organization
+Flow D occupies three rows on the "Wendo RMS" Paper file, each with its own label/sublabel: mobile journey (5 screens), desktop journey (2 screens), and documents (1 print artboard) — positioned with generous spacing below Flow C, matching the file's established convention.
+
+

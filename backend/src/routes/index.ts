@@ -39,6 +39,7 @@ import locationRoutes from './location-routes';
 import departmentRoutes from './department-routes';
 import requisitionRoutes from './requisition-routes';
 import dispatchRoutes from './dispatch-routes';
+import marketPurchaseOrderRoutes from './market-purchase-order-routes';
 
 const apiRouter = Router();
 
@@ -82,5 +83,6 @@ apiRouter.use(locationRoutes);
 apiRouter.use(departmentRoutes);
 apiRouter.use(requisitionRoutes);
 apiRouter.use(dispatchRoutes);
+apiRouter.use(marketPurchaseOrderRoutes);
 
 export default apiRouter;

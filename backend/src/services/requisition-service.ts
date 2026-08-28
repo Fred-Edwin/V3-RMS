@@ -145,6 +145,7 @@ export const requisitionService = {
     const requisition = await requisitionRepository.create({
       organizationId,
       locationId: location.id,
+      departmentTag,
       requestedById: actor.id,
       notes: input.notes,
       lines: input.lines,

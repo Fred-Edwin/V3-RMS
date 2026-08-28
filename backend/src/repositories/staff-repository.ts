@@ -1,5 +1,5 @@
 import { prisma } from '../config/database';
-import type { UserRole } from '@prisma/client';
+import type { UserRole, DepartmentTag } from '@prisma/client';
 
 const staffSelect = {
   id: true,
@@ -7,6 +7,7 @@ const staffSelect = {
   email: true,
   phone: true,
   role: true,
+  departmentTag: true,
   isActive: true,
   organizationId: true,
   createdAt: true,
@@ -124,6 +125,7 @@ export const staffRepository = {
     role: UserRole;
     organizationId: string | null;
     passwordHash: string;
+    departmentTag?: DepartmentTag | null;
     /** Create the EmployeeProfile atomically with the user (contract type left unset). */
     withEmployeeProfile?: boolean;
   }) => {
@@ -145,6 +147,7 @@ export const staffRepository = {
       name?: string;
       email?: string;
       phone?: string;
+      departmentTag?: DepartmentTag | null;
     },
     organizationId?: string,
   ) => {

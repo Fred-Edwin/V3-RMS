@@ -1,11 +1,18 @@
 # UI/UX Design Audit — Handover Prompt
 
+> **⚠️ CORRECTION (2026-08-20): the "uncommitted changes" warning below is stale.**
+> Flow 3's work — `PrepRecipesTab.tsx`, `PrepTabs.tsx`, `ItemCombobox.tsx`, the
+> `/prep-recipes` backend routes, and the app-wide icon sweep — is **all committed**
+> (in `5c04c4e` and `fb8d135`) and the working tree is clean. Do not go looking for
+> a pending diff; there isn't one. Everything below still stands as the record of
+> *what Flow 3 did and decided* (including the D-12 reopening) — read it for that,
+> not as a description of current disk state.
+
 Paste this into a fresh session to continue the Inventory Phase 1 UI/UX design
 audit. Flow 1 (Catalog & Suppliers) and Flow 2 (PO raise/send/receive) are
-fully complete and committed. **Flow 3 (Prep entry) is mid-flow — not
-committed, real uncommitted changes are sitting on the working tree.** Do
-not treat this like a normal flow-start handoff; read carefully before
-touching anything. Flows 4-7 have not started.
+fully complete and committed. Flow 3 (Prep entry) was handed off mid-flow at the
+time this note was written — see the correction above; it has since been
+completed and committed. Flows 4-7 have not started.
 
 ---
 

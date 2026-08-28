@@ -49,6 +49,7 @@ const buildItem = (overrides: Partial<{
   conversionFactor: d(1000),
   reorderLevel: d(10),
   departmentTags: [],
+  category: null,
   currentCost: d(0),
   isActive: true,
   createdAt: new Date(),

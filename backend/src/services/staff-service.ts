@@ -1,4 +1,4 @@
-import type { UserRole } from '@prisma/client';
+import type { UserRole, DepartmentTag } from '@prisma/client';
 import type { Request } from 'express';
 import { authRepository } from '../repositories/auth-repository';
 import { branchRepository } from '../repositories/branch-repository';
@@ -115,6 +115,7 @@ export const staffService = {
       role: UserRole;
       temporaryPassword: string;
       organizationId?: string;
+      departmentTag?: DepartmentTag | null;
     },
     actor: Actor,
   ) => {
@@ -195,6 +196,10 @@ export const staffService = {
         storeOrganizationId ??
         (actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null),
       passwordHash,
+      // Department membership is a branch-staff concept only (Flow E) —
+      // org-level and kiosk/display roles stay unassigned regardless of
+      // what's passed, matching the owner-confirmed role->department mapping.
+      departmentTag: managerCreatableRoles.includes(data.role) ? data.departmentTag ?? null : null,
       withEmployeeProfile: !PROFILE_EXCLUDED_ROLES.includes(data.role),
     });
 
@@ -210,6 +215,7 @@ export const staffService = {
       name?: string;
       email?: string;
       phone?: string;
+      departmentTag?: DepartmentTag | null;
     },
     actor: Actor,
   ) => {

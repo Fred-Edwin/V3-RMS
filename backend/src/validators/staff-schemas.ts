@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole, DepartmentTag } from '@prisma/client';
 import { z } from 'zod';
 
 export const createStaffSchema = z.object({
@@ -8,12 +8,14 @@ export const createStaffSchema = z.object({
   role: z.nativeEnum(UserRole),
   temporaryPassword: z.string().min(8),
   organizationId: z.string().uuid().optional(),
+  departmentTag: z.nativeEnum(DepartmentTag).nullable().optional(),
 });
 
 export const updateStaffSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
   phone: z.string().min(1).optional(),
+  departmentTag: z.nativeEnum(DepartmentTag).nullable().optional(),
 });
 
 export const resetPasswordSchema = z.object({

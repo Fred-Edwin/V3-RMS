@@ -20,6 +20,8 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/DESIGN_SYSTEM.md`    | Building any UI component or page              |
 | `docs/BUILD_ORDER.md`      | Understanding what phase is being built        |
 | `docs/CODING_STANDARDS.md` | Writing any code — always                      |
+| `docs/DESIGN_FIRST_WORKFLOW.md` | Starting a new feature — plan → design → backend contract → backend → frontend |
+| `docs/context/INVENTORY-FEATURE/PAPER_DESIGN_PATTERNS.md` | Designing any Inventory screen in Paper.design — canvas conventions, drawer/document patterns, and Paper-tool gotchas learned from Flows A-C |
 | `docs/context`             | Getting context for the previous phases        |
 
 ## Critical Domain Knowledge (Read Before Touching These Areas)
@@ -59,14 +61,27 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 10. Always use pnpm to run scripts.
 11. Always use pnpm to build the project.
 12. Always use pnpm to run the project.
-13. Use Windows PowerShell commands.
+13. Match your shell to the environment you are actually running in — PowerShell on the
+    owner's Windows machine, bash in WSL/Linux. See the note at the top of the Command
+    Quick Reference; do not assume the `d:\` paths or `.ps1` scripts apply to you.
 
 ## Task Tracking
 
-For any multi-step task, use a todo list (e.g. the TodoWrite tool) and keep it updated
-as you go — mark items complete as soon as they're done, don't batch updates to the
-end. This is for the owner's visual feedback while work is in progress, not just your
-own bookkeeping, so update it live rather than only at the start/end of a task.
+**Use the TodoWrite tool on every multi-step task. This is not optional.**
+
+1. **Outline the full task list up front, before starting work.** The owner wants to
+   see the whole plan at the start — every step you intend to take — not just the step
+   you happen to be on. If the shape of the work changes mid-task, add or revise items
+   rather than silently doing something not on the list.
+2. **Update the list live as you progress.** Mark each item `in_progress` when you start
+   it and `completed` the moment it's done. Never batch updates to the end.
+3. **The todo list is how the owner follows progress.** It exists so they can see where
+   you are at a glance without asking you for status updates, and without you narrating
+   progress in prose. Keeping it current replaces "let me update you" messages — it does
+   not supplement them.
+
+This applies to implementation work, multi-file edits, audits, and investigations —
+anything with more than a couple of steps.
 
 ## Frontend Hook Stability Rules (Read Before Editing Pages/Hooks)
 
@@ -133,10 +148,34 @@ walkthrough + production setup sequence (create Central Store org → Set Hub �
 Set up Central Store → create Store Manager → Manager creates Attendants).
 The deploy also ran 20260728101630_drop_legacy_inventory_v2, removing orphaned
 schema left in production by the reverted March 2026 V2.1 inventory build.
-Phase 2 planning has not started — no sessions, no schema/code for dispatch/
-requisition/branch departments yet. Multi-session build, strictly sequential
-(no parallel sessions), once Phase 2 planning closes.
-Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec; §5 has the Phase 2 spec)
+**Phase 1 was verified hands-on by the owner 2026-08-20** against the local
+restored-production DB (PHASE1_VERIFICATION_GUIDE.md) — functionally sound;
+remaining Phase 1 work is a design/redesign pass only, not correctness.
+**Phase 2 planning is complete as of 2026-08-20.** All blocking decisions are
+closed — D-16 (Requisition/Dispatch are dual-org documents; the either-side read
+is confined to those two repositories and the ledger stays single-org), D-17
+(new `DEPARTMENT_HEAD` role, one department per person, Kitchen and Pastry have
+separate heads), D-18 (mandatory Branch Manager approval of requisitions, may
+edit quantities or reject; Branch Manager gets a cross-department view and
+assigns department heads; Store Manager fulfils/dispatches), D-19 (requisitions
+are on-demand with no fixed slots, counts daily). No Phase 2 schema or code yet
+— build is 12 strictly sequential sessions (no parallel sessions).
+**Delivery is design-first (agreed 2026-08-20): all 16 screens are designed and
+iterated in Paper.design before frontend implementation begins.** Backend
+sessions 1-7 are not blocked by design and may start any time; frontend
+sessions 8-11 must not start until their screen group's design is approved.
+**Note: feature plan §5 predates D-18 and is stale on the approval flow and
+screen list — the Phase 2 session plan overrides it.**
+**2026-08-21: Phase 2 now follows `docs/DESIGN_FIRST_WORKFLOW.md`.** The plan
+to follow going forward is
+`docs/context/INVENTORY-FEATURE/INVENTORY_PHASE2_DESIGN_FIRST_PLAN.md`
+(screens grouped by flow, design-then-backend-contract-then-build). The old
+session plan below is preserved as the historical record of Sessions 1-2
+(schema, requisition/dispatch backend — both built and merged) but is no
+longer the plan being followed.
+Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions D-1..D-19, full role/screen spec)
+Design-first plan (Phase 2, current): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE2_DESIGN_FIRST_PLAN.md
+Session plan (Phase 2, historical — Sessions 1-2 only): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE2_SESSION_PLAN.md
 Session plan (Phase 1, all complete): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md
 Domain model: docs/context/central_kitchen_inventory_model.md
 Client reference photos: docs/context/INVENTORY-FEATURE/inventory-real-data/
@@ -158,6 +197,38 @@ with the actual files before and isn't worth maintaining by hand.
 - **Deployments are fully automated via GitHub Actions CI/CD.** Every push to `main` triggers: validate → build Docker image → push to ghcr.io → SSH into server → `git pull` + migrate + restart containers. No manual server commands needed after pushing. Monitor at: GitHub → repo → Actions tab. See `docs/DEPLOYMENT.md` §7 for full pipeline details.
 
 ## Command Quick Reference (for Coding Agents)
+
+> ### ⚠️ Read this before running any command below
+>
+> **Check your actual environment first — do not assume the shell or paths in this
+> section apply to you.** The commands below were written from the owner's Windows
+> machine and use PowerShell syntax with a `d:\AI applications\web\V3-RMS` path.
+>
+> **Agents commonly run in WSL/Linux instead**, where the repo lives at
+> `/home/edwinfred/projects/V3-RMS` and the shell is bash. In that environment:
+>
+> - Use bash syntax, not `Set-Location` / `Invoke-RestMethod`
+> - Use the Linux repo path, not `d:\...`
+> - The `.ps1` helper scripts in `scripts/` (`db-studio.ps1`, `db-studio-local.ps1`,
+>   `logs.ps1`) are **Windows-only** — they are for the owner to run, not you. Use
+>   `docker compose` and `curl` directly instead.
+> - **Postgres and Redis run in Docker; the backend and frontend run on the host via
+>   `pnpm dev`** (not in containers) — so `docker compose exec api ...` will fail.
+>   Run Prisma commands directly in `backend/` instead, e.g. `npx prisma migrate dev`.
+>
+> Linux equivalents of the core loop:
+>
+> ```bash
+> cd /home/edwinfred/projects/V3-RMS
+> docker compose up -d postgres redis
+> cd backend  && pnpm dev          # API on :4000
+> cd frontend && pnpm dev          # UI  on :3000
+> curl -s http://localhost:4000/api/v1/health
+> ```
+>
+> Everything that is **not** shell-specific — the pnpm commands, the migration
+> workflow and its ordering rules, the deployment model, and every safety rule about
+> production — applies regardless of platform. Follow those exactly.
 
 ### Local Dev - Core
 

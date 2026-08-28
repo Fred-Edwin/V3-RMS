@@ -1,0 +1,851 @@
+<title>Requisitions & Procurement Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ground: #FFFFFF;
+    --paper: #FFFFFF;
+    --ink: #000000;
+    --muted: #3A3A3A;
+    --faint: #767676;
+    --line: #E2E2E2;
+    --line-strong: #CFCFCF;
+    --accent: #271db6;
+    --accent-soft: #E8EEFC;
+    --good: #1E7A46;
+    --good-soft: #E7F3EC;
+    --warn: #9A6A00;
+    --warn-soft: #FBF1DC;
+    --bad: #B3261E;
+    --bad-soft: #FBEAE9;
+    --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --sans: 'Public Sans', -apple-system, 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  section.sheet {
+    padding: 72px 0 88px;
+    border-bottom: 1px solid var(--line);
+  }
+  section.sheet:last-of-type { border-bottom: none; }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    padding-top: 96px;
+  }
+  .cover .kicker {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
+  .cover h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 38px;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    white-space: nowrap;
+  }
+  .cover .dek {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0 0 48px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 40px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line-strong);
+    margin-bottom: 56px;
+  }
+  .cover-meta div { display: flex; flex-direction: column; gap: 4px; }
+  .cover-meta .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .cover-meta .value {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .howto {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 24px 28px;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .howto .mark {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .howto p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+  .howto strong { color: var(--accent); font-weight: 600; }
+
+  /* ---------- Section heading (shared) ---------- */
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 14px;
+  }
+  h2.title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .summary-line {
+    font-size: 16.5px;
+    line-height: 1.65;
+    color: var(--muted);
+    max-width: 58ch;
+    margin: 0 0 0;
+  }
+
+  /* ---------- At-a-glance table ---------- */
+  .glance-list {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .glance-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 1.4fr;
+    gap: 24px;
+    padding: 22px 0;
+    border-top: 1px solid var(--line);
+    align-items: start;
+  }
+  .glance-row:last-child { border-bottom: 1px solid var(--line); }
+  .glance-num {
+    font-family: var(--serif);
+    font-size: 20px;
+    color: var(--accent);
+    font-weight: 600;
+    padding-top: 2px;
+  }
+  .glance-name {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+  }
+  .glance-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .role-chip {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .glance-desc {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--muted);
+    padding-top: 2px;
+  }
+
+  /* ---------- Flow section ---------- */
+  .flow-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 8px;
+  }
+  .flow-index {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--faint);
+    white-space: nowrap;
+    padding-bottom: 8px;
+  }
+  .flow-roles {
+    display: flex;
+    gap: 6px;
+    margin: 22px 0 0;
+  }
+
+  /* step sequence */
+  .steps {
+    margin-top: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 20px;
+    position: relative;
+  }
+  .step-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .step-num {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-connector {
+    width: 1.5px;
+    flex: 1;
+    background: var(--line-strong);
+    margin: 4px 0;
+    min-height: 24px;
+  }
+  .step:last-child .step-connector { display: none; }
+  .step-body { padding-bottom: 40px; }
+  .step-role {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 4px 0 6px;
+  }
+  .step-caption {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    line-height: 1.4;
+  }
+  .step-detail {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0 0 16px;
+    max-width: 54ch;
+  }
+
+  /* screen shot — desktop */
+  .shot-desktop {
+    position: relative;
+    aspect-ratio: 16/10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  .shot-desktop img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+  }
+
+  /* screen shot — mobile (standalone, no desktop sibling: own phone ratio) */
+  .shot-mobile {
+    position: relative;
+    width: 240px;
+    margin: 0 auto;
+    aspect-ratio: 9/17.5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--paper);
+  }
+  .shot-mobile img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+  }
+
+  /* inside a desktop+mobile pair: mobile matches the desktop frame's
+     rendered height exactly, narrower width only */
+  .screen-pair .shot-mobile {
+    aspect-ratio: auto;
+    height: 100%;
+  }
+
+  .shot-desktop .label, .shot-mobile .label {
+    position: relative;
+    background: var(--paper);
+    border: 1px dashed var(--line-strong);
+    color: var(--faint);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 4px;
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+
+  /* screen pair — desktop + mobile shown together, sized to a realistic
+     laptop-vs-phone width ratio (~4:1) rather than splitting the row evenly.
+     Mobile is stretched to match the desktop frame's rendered height exactly
+     (only the width differs) via align-items: stretch on the row. */
+  .screen-pair {
+    display: flex;
+    align-items: stretch;
+    gap: 22px;
+  }
+  .screen-pair .pair-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .screen-pair .pair-item.desktop { flex: 1; min-width: 0; }
+  .screen-pair .pair-item.mobile { flex-shrink: 0; width: 140px; }
+  .screen-pair .pair-item.mobile .shot-mobile { width: 140px; flex: 1; }
+  .pair-item .pair-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--faint);
+    text-align: center;
+  }
+  .screen-pair .pair-or {
+    flex-shrink: 0;
+    align-self: center;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--faint);
+    margin-top: 22px;
+  }
+  @media (max-width: 640px) {
+    .screen-pair { flex-direction: column; align-items: center; }
+    .screen-pair .pair-or { margin-top: 0; }
+    .screen-pair .pair-item.desktop { width: 100%; }
+    .screen-pair .pair-item.mobile { width: 240px; }
+    .screen-pair .pair-item.mobile .shot-mobile,
+    .screen-pair .shot-mobile {
+      aspect-ratio: 9/17.5;
+      height: auto;
+      width: 240px;
+      flex: none;
+    }
+  }
+
+  /* branch callout */
+  .branch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 4px 0 16px;
+  }
+  .branch-card {
+    border-radius: 5px;
+    padding: 14px 16px;
+    border: 1px solid;
+  }
+  .branch-card.good { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+  .branch-card.bad { background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+  .branch-card.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+  .branch-card .btitle {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin: 0 0 4px;
+  }
+  .branch-card.good .btitle { color: var(--good); }
+  .branch-card.bad .btitle { color: var(--bad); }
+  .branch-card.warn .btitle { color: var(--warn); }
+  .branch-card p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+  /* check callout */
+  .check {
+    margin-top: 8px;
+    background: var(--accent-soft);
+    border-radius: 6px;
+    padding: 22px 26px;
+    display: flex;
+    gap: 16px;
+  }
+  .check .mark {
+    font-size: 18px;
+    color: var(--accent);
+    line-height: 1.3;
+  }
+  .check-body .ctitle {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 6px;
+  }
+  .check-body p {
+    margin: 0;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink);
+  }
+
+  footer.pagefoot {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 32px 64px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--faint);
+  }
+
+  @media (max-width: 640px) {
+    .cover h1 { font-size: 26px; white-space: normal; }
+    .glance-row { grid-template-columns: 1fr; gap: 8px; }
+    .branch { grid-template-columns: 1fr; }
+    .cover-meta { flex-wrap: wrap; gap: 24px; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    section.sheet { break-inside: avoid-page; padding: 40px 0; }
+    .step { break-inside: avoid; }
+  }
+</style>
+
+<article class="page cover">
+  <p class="kicker">Wendo RMS</p>
+  <h1>The Requisitions &amp; Procurement Flow</h1>
+  <p class="dek">A screen-by-screen walkthrough of how supplies get requested, fulfilled, and bought — from a department asking for stock, to the Central Store sending it out, to buying from the market.</p>
+  <div class="cover-meta">
+    <div><span class="label">Prepared for</span><span class="value">Wendo Coffee Bistro</span></div>
+    <div><span class="label">Date</span><span class="value">24 August 2026</span></div>
+    <div><span class="label">Stage</span><span class="value">Design review, pre-build</span></div>
+  </div>
+  <div class="howto">
+    <div class="mark">✓</div>
+    <p><strong>How to read this.</strong> Each section below follows one everyday task from start to finish — who does what, in what order, and what they see on screen. Look for the highlighted box at the end of each section — that's the specific thing we'd like you to confirm or correct before we start building.</p>
+  </div>
+</article>
+
+<section class="sheet">
+  <article class="page">
+    <p class="eyebrow">At a glance</p>
+    <h2 class="title">Five everyday tasks, redesigned</h2>
+    <p class="summary-line">Everything below supports one of these five moments in a branch's day. Each gets its own section further in this document.</p>
+
+    <div class="glance-list">
+      <div class="glance-row">
+        <div class="glance-num">1</div>
+        <div>
+          <div class="glance-name">Requesting Supplies</div>
+          <div class="glance-roles"><span class="role-chip">Department Head</span><span class="role-chip">Branch Manager</span></div>
+        </div>
+        <div class="glance-desc">A kitchen, bar, or pastry lead asks for what they need; the Branch Manager reviews and approves it before it goes anywhere.</div>
+      </div>
+      <div class="glance-row">
+        <div class="glance-num">2</div>
+        <div>
+          <div class="glance-name">Fulfilling &amp; Receiving</div>
+          <div class="glance-roles"><span class="role-chip">Store Manager</span><span class="role-chip">Department Head</span></div>
+        </div>
+        <div class="glance-desc">The Central Store packs and sends an approved request; the department checks it off as it arrives and flags anything short.</div>
+      </div>
+      <div class="glance-row">
+        <div class="glance-num">3</div>
+        <div>
+          <div class="glance-name">Buying From the Market</div>
+          <div class="glance-roles"><span class="role-chip">Department Head</span><span class="role-chip">Branch Manager</span></div>
+        </div>
+        <div class="glance-desc">A department requests market produce, the Branch Manager consolidates and approves the order, someone buys it, and each department confirms what they received.</div>
+      </div>
+      <div class="glance-row">
+        <div class="glance-num">4</div>
+        <div>
+          <div class="glance-name">Tracking Stock</div>
+          <div class="glance-roles"><span class="role-chip">Branch Manager</span></div>
+        </div>
+        <div class="glance-desc">A live, always-current view of what's on hand, what it's worth, and how it moved — by department, by day.</div>
+      </div>
+      <div class="glance-row">
+        <div class="glance-num">5</div>
+        <div>
+          <div class="glance-name">Managing Staff &amp; Department Leads</div>
+          <div class="glance-roles"><span class="role-chip">Branch Manager</span></div>
+        </div>
+        <div class="glance-desc">A cleaner staff list, grouped by department, with department-head assignment now built directly in.</div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= FLOW 1 ================= -->
+<section class="sheet">
+  <article class="page">
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">Workflow 1 of 5</p>
+        <h2 class="title">Requesting Supplies</h2>
+      </div>
+      <div class="flow-index">Department Head → Branch Manager</div>
+    </div>
+    <p class="summary-line">Any department — Kitchen, Bar, Pastry, and so on — can be running low on something mid-shift. Instead of a phone call or a paper note, the department head raises a request on their phone, and the Branch Manager reviews it before it's sent anywhere.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Opens their department dashboard</p>
+          <p class="step-detail">A quick view of what's already been requested and what's low, before starting a new request.</p>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>D1.1 · Mobile</div><img src="screens/01-department-dashboard.png" alt="Department Dashboard" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Picks items and quantities needed</p>
+          <p class="step-detail">Selects from the items their department is allowed to request, with a running list building as they go.</p>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>D1.2 · Mobile</div><img src="screens/02-new-requisition.png" alt="New Requisition" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Reviews and sends the request</p>
+          <p class="step-detail">One last look at the full list before it goes to the Branch Manager for approval.</p>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>D1.2 Review · Mobile</div><img src="screens/03-review-requisition.png" alt="Review Requisition" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop or Mobile</div>
+          <p class="step-caption">Reviews the request against what's on hand</p>
+          <p class="step-detail">Sees every open request across all departments in one queue, with current stock shown alongside so they can judge each line.</p>
+          <div class="screen-pair">
+            <div class="pair-item desktop">
+              <p class="pair-label">Desktop</p>
+                <div class="shot-desktop"><div class="label">Screen placeholder<br>D2.1 · Desktop</div><img src="screens/04-approvals-queue.png" alt="Approvals Queue — Desktop" onerror="this.style.display='none'"></div>
+            </div>
+            <div class="pair-or">or</div>
+            <div class="pair-item mobile">
+              <p class="pair-label">Mobile</p>
+                <div class="shot-mobile"><div class="label">Screen placeholder<br>D2.1 · Mobile</div><img src="screens/04b-approvals-queue-mobile.png" alt="Approvals Queue — Mobile" onerror="this.style.display='none'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">5</div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager</div>
+          <p class="step-caption">Approves, edits, or rejects</p>
+          <p class="step-detail">The Branch Manager can adjust quantities before approving, not just accept or decline the request as written.</p>
+          <div class="branch">
+            <div class="branch-card good"><p class="btitle">Approved</p><p>Moves to the Central Store to be fulfilled. A dated approval document is generated automatically.</p></div>
+            <div class="branch-card bad"><p class="btitle">Rejected</p><p>Sent back to the department head with the Branch Manager's reason attached.</p></div>
+          </div>
+          <div class="screen-pair">
+            <div class="pair-item desktop">
+              <p class="pair-label">Desktop</p>
+                <div class="shot-desktop"><div class="label">Screen placeholder<br>Approval Document · Desktop</div><img src="screens/05-requisition-document.png" alt="Requisition Document — Desktop" onerror="this.style.display='none'"></div>
+            </div>
+            <div class="pair-or">or</div>
+            <div class="pair-item mobile">
+              <p class="pair-label">Mobile</p>
+                <div class="shot-mobile"><div class="label">Screen placeholder<br>Approval Document · Mobile</div><img src="screens/05b-requisition-document-mobile.png" alt="Requisition Document — Mobile" onerror="this.style.display='none'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="mark">✓</div>
+      <div class="check-body">
+        <p class="ctitle">What we'd like you to check</p>
+        <p>Does this match how your department heads currently ask the store for supplies today? In particular — is it right that the Branch Manager can edit quantities before approving, rather than only approve or reject as submitted?</p>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= FLOW 2 ================= -->
+<section class="sheet">
+  <article class="page">
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">Workflow 2 of 5</p>
+        <h2 class="title">Fulfilling &amp; Receiving</h2>
+      </div>
+      <div class="flow-index">Store Manager → Department Head</div>
+    </div>
+    <p class="summary-line">Once a request is approved, it lands with the Central Store to be packed and sent. The department checks off what actually arrives — if something's short, that's flagged automatically rather than quietly absorbed.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Store Manager · Desktop</div>
+          <p class="step-caption">Sees every request in one table</p>
+          <p class="step-detail">Every requisition moves through three stages — New, Dispatched, Received — visible at a glance without hunting across separate screens.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Requisitions Table · Desktop</div><img src="screens/06-requisitions-table.png" alt="Requisitions" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Store Manager · Desktop or Mobile</div>
+          <p class="step-caption">Fills the order from what's in stock</p>
+          <p class="step-detail">Requested quantity sits next to what's actually available to send — sending less than requested is expected and handled cleanly, not treated as an error.</p>
+          <div class="screen-pair">
+            <div class="pair-item desktop">
+              <p class="pair-label">Desktop</p>
+                <div class="shot-desktop"><div class="label">Screen placeholder<br>Fill Order · Desktop</div><img src="screens/07-fill-order.png" alt="Fill Order — Desktop" onerror="this.style.display='none'"></div>
+            </div>
+            <div class="pair-or">or</div>
+            <div class="pair-item mobile">
+              <p class="pair-label">Mobile</p>
+                <div class="shot-mobile"><div class="label">Screen placeholder<br>Fill Order · Mobile</div><img src="screens/07b-fill-order-mobile.png" alt="Fill Order — Mobile" onerror="this.style.display='none'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Store Manager</div>
+          <p class="step-caption">Dispatches with a signed note</p>
+          <p class="step-detail">A dispatch document is generated automatically the moment the order is sent, stamped as dispatched.</p>
+          <div class="screen-pair">
+            <div class="pair-item desktop">
+              <p class="pair-label">Desktop</p>
+                <div class="shot-desktop"><div class="label">Screen placeholder<br>Dispatch Note · Desktop</div><img src="screens/08-dispatch-note.png" alt="Dispatch Note — Desktop" onerror="this.style.display='none'"></div>
+            </div>
+            <div class="pair-or">or</div>
+            <div class="pair-item mobile">
+              <p class="pair-label">Mobile</p>
+                <div class="shot-mobile"><div class="label">Screen placeholder<br>Dispatch Note · Mobile</div><img src="screens/08b-dispatch-note-mobile.png" alt="Dispatch Note — Mobile" onerror="this.style.display='none'"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">4</div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Checks off the delivery on arrival</p>
+          <p class="step-detail">Each item is confirmed against what was dispatched. A mismatch is highlighted immediately rather than discovered later.</p>
+          <div class="branch">
+            <div class="branch-card good"><p class="btitle">Matches</p><p>Marked received. The dispatch note is stamped a second time and the record closes clean.</p></div>
+            <div class="branch-card warn"><p class="btitle">Doesn't match</p><p>The shortfall is flagged inline on the same screen — visible to both the department and the Store Manager.</p></div>
+          </div>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>D1.4 · Mobile</div><img src="screens/09-receive-delivery.png" alt="Receive Delivery" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= FLOW 3 ================= -->
+<section class="sheet">
+  <article class="page">
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">Workflow 3 of 5</p>
+        <h2 class="title">Buying From the Market</h2>
+      </div>
+      <div class="flow-index">Department Head → Branch Manager</div>
+    </div>
+    <p class="summary-line">Market produce doesn't come from the Central Store, so it works differently. A department head never goes to the market themselves — they request what they need, the Branch Manager consolidates every department's requests and sends someone to buy it, then each department confirms what actually landed on their shelf.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Requests market items ahead of time</p>
+          <p class="step-detail">For produce a department knows it'll need. This request joins one shared order with whatever other departments have also requested — so the branch makes one trip, not several.</p>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>Mobile</div><img src="screens/11-request-market-items.png" alt="Request Market Items" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">2</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Reviews the combined order and approves it</p>
+          <p class="step-detail">Sees every department's requests grouped together in one draft, can adjust any line, then approves the whole order to be bought.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Draft Drawer · Desktop</div><img src="screens/12-mpo-draft-drawer.png" alt="Market Purchase Order Draft" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">3</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Delivery person</div>
+          <p class="step-caption">Buys the order and brings it back</p>
+          <p class="step-detail">The approved order goes out to be bought — not by the department head or the Branch Manager. No screen here; this step happens off-system, at the market.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">4</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Logs what actually came back</p>
+          <p class="step-detail">Once the order is delivered, the Branch Manager records the real quantity bought and price paid for each item against what was originally requested.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Reconciling Drawer · Desktop</div><img src="screens/13-mpo-reconciling-drawer.png" alt="Market Purchase Order Reconciling" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">5</div></div>
+        <div class="step-body">
+          <div class="step-role">Department Head · Mobile</div>
+          <p class="step-caption">Confirms their portion into the department's stock</p>
+          <p class="step-detail">Each department only sees and confirms the items they asked for — not the whole branch-wide order. Confirming logs the quantity straight into that department's stock sheet.</p>
+          <div class="branch">
+            <div class="branch-card good"><p class="btitle">Matches</p><p>Confirmed received, no further action.</p></div>
+            <div class="branch-card warn"><p class="btitle">Doesn't match</p><p>Variance is shown clearly against what was originally requested.</p></div>
+          </div>
+            <div class="shot-mobile"><div class="label">Screen placeholder<br>Mobile</div><img src="screens/14-receive-mpo.png" alt="Receive Market Purchase Order" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="check">
+      <div class="mark">✓</div>
+      <div class="check-body">
+        <p class="ctitle">What we'd like you to check</p>
+        <p>Who should this "delivery person" actually be — an existing staff member, or a new role? We've kept this open in the design — it needs a name before we build it.</p>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= FLOW 4 ================= -->
+<section class="sheet">
+  <article class="page">
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">Workflow 4 of 5</p>
+        <h2 class="title">Tracking Stock</h2>
+      </div>
+      <div class="flow-index">Branch Manager</div>
+    </div>
+    <p class="summary-line">A day-to-day view of what's on hand across every department, what it's worth, and a full history of how it moved.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Views stock across every department</p>
+          <p class="step-detail">One screen covering current levels, incoming requests, and market orders — switching between departments without leaving the page.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Desktop</div><img src="screens/15-branch-stock.png" alt="Branch Stock" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">2</div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Opens the daily history for any item</p>
+          <p class="step-detail">A full ledger — opening balance, what came in, what was bought at market, what was wasted, and the closing balance — for any day.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Desktop</div><img src="screens/16-branch-stock-history.png" alt="Branch Stock History" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= FLOW 5 ================= -->
+<section class="sheet">
+  <article class="page">
+    <div class="flow-head">
+      <div>
+        <p class="eyebrow">Workflow 5 of 5</p>
+        <h2 class="title">Managing Staff &amp; Department Leads</h2>
+      </div>
+      <div class="flow-index">Branch Manager</div>
+    </div>
+    <p class="summary-line">A redesigned staff list — grouped by department, with the ability to name or change a department's head built directly into each person's profile.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-rail"><div class="step-num">1</div><div class="step-connector"></div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Sees every staff member, grouped by department</p>
+          <p class="step-detail">Service, Barista, Kitchen, Pastry, Housekeeping — and anyone not yet placed in a department, shown honestly rather than hidden.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Desktop</div><img src="screens/17-staff-list.png" alt="Staff" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-rail"><div class="step-num">2</div></div>
+        <div class="step-body">
+          <div class="step-role">Branch Manager · Desktop</div>
+          <p class="step-caption">Opens a staff member to assign a department head</p>
+          <p class="step-detail">Clicking any person opens their details alongside a one-click way to name them — or someone else — as their department's head.</p>
+            <div class="shot-desktop"><div class="label">Screen placeholder<br>Desktop</div><img src="screens/18-staff-detail.png" alt="Staff Detail" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<footer class="pagefoot">
+  <span>Wendo RMS — Requisitions &amp; Procurement</span>
+  <span>Prepared 24 August 2026</span>
+</footer>

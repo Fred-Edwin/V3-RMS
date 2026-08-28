@@ -76,6 +76,7 @@ model Organization {
   dispatchesTo                 Dispatch[]                    @relation("DispatchToOrganization")
   marketPurchases              MarketPurchase[]
   marketPurchaseLines          MarketPurchaseLine[]
+  marketPurchaseOrders         MarketPurchaseOrder[]
   wasteLogs                    WasteLog[]
   inventoryTransactions        InventoryTransaction[]
 
@@ -176,6 +177,11 @@ model User {
   dispatchesDispatched               Dispatch[]                    @relation("DispatchDispatchedBy")
   dispatchesReceived                 Dispatch[]                    @relation("DispatchReceivedBy")
   marketPurchasesRecorded            MarketPurchase[]              @relation("MarketPurchaseRecordedBy")
+  marketPurchaseOrdersCreated        MarketPurchaseOrder[]         @relation("MPOCreatedBy")
+  marketPurchaseOrdersApproved       MarketPurchaseOrder[]         @relation("MPOApprovedBy")
+  marketPurchaseOrdersReconciled     MarketPurchaseOrder[]         @relation("MPOReconciledBy")
+  marketPurchaseOrderLinesRequested  MarketPurchaseOrderLine[]     @relation("MPOLineRequestedBy")
+  marketPurchaseOrderLinesConfirmed  MarketPurchaseOrderLine[]     @relation("MPOLineConfirmedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -1477,6 +1483,10 @@ model InventoryItem {
   conversionFactor Decimal           @map("conversion_factor") @db.Decimal(12, 4)
   reorderLevel     Decimal           @map("reorder_level") @db.Decimal(12, 4)
   departmentTags   DepartmentTag[]   @map("department_tags")
+  // Stock Sheet grouping (e.g. "Chicken", "Beef", "Vegetables") — mirrors the
+  // client's real paper sheet categories. Free text, not an enum: the set of
+  // categories is operational/client-specific, not a fixed system concept.
+  category         String?
   currentCost      Decimal           @default(0) @map("current_cost") @db.Decimal(12, 4)
   isActive         Boolean           @default(true) @map("is_active")
   createdAt        DateTime          @default(now()) @map("created_at")
@@ -1495,6 +1505,7 @@ model InventoryItem {
   requisitionLines    RequisitionLine[]
   dispatchLines       DispatchLine[]
   marketPurchaseLines MarketPurchaseLine[]
+  marketPurchaseOrderLines MarketPurchaseOrderLine[]
   parLevels           ParLevel[]
 
   @@index([organizationId])
@@ -1860,6 +1871,7 @@ model InventoryTransaction {
   stockCountLineId     String?                  @map("stock_count_line_id")
   dispatchLineId       String?                  @map("dispatch_line_id")
   marketPurchaseLineId String?                  @map("market_purchase_line_id")
+  marketPurchaseOrderLineId String?             @map("market_purchase_order_line_id")
   userId               String                   @map("user_id")
   createdAt            DateTime                 @default(now()) @map("created_at")
 
@@ -1872,6 +1884,7 @@ model InventoryTransaction {
   stockCountLine     StockCountLine?     @relation(fields: [stockCountLineId], references: [id])
   dispatchLine       DispatchLine?       @relation(fields: [dispatchLineId], references: [id])
   marketPurchaseLine MarketPurchaseLine? @relation(fields: [marketPurchaseLineId], references: [id])
+  marketPurchaseOrderLine MarketPurchaseOrderLine? @relation(fields: [marketPurchaseOrderLineId], references: [id])
   user               User                @relation("InventoryTransactionUser", fields: [userId], references: [id])
 
   @@index([organizationId])
@@ -1917,6 +1930,12 @@ model Requisition {
   organizationId  String            @map("organization_id")
   locationId      String            @map("location_id")
   requestedById   String            @map("requested_by_id")
+  // `REQ-<yymmdd>-<dept>-<seq>` — the Requisition Document's own Doc ID,
+  // generated at raise time (mirrors Dispatch.deliveryNoteNumber, set at
+  // confirm time instead since a requisition has a document from the moment
+  // it exists, before any approval). Nullable only because pre-existing rows
+  // (Sessions 1-2) predate this field.
+  requisitionNumber String?         @map("requisition_number")
   status          RequisitionStatus @default(DRAFT)
   approvedById    String?           @map("approved_by_id")
   approvedAt      DateTime?         @map("approved_at")
@@ -2086,4 +2105,91 @@ model ParLevel {
   @@index([organizationId])
   @@index([inventoryItemId])
   @@map("par_levels")
+}
+
+// ============================================================================
+// PHASE 2 — MARKET PURCHASE ORDER (D-22, Flow C2)
+// Consolidated, planned market buying — distinct from same-day MarketPurchase
+// (D-11, C1). Exactly one active DRAFT order per branch collects every
+// department's requested items; the Branch Manager reviews/edits/approves
+// the whole draft, sends it to market, then reconciles actual qty + price
+// paid per line (one event, order-wide). Each Dept Head then separately
+// confirms receipt of only their own department's lines — a second,
+// independent event per department, on lines that already belong to one
+// department each (see confirmedById/confirmedAt below). Single-org
+// (branch) — no dual-org bridge like Dispatch; the "market" side is an
+// unnamed, un-modeled delivery function (interim decision, see design doc).
+// ============================================================================
+
+enum MarketPurchaseOrderStatus {
+  DRAFT
+  APPROVED
+  SENT_TO_MARKET
+  RECONCILING
+  COMPLETED
+  RECEIVED
+  REJECTED
+}
+
+model MarketPurchaseOrder {
+  id             String                     @id @default(uuid())
+  organizationId String                     @map("organization_id")
+  orderNumber    String                     @map("order_number")
+  status         MarketPurchaseOrderStatus  @default(DRAFT)
+  createdById    String                     @map("created_by_id")
+  approvedById   String?                    @map("approved_by_id")
+  approvedAt     DateTime?                  @map("approved_at")
+  reconciledById String?                    @map("reconciled_by_id")
+  reconciledAt   DateTime?                  @map("reconciled_at")
+  rejectionReason String?                   @map("rejection_reason")
+  notes          String?
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+
+  organization Organization               @relation(fields: [organizationId], references: [id])
+  createdBy    User                       @relation("MPOCreatedBy", fields: [createdById], references: [id])
+  approvedBy   User?                      @relation("MPOApprovedBy", fields: [approvedById], references: [id])
+  reconciledBy User?                      @relation("MPOReconciledBy", fields: [reconciledById], references: [id])
+  lines        MarketPurchaseOrderLine[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId])
+  @@index([status])
+  @@map("market_purchase_orders")
+}
+
+// requestedQty is set when a Dept Head's item lands in the draft (never
+// mutated after, except by the Branch Manager's pre-send edit). actualQty +
+// unitPrice are set once, order-wide, by the Branch Manager's reconciliation
+// (RECONCILING -> COMPLETED). confirmedById/confirmedAt are set later,
+// independently, by the requesting department's own Dept Head — per the
+// approved mobile Receive screen, which shows Requested -> Actual as a
+// read-only comparison with no quantity input, so "receiving" is a
+// confirmation stamp, not a new figure. Variance = requestedQty vs
+// actualQty, already fixed at reconciliation time.
+model MarketPurchaseOrderLine {
+  id                    String        @id @default(uuid())
+  marketPurchaseOrderId String        @map("market_purchase_order_id")
+  departmentTag         DepartmentTag @map("department_tag")
+  requestedById         String        @map("requested_by_id")
+  inventoryItemId       String        @map("inventory_item_id")
+  requestedQty          Decimal       @map("requested_qty") @db.Decimal(12, 4)
+  actualQty             Decimal?      @map("actual_qty") @db.Decimal(12, 4)
+  unitPrice             Decimal?      @map("unit_price") @db.Decimal(12, 4)
+  confirmedById         String?       @map("confirmed_by_id")
+  confirmedAt           DateTime?     @map("confirmed_at")
+  notes                 String?
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  marketPurchaseOrder MarketPurchaseOrder    @relation(fields: [marketPurchaseOrderId], references: [id])
+  inventoryItem       InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  requestedBy          User                  @relation("MPOLineRequestedBy", fields: [requestedById], references: [id])
+  confirmedBy          User?                 @relation("MPOLineConfirmedBy", fields: [confirmedById], references: [id])
+  inventoryTransactions InventoryTransaction[]
+
+  @@index([marketPurchaseOrderId])
+  @@index([inventoryItemId])
+  @@index([departmentTag])
+  @@map("market_purchase_order_lines")
 }

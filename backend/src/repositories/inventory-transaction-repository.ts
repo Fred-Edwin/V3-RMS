@@ -18,6 +18,7 @@ export type CreateInventoryTransactionInput = {
   stockCountLineId?: string;
   dispatchLineId?: string;
   marketPurchaseLineId?: string;
+  marketPurchaseOrderLineId?: string;
 };
 
 export const inventoryTransactionRepository = {
@@ -41,6 +42,7 @@ export const inventoryTransactionRepository = {
         stockCountLineId: input.stockCountLineId,
         dispatchLineId: input.dispatchLineId,
         marketPurchaseLineId: input.marketPurchaseLineId,
+        marketPurchaseOrderLineId: input.marketPurchaseOrderLineId,
       },
     });
   },
@@ -65,6 +67,7 @@ export const inventoryTransactionRepository = {
         stockCountLineId: input.stockCountLineId,
         dispatchLineId: input.dispatchLineId,
         marketPurchaseLineId: input.marketPurchaseLineId,
+        marketPurchaseOrderLineId: input.marketPurchaseOrderLineId,
       })),
     });
   },

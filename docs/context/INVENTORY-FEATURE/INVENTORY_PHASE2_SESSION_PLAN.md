@@ -62,7 +62,7 @@ Department Head          Branch Manager            Store Manager
   (on demand, from        quantities / rejects      fulfils (partial OK)
    own scoped catalog)          │                   dispatches
                                 ▼                        │
-                          back to head            delivery note printed
+                          back to head            delivery note PDF issued
                           if rejected             → status In Transit
                                                          │
                                                          ▼
@@ -96,7 +96,7 @@ pass (2026-08-20, `PHASE1_VERIFICATION_GUIDE.md`):
 | `DISPATCH_OUT`, `DISPATCH_IN`, `MARKET_RECEIVE` | ✅ already in `InventoryTransactionType` — **ledger gains usage, never a restructure** |
 | Weighted-average costing (D-8) | ✅ verified working — dispatch costing builds directly on it |
 | Stock-on-hand / count / waste components | ✅ exist, need department scoping only |
-| Thermal printing infra | ✅ exists — delivery note reuses it |
+| PDF toolkit (`pdfkit` + `utils/report-formatters.ts`) | ✅ exists (statements/reports) — **the delivery note PDF reuses this**. Thermal printing is NOT used in Phase 2 (D-20) |
 | FCM push (`fcm-service.ts`) | ✅ exists — approval notifications reuse it |
 | Approval-flow pattern | ✅ `OrderCancellationRequest` etc. — `PENDING → APPROVED/REJECTED` + `resolvedById`/`resolvedAt`/`resolutionNote` |
 | Two-org bridge pattern | ✅ `StaffTransfer` — `fromOrganizationId`/`toOrganizationId` |
@@ -147,9 +147,26 @@ this file is the functional spec that the designs must satisfy.
 | # | Screen group | Screens | Status |
 |---|---|---|---|
 | D1 | Department Head mobile | 7 | In Progress (started 2026-08-21) |
-| D2 | Branch Manager (desktop + mobile) | 4 | In Progress (started 2026-08-21) |
+| D2 | Branch Manager (desktop + mobile) | 4 &rarr; see note below | In Progress (started 2026-08-21) |
 | D3 | Central Store dispatch (desktop/tablet) | 3 | In Progress (started 2026-08-21) |
 | D4 | Director (desktop) | 2 | In Progress (started 2026-08-21) |
+
+**D2 deviation (2026-08-21):** the four planned Branch Manager desktop screens
+(D2.1 Requisition Approvals, D2.2 All Five Departments Overview, D2.3 Single
+Department Detail) were merged into one screen, **Branch Stock** (formerly
+called "Branch Command Center" mid-design, renamed for consistency with the
+sidebar nav label), after the original D2.1 desktop draft was flagged as too
+sparse for a 1440px canvas. D2.4 Assign Department Heads is dropped as a
+bespoke screen — folded into the existing Staff/HR screen instead (not yet
+scoped in detail; open item for backend/frontend session planning). A new
+screen was added, **Branch Stock History** (date-picker-driven historical
+ledger + a combined Requisitions/Dispatches document list), not in the
+original 16-screen catalogue. Net effect: **4 planned screens &rarr; 2 built**
+(Branch Stock, Branch Stock History), mobile D2.1 (Approvals Queue +
+Requisition Detail) unchanged and still separate per the owner's explicit
+call. See "Deviations from Plan" for full detail. Design group D2 covers:
+Branch Stock (desktop), Branch Stock History (desktop), Approvals Queue
+(mobile), Requisition Detail (mobile).
 
 Design work is under way in Paper.design, owner-led, running in parallel with backend
 sessions 1-3. Mark a group `Approved` only when the owner signs it off — frontend
@@ -348,7 +365,7 @@ Picking and sending the goods.
 - Per line: **requested** vs. **available**
 - Enter the quantity actually being sent
 - **Sending less is normal** — the shortfall is recorded, never treated as an error (D-6)
-- Confirm → **delivery note prints** on the existing thermal printer
+- Confirm → **delivery note PDF generated** (soft copy, no printing — D-20)
 - Status becomes **In Transit** (D-5)
 
 The Store Manager may also **reject** a requisition outright — for a genuine mistake
@@ -620,10 +637,10 @@ mark `Blocked`, hand dispatch to the next session.**
   `DISPATCH_IN` at department location → `RECEIVED`
 - **Variance**: `dispatchedQty − receivedQty` flagged and valued in KES
 
-**C. Notifications + printing**
+**C. Notifications + delivery note**
 - FCM: Branch Manager on submit; Department Head on approve/reject and on dispatch;
   store on receipt-with-variance
-- Delivery note via the **existing** thermal printing infra — do not build a new path
+- Delivery note as a **PDF** (D-20) — no printing anywhere in Phase 2. Deferred from Session 2; see Session 3 scope.
 
 ### Critical — D-16 correctness
 **The ledger stays single-org.** A dispatch writes two `InventoryTransaction` rows:
@@ -800,7 +817,19 @@ Feeds Session 2's suggested quantities.
 **D. RBAC audit** — every Phase 2 endpoint against a written matrix (mirror feature plan
 §8.3 style; add a §8.4 for Phase 2 roles). One RBAC test per endpoint.
 
-**E. Reports**
+**E. Delivery note PDF** (D-20, deferred from Session 2)
+- Generate a **PDF** delivery note for a dispatch — soft copy only, **no printing**
+- Build on the existing `pdfkit` toolkit in `backend/src/utils/report-formatters.ts`
+  (page borders, section labels, tables, footers already exist and are used for
+  corporate statements) — **not** via the `PrintJob` model, which is order-shaped and
+  cannot represent a document without an `orderId`
+- Contents: delivery note number (already generated and stored on `Dispatch`), from/to
+  location, date, per-line item + dispatched qty + unit cost, total value
+- Endpoint returning the PDF for a given dispatch, so the UI can download or share it
+- RBAC: visible to either side of the dispatch (D-16) — store roles and the receiving
+  department head, plus MANAGER/DIRECTOR
+
+**F. Reports**
 - Stock on hand per department (Director, rolled up by branch)
 - In-transit view
 - Transfer variance (per dispatch / department / item)
@@ -881,7 +910,7 @@ sharing the existing `ExcelTable`/reports patterns.
 ### Watch out for
 - The store fulfils for **up to 50 branch/department combinations** — labelling and sort
   order are the difference between usable and useless
-- Reuse the existing thermal print path for the delivery note
+- Delivery note is a **PDF only** (D-20) — never a print job. Reuse `utils/report-formatters.ts`.
 - Rolled-up Director numbers must drill to the department, then to the ledger
 - The blended consumption/loss caveat must render **on screen**, not just in docs
 - Slots into the existing reports nav; `ExcelTable`-driven; CSV export per convention
@@ -920,7 +949,7 @@ Not blockers — each has a sensible default, but record the decision in As Buil
 
 | # | Question | Suggested default | Resolve in |
 |---|---|---|---|
-| Q1 | Does a DEPARTMENT_HEAD see expected qty during a count (D-14 analogue)? | Yes — they are the department's manager-equivalent | Session 3 |
+| Q1 | ~~Does a DEPARTMENT_HEAD see expected qty during a count?~~ | **RESOLVED 2026-08-21 (owner): YES.** A Department Head sees expected quantities during a count — they are the department's manager-equivalent, same visibility a Store Manager has. The D-14 blind rule continues to apply to STORE_ATTENDANT only. | Session 3 — implement as decided |
 | Q2 | Can a department receive **more** than dispatched? | Allow, flag as variance | Session 2 |
 | Q3 | Where does a user's previous role live for unassignment? | Nullable `previousRole` on `User` | Session 1 |
 | Q4 | What happens to a DEPARTMENT_HEAD transferred between branches? | Clear department, restore previous role | Session 1 |
@@ -969,6 +998,107 @@ scope (a new receipt type or a parallel print-job path), not a reuse.
 nothing depending on the number itself is blocked — only the physical print
 job. Flagged for whichever session first builds D3.2 ("Fill an Order"),
 likely Session 6.
+
+**Design (2026-08-21) — D2.1/D2.2/D2.3 merged into one screen, "Branch
+Stock"; D2.4 dropped as a bespoke screen; new "Branch Stock History" screen
+added.** During Stage A design, the initial D2.1 Requisition Approvals
+(Desktop) draft (sidebar + two-column master-detail) was flagged by the owner
+as too sparse for a 1440px canvas — mobile density stretched onto a bigger
+screen, violating the plan's own standing rule that Manager desktop screens
+must be genuinely dense, purpose-built layouts. Rather than redesign D2.1 in
+isolation, the owner proposed collapsing D2.1 (Requisition Approvals), D2.2
+(All Five Departments Overview), and D2.3 (Single Department Detail) into one
+screen, **Branch Stock**: a hairline-divided stats strip (Pending Approvals
+hero, Low Stock Items, Total Branch Stock Value), department tabs with
+glanceable low-stock counts driving a single dense ledger table (Item ·
+Opening · Received · Market Purchase · Waste · Closing (live) · Value (KES)
+· Par · Status — modeled directly on the real client stock-sheet photos),
+and two list sections (Requisition Approvals, Dispatch Receipts) sharing one
+row shell, each row opening a right-side drawer instead of navigating to a
+separate screen. D2.3 (single department detail) is fully subsumed by the
+department tabs; D2.2 (cross-department overview) is subsumed by the stats
+strip plus the ability to switch tabs.
+
+**D2.4 (Assign Department Heads) is dropped as a bespoke screen** — the
+owner directed reuse of the existing Staff/HR screen instead, adding
+department-head role assignment there rather than building a new screen.
+Not yet scoped in detail (open item for backend/frontend session planning);
+the Session 1 backend endpoints (`GET .../departments`,
+`GET .../eligible-staff`, `PATCH/DELETE .../head`) are unaffected and still
+correct — only the frontend surface changes.
+
+**A new screen, "Branch Stock History," was added** (not in the original
+16-screen catalogue), after the owner clarified via a Paper comment that
+historical access needed to be one page, not a "Requisition History" list
+alone: a date-picker-driven **Daily Ledger** section (the same ledger table
+shape as the live Branch Stock screen, scoped to a selected past date, with
+prev/next-day navigation) followed by a **Documents** section listing every
+requisition and dispatch note together (typed, filterable by
+type/department/status/date range, searchable), each row opening the
+relevant document. This directly answers the "how do we store/access
+historical requisitions" question raised mid-session: no new persistence
+work is required (`requestedQty`/`approvedQty` are already both preserved
+permanently per Session 2's design specifically for this purpose), only a
+browsing surface, which this screen provides.
+
+**A branded, printable "document view" pattern was designed for resolved
+requisitions and dispatches** — not in the original screen catalogue, added
+in response to the owner relaying a client request for a document-style
+approval record ("their name and signature are appended to the document").
+Two document artboards were built: a Requisition document (letterhead,
+line-item table with requested-vs-approved and struck-through edits, a
+diagonal translucent stamp — APPROVED in accent-brown or REJECTED in danger
+red with a reason block and no signature, since nothing was authorized — a
+totals band, and a script-signature parties block) and a Dispatch document
+(same system, "Dispatched by / Received by" instead of "Submitted by /
+Approved by," with **two independent stamps** — DISPATCHED appears once the
+Store Manager confirms dispatch, RECEIVED appears once the Department Head
+confirms receipt and renders in success-green with "IN FULL" if quantities
+matched exactly, or danger-red with "VARIANCE" and an inline shortfall note
+if they didn't). Both documents are pure CSS/SVG (condensed Oswald type,
+double-ring borders, no raster assets) and sized to true A4 print
+proportions (794&times;1123px) after an early full-bleed-dark-header version
+was reworked for print-ink economy. This document view is explicitly the
+**resolved-state / after-action / export view only** — the interactive
+approval itself stays a fast drawer with steppers and Approve/Reject
+buttons (see next entry), so the 5-minute/one-tap approval target set for
+D2.1 is unaffected.
+
+**The Requisition Approvals drawer interaction was designed**: clicking a
+row in Branch Stock's Requisition Approvals or Dispatch Receipts list opens
+a 520px right-side panel over a dimmed scrim (sidebar stays undimmed), with
+the same fast stepper-per-line review UI already validated on mobile D2.1's
+Requisition Detail screen, plus Approve with Changes / Reject actions in a
+fixed footer. This is the actual interaction Session 5 (frontend, Branch
+Manager) should build; the branded document view above is what the drawer
+(or a print/export action) shows after the requisition is resolved, not the
+review UI itself.
+
+**Net scope effect on Session 5** (Frontend: Branch Manager, desktop +
+mobile — currently Not Started): originally scoped as 4 screens
+(D2.1-D2.4); as designed, it is now 3 desktop surfaces (Branch Stock, Branch
+Stock History, the resolved-document view reused across both) plus a right-
+drawer interaction, mobile D2.1 (2 screens, unchanged, still separate per
+the owner's explicit decision during this same design pass), and the
+Staff/HR extension for department-head assignment (cross-references
+whatever session ends up touching Staff/HR — not yet assigned). Session 5's
+scope line and "Watch out for" section should be revisited before that
+session starts to reflect this.
+
+Design artboards (Paper file "Wendo RMS," pending final owner approval
+before Session 5 frontend build):
+- `D2.1+2.2+2.3 — Branch Command Center (Desktop)` (in-progress working name;
+  screen is referred to as "Branch Stock" in nav/title text — artboard
+  should be renamed to match before Session 5 to avoid confusion)
+- `D2.5 — Branch Stock History (Desktop)`
+- `D2.1 — Requisition Document (Approved)`
+- `D2.1 — Requisition Document (Rejected)`
+- `D3.2 — Dispatch Note (Dispatched + Received)` (variance example)
+- `D3.2 — Dispatch Note (Clean, No Variance)`
+- `D2.1 — Branch Stock with Drawer Open (Desktop)`
+
+The old sparse `D2.1 — Requisition Approvals (Desktop)` artboard was deleted
+2026-08-21 after the owner confirmed the above fully supersedes it.
 
 ---
 

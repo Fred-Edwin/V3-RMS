@@ -1,0 +1,785 @@
+<!doctype html>
+<html>
+<head>
+<title>Inventory Wireframes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #FAFAF9;
+    --surface: #FFFFFF;
+    --box-fill: #EEF0F3;
+    --box-border: #94A3B8;
+    --ink: #1C1E21;
+    --ink-muted: #6B7280;
+    --line: #D8DCE2;
+    --accent: #B85C0A;
+    --accent-bg: #FBF0E4;
+    --success: #2F6B45;
+    --success-bg: #EAF3EC;
+    --warning: #8A5A15;
+    --warning-bg: #FBF1E1;
+    --danger: #BB0101;
+    --danger-bg: #F8EAE7;
+    --device-bg: #FFFFFF;
+    --device-border: #C7CCD3;
+    --sidebar-bg: #F1F2F4;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181A;
+      --surface: #1E2023;
+      --box-fill: #26292E;
+      --box-border: #4B5563;
+      --ink: #EDEDEE;
+      --ink-muted: #9AA0AA;
+      --line: #33363B;
+      --accent: #E08A3C;
+      --accent-bg: #34281B;
+      --success: #6FBF8B;
+      --success-bg: #1C2B21;
+      --warning: #D9A94E;
+      --warning-bg: #2E2410;
+      --danger: #E28080;
+      --danger-bg: #331616;
+      --device-bg: #1B1D20;
+      --device-border: #3A3E44;
+      --sidebar-bg: #202226;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181A;
+    --surface: #1E2023;
+    --box-fill: #26292E;
+    --box-border: #4B5563;
+    --ink: #EDEDEE;
+    --ink-muted: #9AA0AA;
+    --line: #33363B;
+    --accent: #E08A3C;
+    --accent-bg: #34281B;
+    --success: #6FBF8B;
+    --success-bg: #1C2B21;
+    --warning: #D9A94E;
+    --warning-bg: #2E2410;
+    --danger: #E28080;
+    --danger-bg: #331616;
+    --device-bg: #1B1D20;
+    --device-border: #3A3E44;
+    --sidebar-bg: #202226;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", -apple-system, sans-serif;
+    padding: 48px 24px 120px;
+  }
+
+  .page {
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+
+  .masthead {
+    margin-bottom: 64px;
+    max-width: 620px;
+  }
+  .masthead .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  .masthead h1 {
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    font-weight: 700;
+  }
+  .masthead p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-muted);
+    margin: 0;
+  }
+
+  .screen-block {
+    display: flex;
+    gap: 40px;
+    padding: 40px 0;
+    border-top: 1px solid var(--line);
+  }
+  .screen-block:first-of-type { border-top: none; }
+
+  .annotation {
+    flex: 0 0 280px;
+    padding-top: 4px;
+  }
+  .annotation .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  .annotation h2 {
+    font-size: 19px;
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .annotation .role {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    margin: 0 0 16px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .annotation ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .annotation li {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+    padding-left: 16px;
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .annotation li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+  }
+  .annotation li b { color: var(--ink); font-weight: 600; }
+
+  .canvas {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  /* device frames */
+  .mobile {
+    width: 320px;
+    background: var(--device-bg);
+    border: 1px solid var(--device-border);
+    border-radius: 22px;
+    padding: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .mobile-screen {
+    background: var(--surface);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .desktop {
+    width: 100%;
+    background: var(--device-bg);
+    border: 1px solid var(--device-border);
+    border-radius: 10px;
+    padding: 6px;
+  }
+  .desktop-screen {
+    background: var(--surface);
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    display: flex;
+  }
+
+  .statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 18px 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .icon-box {
+    width: 26px; height: 26px; flex: 0 0 26px;
+    border: 1.5px dashed var(--box-border);
+    border-radius: 6px;
+  }
+  .topbar .titles h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+  .topbar .titles p { margin: 2px 0 0; font-size: 11px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+
+  .wf-block {
+    background: var(--box-fill);
+    border: 1.5px dashed var(--box-border);
+    border-radius: 6px;
+  }
+  .wf-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; }
+  .row-flex { display: flex; gap: 8px; align-items: center; }
+
+  .pill {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    letter-spacing: 0.02em;
+  }
+  .pill.ok { background: var(--success-bg); color: var(--success); }
+  .pill.low { background: var(--warning-bg); color: var(--warning); }
+  .pill.out { background: var(--danger-bg); color: var(--danger); }
+
+  .banner {
+    background: var(--warning-bg);
+    border: 1px solid color-mix(in oklab, var(--warning) 35%, transparent);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .banner .t1 { font-size: 12.5px; font-weight: 600; color: var(--warning); margin: 0; }
+  .banner .t2 { font-size: 11px; color: var(--ink-muted); margin: 3px 0 0; }
+  .banner.caveat {
+    background: var(--warning-bg);
+    padding: 12px 16px;
+    margin: 0 16px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .card .name { font-size: 13.5px; font-weight: 600; margin: 0 0 2px; }
+  .card .qty { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .figrow { display: flex; gap: 12px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .figrow span { font-size: 10.5px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+  .figrow b { color: var(--ink); font-weight: 600; }
+
+  .hist-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--line);
+  }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-row .type { font-size: 12.5px; font-weight: 500; }
+  .hist-row .time { font-size: 10.5px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+  .hist-row .delta { font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; }
+  .hist-row .delta.pos { color: var(--success); }
+  .hist-row .delta.neg { color: var(--danger); }
+  .hist-row .bal { font-size: 11px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+  .section-label { font-size: 11px; font-family: "JetBrains Mono", monospace; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 16px 0; }
+  .sheet-handle { width: 36px; height: 4px; background: var(--box-border); border-radius: 4px; margin: 10px auto 0; }
+
+  .count-row {
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .count-row:last-child { border-bottom: none; }
+  .count-row .name { font-size: 13.5px; font-weight: 600; margin: 0 0 3px; }
+  .count-row .expected { font-size: 11px; color: var(--ink-muted); margin: 0 0 8px; font-family: "JetBrains Mono", monospace; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 26px; height: 26px; border-radius: 6px;
+    border: 1px solid var(--box-border); background: var(--surface);
+    font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink);
+  }
+  .stepper .val { font-size: 15px; font-weight: 700; min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+  .variance-note { font-size: 10.5px; color: var(--danger); margin-top: 4px; font-family: "JetBrains Mono", monospace; }
+
+  .footer-bar {
+    padding: 12px 16px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--surface);
+    text-align: center;
+    padding: 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .progress-strip {
+    padding: 8px 16px;
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-family: "JetBrains Mono", monospace;
+    border-bottom: 1px solid var(--line);
+    background: var(--sidebar-bg);
+  }
+
+  .radio-row { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; }
+  .radio-row span { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); }
+  .radio-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--box-border); flex: 0 0 12px; }
+  .radio-dot.checked { border-color: var(--ink); background: radial-gradient(circle, var(--ink) 0 40%, transparent 42%); }
+
+  /* desktop specifics */
+  .side-col {
+    width: 168px; flex: 0 0 168px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--line);
+    padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .side-item { font-size: 12px; color: var(--ink-muted); padding: 7px 8px; border-radius: 5px; font-family: "JetBrains Mono", monospace; }
+  .side-item.active { background: var(--box-fill); color: var(--ink); font-weight: 600; }
+  .main-col { flex: 1; padding: 20px 24px; min-width: 0; }
+  .page-head h3 { margin: 0 0 3px; font-size: 17px; font-weight: 700; }
+  .page-head p { margin: 0 0 16px; font-size: 11.5px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+
+  .stat-strip { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--box-fill); border: 1px dashed var(--box-border);
+    border-radius: 6px; padding: 8px 12px; flex: 1; min-width: 100px;
+  }
+  .stat-chip .n { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-chip .l { font-size: 10px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; text-transform: uppercase; }
+
+  .tab-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab-chip {
+    font-size: 11.5px; font-family: "JetBrains Mono", monospace;
+    padding: 6px 12px; border-radius: 5px; border: 1px solid var(--line);
+    color: var(--ink-muted);
+  }
+  .tab-chip.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.ledger th {
+    text-align: left; font-family: "JetBrains Mono", monospace; font-weight: 500;
+    color: var(--ink-muted); font-size: 10px; text-transform: uppercase;
+    padding: 6px 8px; border-bottom: 1px solid var(--line);
+  }
+  table.ledger td {
+    padding: 7px 8px; border-bottom: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+  }
+  table.ledger td:first-child { font-variant-numeric: normal; font-weight: 500; }
+
+  .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .report-card { padding: 14px; min-height: 92px; }
+  .report-card .rt { font-size: 12px; font-weight: 600; margin: 0 0 6px; }
+  .fake-chart { height: 36px; border-radius: 4px; background: repeating-linear-gradient(90deg, var(--box-border) 0 2px, transparent 2px 10px); opacity: 0.5; }
+
+  /* stock sheet document */
+  .doc-sheet {
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .doc-letterhead {
+    padding: 14px 16px 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .doc-letterhead .biz { font-size: 15px; font-weight: 700; margin: 0; }
+  .doc-letterhead .doctitle { font-size: 11px; font-family: "JetBrains Mono", monospace; color: var(--ink-muted); margin: 2px 0 0; text-transform: uppercase; letter-spacing: 0.04em; }
+  .doc-meta {
+    display: flex; gap: 20px; padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace;
+  }
+  .doc-meta b { color: var(--ink); font-weight: 600; }
+  .doc-group-header {
+    padding: 8px 16px 4px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink); background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--line); border-top: 1px solid var(--line);
+  }
+  table.sheet { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.sheet th {
+    text-align: left; font-family: "JetBrains Mono", monospace; font-weight: 500;
+    color: var(--ink-muted); font-size: 9.5px; text-transform: uppercase;
+    padding: 5px 16px; border-bottom: 1px solid var(--line);
+  }
+  table.sheet td { padding: 6px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  table.sheet td:first-child { font-variant-numeric: normal; }
+  .doc-footer { padding: 10px 16px; font-size: 10px; color: var(--ink-muted); font-family: "JetBrains Mono", monospace; }
+
+  .flow-cap {
+    text-align: center; margin-top: 64px; padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--ink-muted);
+  }
+
+  /* Flow E — plain staff table, one header, subtle whitespace grouping between departments */
+  .staff-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .staff-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 8px 10px; color: var(--ink-muted); border-bottom: 1.5px solid var(--ink);
+  }
+  .staff-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  .staff-table tbody tr.data-row { cursor: pointer; }
+  .staff-table tbody tr.data-row:hover { background: var(--box-fill); }
+  .staff-table tbody tr.data-row.selected { background: var(--box-fill); box-shadow: inset 2px 0 0 var(--ink); }
+
+  /* department group label — a plain in-flow row, no fill color; a gap row above provides the whitespace break */
+  .group-gap td { border: none; padding: 0; height: 18px; }
+  .group-gap:first-child td { height: 0; }
+  .dept-label td {
+    padding: 4px 10px 6px; border-bottom: 1px solid var(--line);
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-muted);
+  }
+  .dept-label .band-inner { display: flex; align-items: baseline; justify-content: space-between; }
+  .dept-label .band-left { display: flex; align-items: baseline; gap: 8px; }
+  .dept-label .dcount { font-weight: 400; text-transform: none; letter-spacing: 0; font-family: "JetBrains Mono", monospace; font-size: 10px; }
+  .dept-label .dhead { font-weight: 400; text-transform: none; letter-spacing: 0; font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-muted); display: flex; align-items: center; gap: 8px; }
+  .dept-label .dhead b { color: var(--ink); font-weight: 600; }
+  .band-btn {
+    font-size: 10px; font-family: "JetBrains Mono", monospace; font-weight: 500;
+    padding: 3px 8px; border-radius: 4px; border: 1px dashed var(--box-border);
+    color: var(--ink-muted); background: var(--surface);
+  }
+
+  .avatar-box { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; border: 1.5px dashed var(--box-border); }
+  .name-cell { display: flex; align-items: center; gap: 8px; }
+  .name-cell .n { font-weight: 600; }
+  .email-cell { font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-muted); }
+
+  /* right-side drawer */
+  .drawer-scrim { position: relative; background: rgba(0,0,0,0.35); }
+  .drawer-panel {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 300px;
+    background: var(--surface); border-left: 1px solid var(--line);
+    box-shadow: -4px 0 12px rgba(0,0,0,0.1);
+    display: flex; flex-direction: column;
+  }
+  .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .drawer-head h4 { margin: 0; font-size: 14px; font-weight: 700; }
+  .drawer-body { padding: 14px 16px; flex: 1; overflow: auto; }
+  .field-label { font-size: 10.5px; font-family: "JetBrains Mono", monospace; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; display: block; }
+  .field-input { padding: 8px 10px; margin-bottom: 12px; }
+  .drawer-section-label { font-size: 10.5px; font-family: "JetBrains Mono", monospace; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .drawer-action-list { display: flex; flex-direction: column; gap: 6px; }
+  .drawer-action {
+    font-size: 12px; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--box-border);
+    color: var(--ink); background: var(--surface);
+  }
+  .drawer-action.danger { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 40%, var(--box-border)); }
+  .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--line); }
+
+  .modal-scrim { padding: 32px; }
+  .modal-box { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; max-width: 420px; margin: 0 auto; }
+  .modal-titlebar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .modal-titlebar h4 { margin: 0; font-size: 14px; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <p class="eyebrow">Living wireframe file — current flow under discussion, not an archive</p>
+    <h1>Inventory Feature — Structural Wireframes</h1>
+    <p>Gray-box layout only: proportions, hierarchy, and component reuse from the approved design system. No color, type, or spacing polish — that comes once a screen's structure is signed off and built in Paper. This file is reused and overwritten flow by flow; once a flow is approved and built, its section here is replaced by whichever flow is being discussed next.</p>
+    <p style="margin-top:10px; font-size:12.5px; font-family:'JetBrains Mono',monospace; color:var(--ink-muted);">Currently showing: Flow E — Department Head Assignment, folded into a full Staff page redesign (2 screens: Staff page + Add Staff modal)</p>
+  </div>
+
+  <div class="screen-block" style="border-top: none; padding-top: 0;">
+    <div class="annotation" style="flex: 0 0 100%;">
+      <p class="tag">Scope note — read before the screens below</p>
+      <h2 style="font-size: 16px;">Why this is a full Staff page redesign, not just a head-assignment bolt-on</h2>
+      <ul style="columns: 2; column-gap: 32px;">
+        <li>The existing Manager Staff page (<code>/app/manage/staff</code>) is a flat list with 5 unlabeled icon buttons per row and no department column at all — <code>StaffDto</code> doesn't even carry <code>departmentTag</code> today.</li>
+        <li>Department head assignment is a <b>department-level</b> fact, not a per-row one — it doesn't fit into the existing row shape without restructuring around departments.</li>
+        <li>Assigning a head <b>changes that person's <code>role</code></b> to <code>DEPARTMENT_HEAD</code> (their prior role is stashed in <code>previousRole</code> and restored on unassignment) — the UI must show "Department Head · Kitchen" as compound state, not lose what their base job was.</li>
+        <li>Owner-confirmed domain mapping: Waiter→Service, Barista→Barista, Chef→Kitchen <i>or</i> Pastry (not 1:1 by role), Housekeeping + Steward→Housekeeping. Manager and display-screen accounts have no department and land in a real <b>Unassigned</b> group, not hidden.</li>
+        <li>Department <i>membership</i> (not just headship) is now editable from this page — without it, the grouped view has no way to populate itself for existing staff.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Screen 1: Staff page, ExcelTable with department band rows -->
+  <div class="screen-block">
+    <div class="annotation">
+      <p class="tag">Screen 1 of 2</p>
+      <h2>Staff</h2>
+      <p class="role">Branch Manager · Desktop · plain table</p>
+      <ul>
+        <li>One continuous table — single header row (Name, Email, Role, Status), plain borders, no colored bands. Deliberately quiet: this is a staff roster, not a report.</li>
+        <li>Departments are a <b>subtle grouping within the rows</b>, not separate colored sections — a small gap, then a plain uppercase label row (e.g. "Kitchen · 4 staff") in muted text, then that department's rows directly beneath it. An <b>Unassigned</b> group closes out the table the same way.</li>
+        <li>The department label row also carries head assignment inline — <b>"Head: Fred Barista [Change]"</b> or <b>"No head assigned [Assign]"</b> — so it lives where the department already is, not in a separate panel, without needing its own visual weight to do so.</li>
+        <li><b>Clicking anywhere on a staff row</b> opens the right-side drawer in Screen 1b, replacing all 5 of today's inline icon buttons.</li>
+        <li>A department head's Role cell shows their base role plus a small "Dept. Head" tag — reflecting that <code>role</code> actually becomes <code>DEPARTMENT_HEAD</code> in the data, with the base role preserved for display via <code>previousRole</code>.</li>
+        <li><b>"Add Staff"</b> button replaces the inline creation form — opens the modal in Screen 2.</li>
+      </ul>
+    </div>
+    <div class="canvas">
+      <div class="desktop">
+        <div class="desktop-screen">
+          <div class="side-col">
+            <div class="side-item">Dashboard</div>
+            <div class="side-item">Orders</div>
+            <div class="side-item active">Staff</div>
+            <div class="side-item">Menu</div>
+          </div>
+          <div class="main-col">
+            <div class="page-head" style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <h3>Staff</h3>
+                <p>24 staff accounts · Kingongo Branch</p>
+              </div>
+              <div class="wf-block" style="padding:7px 12px; margin-top:1px;"><span class="wf-label">＋ Add Staff</span></div>
+            </div>
+            <div class="row-flex" style="justify-content:space-between; margin-bottom: 14px;">
+              <div class="wf-block" style="padding:6px 10px; flex:1; max-width:260px;"><span class="wf-label">search by name or email…</span></div>
+              <div class="row-flex" style="gap:8px;">
+                <div class="wf-block" style="padding:6px 10px;"><span class="wf-label">all roles ▾</span></div>
+                <div class="wf-block" style="padding:6px 10px;"><span class="wf-label">all statuses ▾</span></div>
+              </div>
+            </div>
+
+            <table class="staff-table">
+              <thead>
+                <tr>
+                  <th style="width:34%;">Name</th>
+                  <th style="width:26%;">Email</th>
+                  <th style="width:20%;">Role</th>
+                  <th style="width:20%;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Kitchen group -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Kitchen</span><span class="dcount">4 staff</span></div>
+                      <div class="dhead">Head: <b>Fred Barista</b><span class="band-btn">Change</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="data-row selected">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">Fred Barista</span><span class="pill ok">Dept. Head</span></div></td>
+                  <td class="email-cell">fred.town@wendo.co.ke</td>
+                  <td>Barista</td>
+                  <td><span class="pill ok">Active</span></td>
+                </tr>
+                <tr class="data-row">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">Shakira Muthoni</span></div></td>
+                  <td class="email-cell">shakira.town@wendo.co.ke</td>
+                  <td>Chef</td>
+                  <td><span class="pill ok">Active</span></td>
+                </tr>
+                <tr class="data-row">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">James Kariuki</span></div></td>
+                  <td class="email-cell">james.town@wendo.co.ke</td>
+                  <td>Steward</td>
+                  <td><span class="pill low">Inactive</span></td>
+                </tr>
+
+                <!-- Pastry group, no head -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Pastry</span><span class="dcount">2 staff</span></div>
+                      <div class="dhead">No head assigned<span class="band-btn">Assign</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="data-row">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">Grace Muthoni</span></div></td>
+                  <td class="email-cell">grace.town@wendo.co.ke</td>
+                  <td>Chef</td>
+                  <td><span class="pill ok">Active</span></td>
+                </tr>
+
+                <!-- Barista group -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Barista</span><span class="dcount">3 staff</span></div>
+                      <div class="dhead">Head: <b>Penina Wanjiru</b><span class="band-btn">Change</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="data-row">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">Penina Wanjiru</span><span class="pill ok">Dept. Head</span></div></td>
+                  <td class="email-cell">penina.town@wendo.co.ke</td>
+                  <td>Barista</td>
+                  <td><span class="pill ok">Active</span></td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 8px;"><span class="wf-label">+ 2 more rows, same shape</span></td>
+                </tr>
+
+                <!-- Service group -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Service</span><span class="dcount">6 staff</span></div>
+                      <div class="dhead">Head: <b>Ryan Otieno</b><span class="band-btn">Change</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 8px;"><span class="wf-label">6 rows, same shape as Kitchen above (Waiters)</span></td>
+                </tr>
+
+                <!-- Housekeeping group -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Housekeeping</span><span class="dcount">5 staff</span></div>
+                      <div class="dhead">No head assigned<span class="band-btn">Assign</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 8px;"><span class="wf-label">Stewards + Housekeeping roles both live here</span></td>
+                </tr>
+
+                <!-- Unassigned group -->
+                <tr class="group-gap"><td colspan="4"></td></tr>
+                <tr class="dept-label">
+                  <td colspan="4">
+                    <div class="band-inner">
+                      <div class="band-left"><span>Unassigned</span><span class="dcount">4 staff · no department</span></div>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="data-row">
+                  <td><div class="name-cell"><div class="avatar-box"></div><span class="n">David Kamuru</span></div></td>
+                  <td class="email-cell">david.kamuru.town@wendo.co.ke</td>
+                  <td>Manager</td>
+                  <td><span class="pill ok">Active</span></td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align:center; padding: 8px;"><span class="wf-label">+ Kitchen Display / Barista Display accounts, same shape</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 1b: right-side drawer, opened by clicking a row -->
+  <div class="screen-block">
+    <div class="annotation">
+      <p class="tag">Screen 1b · opens on row click (Fred Barista selected, above)</p>
+      <h2>Staff Detail Drawer</h2>
+      <p class="role">Branch Manager · Desktop · right-side drawer</p>
+      <ul>
+        <li>Reuses the exact drawer pattern already built for HR's Leave review (<code>frontend/app/app/hr/leave/page.tsx</code> — <code>fixed inset-y-0 right-0 max-w-sm</code> panel over a dark scrim), not a new component.</li>
+        <li>Editable fields (name, email, phone, role, department) sit at the top — replacing the separate Edit modal with in-drawer editing.</li>
+        <li>Below a divider: the actions that used to be separate icon buttons, now a vertical list inside the same drawer — <b>Reset Password</b>, <b>Transfer Branch</b>, <b>Deactivate</b>, then <b>Delete</b> visually separated in the danger color at the bottom.</li>
+        <li>Closing the drawer (✕ or clicking the scrim) returns to the table with the row still highlighted, matching the selected-row treatment on Screen 1.</li>
+      </ul>
+    </div>
+    <div class="canvas">
+      <div class="desktop">
+        <div class="desktop-screen drawer-scrim" style="min-height: 520px;">
+          <div class="drawer-panel">
+            <div class="drawer-head">
+              <h4>Fred Barista</h4>
+              <span class="wf-label">✕</span>
+            </div>
+            <div class="drawer-body">
+              <span class="field-label">Full name</span>
+              <div class="wf-block field-input"><span class="wf-label">Fred Barista</span></div>
+              <span class="field-label">Email address</span>
+              <div class="wf-block field-input"><span class="wf-label">fred.town@wendo.co.ke</span></div>
+              <span class="field-label">Phone</span>
+              <div class="wf-block field-input"><span class="wf-label">+254 7XX XXX XXX</span></div>
+              <span class="field-label">Role</span>
+              <div class="wf-block field-input"><span class="wf-label">Barista ▾</span></div>
+              <span class="field-label">Department</span>
+              <div class="wf-block field-input"><span class="wf-label">Kitchen ▾ · currently Dept. Head</span></div>
+
+              <div class="drawer-section-label">Actions</div>
+              <div class="drawer-action-list">
+                <div class="drawer-action">Reset Password</div>
+                <div class="drawer-action">Transfer Branch</div>
+                <div class="drawer-action">Deactivate</div>
+                <div class="drawer-action danger">Delete Account</div>
+              </div>
+            </div>
+            <div class="drawer-footer">
+              <div class="btn-primary">Save Changes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 2: Add Staff modal -->
+  <div class="screen-block">
+    <div class="annotation">
+      <p class="tag">Screen 2 of 2 · opened via "Add Staff" on Screen 1</p>
+      <h2>Add Staff</h2>
+      <p class="role">Branch Manager · Desktop · Modal</p>
+      <ul>
+        <li>Kept as a centered modal (not the drawer) since it's a creation flow, not tied to an existing row — same modal chrome as before.</li>
+        <li><b>New field: Department.</b> Not inferred from role (a Chef can be Kitchen or Pastry) — the manager must pick it explicitly.</li>
+        <li>Department options are exactly the 5 fixed tags; no "none" option here — new operational staff should be placed into a department at creation, per the owner's domain mapping.</li>
+        <li>Submitting returns to Screen 1 with the new person appearing directly inside their chosen department's band — no separate confirmation screen.</li>
+      </ul>
+    </div>
+    <div class="canvas">
+      <div class="desktop" style="background:#2b2b2b;">
+        <div class="desktop-screen modal-scrim" style="justify-content:center; align-items:center; border:none;">
+          <div class="modal-box">
+            <div class="modal-titlebar">
+              <h4>Add Staff</h4>
+              <span class="wf-label">✕</span>
+            </div>
+            <div style="padding: 16px 18px;">
+              <span class="field-label">Full name</span>
+              <div class="wf-block field-input"><span class="wf-label">e.g. James Kariuki</span></div>
+              <span class="field-label">Email address</span>
+              <div class="wf-block field-input"><span class="wf-label">james@wendocoffee.com</span></div>
+              <span class="field-label">Phone (optional)</span>
+              <div class="wf-block field-input"><span class="wf-label">+254 7XX XXX XXX</span></div>
+              <span class="field-label">Role</span>
+              <div class="wf-block field-input"><span class="wf-label">Waiter ▾</span></div>
+              <span class="field-label">Department <span style="color:var(--accent); font-weight:700;">— new field</span></span>
+              <div class="wf-block field-input" style="border-color: var(--accent);"><span class="wf-label">Service ▾</span></div>
+              <span class="field-label">Temporary password</span>
+              <div class="wf-block field-input"><span class="wf-label">min. 8 characters</span></div>
+            </div>
+            <div class="footer-bar" style="display:flex; justify-content:flex-end; gap:10px;">
+              <div class="row-btn">Cancel</div>
+              <div class="btn-primary" style="padding: 8px 16px;">Create Account</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-cap">— end Flow E wireframe review — react to structure, not styling —</div>
+
+</div>
+</body>
+</html>
