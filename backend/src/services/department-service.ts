@@ -54,7 +54,7 @@ export const departmentService = {
       throw new ValidationError('Invalid department');
     }
 
-    return departmentRepository.findEligibleStaff(organizationId);
+    return departmentRepository.findEligibleStaff(organizationId, departmentTag);
   },
 
   assignHead: async (

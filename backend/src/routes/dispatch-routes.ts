@@ -1,19 +1,15 @@
 import { Router } from 'express';
 import { dispatchController } from '../controllers/dispatch-controller';
 import { authenticate } from '../middleware/authenticate';
-import { requireRole } from '../middleware/rbac';
+import { requireRole, requireDepartmentHead } from '../middleware/rbac';
+import { allowDepartmentHead } from '../middleware/allow-department-head';
 
 const dispatchRoutes = Router();
 
 const canFulfil = requireRole('STORE_MANAGER', 'STORE_ATTENDANT', 'DIRECTOR', 'SYSTEM_ADMIN');
-const canReceive = requireRole('DEPARTMENT_HEAD');
-const canView = requireRole(
-  'DEPARTMENT_HEAD',
-  'MANAGER',
-  'DIRECTOR',
-  'SYSTEM_ADMIN',
-  'STORE_MANAGER',
-  'STORE_ATTENDANT',
+const canReceive = requireDepartmentHead;
+const canView = allowDepartmentHead(
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER', 'STORE_ATTENDANT'),
 );
 
 dispatchRoutes.get('/dispatches/queue', authenticate, canFulfil, dispatchController.queue);

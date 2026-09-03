@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { UserRole, type DepartmentTag, type Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { mapPrismaError } from '../utils/prisma-errors';
 import type { Request } from 'express';
@@ -7,15 +7,59 @@ import { shiftAssignmentRepository, type ShiftAssignmentWithRelations } from '..
 import { shiftRepository } from '../repositories/shift-repository';
 import { staffRepository } from '../repositories/staff-repository';
 import { getTodayDateOnly, parseDateOnly, toIsoDateOnly } from '../utils/date-only';
+import { SHIFT_ASSIGNABLE_ROLES, departmentScopeFilter, staffMatchesDepartment } from '../utils/departments';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type { BatchCreateShiftAssignmentInput, BatchDeleteShiftAssignmentInput, CopyWeekInput, CreateShiftAssignmentInput, ReconcileWeekShiftAssignmentsInput, ShiftAssignmentQueryInput, ShiftListQueryInput } from '../validators/shift-schemas';
 
 type Actor = NonNullable<Request['user']>;
 type SerializedShiftAssignment = Omit<ShiftAssignmentWithRelations, 'date'> & { date: string };
 
-const assignableRoles: UserRole[] = [UserRole.WAITER, UserRole.CHEF, UserRole.BARISTA, UserRole.STEWARD, UserRole.HOUSEKEEPING];
+const assignableRoles: UserRole[] = [...SHIFT_ASSIGNABLE_ROLES];
+
+// Worked roles whose `GET /shift-assignments` returns only their OWN shifts
+// (self-service "my shifts" view). A department head is deliberately excluded
+// even though they share one of these roles — a head needs the full department
+// roster to schedule, and their own shifts are part of it.
+const selfServiceRoles: UserRole[] = [...SHIFT_ASSIGNABLE_ROLES];
 
 const requiresExplicitOrganizationId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
+
+/** True when this actor's scheduling reach is limited to a single department. */
+const isDepartmentScoped = (actor: Actor): boolean => actor.isDepartmentHead === true;
+
+/** The department a scoped actor is confined to; throws if a head has no department. */
+const actorDepartmentTag = (actor: Actor): DepartmentTag => {
+  if (!actor.departmentTag) {
+    throw new ForbiddenError('Department head has no department assigned');
+  }
+  return actor.departmentTag;
+};
+
+/**
+ * Prisma `where.user` fragment scoping a query to the actor's department, or
+ * `undefined` for full-scope actors (MANAGER / HR_MANAGER / DIRECTOR).
+ */
+const actorUserScope = (actor: Actor): Prisma.UserWhereInput | undefined =>
+  isDepartmentScoped(actor) ? departmentScopeFilter(actorDepartmentTag(actor)) : undefined;
+
+/**
+ * Guard a write path: every staff member touched must be inside the scoped
+ * actor's department. No-op for full-scope actors.
+ */
+const assertStaffInScope = (
+  actor: Actor,
+  staff: ({ role: UserRole } | null | undefined)[],
+): void => {
+  if (!isDepartmentScoped(actor)) {
+    return;
+  }
+  const tag = actorDepartmentTag(actor);
+  for (const member of staff) {
+    if (!member || !staffMatchesDepartment(member, tag)) {
+      throw new ForbiddenError('You can only schedule staff in your own department');
+    }
+  }
+};
 
 const resolveReadOrganizationId = (actor: Actor, query: ShiftAssignmentQueryInput): string => {
   if (requiresExplicitOrganizationId(actor)) {
@@ -67,7 +111,9 @@ export const shiftAssignmentService = {
 
     const organizationId = resolveReadOrganizationId(actor, query);
 
-    if (assignableRoles.map(String).includes(actor.role)) {
+    // A worked-role staffer (but NOT a department head) only ever sees their
+    // own shifts.
+    if (!isDepartmentScoped(actor) && selfServiceRoles.map(String).includes(actor.role)) {
       const assignments = await shiftAssignmentRepository.findByUserAndDateRange(
         actor.id,
         organizationId,
@@ -91,6 +137,8 @@ export const shiftAssignmentService = {
       {
         userId: query.userId,
         shiftId: query.shiftId,
+        // A department head sees only its own department's roster; full scope otherwise.
+        userWhere: actorUserScope(actor),
       },
     );
 
@@ -113,6 +161,7 @@ export const shiftAssignmentService = {
     if (!staff || !staff.isActive) {
       throw new ValidationError('userId must belong to an active staff member in this branch');
     }
+    assertStaffInScope(actor, [staff]);
 
     const shift = await shiftRepository.findById(input.shiftId, organizationId);
     if (!shift) {
@@ -172,6 +221,7 @@ export const shiftAssignmentService = {
         throw new ValidationError(`userId ${input.userIds[i]} is not an active staff member in this branch`);
       }
     }
+    assertStaffInScope(actor, staffList);
 
     // Reject any past dates eagerly — the whole batch fails fast
     for (const dateStr of input.dates) {
@@ -261,6 +311,8 @@ export const shiftAssignmentService = {
     const sourceAssignments = await shiftAssignmentRepository.findByOrganizationAndWeek(
       organizationId,
       sourceWeekStart,
+      // A department head copies only its own department's rows forward.
+      { userWhere: actorUserScope(actor) },
     );
 
     if (sourceAssignments.length === 0) {
@@ -313,6 +365,18 @@ export const shiftAssignmentService = {
   ): Promise<{ deleted: number }> => {
     const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
 
+    // A department head may only delete rows for its own department — verify
+    // every target assignment's staff member is in scope before deleting anything.
+    if (isDepartmentScoped(actor)) {
+      const targets = await Promise.all(
+        input.ids.map((id) => shiftAssignmentRepository.findById(id, organizationId)),
+      );
+      assertStaffInScope(
+        actor,
+        targets.filter((t): t is NonNullable<typeof t> => t !== null).map((t) => t.user),
+      );
+    }
+
     const deleted = await shiftAssignmentRepository.deleteByIds(input.ids, organizationId);
     return { deleted };
   },
@@ -356,6 +420,10 @@ export const shiftAssignmentService = {
       const staff = await staffRepository.findById(change.userId, organizationId, assignableRoles);
       if (!staff || !staff.isActive) {
         errors.push({ userId: change.userId, date: change.date, reason: 'Staff member is not active in this branch' });
+        continue;
+      }
+      if (isDepartmentScoped(actor) && !staffMatchesDepartment(staff, actorDepartmentTag(actor))) {
+        errors.push({ userId: change.userId, date: change.date, reason: 'Staff member is not in your department' });
         continue;
       }
 
@@ -432,6 +500,7 @@ export const shiftAssignmentService = {
     if (!assignment) {
       throw new NotFoundError('Shift assignment not found');
     }
+    assertStaffInScope(actor, [assignment.user]);
 
     await shiftAssignmentRepository.delete(id, organizationId);
   },

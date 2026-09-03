@@ -79,7 +79,8 @@ const lineId = '88888888-8888-4888-8888-888888888888';
 
 const headActor = {
   id: headId,
-  role: 'DEPARTMENT_HEAD' as const,
+  role: 'CHEF' as const,
+  isDepartmentHead: true,
   organizationId: branchOrgId,
   departmentTag: 'KITCHEN' as const,
 };
@@ -100,7 +101,7 @@ const buildRequisition = (overrides: Record<string, unknown> = {}) => ({
   createdAt: new Date(),
   updatedAt: new Date(),
   location: { id: locationId, name: 'Kitchen', departmentTag: 'KITCHEN' },
-  requestedBy: { id: headId, name: 'Head One', role: 'DEPARTMENT_HEAD' },
+  requestedBy: { id: headId, name: 'Head One', role: 'CHEF' },
   approvedBy: null,
   lines: [
     {

@@ -31,7 +31,7 @@ const requireStoreAccess = (actor: Actor): void => {
 };
 
 const requireDepartmentHead = (actor: Actor) => {
-  if (actor.role !== 'DEPARTMENT_HEAD' || !actor.departmentTag) {
+  if (!actor.isDepartmentHead || !actor.departmentTag) {
     throw new ForbiddenError('Only a Department Head may receive a delivery');
   }
   return actor.departmentTag;

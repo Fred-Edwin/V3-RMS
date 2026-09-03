@@ -13,41 +13,54 @@
 >    design, on the clean marker model. See
 >    `DEPARTMENT_HEAD_SHIFT_SCHEDULING.md`.
 >
-> ## SCOPE CORRECTION (2026-09-03) — read this before §3
+> ## SCOPE CORRECTION (2026-09-03, REVISED same day) — read this before §3
 >
-> An earlier draft of this doc said Session A also refactors Inventory Phase 2's
-> `DEPARTMENT_HEAD` usage (requisitions, dispatch, market-PO, staff-transfer).
-> **That is NOT the case.** Investigation on 2026-09-03 established:
+> An earlier draft of this block claimed Phase 2 backend code was **not** on
+> `main` and therefore out of Session A's scope. **That claim was wrong.**
+> Re-checked against the actual repo on 2026-09-03:
 >
-> - **`main` is at `f84496d`.** The only `DEPARTMENT_HEAD` things on `main` are
->   the enum value + `previous_role` column + `User.department_tag`, all from
->   committed migration `20260821080505` (commit `a15db5a`). There is **no
->   Inventory Phase 2 service/route code on `main`** that references
->   `DEPARTMENT_HEAD`.
-> - All the Inventory Phase 2 / MPO code (requisition-service, dispatch-service,
->   market-purchase-order-*, the staff-transfer head rule) lives **only** in
->   uncommitted working-tree changes + the `wip/inventory-mpo-snapshot` branch.
->   Phase 2 is **unfinished and deliberately not merged** — the owner will
->   resume it later.
-> - The department-head shift-scheduling **spike** (backend scoping +
->   throwaway frontend) is also uncommitted. It was built ON TOP of the Phase 2
->   pile. Before Session A starts, that whole working tree is **stashed** (msg
->   like `dept-head spike + phase2 wip, 2026-09-03`), leaving `main` clean.
+> - **`main` is at `bb04b5e`** (`f84496d` "style(discounts)…" + one commit,
+>   `bb04b5e`, adding these handover docs).
+> - **Phase 2 Sessions 1 AND 2 are committed on `main`:**
+>   - `a15db5a` "feat(inventory): Phase 2 Session 1 — schema, branch
+>     departments, DEPARTMENT_HEAD role" — migration `20260821080505`
+>     (`UserRole` enum value, `previous_role`, `department_tag`),
+>     `department-repository`/`-service`/`-routes`, `staff-transfer-repository`
+>     head rule.
+>   - `7712c87` "feat(inventory): Phase 2 Session 2 — Requisition + Dispatch
+>     backend" — `requisition-service`/`-repository`/`-routes`,
+>     `dispatch-service`/`-repository`/`-routes`, `fcm-service` push helpers,
+>     and the `departmentTag` wiring through `jwt.ts` / `authenticate.ts` /
+>     `express.d.ts` / `auth-service.ts`.
+> - **Only the Market Purchase Order (MPO) code is genuinely uncommitted** —
+>   `market-purchase-order-*` lives only in `stash@{0}` and
+>   `wip/inventory-mpo-snapshot`. Nothing on `main` imports it, so it cannot
+>   break.
+> - The department-head shift-scheduling **spike** (`utils/departments.ts`,
+>   `shift-assignment-service` scoping, shift route-guard edits, the throwaway
+>   frontend) is also only in `stash@{0}` — it was never committed. `main` has
+>   the *stock* shift scheduler with no department-head awareness.
 >
-> **Therefore Session A:**
-> - Starts from a **clean `main`** (`git checkout -b feat/department-head-scheduling main`).
-> - Rebuilds the dept-head **shift-scheduling** work on the `isDepartmentHead`
->   marker model. The stash is the *reference* for what the code should do;
->   `main` is the clean base; the marker model is the shape.
-> - Touches **no Inventory Phase 2 code** — none is on `main`.
-> - The Inventory Phase 2 `DEPARTMENT_HEAD` → `isDepartmentHead` reconciliation
->   is **deferred to whenever the owner resumes Phase 2** (`git stash pop` /
->   branch off `wip/inventory-mpo-snapshot`, rebase onto the new `main`, fix the
->   `role === 'DEPARTMENT_HEAD'` checks then). Not this session.
+> **Therefore Session A (revised, owner-confirmed 2026-09-03):**
+> - Branch off `main` at `bb04b5e`
+>   (`git checkout -b feat/department-head-scheduling main`).
+> - Migrate **every `DEPARTMENT_HEAD` role check that is on `main`** to the
+>   `isDepartmentHead` marker, in this one PR:
+>   - **Shift-scheduling** — rebuilt from `stash@{0}` (the reference for what the
+>     code should do), reworked to the marker model.
+>   - **Phase 2 Sessions 1+2** — `requisition-service`, `dispatch-service`,
+>     `staff-transfer-repository`, `department-repository`, and their route
+>     guards + test files — converted **in place** on `main`. Leaving them would
+>     give `main` a broken Phase 2 the moment the data migration flips the two
+>     head users to their base role.
+> - **Out of scope:** the MPO code (not on `main`). Its
+>   `role === 'DEPARTMENT_HEAD'` checks get reconciled to the marker when the
+>   owner resumes Phase 2 (`git stash pop` / branch off
+>   `wip/inventory-mpo-snapshot`, rebase onto the new `main`, fix then).
 >
-> §3 below still lists the Phase 2 files for reference — treat that as "what
-> the future Phase 2 reconciliation will need", NOT Session A's task list.
-> Session A's task list is §3's **shift-scheduling** rows + §4 + §5.
+> §3's tables below — **shift-scheduling AND Phase 2 rows** — are all Session A's
+> task list now, except the `market-purchase-order-*` entries. §4 + §5 apply as
+> written.
 
 ---
 

@@ -135,6 +135,8 @@ function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title
 export default function Page(): JSX.Element {
   const router = useRouter();
   const { user, accessToken, setAuth, role } = useAuthStore();
+  const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
+  const departmentTag = useAuthStore((state) => state.departmentTag);
   const {
     isSupported: isFcmSupported,
     canPrompt: canPromptFcmPermission,
@@ -334,8 +336,19 @@ export default function Page(): JSX.Element {
     }
   };
 
+  const departmentLabels: Record<string, string> = {
+    KITCHEN: 'Kitchen',
+    PASTRY: 'Pastry',
+    BARISTA: 'Barista',
+    SERVICE: 'Service',
+    HOUSEKEEPING: 'Housekeeping',
+  };
   const displayName = profile?.name ?? user?.name ?? '';
-  const displayRole = role ? (roleLabels[role] ?? role) : '—';
+  const baseRoleLabel = role ? (roleLabels[role] ?? role) : '—';
+  const displayRole =
+    isDepartmentHead && departmentTag
+      ? `${baseRoleLabel} · Department Head (${departmentLabels[departmentTag] ?? departmentTag})`
+      : baseRoleLabel;
   const displayEmail = profile?.email ?? user?.email ?? '—';
   const displayBranch = profile?.organizationName ?? user?.organizationName ?? '—';
 

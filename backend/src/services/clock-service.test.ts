@@ -68,6 +68,7 @@ const todayAssignment = {
     id: actor.id,
     name: 'Jane Staff',
     role: UserRole.WAITER,
+    departmentTag: null,
     isActive: true,
   },
   clockRecord: null,

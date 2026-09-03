@@ -1,6 +1,9 @@
 import type { AppRole } from './auth';
 
-export type ShiftRole = Extract<AppRole, 'WAITER' | 'CHEF' | 'BARISTA'>;
+export type ShiftRole = Extract<
+  AppRole,
+  'WAITER' | 'CHEF' | 'BARISTA' | 'STEWARD' | 'HOUSEKEEPING'
+>;
 export type ClockMethod = 'GPS' | 'OVERRIDE';
 
 export interface Shift {
@@ -28,6 +31,7 @@ export interface ShiftAssignmentUser {
   id: string;
   name: string;
   role: ShiftRole;
+  departmentTag?: string | null;
   isActive: boolean;
 }
 

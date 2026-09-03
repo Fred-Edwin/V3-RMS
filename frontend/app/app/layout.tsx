@@ -556,6 +556,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const pathname = usePathname();
   const router = useRouter();
   const role = useAuthStore((state) => state.role);
+  const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
 
   // Attach comms socket listeners for real-time inbox updates
   useCommsSocket();
@@ -586,7 +587,18 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const isDesktopPreviewEnabled = env.roleDesktopPreview && process.env.NODE_ENV !== 'production';
 
   const sidebarSections = useMemo(() => {
-    const sections = role ? (sidebarSectionsByRole[role] ?? []) : [];
+    const baseSections = role ? (sidebarSectionsByRole[role] ?? []) : [];
+    // A department head keeps their full base-role nav and gains one entry for
+    // the department shift scheduler (marker model, 2026-09-03).
+    const sections = isDepartmentHead
+      ? [
+          ...baseSections,
+          {
+            label: 'Department',
+            items: [{ label: 'Department Shifts', href: '/app/department/shifts', icon: Calendar }],
+          },
+        ]
+      : baseSections;
     const filtered = env.creditAccounts
       ? sections
       : sections
@@ -601,16 +613,26 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
           : item,
       ),
     }));
-  }, [role, unreadInbox]);
+  }, [role, isDepartmentHead, unreadInbox]);
 
   const mobileNavConfig = useMemo(() => {
     if (!role || !(role in mobileRoleTabs)) return null;
     const config = mobileRoleTabs[role as MobileRole];
+    // A department head's base-role tabs plus one "Dept Shifts" overflow entry.
+    const withDeptHead: MobileRoleNavConfig = isDepartmentHead
+      ? {
+          tabs: config.tabs,
+          overflowTabs: [
+            { label: 'Dept Shifts', href: '/app/department/shifts', icon: Calendar },
+            ...config.overflowTabs,
+          ],
+        }
+      : config;
     const filtered = env.creditAccounts
-      ? config
+      ? withDeptHead
       : {
-          tabs: config.tabs.filter((t) => !CREDIT_PATHS.has(t.href)),
-          overflowTabs: config.overflowTabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+          tabs: withDeptHead.tabs.filter((t) => !CREDIT_PATHS.has(t.href)),
+          overflowTabs: withDeptHead.overflowTabs.filter((t) => !CREDIT_PATHS.has(t.href)),
         };
     // Inject unread badge on the Inbox tab
     return {
@@ -621,7 +643,7 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
         t.href === '/app/inbox' && unreadInbox > 0 ? { ...t, badge: unreadInbox } : t,
       ),
     };
-  }, [role, unreadInbox]);
+  }, [role, isDepartmentHead, unreadInbox]);
 
   const handleConfirmLogout = async (): Promise<void> => {
     setIsLoggingOut(true);

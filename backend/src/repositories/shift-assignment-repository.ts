@@ -16,6 +16,7 @@ const shiftAssignmentInclude = {
       id: true,
       name: true,
       role: true,
+      departmentTag: true,
       isActive: true,
     },
   },
@@ -41,7 +42,7 @@ export const shiftAssignmentRepository = {
     organizationId: string,
     startDate: Date,
     endDate: Date,
-    filters?: { userId?: string; shiftId?: string },
+    filters?: { userId?: string; shiftId?: string; userWhere?: Prisma.UserWhereInput },
   ): Promise<ShiftAssignmentWithRelations[]> => {
     return prisma.shiftAssignment.findMany({
       where: {
@@ -52,6 +53,8 @@ export const shiftAssignmentRepository = {
         },
         userId: filters?.userId,
         shiftId: filters?.shiftId,
+        // Department-head scoping: restrict the roster to the head's department.
+        user: filters?.userWhere,
       },
       include: shiftAssignmentInclude,
       orderBy: [{ date: 'asc' }, { shift: { startTime: 'asc' } }, { user: { name: 'asc' } }],
@@ -122,6 +125,7 @@ export const shiftAssignmentRepository = {
   findByOrganizationAndWeek: async (
     organizationId: string,
     weekStart: Date,
+    filters?: { userWhere?: Prisma.UserWhereInput },
   ): Promise<ShiftAssignmentWithRelations[]> => {
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
@@ -129,6 +133,8 @@ export const shiftAssignmentRepository = {
       where: {
         organizationId,
         date: { gte: weekStart, lte: weekEnd },
+        // Department-head scoping: restrict the copied roster to the head's department.
+        user: filters?.userWhere,
       },
       include: shiftAssignmentInclude,
       orderBy: [{ date: 'asc' }, { shift: { startTime: 'asc' } }],

@@ -7,6 +7,7 @@ declare global {
       role: UserRole;
       organizationId: string | null;
       departmentTag?: DepartmentTag | null;
+      isDepartmentHead?: boolean;
     }
 
     interface PrintStationContext {

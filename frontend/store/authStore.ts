@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AuthUser } from '@/types/auth';
+import type { AuthUser, DepartmentTag } from '@/types/auth';
 import { authService } from '@/services/authService';
 import { ApiError } from '@/types/api';
 import { env } from '@/lib/env';
@@ -9,6 +9,8 @@ interface AuthState {
   accessToken: string | null;
   organizationId: string | null;
   role: AuthUser['role'] | null;
+  departmentTag: DepartmentTag | null;
+  isDepartmentHead: boolean;
   isAuthenticated: boolean;
   isHydrated: boolean;
   setAuth: (input: { user: AuthUser; accessToken: string }) => void;
@@ -77,7 +79,14 @@ const scheduleRefresh = (token: string): void => {
   }, delay);
 };
 
-const decodeTokenClaims = (token: string): { role: AuthUser['role']; organizationId: string | null } | null => {
+const decodeTokenClaims = (
+  token: string,
+): {
+  role: AuthUser['role'];
+  organizationId: string | null;
+  departmentTag: DepartmentTag | null;
+  isDepartmentHead: boolean;
+} | null => {
   const parts = token.split('.');
   if (parts.length < 2) {
     return null;
@@ -89,6 +98,8 @@ const decodeTokenClaims = (token: string): { role: AuthUser['role']; organizatio
     const payload = JSON.parse(atob(padded)) as {
       role?: AuthUser['role'];
       organizationId?: string | null;
+      departmentTag?: DepartmentTag | null;
+      isDepartmentHead?: boolean;
     };
 
     if (!payload.role) {
@@ -98,6 +109,8 @@ const decodeTokenClaims = (token: string): { role: AuthUser['role']; organizatio
     return {
       role: payload.role,
       organizationId: payload.organizationId ?? null,
+      departmentTag: payload.departmentTag ?? null,
+      isDepartmentHead: payload.isDepartmentHead ?? false,
     };
   } catch {
     return null;
@@ -109,16 +122,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   organizationId: null,
   role: null,
+  departmentTag: null,
+  isDepartmentHead: false,
   isAuthenticated: false,
   isHydrated: false,
   setAuth: ({ user, accessToken }) => {
     setAccessTokenCookie(accessToken);
     scheduleRefresh(accessToken);
+    const claims = decodeTokenClaims(accessToken);
     set({
       user,
       accessToken,
       organizationId: user.organizationId,
       role: user.role,
+      departmentTag: claims?.departmentTag ?? user.departmentTag ?? null,
+      isDepartmentHead: claims?.isDepartmentHead ?? user.isDepartmentHead ?? false,
       isAuthenticated: true,
       isHydrated: true,
     });
@@ -140,6 +158,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           role: claims?.role ?? user.role,
           organizationId: claims?.organizationId ?? user.organizationId,
+          departmentTag: claims?.departmentTag ?? user.departmentTag ?? null,
+          isDepartmentHead: claims?.isDepartmentHead ?? user.isDepartmentHead ?? false,
         });
       } catch (error) {
         if (error instanceof ApiError && (error.statusCode === 401 || error.statusCode === 403)) {
@@ -183,6 +203,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken: null,
       organizationId: null,
       role: null,
+      departmentTag: null,
+      isDepartmentHead: false,
       isAuthenticated: false,
     });
   },

@@ -1,5 +1,6 @@
 import { prisma } from '../config/database';
 import type { DepartmentTag } from '@prisma/client';
+import { departmentScopeFilter } from '../utils/departments';
 
 const staffSelect = {
   id: true,
@@ -8,6 +9,7 @@ const staffSelect = {
   role: true,
   isActive: true,
   departmentTag: true,
+  isDepartmentHead: true,
 } as const;
 
 export const departmentRepository = {
@@ -23,7 +25,7 @@ export const departmentRepository = {
       where: {
         organizationId,
         departmentTag,
-        role: 'DEPARTMENT_HEAD',
+        isDepartmentHead: true,
         isActive: true,
       },
       select: staffSelect,
@@ -31,21 +33,26 @@ export const departmentRepository = {
   },
 
   countStaffByDepartment: async (organizationId: string, departmentTag: DepartmentTag) => {
+    // Department membership for scheduling is role-derived (see utils/departments):
+    // the worked roles for this department. The head is one of those roles too,
+    // so no separate clause is needed.
     return prisma.user.count({
-      where: { organizationId, departmentTag, isActive: true },
+      where: { organizationId, isActive: true, ...departmentScopeFilter(departmentTag) },
     });
   },
 
-  findEligibleStaff: async (organizationId: string) => {
-    // Eligible = active staff at this branch, not already heading a different
-    // department (a DEPARTMENT_HEAD already assigned elsewhere at this branch
-    // is excluded — reassigning them must go through unassign first, so the
-    // previousRole restoration on unassignment stays unambiguous).
+  findEligibleStaff: async (organizationId: string, departmentTag: DepartmentTag) => {
+    // Eligible = active staff at this branch whose worked role belongs to this
+    // department (role-derived membership, see utils/departments — KITCHEN also
+    // covers PASTRY). Anyone already heading a department is excluded: change a
+    // head via unassign-then-assign so there is never ambiguity about which
+    // department a person heads.
     return prisma.user.findMany({
       where: {
         organizationId,
         isActive: true,
-        role: { not: 'DEPARTMENT_HEAD' },
+        isDepartmentHead: false,
+        ...departmentScopeFilter(departmentTag),
       },
       select: staffSelect,
       orderBy: { name: 'asc' },
@@ -62,7 +69,7 @@ export const departmentRepository = {
         isActive: true,
         organizationId: true,
         departmentTag: true,
-        previousRole: true,
+        isDepartmentHead: true,
       },
     });
   },
@@ -77,48 +84,33 @@ export const departmentRepository = {
         where: {
           organizationId: user.organizationId,
           departmentTag,
-          role: 'DEPARTMENT_HEAD',
+          isDepartmentHead: true,
           id: { not: userId },
         },
       });
       if (currentHead) {
         await tx.user.update({
           where: { id: currentHead.id },
-          data: {
-            role: currentHead.previousRole ?? currentHead.role,
-            previousRole: null,
-            departmentTag: null,
-          },
+          data: { isDepartmentHead: false, departmentTag: null },
         });
       }
 
+      // Marker model: the person keeps their real role; we only set the flag
+      // and the tag naming which department they head. "Move a head from
+      // Kitchen to Service" is just a new departmentTag on the same row.
       return tx.user.update({
         where: { id: userId },
-        data: {
-          // Only stamp previousRole if this user isn't already a department
-          // head being moved between departments — in that case the role
-          // doesn't change and the original previousRole must be preserved.
-          previousRole: user.role === 'DEPARTMENT_HEAD' ? user.previousRole : user.role,
-          role: 'DEPARTMENT_HEAD',
-          departmentTag,
-        },
+        data: { isDepartmentHead: true, departmentTag },
         select: staffSelect,
       });
     });
   },
 
   unassignHead: async (userId: string) => {
-    return prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      return tx.user.update({
-        where: { id: userId },
-        data: {
-          role: user.previousRole ?? 'WAITER',
-          previousRole: null,
-          departmentTag: null,
-        },
-        select: staffSelect,
-      });
+    return prisma.user.update({
+      where: { id: userId },
+      data: { isDepartmentHead: false, departmentTag: null },
+      select: staffSelect,
     });
   },
 };

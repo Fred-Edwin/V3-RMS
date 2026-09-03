@@ -9,6 +9,7 @@ export interface AccessTokenPayload {
   role: UserRole;
   organizationId: string | null;
   departmentTag?: DepartmentTag | null;
+  isDepartmentHead?: boolean;
 }
 
 export interface RefreshTokenPayload {

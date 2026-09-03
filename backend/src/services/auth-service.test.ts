@@ -45,6 +45,7 @@ describe('authService.refresh', () => {
       role: 'MANAGER',
       organizationId: 'org-1',
       departmentTag: null,
+      isDepartmentHead: false,
       isActive: true,
       phone: null,
       organization: {

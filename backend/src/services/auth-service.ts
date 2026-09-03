@@ -64,6 +64,7 @@ export const authService = {
       role: user.role,
       organizationId: user.organizationId,
       departmentTag: user.departmentTag,
+      isDepartmentHead: user.isDepartmentHead,
     });
     const refreshToken = signRefreshToken({ userId: user.id });
     const refreshTokenHash = hashToken(refreshToken);
@@ -84,6 +85,8 @@ export const authService = {
         role: user.role,
         organizationId: user.organizationId,
         organizationName: user.organization?.name ?? null,
+        departmentTag: user.departmentTag,
+        isDepartmentHead: user.isDepartmentHead,
       },
     };
   },
@@ -125,6 +128,7 @@ export const authService = {
       role: user.role,
       organizationId: user.organizationId,
       departmentTag: user.departmentTag,
+      isDepartmentHead: user.isDepartmentHead,
     });
 
     return {
@@ -137,6 +141,8 @@ export const authService = {
         role: user.role,
         organizationId: user.organizationId,
         organizationName: user.organization?.name ?? null,
+        departmentTag: user.departmentTag,
+        isDepartmentHead: user.isDepartmentHead,
       },
     };
   },

@@ -43,14 +43,17 @@ describe('departmentService.assignHead', () => {
     } as never);
     vi.mocked(departmentRepository.assignHead).mockResolvedValue({
       id: staffId,
-      role: 'DEPARTMENT_HEAD',
+      role: 'WAITER',
+      isDepartmentHead: true,
       departmentTag: 'KITCHEN',
     } as never);
 
     const result = await departmentService.assignHead(managerActor, branchOrgId, 'KITCHEN', staffId);
 
     expect(departmentRepository.assignHead).toHaveBeenCalledWith(staffId, 'KITCHEN');
-    expect(result.role).toBe('DEPARTMENT_HEAD');
+    // Marker model: the person keeps their real role; only the head marker + tag change.
+    expect(result.role).toBe('WAITER');
+    expect(result.isDepartmentHead).toBe(true);
   });
 
   it('rejects a manager assigning a head at a different branch', async () => {
@@ -109,17 +112,19 @@ describe('departmentService.assignHead', () => {
   });
 });
 
-describe('departmentService.unassignHead — role restoration (Q3)', () => {
-  it('restores the previous role and clears the department tag', async () => {
+describe('departmentService.unassignHead — marker cleared (Q3)', () => {
+  it('clears the head marker and department tag, leaving the base role intact', async () => {
     vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue({
       id: headId,
-      role: 'DEPARTMENT_HEAD',
+      role: 'BARISTA',
+      isDepartmentHead: true,
       departmentTag: 'BARISTA',
     } as never);
     vi.mocked(departmentRepository.unassignHead).mockResolvedValue({
       id: headId,
       role: 'BARISTA',
+      isDepartmentHead: false,
       departmentTag: null,
     } as never);
 
@@ -127,6 +132,7 @@ describe('departmentService.unassignHead — role restoration (Q3)', () => {
 
     expect(departmentRepository.unassignHead).toHaveBeenCalledWith(headId);
     expect(result.role).toBe('BARISTA');
+    expect(result.isDepartmentHead).toBe(false);
     expect(result.departmentTag).toBeNull();
   });
 
