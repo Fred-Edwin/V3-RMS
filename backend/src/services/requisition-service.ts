@@ -23,9 +23,9 @@ const requireOrganization = (actor: Actor): string => {
   return actor.organizationId;
 };
 
-/** D-17: a DEPARTMENT_HEAD raises requisitions only for their own department. */
+/** D-17: a department head raises requisitions only for their own department. */
 const requireDepartmentHead = (actor: Actor): DepartmentTag => {
-  if (actor.role !== 'DEPARTMENT_HEAD' || !actor.departmentTag) {
+  if (!actor.isDepartmentHead || !actor.departmentTag) {
     throw new ForbiddenError('Only a Department Head may raise a requisition');
   }
   return actor.departmentTag;
@@ -84,7 +84,7 @@ export const requisitionService = {
 
   list: async (actor: Actor, status?: string) => {
     const organizationId = requireOrganization(actor);
-    if (actor.role === 'DEPARTMENT_HEAD') {
+    if (actor.isDepartmentHead) {
       return requisitionRepository.findAllByOrganization(organizationId, {
         status: status as never,
         requestedById: actor.id,
@@ -99,7 +99,7 @@ export const requisitionService = {
     if (!requisition) {
       throw new NotFoundError('Requisition not found');
     }
-    if (actor.role === 'DEPARTMENT_HEAD' && requisition.requestedById !== actor.id) {
+    if (actor.isDepartmentHead && requisition.requestedById !== actor.id) {
       throw new ForbiddenError('You may only view your own requisitions');
     }
     return requisition;

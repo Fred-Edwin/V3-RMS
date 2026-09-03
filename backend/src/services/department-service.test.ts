@@ -7,7 +7,7 @@ vi.mock('../repositories/department-repository', () => ({
   departmentRepository: {
     findOrganization: vi.fn(),
     findHeadByDepartment: vi.fn(),
-    countStaffByDepartment: vi.fn(),
+    listMembersByDepartment: vi.fn(),
     findEligibleStaff: vi.fn(),
     findStaffById: vi.fn(),
     assignHead: vi.fn(),
@@ -43,14 +43,17 @@ describe('departmentService.assignHead', () => {
     } as never);
     vi.mocked(departmentRepository.assignHead).mockResolvedValue({
       id: staffId,
-      role: 'DEPARTMENT_HEAD',
+      role: 'WAITER',
+      isDepartmentHead: true,
       departmentTag: 'KITCHEN',
     } as never);
 
     const result = await departmentService.assignHead(managerActor, branchOrgId, 'KITCHEN', staffId);
 
     expect(departmentRepository.assignHead).toHaveBeenCalledWith(staffId, 'KITCHEN');
-    expect(result.role).toBe('DEPARTMENT_HEAD');
+    // Marker model: the person keeps their real role; only the head marker + tag change.
+    expect(result.role).toBe('WAITER');
+    expect(result.isDepartmentHead).toBe(true);
   });
 
   it('rejects a manager assigning a head at a different branch', async () => {
@@ -109,17 +112,19 @@ describe('departmentService.assignHead', () => {
   });
 });
 
-describe('departmentService.unassignHead — role restoration (Q3)', () => {
-  it('restores the previous role and clears the department tag', async () => {
+describe('departmentService.unassignHead — marker cleared (Q3)', () => {
+  it('clears the head marker and department tag, leaving the base role intact', async () => {
     vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue({
       id: headId,
-      role: 'DEPARTMENT_HEAD',
+      role: 'BARISTA',
+      isDepartmentHead: true,
       departmentTag: 'BARISTA',
     } as never);
     vi.mocked(departmentRepository.unassignHead).mockResolvedValue({
       id: headId,
       role: 'BARISTA',
+      isDepartmentHead: false,
       departmentTag: null,
     } as never);
 
@@ -127,6 +132,7 @@ describe('departmentService.unassignHead — role restoration (Q3)', () => {
 
     expect(departmentRepository.unassignHead).toHaveBeenCalledWith(headId);
     expect(result.role).toBe('BARISTA');
+    expect(result.isDepartmentHead).toBe(false);
     expect(result.departmentTag).toBeNull();
   });
 
@@ -155,10 +161,10 @@ describe('departmentService.listDepartments', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  it('returns all five departments with head and staff count', async () => {
+  it('returns all five departments with head and members', async () => {
     vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
-    vi.mocked(departmentRepository.countStaffByDepartment).mockResolvedValue(0);
+    vi.mocked(departmentRepository.listMembersByDepartment).mockResolvedValue([] as never);
 
     const result = await departmentService.listDepartments(managerActor, branchOrgId);
 
@@ -170,5 +176,26 @@ describe('departmentService.listDepartments', () => {
       'SERVICE',
       'HOUSEKEEPING',
     ]);
+    // `members` replaces the old `staffCount` — it is the roster line's data
+    // and its length is the count.
+    expect(result[0]).toHaveProperty('members', []);
+    expect(result[0]).not.toHaveProperty('staffCount');
+  });
+
+  it('threads each department\'s members through from the repository', async () => {
+    const kitchenMembers = [
+      { id: 'u1', name: 'Ann Njeri', role: 'CHEF' },
+      { id: 'u2', name: 'Ben Otieno', role: 'CHEF' },
+    ];
+    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
+    vi.mocked(departmentRepository.listMembersByDepartment).mockImplementation(
+      async (_orgId, tag) => (tag === 'KITCHEN' ? (kitchenMembers as never) : ([] as never)),
+    );
+
+    const result = await departmentService.listDepartments(managerActor, branchOrgId);
+
+    const kitchen = result.find((d) => d.departmentTag === 'KITCHEN');
+    expect(kitchen?.members).toEqual(kitchenMembers);
   });
 });

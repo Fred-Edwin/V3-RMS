@@ -14,6 +14,8 @@ export type AppRole =
   | 'STORE_MANAGER'
   | 'STORE_ATTENDANT';
 
+export type DepartmentTag = 'KITCHEN' | 'PASTRY' | 'BARISTA' | 'SERVICE' | 'HOUSEKEEPING';
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -21,4 +23,7 @@ export interface AuthUser {
   role: AppRole;
   organizationId: string | null;
   organizationName?: string | null;
+  /** Which department this person heads, if any (marker model, 2026-09-03). */
+  departmentTag?: DepartmentTag | null;
+  isDepartmentHead?: boolean;
 }

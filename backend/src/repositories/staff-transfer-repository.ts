@@ -28,24 +28,19 @@ export const staffTransferRepository = {
         },
       });
 
-      // Q4 (Phase 2 Session 1): a DEPARTMENT_HEAD transferred between branches
-      // cannot keep the role or department tag — both are scoped to the
+      // Q4 (Phase 2 Session 1): a department head transferred between branches
+      // cannot keep the head marker or department tag — both are scoped to the
       // branch they're leaving, and D-17 requires exactly one head per
-      // (branch, department). Clear the department state and restore
-      // previousRole, same as an explicit unassign.
+      // (branch, department). The person keeps their real role; only the head
+      // marker + tag are cleared, same as an explicit unassign.
       const currentUser = await tx.user.findUniqueOrThrow({ where: { id: data.userId } });
-      const isDepartmentHead = currentUser.role === 'DEPARTMENT_HEAD';
 
       await tx.user.update({
         where: { id: data.userId },
         data: {
           organizationId: data.toOrganizationId,
-          ...(isDepartmentHead
-            ? {
-                role: currentUser.previousRole ?? 'WAITER',
-                previousRole: null,
-                departmentTag: null,
-              }
+          ...(currentUser.isDepartmentHead
+            ? { isDepartmentHead: false, departmentTag: null }
             : {}),
         },
       });

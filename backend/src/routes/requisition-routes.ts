@@ -1,19 +1,15 @@
 import { Router } from 'express';
 import { requisitionController } from '../controllers/requisition-controller';
 import { authenticate } from '../middleware/authenticate';
-import { requireRole } from '../middleware/rbac';
+import { requireRole, requireDepartmentHead } from '../middleware/rbac';
+import { allowDepartmentHead } from '../middleware/allow-department-head';
 
 const requisitionRoutes = Router();
 
-const canRaise = requireRole('DEPARTMENT_HEAD');
+const canRaise = requireDepartmentHead;
 const canApprove = requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN');
-const canView = requireRole(
-  'DEPARTMENT_HEAD',
-  'MANAGER',
-  'DIRECTOR',
-  'SYSTEM_ADMIN',
-  'STORE_MANAGER',
-  'STORE_ATTENDANT',
+const canView = allowDepartmentHead(
+  requireRole('MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER', 'STORE_ATTENDANT'),
 );
 
 requisitionRoutes.get('/requisitions/orderable-items', authenticate, canRaise, requisitionController.listOrderableItems);

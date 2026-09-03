@@ -86,7 +86,8 @@ const storeManagerId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const storeActor = { id: storeManagerId, role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
 const headActor = {
   id: headId,
-  role: 'DEPARTMENT_HEAD' as const,
+  role: 'CHEF' as const,
+  isDepartmentHead: true,
   organizationId: branchOrgId,
   departmentTag: 'KITCHEN' as const,
 };
@@ -135,7 +136,7 @@ describe('dispatchService D-16 — either-side visibility', () => {
   it('an uninvolved third branch sees nothing via findVisibleTo', async () => {
     vi.mocked(dispatchRepository.findVisibleTo).mockResolvedValue(null);
 
-    const thirdBranchActor = { id: 'x', role: 'DEPARTMENT_HEAD' as const, organizationId: thirdBranchOrgId };
+    const thirdBranchActor = { id: 'x', role: 'CHEF' as const, isDepartmentHead: true, organizationId: thirdBranchOrgId };
     await expect(dispatchService.getById(thirdBranchActor as never, dispatchId)).rejects.toThrow('Dispatch not found');
     expect(dispatchRepository.findVisibleTo).toHaveBeenCalledWith(dispatchId, thirdBranchOrgId);
   });
@@ -263,7 +264,8 @@ describe('dispatchService.receive — D-16 ledger correctness + Q2', () => {
     vi.mocked(dispatchRepository.findVisibleTo).mockResolvedValue(buildDispatch({ status: 'IN_TRANSIT' }) as never);
     const thirdBranchHead = {
       id: 'x',
-      role: 'DEPARTMENT_HEAD' as const,
+      role: 'CHEF' as const,
+      isDepartmentHead: true,
       organizationId: thirdBranchOrgId,
       departmentTag: 'KITCHEN' as const,
     };

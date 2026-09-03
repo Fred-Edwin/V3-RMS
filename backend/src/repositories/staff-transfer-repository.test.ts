@@ -16,7 +16,7 @@ vi.mock('../config/database', () => ({
   },
 }));
 
-describe('staffTransferRepository.create — Q4 (DEPARTMENT_HEAD transferred between branches)', () => {
+describe('staffTransferRepository.create — Q4 (department head transferred between branches)', () => {
   const tx = {
     staffTransfer: { create: mocks.transferCreate },
     user: { findUniqueOrThrow: mocks.userFindUniqueOrThrow, update: mocks.userUpdate },
@@ -31,11 +31,11 @@ describe('staffTransferRepository.create — Q4 (DEPARTMENT_HEAD transferred bet
     mocks.userUpdate.mockResolvedValue({});
   });
 
-  it('clears role, departmentTag, and previousRole when transferring a DEPARTMENT_HEAD', async () => {
+  it('clears the head marker and departmentTag when transferring a department head, keeping their real role', async () => {
     mocks.userFindUniqueOrThrow.mockResolvedValue({
       id: 'user-1',
-      role: 'DEPARTMENT_HEAD',
-      previousRole: 'CHEF',
+      role: 'CHEF',
+      isDepartmentHead: true,
       departmentTag: 'KITCHEN',
     });
 
@@ -50,44 +50,17 @@ describe('staffTransferRepository.create — Q4 (DEPARTMENT_HEAD transferred bet
       where: { id: 'user-1' },
       data: {
         organizationId: 'org-b',
-        role: 'CHEF',
-        previousRole: null,
+        isDepartmentHead: false,
         departmentTag: null,
       },
     });
   });
 
-  it('falls back to WAITER if a DEPARTMENT_HEAD somehow has no previousRole', async () => {
-    mocks.userFindUniqueOrThrow.mockResolvedValue({
-      id: 'user-1',
-      role: 'DEPARTMENT_HEAD',
-      previousRole: null,
-      departmentTag: 'BARISTA',
-    });
-
-    await staffTransferRepository.create({
-      userId: 'user-1',
-      fromOrganizationId: 'org-a',
-      toOrganizationId: 'org-b',
-      authorizedById: 'director-1',
-    });
-
-    expect(mocks.userUpdate).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: {
-        organizationId: 'org-b',
-        role: 'WAITER',
-        previousRole: null,
-        departmentTag: null,
-      },
-    });
-  });
-
-  it('leaves role untouched for a non-DEPARTMENT_HEAD transfer', async () => {
+  it('leaves role and marker untouched for a non-head transfer', async () => {
     mocks.userFindUniqueOrThrow.mockResolvedValue({
       id: 'user-2',
       role: 'WAITER',
-      previousRole: null,
+      isDepartmentHead: false,
       departmentTag: null,
     });
 

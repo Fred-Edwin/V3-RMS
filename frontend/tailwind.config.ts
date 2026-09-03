@@ -194,6 +194,10 @@ const config: Config = {
           '0%': { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' },
         },
+        'slide-in-right': {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
         pulse: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.5' },
@@ -204,6 +208,7 @@ const config: Config = {
         'fade-up': 'fade-up 300ms cubic-bezier(0.0, 0.0, 0.2, 1)',
         'slide-in-top': 'slide-in-top 300ms cubic-bezier(0.0, 0.0, 0.2, 1)',
         'slide-up': 'slide-up 400ms cubic-bezier(0.0, 0.0, 0.2, 1)',
+        'slide-in-right': 'slide-in-right 300ms cubic-bezier(0.0, 0.0, 0.2, 1)',
       },
     },
   },

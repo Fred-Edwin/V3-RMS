@@ -37,11 +37,13 @@ export const departmentService = {
 
     return Promise.all(
       DEPARTMENT_TAGS.map(async (tag) => {
-        const [head, staffCount] = await Promise.all([
+        const [head, members] = await Promise.all([
           departmentRepository.findHeadByDepartment(organizationId, tag),
-          departmentRepository.countStaffByDepartment(organizationId, tag),
+          departmentRepository.listMembersByDepartment(organizationId, tag),
         ]);
-        return { departmentTag: tag, head, staffCount };
+        // `members` is the single source of truth for the roster line and its
+        // count — the card shows `members.length` then the first few names.
+        return { departmentTag: tag, head, members };
       }),
     );
   },
@@ -54,7 +56,7 @@ export const departmentService = {
       throw new ValidationError('Invalid department');
     }
 
-    return departmentRepository.findEligibleStaff(organizationId);
+    return departmentRepository.findEligibleStaff(organizationId, departmentTag);
   },
 
   assignHead: async (

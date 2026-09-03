@@ -23,6 +23,7 @@ import { branchService, type BranchDto } from '@/services/branchService';
 import { shiftService } from '@/services/shiftService';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { useAuthStore } from '@/store/authStore';
+import { departmentLabel, staffInDepartment } from '@/lib/departments';
 import { ApiError } from '@/types/api';
 import type { ClockOverrideInput, CopyWeekInput, Shift, ShiftAssignment, ShiftRole } from '@/types/shift';
 
@@ -54,7 +55,7 @@ interface CopyWeekModalState {
 type DraftValue = string | null;
 
 const emptyShiftForm: ShiftFormState = { name: '', startTime: '06:00', endTime: '14:00' };
-const roleOrder: ShiftRole[] = ['CHEF', 'WAITER', 'BARISTA'];
+const roleOrder: ShiftRole[] = ['CHEF', 'WAITER', 'BARISTA', 'STEWARD', 'HOUSEKEEPING'];
 const OFF_VALUE = '__OFF__';
 
 const overrideReasonOptions = [
@@ -135,7 +136,12 @@ export default function ShiftManagementPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
   const role = useAuthStore((state) => state.role);
+  const departmentTag = useAuthStore((state) => state.departmentTag);
+  const isDepartmentHead = useAuthStore((state) => state.isDepartmentHead);
   const canManageAllBranches = role === 'HR_MANAGER';
+  // A department head schedules only their own department at their own branch:
+  // no branch selector, no attendance / shift-definition tabs. The backend
+  // scopes the roster and rejects any write outside their department.
 
   const [activeTab, setActiveTab] = useState<TabId>('schedule');
   const [branches, setBranches] = useState<BranchDto[]>([]);
@@ -205,6 +211,7 @@ export default function ShiftManagementPage(): JSX.Element {
     const q = scheduleSearch.trim().toLowerCase();
     return staff
       .filter((person) => {
+        if (isDepartmentHead && departmentTag && !staffInDepartment(person, departmentTag)) return false;
         if (q && !person.name.toLowerCase().includes(q) && !person.email.toLowerCase().includes(q)) return false;
         if (scheduleRole && person.role !== scheduleRole) return false;
         return true;
@@ -214,7 +221,7 @@ export default function ShiftManagementPage(): JSX.Element {
         const rightRole = roleOrder.indexOf(right.role as ShiftRole);
         return leftRole !== rightRole ? leftRole - rightRole : left.name.localeCompare(right.name);
       });
-  }, [scheduleRole, scheduleSearch, staff]);
+  }, [departmentTag, isDepartmentHead, scheduleRole, scheduleSearch, staff]);
 
   const branchName = useMemo(() => {
     if (canManageAllBranches) {
@@ -875,15 +882,29 @@ export default function ShiftManagementPage(): JSX.Element {
       ) : (
         <PageLayout className="animate-fade-up !mx-0 flex h-screen min-h-0 !max-w-none flex-col !px-6 !py-4">
           <div className="shrink-0">
-            <h1 className="text-[22px] font-bold leading-tight tracking-[-0.3px] text-espresso">Shift Scheduling</h1>
-            <p className="mt-1 text-[13px] text-stone-400">Build the weekly roster with named shifts. Times stay in shift definitions; the roster stays clean.</p>
+            <h1 className="text-[22px] font-bold leading-tight tracking-[-0.3px] text-espresso">
+              {isDepartmentHead
+                ? `${
+                    departmentTag
+                      ? departmentLabel(departmentTag) === 'Kitchen'
+                        ? 'Kitchen & Pastry'
+                        : departmentLabel(departmentTag)
+                      : 'Department'
+                  } Shift Schedule`
+                : 'Shift Scheduling'}
+            </h1>
+            <p className="mt-1 text-[13px] text-stone-400">
+              {isDepartmentHead
+                ? 'Schedule your department for the week. Your roster also appears on the HR shifts page.'
+                : 'Build the weekly roster with named shifts. Times stay in shift definitions; the roster stays clean.'}
+            </p>
           </div>
           <div className="mt-4 flex shrink-0 border-b border-stone-200">
-            {([
+            {(([
               ['schedule', 'Weekly Schedule'],
               ['attendance', "Today's Attendance"],
               ['definitions', 'Shift Definitions'],
-            ] as [TabId, string][]).map(([id, label]) => (
+            ] as [TabId, string][]).filter(([id]) => !isDepartmentHead || id === 'schedule')).map(([id, label]) => (
               <button
                 key={id}
                 type="button"

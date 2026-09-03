@@ -44,9 +44,32 @@ const decodeRole = (token: string): AppRole | null => {
   return null;
 };
 
-const isAllowedPath = (pathname: string, role: AppRole): boolean => {
+/** Read the `isDepartmentHead` marker claim from the JWT (marker model, 2026-09-03). */
+const decodeIsDepartmentHead = (token: string): boolean => {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return false;
+  }
+
+  try {
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded)) as { isDepartmentHead?: boolean };
+    return payload.isDepartmentHead === true;
+  } catch {
+    return false;
+  }
+};
+
+const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolean): boolean => {
   if (pathname.startsWith('/app/profile')) {
     return true;
+  }
+
+  // Department-head shift scheduler — gated on the marker, not a role. A head
+  // keeps their base role, so their other nav is governed by the rules below.
+  if (pathname.startsWith('/app/department')) {
+    return isDepartmentHead;
   }
 
   if (pathname === '/app/admin/menu' || pathname.startsWith('/app/admin/menu/')) {
@@ -62,6 +85,9 @@ const isAllowedPath = (pathname: string, role: AppRole): boolean => {
   }
   if (pathname === '/app/manage/settings' || pathname.startsWith('/app/manage/settings/')) {
     return false; // Directors use /app/director/settings; managers no longer have access
+  }
+  if (pathname === '/app/manage/departments' || pathname.startsWith('/app/manage/departments/')) {
+    return role === 'MANAGER'; // Branch Manager assigns/changes department heads for their branch
   }
   if (pathname.startsWith('/app/manage')) {
     return role === 'MANAGER';
@@ -179,7 +205,7 @@ export function middleware(request: NextRequest): NextResponse {
       return NextResponse.redirect(loginUrl);
     }
 
-    if (!isAllowedPath(pathname, role)) {
+    if (!isAllowedPath(pathname, role, decodeIsDepartmentHead(token))) {
       return NextResponse.redirect(new URL(roleHome[role], request.url));
     }
   }
