@@ -884,7 +884,13 @@ export default function ShiftManagementPage(): JSX.Element {
           <div className="shrink-0">
             <h1 className="text-[22px] font-bold leading-tight tracking-[-0.3px] text-espresso">
               {isDepartmentHead
-                ? `${departmentTag ? departmentLabel(departmentTag) : 'Department'} Shift Schedule`
+                ? `${
+                    departmentTag
+                      ? departmentLabel(departmentTag) === 'Kitchen'
+                        ? 'Kitchen & Pastry'
+                        : departmentLabel(departmentTag)
+                      : 'Department'
+                  } Shift Schedule`
                 : 'Shift Scheduling'}
             </h1>
             <p className="mt-1 text-[13px] text-stone-400">

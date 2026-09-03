@@ -1,19 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search, ArrowLeftRight, Crown, X } from 'lucide-react';
+import { UserCircle, UserCheck, UserX, Pencil, KeyRound, Trash2, Search, ArrowLeftRight } from 'lucide-react';
 import { Badge, Button, ConfirmDialog, EmptyState, Input, Modal, PageHeader, PageLayout, Select } from '@/components/ui';
-import type { AppRole, DepartmentTag } from '@/types/auth';
+import type { AppRole } from '@/types/auth';
 import { ApiError } from '@/types/api';
 import { staffService, type StaffDto } from '@/services/staffService';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { staffTransferService } from '@/services/staffTransferService';
-import {
-  departmentService,
-  departmentLabels,
-  type DepartmentSummaryDto,
-  type EligibleStaffDto,
-} from '@/services/departmentService';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/useToast';
 
@@ -40,11 +34,7 @@ export default function Page(): JSX.Element {
   const accessToken = useAuthStore((state) => state.accessToken);
   const hydrateSession = useAuthStore((state) => state.hydrateSession);
   const role = useAuthStore((state) => state.role) as AppRole | null;
-  const organizationId = useAuthStore((state) => state.organizationId);
   const { toast } = useToast();
-
-  // Branch Manager only: assign/change/remove department heads for this branch.
-  const canManageDepartments = role === 'MANAGER' && Boolean(organizationId);
 
   const [staff, setStaff] = useState<StaffDto[]>([]);
   const [branches, setBranches] = useState<BranchDto[]>([]);
@@ -85,17 +75,6 @@ export default function Page(): JSX.Element {
   const [transferNotes, setTransferNotes] = useState('');
   const [transferSubmitting, setTransferSubmitting] = useState(false);
 
-  // ── Department heads state ──
-  const [departments, setDepartments] = useState<DepartmentSummaryDto[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [assignTag, setAssignTag] = useState<DepartmentTag | null>(null);
-  const [eligibleStaff, setEligibleStaff] = useState<EligibleStaffDto[]>([]);
-  const [eligibleLoading, setEligibleLoading] = useState(false);
-  const [assignUserId, setAssignUserId] = useState('');
-  const [assignSubmitting, setAssignSubmitting] = useState(false);
-  const [unassignTag, setUnassignTag] = useState<DepartmentTag | null>(null);
-  const [unassignSubmitting, setUnassignSubmitting] = useState(false);
-
   useEffect(() => {
     if (!accessToken) {
       void hydrateSession();
@@ -128,83 +107,6 @@ export default function Page(): JSX.Element {
   useEffect(() => {
     void loadStaff();
   }, [loadStaff]);
-
-  const loadDepartments = useCallback(async (): Promise<void> => {
-    if (!accessToken || !canManageDepartments || !organizationId) return;
-    setDepartmentsLoading(true);
-    try {
-      setDepartments(await departmentService.listDepartments(organizationId, accessToken));
-    } catch (err) {
-      toast({
-        variant: 'error',
-        title: 'Load failed',
-        message: err instanceof ApiError ? err.message : 'Failed to load departments.',
-      });
-    } finally {
-      setDepartmentsLoading(false);
-    }
-  }, [accessToken, canManageDepartments, organizationId, toast]);
-
-  useEffect(() => {
-    void loadDepartments();
-  }, [loadDepartments]);
-
-  const openAssignModal = async (tag: DepartmentTag): Promise<void> => {
-    if (!accessToken || !organizationId) return;
-    setAssignTag(tag);
-    setAssignUserId('');
-    setEligibleLoading(true);
-    try {
-      setEligibleStaff(await departmentService.listEligibleStaff(organizationId, tag, accessToken));
-    } catch (err) {
-      toast({
-        variant: 'error',
-        title: 'Load failed',
-        message: err instanceof ApiError ? err.message : 'Failed to load eligible staff.',
-      });
-      setAssignTag(null);
-    } finally {
-      setEligibleLoading(false);
-    }
-  };
-
-  const handleAssignHead = async (): Promise<void> => {
-    if (!accessToken || !organizationId || !assignTag || !assignUserId) return;
-    setAssignSubmitting(true);
-    try {
-      await departmentService.assignHead(organizationId, assignTag, assignUserId, accessToken);
-      toast({ variant: 'success', title: 'Head assigned', message: `${departmentLabels[assignTag]} department head updated.` });
-      setAssignTag(null);
-      await Promise.all([loadDepartments(), loadStaff()]);
-    } catch (err) {
-      toast({
-        variant: 'error',
-        title: 'Assign failed',
-        message: err instanceof ApiError ? err.message : 'Failed to assign department head.',
-      });
-    } finally {
-      setAssignSubmitting(false);
-    }
-  };
-
-  const handleUnassignHead = async (): Promise<void> => {
-    if (!accessToken || !organizationId || !unassignTag) return;
-    setUnassignSubmitting(true);
-    try {
-      await departmentService.unassignHead(organizationId, unassignTag, accessToken);
-      toast({ variant: 'success', title: 'Head removed', message: `${departmentLabels[unassignTag]} department head removed.` });
-      setUnassignTag(null);
-      await Promise.all([loadDepartments(), loadStaff()]);
-    } catch (err) {
-      toast({
-        variant: 'error',
-        title: 'Remove failed',
-        message: err instanceof ApiError ? err.message : 'Failed to remove department head.',
-      });
-    } finally {
-      setUnassignSubmitting(false);
-    }
-  };
 
   const filteredStaff = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -552,83 +454,6 @@ export default function Page(): JSX.Element {
         )}
       </section>
 
-      {/* Department heads */}
-      {canManageDepartments && (
-        <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
-          <div className="border-b border-stone-100 px-5 py-4">
-            <h2 className="text-heading-sm font-semibold text-stone-900">Department Heads</h2>
-            <p className="mt-0.5 text-body-sm text-stone-500">
-              A department head schedules shifts for their own department while keeping their normal role. Their roster also appears on the HR shifts page.
-            </p>
-          </div>
-
-          {departmentsLoading ? (
-            <div className="grid gap-3 p-5 sm:grid-cols-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-24 animate-pulse rounded-lg bg-stone-100" />
-              ))}
-            </div>
-          ) : (
-            <ul className="grid gap-3 p-5 sm:grid-cols-2">
-              {departments.map((dept) => (
-                <li
-                  key={dept.departmentTag}
-                  className="flex flex-col gap-2 rounded-lg border border-stone-200 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-body-sm font-semibold text-stone-900">
-                      {departmentLabels[dept.departmentTag]}
-                    </span>
-                    <span className="text-caption text-stone-400">
-                      {dept.staffCount} {dept.staffCount === 1 ? 'person' : 'people'}
-                    </span>
-                  </div>
-
-                  {dept.head ? (
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700">
-                          <Crown size={14} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-body-sm font-medium text-stone-900">{dept.head.name}</p>
-                          <p className="truncate text-caption text-stone-500">{dept.head.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => void openAssignModal(dept.departmentTag)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-stone-100 hover:text-stone-700"
-                          aria-label={`Change ${departmentLabels[dept.departmentTag]} head`}
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setUnassignTag(dept.departmentTag)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors duration-fast hover:bg-danger-bg hover:text-danger"
-                          aria-label={`Remove ${departmentLabels[dept.departmentTag]} head`}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-body-sm text-stone-400">No head assigned</span>
-                      <Button size="sm" variant="secondary" onClick={() => void openAssignModal(dept.departmentTag)}>
-                        Assign head
-                      </Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
       {/* Create staff form */}
       <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
         <div className="border-b border-stone-100 px-5 py-4">
@@ -821,63 +646,6 @@ export default function Page(): JSX.Element {
           />
         </form>
       </Modal>
-
-      {/* ── Assign / Change Department Head Modal ── */}
-      <Modal
-        isOpen={!!assignTag}
-        onClose={() => setAssignTag(null)}
-        title={assignTag ? `${departmentLabels[assignTag]} Department Head` : 'Department Head'}
-        maxWidth="sm"
-        footer={
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={() => setAssignTag(null)} disabled={assignSubmitting}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleAssignHead()}
-              isLoading={assignSubmitting}
-              disabled={!assignUserId || eligibleLoading}
-            >
-              Assign
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-body-sm text-stone-500">
-            The selected staff member becomes the department head. They keep their normal role — removing
-            the head only clears the marker.
-          </p>
-          {eligibleLoading ? (
-            <div className="h-10 animate-pulse rounded-lg bg-stone-100" />
-          ) : eligibleStaff.length === 0 ? (
-            <EmptyState icon={<UserCircle size={24} />} heading="No eligible staff" body="No active staff at this branch can be assigned." />
-          ) : (
-            <Select
-              label="Staff member"
-              value={assignUserId}
-              onChange={(e) => setAssignUserId(e.target.value)}
-              options={[
-                { value: '', label: 'Select a staff member…' },
-                ...eligibleStaff.map((s) => ({
-                  value: s.id,
-                  label: `${s.name} — ${roleLabel[s.role] ?? s.role}`,
-                })),
-              ]}
-            />
-          )}
-        </div>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={!!unassignTag}
-        onClose={() => setUnassignTag(null)}
-        onConfirm={() => void handleUnassignHead()}
-        title={unassignTag ? `Remove ${departmentLabels[unassignTag]} head?` : 'Remove head?'}
-        description="They keep their normal role — only the head marker is removed. Shifts they already scheduled are kept."
-        confirmLabel="Remove head"
-        isLoading={unassignSubmitting}
-      />
     </PageLayout>
   );
 }

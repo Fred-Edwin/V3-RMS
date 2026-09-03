@@ -32,12 +32,14 @@ export const departmentRepository = {
     });
   },
 
-  countStaffByDepartment: async (organizationId: string, departmentTag: DepartmentTag) => {
+  listMembersByDepartment: async (organizationId: string, departmentTag: DepartmentTag) => {
     // Department membership for scheduling is role-derived (see utils/departments):
     // the worked roles for this department. The head is one of those roles too,
-    // so no separate clause is needed.
-    return prisma.user.count({
+    // so no separate clause is needed. The count is just `members.length`.
+    return prisma.user.findMany({
       where: { organizationId, isActive: true, ...departmentScopeFilter(departmentTag) },
+      select: { id: true, name: true, role: true },
+      orderBy: { name: 'asc' },
     });
   },
 

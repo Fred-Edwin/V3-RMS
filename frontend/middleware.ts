@@ -86,6 +86,9 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
   if (pathname === '/app/manage/settings' || pathname.startsWith('/app/manage/settings/')) {
     return false; // Directors use /app/director/settings; managers no longer have access
   }
+  if (pathname === '/app/manage/departments' || pathname.startsWith('/app/manage/departments/')) {
+    return role === 'MANAGER'; // Branch Manager assigns/changes department heads for their branch
+  }
   if (pathname.startsWith('/app/manage')) {
     return role === 'MANAGER';
   }

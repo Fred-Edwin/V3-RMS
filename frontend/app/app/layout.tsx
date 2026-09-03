@@ -80,6 +80,7 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
     overflowTabs: [
       { label: 'Analytics', href: '/app/manage/reports', icon: BarChart2 },
       { label: 'Staff', href: '/app/manage/staff', icon: Users },
+      { label: 'Departments', href: '/app/manage/departments', icon: Building2 },
       { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
       { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
       { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },
@@ -286,6 +287,7 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       label: 'Manage',
       items: [
         { label: 'Staff', href: '/app/manage/staff', icon: Users },
+        { label: 'Departments', href: '/app/manage/departments', icon: Building2 },
         { label: 'Menu', href: '/app/manage/menu', icon: UtensilsCrossed },
         { label: 'Shifts', href: '/app/manage/shifts', icon: Calendar },
         { label: 'Delivery Zones', href: '/app/manage/delivery-zones', icon: Bike },

@@ -12,10 +12,18 @@ export interface DepartmentHeadDto {
   departmentTag: DepartmentTag | null;
 }
 
+export interface DepartmentMemberDto {
+  id: string;
+  name: string;
+  role: AppRole;
+}
+
 export interface DepartmentSummaryDto {
   departmentTag: DepartmentTag;
   head: DepartmentHeadDto | null;
-  staffCount: number;
+  /** Active staff whose base role belongs to this department. `members.length`
+   *  is the roster count — there is no separate count field. */
+  members: DepartmentMemberDto[];
 }
 
 export interface EligibleStaffDto {

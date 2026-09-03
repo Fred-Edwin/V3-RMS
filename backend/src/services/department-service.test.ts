@@ -7,7 +7,7 @@ vi.mock('../repositories/department-repository', () => ({
   departmentRepository: {
     findOrganization: vi.fn(),
     findHeadByDepartment: vi.fn(),
-    countStaffByDepartment: vi.fn(),
+    listMembersByDepartment: vi.fn(),
     findEligibleStaff: vi.fn(),
     findStaffById: vi.fn(),
     assignHead: vi.fn(),
@@ -161,10 +161,10 @@ describe('departmentService.listDepartments', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  it('returns all five departments with head and staff count', async () => {
+  it('returns all five departments with head and members', async () => {
     vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
-    vi.mocked(departmentRepository.countStaffByDepartment).mockResolvedValue(0);
+    vi.mocked(departmentRepository.listMembersByDepartment).mockResolvedValue([] as never);
 
     const result = await departmentService.listDepartments(managerActor, branchOrgId);
 
@@ -176,5 +176,26 @@ describe('departmentService.listDepartments', () => {
       'SERVICE',
       'HOUSEKEEPING',
     ]);
+    // `members` replaces the old `staffCount` — it is the roster line's data
+    // and its length is the count.
+    expect(result[0]).toHaveProperty('members', []);
+    expect(result[0]).not.toHaveProperty('staffCount');
+  });
+
+  it('threads each department\'s members through from the repository', async () => {
+    const kitchenMembers = [
+      { id: 'u1', name: 'Ann Njeri', role: 'CHEF' },
+      { id: 'u2', name: 'Ben Otieno', role: 'CHEF' },
+    ];
+    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
+    vi.mocked(departmentRepository.listMembersByDepartment).mockImplementation(
+      async (_orgId, tag) => (tag === 'KITCHEN' ? (kitchenMembers as never) : ([] as never)),
+    );
+
+    const result = await departmentService.listDepartments(managerActor, branchOrgId);
+
+    const kitchen = result.find((d) => d.departmentTag === 'KITCHEN');
+    expect(kitchen?.members).toEqual(kitchenMembers);
   });
 });
