@@ -1,8 +1,8 @@
 # Technical Design Document
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 2.0  
-**Status:** Live — Phase 8 Complete  
-**Date:** 2026-05-04  
+**Version:** 2.1  
+**Status:** Live. Core architecture current; §6–7 predate the redo — see note in §7  
+**Date:** 2026-05-04 (core) · 2026-09-07 (redo note)  
 **Author:** System Architect  
 **Changelog:** v2.0 — added Phase 7 (Credit Account auth flow, AWAITING_AUTHORIZATION pattern, Accountant role architecture), Phase 8 (Other Income, Discount authorization flows, HR Module, Internal Communications real-time design, BullMQ job expansion, Staff Transfers); added ADR-006 through ADR-010; updated background jobs table; updated open questions.
 
@@ -328,6 +328,29 @@ export const orderService = {
 ---
 
 ## 7. Backend Architecture
+
+> **Note (2026-09-07).** Two changes from the feature-by-feature redo
+> (`docs/FEATURE_REDO_PLAYBOOK.md`) are not yet folded into the sections below:
+>
+> 1. **Module structure migration.** The backend is moving from group-by-layer
+>    (`controllers/`, `services/`, `repositories/`, `validators/`) to
+>    group-by-feature (`backend/src/modules/<feature>/` with those files
+>    co-located, plus `backend/src/shared/` for middleware/config/sockets/jobs/
+>    utils/types). This happens **one feature at a time, as part of that feature's
+>    redo** — not as a big-bang refactor. New feature code goes in `modules/`;
+>    not-yet-redone features keep the flat layout. See playbook §9 and
+>    `CODING_STANDARDS.md` §4. The layer *rules* (thin controllers, logic in
+>    services, Prisma only in repositories) are unchanged — only the file
+>    grouping changes. One carve-out: a `prisma.$transaction` may live in a
+>    service; plain reads/writes may not.
+>
+> 2. **Design System v2.** The frontend "warm" design system is being replaced
+>    with **shadcn/ui primitives restyled onto new design tokens**, built in
+>    Phase 0 of the redo. `frontend/components/ui/` becomes the shadcn-based set;
+>    `docs/DESIGN_SYSTEM.md` is rewritten around the new tokens. §6 (Frontend
+>    Architecture) predates this.
+>
+> ADR-006 through ADR-010 (§26) predate the redo; revisit them per feature.
 
 ### Controller — Thin by Design
 

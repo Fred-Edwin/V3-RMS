@@ -1,9 +1,27 @@
 # Data Model
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 2.0
-**Status:** Current
-**Date:** 2026-05-04
+**Version:** 2.1
+**Status:** Partially stale — see note below
+**Date:** 2026-05-04 (core) · 2026-09-07 (staleness note + HR additions)
 **Stack:** PostgreSQL · Prisma ORM
+
+> **Staleness note (2026-09-07).** This document was written at Phase 8. The
+> schema is now at ~72 models / 34 enums. **`backend/prisma/schema.prisma` is the
+> source of truth.** Known gaps in this doc:
+> - **HR:** `ContractType`, `LeavePolicy`, `LeaveRequestAcknowledgement`,
+>   `Payslip` are documented in §4.44–4.47 below (added 2026-09-07). The
+>   `EmployeeProfile` block in §4.39 predates the statutory-ID / bank-details /
+>   contract-type fields — check the schema.
+> - **Inventory (Phase 1, live in production):** `Location`, `InventoryItem`,
+>   `Supplier`, `SupplierItem`, `PurchaseOrder(+Line)`, `SupplierInvoice`,
+>   `SupplierPayment`, `PrepRecipe(+Line)`, `PrepRecord(+Line)`, `StockCount(+Line)`,
+>   `WasteLog`, `InventoryTransaction`, `ParLevel` — **not documented here.** They
+>   will be documented during the Inventory redo (see `docs/FEATURE_REDO_PLAYBOOK.md`).
+> - **Inventory Phase 2 scaffolding:** `Requisition(+Line)`, `Dispatch(+Line)`,
+>   `MarketPurchase(+Line)` — partial, not documented, subject to the redo.
+> - **Order/menu/staff core:** additions from Phases 10–12 (guest split,
+>   cancellation approval, order correction) and the department-head marker are
+>   not reflected in §4.13–4.15 / §4.3.
 
 ---
 
@@ -1506,6 +1524,137 @@ model HrDocument {
   @@map("hr_documents")
 }
 ```
+
+---
+
+### 4.44 ContractType
+
+Named employment contract template (e.g. "Permanent", "6-Month Fixed Term").
+Owns a set of `LeavePolicy` rows that determine leave entitlements for any
+`EmployeeProfile` assigned this contract type. Added in the HR Profile Overhaul.
+
+```prisma
+model ContractType {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")  -- null = system-wide template
+  name           String
+  durationMonths Int?     @map("duration_months")  -- null = open-ended
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  leavePolicies    LeavePolicy[]
+  employeeProfiles EmployeeProfile[]
+
+  @@index([organizationId])
+  @@map("contract_types")
+}
+```
+
+**Notes:**
+- `EmployeeProfile.contractTypeId` links a staff member to their contract type.
+- When a profile is assigned a contract type, `LeaveBalance` rows are seeded from
+  the contract type's `LeavePolicy` entries.
+
+---
+
+### 4.45 LeavePolicy
+
+One leave entitlement line for a contract type: how many days of a given
+`LeaveType` that contract grants per year.
+
+```prisma
+model LeavePolicy {
+  id             String    @id @default(uuid())
+  contractTypeId String    @map("contract_type_id")
+  leaveType      LeaveType @map("leave_type")
+  totalDays      Int       @map("total_days")
+
+  contractType ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([contractTypeId, leaveType])
+  @@map("leave_policies")
+}
+```
+
+**Notes:**
+- `@@unique([contractTypeId, leaveType])` — one policy per leave type per contract.
+- Drives `LeaveBalance.totalDays` at profile assignment / year rollover.
+
+---
+
+### 4.46 LeaveRequestAcknowledgement
+
+Records that a specific user (e.g. a manager or affected colleague) has
+acknowledged a leave request. Many acknowledgements per request.
+
+```prisma
+model LeaveRequestAcknowledgement {
+  id             String   @id @default(uuid())
+  leaveRequestId String   @map("leave_request_id")
+  userId         String   @map("user_id")
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([leaveRequestId, userId])
+  @@index([userId])
+  @@map("leave_request_acknowledgements")
+}
+```
+
+---
+
+### 4.47 Payslip
+
+A generated payslip for one staff member for one pay period. Kenya statutory
+deductions (PAYE, SHA, NSSF tier 1 & 2, housing levy, HELB) are stored as
+explicit columns; ad-hoc deductions go in `otherDeductions` JSON. Added in the
+Payslip phase; viewing is gated (see `usePayslipGate`).
+
+```prisma
+model Payslip {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String   @map("user_id")
+  payPeriod       String   @map("pay_period")   -- e.g. "2026-08"
+  payDate         DateTime @map("pay_date")
+  grossPay        Decimal  @map("gross_pay") @db.Decimal(10, 2)
+  paye            Decimal  @db.Decimal(10, 2)
+  sha             Decimal  @db.Decimal(10, 2)
+  nssfTier1       Decimal  @map("nssf_tier1") @db.Decimal(10, 2)
+  nssfTier2       Decimal  @map("nssf_tier2") @db.Decimal(10, 2)
+  housingLevy     Decimal  @map("housing_levy") @db.Decimal(10, 2)
+  helb            Decimal? @db.Decimal(10, 2)
+  advance         Decimal? @db.Decimal(10, 2)
+  incentives      Decimal? @db.Decimal(10, 2)
+  overtime        Decimal? @db.Decimal(10, 2)
+  allowances      Decimal? @db.Decimal(10, 2)
+  otherDeductions Json?    @map("other_deductions")
+  totalDeductions Decimal  @map("total_deductions") @db.Decimal(10, 2)
+  netPay          Decimal  @map("net_pay") @db.Decimal(10, 2)
+  isLocked        Boolean  @default(false) @map("is_locked")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation("StaffPayslips", fields: [userId], references: [id])
+  createdBy    User         @relation("PayslipsCreated", fields: [createdById], references: [id])
+
+  @@unique([organizationId, userId, payPeriod])
+  @@index([organizationId, payPeriod])
+  @@index([userId])
+  @@map("payslips")
+}
+```
+
+**Notes:**
+- `@@unique([organizationId, userId, payPeriod])` — one payslip per person per period.
+- `isLocked` — once locked, the payslip is immutable (finalised for payment).
+- `otherDeductions` JSON shape: `[{ label: string, amount: number }]`.
 
 ---
 
