@@ -1717,7 +1717,7 @@ An order can involve two independent workflows simultaneously — the kitchen pr
 
 ### Why one PrepTicket per order-item line (not per station)?
 
-This is the workload-fairness design. An order with `Latte ×2 + Cappuccino` produces two separate BARISTA tickets — one for the Latte batch and one for the Cappuccino. This allows two different baristas to claim different items from the same order, distributing the work fairly. A single "all BARISTA items" ticket would force one person to make everything. See `docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
+This is the workload-fairness design. An order with `Latte ×2 + Cappuccino` produces two separate BARISTA tickets — one for the Latte batch and one for the Cappuccino. This allows two different baristas to claim different items from the same order, distributing the work fairly. A single "all BARISTA items" ticket would force one person to make everything. See `docs/archive/phases/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
 
 ### Why store `items` as JSON on PrepTicket?
 
