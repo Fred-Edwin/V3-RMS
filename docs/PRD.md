@@ -1,10 +1,20 @@
 # Product Requirements Document
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
 **Version:** 2.0  
-**Status:** Live — Phase 8 Complete  
+**Status:** Baseline — Phase 8. Superseded per-feature by `docs/features/<feature>/01-description.md`  
 **Date:** 2026-05-04  
 **Author:** System Architect  
 **Changelog:** v2.0 — added Phase 7 (Credit Accounts), Phase 8 (Operations Expansion: Other Income, Discounts, HR Module, Internal Communications, Staff Transfers), new roles (HR_MANAGER, ACCOUNTANT, KITCHEN_DISPLAY, BARISTA_DISPLAY); updated scope, user stories, and open questions to reflect current system state.
+
+> **Note (2026-09-07).** The project is in a feature-by-feature redo
+> (`docs/FEATURE_REDO_PLAYBOOK.md`). For each feature being redone, the owner
+> writes a fresh description in `docs/features/<feature>/01-description.md` that
+> **supersedes the corresponding section of this PRD**.
+>
+> Shipped since this PRD was written, not reflected below: Payslips, Guest Split
+> (Phase 10), Order Cancellation Approval (Phase 11), Order Correction (Phase 12),
+> HR Profile Overhaul (contract types, statutory IDs, document uploads),
+> Inventory Phase 1 (Central Store), Department-Head shift scheduling.
 
 ---
 
