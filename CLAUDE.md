@@ -7,20 +7,32 @@ a premium coffee bistro in Nyeri, Kenya, expanding from 2 to 10 branches.
 Stack: Next.js + TypeScript (frontend), Node.js + Express + TypeScript
 (backend), PostgreSQL + Prisma, Redis, Socket.io.
 
+## We Are In A Feature-By-Feature Redo
+
+The project is being rebuilt one feature at a time into a premium enterprise
+product with a new design system (shadcn/ui + new tokens) and a modular backend
+(`backend/src/modules/<feature>/`). **The process is defined in
+`docs/FEATURE_REDO_PLAYBOOK.md` — read it before starting any feature work or
+writing any agent-session prompt.** Working code keeps running; each feature is
+replaced in place, per build session, behind a migration plan.
+
+Current stage: see "Current Work" below.
+
 ## Project Documents — Read THE SPECIFIED SECTION of the document Before Acting - Do not read the whole document to avoid wasting tokens.
 
 Before implementing anything, read the document(s) specific sections/lines relevant to your task:
 
-| Document                   | Read When                                      |
-| -------------------------- | ---------------------------------------------- |
-| `docs/PRD.md`              | Understanding what a feature is supposed to do |
-| `docs/DATA_MODEL.md`       | Writing any Prisma schema or database query    |
-| `docs/TDD.md`              | Making any architectural decision              |
-| `docs/API_CONTRACT.md`     | Implementing any API endpoint                  |
-| `docs/DESIGN_SYSTEM.md`    | Building any UI component or page              |
-| `docs/BUILD_ORDER.md`      | Understanding what phase is being built        |
-| `docs/CODING_STANDARDS.md` | Writing any code — always                      |
-| `docs/context`             | Getting context for the previous phases        |
+| Document                        | Read When                                      |
+| ------------------------------- | ---------------------------------------------- |
+| `docs/FEATURE_REDO_PLAYBOOK.md` | Any feature work — the governing process       |
+| `docs/PRD.md`                   | Understanding what a feature is supposed to do |
+| `docs/DATA_MODEL.md`            | Writing any Prisma schema or database query    |
+| `docs/TDD.md`                   | Making any architectural decision              |
+| `docs/API_CONTRACT.md`          | Implementing any API endpoint                  |
+| `docs/DESIGN_SYSTEM.md`         | Building any UI component or page              |
+| `docs/CODING_STANDARDS.md`      | Writing any code — always                      |
+| `docs/features/<feature>/`      | Working on a feature being redone (per-feature docs) |
+| `docs/archive/INDEX.md`         | Historical phase context — NOT current guidance |
 
 ## Critical Domain Knowledge (Read Before Touching These Areas)
 
@@ -32,7 +44,7 @@ An order with `Latte x2 + Cappuccino + Fries` produces **3 tickets** (2 BARISTA 
 - `Cappuccino` → 1 ticket with `items: [{ name: "Cappuccino", quantity: 1 }]`
 - `Fries` → 1 ticket with `items: [{ name: "Fries", quantity: 1 }]`
 
-**Do not** revert to grouping all station items into one ticket. This was an intentional workload-fairness design. See `docs/context/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
+**Do not** revert to grouping all station items into one ticket. This was an intentional workload-fairness design. See `docs/archive/phases/PHASE_3_ENHANCEMENT_TICKET_SPLITTING.md` for full rationale.
 
 The `@@unique([orderId, station, sequence])` constraint on `PrepTicket` supports multiple tickets per station via the `sequence` field. When bulk-creating tickets with `createMany`, you **must** assign per-station sequence numbers explicitly — the default `sequence: 1` will cause a unique constraint violation for the second ticket of the same station.
 
@@ -52,14 +64,16 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 3. Every repository query includes `organizationId` in the where clause.
 4. Business logic lives in services only — never controllers or repositories.
 5. Database queries live in repositories only — never services or controllers.
+   A `prisma.$transaction` in a service is allowed; plain reads/writes are not.
 6. Every endpoint has a Zod schema for input validation.
 7. Passwords are never logged, returned in responses, or stored plain text.
 8. A feature without tests is not complete.
-9. Always use pnpm to install dependencies.
-10. Always use pnpm to run scripts.
-11. Always use pnpm to build the project.
-12. Always use pnpm to run the project.
-13. Use Windows PowerShell commands.
+9. New feature code goes in `backend/src/modules/<feature>/` and the new
+   `components/ui/` (shadcn + design tokens) — not the old flat `controllers/`,
+   `services/` layout. See `docs/FEATURE_REDO_PLAYBOOK.md` §9.
+10. Always use pnpm — install, run scripts, build, run.
+11. The owner runs on Windows PowerShell; agents here run on Linux/WSL. Give the
+    owner PowerShell commands, but run your own tooling with POSIX shell.
 
 ## Task Tracking
 
@@ -78,75 +92,66 @@ own bookkeeping, so update it live rather than only at the start/end of a task.
 
 ## Project Structure
 
+The backend is mid-migration from group-by-layer to group-by-feature. **New and
+redone features go in `backend/src/modules/<feature>/`** (routes, controller,
+service, repository, validators, types, tests co-located). Shared infrastructure
+goes in `backend/src/shared/`. `routes/index.ts` wires every module together.
+Existing not-yet-redone features still live in the flat
+`controllers/ services/ repositories/ validators/` layout — migrate them as part
+of their redo, never as a separate refactor. Full target layout and rules:
+`docs/FEATURE_REDO_PLAYBOOK.md` §9 and `docs/CODING_STANDARDS.md` §4.
+
+```
 backend/src/
-controllers/ — thin, validate + delegate only
-services/ — all business logic
-repositories/ — all Prisma queries
-middleware/ — auth, rbac, error handler
-routes/ — route definitions
-validators/ — Zod schemas
-sockets/ — Socket.io handlers
-jobs/ — BullMQ background jobs
-utils/ — pure utility functions
-types/ — TypeScript types
+  modules/<feature>/   NEW — co-located routes/controller/service/repository/validators/types/tests
+  shared/              middleware, config (prisma/redis/queues), sockets, jobs, utils, types
+  routes/index.ts      wires all module routes
+  controllers/ services/ repositories/ validators/   LEGACY — not-yet-redone features
 
 frontend/
-app/ — Next.js App Router pages
-components/ — reusable UI components
-ui/ — base components
-orders/ — order components
-kitchen/ — KDS/BDS components
-menu/ — menu components
-staff/ — staff components
-dashboard/ — dashboard components
-hooks/ — custom React hooks
-services/ — API call functions
-store/ — Zustand stores
-lib/ — utilities (apiClient, socket, cn)
-types/ — shared TypeScript types
+  app/                 Next.js App Router pages (grouped by role/feature)
+  components/ui/        shadcn/ui primitives on the design tokens (NEW system)
+  components/<feature>/ feature composites, arranged to match the Paper design
+  hooks/ services/ store/ (Zustand) lib/ (apiClient, socket, cn, tokens) types/
+```
 
-## Current Phase
+## Current Work
 
-<!-- UPDATE THIS EVERY TIME A PHASE BEGINS -->
+The feature-by-feature redo is defined in `docs/FEATURE_REDO_PLAYBOOK.md`.
 
-Phase: HR Profile & Contract Overhaul (auto-profile cleanup, contract/leave-policy linkage, self-service staff details, document uploads, staff list Excel-table)
-Status: Complete 2026-07-14 (both Session 1 Backend and Session 2 UI shipped). Remaining: production Cloudinary env-var check (ops, pre-ship).
-Plan file: docs/context/HR_PROFILE_OVERHAUL.md
+**Stage: Phase 0 (Design System Foundation) — not started.**
+Then Feature 1: Inventory (redesign Phase 1 + build Phase 2/3).
 
-Also complete: UI System Overhaul Round 1 (design tokens, Sheet/ExcelTable data components)
-Status: Round 0 complete 2026-07-06. Round 1 (Director → Accountant → Manager → HR → Admin sweep) complete 2026-07-08. Rounds 2–6 pending, not started.
-Plan file: docs/context/UI_SYSTEM_ROADMAP.md
+Done so far:
+- Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,
+  active `docs/` set trimmed to the canonical files + `docs/inventory/`.
+- `docs/FEATURE_REDO_PLAYBOOK.md` written.
 
-Current: Inventory & Procurement — Phase 2 (Central Store → Branch Departments)
-Status: Phase 1 (Central Store) complete 2026-07-29 and **merged to main + deployed to
-production 2026-07-31 (PR #34)** — all 9 sessions (schema, costing/ledger core,
-Catalog/Suppliers/PO/Receiving/Prep/Stock Count/Waste/Supplier AP backend, RBAC +
-reports, Attendant mobile, Manager desktop + mobile) plus the Central Store
-organization-scoping resolution (D-15): **all Central Store data and STORE_MANAGER/
-STORE_ATTENDANT users live on the hub Organization** (the org flagged `isHub` — a
-company-level unit, never a branch/point of sale), enforced by service guards and a
-one-Central-Store-system-wide partial unique index. See
-docs/context/INVENTORY-FEATURE/CENTRAL_STORE_SCOPING_DESIGN.md for the full rule
-(incl. the "hub appears in people contexts, never sales contexts" visibility rule)
-and docs/context/INVENTORY-FEATURE/PHASE1_LOCAL_TEST_GUIDE.md for the verified
-walkthrough + production setup sequence (create Central Store org → Set Hub →
-Set up Central Store → create Store Manager → Manager creates Attendants).
-The deploy also ran 20260728101630_drop_legacy_inventory_v2, removing orphaned
-schema left in production by the reverted March 2026 V2.1 inventory build.
-Phase 2 planning has not started — no sessions, no schema/code for dispatch/
-requisition/branch departments yet. Multi-session build, strictly sequential
-(no parallel sessions), once Phase 2 planning closes.
-Feature spec: docs/context/INVENTORY-FEATURE/INVENTORY_FEATURE_PLAN.md (start here — status, decisions, full role/screen spec; §5 has the Phase 2 spec)
-Session plan (Phase 1, all complete): docs/context/INVENTORY-FEATURE/INVENTORY_PHASE1_SESSION_PLAN.md
-Domain model: docs/context/central_kitchen_inventory_model.md
-Client reference photos: docs/context/INVENTORY-FEATURE/inventory-real-data/
+### Inventory — current production state (until redone)
 
-Previous phases (all complete): full history lives in `docs/context/` as one
-`PHASE_N_*.md` file per phase (Phase 0 through Phase 12, plus Phase 8's addenda —
-ACCOUNTANT role, staff/customer discounts, HR module, internal comms — and the
-cross-phase `REFINEMENT_CONTEXT.md`). Read the specific phase file when you need
-that phase's context; don't enumerate them here — this list drifted out of sync
-with the actual files before and isn't worth maintaining by hand.
+Phase 1 (Central Store) is live in production (deployed 2026-07-31, PR #34):
+Catalog, Suppliers, Purchase Orders, Receiving, Prep, Stock Count, Waste,
+Supplier AP, plus RBAC + reports and the Attendant mobile / Manager desktop UIs.
+
+Key rule still in force — **Central Store hub-org scoping (D-15):** all Central
+Store data and `STORE_MANAGER` / `STORE_ATTENDANT` users live on the hub
+Organization (the org flagged `isHub` — a company-level unit, never a
+branch/point of sale). Enforced by service guards + a one-Central-Store
+partial unique index. The hub appears in people contexts, never sales contexts.
+Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
+
+Inventory reference material for the redo:
+- `docs/inventory/INVENTORY_FEATURE_PLAN.md` — the pre-redo living spec (§5 = Phase 2)
+- `docs/inventory/central_kitchen_inventory_model.md` — domain model research
+- `docs/inventory/reference-photos/` — the client's actual paper records
+- `docs/inventory/PHASE1_LOCAL_TEST_GUIDE.md`, `MANUAL_TESTING_GUIDE.md`,
+  `STORE_ROLES_STAFF_INTEGRATION.md` — how Phase 1 behaves today
+
+### Historical context
+
+All prior phase context (Phase 0–12, HR/comms/accountant/discount/payslip
+modules, the old "warm" UI roadmap) is in `docs/archive/` — see
+`docs/archive/INDEX.md`. It is history, not current guidance.
 
 ## Current Deployment Model (Authoritative)
 
