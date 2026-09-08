@@ -120,20 +120,13 @@ optional and it comes first.
 - Plus app-specific composites identified during design (e.g. sidebar nav,
   KDS/BDS card, ledger table).
 
-### 4.4 Proof screen
-- Rebuild **one existing, low-risk screen** end to end in the new system to prove
-  the whole toolchain: Paper → `get_computed_styles` / `get_jsx` → shadcn →
-  tokens → visual diff → running app.
-- Work out the kinks here, not during Feature 1.
-
-### 4.5 Structure groundwork
+### 4.4 Structure groundwork
 - Create `backend/src/modules/` and `backend/src/shared/` (empty, with a README
   each). Feature modules land here as features are redone.
 - Do **not** move existing code yet — that happens per feature.
 
 **Phase 0 exit:** owner has approved tokens; `DESIGN_SYSTEM.md` rewritten; base
-`components/ui/` built on tokens; one screen proven; `modules/` + `shared/`
-scaffolded.
+`components/ui/` built on tokens; `modules/` + `shared/` scaffolded.
 
 ---
 
