@@ -45,6 +45,37 @@ export const CreateEntrySchema = z.object({
   branchId: z.string().uuid('branchId must be a valid UUID').optional(),
 });
 
+/**
+ * Correcting an already-recorded entry. Every field is optional; at least one
+ * must be present. The payment-method shape (split sub-amounts, mpesa code) is
+ * re-validated in the service against the resulting method, same as on create.
+ * `branchId` and the recorder are intentionally NOT editable — a correction
+ * never reassigns ownership or moves an entry between branches.
+ */
+export const UpdateEntrySchema = z
+  .object({
+    categoryId: z.string().uuid('categoryId must be a valid UUID').optional(),
+    amount: moneySchema.optional(),
+    paymentMethod: z.enum(['CASH', 'MPESA', 'CARD', 'SPLIT']).optional(),
+    mpesaCode: z.string().max(20).trim().optional(),
+    mpesaAmount: moneySchema.optional(),
+    cashAmount: moneySchema.optional(),
+    cardAmount: moneySchema.optional(),
+    splitType: z.enum(['MPESA_CASH', 'MPESA_CARD', 'CASH_CARD']).optional(),
+    description: z
+      .string()
+      .max(200, 'Description must be 200 characters or fewer')
+      .trim()
+      .optional(),
+    entryDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'entryDate must be YYYY-MM-DD format')
+      .optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: 'At least one field must be provided',
+  });
+
 export const ListEntriesSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -59,4 +90,5 @@ export const ListEntriesSchema = z.object({
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 export type CreateEntryInput = z.infer<typeof CreateEntrySchema>;
+export type UpdateEntryInput = z.infer<typeof UpdateEntrySchema>;
 export type ListEntriesInput = z.infer<typeof ListEntriesSchema>;

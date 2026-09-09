@@ -11,6 +11,7 @@ import type {
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateEntryInput,
+  UpdateEntryInput,
   ListEntriesInput,
 } from '../validators/other-income-schemas';
 
@@ -21,7 +22,11 @@ type Actor = NonNullable<Request['user']>;
 const CATEGORY_MANAGERS = new Set(['SYSTEM_ADMIN', 'DIRECTOR'] as const);
 const ENTRY_CREATORS = new Set(['SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER', 'WAITER'] as const);
 const ENTRY_FULL_VIEWERS = new Set(['SYSTEM_ADMIN', 'DIRECTOR', 'ACCOUNTANT'] as const);
+const ENTRY_EDITORS = new Set(['SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'] as const);
 const ORG_LEVEL_ROLES = new Set(['DIRECTOR', 'SYSTEM_ADMIN'] as const);
+
+/** Managers can only correct entries recorded within this many days. Director/Admin: no limit. */
+const MANAGER_EDIT_WINDOW_DAYS = 30;
 
 // ── Org resolution ────────────────────────────────────────────────────────────
 
@@ -164,6 +169,175 @@ export const otherIncomeService = {
       entryDate,
       recordedById: actor.id,
     });
+  },
+
+  /**
+   * Correct an already-recorded entry. MANAGER may edit entries recorded within
+   * the last 30 days (by entryDate); DIRECTOR / SYSTEM_ADMIN have no time limit.
+   * WAITER and ACCOUNTANT cannot edit. Every change is written to the entry's
+   * edit-audit trail.
+   */
+  updateEntry: async (
+    actor: Actor,
+    id: string,
+    input: UpdateEntryInput,
+  ): Promise<OtherIncomeEntryWithRelations> => {
+    if (!ENTRY_EDITORS.has(actor.role as 'SYSTEM_ADMIN' | 'DIRECTOR' | 'MANAGER')) {
+      throw new ForbiddenError('You do not have permission to edit income entries');
+    }
+
+    // Org-level roles look up without scope; branch roles are pinned to their org.
+    const scopeOrgId = ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')
+      ? undefined
+      : actor.organizationId ?? undefined;
+    const existing = await otherIncomeRepository.findEntryById(id, scopeOrgId);
+    if (!existing) throw new NotFoundError('Income entry not found');
+
+    // 30-day window for managers (by the entry's business date, not createdAt).
+    if (actor.role === 'MANAGER') {
+      const ageDays =
+        (Date.now() - existing.entryDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (ageDays > MANAGER_EDIT_WINDOW_DAYS) {
+        throw new ForbiddenError(
+          `Managers can only edit entries recorded in the last ${MANAGER_EDIT_WINDOW_DAYS} days`,
+        );
+      }
+    }
+
+    // Validate a changed category is active and reachable for this branch.
+    if (input.categoryId && input.categoryId !== existing.categoryId) {
+      const activeCategories = await otherIncomeRepository.findActiveCategories(
+        existing.organizationId,
+        existing.organizationId,
+      );
+      if (!activeCategories.some((c) => c.id === input.categoryId)) {
+        throw new ValidationError('Income category not found or is not available for this branch');
+      }
+    }
+
+    // Merge the incoming fields over the current row to get the resulting shape,
+    // then re-validate the payment breakdown the same way create does.
+    const method = input.paymentMethod ?? existing.paymentMethod;
+    const next: {
+      categoryId?: string;
+      amount?: string;
+      paymentMethod?: 'CASH' | 'MPESA' | 'CARD' | 'SPLIT';
+      mpesaCode?: string | null;
+      mpesaAmount?: string | null;
+      cashAmount?: string | null;
+      cardAmount?: string | null;
+      splitType?: string | null;
+      description?: string | null;
+      entryDate?: Date;
+    } = {
+      categoryId: input.categoryId,
+      amount: input.amount,
+      paymentMethod: input.paymentMethod,
+      mpesaCode: input.mpesaCode,
+      mpesaAmount: input.mpesaAmount,
+      cashAmount: input.cashAmount,
+      cardAmount: input.cardAmount,
+      splitType: input.splitType,
+      description: input.description,
+      entryDate: input.entryDate ? new Date(`${input.entryDate}T00:00:00`) : undefined,
+    };
+
+    if (method === 'SPLIT') {
+      const splitType = input.splitType ?? existing.splitType;
+      if (!splitType) {
+        throw new ValidationError('A split entry must specify a split type');
+      }
+      const mpesa = Number(input.mpesaAmount ?? existing.mpesaAmount ?? 0);
+      const cash = Number(input.cashAmount ?? existing.cashAmount ?? 0);
+      const card = Number(input.cardAmount ?? existing.cardAmount ?? 0);
+      const legs =
+        splitType === 'MPESA_CASH'
+          ? mpesa + cash
+          : splitType === 'MPESA_CARD'
+            ? mpesa + card
+            : cash + card;
+      if (legs <= 0) {
+        throw new ValidationError('Split amounts must be greater than zero');
+      }
+      const total = Number(input.amount ?? existing.amount);
+      if (Math.abs(legs - total) > 0.01) {
+        throw new ValidationError('Split amounts must add up to the total amount');
+      }
+    } else if (input.amount !== undefined && Number(input.amount) <= 0) {
+      throw new ValidationError('Amount must be greater than zero');
+    }
+
+    // Switching away from SPLIT — clear the split-only columns.
+    if (input.paymentMethod && input.paymentMethod !== 'SPLIT' && existing.paymentMethod === 'SPLIT') {
+      next.splitType = null;
+      if (input.mpesaAmount === undefined) next.mpesaAmount = null;
+      if (input.cashAmount === undefined) next.cashAmount = null;
+      if (input.cardAmount === undefined) next.cardAmount = null;
+    }
+
+    // Build the human-readable change list for the audit row.
+    const fmt = (v: unknown): string | null =>
+      v === null || v === undefined ? null : String(v);
+    const currentSnapshot: Record<string, unknown> = {
+      categoryId: existing.categoryId,
+      amount: existing.amount.toString(),
+      paymentMethod: existing.paymentMethod,
+      mpesaCode: existing.mpesaCode,
+      mpesaAmount: existing.mpesaAmount?.toString() ?? null,
+      cashAmount: existing.cashAmount?.toString() ?? null,
+      cardAmount: existing.cardAmount?.toString() ?? null,
+      splitType: existing.splitType,
+      description: existing.description,
+      entryDate: existing.entryDate.toISOString().slice(0, 10),
+    };
+    const nextSnapshot: Record<string, unknown> = {
+      categoryId: next.categoryId,
+      amount: next.amount,
+      paymentMethod: next.paymentMethod,
+      mpesaCode: next.mpesaCode,
+      mpesaAmount: next.mpesaAmount,
+      cashAmount: next.cashAmount,
+      cardAmount: next.cardAmount,
+      splitType: next.splitType,
+      description: next.description,
+      entryDate: input.entryDate,
+    };
+    const MONEY_FIELDS = new Set(['amount', 'mpesaAmount', 'cashAmount', 'cardAmount']);
+    const sameValue = (field: string, a: string | null, b: string | null): boolean => {
+      if (MONEY_FIELDS.has(field)) {
+        return Number(a ?? 0) === Number(b ?? 0);
+      }
+      return a === b;
+    };
+    const changes = Object.keys(nextSnapshot)
+      .filter((k) => nextSnapshot[k] !== undefined)
+      .map((k) => ({ field: k, from: fmt(currentSnapshot[k]), to: fmt(nextSnapshot[k]) }))
+      .filter((c) => !sameValue(c.field, c.from, c.to));
+
+    if (changes.length === 0) {
+      // Nothing actually changed — return the entry untouched, no audit noise.
+      return existing;
+    }
+
+    const updated = await otherIncomeRepository.updateEntry(
+      id,
+      existing.organizationId,
+      {
+        categoryId: next.categoryId,
+        amount: next.amount,
+        paymentMethod: next.paymentMethod,
+        mpesaCode: next.mpesaCode,
+        mpesaAmount: next.mpesaAmount,
+        cashAmount: next.cashAmount,
+        cardAmount: next.cardAmount,
+        splitType: next.splitType,
+        description: next.description,
+        entryDate: next.entryDate,
+      },
+      { editedById: actor.id, changes },
+    );
+    if (!updated) throw new NotFoundError('Income entry not found');
+    return updated;
   },
 
   listEntries: async (

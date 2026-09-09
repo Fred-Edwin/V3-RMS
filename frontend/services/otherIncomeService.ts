@@ -6,6 +6,7 @@ import type {
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateEntryInput,
+  UpdateEntryInput,
   ListEntriesParams,
 } from '@/types/otherIncome';
 import type { PaginationMeta } from '@/types/order';
@@ -70,6 +71,9 @@ export const otherIncomeService = {
 
   createEntry: (input: CreateEntryInput, token: string): Promise<OtherIncomeEntry> =>
     apiClient.post('/other-income/entries', input, token),
+
+  updateEntry: (id: string, input: UpdateEntryInput, token: string): Promise<OtherIncomeEntry> =>
+    apiClient.patch(`/other-income/entries/${id}`, input, token),
 
   deleteEntry: (id: string, token: string): Promise<void> =>
     apiClient.delete(`/other-income/entries/${id}`, token),
