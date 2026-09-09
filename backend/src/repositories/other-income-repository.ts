@@ -7,10 +7,18 @@ export type OtherIncomeCategoryWithBranch = OtherIncomeCategory & {
   branch: { id: string; name: string } | null;
 };
 
+export interface OtherIncomeEntryEditRecord {
+  id: string;
+  editedBy: { id: string; name: string };
+  changes: Array<{ field: string; from: string | null; to: string | null }>;
+  createdAt: Date;
+}
+
 export type OtherIncomeEntryWithRelations = OtherIncomeEntry & {
   category: { id: string; name: string };
   branch: { id: string; name: string };
   recordedBy: { id: string; name: string };
+  edits: OtherIncomeEntryEditRecord[];
 };
 
 export interface OtherIncomeEntryForReceipt {
@@ -59,7 +67,41 @@ const entryInclude = {
   category: { select: { id: true, name: true } },
   branch: { select: { id: true, name: true } },
   recordedBy: { select: { id: true, name: true } },
+  edits: {
+    select: {
+      id: true,
+      changes: true,
+      createdAt: true,
+      editedBy: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  },
 } as const;
+
+type RawEntryWithIncludes = OtherIncomeEntry & {
+  category: { id: string; name: string };
+  branch: { id: string; name: string };
+  recordedBy: { id: string; name: string };
+  edits: Array<{
+    id: string;
+    changes: Prisma.JsonValue;
+    createdAt: Date;
+    editedBy: { id: string; name: string };
+  }>;
+};
+
+/** Normalise the raw Prisma row (Json `changes`) into our typed edit shape. */
+const mapEntry = (row: RawEntryWithIncludes): OtherIncomeEntryWithRelations => ({
+  ...row,
+  edits: row.edits.map((e) => ({
+    id: e.id,
+    editedBy: e.editedBy,
+    createdAt: e.createdAt,
+    changes: Array.isArray(e.changes)
+      ? (e.changes as OtherIncomeEntryEditRecord['changes'])
+      : [],
+  })),
+});
 
 // ── Repository ────────────────────────────────────────────────────────────────
 
@@ -219,7 +261,7 @@ export const otherIncomeRepository = {
     entryDate: Date;
     recordedById: string;
   }): Promise<OtherIncomeEntryWithRelations> => {
-    return prisma.otherIncomeEntry.create({
+    const created = await prisma.otherIncomeEntry.create({
       data: {
         organizationId: data.organizationId,
         branchId: data.branchId,
@@ -237,6 +279,75 @@ export const otherIncomeRepository = {
       },
       include: entryInclude,
     });
+    return mapEntry(created);
+  },
+
+  /**
+   * Apply a correction to an entry, org-scoped. `data` fields that are undefined
+   * are left untouched; `null` clears the column. The paired edit-audit row is
+   * written in the same transaction. Returns null if no entry matched the scope.
+   */
+  updateEntry: async (
+    id: string,
+    organizationId: string,
+    data: {
+      categoryId?: string;
+      amount?: string;
+      paymentMethod?: 'CASH' | 'MPESA' | 'CARD' | 'SPLIT';
+      mpesaCode?: string | null;
+      mpesaAmount?: string | null;
+      cashAmount?: string | null;
+      cardAmount?: string | null;
+      splitType?: string | null;
+      description?: string | null;
+      entryDate?: Date;
+    },
+    audit: {
+      editedById: string;
+      changes: OtherIncomeEntryEditRecord['changes'];
+    },
+  ): Promise<OtherIncomeEntryWithRelations | null> => {
+    const dec = (v: string | null | undefined): Prisma.Decimal | null | undefined =>
+      v === undefined ? undefined : v === null ? null : new Prisma.Decimal(v);
+
+    try {
+      const updated = await prisma.$transaction(async (tx) => {
+        const row = await tx.otherIncomeEntry.update({
+          where: { id, organizationId },
+          data: {
+            categoryId: data.categoryId,
+            amount: data.amount !== undefined ? new Prisma.Decimal(data.amount) : undefined,
+            paymentMethod: data.paymentMethod,
+            mpesaCode: data.mpesaCode,
+            mpesaAmount: dec(data.mpesaAmount),
+            cashAmount: dec(data.cashAmount),
+            cardAmount: dec(data.cardAmount),
+            splitType: data.splitType,
+            description: data.description,
+            entryDate: data.entryDate,
+          },
+          include: entryInclude,
+        });
+        await tx.otherIncomeEntryEdit.create({
+          data: {
+            entryId: id,
+            editedById: audit.editedById,
+            changes: audit.changes as unknown as Prisma.InputJsonValue,
+          },
+        });
+        // Re-read so the returned row includes the just-written edit
+        return tx.otherIncomeEntry.findUniqueOrThrow({
+          where: { id },
+          include: entryInclude,
+        });
+      });
+      return mapEntry(updated);
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+        return null;
+      }
+      throw e;
+    }
   },
 
   findEntries: async (
@@ -276,17 +387,18 @@ export const otherIncomeRepository = {
       }),
     ]);
 
-    return { entries, total };
+    return { entries: entries.map(mapEntry), total };
   },
 
   findEntryById: async (
     id: string,
     organizationId?: string,
   ): Promise<OtherIncomeEntryWithRelations | null> => {
-    return prisma.otherIncomeEntry.findFirst({
+    const row = await prisma.otherIncomeEntry.findFirst({
       where: { id, ...(organizationId ? { organizationId } : {}) },
       include: entryInclude,
     });
+    return row ? mapEntry(row) : null;
   },
 
   findEntryForReceipt: async (

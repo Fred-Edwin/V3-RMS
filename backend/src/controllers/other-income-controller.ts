@@ -5,6 +5,7 @@ import {
   CreateCategorySchema,
   UpdateCategorySchema,
   CreateEntrySchema,
+  UpdateEntrySchema,
   ListEntriesSchema,
   OtherIncomeIdParamSchema,
 } from '../validators/other-income-schemas';
@@ -85,6 +86,18 @@ export const otherIncomeController = {
       success: true,
       data: entry,
       message: 'Income entry recorded',
+    });
+  },
+
+  updateEntry: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = OtherIncomeIdParamSchema.parse(req.params);
+    const input = UpdateEntrySchema.parse(req.body);
+    const entry = await otherIncomeService.updateEntry(actor, id, input);
+    res.status(200).json({
+      success: true,
+      data: entry,
+      message: 'Income entry updated',
     });
   },
 

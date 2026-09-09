@@ -54,6 +54,13 @@ otherIncomeRoutes.post(
   otherIncomeController.createEntry,
 );
 
+otherIncomeRoutes.patch(
+  '/other-income/entries/:id',
+  authenticate,
+  requireRole('SYSTEM_ADMIN', 'DIRECTOR', 'MANAGER'),
+  otherIncomeController.updateEntry,
+);
+
 otherIncomeRoutes.delete(
   '/other-income/entries/:id',
   authenticate,

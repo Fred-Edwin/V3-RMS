@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Banknote, Plus, Printer, Trash2 } from 'lucide-react';
+import { Banknote, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -14,6 +14,7 @@ import {
   Select,
   type ExcelColumn,
 } from '@/components/ui';
+import { EditIncomeEntryDialog } from '@/components/other-income/EditIncomeEntryDialog';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { otherIncomeService } from '@/services/otherIncomeService';
@@ -82,6 +83,7 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<EntryRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPrinting, setIsPrinting] = useState<string | null>(null); // entryId being printed
+  const [editTarget, setEditTarget] = useState<OtherIncomeEntry | null>(null);
 
   useEffect(() => {
     if (!accessToken || !canFilterByBranch) return;
@@ -178,6 +180,20 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
     return role === 'DIRECTOR' || role === 'SYSTEM_ADMIN';
   };
 
+  // Managers may correct entries recorded in the last 30 days; Director/Admin any.
+  // Mirrors MANAGER_EDIT_WINDOW_DAYS on the backend.
+  const canEdit = (entry: OtherIncomeEntry): boolean => {
+    if (role === 'DIRECTOR' || role === 'SYSTEM_ADMIN') return true;
+    if (role !== 'MANAGER') return false;
+    const ageDays =
+      (Date.now() - new Date(`${entry.entryDate.slice(0, 10)}T00:00:00`).getTime()) / 86_400_000;
+    return ageDays <= 30;
+  };
+
+  const applyUpdatedEntry = (updated: OtherIncomeEntry): void => {
+    setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  };
+
   const totalValue = entries.reduce((sum, e) => sum + Number.parseFloat(e.amount), 0);
 
   // Category and payment-method breakdown for the currently-loaded range — helps
@@ -259,6 +275,16 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
           >
             <Printer size={16} />
           </button>
+          {canEdit(row) && (
+            <button
+              type="button"
+              onClick={() => setEditTarget(row)}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-none focus-visible:shadow-focus"
+              aria-label="Edit entry"
+            >
+              <Pencil size={16} />
+            </button>
+          )}
           {canDelete(row) && (
             <button
               type="button"
@@ -440,6 +466,14 @@ export default function OtherIncomeHistoryPage(): JSX.Element {
         }
         confirmLabel="Delete"
         isLoading={isDeleting}
+      />
+
+      <EditIncomeEntryDialog
+        entry={editTarget}
+        categories={categories}
+        isOpen={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        onSaved={applyUpdatedEntry}
       />
     </PageLayout>
   );

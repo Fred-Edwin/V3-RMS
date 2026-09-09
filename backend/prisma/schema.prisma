@@ -137,6 +137,7 @@ model User {
   customerCreditAccountsCreated      CustomerCreditAccount[]       @relation("CustomerCreditAccountCreatedBy")
   customerCreditSettlements          CustomerCreditSettlement[]    @relation("CustomerCreditSettledBy")
   otherIncomeEntries                 OtherIncomeEntry[]            @relation("OtherIncomeRecordedBy")
+  otherIncomeEntryEdits              OtherIncomeEntryEdit[]        @relation("OtherIncomeEntryEditedBy")
   ordersDiscounted                   Order[]                       @relation("OrderDiscountedBy")
   staffDiscountRequestsRequested     StaffDiscountAuthRequest[]    @relation("StaffDiscountRequestedBy")
   staffDiscountRequestsResolved      StaffDiscountAuthRequest[]    @relation("StaffDiscountResolvedBy")
@@ -894,16 +895,33 @@ model OtherIncomeEntry {
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
-  organization Organization        @relation(fields: [organizationId], references: [id])
-  branch       Organization        @relation("OtherIncomeEntryBranch", fields: [branchId], references: [id])
-  category     OtherIncomeCategory @relation(fields: [categoryId], references: [id])
-  recordedBy   User                @relation("OtherIncomeRecordedBy", fields: [recordedById], references: [id])
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  branch       Organization           @relation("OtherIncomeEntryBranch", fields: [branchId], references: [id])
+  category     OtherIncomeCategory    @relation(fields: [categoryId], references: [id])
+  recordedBy   User                   @relation("OtherIncomeRecordedBy", fields: [recordedById], references: [id])
+  edits        OtherIncomeEntryEdit[]
 
   @@index([organizationId])
   @@index([branchId])
   @@index([organizationId, entryDate])
   @@index([categoryId])
   @@map("other_income_entries")
+}
+
+/// Audit trail for corrections made to an OtherIncomeEntry after it was recorded.
+/// One row per edit action; `changes` holds an array of { field, from, to } objects.
+model OtherIncomeEntryEdit {
+  id        String   @id @default(uuid())
+  entryId   String   @map("entry_id")
+  editedById String  @map("edited_by_id")
+  changes   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  entry    OtherIncomeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  editedBy User             @relation("OtherIncomeEntryEditedBy", fields: [editedById], references: [id])
+
+  @@index([entryId])
+  @@map("other_income_entry_edits")
 }
 
 enum DiscountType {
