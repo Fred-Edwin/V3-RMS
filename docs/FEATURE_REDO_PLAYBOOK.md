@@ -109,16 +109,23 @@ optional and it comes first.
 - `docs/DESIGN_SYSTEM.md` is **rewritten** from scratch around them.
 - Old "warm" design-system doc content is already archived.
 
-### 4.3 Base component set (shadcn/ui)
-- Add shadcn/ui primitives via its own CLI (`npx shadcn@latest add <component>`),
-  which copies component source into the repo.
+### 4.3 Base component set (shadcn/ui) — new folder, old one untouched
+- **Do not touch `frontend/components/ui/`.** 114 files across every
+  not-yet-redone page import from it. It keeps serving them unchanged until
+  each of *their* features is redone.
+- Build the new set in **`frontend/components/ui2/`** (working name — rename at
+  the end of the whole redo once nothing imports the old one anymore).
+- Add shadcn/ui primitives via its own CLI (`npx shadcn@latest add <component>`,
+  pointed at `components/ui2/`), which copies component source into the repo.
 - Restyle each primitive onto the new tokens.
-- This becomes the new `frontend/components/ui/`.
 - Core set: button, input, select, combobox, dialog, sheet, drawer, table,
   data-table, card, badge, tabs, toast, dropdown-menu, tooltip, form, checkbox,
   radio, switch, skeleton, popover, command, avatar, separator, scroll-area.
 - Plus app-specific composites identified during design (e.g. sidebar nav,
   KDS/BDS card, ledger table).
+- **Migration rule:** a feature's redo is what moves its pages from `ui/` to
+  `ui2/` — never a bulk swap. Once every feature is redone and nothing imports
+  `ui/`, delete it and rename `ui2/` → `ui/` as a final cleanup step.
 
 ### 4.4 Structure groundwork
 - Create `backend/src/modules/` and `backend/src/shared/` (empty, with a README
@@ -126,7 +133,23 @@ optional and it comes first.
 - Do **not** move existing code yet — that happens per feature.
 
 **Phase 0 exit:** owner has approved tokens; `DESIGN_SYSTEM.md` rewritten; base
-`components/ui/` built on tokens; `modules/` + `shared/` scaffolded.
+`components/ui2/` built on tokens, `components/ui/` untouched; `modules/` +
+`shared/` scaffolded.
+
+**Phase 0 status — COMPLETE (2026-09-09).**
+- Tokens explored (3 directions), owner picked and refined the coffee-inspired
+  direction: espresso `#693C1B` primary + caramel secondary, clean near-white
+  surfaces, Geist / Geist Mono, 2px radii, six gradient tokens, dot+label
+  status. Paper file `01M1ZZJ6S3FZGF5C7PPBGTKY89` is the frozen reference.
+- Codified: `frontend/app/tokens.wds.css` (OKLCH) + `frontend/tailwind.wds.preset.ts`
+  (wired via `presets:` in `tailwind.config.ts`). All keys `wds-`-prefixed;
+  the prefix drops when `components/ui/` is retired.
+- `DESIGN_SYSTEM.md` rewritten from scratch around the tokens.
+- `components/ui2/` seeded with 8 primitives on the new tokens: button, input,
+  badge, card, separator, skeleton, label, status-dot. The rest of the core set
+  is added per feature as screens need it.
+- `backend/src/modules/` + `backend/src/shared/` scaffolded (README each).
+- Next: **Feature 1 — Inventory** (Step 1, owner writes the description).
 
 ---
 
@@ -174,8 +197,10 @@ gates**.
      `get_node_info`, `get_jsx`).
   3. Restyle the primitive to match Paper, using the design tokens.
 - Result: the component set in code matches the component set in Paper.
-- Components live in the new `components/ui/` (primitives) and
-  `components/<feature>/` (composites).
+- Components live in `components/ui2/` (primitives — add here, never in the old
+  `components/ui/`) and `components/<feature>/` (composites, built on `ui2/`).
+- This feature's pages switch their imports from `components/ui` to
+  `components/ui2` as they're rebuilt. Other features' pages are untouched.
 
 ### Step 5 — High-level plan (planning agent)  ⟶ OWNER APPROVES
 - One agent reads: the description, the approved flows, the approved screens, the
@@ -313,8 +338,9 @@ backend/src/
 frontend/
   app/                 Next.js pages (already grouped by role/feature)
   components/
-    ui/                shadcn/ui primitives on the design tokens
-    <feature>/         feature composites, arranged to match Paper
+    ui/                OLD system — untouched, serves not-yet-redone pages
+    ui2/               NEW — shadcn/ui primitives on the design tokens
+    <feature>/         feature composites, arranged to match Paper (built on ui2/)
   hooks/
   services/            one API-call module per feature, typed to the contract
   store/               Zustand
@@ -327,7 +353,9 @@ Rules:
   allowed; plain reads/writes are not). Add a lint rule to enforce this.
 - No cross-module imports between feature modules except through a module's
   public entry. Shared code goes in `shared/`.
-- `components/ui/` is design-system only. No feature logic there.
+- `components/ui2/` is design-system only. No feature logic there. Never add to
+  `components/ui/` — it's frozen, retired feature by feature (see §4.3), and
+  deleted once nothing imports it.
 
 ---
 

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Cormorant_Garamond, Inter } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { SessionBootstrap } from '@/components/app/SessionBootstrap';
 import { ToastContainer } from '@/components/ui/ToastContainer';
@@ -15,6 +17,10 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
 });
+
+// New design system (WDS). GeistSans/GeistMono expose --font-geist-sans /
+// --font-geist-mono; the wds preset's font-wds-* families point at those.
+// Consumed via `font-wds-sans` / `font-wds-mono` in components/ui2/.
 
 export const viewport: Viewport = {
   themeColor: '#2C1810',
@@ -46,8 +52,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cormorantGaramond.variable} ${inter.variable}`}>
-      <body className={`${cormorantGaramond.variable} ${inter.variable} font-sans`}>
+    <html
+      lang="en"
+      className={`${cormorantGaramond.variable} ${inter.variable} ${GeistSans.variable} ${GeistMono.variable}`}
+    >
+      <body
+        className={`${cormorantGaramond.variable} ${inter.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans`}
+      >
         <SessionBootstrap />
         <OfflineBanner />
         {children}

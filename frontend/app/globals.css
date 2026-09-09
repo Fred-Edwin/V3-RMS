@@ -2,8 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* New design-system token layer (wds-*). Transitional — see the file header.
+   Loaded here so the CSS variables exist app-wide; feature code consumes the
+   `wds-*` Tailwind utilities, not these vars directly. */
+@import './tokens.wds.css';
+
 /* --font-display and --font-sans are defined by next/font variable classes
-   on <html>/<body> (see app/layout.tsx) — do not redeclare them here. */
+   on <html>/<body> (see app/layout.tsx) — do not redeclare them here.
+   --font-geist-sans / --font-geist-mono (geist package) are set the same way
+   and the wds preset's font-wds-* families point at them. */
 
 * {
   box-sizing: border-box;

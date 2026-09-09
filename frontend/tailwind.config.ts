@@ -1,7 +1,12 @@
 import type { Config } from 'tailwindcss';
+import wdsPreset from './tailwind.wds.preset';
 
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  // The `wds-*` scale (new design system, used by components/ui2/) lives in its
+  // own preset so it never collides with the legacy warm theme below. When
+  // components/ui/ is retired, fold the preset in here and drop the prefix.
+  presets: [wdsPreset as Config],
   theme: {
     extend: {
       colors: {

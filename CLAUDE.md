@@ -119,13 +119,22 @@ frontend/
 
 The feature-by-feature redo is defined in `docs/FEATURE_REDO_PLAYBOOK.md`.
 
-**Stage: Phase 0 (Design System Foundation) — not started.**
-Then Feature 1: Inventory (redesign Phase 1 + build Phase 2/3).
+**Stage: Phase 0 (Design System Foundation) — COMPLETE (2026-09-09).**
+Next: **Feature 1 — Inventory** (Step 1: owner writes `docs/features/inventory/01-description.md`).
+Feature 1 covers redesigning Phase 1 + building Phase 2/3.
 
 Done so far:
 - Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,
   active `docs/` set trimmed to the canonical files + `docs/inventory/`.
 - `docs/FEATURE_REDO_PLAYBOOK.md` written.
+- **Phase 0 (2026-09-09)** — coffee-inspired design system, owner-approved in
+  Paper (`01M1ZZJ6S3FZGF5C7PPBGTKY89`): espresso `#693C1B` primary + caramel
+  secondary, clean near-white surfaces, Geist / Geist Mono, 2px radii, six
+  gradient tokens, dot+label status. Codified in `frontend/app/tokens.wds.css`
+  + `frontend/tailwind.wds.preset.ts`; `docs/DESIGN_SYSTEM.md` rewritten;
+  `frontend/components/ui2/` seeded with 8 primitives; `backend/src/modules/` +
+  `backend/src/shared/` scaffolded. All new tokens carry a `wds-` prefix that
+  drops when the legacy `components/ui/` is retired — see `DESIGN_SYSTEM.md` §2.
 
 ### Inventory — current production state (until redone)
 
