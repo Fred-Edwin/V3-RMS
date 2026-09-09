@@ -1,9 +1,26 @@
 ﻿# API Contract
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 2.0
-**Status:** Current
-**Date:** 2026-05-04
+**Version:** 2.1
+**Status:** Partially stale — being replaced feature-by-feature
+**Date:** 2026-05-04 (core) · 2026-09-07 (staleness note)
 **Base URL:** `https://api.wendo-rms.co.ke/api/v1`
+
+> **Note (2026-09-07).** Under the feature-by-feature redo
+> (`docs/FEATURE_REDO_PLAYBOOK.md`), each feature's contract is being re-authored
+> as **frozen shared Zod/TypeScript types committed to the code**, with a matching
+> section here. The prose below covers the Phase ≤8 surface and is still broadly
+> accurate for orders, auth, menu, staff, shifts, clock, and the account/credit
+> flows.
+>
+> **Route groups NOT documented here** (present in `backend/src/routes/`, to be
+> contracted during their redo): `department`, `dispatch`, `location`,
+> `inventory-item`, `inventory-report`, `purchase-order`, `supplier`,
+> `supplier-invoice`, `prep-record`, `stock-count`, `waste-log`, `requisition`
+> (all Inventory); `payslip`; `staff-transfer`; `modification-request`;
+> `order-correction`; `house-account-auth`, `staff-discount-auth`,
+> `customer-discount-auth`, `order-cancellation-auth` (only lightly covered).
+> For those, `backend/src/validators/` + `backend/src/routes/` are the source of
+> truth until the feature is redone.
 
 ---
 

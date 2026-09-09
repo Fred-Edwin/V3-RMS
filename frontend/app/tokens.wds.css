@@ -1,0 +1,159 @@
+/* ============================================================================
+   Wendo Design System (WDS) — token layer
+   ----------------------------------------------------------------------------
+   The `wds-` prefix is TRANSITIONAL. It exists only so this system can run
+   alongside the legacy warm design system (tailwind.config.ts colors, the old
+   components/ui/) without name collisions. When the last feature migrates off
+   components/ui/, the prefix is stripped in one find-and-replace pass and this
+   file's contents fold into globals.css.
+
+   Source of truth: docs/DESIGN_SYSTEM.md + the Paper file
+   (01M1ZZJ6S3FZGF5C7PPBGTKY89). Colors authored in OKLCH; the trailing hex on
+   each line is the reference value used during design and the visual fallback.
+
+   Do NOT consume these variables directly in feature code — use the Tailwind
+   `wds-*` utilities generated from tailwind.wds.preset.ts. Raw var() access is
+   only for gradient composition and one-off cases the preset can't express.
+   ========================================================================== */
+
+:root {
+  /* ---- Neutrals — warm-cast near-neutral. Canvas is 0. ------------------- */
+  --wds-neutral-0:   oklch(0.992 0.001 60);    /* #FCFCFC  canvas / surface */
+  --wds-neutral-50:  oklch(0.972 0.002 60);    /* #F6F5F3  subtle fill */
+  --wds-neutral-100: oklch(0.945 0.003 60);    /* #EEEDEA  hover fill */
+  --wds-neutral-200: oklch(0.905 0.004 60);    /* #E4E2DE  border */
+  --wds-neutral-300: oklch(0.845 0.006 60);    /* #D2CFC9  strong border */
+  --wds-neutral-400: oklch(0.700 0.008 60);    /* #A8A39B  placeholder */
+  --wds-neutral-500: oklch(0.575 0.009 60);    /* #847E76  muted text */
+  --wds-neutral-600: oklch(0.470 0.010 55);    /* #635E57  secondary text */
+  --wds-neutral-700: oklch(0.365 0.010 50);    /* #47433D  heading */
+  --wds-neutral-800: oklch(0.255 0.009 50);    /* #2E2B27  body text */
+  --wds-neutral-950: oklch(0.165 0.008 50);    /* #171512  ink / titles */
+
+  /* ---- Espresso — primary accent. Anchored on #693C1B (700). ------------ */
+  --wds-espresso-50:  oklch(0.966 0.012 62);   /* #F8F2EC  tint / active bg */
+  --wds-espresso-100: oklch(0.912 0.030 62);   /* #EEDDCC  hover tint */
+  --wds-espresso-200: oklch(0.812 0.052 63);   /* #DDBE9E  tint border */
+  --wds-espresso-400: oklch(0.650 0.066 60);   /* #B98A5E  disabled */
+  --wds-espresso-600: oklch(0.520 0.072 56);   /* #8B5A32  hover / gradient top */
+  --wds-espresso-700: oklch(0.420 0.075 52);   /* #693C1B  DEFAULT primary */
+  --wds-espresso-800: oklch(0.330 0.066 52);   /* #4E2C14  pressed */
+  --wds-espresso-900: oklch(0.240 0.048 50);   /* #33200F  deep */
+
+  /* ---- Caramel / crema — secondary. Grace notes only, never a fill. ----- */
+  --wds-caramel-100: oklch(0.960 0.028 75);    /* #FCF2E4 */
+  --wds-caramel-300: oklch(0.860 0.070 73);    /* #EFCF9E */
+  --wds-caramel-500: oklch(0.750 0.098 70);    /* #D9A65E  DEFAULT */
+  --wds-caramel-600: oklch(0.620 0.090 68);    /* #B5823E  text on white (AA) */
+  --wds-caramel-700: oklch(0.490 0.078 66);    /* #8C6230 */
+
+  /* ---- Semantic — fg (text/icon) · bg (subtle) · border ---------------- */
+  --wds-success-fg:     oklch(0.470 0.095 150); /* #2F6438 */
+  --wds-success-bg:     oklch(0.965 0.020 150); /* #EEF4EC */
+  --wds-success-border: oklch(0.880 0.035 150); /* #CADFC6 */
+
+  --wds-warning-fg:     oklch(0.500 0.100 70);  /* #8A5A16 */
+  --wds-warning-bg:     oklch(0.965 0.030 78);  /* #FBF2E4 */
+  --wds-warning-border: oklch(0.870 0.055 78);  /* #E7D3AC */
+
+  --wds-error-fg:       oklch(0.470 0.140 30);  /* #97281D */
+  --wds-error-bg:       oklch(0.960 0.025 30);  /* #FBEDEB */
+  --wds-error-border:   oklch(0.850 0.055 30);  /* #E6BEB7 */
+
+  --wds-info-fg:        oklch(0.470 0.070 240); /* #2C5670 */
+  --wds-info-bg:        oklch(0.960 0.015 240); /* #ECF2F5 */
+  --wds-info-border:    oklch(0.860 0.035 240); /* #C1D4DF */
+
+  /* ---- Role tokens — semantic aliases used across components ----------- */
+  --wds-canvas:            var(--wds-neutral-0);
+  --wds-surface:           #FFFFFF;
+  --wds-surface-sunken:    var(--wds-neutral-50);
+  --wds-border:            var(--wds-neutral-200);
+  --wds-border-strong:     var(--wds-neutral-300);
+  --wds-text:              var(--wds-neutral-800);
+  --wds-text-secondary:    var(--wds-neutral-600);
+  --wds-text-muted:        var(--wds-neutral-500);
+  --wds-text-ink:          var(--wds-neutral-950);
+  --wds-primary:           var(--wds-espresso-700);
+  --wds-primary-hover:     var(--wds-espresso-600);
+  --wds-primary-pressed:   var(--wds-espresso-800);
+  --wds-primary-fg:        var(--wds-neutral-0);
+  --wds-ring:              oklch(0.420 0.075 52 / 0.40);   /* espresso-700 @ 40% */
+
+  /* ---- Sidebar (nav rail) — its own tokens, not tied to espresso-900 --- */
+  --wds-sidebar-top:       oklch(0.234 0.025 55);   /* #211A15 warm-dark coffee */
+  --wds-sidebar-mid:       oklch(0.229 0.024 52);   /* #201A14 */
+  --wds-sidebar-bottom:    oklch(0.136 0.011 50);   /* #17110C near-black */
+  --wds-sidebar-fg:        oklch(0.900 0.006 60);   /* #E4E1DD nav item text */
+  --wds-sidebar-fg-active: oklch(0.965 0.006 60);   /* #F5F3EF */
+  --wds-sidebar-fg-muted:  oklch(0.600 0.010 55);   /* #8A7F76 group label */
+  --wds-sidebar-divider:   var(--wds-caramel-500);  /* the group underline */
+  --wds-sidebar-marker:    var(--wds-caramel-500);  /* active item left edge */
+  --wds-sidebar-active-bg: rgb(255 255 255 / 0.06);
+  --wds-sidebar-badge-bg:  var(--wds-espresso-700);
+  --wds-sidebar-badge-fg:  var(--wds-espresso-100);
+
+  /* ---- Radii — crisp. Ceiling is 6px. -------------------------------- */
+  --wds-radius-none: 0px;
+  --wds-radius-sm:   2px;   /* buttons, inputs, chips */
+  --wds-radius-md:   4px;   /* cards, panels, popovers */
+  --wds-radius-lg:   6px;   /* modals, sheets */
+  --wds-radius-full: 9999px;
+
+  /* ---- Elevation — border first; shadow only when something floats --- */
+  --wds-shadow-sm: 0 1px 2px rgb(23 21 18 / 0.05);
+  --wds-shadow-md: 0 4px 12px -2px rgb(23 21 18 / 0.10);
+  --wds-shadow-lg: 0 8px 24px -6px rgb(23 21 18 / 0.14);
+  --wds-sheen-inset: inset 0 1px 0 rgb(255 255 255 / 0.08);
+
+  /* ---- Gradients — every stop references a scale token -------------- */
+  --wds-gradient-sidebar: linear-gradient(
+    165deg in oklab,
+    var(--wds-sidebar-top) 0%,
+    var(--wds-sidebar-mid) 30%,
+    var(--wds-sidebar-bottom) 100%
+  );
+  --wds-gradient-primary: linear-gradient(
+    180deg in oklab,
+    var(--wds-espresso-600) 0%,
+    var(--wds-espresso-700) 100%
+  );
+  --wds-gradient-primary-hover: linear-gradient(
+    180deg in oklab,
+    oklch(0.560 0.074 56) 0%,
+    oklch(0.460 0.076 54) 100%
+  );
+  --wds-gradient-surface-raise: linear-gradient(
+    180deg in oklab,
+    #FFFFFF 0%,
+    var(--wds-espresso-50) 100%
+  );
+  --wds-gradient-topbar: linear-gradient(
+    180deg in oklab,
+    #FFFFFF 0%,
+    var(--wds-espresso-50) 100%
+  );
+  --wds-gradient-scroll-scrim: linear-gradient(
+    180deg,
+    rgb(23 21 18 / 0.05) 0%,
+    rgb(23 21 18 / 0) 100%
+  );
+  --wds-gradient-brand: linear-gradient(
+    135deg in oklab,
+    var(--wds-espresso-600) 0%,
+    var(--wds-espresso-800) 100%
+  );
+  --wds-gradient-skeleton: linear-gradient(
+    90deg,
+    var(--wds-neutral-100) 0%,
+    var(--wds-neutral-50) 50%,
+    var(--wds-neutral-100) 100%
+  );
+}
+
+/* Reduced-motion: skeleton shimmer falls back to a flat fill. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --wds-gradient-skeleton: var(--wds-neutral-100);
+  }
+}

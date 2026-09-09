@@ -21,6 +21,18 @@ const customTextScale = [
   'sheet-cell',
   'sheet-header',
   'sheet-band',
+  // New design system (wds-*) — transitional prefix.
+  'wds-display',
+  'wds-h1',
+  'wds-h2',
+  'wds-h3',
+  'wds-body',
+  'wds-body-sm',
+  'wds-label',
+  'wds-caption',
+  'wds-overline',
+  'wds-mono',
+  'wds-mono-sm',
 ] as const;
 
 // Treat custom text-* tokens as font-size utilities so text colors are not dropped.
