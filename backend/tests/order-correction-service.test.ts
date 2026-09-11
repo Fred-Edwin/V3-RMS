@@ -9,6 +9,7 @@ vi.mock('../src/repositories/order-correction-repository', () => ({
     removeOrderItem: vi.fn(),
     removeSplitLine: vi.fn(),
     addSplitLine: vi.fn(),
+    convertToSplit: vi.fn(),
   },
 }));
 
@@ -37,6 +38,7 @@ const buildOrder = (
     createdAt: Date;
     status: string;
     total: string;
+    paymentMethod: string | null;
     splitPaymentLines: Array<{ id: string; label: string; amount: string; method: string; mpesaCode: string | null }>;
   }> = {},
 ) => ({
@@ -45,6 +47,7 @@ const buildOrder = (
   createdAt: overrides.createdAt ?? new Date(),
   status: overrides.status ?? 'CLOSED',
   total: overrides.total ?? '900.00',
+  paymentMethod: overrides.paymentMethod ?? 'CASH',
   items: [
     {
       id: itemId,
@@ -228,5 +231,92 @@ describe('orderCorrectionService — split payment line correction', () => {
         reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
       }),
     ).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe('orderCorrectionService — convert to split payment', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('MANAGER can convert a single-method order to split with matching lines', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ paymentMethod: 'CASH', splitPaymentLines: [] }) as never,
+    );
+    vi.mocked(orderCorrectionRepository.convertToSplit).mockResolvedValue([{ id: lineId }] as never);
+
+    await expect(
+      orderCorrectionService.convertToSplit(orderId, managerActor, {
+        lines: [
+          { label: 'Guest 1', amount: 500, method: 'CASH' },
+          { label: 'Guest 2', amount: 400, method: 'CASH' },
+        ],
+        reason: 'Table actually split the bill between two guests, not one cash payment',
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects conversion when the order is not CLOSED', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ status: 'READY', paymentMethod: 'CASH' }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.convertToSplit(orderId, managerActor, {
+        lines: [
+          { label: 'Guest 1', amount: 500, method: 'CASH' },
+          { label: 'Guest 2', amount: 400, method: 'CASH' },
+        ],
+        reason: 'Table actually split the bill between two guests, not one cash payment',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('rejects conversion when the order is already SPLIT', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ paymentMethod: 'SPLIT' }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.convertToSplit(orderId, managerActor, {
+        lines: [
+          { label: 'Guest 1', amount: 500, method: 'CASH' },
+          { label: 'Guest 2', amount: 400, method: 'CASH' },
+        ],
+        reason: 'Table actually split the bill between two guests, not one cash payment',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('rejects conversion when the lines do not sum to the order total', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ paymentMethod: 'CASH', total: '900.00', splitPaymentLines: [] }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.convertToSplit(orderId, managerActor, {
+        lines: [
+          { label: 'Guest 1', amount: 500, method: 'CASH' },
+          { label: 'Guest 2', amount: 300, method: 'CASH' },
+        ],
+        reason: 'Table actually split the bill between two guests, not one cash payment',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('MANAGER cannot convert an order from another branch', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ organizationId: otherBranchId, paymentMethod: 'CASH' }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.convertToSplit(orderId, managerActor, {
+        lines: [
+          { label: 'Guest 1', amount: 500, method: 'CASH' },
+          { label: 'Guest 2', amount: 400, method: 'CASH' },
+        ],
+        reason: 'Table actually split the bill between two guests, not one cash payment',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

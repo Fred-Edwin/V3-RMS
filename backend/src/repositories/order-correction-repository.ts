@@ -436,4 +436,53 @@ export const orderCorrectionRepository = {
       return serializeSplitLine(line);
     });
   },
+
+  convertToSplit: async (
+    orderId: string,
+    organizationId: string,
+    lines: Array<{ label: string; amount: Decimal; method: PaymentMethod; mpesaCode?: string }>,
+    actorId: string,
+    before: string,
+    reason: string,
+  ): Promise<SplitPaymentLineRecord[]> => {
+    return prisma.$transaction(async (tx) => {
+      const order = await tx.order.updateMany({
+        where: { id: orderId, organizationId },
+        data: { paymentMethod: 'SPLIT' },
+      });
+      assertOrderUpdated(order.count);
+
+      const created = await Promise.all(
+        lines.map((line) =>
+          tx.splitPaymentLine.create({
+            data: {
+              orderId,
+              label: line.label,
+              amount: line.amount,
+              method: line.method,
+              mpesaCode: line.mpesaCode ?? null,
+            },
+          }),
+        ),
+      );
+
+      await tx.incidentLog.create({
+        data: {
+          organizationId,
+          orderId,
+          type: 'ORDER_CORRECTION',
+          actorId,
+          details: {
+            action: 'CONVERT_TO_SPLIT',
+            field: 'paymentMethod',
+            before,
+            after: `SPLIT (${lines.length} lines: ${lines.map((l) => `${l.label} ${l.method} KES ${l.amount.toFixed(2)}`).join(', ')})`,
+            reason,
+          },
+        },
+      });
+
+      return created.map(serializeSplitLine);
+    });
+  },
 };

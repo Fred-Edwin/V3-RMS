@@ -4,6 +4,7 @@ import { orderCorrectionService } from '../services/order-correction-service';
 import {
   AddSplitLineCorrectionSchema,
   AdjustOrderTotalSchema,
+  ConvertToSplitSchema,
   CorrectMpesaCodeSchema,
   CorrectPaymentMethodSchema,
   ForceOrderReadySchema,
@@ -115,5 +116,13 @@ export const orderCorrectionController = {
     const input = AddSplitLineCorrectionSchema.parse(req.body);
     const line = await orderCorrectionService.addSplitLine(id, actor, input);
     res.status(201).json({ success: true, data: line, message: 'Payment line added' });
+  },
+
+  convertToSplit: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = correctionIdParamSchema.parse(req.params);
+    const input = ConvertToSplitSchema.parse(req.body);
+    const lines = await orderCorrectionService.convertToSplit(id, actor, input);
+    res.status(200).json({ success: true, data: lines, message: 'Order converted to split payment' });
   },
 };

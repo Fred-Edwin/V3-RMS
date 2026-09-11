@@ -92,4 +92,14 @@ export const orderCorrectionService = {
     token: string,
   ): Promise<void> =>
     apiClient.delete(`/admin/order-corrections/${orderId}/split-lines/${lineId}`, token, body),
+
+  convertToSplit: (
+    orderId: string,
+    body: {
+      lines: Array<{ label: string; amount: number; method: 'MPESA' | 'CASH' | 'CARD'; mpesaCode?: string }>;
+      reason: string;
+    },
+    token: string,
+  ): Promise<{ id: string }[]> =>
+    apiClient.post(`/admin/order-corrections/${orderId}/convert-to-split`, body, token),
 };
