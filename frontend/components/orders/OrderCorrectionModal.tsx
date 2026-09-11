@@ -36,6 +36,7 @@ const paymentMethodOptions: { value: PaymentMethod; label: string }[] = [
   { value: 'MPESA', label: 'M-Pesa' },
   { value: 'CASH', label: 'Cash' },
   { value: 'CARD', label: 'Card' },
+  { value: 'SPLIT', label: 'Split between guests' },
 ];
 
 const splitLineMethodOptions: { value: 'MPESA' | 'CASH' | 'CARD'; label: string }[] = [
@@ -43,6 +44,22 @@ const splitLineMethodOptions: { value: 'MPESA' | 'CASH' | 'CARD'; label: string 
   { value: 'CASH', label: 'Cash' },
   { value: 'CARD', label: 'Card' },
 ];
+
+interface SplitLineDraft {
+  id: string;
+  label: string;
+  amount: string;
+  method: 'MPESA' | 'CASH' | 'CARD';
+  mpesaCode: string;
+}
+
+const emptySplitDraftLine = (): SplitLineDraft => ({
+  id: crypto.randomUUID(),
+  label: '',
+  amount: '',
+  method: 'CASH',
+  mpesaCode: '',
+});
 
 export function OrderCorrectionModal({
   isOpen,
@@ -60,6 +77,10 @@ export function OrderCorrectionModal({
   const [newLineAmount, setNewLineAmount] = useState('');
   const [newLineMethod, setNewLineMethod] = useState<'MPESA' | 'CASH' | 'CARD'>('CASH');
   const [newLineMpesaCode, setNewLineMpesaCode] = useState('');
+  const [convertDraftLines, setConvertDraftLines] = useState<SplitLineDraft[]>([
+    emptySplitDraftLine(),
+    emptySplitDraftLine(),
+  ]);
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,14 +101,32 @@ export function OrderCorrectionModal({
 
   const paymentMethodChanged = newPaymentMethod !== '' && newPaymentMethod !== order.paymentMethod;
   const mpesaCodeChanged = newMpesaCode.trim() !== '' && newMpesaCode.trim() !== (order.mpesaCode ?? '');
+  const isConvertingToSplit = newPaymentMethod === 'SPLIT';
+
+  const convertLinesSum = convertDraftLines.reduce((sum, line) => sum + (Number.parseFloat(line.amount) || 0), 0);
+  const convertLinesValid =
+    convertDraftLines.length >= 2 &&
+    convertDraftLines.every(
+      (line) =>
+        line.label.trim() !== '' &&
+        Number.parseFloat(line.amount) > 0 &&
+        (line.method !== 'MPESA' || line.mpesaCode.trim() !== ''),
+    ) &&
+    Math.abs(convertLinesSum - newTotal) <= 1;
+
   const hasAnyChange =
     removedItemIds.size > 0 ||
-    paymentMethodChanged ||
+    (paymentMethodChanged && !isConvertingToSplit) ||
+    (isConvertingToSplit && convertLinesValid) ||
     mpesaCodeChanged ||
     removedSplitLineIds.size > 0 ||
     canAddSplitLine;
   const canSubmit =
-    reasonValid && hasAnyChange && remainingItems.length > 0 && remainingSplitLines.length > 0;
+    reasonValid &&
+    hasAnyChange &&
+    remainingItems.length > 0 &&
+    remainingSplitLines.length > 0 &&
+    (!isConvertingToSplit || convertLinesValid);
 
   const toggleRemove = (itemId: string) => {
     setRemovedItemIds((current) => {
@@ -113,6 +152,18 @@ export function OrderCorrectionModal({
     });
   };
 
+  const updateConvertDraftLine = (id: string, patch: Partial<SplitLineDraft>) => {
+    setConvertDraftLines((current) => current.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+  };
+
+  const addConvertDraftLine = () => {
+    setConvertDraftLines((current) => [...current, emptySplitDraftLine()]);
+  };
+
+  const removeConvertDraftLine = (id: string) => {
+    setConvertDraftLines((current) => (current.length <= 2 ? current : current.filter((line) => line.id !== id)));
+  };
+
   const reset = () => {
     setRemovedItemIds(new Set());
     setNewPaymentMethod('');
@@ -122,6 +173,7 @@ export function OrderCorrectionModal({
     setNewLineAmount('');
     setNewLineMethod('CASH');
     setNewLineMpesaCode('');
+    setConvertDraftLines([emptySplitDraftLine(), emptySplitDraftLine()]);
     setReason('');
   };
 
@@ -143,7 +195,21 @@ export function OrderCorrectionModal({
       for (const itemId of Array.from(removedItemIds)) {
         await orderCorrectionService.removeOrderItem(order.id, itemId, { reason: trimmedReason }, accessToken);
       }
-      if (paymentMethodChanged) {
+      if (isConvertingToSplit && convertLinesValid) {
+        await orderCorrectionService.convertToSplit(
+          order.id,
+          {
+            lines: convertDraftLines.map((line) => ({
+              label: line.label.trim(),
+              amount: Number.parseFloat(line.amount),
+              method: line.method,
+              mpesaCode: line.method === 'MPESA' ? line.mpesaCode.trim() : undefined,
+            })),
+            reason: trimmedReason,
+          },
+          accessToken,
+        );
+      } else if (paymentMethodChanged) {
         await orderCorrectionService.correctPaymentMethod(
           order.id,
           { paymentMethod: newPaymentMethod, reason: trimmedReason },
@@ -285,9 +351,10 @@ export function OrderCorrectionModal({
           )}
         </div>
 
-        {/* ── Payment method / M-Pesa code — CLOSED orders only, matching the
-             backend's correctPaymentMethod/correctMpesaCode status guard ───── */}
-        {order.status === 'CLOSED' && (
+        {/* ── Payment method / M-Pesa code — CLOSED, not-yet-split orders only.
+             Once an order is SPLIT/GUEST_SPLIT, the Split payment lines section
+             below is the only way to correct it — this section doesn't apply. */}
+        {order.status === 'CLOSED' && !isSplit(order.paymentMethod) && (
           <div className="space-y-2 border-t border-stone-200 pt-4">
             <p className="text-label-sm font-medium text-stone-700">Payment method</p>
             <p className="text-caption text-stone-500">
@@ -299,6 +366,60 @@ export function OrderCorrectionModal({
               value={newPaymentMethod}
               onChange={(event) => setNewPaymentMethod(event.target.value)}
             />
+
+            {isConvertingToSplit && (
+              <div className="space-y-2 rounded-lg border border-dashed border-stone-300 p-3">
+                <p className="text-caption font-medium text-stone-600">
+                  Split lines — must add up to KES {newTotal.toFixed(2)}
+                </p>
+                {convertDraftLines.map((line, index) => (
+                  <div key={line.id} className="grid grid-cols-[1fr_1fr_1fr_auto] items-start gap-2">
+                    <Input
+                      placeholder={`Guest ${index + 1}`}
+                      value={line.label}
+                      onChange={(event) => updateConvertDraftLine(line.id, { label: event.target.value })}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Amount"
+                      value={line.amount}
+                      onChange={(event) => updateConvertDraftLine(line.id, { amount: event.target.value })}
+                    />
+                    <Select
+                      options={splitLineMethodOptions}
+                      value={line.method}
+                      onChange={(event) =>
+                        updateConvertDraftLine(line.id, { method: event.target.value as 'MPESA' | 'CASH' | 'CARD' })
+                      }
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={convertDraftLines.length <= 2}
+                      onClick={() => removeConvertDraftLine(line.id)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                    {line.method === 'MPESA' && (
+                      <Input
+                        placeholder="M-Pesa code"
+                        value={line.mpesaCode}
+                        onChange={(event) =>
+                          updateConvertDraftLine(line.id, { mpesaCode: event.target.value.toUpperCase() })
+                        }
+                        className="col-span-3"
+                      />
+                    )}
+                  </div>
+                ))}
+                <Button variant="ghost" size="sm" onClick={addConvertDraftLine}>
+                  + Add another line
+                </Button>
+                <p className={`text-caption ${convertLinesValid ? 'text-stone-500' : 'text-amber-700'}`}>
+                  Lines total KES {convertLinesSum.toFixed(2)} of KES {newTotal.toFixed(2)}
+                </p>
+              </div>
+            )}
           </div>
         )}
 

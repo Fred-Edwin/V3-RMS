@@ -96,4 +96,11 @@ orderCorrectionRoutes.delete(
   orderCorrectionController.removeSplitLine,
 );
 
+orderCorrectionRoutes.post(
+  '/admin/order-corrections/:id/convert-to-split',
+  authenticate,
+  requireRole(...correctionRoles),
+  orderCorrectionController.convertToSplit,
+);
+
 export default orderCorrectionRoutes;

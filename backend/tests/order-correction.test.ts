@@ -207,6 +207,20 @@ describe('Order Correction routes', () => {
       expect(res.status).toBe(403);
     });
 
+    it('POST /admin/order-corrections/:id/convert-to-split blocks non-admin (403)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${waiterToken}`)
+        .send({
+          lines: [
+            { label: 'Guest 1', amount: 500, method: 'CASH' },
+            { label: 'Guest 2', amount: 400, method: 'CASH' },
+          ],
+          reason: 'Table actually split the bill, recorded as one cash payment by mistake',
+        });
+      expect(res.status).toBe(403);
+    });
+
     it('returns 401 when no token is provided', async () => {
       const res = await request(app).get('/api/v1/admin/order-corrections');
       expect(res.status).toBe(401);
@@ -773,6 +787,94 @@ describe('Order Correction routes', () => {
         .send(validBody);
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  // ── Convert to split payment ─────────────────────────────────────────────
+
+  describe('POST /admin/order-corrections/:id/convert-to-split', () => {
+    const validBody = {
+      lines: [
+        { label: 'Guest 1', amount: 500, method: 'CASH' },
+        { label: 'Guest 2', amount: 400, method: 'CASH' },
+      ],
+      reason: 'Table actually split the bill, recorded as one cash payment by mistake',
+    };
+
+    it('converts a single-method order to split for MANAGER', async () => {
+      vi.spyOn(orderCorrectionService, 'convertToSplit').mockResolvedValue([
+        {
+          id: splitLineId,
+          orderId,
+          label: 'Guest 1',
+          amount: '500.00',
+          method: 'CASH',
+          mpesaCode: null,
+          paidAt: new Date(),
+          createdAt: new Date(),
+        },
+      ]);
+
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('returns 409 when the order is already SPLIT', async () => {
+      vi.spyOn(orderCorrectionService, 'convertToSplit').mockRejectedValue(
+        new ConflictError('This order is already a split payment — add or remove lines instead'),
+      );
+
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 409 when the lines do not sum to the order total', async () => {
+      vi.spyOn(orderCorrectionService, 'convertToSplit').mockRejectedValue(
+        new ConflictError('Split lines total KES 700.00 but the order total is KES 900.00 — they must match'),
+      );
+
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 400 when fewer than 2 lines are given', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          lines: [{ label: 'Guest 1', amount: 900, method: 'CASH' }],
+          reason: 'Table actually split the bill, recorded as one cash payment by mistake',
+        });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 400 when mpesaCode is missing for method MPESA', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/convert-to-split`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          lines: [
+            { label: 'Guest 1', amount: 500, method: 'MPESA' },
+            { label: 'Guest 2', amount: 400, method: 'CASH' },
+          ],
+          reason: 'Table actually split the bill, recorded as one cash payment by mistake',
+        });
+
+      expect(res.status).toBe(400);
     });
   });
 });

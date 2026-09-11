@@ -84,6 +84,28 @@ export const AddSplitLineCorrectionSchema = z
     }
   });
 
+const splitLineDraftSchema = z
+  .object({
+    label: z.string().min(1).max(100),
+    amount: z.number().positive(),
+    method: z.enum(['MPESA', 'CASH', 'CARD'] as const),
+    mpesaCode: z.string().min(1).max(200).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.method === 'MPESA' && !data.mpesaCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'mpesaCode is required for Mpesa payment',
+        path: ['mpesaCode'],
+      });
+    }
+  });
+
+export const ConvertToSplitSchema = z.object({
+  lines: z.array(splitLineDraftSchema).min(2, 'A split payment needs at least 2 lines'),
+  reason: reasonSchema,
+});
+
 export const ListOrderCorrectionsQuerySchema = z.object({
   branchId: z.string().uuid().optional(),
   status: z.string().optional(),
@@ -104,3 +126,4 @@ export type RevertRejectedTicketInput = z.infer<typeof RevertRejectedTicketSchem
 export type AdjustOrderTotalInput = z.infer<typeof AdjustOrderTotalSchema>;
 export type RemoveSplitLineInput = z.infer<typeof RemoveSplitLineSchema>;
 export type AddSplitLineCorrectionInput = z.infer<typeof AddSplitLineCorrectionSchema>;
+export type ConvertToSplitInput = z.infer<typeof ConvertToSplitSchema>;

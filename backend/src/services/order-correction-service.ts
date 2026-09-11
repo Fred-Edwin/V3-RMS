@@ -6,6 +6,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import type {
   AddSplitLineCorrectionInput,
   AdjustOrderTotalInput,
+  ConvertToSplitInput,
   CorrectMpesaCodeInput,
   CorrectPaymentMethodInput,
   ForceOrderReadyInput,
@@ -432,6 +433,48 @@ export const orderCorrectionService = {
       order.organizationId,
       { label: input.label, amount: new Decimal(input.amount), method: input.method, mpesaCode: input.mpesaCode },
       actor.id,
+      input.reason,
+    );
+  },
+
+  convertToSplit: async (
+    orderId: string,
+    actor: Actor,
+    input: ConvertToSplitInput,
+  ) => {
+    const order = await orderCorrectionRepository.findById(orderId);
+    if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
+
+    assertWithinCorrectionWindow(order.createdAt, actor);
+
+    if (order.status !== 'CLOSED') {
+      throw new ConflictError('Converting to split payment is only allowed on CLOSED orders');
+    }
+    if (order.paymentMethod === 'SPLIT' || order.paymentMethod === 'GUEST_SPLIT') {
+      throw new ConflictError('This order is already a split payment — add or remove lines instead');
+    }
+
+    const orderTotal = Number(order.total);
+    const linesSum = input.lines.reduce((sum, l) => sum + l.amount, 0);
+
+    if (Math.abs(linesSum - orderTotal) > 1) {
+      throw new ConflictError(
+        `Split lines total KES ${linesSum.toFixed(2)} but the order total is KES ${orderTotal.toFixed(2)} — they must match`,
+      );
+    }
+
+    return orderCorrectionRepository.convertToSplit(
+      orderId,
+      order.organizationId,
+      input.lines.map((line) => ({
+        label: line.label,
+        amount: new Decimal(line.amount),
+        method: line.method,
+        mpesaCode: line.mpesaCode,
+      })),
+      actor.id,
+      order.paymentMethod ?? '(none)',
       input.reason,
     );
   },
