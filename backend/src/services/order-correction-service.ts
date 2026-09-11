@@ -1,33 +1,60 @@
+import type { Request } from 'express';
 import { Decimal } from '@prisma/client/runtime/library';
 import { orderCorrectionRepository } from '../repositories/order-correction-repository';
 import { socketService } from '../sockets/socket-service';
-import { ConflictError, NotFoundError, ValidationError } from '../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type {
+  AddSplitLineCorrectionInput,
   AdjustOrderTotalInput,
   CorrectMpesaCodeInput,
   CorrectPaymentMethodInput,
   ForceOrderReadyInput,
   ListOrderCorrectionsQuery,
   RemoveOrderItemInput,
+  RemoveSplitLineInput,
   RevertAwaitingAuthInput,
   RevertRejectedTicketInput,
 } from '../validators/order-correction-schemas';
 
-const MAX_CORRECTION_AGE_DAYS = 7;
+type Actor = NonNullable<Request['user']>;
 
-const assertWithinCorrectionWindow = (createdAt: Date): void => {
+// SYSTEM_ADMIN has no age limit. MANAGER/DIRECTOR are branch-scoped instead of
+// org-unrestricted, so they get a much longer window rather than a hard cutoff —
+// branch managers correct disputed orders days or weeks after the fact.
+const MAX_CORRECTION_AGE_DAYS: Partial<Record<Actor['role'], number>> = {
+  MANAGER: 90,
+  DIRECTOR: 90,
+};
+
+const assertWithinCorrectionWindow = (createdAt: Date, actor: Actor): void => {
+  const maxDays = MAX_CORRECTION_AGE_DAYS[actor.role];
+  if (maxDays === undefined) return; // SYSTEM_ADMIN and any other allowed role: unbounded
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - MAX_CORRECTION_AGE_DAYS);
+  cutoff.setDate(cutoff.getDate() - maxDays);
   if (createdAt < cutoff) {
     throw new ConflictError(
-      `Corrections are only allowed on orders created within the last ${MAX_CORRECTION_AGE_DAYS} days`,
+      `Corrections are only allowed on orders created within the last ${maxDays} days`,
     );
   }
 };
 
+// MANAGER/DIRECTOR may only correct orders belonging to their own organization
+// (branch). SYSTEM_ADMIN is unrestricted. Every method that loads an order by ID
+// must call this before performing any read or write.
+const assertOrderInScope = (orderOrganizationId: string, actor: Actor): void => {
+  if (actor.role === 'SYSTEM_ADMIN') return;
+  if (orderOrganizationId !== actor.organizationId) {
+    throw new ForbiddenError('Cannot access orders for another branch');
+  }
+};
+
 export const orderCorrectionService = {
-  listOrders: async (query: ListOrderCorrectionsQuery) => {
-    const { orders, total } = await orderCorrectionRepository.findMany(query);
+  listOrders: async (query: ListOrderCorrectionsQuery, actor: Actor) => {
+    const scopedQuery =
+      actor.role === 'SYSTEM_ADMIN'
+        ? query
+        : { ...query, branchId: actor.organizationId ?? undefined };
+    const { orders, total } = await orderCorrectionRepository.findMany(scopedQuery);
     return {
       orders: orders.map((o) => ({
         id: o.id,
@@ -54,9 +81,10 @@ export const orderCorrectionService = {
     };
   },
 
-  getOrderDetail: async (orderId: string) => {
+  getOrderDetail: async (orderId: string, actor: Actor) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
     return {
       id: order.id,
@@ -87,12 +115,20 @@ export const orderCorrectionService = {
       })),
       prepTickets: order.prepTickets,
       pendingAuthRequestId: order.houseAuthRequests[0]?.id ?? null,
+      splitPaymentLines: order.splitPaymentLines.map((line) => ({
+        id: line.id,
+        label: line.label,
+        amount: line.amount.toFixed(2),
+        method: line.method,
+        mpesaCode: line.mpesaCode,
+      })),
     };
   },
 
-  getAuditLog: async (orderId: string) => {
+  getAuditLog: async (orderId: string, actor: Actor) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
     const logs = await orderCorrectionRepository.findAuditLog(orderId);
     return logs.map((log) => ({
@@ -106,13 +142,14 @@ export const orderCorrectionService = {
 
   correctMpesaCode: async (
     orderId: string,
-    actorId: string,
+    actor: Actor,
     input: CorrectMpesaCodeInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status !== 'CLOSED') {
       throw new ConflictError('M-Pesa code correction is only allowed on CLOSED orders');
@@ -125,7 +162,7 @@ export const orderCorrectionService = {
       orderId,
       order.organizationId,
       input.mpesaCode,
-      actorId,
+      actor.id,
       order.mpesaCode ?? '(none)',
       input.reason,
     );
@@ -133,13 +170,14 @@ export const orderCorrectionService = {
 
   correctPaymentMethod: async (
     orderId: string,
-    actorId: string,
+    actor: Actor,
     input: CorrectPaymentMethodInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status !== 'CLOSED') {
       throw new ConflictError('Payment method correction is only allowed on CLOSED orders');
@@ -152,7 +190,7 @@ export const orderCorrectionService = {
       orderId,
       order.organizationId,
       input.paymentMethod,
-      actorId,
+      actor.id,
       order.paymentMethod ?? '(none)',
       input.reason,
     );
@@ -160,13 +198,14 @@ export const orderCorrectionService = {
 
   forceOrderReady: async (
     orderId: string,
-    actorId: string,
+    actor: Actor,
     input: ForceOrderReadyInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status !== 'IN_PROGRESS') {
       throw new ConflictError('Order must be IN_PROGRESS to force READY');
@@ -191,20 +230,21 @@ export const orderCorrectionService = {
     await orderCorrectionRepository.forceOrderReady(
       orderId,
       order.organizationId,
-      actorId,
+      actor.id,
       input.reason,
     );
   },
 
   revertAwaitingAuth: async (
     orderId: string,
-    actorId: string,
+    actor: Actor,
     input: RevertAwaitingAuthInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status !== 'AWAITING_AUTHORIZATION') {
       throw new ConflictError('Order must be AWAITING_AUTHORIZATION to revert');
@@ -219,7 +259,7 @@ export const orderCorrectionService = {
       orderId,
       order.organizationId,
       pendingAuth.id,
-      actorId,
+      actor.id,
       input.reason,
     );
   },
@@ -227,13 +267,14 @@ export const orderCorrectionService = {
   removeOrderItem: async (
     orderId: string,
     itemId: string,
-    actorId: string,
+    actor: Actor,
     input: RemoveOrderItemInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status === 'CANCELLED' || order.status === 'PENDING') {
       throw new ConflictError(
@@ -252,7 +293,7 @@ export const orderCorrectionService = {
       orderId,
       order.organizationId,
       itemId,
-      actorId,
+      actor.id,
       item.menuItem.name,
       new Decimal(item.subtotal),
       input.reason,
@@ -264,13 +305,14 @@ export const orderCorrectionService = {
   revertRejectedTicket: async (
     orderId: string,
     ticketId: string,
-    actorId: string,
+    actor: Actor,
     input: RevertRejectedTicketInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     const ticket = order.prepTickets.find((t) => t.id === ticketId);
     if (!ticket) throw new NotFoundError('Prep ticket not found on this order');
@@ -284,7 +326,7 @@ export const orderCorrectionService = {
       order.organizationId,
       ticketId,
       ticket.station,
-      actorId,
+      actor.id,
       input.reason,
     );
 
@@ -300,13 +342,14 @@ export const orderCorrectionService = {
 
   adjustOrderTotal: async (
     orderId: string,
-    actorId: string,
+    actor: Actor,
     input: AdjustOrderTotalInput,
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
 
-    assertWithinCorrectionWindow(order.createdAt);
+    assertWithinCorrectionWindow(order.createdAt, actor);
 
     if (order.status === 'CANCELLED') {
       throw new ConflictError('Cannot adjust the total of a CANCELLED order');
@@ -319,8 +362,76 @@ export const orderCorrectionService = {
       orderId,
       order.organizationId,
       newTotal,
-      actorId,
+      actor.id,
       before,
+      input.reason,
+    );
+  },
+
+  removeSplitLine: async (
+    orderId: string,
+    lineId: string,
+    actor: Actor,
+    input: RemoveSplitLineInput,
+  ) => {
+    const order = await orderCorrectionRepository.findById(orderId);
+    if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
+
+    assertWithinCorrectionWindow(order.createdAt, actor);
+
+    if (order.status !== 'CLOSED') {
+      throw new ConflictError('Split payment line correction is only allowed on CLOSED orders');
+    }
+
+    const line = order.splitPaymentLines.find((l) => l.id === lineId);
+    if (!line) throw new NotFoundError('Payment line not found');
+
+    if (order.splitPaymentLines.length === 1) {
+      throw new ConflictError('Cannot remove the last payment line from a split order');
+    }
+
+    const result = await orderCorrectionRepository.removeSplitLine(
+      orderId,
+      order.organizationId,
+      lineId,
+      actor.id,
+      input.reason,
+    );
+
+    if (!result) throw new NotFoundError('Payment line not found');
+  },
+
+  addSplitLine: async (
+    orderId: string,
+    actor: Actor,
+    input: AddSplitLineCorrectionInput,
+  ) => {
+    const order = await orderCorrectionRepository.findById(orderId);
+    if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
+
+    assertWithinCorrectionWindow(order.createdAt, actor);
+
+    if (order.status !== 'CLOSED') {
+      throw new ConflictError('Split payment line correction is only allowed on CLOSED orders');
+    }
+
+    const orderTotal = Number(order.total);
+    const existingSum = order.splitPaymentLines.reduce((sum, l) => sum + Number(l.amount), 0);
+    const newSum = existingSum + input.amount;
+
+    if (newSum > orderTotal + 1) {
+      throw new ConflictError(
+        `Adding KES ${input.amount} would exceed the order total of KES ${orderTotal.toFixed(2)}`,
+      );
+    }
+
+    return orderCorrectionRepository.addSplitLine(
+      orderId,
+      order.organizationId,
+      { label: input.label, amount: new Decimal(input.amount), method: input.method, mpesaCode: input.mpesaCode },
+      actor.id,
       input.reason,
     );
   },

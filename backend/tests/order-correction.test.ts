@@ -23,9 +23,16 @@ const chefToken = signAccessToken({
   organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
+const managerToken = signAccessToken({
+  userId: '55555555-5555-4555-8555-555555555555',
+  role: 'MANAGER',
+  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+});
+
 const orderId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const itemId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const ticketId = '44444444-4444-4444-8444-444444444444';
+const splitLineId = '66666666-6666-4666-8666-666666666666';
 
 const sampleListResult = {
   orders: [
@@ -184,9 +191,35 @@ describe('Order Correction routes', () => {
       expect(res.status).toBe(403);
     });
 
+    it('POST /admin/order-corrections/:id/split-lines blocks non-admin (403)', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/split-lines`)
+        .set('Authorization', `Bearer ${waiterToken}`)
+        .send({ label: 'Guest 1', amount: 500, method: 'CASH', reason: 'Split line was recorded with the wrong method at close' });
+      expect(res.status).toBe(403);
+    });
+
+    it('DELETE /admin/order-corrections/:id/split-lines/:lineId blocks non-admin (403)', async () => {
+      const res = await request(app)
+        .delete(`/api/v1/admin/order-corrections/${orderId}/split-lines/${splitLineId}`)
+        .set('Authorization', `Bearer ${waiterToken}`)
+        .send({ reason: 'Split line was recorded with the wrong method at close' });
+      expect(res.status).toBe(403);
+    });
+
     it('returns 401 when no token is provided', async () => {
       const res = await request(app).get('/api/v1/admin/order-corrections');
       expect(res.status).toBe(401);
+    });
+
+    it('allows MANAGER through the route layer (service still enforces branch scope)', async () => {
+      vi.spyOn(orderCorrectionService, 'listOrders').mockResolvedValue(sampleListResult);
+
+      const res = await request(app)
+        .get('/api/v1/admin/order-corrections')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
     });
   });
 
@@ -213,7 +246,10 @@ describe('Order Correction routes', () => {
         .get('/api/v1/admin/order-corrections?status=CLOSED&page=2&perPage=10')
         .set('Authorization', `Bearer ${systemAdminToken}`);
 
-      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ status: 'CLOSED', page: 2, perPage: 10 }));
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'CLOSED', page: 2, perPage: 10 }),
+        expect.objectContaining({ role: 'SYSTEM_ADMIN' }),
+      );
     });
   });
 
@@ -628,6 +664,115 @@ describe('Order Correction routes', () => {
         .send(validBody);
 
       expect(res.status).toBe(409);
+    });
+  });
+
+  // ── Split payment lines ──────────────────────────────────────────────────
+
+  describe('POST /admin/order-corrections/:id/split-lines', () => {
+    const validSplitBody = {
+      label: 'Guest 1',
+      amount: 500,
+      method: 'CASH',
+      reason: 'Split line was recorded with the wrong method at close',
+    };
+
+    it('adds a corrected split line for MANAGER', async () => {
+      vi.spyOn(orderCorrectionService, 'addSplitLine').mockResolvedValue({
+        id: splitLineId,
+        orderId,
+        label: 'Guest 1',
+        amount: '500.00',
+        method: 'CASH',
+        mpesaCode: null,
+        paidAt: new Date(),
+        createdAt: new Date(),
+      });
+
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/split-lines`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validSplitBody);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('returns 409 when the new line would exceed the order total', async () => {
+      vi.spyOn(orderCorrectionService, 'addSplitLine').mockRejectedValue(
+        new ConflictError('Adding KES 500 would exceed the order total of KES 900.00'),
+      );
+
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/split-lines`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validSplitBody);
+
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 400 when mpesaCode is missing for method MPESA', async () => {
+      const res = await request(app)
+        .post(`/api/v1/admin/order-corrections/${orderId}/split-lines`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ label: 'Guest 1', amount: 500, method: 'MPESA', reason: 'Split line was recorded incorrectly at close' });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('DELETE /admin/order-corrections/:id/split-lines/:lineId', () => {
+    const validBody = { reason: 'Split line was recorded with the wrong method at close' };
+
+    it('removes a split line for MANAGER', async () => {
+      vi.spyOn(orderCorrectionService, 'removeSplitLine').mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .delete(`/api/v1/admin/order-corrections/${orderId}/split-lines/${splitLineId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('returns 409 when order is not CLOSED', async () => {
+      vi.spyOn(orderCorrectionService, 'removeSplitLine').mockRejectedValue(
+        new ConflictError('Split payment line correction is only allowed on CLOSED orders'),
+      );
+
+      const res = await request(app)
+        .delete(`/api/v1/admin/order-corrections/${orderId}/split-lines/${splitLineId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 409 when removing the last remaining split line', async () => {
+      vi.spyOn(orderCorrectionService, 'removeSplitLine').mockRejectedValue(
+        new ConflictError('Cannot remove the last payment line from a split order'),
+      );
+
+      const res = await request(app)
+        .delete(`/api/v1/admin/order-corrections/${orderId}/split-lines/${splitLineId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(409);
+    });
+
+    it('returns 404 when the split line is not found on the order', async () => {
+      vi.spyOn(orderCorrectionService, 'removeSplitLine').mockRejectedValue(
+        new NotFoundError('Payment line not found'),
+      );
+
+      const res = await request(app)
+        .delete(`/api/v1/admin/order-corrections/${orderId}/split-lines/${splitLineId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send(validBody);
+
+      expect(res.status).toBe(404);
     });
   });
 });

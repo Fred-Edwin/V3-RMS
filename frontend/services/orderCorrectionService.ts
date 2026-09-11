@@ -77,4 +77,19 @@ export const orderCorrectionService = {
     token: string,
   ): Promise<void> =>
     apiClient.patch(`/admin/order-corrections/${orderId}/total`, body, token),
+
+  addSplitLine: (
+    orderId: string,
+    body: { label: string; amount: number; method: 'MPESA' | 'CASH' | 'CARD'; mpesaCode?: string; reason: string },
+    token: string,
+  ): Promise<{ id: string }> =>
+    apiClient.post(`/admin/order-corrections/${orderId}/split-lines`, body, token),
+
+  removeSplitLine: (
+    orderId: string,
+    lineId: string,
+    body: { reason: string },
+    token: string,
+  ): Promise<void> =>
+    apiClient.delete(`/admin/order-corrections/${orderId}/split-lines/${lineId}`, token, body),
 };

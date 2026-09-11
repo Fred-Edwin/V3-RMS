@@ -5,77 +5,95 @@ import { orderCorrectionController } from '../controllers/order-correction-contr
 
 const orderCorrectionRoutes = Router();
 
-// All routes in this file are SYSTEM_ADMIN only.
-// Literal sub-paths registered before parameterised /:id to avoid Express collisions.
+// SYSTEM_ADMIN has unrestricted, cross-branch access with no correction-age limit.
+// MANAGER/DIRECTOR are branch-scoped (enforced in order-correction-service.ts —
+// assertOrderInScope) and limited to a 90-day correction window instead of SYSTEM_ADMIN's
+// unbounded one. Literal sub-paths registered before parameterised /:id to avoid Express
+// collisions.
+const correctionRoles = ['SYSTEM_ADMIN', 'MANAGER', 'DIRECTOR'] as const;
 
 orderCorrectionRoutes.get(
   '/admin/order-corrections',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.listOrders,
 );
 
 orderCorrectionRoutes.get(
   '/admin/order-corrections/:id',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.getOrderDetail,
 );
 
 orderCorrectionRoutes.get(
   '/admin/order-corrections/:id/audit-log',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.getAuditLog,
 );
 
 orderCorrectionRoutes.patch(
   '/admin/order-corrections/:id/mpesa-code',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.correctMpesaCode,
 );
 
 orderCorrectionRoutes.patch(
   '/admin/order-corrections/:id/payment-method',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.correctPaymentMethod,
 );
 
 orderCorrectionRoutes.post(
   '/admin/order-corrections/:id/force-ready',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.forceOrderReady,
 );
 
 orderCorrectionRoutes.post(
   '/admin/order-corrections/:id/revert-auth',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.revertAwaitingAuth,
 );
 
 orderCorrectionRoutes.patch(
   '/admin/order-corrections/:id/items/:itemId/remove',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.removeOrderItem,
 );
 
 orderCorrectionRoutes.post(
   '/admin/order-corrections/:id/tickets/:ticketId/revert-rejected',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.revertRejectedTicket,
 );
 
 orderCorrectionRoutes.patch(
   '/admin/order-corrections/:id/total',
   authenticate,
-  requireRole('SYSTEM_ADMIN'),
+  requireRole(...correctionRoles),
   orderCorrectionController.adjustOrderTotal,
+);
+
+orderCorrectionRoutes.post(
+  '/admin/order-corrections/:id/split-lines',
+  authenticate,
+  requireRole(...correctionRoles),
+  orderCorrectionController.addSplitLine,
+);
+
+orderCorrectionRoutes.delete(
+  '/admin/order-corrections/:id/split-lines/:lineId',
+  authenticate,
+  requireRole(...correctionRoles),
+  orderCorrectionController.removeSplitLine,
 );
 
 export default orderCorrectionRoutes;

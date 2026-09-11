@@ -3,6 +3,27 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from '../config/database';
 import { ConflictError } from '../utils/errors';
 import type { ListOrderCorrectionsQuery } from '../validators/order-correction-schemas';
+import type { SplitPaymentLineRecord } from '../types/order.types';
+
+const serializeSplitLine = (line: {
+  id: string;
+  orderId: string;
+  label: string;
+  amount: { toString(): string };
+  method: PaymentMethod;
+  mpesaCode: string | null;
+  paidAt: Date;
+  createdAt: Date;
+}): SplitPaymentLineRecord => ({
+  id: line.id,
+  orderId: line.orderId,
+  label: line.label,
+  amount: line.amount.toString(),
+  method: line.method,
+  mpesaCode: line.mpesaCode,
+  paidAt: line.paidAt,
+  createdAt: line.createdAt,
+});
 
 const assertOrderUpdated = (count: number): void => {
   if (count === 0) {
@@ -31,6 +52,9 @@ const orderWithDetailInclude = {
     where: { status: 'PENDING' as const },
     select: { id: true, status: true },
     take: 1,
+  },
+  splitPaymentLines: {
+    orderBy: { createdAt: 'asc' as const },
   },
 } as const;
 
@@ -339,6 +363,77 @@ export const orderCorrectionRepository = {
         },
       });
       return order;
+    });
+  },
+
+  removeSplitLine: async (
+    orderId: string,
+    organizationId: string,
+    lineId: string,
+    actorId: string,
+    reason: string,
+  ) => {
+    return prisma.$transaction(async (tx) => {
+      const line = await tx.splitPaymentLine.findFirst({ where: { id: lineId, orderId } });
+      if (!line) return null;
+
+      await tx.splitPaymentLine.delete({ where: { id: lineId } });
+
+      await tx.incidentLog.create({
+        data: {
+          organizationId,
+          orderId,
+          type: 'ORDER_CORRECTION',
+          actorId,
+          details: {
+            action: 'REMOVE_SPLIT_LINE',
+            field: 'splitPaymentLines',
+            before: `${line.label}: ${line.method} KES ${new Decimal(line.amount).toFixed(2)}`,
+            after: 'removed',
+            reason,
+          },
+        },
+      });
+
+      return line;
+    });
+  },
+
+  addSplitLine: async (
+    orderId: string,
+    organizationId: string,
+    input: { label: string; amount: Decimal; method: PaymentMethod; mpesaCode?: string },
+    actorId: string,
+    reason: string,
+  ): Promise<SplitPaymentLineRecord> => {
+    return prisma.$transaction(async (tx) => {
+      const line = await tx.splitPaymentLine.create({
+        data: {
+          orderId,
+          label: input.label,
+          amount: input.amount,
+          method: input.method,
+          mpesaCode: input.mpesaCode ?? null,
+        },
+      });
+
+      await tx.incidentLog.create({
+        data: {
+          organizationId,
+          orderId,
+          type: 'ORDER_CORRECTION',
+          actorId,
+          details: {
+            action: 'ADD_SPLIT_LINE',
+            field: 'splitPaymentLines',
+            before: '(none)',
+            after: `${input.label}: ${input.method} KES ${input.amount.toFixed(2)}`,
+            reason,
+          },
+        },
+      });
+
+      return serializeSplitLine(line);
     });
   },
 };

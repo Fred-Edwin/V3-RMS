@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { DatePicker, PageHeader, PageLayout, Select } from '@/components/ui';
 import { OrderHistoryRow } from '@/components/orders/OrderHistoryRow';
 import { OrderDetailBottomSheet } from '@/components/orders/OrderDetailBottomSheet';
+import { OrderCorrectionModal } from '@/components/orders/OrderCorrectionModal';
 import { useOrderHistory } from '@/hooks/useOrderHistory';
 import { useToast } from '@/hooks/useToast';
 import { branchService, type BranchDto } from '@/services/branchService';
@@ -43,6 +44,7 @@ export default function HistoryPage(): JSX.Element {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPrintSubmitting, setIsPrintSubmitting] = useState(false);
   const [isPrintBillSubmitting, setIsPrintBillSubmitting] = useState(false);
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
 
   // Branch selector — only for cross-branch roles (DIRECTOR, ACCOUNTANT)
   const [branches, setBranches] = useState<BranchDto[]>([]);
@@ -102,6 +104,9 @@ export default function HistoryPage(): JSX.Element {
 
   const isManager = role === 'MANAGER' || role === 'DIRECTOR' || role === 'ACCOUNTANT';
   const isOwner = Boolean(selectedOrder && userId && selectedOrder.createdBy.id === userId);
+  // Order correction (editing a CLOSED order) is MANAGER/DIRECTOR only — narrower
+  // than the isManager flag above, which also covers ACCOUNTANT for other actions.
+  const canCorrectOrder = role === 'MANAGER' || role === 'DIRECTOR';
 
   const handlePrintReceipt = async (orderId: string, targetStationId: string | null) => {
     if (!accessToken || isPrintSubmitting) return;
@@ -296,7 +301,19 @@ export default function HistoryPage(): JSX.Element {
         isPrintBillSubmitting={isPrintBillSubmitting}
         isOwner={isOwner}
         isManager={isManager}
+        canCorrectOrder={canCorrectOrder}
+        onCorrectOrder={() => setIsCorrectionOpen(true)}
       />
+
+      {selectedOrder && accessToken && (
+        <OrderCorrectionModal
+          isOpen={isCorrectionOpen}
+          onClose={() => setIsCorrectionOpen(false)}
+          order={selectedOrder}
+          accessToken={accessToken}
+          onCorrected={() => void openOrder(selectedOrder.id)}
+        />
+      )}
     </PageLayout>
   );
 }
