@@ -79,6 +79,13 @@ interface OrderDetailBottomSheetProps {
   // Guest split callbacks
   onAddSplitLine?: (orderId: string, payload: AddSplitLinePayload) => Promise<SplitPaymentLine>;
   onDeleteSplitLine?: (orderId: string, lineId: string) => Promise<void>;
+  /**
+   * True only for MANAGER/DIRECTOR — not ACCOUNTANT, which is bundled into the
+   * broader `isManager` prop elsewhere in this component. Caller computes this
+   * precisely rather than this component inferring it from `isManager`.
+   */
+  canCorrectOrder?: boolean;
+  onCorrectOrder?: (orderId: string) => void;
 }
 
 // ─── Internal types ───────────────────────────────────────────────────────────
@@ -737,6 +744,8 @@ export function OrderDetailBottomSheet({
   isCustomerDiscountOverrideSubmitting = false,
   onAddSplitLine,
   onDeleteSplitLine,
+  canCorrectOrder = false,
+  onCorrectOrder,
 }: OrderDetailBottomSheetProps) {
   const [uiPaymentMethod, setUiPaymentMethod] = useState<UiPaymentValue>('MPESA');
   const [mpesaCode, setMpesaCode] = useState('');
@@ -778,6 +787,8 @@ export function OrderDetailBottomSheet({
     order.status !== 'PENDING' &&
     order.status !== 'CANCELLED' &&
     !isCancellationPending;
+  const canCorrect =
+    canCorrectOrder && Boolean(onCorrectOrder) && order.status === 'CLOSED' && order.items.length > 1;
 
   const resetPaymentForm = () => {
     setMpesaCode('');
@@ -975,6 +986,12 @@ export function OrderDetailBottomSheet({
             <Button variant="secondary" className="w-full" isLoading={isPrintBillSubmitting} onClick={() => setPrintTargetKind('BILL')}>
               <Printer size={16} className="mr-2 shrink-0" />
               Print Bill
+            </Button>
+          )}
+          {canCorrect && onCorrectOrder && (
+            <Button variant="secondary" className="w-full" onClick={() => onCorrectOrder(order.id)}>
+              <Trash2 size={16} className="mr-2 shrink-0" />
+              Correct Order
             </Button>
           )}
 

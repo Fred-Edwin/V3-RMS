@@ -23,6 +23,12 @@ const chefToken = signAccessToken({
   organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
+const managerToken = signAccessToken({
+  userId: '55555555-5555-4555-8555-555555555555',
+  role: 'MANAGER',
+  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+});
+
 const orderId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const itemId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const ticketId = '44444444-4444-4444-8444-444444444444';
@@ -188,6 +194,16 @@ describe('Order Correction routes', () => {
       const res = await request(app).get('/api/v1/admin/order-corrections');
       expect(res.status).toBe(401);
     });
+
+    it('allows MANAGER through the route layer (service still enforces branch scope)', async () => {
+      vi.spyOn(orderCorrectionService, 'listOrders').mockResolvedValue(sampleListResult);
+
+      const res = await request(app)
+        .get('/api/v1/admin/order-corrections')
+        .set('Authorization', `Bearer ${managerToken}`);
+
+      expect(res.status).toBe(200);
+    });
   });
 
   // ── List orders ──────────────────────────────────────────────────────────
@@ -213,7 +229,10 @@ describe('Order Correction routes', () => {
         .get('/api/v1/admin/order-corrections?status=CLOSED&page=2&perPage=10')
         .set('Authorization', `Bearer ${systemAdminToken}`);
 
-      expect(spy).toHaveBeenCalledWith(expect.objectContaining({ status: 'CLOSED', page: 2, perPage: 10 }));
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'CLOSED', page: 2, perPage: 10 }),
+        expect.objectContaining({ role: 'SYSTEM_ADMIN' }),
+      );
     });
   });
 
