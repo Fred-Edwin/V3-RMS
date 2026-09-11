@@ -226,11 +226,13 @@ export function OrderCorrectionModal({
           </p>
         </div>
 
-        {/* ── Remove items ─────────────────────────────────────────────── */}
+        {/* ── Remove items — the last remaining item can never be removed,
+             matching the backend's "cannot remove the last item" rule ───── */}
         <div className="space-y-2">
           <p className="text-label-sm font-medium text-stone-700">Items</p>
           {order.items.map((item) => {
             const isRemoved = removedItemIds.has(item.id);
+            const isOnlyItem = order.items.length === 1;
             return (
               <div
                 key={item.id}
@@ -244,27 +246,32 @@ export function OrderCorrectionModal({
                   </p>
                   <p className="text-caption text-stone-500">KES {Number.parseFloat(item.subtotal).toFixed(2)}</p>
                 </div>
-                <Button
-                  variant={isRemoved ? 'secondary' : 'destructive'}
-                  size="sm"
-                  onClick={() => toggleRemove(item.id)}
-                >
-                  {isRemoved ? 'Undo' : <Trash2 size={14} />}
-                </Button>
+                {!isOnlyItem && (
+                  <Button
+                    variant={isRemoved ? 'secondary' : 'destructive'}
+                    size="sm"
+                    onClick={() => toggleRemove(item.id)}
+                  >
+                    {isRemoved ? 'Undo' : <Trash2 size={14} />}
+                  </Button>
+                )}
               </div>
             );
           })}
 
-          {remainingItems.length === 0 && (
-            <p className="text-caption text-red-600">
-              Cannot remove every item from an order. Cancel the order instead if it should not exist at all.
+          {order.items.length === 1 && (
+            <p className="text-caption text-stone-500">
+              This order has only one item, so it cannot be removed — use payment method, M-Pesa code, or split
+              line corrections below instead.
             </p>
           )}
 
-          <div className="flex items-center justify-between border-t border-stone-200 pt-3">
-            <span className="text-body-sm text-stone-600">New total</span>
-            <span className="text-heading-sm font-semibold text-stone-900">KES {newTotal.toFixed(2)}</span>
-          </div>
+          {order.items.length > 1 && (
+            <div className="flex items-center justify-between border-t border-stone-200 pt-3">
+              <span className="text-body-sm text-stone-600">New total</span>
+              <span className="text-heading-sm font-semibold text-stone-900">KES {newTotal.toFixed(2)}</span>
+            </div>
+          )}
 
           {removedItemIds.size > 0 && Math.abs(delta) >= 0.01 && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">

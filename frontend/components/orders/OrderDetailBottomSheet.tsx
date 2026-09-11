@@ -787,8 +787,7 @@ export function OrderDetailBottomSheet({
     order.status !== 'PENDING' &&
     order.status !== 'CANCELLED' &&
     !isCancellationPending;
-  const canCorrect =
-    canCorrectOrder && Boolean(onCorrectOrder) && order.status === 'CLOSED' && order.items.length > 1;
+  const canCorrect = canCorrectOrder && Boolean(onCorrectOrder) && order.status === 'CLOSED';
 
   const resetPaymentForm = () => {
     setMpesaCode('');
