@@ -82,4 +82,18 @@ orderCorrectionRoutes.patch(
   orderCorrectionController.adjustOrderTotal,
 );
 
+orderCorrectionRoutes.post(
+  '/admin/order-corrections/:id/split-lines',
+  authenticate,
+  requireRole(...correctionRoles),
+  orderCorrectionController.addSplitLine,
+);
+
+orderCorrectionRoutes.delete(
+  '/admin/order-corrections/:id/split-lines/:lineId',
+  authenticate,
+  requireRole(...correctionRoles),
+  orderCorrectionController.removeSplitLine,
+);
+
 export default orderCorrectionRoutes;

@@ -2,16 +2,19 @@ import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../utils/errors';
 import { orderCorrectionService } from '../services/order-correction-service';
 import {
+  AddSplitLineCorrectionSchema,
   AdjustOrderTotalSchema,
   CorrectMpesaCodeSchema,
   CorrectPaymentMethodSchema,
   ForceOrderReadySchema,
   ListOrderCorrectionsQuerySchema,
   RemoveOrderItemSchema,
+  RemoveSplitLineSchema,
   RevertAwaitingAuthSchema,
   RevertRejectedTicketSchema,
   correctionIdParamSchema,
   correctionItemParamSchema,
+  correctionSplitLineParamSchema,
   correctionTicketParamSchema,
 } from '../validators/order-correction-schemas';
 
@@ -96,5 +99,21 @@ export const orderCorrectionController = {
     const input = AdjustOrderTotalSchema.parse(req.body);
     await orderCorrectionService.adjustOrderTotal(id, actor, input);
     res.status(200).json({ success: true, message: 'Order total adjusted' });
+  },
+
+  removeSplitLine: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id, lineId } = correctionSplitLineParamSchema.parse(req.params);
+    const input = RemoveSplitLineSchema.parse(req.body);
+    await orderCorrectionService.removeSplitLine(id, lineId, actor, input);
+    res.status(200).json({ success: true, message: 'Payment line removed' });
+  },
+
+  addSplitLine: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = correctionIdParamSchema.parse(req.params);
+    const input = AddSplitLineCorrectionSchema.parse(req.body);
+    const line = await orderCorrectionService.addSplitLine(id, actor, input);
+    res.status(201).json({ success: true, data: line, message: 'Payment line added' });
   },
 };

@@ -30,7 +30,15 @@ const paidAmount = (order: OrderDetail): number => {
 const isMpesaEligible = (method: PaymentMethod | null): boolean =>
   method === 'MPESA' || method === 'SPLIT' || method === 'GUEST_SPLIT';
 
+const isSplit = (method: PaymentMethod | null): boolean => method === 'SPLIT' || method === 'GUEST_SPLIT';
+
 const paymentMethodOptions: { value: PaymentMethod; label: string }[] = [
+  { value: 'MPESA', label: 'M-Pesa' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CARD', label: 'Card' },
+];
+
+const splitLineMethodOptions: { value: 'MPESA' | 'CASH' | 'CARD'; label: string }[] = [
   { value: 'MPESA', label: 'M-Pesa' },
   { value: 'CASH', label: 'Cash' },
   { value: 'CARD', label: 'Card' },
@@ -47,6 +55,11 @@ export function OrderCorrectionModal({
   const [removedItemIds, setRemovedItemIds] = useState<Set<string>>(new Set());
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newMpesaCode, setNewMpesaCode] = useState('');
+  const [removedSplitLineIds, setRemovedSplitLineIds] = useState<Set<string>>(new Set());
+  const [newLineLabel, setNewLineLabel] = useState('');
+  const [newLineAmount, setNewLineAmount] = useState('');
+  const [newLineMethod, setNewLineMethod] = useState<'MPESA' | 'CASH' | 'CARD'>('CASH');
+  const [newLineMpesaCode, setNewLineMpesaCode] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,10 +69,25 @@ export function OrderCorrectionModal({
   const delta = collected - newTotal;
   const reasonValid = reason.trim().length >= 10;
 
+  const remainingSplitLines = order.splitPaymentLines.filter((line) => !removedSplitLineIds.has(line.id));
+  const newLineAmountNum = Number.parseFloat(newLineAmount);
+  const canAddSplitLine =
+    newLineLabel.trim() !== '' &&
+    Number.isFinite(newLineAmountNum) &&
+    newLineAmountNum > 0 &&
+    (newLineMethod !== 'MPESA' || newLineMpesaCode.trim() !== '');
+  const hasPendingSplitLineDraft = newLineLabel.trim() !== '' || newLineAmount.trim() !== '';
+
   const paymentMethodChanged = newPaymentMethod !== '' && newPaymentMethod !== order.paymentMethod;
   const mpesaCodeChanged = newMpesaCode.trim() !== '' && newMpesaCode.trim() !== (order.mpesaCode ?? '');
-  const hasAnyChange = removedItemIds.size > 0 || paymentMethodChanged || mpesaCodeChanged;
-  const canSubmit = reasonValid && hasAnyChange && remainingItems.length > 0;
+  const hasAnyChange =
+    removedItemIds.size > 0 ||
+    paymentMethodChanged ||
+    mpesaCodeChanged ||
+    removedSplitLineIds.size > 0 ||
+    canAddSplitLine;
+  const canSubmit =
+    reasonValid && hasAnyChange && remainingItems.length > 0 && remainingSplitLines.length > 0;
 
   const toggleRemove = (itemId: string) => {
     setRemovedItemIds((current) => {
@@ -73,10 +101,27 @@ export function OrderCorrectionModal({
     });
   };
 
+  const toggleRemoveSplitLine = (lineId: string) => {
+    setRemovedSplitLineIds((current) => {
+      const next = new Set(current);
+      if (next.has(lineId)) {
+        next.delete(lineId);
+      } else {
+        next.add(lineId);
+      }
+      return next;
+    });
+  };
+
   const reset = () => {
     setRemovedItemIds(new Set());
     setNewPaymentMethod('');
     setNewMpesaCode('');
+    setRemovedSplitLineIds(new Set());
+    setNewLineLabel('');
+    setNewLineAmount('');
+    setNewLineMethod('CASH');
+    setNewLineMpesaCode('');
     setReason('');
   };
 
@@ -109,6 +154,22 @@ export function OrderCorrectionModal({
         await orderCorrectionService.correctMpesaCode(
           order.id,
           { mpesaCode: newMpesaCode.trim(), reason: trimmedReason },
+          accessToken,
+        );
+      }
+      for (const lineId of Array.from(removedSplitLineIds)) {
+        await orderCorrectionService.removeSplitLine(order.id, lineId, { reason: trimmedReason }, accessToken);
+      }
+      if (canAddSplitLine) {
+        await orderCorrectionService.addSplitLine(
+          order.id,
+          {
+            label: newLineLabel.trim(),
+            amount: newLineAmountNum,
+            method: newLineMethod,
+            mpesaCode: newLineMethod === 'MPESA' ? newLineMpesaCode.trim() : undefined,
+            reason: trimmedReason,
+          },
           accessToken,
         );
       }
@@ -245,6 +306,84 @@ export function OrderCorrectionModal({
               value={newMpesaCode}
               onChange={(event) => setNewMpesaCode(event.target.value.toUpperCase())}
             />
+          </div>
+        )}
+
+        {/* ── Split payment lines — CLOSED split orders only ─────────────── */}
+        {order.status === 'CLOSED' && isSplit(order.paymentMethod) && (
+          <div className="space-y-2 border-t border-stone-200 pt-4">
+            <p className="text-label-sm font-medium text-stone-700">Split payment lines</p>
+            <p className="text-caption text-stone-500">
+              Remove a line that was recorded wrong, or add a corrected one. At least one line must remain.
+            </p>
+
+            {order.splitPaymentLines.map((line) => {
+              const isRemoved = removedSplitLineIds.has(line.id);
+              return (
+                <div
+                  key={line.id}
+                  className={`flex items-center justify-between rounded-lg border p-3 ${
+                    isRemoved ? 'border-red-200 bg-red-50' : 'border-stone-200 bg-white'
+                  }`}
+                >
+                  <div className={isRemoved ? 'line-through text-stone-400' : ''}>
+                    <p className="text-body-sm font-medium text-stone-900">{line.label}</p>
+                    <p className="text-caption text-stone-500">
+                      {line.method} · KES {Number.parseFloat(line.amount).toFixed(2)}
+                      {line.mpesaCode ? ` · ${line.mpesaCode}` : ''}
+                    </p>
+                  </div>
+                  <Button
+                    variant={isRemoved ? 'secondary' : 'destructive'}
+                    size="sm"
+                    onClick={() => toggleRemoveSplitLine(line.id)}
+                  >
+                    {isRemoved ? 'Undo' : <Trash2 size={14} />}
+                  </Button>
+                </div>
+              );
+            })}
+
+            {remainingSplitLines.length === 0 && (
+              <p className="text-caption text-red-600">
+                Cannot remove every payment line from a split order.
+              </p>
+            )}
+
+            <div className="space-y-2 rounded-lg border border-dashed border-stone-300 p-3">
+              <p className="text-caption font-medium text-stone-600">Add a corrected line</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Label, e.g. Guest 1"
+                  value={newLineLabel}
+                  onChange={(event) => setNewLineLabel(event.target.value)}
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={newLineAmount}
+                  onChange={(event) => setNewLineAmount(event.target.value)}
+                />
+                <Select
+                  options={splitLineMethodOptions}
+                  value={newLineMethod}
+                  onChange={(event) => setNewLineMethod(event.target.value as 'MPESA' | 'CASH' | 'CARD')}
+                />
+                {newLineMethod === 'MPESA' && (
+                  <Input
+                    placeholder="M-Pesa code"
+                    value={newLineMpesaCode}
+                    onChange={(event) => setNewLineMpesaCode(event.target.value.toUpperCase())}
+                  />
+                )}
+              </div>
+              {hasPendingSplitLineDraft && !canAddSplitLine && (
+                <p className="text-caption text-amber-700">
+                  Fill in a label, a positive amount{newLineMethod === 'MPESA' ? ', and the M-Pesa code' : ''} to
+                  add this line.
+                </p>
+              )}
+            </div>
           </div>
         )}
 

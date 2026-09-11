@@ -15,6 +15,11 @@ export const correctionTicketParamSchema = z.object({
   ticketId: z.string().uuid('ticketId param must be a valid UUID'),
 });
 
+export const correctionSplitLineParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+  lineId: z.string().uuid('lineId param must be a valid UUID'),
+});
+
 const reasonSchema = z
   .string()
   .min(10, 'Reason must be at least 10 characters')
@@ -57,6 +62,28 @@ export const AdjustOrderTotalSchema = z.object({
   reason: reasonSchema,
 });
 
+export const RemoveSplitLineSchema = z.object({
+  reason: reasonSchema,
+});
+
+export const AddSplitLineCorrectionSchema = z
+  .object({
+    label: z.string().min(1).max(100),
+    amount: z.number().positive(),
+    method: z.enum(['MPESA', 'CASH', 'CARD'] as const),
+    mpesaCode: z.string().min(1).max(200).optional(),
+    reason: reasonSchema,
+  })
+  .superRefine((data, ctx) => {
+    if (data.method === 'MPESA' && !data.mpesaCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'mpesaCode is required for Mpesa payment',
+        path: ['mpesaCode'],
+      });
+    }
+  });
+
 export const ListOrderCorrectionsQuerySchema = z.object({
   branchId: z.string().uuid().optional(),
   status: z.string().optional(),
@@ -75,3 +102,5 @@ export type RevertAwaitingAuthInput = z.infer<typeof RevertAwaitingAuthSchema>;
 export type RemoveOrderItemInput = z.infer<typeof RemoveOrderItemSchema>;
 export type RevertRejectedTicketInput = z.infer<typeof RevertRejectedTicketSchema>;
 export type AdjustOrderTotalInput = z.infer<typeof AdjustOrderTotalSchema>;
+export type RemoveSplitLineInput = z.infer<typeof RemoveSplitLineSchema>;
+export type AddSplitLineCorrectionInput = z.infer<typeof AddSplitLineCorrectionSchema>;

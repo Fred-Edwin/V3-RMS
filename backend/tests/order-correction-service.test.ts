@@ -7,6 +7,8 @@ vi.mock('../src/repositories/order-correction-repository', () => ({
   orderCorrectionRepository: {
     findById: vi.fn(),
     removeOrderItem: vi.fn(),
+    removeSplitLine: vi.fn(),
+    addSplitLine: vi.fn(),
   },
 }));
 
@@ -26,12 +28,23 @@ const systemAdminActor = {
 };
 
 const itemId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+const lineId = '66666666-6666-4666-8666-666666666666';
+const orderId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
-const buildOrder = (overrides: Partial<{ organizationId: string; createdAt: Date; status: string }> = {}) => ({
-  id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+const buildOrder = (
+  overrides: Partial<{
+    organizationId: string;
+    createdAt: Date;
+    status: string;
+    total: string;
+    splitPaymentLines: Array<{ id: string; label: string; amount: string; method: string; mpesaCode: string | null }>;
+  }> = {},
+) => ({
+  id: orderId,
   organizationId: overrides.organizationId ?? ownBranchId,
   createdAt: overrides.createdAt ?? new Date(),
   status: overrides.status ?? 'CLOSED',
+  total: overrides.total ?? '900.00',
   items: [
     {
       id: itemId,
@@ -46,6 +59,12 @@ const buildOrder = (overrides: Partial<{ organizationId: string; createdAt: Date
       menuItem: { name: 'Hot Chocolate' },
     },
   ],
+  splitPaymentLines:
+    overrides.splitPaymentLines ??
+    [
+      { id: lineId, label: 'Guest 1', amount: '500.00', method: 'MPESA', mpesaCode: 'QKA123XY' },
+      { id: '77777777-7777-4777-8777-777777777777', label: 'Guest 2', amount: '400.00', method: 'CASH', mpesaCode: null },
+    ],
 });
 
 describe('orderCorrectionService — branch scoping and correction window', () => {
@@ -127,5 +146,87 @@ describe('orderCorrectionService — branch scoping and correction window', () =
         reason: 'Customer disputed this item after order was closed',
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('orderCorrectionService — split payment line correction', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('MANAGER can remove a split line from their own branch order', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(buildOrder() as never);
+    vi.mocked(orderCorrectionRepository.removeSplitLine).mockResolvedValue({ id: lineId } as never);
+
+    await expect(
+      orderCorrectionService.removeSplitLine(orderId, lineId, managerActor, {
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('cannot remove a split line from an order that is not CLOSED', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(buildOrder({ status: 'READY' }) as never);
+
+    await expect(
+      orderCorrectionService.removeSplitLine(orderId, lineId, managerActor, {
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('cannot remove the last remaining split line', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({
+        splitPaymentLines: [{ id: lineId, label: 'Guest 1', amount: '900.00', method: 'MPESA', mpesaCode: 'QKA123XY' }],
+      }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.removeSplitLine(orderId, lineId, managerActor, {
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('MANAGER cannot remove a split line from another branch order', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ organizationId: otherBranchId }) as never,
+    );
+
+    await expect(
+      orderCorrectionService.removeSplitLine(orderId, lineId, managerActor, {
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('MANAGER can add a corrected split line within the order total', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
+      buildOrder({ splitPaymentLines: [] }) as never,
+    );
+    vi.mocked(orderCorrectionRepository.addSplitLine).mockResolvedValue({ id: lineId } as never);
+
+    await expect(
+      orderCorrectionService.addSplitLine(orderId, managerActor, {
+        label: 'Guest 1',
+        amount: 500,
+        method: 'CASH',
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects a new split line that would push the total over the order total', async () => {
+    vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(buildOrder() as never);
+
+    await expect(
+      orderCorrectionService.addSplitLine(orderId, managerActor, {
+        label: 'Guest 3',
+        amount: 500,
+        method: 'CASH',
+        reason: 'Guest 1 actually paid cash, not M-Pesa as recorded',
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });

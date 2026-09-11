@@ -4,12 +4,14 @@ import { orderCorrectionRepository } from '../repositories/order-correction-repo
 import { socketService } from '../sockets/socket-service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import type {
+  AddSplitLineCorrectionInput,
   AdjustOrderTotalInput,
   CorrectMpesaCodeInput,
   CorrectPaymentMethodInput,
   ForceOrderReadyInput,
   ListOrderCorrectionsQuery,
   RemoveOrderItemInput,
+  RemoveSplitLineInput,
   RevertAwaitingAuthInput,
   RevertRejectedTicketInput,
 } from '../validators/order-correction-schemas';
@@ -113,6 +115,13 @@ export const orderCorrectionService = {
       })),
       prepTickets: order.prepTickets,
       pendingAuthRequestId: order.houseAuthRequests[0]?.id ?? null,
+      splitPaymentLines: order.splitPaymentLines.map((line) => ({
+        id: line.id,
+        label: line.label,
+        amount: line.amount.toFixed(2),
+        method: line.method,
+        mpesaCode: line.mpesaCode,
+      })),
     };
   },
 
@@ -355,6 +364,74 @@ export const orderCorrectionService = {
       newTotal,
       actor.id,
       before,
+      input.reason,
+    );
+  },
+
+  removeSplitLine: async (
+    orderId: string,
+    lineId: string,
+    actor: Actor,
+    input: RemoveSplitLineInput,
+  ) => {
+    const order = await orderCorrectionRepository.findById(orderId);
+    if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
+
+    assertWithinCorrectionWindow(order.createdAt, actor);
+
+    if (order.status !== 'CLOSED') {
+      throw new ConflictError('Split payment line correction is only allowed on CLOSED orders');
+    }
+
+    const line = order.splitPaymentLines.find((l) => l.id === lineId);
+    if (!line) throw new NotFoundError('Payment line not found');
+
+    if (order.splitPaymentLines.length === 1) {
+      throw new ConflictError('Cannot remove the last payment line from a split order');
+    }
+
+    const result = await orderCorrectionRepository.removeSplitLine(
+      orderId,
+      order.organizationId,
+      lineId,
+      actor.id,
+      input.reason,
+    );
+
+    if (!result) throw new NotFoundError('Payment line not found');
+  },
+
+  addSplitLine: async (
+    orderId: string,
+    actor: Actor,
+    input: AddSplitLineCorrectionInput,
+  ) => {
+    const order = await orderCorrectionRepository.findById(orderId);
+    if (!order) throw new NotFoundError('Order not found');
+    assertOrderInScope(order.organizationId, actor);
+
+    assertWithinCorrectionWindow(order.createdAt, actor);
+
+    if (order.status !== 'CLOSED') {
+      throw new ConflictError('Split payment line correction is only allowed on CLOSED orders');
+    }
+
+    const orderTotal = Number(order.total);
+    const existingSum = order.splitPaymentLines.reduce((sum, l) => sum + Number(l.amount), 0);
+    const newSum = existingSum + input.amount;
+
+    if (newSum > orderTotal + 1) {
+      throw new ConflictError(
+        `Adding KES ${input.amount} would exceed the order total of KES ${orderTotal.toFixed(2)}`,
+      );
+    }
+
+    return orderCorrectionRepository.addSplitLine(
+      orderId,
+      order.organizationId,
+      { label: input.label, amount: new Decimal(input.amount), method: input.method, mpesaCode: input.mpesaCode },
+      actor.id,
       input.reason,
     );
   },
