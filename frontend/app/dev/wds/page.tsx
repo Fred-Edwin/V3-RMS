@@ -57,6 +57,11 @@ import { ItemFormFields, type ItemFormValues } from '@/components/inventory/item
 import { CategoryManagerList, type CategoryRow } from '@/components/inventory/category-manager-list';
 import { SupplierFormFields, type SupplierFormValues } from '@/components/inventory/supplier-form';
 import {
+  RestockLevelGrid,
+  RestockLevelHelperNote,
+  type RestockLevelRow,
+} from '@/components/inventory/restock-level-grid';
+import {
   DashboardIcon,
   ReceivingIcon,
   PurchasingIcon,
@@ -170,6 +175,12 @@ export default function WdsPreviewPage() {
     email: 'orders@samrat.co.ke',
     paymentTerms: 'invoice',
   });
+  const [restockRows, setRestockRows] = React.useState<RestockLevelRow[]>([
+    { id: 'coffee', name: 'Coffee beans', unit: 'kg', onHand: 12, restockLevel: 30 },
+    { id: 'milk', name: 'Milk', unit: 'litres', onHand: 128, restockLevel: 80 },
+  ]);
+  const setRestockLevel = (id: string, value: string) =>
+    setRestockRows((rows) => rows.map((r) => (r.id === id ? { ...r, restockLevel: Number(value) || 0 } : r)));
   const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
     name: 'Basmati rice',
     type: 'raw',
@@ -809,6 +820,37 @@ export default function WdsPreviewPage() {
                   onChange={setSupplierFormValues}
                   categoryOptions={['Dairy', 'Dry goods', 'Produce', 'Beverages']}
                 />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Restock Level Grid"
+            note="Restock Levels screen, desktop drawer body (440px — a 4th distinct drawer width) + mobile full-screen route. Below-restock-level tone is a genuine platform difference: warning-fg (amber) desktop, error-fg (red) mobile. Reference: T52-0/T5F-0 (desktop) / TLX-0/U03-0 (mobile)."
+          >
+            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
+              <div className="w-[440px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Desktop (drawer body)
+                </span>
+                <div className="flex flex-col gap-wds-3">
+                  <RestockLevelGrid variant="desktop" rows={restockRows} onRestockLevelChange={setRestockLevel} />
+                  <RestockLevelHelperNote variant="desktop">
+                    Raising Coffee beans restock level to 30 kg flags it low right away (12 on hand). Department
+                    restock levels are set by each department head, not here.
+                  </RestockLevelHelperNote>
+                </div>
+              </div>
+              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Mobile (full-screen route)
+                </span>
+                <div className="flex flex-col gap-wds-3">
+                  <RestockLevelGrid variant="mobile" rows={restockRows} onRestockLevelChange={setRestockLevel} />
+                  <RestockLevelHelperNote variant="mobile">
+                    Raising Coffee beans restock level to 30 kg flags it low right away (12 on hand).
+                  </RestockLevelHelperNote>
+                </div>
               </div>
             </div>
           </Section>

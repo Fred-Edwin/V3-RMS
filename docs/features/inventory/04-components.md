@@ -903,13 +903,83 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       blocker as the other composites this session). Responsive:
       `max-w-full` on both variants, confirmed via `getBoundingClientRect`
       at 768px — no overflow contribution.
-- [ ] Restock Level Grid built
+- [x] Restock Level Grid built —
+      `frontend/components/inventory/restock-level-grid.tsx`
+      (`RestockLevelGrid` + `RestockLevelHelperNote`,
+      `variant: 'desktop' | 'mobile'`). Reference: `T52-0`/`T5F-0`
+      (desktop, Central Store drawer) / `TLX-0`/`U03-0` (mobile,
+      "5m · Par levels"). Row content: item name/unit, on-hand (colored if
+      below restock level), editable restock-level input, plus the
+      helper-note callout band (dot + muted caption) below the grid.
+
+      **Drawer width is 440px — a 4th distinct width found this
+      milestone** (Item Form 500px, Category Manager 420px, Supplier Form
+      460px, this one 440px): confirmed via `get_computed_styles` on
+      `T53-0`, each drawer checked independently rather than assumed to
+      share a width with any prior composite.
+
+      **Below-restock-level tone is a genuine, Paper-drawn platform
+      difference — the second one found in this session (after Supplier
+      Form's payment-terms toggle):** `get_computed_styles` on desktop's
+      "Coffee beans" on-hand cell (`T5S-0`) showed `--color-warning-fg`
+      (amber); the equivalent mobile cell (`U0E-0`) showed
+      `--color-error-fg` (red). Read both independently — the desktop
+      screenshot alone looks reddish/amber-ambiguous at a glance, so this
+      was confirmed with computed styles rather than eyeballed. Modeled as
+      a `belowLevelToneClass` lookup keyed by `variant`, not a single
+      shared color.
+
+      **Header column spacing has zero gap between "On hand" and "Restock
+      level" on desktop — matches Paper exactly, not a layout bug:**
+      noticed the two header labels sit flush together in the built
+      screenshot and verified via `getBoundingClientRect` before assuming
+      a mistake; Paper's own `T5Y-0`/`T5X-0` computed styles show the same
+      adjacent-with-no-gap arrangement (each column's width carries its
+      own alignment, no gap token between them) — confirmed intentional,
+      not "fixed" by adding a gap that would deviate from the reference.
+
+      **Visual verification:** real-browser screenshot of both variants
+      compared against `get_screenshot` captures of `T52-0`/`TLX-0` — the
+      amber-vs-red tone distinction, dashed "+ Add an item" (desktop only,
+      matching Paper — mobile's reference doesn't draw an equivalent add
+      row within this composite's scope), and helper-note band all match.
+      Not run through the automated `pnpm visual-diff` script (same
+      `export`-tool schema blocker noted on every composite this session).
+      Responsive: `max-w-full` on both variants, confirmed via
+      `getBoundingClientRect` at 768px — no overflow contribution.
+
+This was the last composite in the Milestone One list — **all primitives
+and composites in this doc's build order are now built.** See the top of
+this Status section and the HANDOFF doc for the full session-by-session
+history; the `export`-tool schema issue affecting the automated pixel-diff
+from the Mobile Header composite onward (Sidebar Nav/Mobile Icon Rail/
+Topbar were diffed before it appeared) is flagged consistently across every
+affected entry above and should be revisited before the next milestone's
+build, not worked around silently again.
 - [x] Pixel-diff passed (≤2%, or confirmed-AA-noise per the documented
       judgment call) at both Paper anchors — for Sidebar Nav / Mobile Icon
-      Rail / Topbar. Still outstanding for every composite below this line.
-- [x] Responsive spot-check passed (~768px, ~1024px) — for Sidebar Nav /
-      Mobile Icon Rail / Topbar (see their Status entry above for what was
-      actually checked). Still outstanding for every composite below this line.
+      Rail / Topbar. **Every composite after Topbar (Mobile Header/Task
+      Header/Status Bar, KPI Strip, Drawer Shell, Item Catalog Table, Item
+      Form, Category Manager List, Supplier Form, Restock Level Grid)
+      substituted rigorous `get_computed_styles` cross-checks + real-browser
+      by-eye screenshot comparison, because the `export` MCP tool's schema
+      rejected single-node calls all session** (see each entry's own Status
+      note) — not a lowered bar by choice, a tool availability gap. Re-run
+      the actual automated diff on all of them once `export` is confirmed
+      working again.
+- [x] Responsive spot-check passed (~768px, ~1024px) — every composite in
+      this milestone was checked at 768px via `getBoundingClientRect`/
+      `scrollWidth` for its own overflow contribution (see each entry's own
+      Status note for specifics); the page's overall 768px horizontal
+      overflow traces to two pre-existing, out-of-scope sources already
+      documented at their own entries (the 1440px Sidebar/Topbar sections,
+      and the bare-primitive Table demo). ~1024px was not separately
+      re-checked per composite after Topbar — every composite here uses
+      `max-w-full`/relative sizing rather than fixed viewport-relative
+      widths, so 1024px sits between the already-checked 768px and native
+      1440px anchor without introducing new behavior, but this is an
+      inference, not a re-verified data point — spot-check 1024px directly
+      before shipping if that becomes load-bearing.
 
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

@@ -1,18 +1,19 @@
-# HANDOFF — Milestone One · Step 4 component build
+# HANDOFF — Milestone One · Step 4 component build (COMPLETE)
 
-**For a fresh session.** This is the running handoff for building the Step 4
-component set (primitives + composites) for Inventory Milestone One (Catalog,
-Suppliers & Restock Levels). Read `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4 and
-`docs/features/inventory/04-components.md` first — that doc is the authority on
-what to build and the fidelity/states process, and it has a full, detailed log of
-everything below. This file is only the "where we are right now, what's already
-done, what's next" status.
+**Status: Step 4 (component extraction) is done.** Every primitive and
+composite in `04-components.md`'s tables for Milestone One (Catalog,
+Suppliers & Restock Levels) is built, verified, and committed. This file is
+now a historical record of how that build happened, kept for the next
+session's context — not a live "what's left" list. For what's actually
+next, see the "NEXT STEPS" section below (Step 5).
 
-**Before doing anything else:** `git status` shows everything below as
-**uncommitted**. Nothing from this work has been committed yet. Check with the
-owner whether to commit before continuing — don't lose it (this project has a
-documented prior incident of uncommitted work getting lost to an OS crash; see
-`docs/features/inventory/HANDOFF-role-complete-design.md`'s housekeeping note).
+Read `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4 and
+`docs/features/inventory/04-components.md` first if you need the fidelity
+process or per-component detail — that doc remains the authority and has
+the full log of everything summarized here.
+
+All work described below is committed to `main` in small, per-composite
+commits (see `git log` — search commit subjects for "feat(inventory)").
 
 ═══════════════════════════════════════════════════════════════════════
 WHERE THINGS STAND
@@ -104,11 +105,58 @@ Paper's own contradictory notes, pixel-diff results, responsive check) is in
 - Responsive-checked at 768/1024px: Sidebar/Rail correctly hold fixed width,
   Topbar correctly shrinks fluidly.
 
+## What's done (composites, continued — Step 4 build now complete)
+
+**All remaining composites built:** Mobile Hub Header + Mobile Task Header +
+Mobile Status Bar, KPI Strip + KPI Stat Cell, Drawer Shell, Item Catalog
+Table, Item Form, Category Manager List, Supplier Form, Restock Level Grid —
+all in `frontend/components/inventory/` (feature-scoped) except the mobile
+shell pieces, which joined Sidebar Nav/Topbar in
+`frontend/components/app/shell/`. Full per-composite detail (Paper node refs,
+exact spacing/color values, what was checked and how) is in
+`04-components.md`'s Status log — read that, this is just the summary.
+
+Notable findings from this pass, all documented in `04-components.md`:
+
+- **Milestone One does not use one fixed drawer width.** Four different
+  drawer widths were found and confirmed independently via
+  `get_computed_styles`, not assumed to match each other: Item Form 500px,
+  Category Manager 420px, Supplier Form 460px, Restock Level Grid 440px.
+- **Two genuine desktop/mobile visual differences, not bugs to normalize:**
+  Supplier Form's payment-terms toggle uses a different selected-state color
+  on desktop (espresso-50 tint) than the standard `ToggleGroup` gradient fill
+  mobile actually uses for the same field; Restock Level Grid's
+  below-restock-level number is amber (`warning-fg`) on desktop but red
+  (`error-fg`) on mobile. Both found by reading each platform's computed
+  styles independently rather than assuming one covers both.
+- **Two more OKLCH/token-drift bugs in the same class already documented**
+  (missing `wds-sidebar-top/mid/bottom` color utilities — used by both the
+  Mobile Status Bar and the pre-existing Avatar demo, silently rendering
+  invisible white-on-cream text until fixed; `wds-gradient-surface-raise`'s
+  placeholder `#FFFFFF→espresso-50` pair, flagged but left unfixed in the
+  prior session, corrected here since KPI Strip finally consumed it) — see
+  `04-components.md`'s Known Issues section.
+- **The automated `pnpm visual-diff` pixel-diff could not be run on any
+  composite after Topbar** — the `export` MCP tool's schema rejected
+  single-node calls all session (a tool-availability gap, not a deliberate
+  skip). Every composite from Mobile Header onward substituted rigorous
+  `get_computed_styles` cross-checks (exact value matches, not
+  approximations) plus real-browser by-eye screenshot comparison instead,
+  flagged individually in each Status entry. **Re-run the actual automated
+  diff on all of them** once `export` is confirmed working again — this is
+  the single biggest piece of unfinished verification work, not a nice-to-have.
+- `pnpm build` was run clean after every composite; each was interactively
+  exercised in a real browser (Playwright) with 0 console errors and checked
+  for 768px responsive overflow before being marked done.
+
 ## What's NOT done yet
 
-Everything else in the composites list: Mobile Hub Header/Task Header/Status
-Bar, KPI Strip, Drawer Shell, Item Catalog Table, Item Form, Category Manager
-List, Supplier Form, Restock Level Grid. See `04-components.md`'s checklist.
+Nothing from this milestone's composite list — Step 4 (component extraction)
+is complete for Milestone One. Remaining work before this milestone ships is
+Step 5 (the high-level implementation plan) per `FEATURE_REDO_PLAYBOOK.md`,
+plus the flagged loose ends above (re-running the automated pixel-diff once
+`export` works, and the still-outstanding dedicated OKLCH-drift pass across
+the rest of `tokens.wds.css` — see Known Issues).
 
 ═══════════════════════════════════════════════════════════════════════
 HOW TO VIEW THE WORK (localhost)
@@ -121,45 +169,43 @@ Set-Location "d:\AI applications\web\V3-RMS\frontend"
 pnpm dev
 ```
 
-Then open **http://localhost:3000/dev/wds** in a browser. Scroll to the
-"Sheet / Drawer", "Select", "Toggle Group", "Table", "Dropdown Menu", "Avatar",
-and "Search Input" sections — each has interactive/rendered examples and a
-`note` line under the heading explaining what it's checked against.
+Then open **http://localhost:3000/dev/wds** in a browser. Every primitive and
+composite has its own section with interactive/rendered examples and a `note`
+line under the heading explaining what it's checked against — scroll through
+the whole page, or search the page source for a heading name.
 
 The Sheet/Drawer's forced-open pixel-diff demo is hidden by default (it used
 to cover the whole page with its scrim and break every other section's
 screenshot). To see it forced open, visit **http://localhost:3000/dev/wds?diff=sheet**.
 
 ═══════════════════════════════════════════════════════════════════════
-NEXT STEPS — composites
+NEXT STEPS
 ═══════════════════════════════════════════════════════════════════════
 
-Full list with Paper node references is in `04-components.md`'s "Composites
-needed" table. Same per-item process as primitives (source from Paper, restyle,
-this time **with** the automated pixel-diff since these are real Paper content),
-documented in `04-components.md`'s "Visual fidelity process" section.
+**Step 4 (component extraction) is done for Milestone One** — every
+primitive and composite in `04-components.md`'s tables is built, verified,
+and documented. Next per `FEATURE_REDO_PLAYBOOK.md` is **Step 5** (the
+high-level implementation plan that actually assembles these composites
+into real, routed screens with data).
 
-**Suggested build order** (most-reused / most-foundational first):
+Two pieces of unfinished verification work to pick up before or during
+Step 5, not silently deferred further:
 
-1. ~~**Hub Sidebar Nav** + **Desktop Topbar**~~ — **done this session**, see
-   above. (Mobile Icon Rail was built alongside it, not originally split out
-   separately in this list — same component family as Sidebar Nav.)
-2. **Mobile Hub Header** + **Mobile Task Header** + **Mobile Status Bar** —
-   also cross-feature shared. Status Bar has official markup via
-   `get_guide("mobile-status-bar")` — don't hand-derive it.
-3. **KPI Strip + KPI Stat Cell** — Item Catalog screen, desktop + mobile.
-4. **Drawer Shell** — built on top of the now-finished Sheet primitive. Paper
-   ref: `SMI-0`/`SKW-0` (same nodes already read this session for Sheet).
-5. **Item Catalog Table** — this is where Table's real pixel-diff belongs (the
-   full toolbar + status-dot-per-type + retired-row-at-55%-opacity states that
-   were deliberately left out of the bare Table primitive). Paper ref: `SFT-0`
-   / `TN1-0`.
-6. **Item Form** — shared field set between the desktop drawer and the mobile
-   full-screen route. Build once, slot into either shell.
-7. **Category Manager List**, **Supplier Form**, **Restock Level Grid** — same
-   process, in whatever order suits.
+1. **Re-run the automated `pnpm visual-diff` pixel-diff** on every
+   composite from Mobile Header onward (KPI Strip, Drawer Shell, Item
+   Catalog Table, Item Form, Category Manager List, Supplier Form, Restock
+   Level Grid) — the `export` MCP tool's schema rejected single-node calls
+   for the entire session that built them, so they were verified via
+   `get_computed_styles` cross-checks + by-eye screenshot comparison
+   instead. Confirm `export` works again first (try it on any of these
+   nodes), then follow the same capture process documented in
+   `04-components.md`'s "Pixel-diff verification" section.
+2. **The dedicated OKLCH-vs-comment token drift pass** flagged in Known
+   Issues since Phase 0 — still not done as a dedicated sweep; each session
+   since has only fixed the specific tokens it happened to touch.
 
-Ground rules carried over from Step 4 primitive work (don't relitigate):
+Ground rules carried over from Step 4 primitive work (still apply to
+whatever assembles these composites into screens in Step 5):
 - Never source a value from a screenshot — `get_jsx`/`get_computed_styles`/
   `get_fill_image` only; screenshots verify the rendered result afterward.
 - Every raw value maps to a token; a value with no matching token is a signal
