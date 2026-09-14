@@ -54,6 +54,7 @@ import {
   type ItemCatalogRow,
 } from '@/components/inventory/item-catalog-table';
 import { ItemFormFields, type ItemFormValues } from '@/components/inventory/item-form';
+import { CategoryManagerList, type CategoryRow } from '@/components/inventory/category-manager-list';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -112,6 +113,15 @@ const demoCatalogRows: ItemCatalogRow[] = [
   { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', departmentScope: 'Central Store · Kitchen, Barista' },
   { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', departmentScope: 'Central Store · Kitchen' },
   { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', departmentScope: 'Retired 04 Aug · history kept', retired: true },
+];
+
+const demoCategories: CategoryRow[] = [
+  { id: 'dairy', name: 'Dairy', itemCount: 14 },
+  { id: 'dry-goods', name: 'Dry goods', itemCount: 38 },
+  { id: 'produce', name: 'Produce', itemCount: 22 },
+  { id: 'beverages', name: 'Beverages', itemCount: 19 },
+  { id: 'cleaning', name: 'Cleaning', itemCount: 11 },
+  { id: 'seasonal', name: 'Seasonal (retired)', itemCount: 0, retired: true },
 ];
 
 const demoNavGroups: SidebarNavGroup[] = [
@@ -740,6 +750,26 @@ export default function WdsPreviewPage() {
                   categoryOptions={['Dry goods', 'Dairy', 'Beverages', 'Prepped bases']}
                   supplierOptions={['Samrat Ltd', 'Nyeri Dairy Co-op']}
                 />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Category Manager List"
+            note="Manage categories drawer body (420px — narrower than Item Form's 500px drawer) + mobile full-screen route. Retired rows: Restore link, whole row 55% opacity. Reference: SRG-0 (desktop) / TX2-0 (mobile)."
+          >
+            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
+              <div className="w-[420px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Desktop (drawer body)
+                </span>
+                <CategoryManagerList variant="desktop" categories={demoCategories} />
+              </div>
+              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Mobile (full-screen route)
+                </span>
+                <CategoryManagerList variant="mobile" categories={demoCategories} />
               </div>
             </div>
           </Section>

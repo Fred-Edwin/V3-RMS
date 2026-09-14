@@ -821,7 +821,50 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       row switches `lg:flex-row` → stacked below `lg`; confirmed via
       `getBoundingClientRect` at 768px that both shrink cleanly
       (336.5px each) with no overflow contribution.
-- [ ] Category Manager List built
+- [x] Category Manager List built —
+      `frontend/components/inventory/category-manager-list.tsx`
+      (`CategoryManagerList`, `variant: 'desktop' | 'mobile'`). Reference:
+      `SRG-0` (desktop, inside the "Manage categories" drawer) / `TX2-0`
+      (mobile, "3m · Manage categories").
+
+      **Drawer width is 420px, not 500px — checked, not assumed:**
+      `get_computed_styles` on `SRC-0` showed this drawer is 420px, unlike
+      the Item Form's 500px drawer (`SKW-0`) — Milestone One doesn't use one
+      fixed drawer width for everything. This composite doesn't own drawer
+      chrome itself (same "slot into DrawerShell" pattern as Item Form), so
+      it's documented here for whoever wires the real "Manage categories"
+      drawer screen later, rather than silently assuming 500px.
+
+      **Rename link color is a genuine Paper-drawn platform difference, not
+      an inconsistency to normalize away:** desktop's "Rename" link
+      (`SS2-0`) is plain `--color-text-muted`; mobile's (`get_jsx` on
+      `TX3-0`) is `--color-primary` (an actual colored link). Verified both
+      independently rather than assuming the same link styling applies at
+      both sizes — built as a `variant`-conditional tone, not one shared
+      class.
+
+      **Retired-row state (Paper-verified):** `get_computed_styles` on
+      `SRH-0` confirmed the *entire row* — not just the name — sits at
+      `opacity: 0.55` (same convention already established on the Item
+      Catalog Table's retired rows), and its trailing link swaps to
+      "Restore".
+
+      **"+ Add a category" input:** dashed border (`border-style: dashed`),
+      not the ordinary solid `Input` primitive border — confirmed via
+      `get_computed_styles` on `SS5-0`/`TX0-0`, a deliberately different
+      affordance for "type here to create something new" vs. an ordinary
+      field. Built as its own styled `<input>` rather than the `Input`
+      primitive plus an override, since the dashed border is the field's
+      entire visual identity, not an edge-case variant of the solid one.
+
+      **Visual verification:** real-browser screenshot of both variants
+      compared against `get_screenshot` captures of `SRG-0`/`TX2-0` — the
+      Rename/Restore link color difference, dashed add-input, row spacing,
+      and retired-row opacity all match. Not run through the automated
+      `pnpm visual-diff` script (same `export`-tool schema blocker as the
+      other composites this session). Responsive: `max-w-full` on both
+      variants, confirmed via `getBoundingClientRect` at 768px — no
+      overflow contribution.
 - [ ] Supplier Form built
 - [ ] Restock Level Grid built
 - [x] Pixel-diff passed (≤2%, or confirmed-AA-noise per the documented
