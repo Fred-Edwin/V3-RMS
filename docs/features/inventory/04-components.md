@@ -265,12 +265,15 @@ For every composite:
   (165deg/30% vs. Paper's actual 164.69deg/40%), and `--wds-gradient-topbar`'s
   end-stop (pointed at `--wds-espresso-50`, a real, differently-tinted color,
   instead of Paper's actual bespoke `--color-topbar-end` — added as
-  `--wds-topbar-end`). **Not yet touched, flagged only:**
-  `--wds-gradient-surface-raise` has the same `#FFFFFF → espresso-50` pattern
-  as the topbar gradient did, noticed while investigating the topbar bug but
-  out of scope (no composite built so far consumes it) — check it against
-  Paper's actual `--color-surface-raise-end` (`#F7F5F2`) when a composite
-  finally does.
+  `--wds-topbar-end`). **`--wds-gradient-surface-raise` fixed during the KPI
+  Strip build** (it had the same `#FFFFFF → espresso-50` pattern as the
+  topbar gradient, flagged here but left untouched until a composite
+  actually consumed it) — corrected to `var(--wds-surface) →
+  var(--wds-surface-raise-end)`, the new `--wds-surface-raise-end` token
+  round-trip-verified via canvas `fillStyle` to actually resolve to
+  `#F7F5F2`. See KPI Strip's Status entry for the fix and for
+  `--wds-accent-strong`, a second new token caught by the same round-trip
+  check before it could ship with a wrong OKLCH triplet.
 - **Tailwind `spacing` scale gaps silently drop utilities — the same failure
   mode as the `fontSize`/`customTextScale` bug already documented below in
   "Visual fidelity process" step 5, but for spacing, not color.** Tailwind v3
@@ -607,7 +610,77 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       composites specifically (the page's overall horizontal scroll at
       768px is pre-existing, from the 1440px-wide Sidebar/Topbar sections
       documented as out-of-scope in their own Status entries).
-- [ ] KPI Strip + KPI Stat Cell built
+- [x] KPI Strip + KPI Stat Cell built — `frontend/components/inventory/kpi-strip.tsx`
+      (`KpiStrip` desktop, `KpiRow` mobile). Reference: `1QN-0` (Shells &
+      Primitives page, desktop specimen) / `TMQ-0` (Milestone One page,
+      mobile "1m · Item catalog" specimen).
+
+      **Tone system, not per-cell hardcoding:** confirmed via
+      `get_computed_styles` on all 4 desktop cells that only genuinely
+      actionable numbers get an accent color — "SKUs tracked" (248, first
+      cell) stays plain ink, "Below reorder" (12) is `--color-accent-strong`,
+      "Expiring ≤7d" (3) is `--color-warning-fg`. Mobile's "Needs scope" (3)
+      is `--color-error-fg` — a third tone not present on desktop, confirmed
+      by actually reading the mobile specimen rather than assuming the two
+      share a palette. Built as a `tone?: 'ink' | 'accent' | 'warning' |
+      'error'` prop rather than 4 hardcoded cell components.
+
+      **Desktop (`KpiStrip`):** joined cells, `flex-grow:1 flex-basis:0%`
+      (equal-width, not fixed 275px — confirmed via `get_computed_styles`,
+      so it re-flows with however many cells a screen passes), one shared
+      border/radius, `border-r` divider between cells (last cell has none),
+      `wds-gradient-surface-raise` fill per cell, `gap-wds-1.5`(6px)
+      label→value→detail, `p-wds-4`(16px). Trend cells (stock value) get a
+      dot + colored caption instead of the plain muted detail caption —
+      modeled as a `trend` vs `detail` union on `KpiCellData` since Paper
+      draws both and they're mutually exclusive per cell.
+
+      **Mobile (`KpiRow`):** discrete bordered cells, not joined — each its
+      own `rounded-wds-md border` card, `gap-wds-2.5`(10px) between cards,
+      `p-wds-3`(12px) per cell — confirmed distinct from the desktop
+      structure via `get_computed_styles` on `TMR-0` (mobile) vs `1QO-0`
+      (desktop), not assumed to be the same component at a smaller size.
+
+      **Bug found and fixed (same OKLCH-comment-drift class already
+      documented in Known issues, now hit twice more):**
+      `--wds-gradient-surface-raise` was still on the placeholder
+      `#FFFFFF → espresso-50` pair flagged (but not yet fixed) in Known
+      issues — corrected to `var(--wds-surface) → var(--wds-surface-raise-end)`
+      matching Paper's actual `1QO-0` gradient. `--wds-surface-raise-end`
+      and `--wds-accent-strong` didn't exist as tokens yet (needed for this
+      composite specifically) — both added, and **both round-trip-verified
+      via canvas `fillStyle` → `getImageData` before being committed to the
+      token file**, not just hand-converted: an initial hand-estimated
+      OKLCH triplet for each was off by several RGB units on the first try
+      (`#F4F3F1` vs target `#F7F5F2`; `#423127` vs target `#4A3527`) — caught
+      immediately by the round-trip check rather than shipping another
+      silent-drift token, then corrected by solving the sRGB→OKLCH
+      conversion directly instead of guessing again.
+
+      **New fontSize tokens** (registered in `lib/cn.ts` in the same edit):
+      `wds-kpi` (28px/34px/500/-0.01em, desktop value — Paper's own
+      `--text-kpi`/`--leading-kpi` token pair, not reachable from any
+      existing wds-h* step), `wds-kpi-sm` (22px/28px/500, mobile value),
+      `wds-kpi-label-sm` (10px/12px/label-tracking, mobile label — smaller
+      than desktop's 11px `wds-field-label`, confirmed via
+      `get_computed_styles` on `TMS-0`, not assumed equal to the desktop
+      label size).
+
+      **Visual verification:** by-eye screenshot comparison (Playwright,
+      full 1100px-anchor width) against `get_screenshot` captures of
+      `1QN-0`/`TMQ-0` — colors, gradient wash, accent tones, dot+trend
+      styling, and cell proportions all match. Not run through the
+      automated `pnpm visual-diff` script, same `export`-tool schema
+      blocker noted on the Mobile Header entry above. Initial screenshot at
+      the dev page's default (narrower, `max-w-5xl`-constrained) viewport
+      showed "KES 1.84M" wrapping to two lines — investigated via
+      `getBoundingClientRect` before assuming a component defect, traced to
+      the demo viewport being narrower than the 1100px anchor width, not a
+      real bug; re-verified clean at the actual 1440px reference width.
+      Responsive: `KpiStrip`/`KpiRow` both use `max-w-full` and contribute
+      no horizontal overflow at 768px (verified via `scrollWidth`); the
+      page's pre-existing 768px overflow from the 1440px Sidebar/Topbar
+      sections is unchanged and already documented as out-of-scope there.
 - [ ] Drawer Shell built (composite on top of the Sheet primitive above)
 - [ ] Item Catalog Table built
 - [ ] Item Form built (shared between desktop drawer + mobile route)

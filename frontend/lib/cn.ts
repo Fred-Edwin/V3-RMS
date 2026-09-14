@@ -39,6 +39,9 @@ const customTextScale = [
   'wds-helper',
   'wds-mono',
   'wds-mono-sm',
+  'wds-kpi',
+  'wds-kpi-sm',
+  'wds-kpi-label-sm',
 ] as const;
 
 // Treat custom text-* tokens as font-size utilities so text colors are not dropped.

@@ -78,6 +78,8 @@
   --wds-text-ink:          var(--wds-neutral-950);
   --wds-table-header-bg:   #E7EEF7; /* bespoke cool blue-grey, not on any warm scale — confirmed Paper --color-table-header-bg */
   --wds-topbar-end:        oklch(0.988 0.003 85); /* #FCFBF9 bespoke, barely-tinted — not the espresso-50 tint; confirmed Paper --color-topbar-end via 1GS-0 */
+  --wds-surface-raise-end: oklch(0.971 0.005 78); /* #F7F5F2 bespoke, barely-tinted — not the espresso-50 tint; confirmed Paper --color-surface-raise-end via 1QO-0 (KPI strip). OKLCH round-trip-verified via canvas fillStyle, not just the comment hex — see Known issues re: prior OKLCH-vs-comment drift. */
+  --wds-accent-strong:     oklch(0.349 0.038 55); /* #4A3527 bespoke — KPI "below reorder" accented value color, confirmed Paper --color-accent-strong via 1R0-0. OKLCH round-trip-verified via canvas fillStyle. */
   --wds-primary:           var(--wds-espresso-700);
   --wds-primary-hover:     var(--wds-espresso-600);
   --wds-primary-pressed:   var(--wds-espresso-800);
@@ -137,8 +139,8 @@
   );
   --wds-gradient-surface-raise: linear-gradient(
     180deg in oklab,
-    #FFFFFF 0%,
-    var(--wds-espresso-50) 100%
+    var(--wds-surface) 0%,
+    var(--wds-surface-raise-end) 100%
   );
   --wds-gradient-topbar: linear-gradient(
     180deg in oklch,

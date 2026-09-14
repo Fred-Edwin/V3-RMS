@@ -112,6 +112,8 @@ const wdsPreset: Partial<Config> = {
           'badge-fg': 'var(--wds-sidebar-badge-fg)',
         },
 
+        'wds-accent-strong': 'var(--wds-accent-strong)',
+
         'wds-avatar-bg': 'var(--wds-avatar-bg)',
         'wds-avatar-fg': 'var(--wds-avatar-fg)',
       },
@@ -158,6 +160,9 @@ const wdsPreset: Partial<Config> = {
         'wds-helper': ['11px', { lineHeight: '14px', fontWeight: '400' }],
         'wds-mono': ['13px', { lineHeight: '18px' }],
         'wds-mono-sm': ['11px', { lineHeight: '14px' }],
+        'wds-kpi': ['28px', { lineHeight: '34px', letterSpacing: '-0.01em', fontWeight: '500' }],
+        'wds-kpi-sm': ['22px', { lineHeight: '28px', fontWeight: '500' }],
+        'wds-kpi-label-sm': ['10px', { lineHeight: '12px', letterSpacing: '0.04em', fontWeight: '400' }],
       },
 
       /* 4px base — only the steps the system actually uses. */

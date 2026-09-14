@@ -45,6 +45,7 @@ import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
+import { KpiStrip, KpiRow } from '@/components/inventory/kpi-strip';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -597,6 +598,44 @@ export default function WdsPreviewPage() {
                   title="Restock levels"
                   subtitle="Central Store items only. Store restock level drives the stock alerts."
                   trailingAction="Done"
+                />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="KPI Strip + KPI Stat Cell"
+            note="Item Catalog dashboard stat row. Only the genuinely actionable number is accented — desktop: 1QN-0, mobile: TMQ-0."
+          >
+            <div className="flex flex-col gap-wds-4">
+              <div className="w-[1100px] max-w-full">
+                <KpiStrip
+                  cells={[
+                    { key: 'tracked', label: 'SKUs tracked', value: '248', detail: 'across 6 categories' },
+                    {
+                      key: 'value',
+                      label: 'Stock value',
+                      value: 'KES 1.84M',
+                      trend: { tone: 'success', label: '+4.2% vs last count' },
+                    },
+                    { key: 'reorder', label: 'Below reorder', value: '12', tone: 'accent', detail: '4 critical' },
+                    {
+                      key: 'expiring',
+                      label: 'Expiring ≤7d',
+                      value: '3',
+                      tone: 'warning',
+                      detail: 'KES 21,400 at risk',
+                    },
+                  ]}
+                />
+              </div>
+              <div className="w-[358px] max-w-full">
+                <KpiRow
+                  cells={[
+                    { key: 'tracked', label: 'Tracked', value: '148' },
+                    { key: 'scope', label: 'Needs scope', value: '3', tone: 'error' },
+                    { key: 'retired', label: 'Retired', value: '6' },
+                  ]}
                 />
               </div>
             </div>
