@@ -48,6 +48,12 @@ import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { KpiStrip, KpiRow } from '@/components/inventory/kpi-strip';
 import { DrawerShell } from '@/components/inventory/drawer-shell';
 import {
+  ItemCatalogToolbar,
+  ItemCatalogTable,
+  ItemCatalogList,
+  type ItemCatalogRow,
+} from '@/components/inventory/item-catalog-table';
+import {
   DashboardIcon,
   ReceivingIcon,
   PurchasingIcon,
@@ -97,6 +103,15 @@ function GradientSwatch({ name, className, note }: { name: string; className: st
     </div>
   );
 }
+
+const demoCatalogRows: ItemCatalogRow[] = [
+  { id: 'rice', name: 'Rice', type: 'raw', category: 'Dry goods', units: 'bag → kg · ÷25', pack: '25 kg', departmentScope: 'Central Store only' },
+  { id: 'coffee', name: 'Coffee beans', type: 'stocked', category: 'Beverages', units: 'kg · no conversion', pack: '1 kg', departmentScope: 'Central Store · Barista' },
+  { id: 'chicken', name: 'Chicken stock', type: 'prepped', category: 'Prepped bases', units: 'litres · no conversion', pack: '—', departmentScope: 'Central Store · Kitchen' },
+  { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', departmentScope: 'Central Store · Kitchen, Barista' },
+  { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', departmentScope: 'Central Store · Kitchen' },
+  { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', departmentScope: 'Retired 04 Aug · history kept', retired: true },
+];
 
 const demoNavGroups: SidebarNavGroup[] = [
   {
@@ -663,6 +678,24 @@ export default function WdsPreviewPage() {
                   <Input placeholder="Basmati rice" />
                 </div>
               </DrawerShell>
+            </div>
+          </Section>
+
+          <Section
+            title="Item Catalog Table"
+            note="Desktop table (toolbar + per-type status dot + retired-row 55% opacity) + mobile card list. Reference: SFT-0 (desktop) / TN1-0 (mobile)."
+          >
+            <div className="flex flex-col gap-wds-4">
+              <div className="w-[1140px] max-w-full">
+                <ItemCatalogToolbar
+                  itemCount={148}
+                  className="rounded-t-wds-md border border-b-0 border-wds-border"
+                />
+                <ItemCatalogTable rows={demoCatalogRows} />
+              </div>
+              <div className="w-[358px] max-w-full">
+                <ItemCatalogList rows={demoCatalogRows} />
+              </div>
             </div>
           </Section>
 

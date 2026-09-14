@@ -711,7 +711,70 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       the fact that every value here is inherited unchanged from the
       already pixel-diff-verified Sheet primitive, plus a by-eye check of
       the new header/footer content this composite adds on top.
-- [ ] Item Catalog Table built
+- [x] Item Catalog Table built —
+      `frontend/components/inventory/item-catalog-table.tsx`
+      (`ItemCatalogToolbar` + `ItemCatalogTable` desktop,
+      `ItemCatalogList` mobile). Reference: `SFT-0` (desktop toolbar +
+      header + rows) / `TN1-0`/`TN2-0` (mobile card list). This is the
+      composite the `Table` primitive's own Status entry deferred pixel
+      fidelity to — the toolbar, per-type status dot, and retired-row
+      opacity were deliberately excluded from the bare primitive build.
+
+      **Toolbar** (`SHQ-0`): "Items" label + count badge, then
+      Type/Department/Category filter chips (each reusing the
+      `DropdownMenu` primitive's filter-chip trigger convention already
+      established) + a "Show retired" toggle chip + a vertical divider +
+      "Manage categories" link in `--color-primary`. `h-10`(40px)/
+      `gap-wds-2`(8px)/`px-wds-4`(16px) — confirmed via
+      `get_computed_styles` on `SHQ-0`/`SHR-0`.
+
+      **Type → color mapping, read per-row not assumed uniform:**
+      `get_computed_styles` on all 3 distinct type dots showed 3 different
+      colors — Raw ingredient = `--color-neutral-400` (gray), Stocked item
+      = `--color-info-fg` (blue), Prepped item = `--color-success-fg`
+      (green) — confirmed by reading `SHG-0`/`SG2-0`/`SGW-0` individually
+      rather than assuming one dot color for all types. Modeled as a
+      `Record<ItemType, string>` lookup, not per-row conditional styling.
+
+      **Retired-row state (Paper-verified, not derived):** the *entire row*
+      at `opacity: 0.55` (`SFU-0`), not just the name text — confirmed via
+      `get_computed_styles`, since the row's other cells (type dot,
+      category, units) needed to be checked too rather than assuming only
+      the strikethrough-style name treatment applies.
+
+      **Column widths** match `SFT-0` exactly: Name (flex, `min-w-[180px]`)
+      · Type (120px) · Category (140px) · Units (160px) · Pack (110px,
+      right-aligned) · Department scope (250px, `pl-wds-6`/24px indent —
+      confirmed via `get_computed_styles` on `SH9-0` that this is a real
+      `padding-left`, not a stray margin someone could drop by accident).
+
+      **Mobile (`ItemCatalogList`):** not a table at all — a card list,
+      confirmed via `get_jsx` on `TN2-0`: name + units on one row, dot +
+      "Type · Category · Scope" caption below, `p-wds-3`(12px)/`gap-1`(4px)
+      per card, cards separated by `border-b` (last card has none).
+
+      **Fixed during build:** the dev-preview demo initially double-bordered
+      the toolbar and table (each had its own full border, producing a
+      visible seam at their shared edge) — caught in the first real-browser
+      screenshot, not assumed fine. Fixed by having the toolbar's `border`
+      + `border-b-0` sit flush above the `Table` primitive's own border,
+      giving one continuous box matching Paper's single unified container.
+
+      **Visual verification:** real-browser screenshot compared against
+      `get_screenshot` captures of `SFT-0` (desktop) and `TN1-0` (mobile) —
+      toolbar layout, header indent, dot colors, retired-row opacity, and
+      mobile card structure all match. Not run through the automated
+      `pnpm visual-diff` script (same `export`-tool schema blocker as the
+      other composites in this session) — relied on per-node
+      `get_computed_styles` cross-checks (exact match on every width/
+      padding/color read) plus the by-eye screenshot comparison.
+      Responsive: composite itself uses `max-w-full` and contributes no
+      768px overflow (confirmed via `getBoundingClientRect` — shrinks to
+      689px/358px at 768px viewport); the page's pre-existing overflow at
+      that width comes from the older bare-primitive Table demo section
+      higher up the page (`table-pixel-diff-anchor`, fixed 1140px, no
+      `max-w-full` — a leftover from the primitive-stage build, out of
+      scope for this composite to fix).
 - [ ] Item Form built (shared between desktop drawer + mobile route)
 - [ ] Category Manager List built
 - [ ] Supplier Form built
