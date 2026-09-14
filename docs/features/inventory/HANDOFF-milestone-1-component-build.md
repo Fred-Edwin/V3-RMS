@@ -184,28 +184,101 @@ NEXT STEPS
 
 **Step 4 (component extraction) is done for Milestone One** — every
 primitive and composite in `04-components.md`'s tables is built, verified,
-and documented. Next per `FEATURE_REDO_PLAYBOOK.md` is **Step 5** (the
-high-level implementation plan that actually assembles these composites
-into real, routed screens with data).
+and documented. But before Step 5 (assembling these composites into real,
+routed screens), run the **Verification Pass** below — a dedicated session
+whose only job is confirming the build is actually correct, not building
+anything new. Don't skip straight to Step 5 on the assumption that "built
+and documented" already means "verified" — the per-composite verification
+done during the build substituted for the project's own stated fidelity
+process in several places (see item 1 below) and was done by the same
+agent that just wrote the code, which is a weaker check than an
+independent pass.
 
-Two pieces of unfinished verification work to pick up before or during
-Step 5, not silently deferred further:
+───────────────────────────────────────────────────────────────────────
+VERIFICATION PASS — run this as its own session, checklist below
+───────────────────────────────────────────────────────────────────────
 
-1. **Re-run the automated `pnpm visual-diff` pixel-diff** on every
-   composite from Mobile Header onward (KPI Strip, Drawer Shell, Item
-   Catalog Table, Item Form, Category Manager List, Supplier Form, Restock
-   Level Grid) — the `export` MCP tool's schema rejected single-node calls
-   for the entire session that built them, so they were verified via
-   `get_computed_styles` cross-checks + by-eye screenshot comparison
-   instead. Confirm `export` works again first (try it on any of these
-   nodes), then follow the same capture process documented in
-   `04-components.md`'s "Pixel-diff verification" section.
-2. **The dedicated OKLCH-vs-comment token drift pass** flagged in Known
-   Issues since Phase 0 — still not done as a dedicated sweep; each session
-   since has only fixed the specific tokens it happened to touch.
+Scope this as a review, not a rebuild: fix what's found, but the default
+expectation is confirmation, not new design work. Go through every item;
+don't sample. Record results back into `04-components.md`'s Status log per
+composite (append a "Verification pass" note under the existing entry —
+don't overwrite the build history) so this doesn't need re-deriving next
+time.
+
+**1. Close the automated pixel-diff gap.**
+   The `export` MCP tool's schema rejected single-node calls for the
+   entire session that built everything from Mobile Hub Header onward
+   (KPI Strip, Drawer Shell, Item Catalog Table, Item Form, Category
+   Manager List, Supplier Form, Restock Level Grid) — those were verified
+   via `get_computed_styles` cross-checks + by-eye screenshot comparison
+   instead of the project's actual `pnpm visual-diff` standard.
+   - First, confirm `export` actually works now (try it on any node before
+     assuming the whole pass is blocked again).
+   - If it works: run the real pixel-diff (`04-components.md`'s "Pixel-diff
+     verification" section has the capture process) on all 7 composites
+     above, at both Paper anchors (1440 desktop / 390 mobile) where each
+     composite has both. Threshold ≤2%, same "confirmed AA-noise vs. real
+     defect" judgment call already established — don't invent a new bar.
+   - If it's still broken: say so explicitly in the doc rather than
+     re-doing the same substitution silently a second time — that's a
+     signal to escalate the tool issue, not keep working around it.
+
+**2. Structural / best-practice audit — per component, not vibes-based.**
+   For each of the 7 primitives (`components/ui2/`) and 9 composites
+   (`components/app/shell/`, `components/inventory/`), check:
+   - **Sizing consistency:** does every instance of a given primitive
+     (e.g. every `Table`, every `Select`, every `Input`) use the same row
+     height / control height everywhere it appears, or did a composite
+     accidentally hardcode a one-off value instead of reusing the
+     primitive's default? Row/header heights especially — Item Catalog
+     Table and Restock Level Grid both use table-like layouts; confirm
+     they didn't drift from each other or from the bare `Table` primitive
+     without a documented reason (there are legitimate reasons — e.g.
+     mobile control heights are deliberately 44px vs desktop's 32px — the
+     check is "is the difference documented and intentional," not "are
+     all heights identical").
+   - **Keyboard & focus:** tab through every interactive composite (Select,
+     Dropdown Menu, Toggle Group, the two form composites, both drawers).
+     Confirm focus-visible rings appear, tab order is logical, and Escape/
+     Enter behave as expected on Radix-based primitives (Select, Dropdown
+     Menu, Sheet). These come from Radix for free — the check is whether
+     any composite's custom styling accidentally suppressed them (e.g. an
+     `outline-none` without a replacement focus style).
+   - **Interactive states present, not just default:** hover, focus-visible,
+     active/pressed, disabled — per the state matrix rule in
+     `04-components.md`'s "Component states" section. Spot-check that
+     these are visually distinct in the browser, not just present in the
+     Tailwind classes (a class can be there and still render invisibly if
+     a token resolves wrong — this build hit that exact failure mode
+     twice with color tokens).
+   - **Color contrast:** the muted/faint text tokens (`wds-text-muted`,
+     `wds-text-faint`, `wds-sidebar-fg-muted`, etc.) are used at small
+     sizes (11-12px) throughout — confirm they meet WCAG AA against their
+     actual background in each context they appear (a token can pass on
+     `wds-surface` and fail on `wds-surface-sunken` or a dark sidebar
+     ground). Use a real contrast checker on sampled hex pairs, not a
+     visual guess.
+   - **Regression check:** several tokens were corrected *during* this
+     build (`wds-espresso-700`, `wds-gradient-sidebar`, `wds-gradient-
+     topbar`, `wds-gradient-surface-raise`, `wds-sidebar-top/mid/bottom`) —
+     confirm nothing built *before* a given fix is still relying on the
+     old broken value. `pnpm build` clean isn't sufficient here since these
+     were runtime color values, not compile errors — a visual check across
+     every composite is what actually catches it.
+
+**3. The dedicated OKLCH-vs-comment token drift pass**, flagged in Known
+   Issues since Phase 0 and still not done as a full sweep — every session
+   since (including this one) has only fixed the specific tokens it
+   happened to touch. Regenerate every OKLCH triplet in `tokens.wds.css`
+   from its own hex comment, verify each via the canvas `fillStyle` →
+   `getImageData` round-trip method used on `wds-surface-raise-end`/
+   `wds-accent-strong` this session (see their Status entries in
+   `04-components.md` for the exact technique), then one clean `pnpm build`
+   at the end.
 
 Ground rules carried over from Step 4 primitive work (still apply to
-whatever assembles these composites into screens in Step 5):
+whatever assembles these composites into screens in Step 5, and to any
+fixes made during the verification pass above):
 - Never source a value from a screenshot — `get_jsx`/`get_computed_styles`/
   `get_fill_image` only; screenshots verify the rendered result afterward.
 - Every raw value maps to a token; a value with no matching token is a signal
