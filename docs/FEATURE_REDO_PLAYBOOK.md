@@ -191,16 +191,35 @@ gates**.
   pins *which* artboards are the approved ones.)
 
 ### Step 4 — Extract components into the codebase
-- For each component/composite in the approved screens:
+- First, produce a **component inventory**: for each build unit (a milestone, a
+  slice, or the whole feature for a small one), list every primitive and composite
+  its screens need, each with a pointer to the exact Paper node to build it against,
+  and a note on which existing primitives/composites from an earlier build unit are
+  being reused rather than rebuilt. Output:
+  `docs/features/<feature>/04-components.md`.
+- For each **new** primitive/composite in that inventory:
   1. Add the matching shadcn/ui primitive via its CLI (do **not** hand-write it).
   2. Read the Paper node's exact styles via MCP (`get_computed_styles`,
-     `get_node_info`, `get_jsx`).
-  3. Restyle the primitive to match Paper, using the design tokens.
+     `get_node_info`, `get_jsx`) — never source a value from a screenshot; a
+     screenshot verifies the result, it doesn't supply the numbers.
+  3. Restyle the primitive to match Paper, mapping every raw value to a design
+     token — never a bare magic number when a token already covers it.
+  4. Visual-diff it against Paper (`get_screenshot` vs. a screenshot of the running
+     component) before marking it done in the inventory doc.
 - Result: the component set in code matches the component set in Paper.
 - Components live in `components/ui2/` (primitives — add here, never in the old
-  `components/ui/`) and `components/<feature>/` (composites, built on `ui2/`).
+  `components/ui/`) and `components/<feature>/` (composites, built on `ui2/`) —
+  except shell composites used by every feature (sidebar, topbar, mobile status bar),
+  which go in a shared cross-feature location, not under `components/<feature>/`.
 - This feature's pages switch their imports from `components/ui` to
   `components/ui2` as they're rebuilt. Other features' pages are untouched.
+- **Reuse across build units within a feature is the point.** Once a primitive or
+  composite is built and visually verified for one milestone/slice, a later one that
+  needs the same thing *references* it — it does not get rebuilt or re-diffed at the
+  primitive level. Only genuinely new composites introduced by the later build unit
+  go through steps 1–4 above. A full assembled screen still gets a quick
+  screen-level visual diff even when built entirely from reused composites, since the
+  *arrangement* of composites on that screen is new even if the pieces aren't.
 
 ### Step 5 — High-level plan (planning agent)  ⟶ OWNER APPROVES
 - One agent reads: the description, the approved flows, the approved screens, the

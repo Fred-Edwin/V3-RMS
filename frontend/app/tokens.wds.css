@@ -39,6 +39,7 @@
   --wds-espresso-700: oklch(0.420 0.075 52);   /* #693C1B  DEFAULT primary */
   --wds-espresso-800: oklch(0.330 0.066 52);   /* #4E2C14  pressed */
   --wds-espresso-900: oklch(0.240 0.048 50);   /* #33200F  deep */
+  --wds-primary-btn-end: #4A1D00;              /* bespoke gradient end-stop — not on the espresso scale, matches Paper --color-primary-btn-end exactly */
 
   /* ---- Caramel / crema — secondary. Grace notes only, never a fill. ----- */
   --wds-caramel-100: oklch(0.960 0.028 75);    /* #FCF2E4 */
@@ -115,8 +116,8 @@
   );
   --wds-gradient-primary: linear-gradient(
     180deg in oklab,
-    var(--wds-espresso-600) 0%,
-    var(--wds-espresso-700) 100%
+    var(--wds-espresso-700) 0%,
+    var(--wds-primary-btn-end) 100%
   );
   --wds-gradient-primary-hover: linear-gradient(
     180deg in oklab,
