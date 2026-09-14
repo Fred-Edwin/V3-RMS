@@ -6,10 +6,10 @@ should be structured, and **how comparable systems** handle the same problems �
 *before* any visual design. Screens are designed in a dedicated **Reports pass
 after all 6 roles** (this spec informs Branch Manager / Director / Accountant
 reports too).
-**Status:** APPROVED by the owner 2026-09-10. Scheduled email is a v1 feature
-(O-RPT-2). Remaining open flags (O-RPT-1, 3, 4, 5, 6, 7) to be settled at the
-start of the Reports pass.
-**Date:** 2026-09-10
+**Status:** APPROVED by the owner 2026-09-10; **report set finalized and all
+design work complete 2026-09-14** — 6 reports (not 9), no scheduled/recurring
+email delivery (reports compute live on every open — see O-RPT-2 below).
+**Date:** 2026-09-10, revised 2026-09-14
 **Supersedes:** the single `F9 · Reports` sketch (a placeholder — it becomes
 one of the report screens below, redrawn).
 **Traces to:** `01-description.md` §2, §3 (Stage 8, C2), §4, §8 C3; `02-flows.md`
@@ -48,7 +48,7 @@ Restaurant, Marketman, Unleashed, DEAR/Cin7, xtraCHEF):
 | **Drill-down** — every row → the document behind it | A report that doesn't link to source is a dead end | ✅ required |
 | **Export** — CSV always; PDF for the ones that get printed/emailed | Accountant + owner take these off-platform | ✅ CSV v1; PDF via O-PRINT |
 | **Saved views** — a named set of parameters | "My Monday shrinkage check" | ▶ **v1.1** (flag) — design the affordance, wire later |
-| **Scheduled email** — a report emailed on a cadence | Owner wants the weekly variance report in their inbox | ✅ **v1** (owner decision 2026-09-10) — full feature: pick report + parameters + recipients + cadence, delivered as PDF |
+| **Scheduled email** | — | ❌ **not built, ever — reversed 2026-09-14.** Reports are computed live from the database on every open, "on demand." There is no cron/recurring-delivery concept anywhere in this product. Do not reintroduce a Schedule button or a scheduled-reports management screen. |
 | **Threshold / exception highlighting** — rows over a configured limit flagged | Draws the eye to what matters | ✅ required (already in §8 C3) |
 | **"Blended" honesty note** — where a number can't be trusted, say so | §3 C2: count gap = consumption + loss until sale deduction exists | ✅ required — a standing caveat on affected reports |
 
@@ -81,8 +81,12 @@ comparison as the centrepiece:
 
 ## 2 · The report set
 
-Nine reports, four categories. Each is **one screen**. The old F9 tab bar is
-replaced by the **Report Library** (§3) plus these nine screens.
+**Six reports, four categories** (reduced from an original nine — A3 Negative
+Stock Incidents, B3 Transit & Receiving Discrepancies, D1 Dispatch Shortfall/
+Fill Rate, and D3 Overnight Variance were cut by owner decision 2026-09-14;
+their spec entries are removed below rather than kept as dead documentation).
+Each is **one screen**. The old F9 tab bar is replaced by the **Report
+Library** (§3) plus these six screens.
 
 ### Category A — Stock & valuation
 
@@ -125,23 +129,8 @@ replaced by the **Report Library** (§3) plus these nine screens.
   decision; closest analogue is a "FIFO vs. weighted-average variance" note in
   accounting-grade systems (Cin7, DEAR).
 
-#### A3 · Negative stock incidents
-- **Answers:** "Which items went below zero, where, when, and for how long —
-  the data-quality signal." (Flow 21.)
-- **Primary actor:** Store Manager, Branch Manager (their branch), Director.
-- **Parameter bar:** period, location, resolved / unresolved.
-- **Headline strip:** # incidents in period · # currently negative · longest
-  time negative · most-affected item.
-- **Chart:** timeline / gantt — each incident as a bar from went-negative to
-  resolved.
-- **Table:** location · item · went negative (date) · lowest point · resolved
-  (date or "still negative") · duration · likely cause (un-logged prep /
-  receiving lag / miscount — inferred from the ledger around the event).
-- **Drill:** row → F5 ledger for that item × location, positioned at the event.
-- **Export:** CSV.
-- **Caveat:** "cause" is inferred, not asserted.
-- **Comparable:** most systems bury this in an "exceptions" list; giving it a
-  screen is a deliberate data-hygiene move.
+~~A3 · Negative stock incidents~~ — **CUT, owner decision 2026-09-14.** Not
+built. Was: a data-quality report on items that went below zero on-hand.
 
 ### Category B — Variance & loss (the hero category)
 
@@ -164,10 +153,15 @@ replaced by the **Report Library** (§3) plus these nine screens.
   department, by item, or by count event. Above-threshold rows flagged.
 - **Drill:** row → the D4 / E2 count verification document.
 - **Export:** CSV + PDF (owner wants this weekly).
-- **Caveat (prominent, always shown):** "A department's count gap is
-  **consumption + loss blended**. Wendo cannot separate sold from lost until
-  automatic sale deduction exists (§3 C2). Treat trends and outliers as the
-  signal, not the absolute number."
+- **Caveat: NONE — reversed 2026-09-14 (O-RPT-7 resolved).** The original
+  spec called for a "consumption + loss blended" caveat here. Owner decision:
+  automatic sale deduction is expected to ship before this report goes live,
+  so by build time the count gap is trustworthy shrinkage/loss data — the
+  caveat would be a false disclaimer at launch. Designed treating the gap as
+  real loss: no hedge language, KPI/table copy says "variance value" plainly.
+  **If automatic deduction slips past this feature's ship date, this decision
+  must be revisited before launch** — the original caveat wording is
+  preserved above in this file's git history if still needed.
 - **Comparable:** MarketMan "Variance Report", Crunchtime "Theoretical vs
   Actual", R365 "Waste & Variance" — but all of those *do* have theoretical
   usage; ours is explicitly the blended version and says so.
@@ -195,35 +189,35 @@ replaced by the **Report Library** (§3) plus these nine screens.
 - **Comparable:** every product has this; MarketMan "Waste Log Report",
   Lightspeed "Wastage".
 
-#### B3 · Transit & receiving discrepancies
-- **Answers:** "How often does dispatched ≠ received, on which routes/branches,
-  and how are they resolved?" (Flow 10a, Flow 11, Flow 20.)
-- **Primary actor:** Store Manager, Branch Manager (their branch), Director.
-- **Parameter bar:** period, branch, department, outcome (found / write-off /
-  miscount / open).
-- **Headline strip:** # discrepancies (period) · total gap value · # open ·
-  avg time to resolve · worst branch/route.
-- **Chart:** discrepancy count + value by branch (grouped bar).
-- **Table:** date · branch · department · dispatched · confirmed · gap qty ·
-  **gap value (frozen cost)** · outcome · resolved by · time to resolve.
-- **Drill:** row → the C6 discrepancy resolution record.
-- **Export:** CSV.
-- **Caveat:** none.
-- **Comparable:** transfer-variance reports in multi-site systems (Crunchtime,
-  R365 "Transfer Report").
+~~B3 · Transit & receiving discrepancies~~ — **CUT, owner decision
+2026-09-14.** Not built. Was: dispatched-vs-received gap tracking by branch.
 
 ### Category C — Purchasing
 
 #### C1 · Purchase & price trend
 - **Answers:** "What have we bought, from whom, at what price — and how are unit
   prices moving?" (Flow 1, Flow 2, §6 price-change alerts.)
-- **Primary actor:** Store Manager, Accountant, Director.
+- **Primary actor:** Store Manager, Accountant, Director. **Domain
+  correction 2026-09-14: only Central Store purchases anything — branches
+  never buy, they only receive dispatches from Central Store (D-15 hub
+  scoping).** This means there is no per-branch breakdown possible for this
+  report, and all three roles see identical content (Accountant/Director are
+  sidebar-only clones of the Store Manager screen, not independently scoped
+  data) — there is only one source of purchase data in the whole product.
 - **Parameter bar:** period, supplier, category, item.
 - **Headline strip:** Total purchased (value) · # goods receipts · # price
   alerts fired · biggest price increase (item + %) · biggest decrease.
-- **Chart:** **unit price over time** for a selected item (line), with the
-  price-alert threshold band shown; default shows the item with the most
-  volatility.
+- **Chart — CHANGED 2026-09-14 from the original spec below:** total
+  purchase value by month (simple single-series bar, one bar per month
+  within the selected period, no breakdown). The original per-item unit-price
+  line chart (kept for reference) was rejected as too narrow — a single
+  item's price doesn't answer "are we spending more, and is it trending" the
+  way a KPMG/McKinsey-register report should; per-item price movement is
+  still fully covered by the table's Unit Price / vs. Previous / Price Alert
+  columns, just not charted.
+  - ~~Original: unit price over time for a selected item (line), with the
+    price-alert threshold band shown; default shows the item with the most
+    volatility.~~
 - **Table:** date · supplier · item · qty · unit price · vs. previous price
   (Δ%) · price-alert flag · GRN. Group by supplier or item.
 - **Drill:** row → the A7 goods receipt.
@@ -241,22 +235,8 @@ replaced by the **Report Library** (§3) plus these nine screens.
 
 ### Category D — Operations
 
-#### D1 · Dispatch shortfall / fill rate
-- **Answers:** "Which branches/departments consistently don't get what they
-  requisition, and is it improving?" (§3 Stage 8, Flow 9a.)
-- **Primary actor:** Store Manager, Branch Manager (their branch), Director.
-- **Parameter bar:** period, branch, department, category, **compare** toggle.
-- **Headline strip:** Overall fill rate (dispatched ÷ requested) · vs. previous
-  period · worst department · # requisitions with a shortfall · most-shorted item.
-- **Chart:** **fill rate by department over time** (line). Secondary: shortfall
-  value by department (bar).
-- **Table:** period · branch · department · requested (qty / value) ·
-  dispatched · **shortfall %** · # requisitions · most-shorted item.
-- **Drill:** row → the C2 fulfilment records for that branch/department/period.
-- **Export:** CSV + PDF.
-- **Caveat:** none.
-- **Comparable:** transfer fill-rate / order fill-rate reports (Crunchtime,
-  R365).
+~~D1 · Dispatch shortfall / fill rate~~ — **CUT, owner decision 2026-09-14.**
+Not built. Was: fill-rate tracking for branch requisitions.
 
 #### D2 · Prep yield
 - **Answers:** "Which prep items yield below the rolling norm, by how much, and
@@ -267,33 +247,25 @@ replaced by the **Report Library** (§3) plus these nine screens.
 - **Parameter bar:** period, output item, prepared-by.
 - **Headline strip:** # runs (period) · # below-norm runs · avg yield variance ·
   worst item · estimated value of lost yield.
-- **Chart:** yield vs. rolling average per run (scatter or line) for a selected
-  output item.
+- **Chart: NONE — decided 2026-09-14.** The spec originally called for a
+  scatter/line of yield vs. rolling average. Dropped: with likely low prep-run
+  volume (a handful per week), a chart would just restate what a 5–10-row
+  table already shows — the shell's own allowance for table-only reports (§4)
+  applies here. KPI strip + table + caveat band carry the full report.
 - **Table:** date · output item · inputs (summary) · actual yield · rolling avg ·
   variance qty / % · **value of variance** · prepared by. Flag runs beyond the
   configured band.
 - **Drill:** row → the D2 prep run record + F5 ledger for the output item.
 - **Export:** CSV.
 - **Caveat:** "rolling average is a reference, not a target — it is never
-  enforced (§3 Stage 3)."
+  enforced (§3 Stage 3)." **This caveat stays** (unlike B1's, which was
+  removed) — it's about how the number should be used, not a data-trust
+  problem a future feature will fix, so it doesn't go stale the way B1's did.
 - **Comparable:** yield / production variance reports (Crunchtime "Production",
   Unleashed "Assembly").
 
-#### D3 · Overnight variance *(branch)*
-- **Answers:** "Which departments' morning opening figures don't match the
-  previous night's close, and how often?" (Flow 12c.)
-- **Primary actor:** Branch Manager (their branch), Director.
-- **Parameter bar:** period, branch, department.
-- **Headline strip:** # overnight variances (period) · total variance value ·
-  worst department · # above threshold.
-- **Chart:** overnight variance count by department (bar).
-- **Table:** date · branch · department · item · last close · morning recount ·
-  variance qty / value · flagged (above threshold). Group by department.
-- **Drill:** row → the E3 next-morning opening record.
-- **Export:** CSV.
-- **Caveat:** none.
-- **Comparable:** open/close variance (R365 "Daily Sales & Labor" analogue for
-  inventory; niche — most systems fold this into stock variance).
+~~D3 · Overnight variance~~ — **CUT, owner decision 2026-09-14.** Not built.
+Was: morning-count-vs-last-night's-close tracking by branch/department.
 
 ---
 
@@ -302,11 +274,9 @@ replaced by the **Report Library** (§3) plus these nine screens.
 Replaces the F9 tab bar. The Reports nav item lands here.
 
 - **Header:** "Reports" · a global period picker (sets the default period every
-  report opens with) · **"Scheduled reports" link** → a management screen listing
-  every schedule (report · parameters · recipients · cadence · next send · last
-  sent) with add / edit / pause / delete. A schedule is also created from the
-  **"Schedule" button in the report-screen shell** (§4), pre-filled with that
-  report + its current parameters.
+  report opens with). **No "Scheduled reports" link — removed 2026-09-14.**
+  There is no report-scheduling feature in this product; every report
+  recomputes live from the database on open.
 - **Body:** report cards grouped under the four category headings
   (Stock & valuation · Variance & loss · Purchasing · Operations).
 - **Each card:** icon · title · one-line "what it answers" · last-run / last-
@@ -317,20 +287,16 @@ Replaces the F9 tab bar. The Reports nav item lands here.
   mini KPI on each card; decision: **not v1** — it doubles the query cost of a
   page that is just navigation. Flag for v1.1.)
 
-### Role visibility (from `01-description.md` §2)
+### Role visibility (final 6-report set, as built 2026-09-14)
 
 | Report | Store Manager | Store Attendant | Branch Manager | Dept Head | Accountant | Director |
 |---|---|---|---|---|---|---|
 | A1 Stock on hand & valuation | ✅ Central Store | — | ✅ their branch | — | ✅ all | ✅ all |
-| A2 Revaluation effect | — | — | — | — | ✅ working view | summary only |
-| A3 Negative stock | ✅ | — | ✅ their branch | — | read | ✅ |
-| B1 Count variance | ✅ Central Store | — | ✅ their branch, per dept | — | cost view | ✅ all |
-| B2 Waste analysis | ✅ Central Store | — | ✅ their branch | — | cost view | ✅ all |
-| B3 Transit discrepancies | ✅ | — | ✅ their branch | — | — | ✅ |
-| C1 Purchase & price trend | ✅ | — | — | — | ✅ | ✅ |
-| D1 Dispatch shortfall | ✅ | — | ✅ their branch | — | — | ✅ |
-| D2 Prep yield | ✅ | — | — | — | — | ✅ |
-| D3 Overnight variance | — | — | ✅ their branch | — | — | ✅ |
+| A2 Revaluation effect | — | — | — | — | ✅ full | ✅ full (identical to Accountant, not summary-only — owner decision 2026-09-14) |
+| B1 Count variance | ✅ Central Store, by category | — | ✅ their branch, per dept | — | — | ✅ all locations |
+| B2 Waste analysis | ✅ Central Store, by category | — | ✅ their branch, by dept | — | — | ✅ all locations |
+| C1 Purchase & price trend | ✅ | — | — | — | ✅ (identical content) | ✅ (identical content) |
+| D2 Prep yield | ✅ | — | — | — | — | ✅ (identical content) |
 
 Store Attendant and Department Head reach **no** reports — they work operational
 screens, not analysis. (Consistent with the nav tables in `02-screens.md`.)
@@ -339,12 +305,12 @@ screens, not analysis. (Consistent with the nav tables in `02-screens.md`.)
 
 ## 4 · The report screen shell (shared)
 
-Every one of the nine report screens uses this shell — designed once, reused:
+Every one of the six report screens uses this shell — designed once, reused:
 
-1. **Top bar:** breadcrumb (Reports / <report name>) · Export ▾ (CSV · PDF where
-   applicable) · **Schedule** (opens a drawer: recipients · cadence — daily /
-   weekly on <day> / monthly on <date> · format PDF · uses the current
-   parameters, shown for confirmation) · Save view (v1.1, shown disabled).
+1. **Top bar:** breadcrumb (Reports / <report name>) · **Export only** (CSV ·
+   PDF where applicable). **No Schedule button — removed 2026-09-14, there is
+   no report-scheduling feature in this product.** Save view (v1.1, shown
+   disabled).
 2. **Parameter bar** (sticky under the top bar): period picker · compare toggle ·
    location/branch · department · category · grouping ▾ · "above threshold only"
    toggle where relevant. Active non-default parameters shown as removable chips.
@@ -352,12 +318,13 @@ Every one of the nine report screens uses this shell — designed once, reused:
    for the current parameters; the compare toggle adds a "vs. prev" sub-line.
 4. **Chart card:** one chart, sometimes with a small toggle (value/qty, or a
    series selector). Uses the design-system chart palette (espresso / caramel /
-   semantic). Optional — a few reports are table-only.
+   semantic). Optional — table-only reports (D2 Prep Yield) skip it entirely.
 5. **Data table:** the ledger-table style (`data-table`), sortable, groupable
    with sub-total rows, above-threshold rows flagged (dot + tinted row), every
    row deep-links. Sticky header. Horizontal scroll container.
-6. **Caveat band** (only on B1, D2, A3): a calm info-toned strip stating the
-   data limitation, always visible, not dismissible.
+6. **Caveat band** (only on D2 — B1's was removed 2026-09-14, see above): a
+   calm info-toned strip stating the data limitation, always visible, not
+   dismissible.
 7. **Empty / loading / error** → the universal `15W-0` shells.
 
 ### 4.1 · Chart standard (owner wants these visually premium)
@@ -373,22 +340,37 @@ auto-generated. Load the project `dataviz` skill before designing any of them.
 - **Compare series:** the current period is the solid espresso series; the
   compare period (`vs. prev`) is a thin muted "ghost" line/bar behind it, never
   competing for attention.
-- **Type per report** (fixed choices, not a picker):
-  - B1 count variance, D1 fill rate, B2 waste-by-week, D2 prep yield trend →
-    **line** (one series per department / item), thin 1.5px strokes, dots only
-    on hover.
-  - A1 value by category × location, B3 discrepancies by branch, D3 overnight by
-    department → **stacked / grouped bar**, 2px crisp radii on bar tops.
-  - B2 waste by reason → **donut** with the value in the centre; segment labels
-    direct, no legend.
-  - A2 revaluation → **waterfall** (opening → purchases → usage → revaluation →
-    closing), the revaluation bar in caramel.
-  - B1 / C1 "top 10 items by |variance|" → **horizontal bar**, sorted, value
-    labels at bar end.
-  - A3 negative-stock incidents → **timeline / gantt**, one bar per incident,
-    error-toned.
-  - C1 unit price over time → **line** with the price-alert threshold shown as a
-    faint horizontal band.
+- **Type per report, as actually built 2026-09-14** (the bullets below
+  supersede the original picks above where they differ — several were
+  changed after owner review):
+  - A1 Stock on Hand & Valuation → value by location (horizontal bar) +
+    value by category (treemap-style blocks), side by side.
+  - A2 Revaluation Effect → **ranked horizontal bar**, top 10 items by
+    |revaluation delta| — NOT the waterfall originally specced; the
+    waterfall was built, reviewed on-screen, and explicitly rejected by the
+    owner as not premium enough and less useful than a ranked driver list.
+    Use the ranked-bar pattern (thin bars, mono value labels, single blue
+    ramp, quiet neutral track) wherever a report's story is "which items are
+    the problem," not a flow/waterfall.
+  - B1 Count Variance → two charts: a **line**, one series per department/
+    category/location (role-dependent — see §2 B1), for the trend read; plus
+    a **ranked horizontal bar**, top items by |variance value|, same pattern
+    as A2.
+  - B2 Waste Analysis → two charts: a **donut** for value-by-reason
+    (Spoilage/Expiry/Damage/Prep error/Other, single blue ramp — not 4
+    competing hues) + a **grouped bar**, this-period vs. last-period, by week.
+  - C1 Purchase & Price Trend → **single-series bar**, one bar per month,
+    total purchase value — NOT a per-item unit-price line as originally
+    specced (see the C1 entry above for why that was changed). Bars grouped
+    and centered as one visual unit with deliberate gaps, not stretched to
+    fill the card width at only 2–3 data points.
+  - D2 Prep Yield → **no chart** (see D2 entry above).
+  - Every ranked-bar and bar-chart hue is drawn from the single validated
+    blue ramp (`#0D366B` → `#1C5CAB` → `#5598E7` → `#9EC5F4`, darkest =
+    largest/primary), plus `#E34948`/`#97281D` reserved strictly for a
+    genuine problem number, never a neutral one. This is now the standing
+    chart palette for the whole Inventory feature — see
+    `docs/DESIGN_SYSTEM.md` for the formal token entry.
 - **Craft rules:** generous padding; hairline gridlines (`--color-border`, and
   only horizontal); axis numerals + currency in Geist Mono; **direct labels over
   legends** wherever the series count allows; no 3D, no drop shadows, no
@@ -403,38 +385,50 @@ auto-generated. Load the project `dataviz` skill before designing any of them.
 
 ---
 
-## 5 · Open flags for the owner
+## 5 · Flags — all resolved 2026-09-14
 
-- **O-RPT-1 — Library vs. tabs.** Recommendation: **Report Library** (§3). It
-  scales, it has room for descriptions + favourites + scheduling, it is what
-  mature products do. Confirm, or keep a simpler tab bar for v1.
-- **O-RPT-2 — Scheduled email.** ✅ **Resolved 2026-09-10 — in for v1, full
-  feature.** Schedule drawer in the report-screen shell + a "Scheduled reports"
-  management screen off the library. PDF delivery. **Saved views** stays v1.1
-  (affordance designed, shown disabled).
-- **O-RPT-3 — Period comparison everywhere.** Recommendation: yes, a "compare"
-  toggle on every trend-bearing report (B1, B2, C1, D1). Adds query cost; worth
-  it.
-- **O-RPT-4 — As-of historical reconstruction (A1, A2).** These reports can be
-  run for a past date by summing the ledger to that point. Confirm this is
-  wanted for v1 (it is standard, but it is real query work).
-- **O-RPT-5 — A2 revaluation report.** This is unusual and specific to the
-  latest-price decision. Confirm the Accountant actually needs it as a screen
-  vs. a line on the F8 Accountant Overview.
-- **O-RPT-6 — Report count.** Nine screens is a lot to design. Could defer
-  A2, A3, D2, D3 to v1.1 and ship with B1, B2, B3, C1, D1, A1 (the six that get
-  looked at weekly). Confirm the v1 set.
-- **O-RPT-7 — Blended-variance caveat wording.** The B1 caveat is the single
-  most important sentence in this area. Owner to approve the exact wording
-  before design (draft in B1 above).
+- **O-RPT-1 — Library vs. tabs.** ✅ **Resolved — Report Library**, Option A
+  editorial index (left category rail + compact right-hand list). Built and
+  approved on the `F1 Inventory · Reports & Documents` Paper page.
+- **O-RPT-2 — Scheduled email.** ✅ **Resolved — REVERSED from the 2026-09-10
+  decision. Not built, ever.** The owner clarified reports are computed live
+  from the database on every open ("on demand"), not scheduled. No Schedule
+  button, no scheduled-reports management screen, no cron/recurring-delivery
+  concept anywhere in this product. **Saved views** stays v1.1 (unbuilt).
+- **O-RPT-3 — Period comparison everywhere.** ✅ **Resolved — yes.** A
+  "compare" toggle is on every trend-bearing report (B1, B2; C1 and D2 don't
+  carry one, their content doesn't call for it).
+- **O-RPT-4 — As-of historical reconstruction (A1, A2).** ✅ **Resolved —
+  yes**, both reports carry an as-of/period picker that can target a past
+  point.
+- **O-RPT-5 — A2 revaluation report.** ✅ **Resolved — yes, it's a full
+  screen**, not folded into the Overview. Built with identical content for
+  Accountant and Director (no summary-only variant — owner explicitly
+  rejected simplifying the Director view).
+- **O-RPT-6 — Report count.** ✅ **Resolved — 6 reports, not 9.** A3, B3, D1,
+  D3 cut entirely (not deferred to v1.1 — removed from scope). Final set:
+  A1 Stock on Hand & Valuation, A2 Revaluation Effect, B1 Count Variance,
+  B2 Waste Analysis, C1 Purchase & Price Trend, D2 Prep Yield.
+- **O-RPT-7 — Blended-variance caveat wording.** ✅ **Resolved — caveat
+  removed from B1 entirely**, not just reworded. See the B1 entry above:
+  automatic sale deduction is expected before this report ships, so the
+  count gap will be trustworthy loss data by launch, making the caveat a
+  false disclaimer if kept. D2's caveat (rolling average is a reference, not
+  a target) stays — it's a usage note, not a data-trust caveat, so it
+  doesn't have the same staleness risk.
 
 ---
 
-## 6 · What happens after sign-off
+## 6 · Status — design complete
 
-1. Owner approves this spec (the report set, the library approach, the v1 vs.
-   v1.1 split, the caveat wording).
-2. The **Reports pass** (after all 6 roles) designs: the Report Library +
-   the shared report-screen shell + one screen per report in the v1 set.
-3. PDF exports for A1, A2, B1, B2, C1, D1 are designed in the **O-PRINT pass**
-   alongside the other document print layouts.
+1. ✅ Owner approved this spec (2026-09-10), then approved the report-set
+   reduction, chart changes, and no-scheduling decision (2026-09-14).
+2. ✅ The **Reports pass** designed: the Report Library + the shared
+   report-screen shell + one screen per report in the final 6-report set,
+   with role-scoped clones where content actually differs by role.
+3. PDF exports for A1, A2, B1, B2, C1 were designed in the **O-PRINT pass**
+   alongside the other document print layouts (D2 is CSV-only, no PDF).
+4. **This closes O-REPORTS.** The whole Inventory & Procurement Feature 1
+   design (all 6 roles + O-PRINT + O-REPORTS) is now complete — see
+   `HANDOFF-role-complete-design.md` for the handoff to the build/engineering
+   stage.

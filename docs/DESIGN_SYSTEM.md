@@ -154,6 +154,45 @@ tuned independently.
 > 15px line icon (1.75 stroke, `wds-sidebar-fg-muted` when inactive). The
 > `-divider`, `-marker`, and `-active-bg` tokens are retired.
 
+### 3.7 Chart palette — validated, not eyeballed
+
+**Added 2026-09-14**, authorized during the Inventory reports pass. The
+brand accents (espresso, caramel) **fail as chart marks** — confirmed with
+`scripts/validate_palette.js` (bundled with the `dataviz` skill): both are
+too low-chroma at the values needed for data marks and read as gray rather
+than as color. Charts use a **separate, validated blue ramp** instead, kept
+deliberately apart from the UI's espresso/caramel identity.
+
+| Token | Value | Role |
+|---|---|---|
+| `wds-chart-1` | `#0D366B` | darkest — the largest value / primary series |
+| `wds-chart-2` | `#1C5CAB` | second step |
+| `wds-chart-3` | `#5598E7` | third step |
+| `wds-chart-4` | `#9EC5F4` | lightest — the smallest value / quietest series |
+| `wds-chart-problem` | `#E34948` (fg) / `#97281D` (text) | reserved strictly for a genuine problem number — never a neutral or informational one |
+
+**Rules:**
+- **One hue family per chart.** Rank or weight within the chart by shade
+  (darkest = largest/primary, lightest = smallest), not by switching hues.
+  A chart with 4+ flat, competing hues was tried and explicitly rejected —
+  "ugly, absolutely not." If a second series is genuinely needed (e.g. a
+  real current-vs-compare-period pair), use a lighter/ghosted step of the
+  same ramp for the comparison series, never a second hue.
+- **The problem-red pair is exclusive** — apply it only to a cell, KPI, or
+  chart mark that represents an actual problem (a threshold breach, a
+  genuine loss, a below-norm result). Never decorate a merely-present
+  number with it.
+- **Prefer a ranked horizontal bar** for "which items/things are the
+  problem" questions (thin bars, generous row rhythm, mono value labels at
+  bar end, quiet neutral track `wds-surface-sunken` behind each bar) over a
+  waterfall or a decorative flow chart — validated during this pass: a
+  waterfall was built, reviewed, and rejected as less useful and less
+  premium-reading than the ranked-bar alternative for the same data.
+- Before introducing any new hue combination beyond this ramp, validate it
+  with `node scripts/validate_palette.js "<hex,hex,...>" --mode light` — do
+  not eyeball a chart color choice.
+- Load the `dataviz` skill before designing any new chart.
+
 ---
 
 ## 4. Typography
@@ -329,3 +368,9 @@ clear WCAG AA on `wds-neutral-0`; espresso-700 on white is 8.9:1).
   `-marker`, `-active-bg` retired. New shared primitives for the redo: the
   **right-side drawer** (`sheet`) and the **hub-landing shell** — see
   `docs/features/inventory/02-screens.md` § Consolidation.
+- **2026-09-14** — Chart palette added (§3.7). Espresso/caramel validated as
+  unsuitable for chart marks (too low-chroma); a separate blue ramp
+  (`wds-chart-1..4`) plus the existing error tones for problem-marking is now
+  the standing chart palette, authorized during the Inventory reports pass
+  (O-REPORTS). Ranked-horizontal-bar established as the default pattern for
+  "which items are the problem" questions, in place of a waterfall.

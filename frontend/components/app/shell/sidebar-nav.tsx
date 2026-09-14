@@ -1,0 +1,214 @@
+import * as React from 'react';
+
+import { cn } from '@/lib/cn';
+import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
+import type { NavIcon } from './nav-icons';
+
+/**
+ * Hub Sidebar Nav — the desktop nav rail + mobile icon rail shared by every
+ * role/feature (not Inventory-specific). Reference: Session-0 shell, Paper
+ * page `3-0`, node `18O-0` (desktop "Store role" specimen) / `1A5-0` (mobile
+ * "Department Head" rail).
+ *
+ * Role-conditional: the rail is one component, the group/item set passed in
+ * is what changes per role/org (see Paper's own sidebar notes, `1AK-0`).
+ *
+ * Active-state note (verified against the actual drawn nodes, not just
+ * Paper's summary copy, which says "same active treatment" for mobile — the
+ * two specimens are NOT the same):
+ * - Desktop: no fill, no left marker. Active label goes brighter
+ *   (`--wds-sidebar-fg-active`) with a 1.5px caramel underline; the icon also
+ *   takes caramel.
+ * - Mobile rail: left-border marker (2px caramel) + a subtle white-wash
+ *   active background (`--wds-sidebar-active-bg`), icon strokes go to
+ *   `--wds-sidebar-fg-active`.
+ */
+
+export interface SidebarNavItem {
+  key: string;
+  label: string;
+  href: string;
+  icon: NavIcon;
+  count?: number;
+}
+
+export interface SidebarNavGroup {
+  key: string;
+  label: string;
+  items: SidebarNavItem[];
+}
+
+export interface SidebarNavUser {
+  name: string;
+  role: string;
+  initials: string;
+}
+
+export interface SidebarNavProps {
+  groups: SidebarNavGroup[];
+  activeKey: string;
+  user: SidebarNavUser;
+  orgLabel?: string;
+  logoSrc?: string;
+  onNavigate?: (item: SidebarNavItem) => void;
+  className?: string;
+}
+
+function DesktopNavItem({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: SidebarNavItem;
+  active: boolean;
+  onNavigate?: (item: SidebarNavItem) => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <a
+      href={item.href}
+      onClick={onNavigate ? (e) => { e.preventDefault(); onNavigate(item); } : undefined}
+      className="flex h-8 shrink-0 items-center gap-wds-2.5 px-wds-2.5"
+    >
+      <Icon
+        className={cn('shrink-0', active ? 'text-wds-caramel' : 'text-wds-sidebar-fg-muted')}
+      />
+      {active ? (
+        <span className="inline-block border-b-[1.5px] border-wds-caramel pb-0.5">
+          <span className="font-wds-sans text-wds-label font-medium text-wds-sidebar-fg-active">
+            {item.label}
+          </span>
+        </span>
+      ) : (
+        <span className="grow font-wds-sans text-wds-body-sm text-wds-sidebar-fg-item">
+          {item.label}
+        </span>
+      )}
+      {item.count != null ? (
+        <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-wds-sm bg-wds-sidebar-badge-bg px-[5px]">
+          <span className="font-wds-mono text-wds-mono-sm font-semibold text-wds-sidebar-badge-fg">
+            {item.count}
+          </span>
+        </span>
+      ) : null}
+    </a>
+  );
+}
+
+export function SidebarNav({
+  groups,
+  activeKey,
+  user,
+  orgLabel = 'HUB',
+  logoSrc,
+  onNavigate,
+  className,
+}: SidebarNavProps) {
+  return (
+    <nav
+      className={cn(
+        'flex h-full w-[236px] shrink-0 flex-col bg-wds-gradient-sidebar font-wds-sans text-wds-caption',
+        className
+      )}
+    >
+      <div className="flex h-14 shrink-0 items-center gap-wds-2.5 border-b border-[#38302A] px-wds-4.5">
+        <div
+          className="h-[22px] w-[22px] shrink-0 rounded-full bg-cover bg-center shadow-[0_1px_0_0_rgb(255_255_255/0.10)_inset]"
+          style={logoSrc ? { backgroundImage: `url(${logoSrc})` } : { backgroundColor: 'var(--wds-espresso-600)' }}
+        />
+        <span className="font-wds-sans text-wds-body-sm font-semibold tracking-tight text-wds-sidebar-fg-active">
+          Wendo RMS
+        </span>
+        <span className="ml-auto font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">
+          {orgLabel}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-px overflow-y-auto px-wds-2.5 py-wds-3.5">
+        {groups.map((group, i) => (
+          <React.Fragment key={group.key}>
+            <div className={cn('px-wds-2.5 pb-1.5', i === 0 ? 'pt-2' : 'pt-4')}>
+              <span className="font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">
+                {group.label}
+              </span>
+            </div>
+            {group.items.map((item) => (
+              <DesktopNavItem
+                key={item.key}
+                item={item}
+                active={item.key === activeKey}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="mt-auto flex h-[52px] shrink-0 items-center gap-wds-2.5 border-t border-[#38302A] px-wds-4.5">
+        <Avatar>
+          <AvatarFallback>{user.initials}</AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col gap-px">
+          <span className="font-wds-sans text-wds-caption font-medium text-wds-sidebar-fg-name">
+            {user.name}
+          </span>
+          <span className="font-wds-sans text-wds-overline font-normal normal-case tracking-normal text-wds-sidebar-fg-muted">
+            {user.role}
+          </span>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+export interface SidebarRailProps {
+  groups: SidebarNavGroup[];
+  activeKey: string;
+  user: Pick<SidebarNavUser, 'initials'>;
+  logoSrc?: string;
+  onNavigate?: (item: SidebarNavItem) => void;
+  className?: string;
+}
+
+/**
+ * Mobile icon rail — flat items across all groups (no group labels, no "More"
+ * menu, ever). Reference: `1A5-0`.
+ */
+export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, className }: SidebarRailProps) {
+  const items = groups.flatMap((g) => g.items);
+  return (
+    <nav className={cn('flex h-full w-[60px] shrink-0 flex-col items-center bg-wds-gradient-sidebar py-wds-4', className)}>
+      <div
+        className="mb-wds-4 h-[22px] w-[22px] shrink-0 rounded-full bg-cover bg-center shadow-[0_1px_0_0_rgb(255_255_255/0.10)_inset]"
+        style={logoSrc ? { backgroundImage: `url(${logoSrc})` } : { backgroundColor: 'var(--wds-espresso-600)' }}
+      />
+      {items.map((item) => {
+        const active = item.key === activeKey;
+        const Icon = item.icon;
+        return (
+          <a
+            key={item.key}
+            href={item.href}
+            onClick={onNavigate ? (e) => { e.preventDefault(); onNavigate(item); } : undefined}
+            className={cn(
+              'relative flex size-10 shrink-0 items-center justify-center rounded-wds-sm',
+              active && 'border-l-2 border-wds-caramel bg-wds-sidebar-active-bg'
+            )}
+          >
+            <Icon className={active ? 'text-wds-sidebar-fg-active' : 'text-wds-sidebar-fg-muted'} />
+            {item.count != null ? (
+              <span className="absolute right-1.5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-wds-sm bg-wds-sidebar-badge-bg">
+                <span className="font-wds-mono text-[9px]/3 font-semibold text-wds-sidebar-badge-fg">
+                  {item.count}
+                </span>
+              </span>
+            ) : null}
+          </a>
+        );
+      })}
+      <div className="mt-auto flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-wds-sm bg-wds-avatar-bg">
+        <span className="font-wds-mono text-[10px]/3 text-wds-avatar-fg">{user.initials}</span>
+      </div>
+    </nav>
+  );
+}

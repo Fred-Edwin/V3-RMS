@@ -35,3 +35,6 @@ local_before_seed_cleanup.sql
 
 #/receipt-printing-app/receipt-printing-app/
 .local-restore/
+
+# Playwright MCP tool scratch output (screenshots, page snapshots, console logs)
+.playwright-mcp/

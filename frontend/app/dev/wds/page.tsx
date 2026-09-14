@@ -20,6 +20,43 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Separator } from '@/components/ui2/separator';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { StatusDot } from '@/components/ui2/status-dot';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+  SheetTrigger,
+} from '@/components/ui2/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui2/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui2/toggle-group';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui2/table';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui2/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
+import { SearchInput } from '@/components/ui2/search-input';
+import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/shell/sidebar-nav';
+import { Topbar } from '@/components/app/shell/topbar';
+import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
+import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
+import {
+  DashboardIcon,
+  ReceivingIcon,
+  PurchasingIcon,
+  PrepIcon,
+  DispatchIcon,
+  StockCountsIcon,
+  SuppliersIcon,
+  SupplierApIcon,
+  CatalogIcon,
+  ReportsIcon,
+} from '@/components/app/shell/nav-icons';
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -59,9 +96,43 @@ function GradientSwatch({ name, className, note }: { name: string; className: st
   );
 }
 
+const demoNavGroups: SidebarNavGroup[] = [
+  {
+    key: 'central-store',
+    label: 'CENTRAL STORE',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', href: '#', icon: DashboardIcon },
+      { key: 'receiving', label: 'Receiving', href: '#', icon: ReceivingIcon, count: 3 },
+      { key: 'purchasing', label: 'Purchasing', href: '#', icon: PurchasingIcon },
+      { key: 'prep', label: 'Prep', href: '#', icon: PrepIcon },
+      { key: 'dispatch', label: 'Dispatch', href: '#', icon: DispatchIcon, count: 5 },
+      { key: 'stock-counts', label: 'Stock & counts', href: '#', icon: StockCountsIcon },
+    ],
+  },
+  {
+    key: 'procurement',
+    label: 'PROCUREMENT',
+    items: [
+      { key: 'suppliers', label: 'Suppliers', href: '#', icon: SuppliersIcon },
+      { key: 'supplier-ap', label: 'Supplier AP', href: '#', icon: SupplierApIcon },
+      { key: 'catalog', label: 'Catalog', href: '#', icon: CatalogIcon },
+      { key: 'reports', label: 'Reports', href: '#', icon: ReportsIcon },
+    ],
+  },
+];
+
 /* ---------------------------------------------------------------- page */
 
 export default function WdsPreviewPage() {
+  // Pixel-diff-only demos (e.g. a forced-open Sheet) use a fixed-position scrim
+  // that covers the whole viewport and would contaminate every other section's
+  // screenshot if left mounted by default. Opt in with ?diff=sheet when actually
+  // diffing that primitive; the rest of the page stays clean otherwise.
+  const [diffTarget, setDiffTarget] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    setDiffTarget(new URLSearchParams(window.location.search).get('diff'));
+  }, []);
+
   return (
     <div className="min-h-screen bg-wds-canvas">
       <div className="mx-auto flex max-w-5xl flex-col gap-wds-8 px-wds-8 py-wds-12">
@@ -243,6 +314,222 @@ export default function WdsPreviewPage() {
           </div>
         </Section>
 
+        {/* ---- Sheet / Drawer ---- */}
+        <Section
+          title="Sheet / Drawer"
+          note="Right-anchored slide-over, 500px, scrim covers the full artboard. Reference: Paper SKV-0 (Scrim + Drawer)."
+        >
+          <div className="flex flex-col gap-wds-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="secondary">Open drawer (interactive)</Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>New item</SheetTitle>
+                  <SheetDescription>
+                    Type decides where the item can exist. Retiring later keeps all history.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="flex-1 overflow-y-auto px-wds-6 py-wds-5">
+                  <p className="font-wds-sans text-wds-body-sm text-wds-text">Drawer body content goes here.</p>
+                </div>
+                <SheetFooter>
+                  <Button variant="secondary">Cancel</Button>
+                  <Button>Create item</Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
+
+            {/*
+              Forced-open real Sheet for pixel-diff screenshotting against the Paper
+              1440x900 artboard. Uses the actual portal-rendered SheetOverlay/SheetContent
+              (fixed, fills the viewport) — screenshot with the browser viewport set to
+              1440x900. Its scrim covers the whole page, so it's opt-in only
+              (?diff=sheet) rather than mounted by default — otherwise it contaminates
+              every other section's screenshot below it on the page.
+            */}
+            {diffTarget === 'sheet' && (
+              <Sheet open>
+                <SheetContent id="sheet-pixel-diff-anchor" onEscapeKeyDown={(e) => e.preventDefault()}>
+                  <SheetHeader>
+                    <SheetTitle>New item</SheetTitle>
+                    <SheetDescription>
+                      Type decides where the item can exist. Retiring later keeps all history.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto px-wds-6 py-wds-5">
+                    <p className="font-wds-sans text-wds-body-sm text-wds-text">Drawer body content goes here.</p>
+                  </div>
+                  <SheetFooter>
+                    <Button variant="secondary">Cancel</Button>
+                    <Button>Create item</Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+            )}
+          </div>
+        </Section>
+
+        {/* ---- Select ---- */}
+        <Section
+          title="Select"
+          note="Trigger matches Input exactly (h-8, radius 2, border-strong). Chevron is a plain ▾ glyph, not an icon. Reference: Paper SLU-0 (Category field)."
+        >
+          <div className="inline-block rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+            {/* Bare, exact-width instance for pixel-diff — matches Paper SLU-0's 452px content width */}
+            <div className="flex w-[452px] flex-col gap-wds-1.5 bg-wds-surface" id="select-pixel-diff-anchor">
+              <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">Category</span>
+              <Select defaultValue="dry-goods">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dry-goods">Dry goods</SelectItem>
+                  <SelectItem value="dairy">Dairy</SelectItem>
+                  <SelectItem value="produce">Produce</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="font-wds-sans text-wds-helper text-wds-text-faint">
+                Pick from your list, or type a new name to add it. One category per item.
+              </span>
+            </div>
+          </div>
+        </Section>
+
+        {/* ---- Toggle Group ---- */}
+        <Section
+          title="Toggle Group"
+          note="Segmented control — joined segments, no gaps. Selected = espresso-700 fill (Paper-verified state). Reference: Paper SM0-0 (Type field)."
+        >
+          <div className="inline-block rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+            <div className="flex w-[452px] flex-col gap-wds-1.5 bg-wds-surface" id="toggle-group-pixel-diff-anchor">
+              <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">Type</span>
+              <ToggleGroup type="single" defaultValue="raw">
+                <ToggleGroupItem value="raw">Raw ingredient</ToggleGroupItem>
+                <ToggleGroupItem value="prepped">Prepped</ToggleGroupItem>
+                <ToggleGroupItem value="stocked">Stocked</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </div>
+        </Section>
+
+        {/* ---- Table ---- */}
+        <Section
+          title="Table"
+          note="Semantic <table> markup (Paper's own artboard is flex-row divs; real tabular data warrants real table semantics). Header 30px, bg-table-header-bg, border-b-ink. Rows 46px, border-b-neutral-100. Reference: Paper SFT-0 (Catalog table, first 2 rows)."
+        >
+          <div id="table-pixel-diff-anchor" className="w-[1140px]">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow className="h-[30px] hover:bg-wds-table-header-bg">
+                  <TableHead className="w-[348px]">Name</TableHead>
+                  <TableHead className="w-[120px] shrink-0 px-wds-2">Type</TableHead>
+                  <TableHead className="w-[120px] shrink-0">Category</TableHead>
+                  <TableHead className="w-[160px] shrink-0 px-wds-2">Units</TableHead>
+                  <TableHead className="w-[110px] shrink-0 text-right">Pack</TableHead>
+                  <TableHead className="w-[250px] shrink-0">Department scope</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium text-wds-text-ink">Rice</TableCell>
+                  <TableCell className="w-[120px] shrink-0 px-wds-2">
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-wds-caption text-wds-text-muted">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-wds-full bg-wds-neutral-400" aria-hidden />
+                      Raw ingredient
+                    </span>
+                  </TableCell>
+                  <TableCell className="w-[120px] shrink-0 text-wds-caption text-wds-text-ink">Dry goods</TableCell>
+                  <TableCell className="w-[160px] shrink-0 whitespace-nowrap px-wds-2 font-wds-mono text-wds-caption text-wds-text-muted">
+                    bag &rarr; kg &middot; &divide;25
+                  </TableCell>
+                  <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-muted">
+                    25 kg
+                  </TableCell>
+                  <TableCell className="w-[250px] shrink-0 text-wds-caption text-wds-text-faint">
+                    Central Store only
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium text-wds-text-ink">Coffee beans</TableCell>
+                  <TableCell className="w-[120px] shrink-0 px-wds-2">
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-wds-caption text-wds-text-muted">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-wds-full bg-wds-info-fg" aria-hidden />
+                      Stocked item
+                    </span>
+                  </TableCell>
+                  <TableCell className="w-[120px] shrink-0 text-wds-caption text-wds-text-ink">Beverages</TableCell>
+                  <TableCell className="w-[160px] shrink-0 whitespace-nowrap px-wds-2 font-wds-mono text-wds-caption text-wds-text-muted">
+                    kg &middot; no conversion
+                  </TableCell>
+                  <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-muted">
+                    1 kg
+                  </TableCell>
+                  <TableCell className="w-[250px] shrink-0 text-wds-caption text-wds-text-faint">
+                    Central Store &middot; Barista
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </Section>
+
+        {/* ---- Dropdown Menu ---- */}
+        <Section
+          title="Dropdown Menu"
+          note="Filter chip trigger (py-0.5/px-2, border-strong, radius 2, caption text) + popover list, same convention-derived surface as Select. Reference: Paper SFT-0 toolbar (Type ▾ / Department ▾ / Category ▾)."
+        >
+          <div className="flex gap-wds-1.5 rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-ink">
+                  Type ▾
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>Raw ingredient</DropdownMenuItem>
+                <DropdownMenuItem>Prepped item</DropdownMenuItem>
+                <DropdownMenuItem>Stocked item</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-ink">
+                  Department ▾
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>Kitchen</DropdownMenuItem>
+                <DropdownMenuItem>Barista</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </Section>
+
+        {/* ---- Avatar ---- */}
+        <Section
+          title="Avatar"
+          note="Squared (radius 2), not round — the system's crisp-radii convention. Bespoke dark tile + muted text, sidebar-footer context. Reference: Paper SP6-0/SP7-0."
+        >
+          <div className="flex items-center gap-wds-3 rounded-wds-md border border-wds-border bg-wds-sidebar-top p-wds-6">
+            <Avatar>
+              <AvatarFallback>JM</AvatarFallback>
+            </Avatar>
+            <span className="font-wds-sans text-wds-body-sm text-wds-sidebar-fg-name">Joseph Mwangi</span>
+          </div>
+        </Section>
+
+        {/* ---- Search Input ---- */}
+        <Section
+          title="Search Input"
+          note="Input composition (icon + input + ⌘K hint), not a separate primitive. Real lucide Search icon in place of Paper's placeholder circle glyph. Reference: Paper SI9-0 (topbar search)."
+        >
+          <div className="max-w-[420px] rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+            <SearchInput />
+          </div>
+        </Section>
+
         {/* ---- Separator + Skeleton ---- */}
         <Section title="Separator & Skeleton">
           <div className="flex flex-col gap-wds-4 rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
@@ -256,6 +543,87 @@ export default function WdsPreviewPage() {
             </div>
           </div>
         </Section>
+      </div>
+
+      {/* ---- Composites: Sidebar Nav + Topbar ----
+          These render at their real 1440px/1440px reference width, so they
+          break out of the max-w-5xl text column above. */}
+      <div className="border-t border-wds-border">
+        <div className="flex flex-col gap-wds-8 px-wds-8 py-wds-12">
+          <Section
+            title="Hub Sidebar Nav"
+            note="Cross-feature shared shell — components/app/shell/sidebar-nav.tsx. Role-conditional: one component, groups/items passed in. Desktop active state: no fill, no left marker — brighter label + 1.5px caramel underline (verified against the actual drawn node, not just Paper's summary note, which said 'same as mobile' — it isn't). Reference: Session-0 shell 18O-0."
+          >
+            <div className="h-[796px] w-[236px] overflow-hidden rounded-wds-md border border-wds-border">
+              <SidebarNav
+                groups={demoNavGroups}
+                activeKey="dashboard"
+                user={{ name: 'Joseph Mwangi', role: 'Store Manager', initials: 'JM' }}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Mobile Icon Rail"
+            note="Same component family, mobile variant — flat items, no group labels, never a 'More' menu. Active state here IS left-border + bg-wash (verified against the actual drawn node — 1A5-0), distinct from desktop's underline-only treatment."
+          >
+            <div className="h-[520px] w-[60px] overflow-hidden rounded-wds-md border border-wds-border">
+              <SidebarRail groups={demoNavGroups} activeKey="dispatch" user={{ initials: 'GW' }} />
+            </div>
+          </Section>
+
+          <Section
+            title="Mobile Hub Header"
+            note="Cross-feature shared — components/app/shell/mobile-headers.tsx. Hamburger + org label + avatar, then title/subtitle. Always on the dark sidebar-mid ground. Reference: TM8-0."
+          >
+            <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border" id="mobile-hub-header-pixel-diff-anchor">
+              <MobileStatusBar />
+              <MobileHubHeader title="Item catalog" subtitle="148 items · raw, prepped, stocked" userInitials="JM" />
+            </div>
+          </Section>
+
+          <Section
+            title="Mobile Task Header"
+            note="Back chevron + Cancel/Done + title/subtitle. Cancel for create/edit forms (TUY-0), Done for save-as-you-go screens like Restock Levels (TZO-0)."
+          >
+            <div className="flex flex-col gap-wds-4 sm:flex-row">
+              <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border" id="mobile-task-header-cancel-pixel-diff-anchor">
+                <MobileStatusBar />
+                <MobileTaskHeader title="New item" subtitle="Type decides where the item can exist." trailingAction="Cancel" />
+              </div>
+              <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border">
+                <MobileStatusBar />
+                <MobileTaskHeader
+                  title="Restock levels"
+                  subtitle="Central Store items only. Store restock level drives the stock alerts."
+                  trailingAction="Done"
+                />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Desktop Topbar"
+            note="Cross-feature shared shell — components/app/shell/topbar.tsx. Breadcrumb (section / screen · record-id) + global search + right-aligned page actions. 56px, wds-gradient-topbar (surface → topbar-end — bespoke #FCFBF9, not the espresso-50 tint; corrected this session, see Known issues). Reference: 1GO-0 / 1GS-0."
+          >
+            <div className="w-[1400px] max-w-full">
+              <Topbar
+                breadcrumb={{ section: 'Receiving', screen: 'Goods Receipt · GRN-1042' }}
+                searchProps={{ placeholder: 'Search items, suppliers, receipts' }}
+                actions={
+                  <>
+                    <Button variant="secondary" size="default">
+                      Print
+                    </Button>
+                    <Button variant="primary" size="default">
+                      Sign &amp; save
+                    </Button>
+                  </>
+                }
+              />
+            </div>
+          </Section>
+        </div>
       </div>
     </div>
   );

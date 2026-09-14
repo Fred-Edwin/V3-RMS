@@ -36,7 +36,7 @@
   --wds-espresso-200: oklch(0.812 0.052 63);   /* #DDBE9E  tint border */
   --wds-espresso-400: oklch(0.650 0.066 60);   /* #B98A5E  disabled */
   --wds-espresso-600: oklch(0.520 0.072 56);   /* #8B5A32  hover / gradient top */
-  --wds-espresso-700: oklch(0.420 0.075 52);   /* #693C1B  DEFAULT primary */
+  --wds-espresso-700: oklch(0.404 0.078 54);   /* #693C1B  DEFAULT primary */
   --wds-espresso-800: oklch(0.330 0.066 52);   /* #4E2C14  pressed */
   --wds-espresso-900: oklch(0.240 0.048 50);   /* #33200F  deep */
   --wds-primary-btn-end: #4A1D00;              /* bespoke gradient end-stop — not on the espresso scale, matches Paper --color-primary-btn-end exactly */
@@ -74,25 +74,32 @@
   --wds-text:              var(--wds-neutral-800);
   --wds-text-secondary:    var(--wds-neutral-600);
   --wds-text-muted:        var(--wds-neutral-500);
+  --wds-text-faint:        var(--wds-neutral-400);
   --wds-text-ink:          var(--wds-neutral-950);
+  --wds-table-header-bg:   #E7EEF7; /* bespoke cool blue-grey, not on any warm scale — confirmed Paper --color-table-header-bg */
+  --wds-topbar-end:        oklch(0.988 0.003 85); /* #FCFBF9 bespoke, barely-tinted — not the espresso-50 tint; confirmed Paper --color-topbar-end via 1GS-0 */
   --wds-primary:           var(--wds-espresso-700);
   --wds-primary-hover:     var(--wds-espresso-600);
   --wds-primary-pressed:   var(--wds-espresso-800);
   --wds-primary-fg:        var(--wds-neutral-0);
-  --wds-ring:              oklch(0.420 0.075 52 / 0.40);   /* espresso-700 @ 40% */
+  --wds-ring:              oklch(0.404 0.078 54 / 0.40);   /* espresso-700 @ 40% */
 
   /* ---- Sidebar (nav rail) — its own tokens, not tied to espresso-900 --- */
-  --wds-sidebar-top:       oklch(0.234 0.025 55);   /* #211A15 warm-dark coffee */
-  --wds-sidebar-mid:       oklch(0.229 0.024 52);   /* #201A14 */
-  --wds-sidebar-bottom:    oklch(0.136 0.011 50);   /* #17110C near-black */
+  --wds-sidebar-top:       oklch(0.235 0.046 58);   /* #2E1806 warm-dark coffee */
+  --wds-sidebar-mid:       oklch(0.230 0.043 56);   /* #2C1707 */
+  --wds-sidebar-bottom:    oklch(0.134 0.025 64);   /* #0F0601 near-black */
   --wds-sidebar-fg:        oklch(0.900 0.006 60);   /* #E4E1DD nav item text */
+  --wds-sidebar-fg-item:   oklch(0.754 0.015 74);   /* #B5AEA5 default (inactive) nav item label — distinct from fg/fg-active, confirmed 35L-0 */
   --wds-sidebar-fg-active: oklch(0.965 0.006 60);   /* #F5F3EF */
   --wds-sidebar-fg-muted:  oklch(0.600 0.010 55);   /* #8A7F76 group label */
+  --wds-sidebar-fg-name:   oklch(0.949 0.007 89);   /* #F0EEE9 footer user name — distinct from fg-active, confirmed 18U-0 */
   --wds-sidebar-divider:   var(--wds-caramel-500);  /* the group underline */
   --wds-sidebar-marker:    var(--wds-caramel-500);  /* active item left edge */
   --wds-sidebar-active-bg: rgb(255 255 255 / 0.06);
   --wds-sidebar-badge-bg:  var(--wds-espresso-700);
-  --wds-sidebar-badge-fg:  var(--wds-espresso-100);
+  --wds-sidebar-badge-fg:  oklch(0.911 0.018 59);   /* #EBDFD6 bespoke — off the espresso-100 scale step (#F1DECE), confirmed 35M-0 */
+  --wds-avatar-bg:         #38302A; /* bespoke, sidebar-context avatar tile — confirmed SP6-0 */
+  --wds-avatar-fg:         #B5AEA5; /* bespoke, initials text on avatar-bg — confirmed SP7-0 */
 
   /* ---- Radii — crisp. Ceiling is 6px. -------------------------------- */
   --wds-radius-none: 0px;
@@ -105,13 +112,17 @@
   --wds-shadow-sm: 0 1px 2px rgb(23 21 18 / 0.05);
   --wds-shadow-md: 0 4px 12px -2px rgb(23 21 18 / 0.10);
   --wds-shadow-lg: 0 8px 24px -6px rgb(23 21 18 / 0.14);
+  --wds-shadow-drawer: -8px 0px 24px rgb(23 21 18 / 0.16); /* left-edge shadow for right-anchored drawers, confirmed SKW-0 */
   --wds-sheen-inset: inset 0 1px 0 rgb(255 255 255 / 0.08);
+
+  /* ---- Scrim — modal/drawer backdrop --------------------------------- */
+  --wds-scrim: rgb(23 21 18 / 0.35); /* confirmed SMI-0, #17151259 = neutral-950 @ 35% */
 
   /* ---- Gradients — every stop references a scale token -------------- */
   --wds-gradient-sidebar: linear-gradient(
-    165deg in oklab,
+    164.69deg in oklab,
     var(--wds-sidebar-top) 0%,
-    var(--wds-sidebar-mid) 30%,
+    var(--wds-sidebar-mid) 40%,
     var(--wds-sidebar-bottom) 100%
   );
   --wds-gradient-primary: linear-gradient(
@@ -130,9 +141,9 @@
     var(--wds-espresso-50) 100%
   );
   --wds-gradient-topbar: linear-gradient(
-    180deg in oklab,
-    #FFFFFF 0%,
-    var(--wds-espresso-50) 100%
+    180deg in oklch,
+    var(--wds-surface) 0%,
+    var(--wds-topbar-end) 100%
   );
   --wds-gradient-scroll-scrim: linear-gradient(
     180deg,

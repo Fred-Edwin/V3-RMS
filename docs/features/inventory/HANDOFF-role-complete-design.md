@@ -1,23 +1,130 @@
-# HANDOFF — Inventory & Procurement redo · Step 3 design · role-complete pass
+# HANDOFF — Inventory & Procurement redo · Step 3 design · DESIGN COMPLETE
 
-**For a fresh session. This file is the running handoff for the role-by-role
-design pass. Update it at the end of each session; don't delete it until the
-whole feature's design is done.**
-
-You are a senior product designer continuing the feature-by-feature redo of Wendo
-RMS's Inventory & Procurement feature (Feature 1). The **ROLE-COMPLETE design
-strategy** (locked by the owner 2026-09-10) is in force. Read
-`docs/FEATURE_REDO_PLAYBOOK.md` §5 (Steps 2–3) and the auto-memory
-`project_inventory_design_strategy.md` first — that memory is the authority.
+**The entire Inventory & Procurement (Feature 1) design is DONE as of
+2026-09-14.** This file is kept as the historical record of how the
+role-complete pass was run — read it for context on *why* screens look the
+way they do, not as a task list. The next stage is
+`docs/FEATURE_REDO_PLAYBOOK.md`'s build/engineering step (Step 4+), not
+further design work, unless the owner opens a specific revision.
 
 ═══════════════════════════════════════════════════════════════════════
-WHERE THINGS STAND (updated 2026-09-14 — O-PRINT complete, O-REPORTS in progress)
+WHERE THINGS STAND — ALL DESIGN WORK COMPLETE (2026-09-14)
 ═══════════════════════════════════════════════════════════════════════
 
-Roles done: 1 Store Manager, 2 Store Attendant, 3 Branch Manager, 4 Department
-Head, 5 Accountant, 6 Director. **O-PRINT is now complete.** O-REPORTS is
-in progress (1 of 9 report screens + the Report Library done). This is the
-last pass before the whole Inventory & Procurement design is done.
+All 6 roles done: 1 Store Manager, 2 Store Attendant, 3 Branch Manager,
+4 Department Head, 5 Accountant, 6 Director. **O-PRINT is complete**
+(5 signed print documents). **O-REPORTS is complete**: Report Library +
+all 6 final reports (Stock on Hand & Valuation, Latest-Price Revaluation
+Effect, Count Variance, Waste Analysis, Purchase & Price Trend, Prep
+Yield), each with every role-scoped view it needs. `02-reports-spec.md`
+and `docs/DESIGN_SYSTEM.md` are updated to match final scope. **This is
+the end of the Inventory & Procurement Feature 1 design pass.**
+
+**Report scope cut down 2026-09-14 (owner decision, second cut this
+session) — the report set is now final at 6 reports, not 9:**
+- A1 Stock on Hand & Valuation — done
+- A2 Latest-Price Revaluation Effect — done
+- B1 Count Variance — done (all 3 role-scoped views)
+- ~~A3 Negative Stock Incidents~~ — **CUT** (see above, first cut)
+- B2 Waste Analysis — done (all 3 role-scoped views)
+- ~~B3 Transit & Receiving Discrepancies~~ — **CUT 2026-09-14.** Owner
+  decision: not needed as a standalone report. Remove from
+  `02-reports-spec.md` §2 Category B and the Report Library row list.
+- **C1 Purchase & Price Trend — remaining to build** (Store Manager,
+  Accountant, Director).
+- ~~D1 Dispatch Shortfall / Fill Rate~~ — **CUT 2026-09-14.** Remove from
+  spec §2 Category D and the Report Library.
+- **D2 Prep Yield — remaining to build** (Store Manager, Director only —
+  not branch-scoped, so this is NOT a 3-way BM/SM/Director clone set like
+  B1/B2, just Store Manager + Director, likely a much simpler 2-clone job
+  or even a single shared view with a location picker for Director).
+- ~~D3 Overnight Variance~~ — **CUT 2026-09-14.** Remove from spec §2
+  Category D and the Report Library.
+
+**O-REPORTS-SCHED — RESOLVED 2026-09-14, reversing the earlier "owner
+wants this weekly" framing: there is NO scheduled/recurring email delivery
+feature in this product at all.** The owner clarified reports are computed
+live from the database on every open — "on demand," not scheduled — and
+does not want the concept of report scheduling to exist anywhere in the
+design. **This reverses prior decisions in this same file** that assumed
+a Schedule button + scheduled-reports management screen:
+- Remove the **Schedule** button from the Count Variance topbar (all 3
+  role clones) and the Waste Analysis topbar (all 3 role clones) — Export
+  only, matching Stock on Hand & Valuation and Revaluation Effect's
+  topbar pattern (those two never had a Schedule button and were correct
+  all along).
+- **Do NOT build the "Scheduled reports" management screen** referenced
+  in `02-reports-spec.md` §3 and this file's earlier checklist — it does
+  not exist in this product.
+- Remove the "N scheduled · next <day> <time>" pill from the Report
+  Library header (`OSX-0`) if it was built — check and remove.
+- When touching `02-reports-spec.md` for the report-set cuts above, also
+  strip every "Schedule" / scheduled-email reference from §3, §4, and each
+  remaining report's own spec entry (C1, D2).
+
+**C1 Purchase & Price Trend — DONE, all 3 roles** (Store Manager,
+Accountant, Director — artboards on page `A-0`). Key domain correction
+this session: **only Central Store purchases anything — branches never
+buy, they only receive dispatches from Central Store** (same D-15 hub
+scoping rule as everywhere else in this feature). This means there is
+**no per-branch breakdown possible for this report at all** — an earlier
+in-session direction (chart by branch, then by category) was wrong for
+that reason and was corrected. The three role views are **content-identical**
+(same chart, same KPIs, same table) — Accountant and Director are sidebar
++ breadcrumb swaps of the Store Manager screen, not independently scoped
+data, because there is only one source of purchase data in the whole
+product. Chart: single-series bar, one bar per month, thin bars grouped
+and centered in the card with deliberate gaps (NOT stretched full-width
+with `flex:1` per column — that reads as sparse/awkward at only 3 data
+points; group the bars as one visual unit and center them, sizing gaps
+deliberately rather than letting a wide container dictate spacing).
+Floating bold-mono total per bar, red delta annotation on the latest
+month. KPIs: Total Purchased, Goods Receipts, Price Alerts Fired (red),
+Biggest Increase (red), Biggest Decrease (green — a price drop is good
+news, don't reflexively color it as a problem). Table: Date, Supplier,
+Item, Qty, Unit Price, vs. Previous (sortable, red only on the row that
+triggered an alert), Price Alert, GRN.
+
+**Reports set final scope — 6 reports, ALL DONE:** Stock on Hand &
+Valuation, Latest-Price Revaluation Effect, Count Variance (3 roles),
+Waste Analysis (3 roles), Purchase & Price Trend (3 roles), Prep Yield
+(2 roles: Store Manager + Director, no chart — see below). **O-REPORTS
+design work is complete.**
+
+**D2 Prep Yield — DONE, 2 roles (Store Manager, Director — not
+branch-scoped, prep only happens at Central Store).** Deliberately
+**no chart** — with likely low run volume (a handful of prep runs per
+week), a chart would just restate what the table already shows in 5-10
+rows; the shell's own spec allows table-only reports, use that instead of
+forcing a chart in for its own sake. KPI strip: Prep Runs · Below Norm
+(red) · Avg Yield Variance (red) · Worst Item (sans, not mono — it's a
+name) · Value of Lost Yield (red). **Caveat band included** (this report
+keeps its caveat, unlike Count Variance — the rolling-average-not-a-target
+caveat is about how the number should be *used*, not about data
+trustworthiness, so it doesn't have the same "will be resolved by a future
+feature" problem that got Count Variance's caveat cut) — info-toned per
+`--color-info-*` tokens, not the red/error tones. Table: Date, Output Item,
+Inputs, Actual Yield, Rolling Avg, Variance (sortable), Value of Variance,
+Prepared By. Director is a straight sidebar+breadcrumb clone of Store
+Manager (same content, no other purchasing/prep data exists to scope by,
+same reasoning as Purchase & Price Trend).
+
+**Gotcha this session:** when cloning a report to a new role, editing text
+by re-using a node ID from the *source* artboard (not the newly-created
+clone's mapped ID) silently edits the wrong artboard. Always read the
+`duplicate_nodes` result's `descendantIdMap` and use the **mapped
+(new)** ID for every subsequent edit on the clone — caught and fixed once
+this session (Director breadcrumb briefly edited on the Store Manager
+artboard instead of its own clone).
+
+**O-REPORTS design work is now fully complete — all 6 reports, all role
+views, done and reviewed.** Remaining before the whole Inventory &
+Procurement Feature 1 design can be declared done: settle open O-RPT spec
+flags (§5), add the validated chart palette to `docs/DESIGN_SYSTEM.md`,
+update `02-reports-spec.md` to match the final 6-report scope (remove A3,
+B3, D1, D3 and every "Schedule" / scheduled-email reference — there is no
+report scheduling feature in this product, reports compute live on every
+open), final handoff update declaring the whole feature done.
 
 **Housekeeping note:** this file, `01-description.md`, `02-flows.md`,
 `02-reports-spec.md`, `02-screens-by-role.md`, `02-screens.md`, and
@@ -144,6 +251,34 @@ it — don't eyeball. Decisions locked this session:
   ("ugly", "absolutely not") — don't build one. Prefer a treemap for
   composition/breakdown questions, simple monochrome-ramp horizontal bars for
   ranked comparisons.
+
+**A2 · Latest-Price Revaluation Effect — DONE** (artboard `Report ·
+Latest-Price Revaluation Effect`, Accountant sidebar clone, Reports active).
+KPI strip: Closing Value (Latest-Price) · Closing Value (Actual Cost) ·
+Revaluation Delta · Delta as % of Stock Value — the two closing-value
+figures stay ink, only Delta and its % get the blue accent (they're the
+two actionable numbers). Director sees the **identical full screen**, no
+stripped-down summary variant — owner explicitly rejected simplifying the
+Director view this session, don't reintroduce a "summary only" variant.
+
+**Chart type correction this session — apply to remaining reports with a
+"top offenders" story (not just A2):** the spec's waterfall chart
+(opening → purchases → usage → revaluation → closing) was built, reviewed
+on-screen, and then **explicitly rejected by the owner** as not premium/
+McKinsey-grade and not actually the most useful view — a flow diagram
+explains a concept the Accountant doesn't need re-taught, when what they
+actually need is "which items to look at." **Replaced with a ranked
+horizontal bar chart, top 10 items by |revaluation delta|** — thin bars
+(16px), generous row rhythm (11px gap), mono right-aligned value labels,
+quiet neutral track (`--color-neutral-100`), single blue ramp for all bars
+(NOT one item singled out in a different accent color — owner corrected
+this too, keep the top bar in the same blue family as the rest, don't use
+espresso/caramel as a "look here" highlight on a data bar). This is the
+same pattern B1 Count Variance's spec already calls for ("horizontal bar,
+top 10 items by |variance value|") — **use this ranked-bar treatment
+wherever a report's spec calls for a waterfall or an ambiguous "flow"
+chart**, don't build another waterfall without checking with the owner
+first.
 
 **Report screen shell — DONE, this is the reference pattern for the
 remaining 8 reports.** Built and approved on **Stock on Hand & Valuation**
@@ -567,58 +702,198 @@ category/chart-type suggestions there are a starting point, not a mandate —
 re-derive KPIs from what's actually actionable, per the process note above):
 
 Stock & valuation:
-- Latest-Price Revaluation Effect (Accountant-focused; waterfall chart per
-  spec — validate any new chart-mark color choice before using it)
-- Negative Stock Incidents (timeline/gantt per spec)
+- Latest-Price Revaluation Effect — **DONE**, see above.
+- ~~Negative Stock Incidents~~ — **CUT from the report set, owner decision
+  2026-09-14.** Owner reviewed the outline (timeline/gantt of went-negative
+  → resolved incidents) and decided this doesn't warrant a separate report
+  screen. Do not build A3. Remove it from `02-reports-spec.md` §2 Category A
+  and the Report Library's row list as part of closing out O-REPORTS.
 
 Variance & loss:
-- **Count Variance** — the flagship/hero report. Carries a mandatory,
-  prominently-shown caveat: Wendo cannot separate "sold" from "lost" in a
-  count gap yet, so the report must say so plainly, not imply false
-  precision. Draft caveat wording is in `02-reports-spec.md` §2 B1 — get
-  owner sign-off on the exact wording (flagged there as O-RPT-7, still open)
-  before shipping this screen.
-- Waste Analysis (donut chart for waste-by-reason, per spec)
-- Transit & Receiving Discrepancies
+- **Count Variance** — the flagship/hero report.
+  **O-RPT-7 RESOLVED 2026-09-14 — owner decision: NO caveat band.** Owner
+  confirmed automatic sale deduction is expected to ship before this
+  report goes live, so by build time the count gap will be trustworthy
+  shrinkage/loss data — shipping the "blended, can't separate sold from
+  lost" caveat now would bake in a disclaimer that's already false by
+  launch. Designed for that future state: gap = real loss, no hedge
+  language, no caveat band, KPI/table copy says "variance value" /
+  "shrinkage" plainly. **Flag for engineering:** if automatic deduction
+  slips past this feature's actual ship date, this decision must be
+  revisited before the report goes live — original caveat wording is
+  preserved in git history (`02-reports-spec.md` §2 B1) if still needed.
+  **Scoping — one shell, 3 role-scoped clones — ALL 3 DONE**, same pattern
+  as every other reused shell this pass:
+  - `Report · Count Variance · Branch Manager` — Nyeri Town Branch sidebar,
+    Department filter (not Location — BM is locked to one branch), KPI
+    "Worst Department", charts grouped by department, 9 count events/
+    KES 71,400 total (this branch only).
+  - `Report · Count Variance · Store Manager` — Central Store (HUB) sidebar,
+    Category filter (not Department — Central Store isn't departmentalized),
+    KPI "Worst Category", charts grouped by category, 14 count events/
+    KES 142,800 total, top-item chart correctly extended to 10 rows.
+  - `Report · Count Variance · Director` — Director (HUB) sidebar, **both**
+    Location AND Department filters (all-branch scope needs both axes),
+    KPI "Worst Location", charts grouped by location (Nyeri Town / Kamakwa /
+    Central Store / Other branches), 38 count events/KES 486,200 total
+    (company-wide), **data table gained a 9th Location column** (Date,
+    Location, Department, Item, Counted, Expected, Variance Qty, Variance
+    Value, Signed By) — the only one of the three with 9 table columns
+    instead of 8, since Director genuinely needs both axes visible.
+  All three live on page `A-0`, cloned from each other in sequence
+  (Branch Manager → Store Manager → Director), not rebuilt from scratch.
 
-Purchasing:
-- Purchase & Price Trend (line chart with a price-alert threshold band)
+**B2 · Waste Analysis — ALL 3 ROLE-SCOPED VIEWS DONE** (same BM→SM→Director
+clone sequence as B1, all on page `A-0`):
+  - `Report · Waste Analysis · Branch Manager` — donut chart "By reason"
+    (Spoilage/Expiry/Damage in store/Prep error/Other, all-blue ramp, no
+    single-item highlight color per the "one accent" rule) + grouped bar
+    "By week" (this-period solid navy vs. last-period outlined neutral,
+    with a small legend) — genuinely different chart types for genuinely
+    different questions (composition vs. trend), not decoration.
+    KPIs: Total Waste Value · vs. Previous Period (green when improving,
+    waste trending down is good news, don't reflexively color it red) ·
+    % of Stock Value · Top Reason · Top Item. Table: Date, Department,
+    Item, Qty, Reason, Value(sortable), Logged By, Linked Receipt (shows
+    a GRN reference for supplier-claim rows, "—" otherwise — this is the
+    one report in the pass with a genuine cross-report drill target
+    distinct from the row's own record).
+  - `Report · Waste Analysis · Store Manager` — Central Store sidebar,
+    Department filter dropped (Central Store isn't departmentalized),
+    table's Department column swapped to Category, figures scaled ~2x
+    branch. No "Above threshold" toggle in the parameter bar for this
+    report — replaced by Category/Reason filters instead (waste has no
+    threshold concept, unlike Count Variance).
+  - `Report · Waste Analysis · Director` — Director sidebar, **Location
+    filter added back** (Director needs both Location AND Department,
+    dropped Category to avoid a 4-filter-pill bar), data table gained a
+    Location column (9 columns total, same pattern as Count Variance's
+    Director table), figures scaled to company-wide.
 
-Operations:
-- Dispatch Shortfall / Fill Rate
-- Prep Yield (Store Manager + Director only — not branch-scoped)
-- Overnight Variance (Branch Manager + Director only)
+  **New gotcha this session — silent node detachment.** After manually
+  fixing a broken parameter bar (see below), the fixed frame reported a
+  valid `parentId` via `get_node_info` and even rendered correctly in one
+  screenshot, but `get_tree_summary` on the parent silently omitted it as
+  a child, and a subsequent `duplicate_nodes` of the parent artboard did
+  NOT carry the parameter bar into the clone at all — it had to be
+  rebuilt from scratch on the Store Manager clone. **If a node's presence
+  is ever in doubt after manual surgery (delete + rebuild, cross-parent
+  moves), verify with `get_screenshot` on the exact parent AND re-check
+  after any subsequent `duplicate_nodes` of an ancestor — don't trust
+  `get_node_info`'s parentId alone.**
 
-**Before designing each one:** outline its content/actions and get owner
-approval on that outline FIRST (see the process note above — this was a
-correction mid-session, don't skip it a second time), then the structure,
-then build. Don't jump straight into Paper just because the shell pattern
-is now reusable.
+  **`write_html` with `mode: "replace"` is unsafe for multi-element
+  content — confirmed a second time this session.** Replacing a parameter
+  bar's children in one call with several sibling filter pills wiped the
+  target frame's children entirely and dropped the new content as
+  orphaned, full-width siblings on the grandparent Content frame,
+  producing a badly broken layout that required manual cleanup. **Rule:
+  never use `mode: "replace"` for more than one element at a time.** To
+  swap N sibling elements: `delete_nodes` the old ones explicitly, then
+  make N separate `write_html` calls with `mode: "insert-children"`, one
+  filter/pill/row per call. This is slower but is the only path that has
+  worked reliably across this session — every multi-element `replace`
+  attempt has broken layout.
 
-**Then, to close out O-REPORTS:**
-1. Add a Schedule button back onto the reports that genuinely warrant
-   recurring email delivery (Count Variance and Waste Analysis are the
-   most likely candidates per the spec's "owner wants this weekly" framing
-   — confirm with the owner, don't assume the full list).
-2. Design the "Scheduled reports" management screen the header pill links to
-   (per spec §3 — list of schedules with add/edit/pause/delete) — not yet
-   designed.
-3. Settle the still-open O-RPT-1, 3, 4, 5, 6 flags in `02-reports-spec.md`
-   §5 (O-RPT-2 is already resolved; O-RPT-7 is called out above) — check
-   which the owner has already implicitly decided this session (e.g.
-   O-RPT-1 "library vs tabs" is resolved — Option A editorial index) vs.
-   which are still genuinely open.
-4. Formally add the validated chart palette (blue ramp + red for problems,
-   see above) to `docs/DESIGN_SYSTEM.md` as new tokens — it was authorized
-   by the owner this session but never written back to the design system doc.
-5. Update this handoff file's status header once every report screen is
-   built and reviewed.
+  **Branch Manager build notes / gotchas hit this session:**
+  - The Branch Manager sidebar (`IQG-0` on page `6-0`) has **no Reports nav
+    item** — it was never built because BM's report screen was deferred
+    (link-only) in the original role pass. Had to add one: duplicated the
+    "Waste" item, retexted, rebuilt its icon via `write_html` targeted at
+    the **Nav frame directly** (`Q8E-0`), not at the empty item frame
+    (`write_html` with `mode: "replace"` on an item frame wiped it and
+    orphaned the new content as loose siblings — insert fresh content into
+    the parent Nav frame instead, then `move_nodes` it into position).
+  - Parameter bar for this role uses **Department** instead of **Location**
+    (BM is locked to one branch, so a location filter is meaningless) —
+    apply the same substitution on the Store Manager clone (Central Store
+    is also one location) but the Director clone genuinely needs Location
+    back (all-branch scope), see `MGP-0`/`NUF-0` pattern.
+  - KPI strip needed a 5th cell (spec calls for 5: Total Variance Value ·
+    vs. Previous Period Δ% · Count Events · Above Threshold · Worst
+    Department) — duplicate a 4-cell strip's last cell rather than
+    rebuilding, then fix borders (only cells 1-4 get a right border, not 5).
+  - **Color rule applied:** Total Variance Value and vs-Previous-Period get
+    the red accent (`#97281D`) since — per the no-caveat decision above —
+    this is now treated as real loss, and the trend is worsening. Count
+    Events / Above Threshold / Worst Department stay ink. A text-value KPI
+    (Worst Department = "Kitchen") should be **sans, not mono** — mono is
+    for numerals; a duplicated KPI cell inherits mono by default, fix it.
+  - **Two-chart-card pattern**: to convert a single full-width chart card
+    into two side-by-side sub-cards (matching Stock on Hand's layout), strip
+    the outer card to `padding:0; border:none`, insert a `Charts row` flex
+    frame inside it, then move the existing chart content into a bordered
+    sub-card frame as the first child and build the second sub-card fresh
+    alongside it. Building an empty `<div>` via `write_html` to get a
+    container node silently creates a zero-content Rectangle, not a Frame —
+    always seed the `write_html` call with at least one real child (e.g. a
+    placeholder `<div style="width:10px">`) if you need the container node
+    first, then delete the placeholder.
+  - **Two charts must tell genuinely different, mutually consistent
+    stories** — don't leave a cloned chart's placeholder data untouched.
+    The ranked "by item" bar chart's values must reconcile with the data
+    table's per-event rows (same items, same relative ordering) or the
+    screen reads as internally inconsistent. Also rescale the row count to
+    match reality — a "top 10" bar chart on a report with only 9 total
+    count events should show 9 rows and say so, not silently pad to 10.
+  - Line chart built as raw SVG `<polyline>` points computed by hand
+    (`180 - value*scale`, plot height 180-200px) — no charting library
+    available in Paper, this is the correct approach, same as the ranked
+    bar chart's div-based bars. Keep the "hairline baseline, no gridlines,
+    mono value labels" register from the revaluation report's chart
+    consistent across every chart in this pass.
+  - Topbar **Schedule** button: initially added, then **removed from all 6
+    report screens** later this same session — see O-REPORTS-SCHED below.
+    The `move_nodes`-before-`order` lesson still applies to any future
+    topbar button reordering.
+
+**Second scope correction this session — the report set was cut a second
+time, down to 6 reports total, and the whole "scheduled reports" concept
+was reversed and removed:**
+
+- ~~Transit & Receiving Discrepancies~~, ~~Dispatch Shortfall / Fill
+  Rate~~, ~~Overnight Variance~~ — **all three CUT**, owner decision
+  2026-09-14. Not designed, not built.
+- **C1 Purchase & Price Trend — DONE**, all 3 roles (Store Manager,
+  Accountant, Director). **Domain correction:** only Central Store
+  purchases anything — branches never buy, only receive dispatches — so
+  there is no per-branch breakdown possible and all 3 role views are
+  content-identical (sidebar/breadcrumb clones only). Chart: single-series
+  bar, one bar per month, total spend — NOT a per-item unit-price line as
+  the spec originally called for (that felt too narrow once built; see
+  `02-reports-spec.md` C1 for the full reasoning). **Layout gotcha:** don't
+  stretch N bars to fill the full card width with `flex:1` per column —
+  at only 2-3 data points that reads as sparse/awkward. Group the bars as
+  one fixed-width unit with deliberate gaps and center that unit in the
+  card instead.
+- **D2 Prep Yield — DONE**, 2 roles (Store Manager, Director — not
+  branch-scoped). **Deliberately no chart** — low run volume means a chart
+  would just restate a 5-10 row table; the shell's own table-only
+  allowance applies. Keeps its caveat band (rolling-average-not-a-target)
+  since that's a usage note, not a data-trust caveat, so it doesn't have
+  B1's staleness problem.
+- **O-REPORTS-SCHED — reversed entirely.** There is **no scheduled/
+  recurring-email report feature in this product at all** — reports
+  compute live from the database on every open. This reverses the
+  2026-09-10 "Schedule is a v1 feature" decision recorded earlier in this
+  file. Removed: the Schedule button from all 6 report topbars (Count
+  Variance ×3, Waste Analysis ×3 — Stock on Hand, Revaluation Effect,
+  Purchase & Price Trend, and Prep Yield never had one to begin with), the
+  "N scheduled · next <day> <time>" pill from the Report Library header,
+  and the "Scheduled reports" management screen was never designed (don't
+  build it). `02-reports-spec.md` is updated throughout to match.
+- **Gotcha:** when cloning a report to a new role, always use the **mapped
+  (new) node ID** from `duplicate_nodes`'s `descendantIdMap` for
+  subsequent edits — editing by the *source* artboard's ID silently edits
+  the wrong artboard. Caught once on Prep Yield's Director breadcrumb.
 
 ═══════════════════════════════════════════════════════════════════════
-DONE (this pass's milestone) = O-REPORTS: Report Library + all 9 report
-screens + shared shell + chart standard + scheduled-reports management
-screen, all reviewed and owner-approved. Once this is complete, the entire
-Inventory & Procurement Feature 1 design is done — update this handoff to
-say so and hand off to the build/engineering stage per
+DONE — O-REPORTS is complete: Report Library + all 6 final reports (Stock
+on Hand & Valuation, Latest-Price Revaluation Effect, Count Variance,
+Waste Analysis, Purchase & Price Trend, Prep Yield), each with every
+role-scoped view it needs, shared shell, validated chart palette (now in
+`docs/DESIGN_SYSTEM.md` §3.7), no scheduling anywhere. `02-reports-spec.md`
+§5 open flags all resolved. **The entire Inventory & Procurement Feature 1
+design is done.** Hand off to the build/engineering stage per
 `docs/FEATURE_REDO_PLAYBOOK.md`.
 ═══════════════════════════════════════════════════════════════════════
