@@ -97,7 +97,7 @@ export function SupplierFormFields({ variant, values, onChange, categoryOptions,
         <Input className={fieldInputClass} value={values.name} onChange={(e) => set('name', e.target.value)} />
       </div>
 
-      <div className="flex gap-wds-3">
+      <div className={isMobile ? 'flex flex-col gap-wds-4' : 'flex gap-wds-3'}>
         <div className="flex flex-1 flex-col gap-wds-1.5">
           <FieldLabel variant={variant}>Contact person</FieldLabel>
           <Input
@@ -123,7 +123,7 @@ export function SupplierFormFields({ variant, values, onChange, categoryOptions,
         </div>
       </div>
 
-      <div className="flex gap-wds-3">
+      <div className={isMobile ? 'flex flex-col gap-wds-4' : 'flex gap-wds-3'}>
         <div className="flex flex-1 flex-col gap-wds-1.5">
           <FieldLabel variant={variant}>Phone</FieldLabel>
           <Input className={fieldInputClass} value={values.phone} onChange={(e) => set('phone', e.target.value)} />

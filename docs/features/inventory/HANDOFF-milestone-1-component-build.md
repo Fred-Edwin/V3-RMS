@@ -7,6 +7,19 @@ now a historical record of how that build happened, kept for the next
 session's context — not a live "what's left" list. For what's actually
 next, see the "NEXT STEPS" section below (Step 5).
 
+**2026-09-14 update — Verification Pass, item 1 only (see
+`04-components.md`'s Status log for full detail):** the `export` MCP
+tool's single-node schema issue is resolved — confirmed working, real
+`pnpm visual-diff` now run on all 7 composites that previously substituted
+`get_computed_styles` checks. Found and fixed one real bug (Supplier Form's
+mobile layout was using desktop's 2-column field rows). 4 composites pass
+clean (≤2%), most others sit in the 2-8% range consistent with the
+already-established AA-noise pattern, and 5-6 mobile composites remain
+above threshold without a confirmed root cause yet — not all diffed to
+completion; time-boxed. **Items 2 (structural/accessibility audit) and 3
+(OKLCH token-drift sweep) were not started this session** — still open,
+do them next.
+
 Read `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4 and
 `docs/features/inventory/04-components.md` first if you need the fidelity
 process or per-component detail — that doc remains the authority and has

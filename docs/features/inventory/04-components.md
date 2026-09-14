@@ -956,6 +956,94 @@ from the Mobile Header composite onward (Sidebar Nav/Mobile Icon Rail/
 Topbar were diffed before it appeared) is flagged consistently across every
 affected entry above and should be revisited before the next milestone's
 build, not worked around silently again.
+
+- **Verification pass (2026-09-14) — item 1, the automated pixel-diff gap.**
+  Independent session, not the one that built the composites above.
+  `export` on a single node works fine now — the schema issue is resolved,
+  confirmed by exporting `SFT-0` cleanly on the first call. Ran the real
+  `pnpm visual-diff` (not the manual `get_computed_styles` substitution) on
+  all 7 composites the prior session couldn't diff: Mobile Hub Header, Mobile
+  Task Header (Cancel + Done), Mobile Status Bar, KPI Strip (desktop +
+  mobile), Drawer Shell, Item Catalog Table (desktop + mobile), Item Form
+  (desktop + mobile), Category Manager List (desktop + mobile), Supplier
+  Form (desktop + mobile), Restock Level Grid (desktop + mobile) — 17
+  captures total.
+
+  **Two real capture-process bugs found and fixed before results were
+  trustworthy, both worth carrying forward to the next diff run:**
+  1. **Paper's PNG export is not flattened** — fully transparent
+     (`rgba(0,0,0,0)`) wherever the artboard has no explicit fill, while a
+     real browser screenshot is opaque. Undiffed, this produces 90%+
+     mismatches that look nothing like the actual visual gap (confirmed by
+     eye: the two images looked near-identical despite a reported 93%
+     mismatch). Same root cause the prior session already found for Topbar's
+     corner-radius transparency, just not generalized — every Paper
+     reference PNG needs alpha-composited onto white before diffing, not
+     just ones with visible rounded corners. Fixed by flattening all
+     references once (`.scratch/diff/paper-flat/`, gitignored, not
+     committed) before running `pnpm visual-diff`.
+  2. **Browser scrollbars inflated small mobile captures by 20%+** — the
+     isolated `/dev/wds-diff` harness didn't set `overflow: hidden`, so a
+     content height 1-2px over the viewport triggered a visible scrollbar
+     that pixelmatch counted as solid-block mismatch (Mobile Status Bar
+     alone went from 26.76% to 1.48% once fixed). Fixed at the harness root
+     (`html,body{overflow:hidden}` injected in `/dev/wds-diff/page.tsx`)
+     rather than per-capture.
+
+  **Results after both fixes, ≤2% threshold:**
+  - **Pass:** Mobile Status Bar (1.48%), Category Manager Desktop (1.39%),
+    Supplier Form Desktop (1.33%), Restock Level Grid Desktop (1.53%).
+  - **Marginal (2-4%, same AA-noise category already established for
+    Select/Toggle Group/Sidebar/Topbar — not re-litigated here, but not
+    independently re-confirmed as AA-noise vs. defect either; flagged for a
+    quick by-eye check before fully trusting):** Mobile Hub Header (2.23%),
+    Item Catalog Table Desktop (2.14%), Item Form Desktop (2.79%), KPI Strip
+    desktop (3.30%) and mobile (3.46%), Drawer Shell (3.51%), Mobile Task
+    Header Cancel (3.57%).
+  - **Real, above-noise fail, root-caused:** Mobile Task Header Done
+    (5.14%), Category Manager Mobile (6.54%), Restock Level Grid Mobile
+    (7.76%), Item Catalog Table Mobile (8.65%), Item Form Mobile (11.22%),
+    Supplier Form Mobile (11.67%) — **not fully root-caused for all six**,
+    see below.
+  - **One real component bug found and fixed:**
+    `components/inventory/supplier-form.tsx`'s Contact person/Category and
+    Phone/Email rows were hardcoded to a 2-column `flex gap-wds-3` layout
+    for **both** variants — but Paper's mobile reference (`TLW-0`) draws
+    every field as a full-width single-column row on mobile, only pairing
+    columns on desktop. This was never caught by the original build because
+    its own verification checked colors/spacing/tokens per field but not
+    the mobile stacking structure. Fixed: `isMobile ? 'flex flex-col
+    gap-wds-4' : 'flex gap-wds-3'` on both row wrappers. Confirmed via
+    screenshot the fields now stack correctly. The diff is still 11.67%
+    post-fix, not because the fix is wrong (visually confirmed matching
+    single-column layout) but because the built composite legitimately
+    doesn't render a trailing "Save changes" button — that's owned by
+    whatever screen assembles this composite into the real mobile route
+    (same "doesn't own drawer chrome" pattern already established for this
+    composite's desktop side), so a like-for-like diff against Paper's
+    full-screen mock (which does draw Save changes) can't reach 2% until
+    Step 5 wires the real screen. Not a defect in this composite.
+  - **Not root-caused, flagged for follow-up rather than guessed at:** Item
+    Form Mobile, Item Catalog Table Mobile, Restock Level Grid Mobile,
+    Category Manager Mobile, Mobile Task Header Done. Time-boxed this pass
+    to the Supplier Form bug (clearly reproducible, clearly fixable) rather
+    than root-causing all six — they may share the same "composite excludes
+    trailing shell content Paper's full-screen mock includes" explanation
+    as Supplier Form Mobile, or may hide their own real defects. **Do not
+    assume they're all the same known-scope difference — check each
+    individually before the next milestone ships.**
+  - Capture artifacts: `.scratch/diff/{paper,paper-flat,built}/` (gitignored
+    dev-only PNGs, not committed), isolated route at
+    `frontend/app/dev/wds-diff/page.tsx` — **left in place this time**
+    (not deleted after use, unlike prior sessions) since the harness itself
+    needed real fixes (scrollbar, alpha) worth keeping for the next
+    diff run rather than re-discovering. Delete once Step 5 no longer
+    needs it, or once the six unresolved mobile mismatches above are
+    closed out.
+  - Items 2 (structural/accessibility audit) and 3 (OKLCH token-drift sweep)
+    from the Verification Pass checklist were **not run this session** —
+    scoped out deliberately to fit a time budget, not skipped by oversight.
+    Do them as their own pass.
 - [x] Pixel-diff passed (≤2%, or confirmed-AA-noise per the documented
       judgment call) at both Paper anchors — for Sidebar Nav / Mobile Icon
       Rail / Topbar. **Every composite after Topbar (Mobile Header/Task
