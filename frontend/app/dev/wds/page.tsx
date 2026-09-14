@@ -53,6 +53,7 @@ import {
   ItemCatalogList,
   type ItemCatalogRow,
 } from '@/components/inventory/item-catalog-table';
+import { ItemFormFields, type ItemFormValues } from '@/components/inventory/item-form';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -150,6 +151,18 @@ export default function WdsPreviewPage() {
     setDiffTarget(new URLSearchParams(window.location.search).get('diff'));
   }, []);
   const [drawerShellOpen, setDrawerShellOpen] = React.useState(false);
+  const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
+    name: 'Basmati rice',
+    type: 'raw',
+    category: 'Dry goods',
+    preferredSupplier: undefined,
+    buyUnit: 'bag',
+    usageUnit: 'kg',
+    conversion: '1 bag = 25 kg',
+    packSize: '25 kg',
+    whereItMayExist: 'Central Store only',
+    restockLevel: '',
+  });
 
   return (
     <div className="min-h-screen bg-wds-canvas">
@@ -695,6 +708,38 @@ export default function WdsPreviewPage() {
               </div>
               <div className="w-[358px] max-w-full">
                 <ItemCatalogList rows={demoCatalogRows} />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Item Form"
+            note="Shared field set, New/edit item — desktop drawer body + mobile full-screen route. Identical fields both places, only the shell differs. Reference: SL2-0 (desktop) / TV7-0 (mobile)."
+          >
+            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
+              <div className="w-[500px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Desktop (drawer body)
+                </span>
+                <ItemFormFields
+                  variant="desktop"
+                  values={itemFormValues}
+                  onChange={setItemFormValues}
+                  categoryOptions={['Dry goods', 'Dairy', 'Beverages', 'Prepped bases']}
+                  supplierOptions={['Samrat Ltd', 'Nyeri Dairy Co-op']}
+                />
+              </div>
+              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Mobile (full-screen route)
+                </span>
+                <ItemFormFields
+                  variant="mobile"
+                  values={itemFormValues}
+                  onChange={setItemFormValues}
+                  categoryOptions={['Dry goods', 'Dairy', 'Beverages', 'Prepped bases']}
+                  supplierOptions={['Samrat Ltd', 'Nyeri Dairy Co-op']}
+                />
               </div>
             </div>
           </Section>

@@ -775,7 +775,52 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       higher up the page (`table-pixel-diff-anchor`, fixed 1140px, no
       `max-w-full` — a leftover from the primitive-stage build, out of
       scope for this composite to fix).
-- [ ] Item Form built (shared between desktop drawer + mobile route)
+- [x] Item Form built (shared between desktop drawer + mobile route) —
+      `frontend/components/inventory/item-form.tsx` (`ItemFormFields`, one
+      component, `variant: 'desktop' | 'mobile'` prop). Reference: `SL2-0`
+      (desktop body, slots into `DrawerShell`'s children) / `TV7-0` (mobile
+      full-screen route).
+
+      **Field set, identical both places, sourced from `get_computed_styles`
+      field-by-field, not assumed from the screenshot alone:** Name, Type
+      (toggle group), Category (Select + helper), Preferred supplier —
+      optional (Select + helper), Buy unit / Usage unit (2-col row),
+      Conversion / Pack size (2-col row), Where it may exist (conditional —
+      see below), Central Store restock level — optional (120px input).
+
+      **`variant` genuinely changes control sizing, confirmed via
+      `get_computed_styles` rather than assumed identical-at-different-
+      zoom:** desktop inputs/selects are `h-8`(32px)/`radius-sm`(2px)
+      (`SMA-0`/`SLW-0`), mobile are `h-[44px]`/`radius-md`(4px)
+      (`TVA-0`/`TVN-0`) — a real control-size difference, not a scaled
+      screenshot. Desktop Type toggle segments are plain-height (`SM1-0`
+      fit-content); mobile's are `h-10`(40px) and stretch full-width
+      (`TVE-0`/`TVF-0` `flex-grow:1`) — also confirmed distinct, not
+      assumed.
+
+      **"Where it may exist" is a Paper-verified conditional state, not
+      always an editable field:** for `type: 'raw'`, `get_computed_styles`
+      on `SL9-0` showed a readonly-looking display (neutral-50 bg, muted
+      text, no focus ring) with the accompanying helper text explaining
+      raw ingredients can't be scoped to a department — for `prepped`/
+      `stocked`, it's a normal editable field. Modeled as a conditional
+      render keyed off `values.type`, verified interactively in-browser
+      (toggling Raw → Stocked actually swaps the field from readonly
+      display to editable `Input` and updates the helper text, not just
+      correct in the default screenshot).
+
+      **Visual verification:** real-browser screenshots of both variants
+      side-by-side (desktop 500px / mobile 390px, matching each shell's
+      real width) compared against `get_screenshot` captures of `SL2-0`/
+      `TV7-0` — field order, labels, helper text, and control sizing all
+      match; interactively toggled Type to confirm the conditional
+      "Where it may exist" state actually re-renders, not just the static
+      default. Not run through the automated `pnpm visual-diff` script
+      (same `export`-tool schema blocker as the other composites this
+      session). Responsive: both variants use `max-w-full` and the demo
+      row switches `lg:flex-row` → stacked below `lg`; confirmed via
+      `getBoundingClientRect` at 768px that both shrink cleanly
+      (336.5px each) with no overflow contribution.
 - [ ] Category Manager List built
 - [ ] Supplier Form built
 - [ ] Restock Level Grid built
