@@ -55,6 +55,7 @@ import {
 } from '@/components/inventory/item-catalog-table';
 import { ItemFormFields, type ItemFormValues } from '@/components/inventory/item-form';
 import { CategoryManagerList, type CategoryRow } from '@/components/inventory/category-manager-list';
+import { SupplierFormFields, type SupplierFormValues } from '@/components/inventory/supplier-form';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -161,6 +162,14 @@ export default function WdsPreviewPage() {
     setDiffTarget(new URLSearchParams(window.location.search).get('diff'));
   }, []);
   const [drawerShellOpen, setDrawerShellOpen] = React.useState(false);
+  const [supplierFormValues, setSupplierFormValues] = React.useState<SupplierFormValues>({
+    name: 'Samrat Ltd',
+    contactPerson: 'Rajesh Samrat',
+    category: 'Dairy',
+    phone: '+254 722 118 340',
+    email: 'orders@samrat.co.ke',
+    paymentTerms: 'invoice',
+  });
   const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
     name: 'Basmati rice',
     type: 'raw',
@@ -770,6 +779,36 @@ export default function WdsPreviewPage() {
                   Mobile (full-screen route)
                 </span>
                 <CategoryManagerList variant="mobile" categories={demoCategories} />
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Supplier Form"
+            note="New/edit supplier, desktop drawer body (460px) + mobile full-screen route. Desktop payment-terms toggle is a genuinely different selected style (espresso-50 tint) than the standard ToggleGroup gradient fill mobile uses. Reference: SX5-0 (desktop) / TLW-0 (mobile)."
+          >
+            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
+              <div className="w-[460px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Desktop (drawer body)
+                </span>
+                <SupplierFormFields
+                  variant="desktop"
+                  values={supplierFormValues}
+                  onChange={setSupplierFormValues}
+                  categoryOptions={['Dairy', 'Dry goods', 'Produce', 'Beverages']}
+                />
+              </div>
+              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
+                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
+                  Mobile (full-screen route)
+                </span>
+                <SupplierFormFields
+                  variant="mobile"
+                  values={supplierFormValues}
+                  onChange={setSupplierFormValues}
+                  categoryOptions={['Dairy', 'Dry goods', 'Produce', 'Beverages']}
+                />
               </div>
             </div>
           </Section>

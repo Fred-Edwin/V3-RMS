@@ -865,7 +865,44 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       other composites this session). Responsive: `max-w-full` on both
       variants, confirmed via `getBoundingClientRect` at 768px — no
       overflow contribution.
-- [ ] Supplier Form built
+- [x] Supplier Form built —
+      `frontend/components/inventory/supplier-form.tsx`
+      (`SupplierFormFields`, `variant: 'desktop' | 'mobile'`). Reference:
+      `6TF-0`/`SX5-0` (desktop drawer) / `TLW-0` (mobile, "4m · New/edit
+      supplier"). Fields: Name, Contact person + Category (2-col), Phone +
+      Email (2-col), Default payment terms toggle.
+
+      **Drawer width is 460px — a third distinct width found this session**
+      (Item Form 500px, Category Manager 420px, Supplier Form 460px):
+      confirmed via `get_computed_styles` on `SX6-0`, not assumed to match
+      either prior composite.
+
+      **Desktop payment-terms toggle is a real, deliberate exception to the
+      established `ToggleGroup` selected-state convention — found by
+      checking, not assumed uniform:** every other selected-toggle segment
+      in this build (Item Form's Type toggle, mobile's own payment-terms
+      toggle) uses the `espresso-700` gradient fill + white text Paper
+      established as the segmented-control convention. This one doesn't —
+      `get_computed_styles` on `SXI-0`/`SXJ-0` shows desktop's selected
+      "Invoice to follow" as an `espresso-50` tint fill with
+      `--color-primary`-colored text instead, while `get_computed_styles`
+      on mobile's equivalent (`TZ6-0`/`TZ7-0`) confirms mobile uses the
+      *standard* gradient-fill treatment. Read independently before
+      concluding they differ — it would have been easy to assume one
+      component covers both. Built as two different renderers
+      (`DesktopPaymentTermsToggle`, a local one-off matching this field's
+      specific drawn state, vs. the standard `ToggleGroup` primitive for
+      mobile) rather than forcing one shared component to carry a
+      variant-specific selected-color override.
+
+      **Visual verification:** real-browser screenshot of both variants
+      compared against `get_screenshot` captures of `SX5-0`/`TLW-0` — field
+      layout, the desktop tint-toggle vs. mobile gradient-toggle
+      distinction, and helper text all match. Not run through the
+      automated `pnpm visual-diff` script (same `export`-tool schema
+      blocker as the other composites this session). Responsive:
+      `max-w-full` on both variants, confirmed via `getBoundingClientRect`
+      at 768px — no overflow contribution.
 - [ ] Restock Level Grid built
 - [x] Pixel-diff passed (≤2%, or confirmed-AA-noise per the documented
       judgment call) at both Paper anchors — for Sidebar Nav / Mobile Icon
