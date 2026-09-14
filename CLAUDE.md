@@ -82,6 +82,29 @@ as you go — mark items complete as soon as they're done, don't batch updates t
 end. This is for the owner's visual feedback while work is in progress, not just your
 own bookkeeping, so update it live rather than only at the start/end of a task.
 
+## MCP Tools — Prefer These Over Manual Equivalents
+
+These are configured locally (`claude mcp list`). Reach for them by default; don't fall
+back to the slower manual path unless the MCP is unavailable.
+
+- **Postgres MCP** — run read-only SQL directly against the local `wendo_rms` DB
+  (localhost:5433) instead of `docker compose exec postgres psql`. Use it to inspect
+  data, verify a migration actually changed what you expect, or double-check
+  `organizationId` scoping (Non-Negotiable #3) while debugging.
+- **Playwright MCP / chrome-devtools MCP** — drive a real browser to verify frontend
+  changes: navigate, click through the flow, read console errors, inspect network
+  requests. This is how to satisfy the "use the feature in a browser before reporting
+  complete" rule for UI work — not optional, use it before marking frontend tasks done.
+  chrome-devtools MCP also covers performance traces if a real-time screen (BDS/KDS)
+  feels laggy.
+- **GitHub MCP** — PRs, issues, CI run status, code/commit search. Prefer it over the
+  `gh` CLI for multi-step PR/issue workflows (e.g. reading review comments, checking
+  CI failures) since it returns structured data instead of text to parse.
+- **Paper MCP** (`paper-desktop` plugin) — read the live, owner-approved design file
+  directly (e.g. the Phase 0 token approval, feature mockups) instead of working from
+  a description or stale screenshot when implementing anything against
+  `docs/DESIGN_SYSTEM.md`.
+
 ## Frontend Hook Stability Rules (Read Before Editing Pages/Hooks)
 
 1. Hooks that return action functions used in `useEffect`/`useCallback` dependencies must return stable references (use selectors + `useCallback` when needed).

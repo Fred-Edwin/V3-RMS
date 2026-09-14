@@ -140,13 +140,19 @@ tuned independently.
 | `wds-sidebar-top` | `#211A15` | gradient top (warm-dark coffee) |
 | `wds-sidebar-mid` | `#201A14` | gradient mid |
 | `wds-sidebar-bottom` | `#17110C` | gradient bottom (near-black) |
-| `wds-sidebar-fg` | `#E4E1DD` | nav item text |
-| `wds-sidebar-fg-active` | `#F5F3EF` | active item text |
-| `wds-sidebar-fg-muted` | `#8A7F76` | group label |
-| `wds-sidebar-divider` | caramel-500 | group underline |
-| `wds-sidebar-marker` | caramel-500 | active item left edge (2px) |
-| `wds-sidebar-active-bg` | `rgb(255 255 255 / 0.06)` | active item fill |
+| `wds-sidebar-fg` | `#B5AEA5` | nav item text (inactive) |
+| `wds-sidebar-fg-active` | `#F5F3EF` | active item text (brighter) |
+| `wds-sidebar-fg-muted` | `#8A7F76` | group label · inactive icon stroke |
+| `wds-sidebar-underline` | caramel-500 | **active item underline (1.5px, under the label only)** |
+| `wds-sidebar-icon-active` | caramel-500 | active item icon stroke |
 | `wds-sidebar-badge-bg` / `-fg` | espresso-700 / espresso-100 | count badge |
+
+> **Revised 2026-09-09.** The active item is now **brighter text + a 1.5px
+> caramel underline under the label**, and the active icon takes the caramel
+> stroke. There is **no fill and no left marker**. Group labels **no longer have
+> a caramel hairline** — they are just quiet caps overlines. Nav items carry a
+> 15px line icon (1.75 stroke, `wds-sidebar-fg-muted` when inactive). The
+> `-divider`, `-marker`, and `-active-bg` tokens are retired.
 
 ---
 
@@ -286,12 +292,19 @@ Sizes: `default` h-32, `sm` h-28, `lg` h-36, `icon` 32×32.
 A proper **sidebar**, not a bottom nav. On mobile it collapses to an icon rail
 (never a "More" menu with a pile of links). The rail:
 
-- background: `bg-wds-gradient-sidebar` (coffee at top → near-black at bottom)
-- nav items grouped; each group has an **ALL-CAPS label** (`text-wds-overline`,
-  `wds-sidebar-fg-muted`) with a **caramel hairline underline** beneath it — the
-  one considered detail that gives the rail structure and personality
-- active item: `wds-sidebar-active-bg` fill + a **2px caramel left marker** +
-  `wds-sidebar-fg-active` text + an espresso count badge if it has a count
+- background: `bg-wds-gradient-sidebar` — three warm-brown oklab stops
+  (`oklab(23.4% 0.025 0.039)` → `oklab(22.9% 0.024 0.036)` at ~40% →
+  `oklab(13.6% 0.011 0.022)`). **No bare-percentage colour hints** in the
+  gradient string — Paper (and some engines) turn them into grey/black stops.
+- nav items grouped; each group has a quiet **ALL-CAPS label**
+  (`text-wds-overline`, `wds-sidebar-fg-muted`). **No hairline** (removed
+  2026-09-09).
+- each nav item carries a **15px line icon** (1.75 stroke), `wds-sidebar-fg-muted`
+  when inactive.
+- **active item: brighter text (`wds-sidebar-fg-active`) + a 1.5px caramel
+  underline under the label only** (`wds-sidebar-underline`); the icon takes the
+  caramel stroke. **No fill, no left marker.** Espresso count badge if it has a
+  count.
 - the brand tile uses `bg-wds-gradient-brand`
 
 ---
@@ -310,3 +323,9 @@ clear WCAG AA on `wds-neutral-0`; espresso-700 on white is 8.9:1).
 - **2026-09-09** — Phase 0. Foundation established: neutrals, espresso + caramel
   accents, semantic set, Geist/Geist Mono type scale, spacing, radii, elevation,
   six gradients, dot+label status. `components/ui2/` seeded with 8 primitives.
+- **2026-09-09** — Inventory Slice A design (Step 3). Sidebar active-item
+  treatment changed to **brighter text + caramel underline** (no fill, no
+  marker); group hairlines removed; line icons added. `-sidebar-divider`,
+  `-marker`, `-active-bg` retired. New shared primitives for the redo: the
+  **right-side drawer** (`sheet`) and the **hub-landing shell** — see
+  `docs/features/inventory/02-screens.md` § Consolidation.
