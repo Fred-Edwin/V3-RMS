@@ -681,7 +681,36 @@ Menu, Avatar, Search Input) are now built in `components/ui2/`. Composites in pr
       no horizontal overflow at 768px (verified via `scrollWidth`); the
       page's pre-existing 768px overflow from the 1440px Sidebar/Topbar
       sections is unchanged and already documented as out-of-scope there.
-- [ ] Drawer Shell built (composite on top of the Sheet primitive above)
+- [x] Drawer Shell built (composite on top of the Sheet primitive above) —
+      `frontend/components/inventory/drawer-shell.tsx`. Reference: `SMI-0`/
+      `SKW-0` (Milestone One, Item create/edit drawer — the real 500px
+      drawer this milestone's screens use, not the Shells & Primitives
+      page's illustrative 460px generic specimen `4CK-0`, which was checked
+      first and ruled out as the wrong reference for this milestone).
+
+      **Thin composite, not a new visual primitive:** `get_computed_styles`
+      on `SMD-0`/`SL2-0`/`SKX-0` (header/body/footer) showed every value —
+      `pt-20/pb-16/px-24` header, `py-20/px-24 gap-16` body, `py-16/px-24
+      gap-8` footer — already matches what `ui2/sheet.tsx`'s
+      `SheetHeader`/`SheetFooter` codify from the earlier Sheet primitive
+      build, so `DrawerShell` is a thin prop-driven wrapper (`title`,
+      `description`, `primaryLabel`, `children`) over
+      `Sheet`/`SheetContent`/`SheetHeader`/`SheetFooter`/`SheetTitle`/
+      `SheetDescription` — not a rebuild. Standardizes the pattern every
+      one of the 4 Milestone One drawers repeats (header always carries
+      the record's context line per the Shells & Primitives page's own
+      note; footer is always secondary Cancel + primary action) so each
+      drawer screen doesn't hand-assemble the Sheet primitives itself.
+
+      **Visual verification:** real-browser screenshot of the interactive
+      demo (button → opens the drawer) in `/dev/wds` — 500px right-anchored
+      panel, scrim, header/body/footer spacing all match Paper's reference
+      screenshot of `SKW-0`. 0 console errors. Not run through the
+      automated `pnpm visual-diff` script (same `export`-tool schema
+      blocker as the Mobile Header / KPI Strip entries above) — relied on
+      the fact that every value here is inherited unchanged from the
+      already pixel-diff-verified Sheet primitive, plus a by-eye check of
+      the new header/footer content this composite adds on top.
 - [ ] Item Catalog Table built
 - [ ] Item Form built (shared between desktop drawer + mobile route)
 - [ ] Category Manager List built

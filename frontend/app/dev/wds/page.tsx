@@ -46,6 +46,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { KpiStrip, KpiRow } from '@/components/inventory/kpi-strip';
+import { DrawerShell } from '@/components/inventory/drawer-shell';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -133,6 +134,7 @@ export default function WdsPreviewPage() {
   React.useEffect(() => {
     setDiffTarget(new URLSearchParams(window.location.search).get('diff'));
   }, []);
+  const [drawerShellOpen, setDrawerShellOpen] = React.useState(false);
 
   return (
     <div className="min-h-screen bg-wds-canvas">
@@ -638,6 +640,29 @@ export default function WdsPreviewPage() {
                   ]}
                 />
               </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Drawer Shell"
+            note="Composite over the Sheet primitive — standard header (title + description) + footer (Cancel + primary) shared by all 4 Milestone One drawers. Reference: SMI-0/SKW-0 (Item create/edit)."
+          >
+            <div className="flex flex-col gap-wds-3">
+              <Button variant="secondary" onClick={() => setDrawerShellOpen(true)}>
+                Open Drawer Shell (interactive)
+              </Button>
+              <DrawerShell
+                open={drawerShellOpen}
+                onOpenChange={setDrawerShellOpen}
+                title="New item"
+                description="Type decides where the item can exist. Retiring later keeps all history."
+                primaryLabel="Create item"
+              >
+                <div className="flex flex-col gap-wds-1.5">
+                  <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">Name</span>
+                  <Input placeholder="Basmati rice" />
+                </div>
+              </DrawerShell>
             </div>
           </Section>
 
