@@ -1,0 +1,317 @@
+/**
+ * Inventory — Milestone One (Catalog, Suppliers & Restock Levels)
+ * FROZEN API CONTRACT — request/response schemas.
+ *
+ * This file is the **source of truth** for the Milestone One contract.
+ * `frontend/types/inventory.ts` mirrors it by hand (there is no pnpm workspace
+ * in this repo, so there is no shared package to import from); a contract test
+ * asserts every serializer's output satisfies the response schemas here, so
+ * drift surfaces as a test failure rather than at runtime.
+ *
+ * Plan: `docs/features/inventory/05-plan.md` §5.
+ * Amendments follow the playbook's amendment process (§Step 6) — affected
+ * sessions stop, the owner approves, sessions resume.
+ *
+ * Wire-format rule: every decimal (quantity, factor, pack size, cost, restock
+ * level) crosses the wire as a **string**, never a JS number. Prisma stores
+ * them as Decimal; coercing to number loses precision.
+ */
+import { z } from 'zod';
+
+// ---------------------------------------------------------------------------
+// Primitives
+// ---------------------------------------------------------------------------
+
+/** Decimal(12,4) as a string, strictly greater than zero. */
+export const positiveDecimalSchema = z
+  .string()
+  .regex(/^\d{1,8}(\.\d{1,4})?$/, 'Must be a valid decimal (e.g. 12 or 12.5)')
+  .refine((v) => Number.parseFloat(v) > 0, 'Must be greater than 0');
+
+/** Decimal(12,4) as a string, zero or greater. A restock level of 0 is valid. */
+export const nonNegativeDecimalSchema = z
+  .string()
+  .regex(/^\d{1,8}(\.\d{1,4})?$/, 'Must be a valid decimal (e.g. 12 or 12.5)')
+  .refine((v) => Number.parseFloat(v) >= 0, 'Must be zero or greater');
+
+export const uuidSchema = z.string().uuid();
+
+export const IdParamSchema = z.object({
+  id: z.string().uuid('id param must be a valid UUID'),
+});
+
+export const PaginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  perPage: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/**
+ * `STOCKED` is the renamed `PASS_THROUGH` — same concept, new vocabulary
+ * (`01-description.md` §4/§7). `RAW_INGREDIENT` may never be department-scoped.
+ */
+export const inventoryItemTypeSchema = z.enum(['RAW_INGREDIENT', 'PREPPED', 'STOCKED']);
+
+export const departmentTagSchema = z.enum([
+  'KITCHEN',
+  'PASTRY',
+  'BARISTA',
+  'SERVICE',
+  'HOUSEKEEPING',
+]);
+
+/** Pre-fills the per-receipt payment toggle; changeable per receipt. */
+export const supplierPaymentTermsSchema = z.enum(['INVOICE_TO_FOLLOW', 'PAY_NOW']);
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+export const CategorySchema = z.object({
+  id: uuidSchema,
+  name: z.string(),
+  /** Live items only — what `SRB-0` renders as "38 items". */
+  itemCount: z.number().int().min(0),
+  retiredAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const ListCategoriesQuerySchema = z.object({
+  includeRetired: z.coerce.boolean().default(false),
+});
+
+export const CreateCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+});
+
+export const UpdateCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+});
+
+// ---------------------------------------------------------------------------
+// Items
+// ---------------------------------------------------------------------------
+
+const itemCoreFields = {
+  name: z.string().trim().min(1, 'Name is required').max(200),
+  type: inventoryItemTypeSchema,
+  /** Null when the item's category was retired and none was reassigned. */
+  categoryId: uuidSchema.nullable(),
+  /** A default reference only — the item can still be received from any supplier. */
+  preferredSupplierId: uuidSchema.nullable(),
+  buyUnit: z.string().trim().min(1, 'Buy unit is required').max(20),
+  usageUnit: z.string().trim().min(1, 'Usage unit is required').max(20),
+  /** Null renders as "no conversion" (e.g. an item bought and used in kg). */
+  conversionFactor: positiveDecimalSchema.nullable(),
+  /** Null renders as "—". Supplier invoices price by pack, so this is common. */
+  packSize: positiveDecimalSchema.nullable(),
+  /** MUST be empty when `type` is `RAW_INGREDIENT`. */
+  departmentTags: z.array(departmentTagSchema),
+};
+
+export const InventoryItemSchema = z.object({
+  id: uuidSchema,
+  ...itemCoreFields,
+  category: z.object({ id: uuidSchema, name: z.string() }).nullable(),
+  preferredSupplier: z.object({ id: uuidSchema, name: z.string() }).nullable(),
+  currentCost: nonNegativeDecimalSchema,
+  retiredAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+/** The KPI strip on `SFQ-0`: items tracked / categories / departments / suppliers. */
+export const ItemCatalogMetaSchema = z.object({
+  itemsTracked: z.number().int().min(0),
+  typesRepresented: z.number().int().min(0),
+  categoryCount: z.number().int().min(0),
+  retiredCategoryCount: z.number().int().min(0),
+  departmentCount: z.number().int().min(0),
+  supplierCount: z.number().int().min(0),
+});
+
+export const ListItemsQuerySchema = PaginationQuerySchema.extend({
+  search: z.string().trim().max(200).optional(),
+  type: inventoryItemTypeSchema.optional(),
+  categoryId: uuidSchema.optional(),
+  departmentTag: departmentTagSchema.optional(),
+  includeRetired: z.coerce.boolean().default(false),
+});
+
+/**
+ * `categoryName` is the create-on-the-fly path from Paper's own helper text:
+ * "Pick from your list, or type a new name to add it." Exactly one of
+ * `categoryId` / `categoryName` may be supplied.
+ */
+const categoryInput = {
+  categoryId: uuidSchema.nullish(),
+  categoryName: z.string().trim().min(1).max(80).nullish(),
+};
+
+const rawIngredientHasNoDepartments = (data: {
+  type?: 'RAW_INGREDIENT' | 'PREPPED' | 'STOCKED';
+  departmentTags?: readonly string[];
+}): boolean =>
+  data.type !== 'RAW_INGREDIENT' || !data.departmentTags || data.departmentTags.length === 0;
+
+const RAW_DEPARTMENT_MESSAGE =
+  "Raw ingredients can't be scoped to a department — they're only issued via requisition as prepped or stocked items.";
+
+const exactlyOneCategoryInput = (data: {
+  categoryId?: string | null;
+  categoryName?: string | null;
+}): boolean => !(data.categoryId && data.categoryName);
+
+export const CreateItemSchema = z
+  .object({
+    name: itemCoreFields.name,
+    type: itemCoreFields.type,
+    ...categoryInput,
+    preferredSupplierId: uuidSchema.nullish(),
+    buyUnit: itemCoreFields.buyUnit,
+    usageUnit: itemCoreFields.usageUnit,
+    conversionFactor: positiveDecimalSchema.nullish(),
+    packSize: positiveDecimalSchema.nullish(),
+    departmentTags: z.array(departmentTagSchema).default([]),
+    /** Optional Central Store restock level, set inline from the item form. */
+    centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
+  })
+  .refine(rawIngredientHasNoDepartments, {
+    message: RAW_DEPARTMENT_MESSAGE,
+    path: ['departmentTags'],
+  })
+  .refine(exactlyOneCategoryInput, {
+    message: 'Provide either categoryId or categoryName, not both',
+    path: ['categoryName'],
+  });
+
+export const UpdateItemSchema = z
+  .object({
+    name: itemCoreFields.name.optional(),
+    type: itemCoreFields.type.optional(),
+    ...categoryInput,
+    preferredSupplierId: uuidSchema.nullish(),
+    buyUnit: itemCoreFields.buyUnit.optional(),
+    usageUnit: itemCoreFields.usageUnit.optional(),
+    conversionFactor: positiveDecimalSchema.nullish(),
+    packSize: positiveDecimalSchema.nullish(),
+    departmentTags: z.array(departmentTagSchema).optional(),
+    centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: 'At least one field must be provided',
+  })
+  .refine(rawIngredientHasNoDepartments, {
+    message: RAW_DEPARTMENT_MESSAGE,
+    path: ['departmentTags'],
+  })
+  .refine(exactlyOneCategoryInput, {
+    message: 'Provide either categoryId or categoryName, not both',
+    path: ['categoryName'],
+  });
+
+/**
+ * A duplicate item name is a **warning, not an error** (Flow 18: "warned;
+ * allowed only with a distinguishing qualifier"). The save succeeds and the
+ * form renders the warning — so create/update responses carry this envelope.
+ */
+export const ItemMutationResponseSchema = z.object({
+  item: InventoryItemSchema,
+  warnings: z.array(
+    z.object({
+      code: z.literal('DUPLICATE_ITEM_NAME'),
+      message: z.string(),
+    }),
+  ),
+});
+
+// ---------------------------------------------------------------------------
+// Suppliers
+// ---------------------------------------------------------------------------
+
+export const SupplierSchema = z.object({
+  id: uuidSchema,
+  name: z.string(),
+  contactName: z.string().nullable(),
+  category: z.object({ id: uuidSchema, name: z.string() }).nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  /** Free text, e.g. "Nyeri town" — shown on the supplier detail header. */
+  location: z.string().nullable(),
+  defaultPaymentTerms: supplierPaymentTermsSchema,
+  retiredAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const ListSuppliersQuerySchema = PaginationQuerySchema.extend({
+  search: z.string().trim().max(200).optional(),
+  includeRetired: z.coerce.boolean().default(false),
+});
+
+export const CreateSupplierSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(200),
+  contactName: z.string().trim().max(200).nullish(),
+  categoryId: uuidSchema.nullish(),
+  phone: z.string().trim().max(40).nullish(),
+  email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
+  location: z.string().trim().max(200).nullish(),
+  defaultPaymentTerms: supplierPaymentTermsSchema.default('INVOICE_TO_FOLLOW'),
+});
+
+export const UpdateSupplierSchema = CreateSupplierSchema.partial().refine(
+  (data) => Object.values(data).some((v) => v !== undefined),
+  { message: 'At least one field must be provided' },
+);
+
+// ---------------------------------------------------------------------------
+// Restock levels
+// ---------------------------------------------------------------------------
+
+/**
+ * `onHandQty` is derived live from the ledger on every read, never stored
+ * (`01-description.md` §4: "Stock on hand is always derived from the ledger,
+ * never a stored counter"). It can be negative — negative stock is allowed and
+ * flagged, never blocked.
+ */
+export const RestockLevelRowSchema = z.object({
+  inventoryItemId: uuidSchema,
+  itemName: z.string(),
+  usageUnit: z.string(),
+  onHandQty: z.string(),
+  level: nonNegativeDecimalSchema.nullable(),
+  isBelowLevel: z.boolean(),
+});
+
+export const ListRestockLevelsQuerySchema = z.object({
+  /**
+   * Store Manager passes the Central Store location explicitly. A Department
+   * Head omits it — the server resolves their own department and rejects any
+   * other location with 403.
+   */
+  locationId: uuidSchema.optional(),
+  search: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Bulk upsert — both `T52-0` and `TD1-0` are a single "Save restock levels"
+ * button over many edited rows, so the write is one atomic transaction, not a
+ * request per row. `level: null` clears that item's level (Flow 19: "par set to
+ * zero / removed → allowed").
+ */
+export const SaveRestockLevelsSchema = z.object({
+  locationId: uuidSchema.optional(),
+  levels: z
+    .array(
+      z.object({
+        inventoryItemId: uuidSchema,
+        level: nonNegativeDecimalSchema.nullable(),
+      }),
+    )
+    .min(1, 'At least one row is required')
+    .max(500),
+});
