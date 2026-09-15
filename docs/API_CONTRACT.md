@@ -3439,7 +3439,7 @@ Manually adjusts the order total (last-resort correction, e.g. post-close manage
 
 > **STATUS: FROZEN — 2026-09-15.**
 > Frozen per `docs/FEATURE_REDO_PLAYBOOK.md` Step 6, following owner approval of
-> `docs/features/inventory/05-plan.md`. Backend and frontend build sessions run
+> `docs/features/inventory/milestone-1-plan.md`. Backend and frontend build sessions run
 > in parallel against this contract.
 >
 > **Amendment process (playbook Step 6):** if a build session finds the contract
@@ -3457,7 +3457,7 @@ The contract is **committed code**, not this prose. This section is the index.
 | **Types (inferred from schemas)** | `backend/src/modules/inventory/inventory.types.ts` |
 | **Frontend mirror** | `frontend/types/inventory.ts` — hand-mirrored; a backend contract test guards drift |
 | **Design** | Paper page `B-0`, file `01M1ZZJ6S3FZGF5C7PPBGTKY89` |
-| **Plan** | `docs/features/inventory/05-plan.md` §5 |
+| **Plan** | `docs/features/inventory/milestone-1-plan.md` §5 |
 
 There is no pnpm workspace in this repo, so there is no shared package to import
 from — hence the mirror plus drift test. A proper shared package is booked as a

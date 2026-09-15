@@ -430,5 +430,5 @@ auto-generated. Load the project `dataviz` skill before designing any of them.
    alongside the other document print layouts (D2 is CSV-only, no PDF).
 4. **This closes O-REPORTS.** The whole Inventory & Procurement Feature 1
    design (all 6 roles + O-PRINT + O-REPORTS) is now complete — see
-   `HANDOFF-role-complete-design.md` for the handoff to the build/engineering
+   `archive/HANDOFF-role-complete-design.md` for the handoff to the build/engineering
    stage.

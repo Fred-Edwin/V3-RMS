@@ -247,7 +247,10 @@ gates**.
   - **Structure** — confirms new code goes in `backend/src/modules/<feature>/`
     and `frontend/features/<feature>/`, and the retirement plan for the old
     feature's files on both sides.
-- Output: `docs/features/<feature>/05-plan.md` (+ contract types committed to code)
+- Output: `docs/features/<feature>/05-plan.md` (+ contract types committed to
+  code) — for a feature built across multiple milestones, this becomes
+  `milestone-<n>-plan.md` per milestone (see the Inventory feature's
+  `milestone-1-plan.md` and its `MILESTONES.md` overview).
 - **Owner reviews and approves the plan.** For large features, approve the
   high-level plan here; each session's detailed plan is produced just-in-time
   before that session.
@@ -457,6 +460,7 @@ Each feature gets `docs/features/<feature>/`:
 02-screens.md         approved screen + state inventory
 03-design.md          Paper file id + approved artboard IDs + approval date
 05-plan.md            high-level plan (data model, migration, contract, sessions)
+                      — multi-milestone features use milestone-<n>-plan.md instead
 06-sessions/          just-in-time detailed plan per build session
 ```
 

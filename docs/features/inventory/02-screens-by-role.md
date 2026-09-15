@@ -2,6 +2,8 @@
 
 **Feature:** Inventory & Procurement (Feature 1 of the redo)
 **Step:** 3 of the per-feature pipeline — design in Paper
+**See `MILESTONES.md`** for which milestone each role's screens belong to and
+current build status — this doc tracks design (DESIGNED/MISSING) only.
 **Purpose of this doc:** the FIRST deliverable of the ROLE-COMPLETE design pass
 (owner locked this strategy 2026-09-10). It re-files every screen the whole
 feature needs — from `02-screens.md` (all of A–F) + `02-flows.md` — **by role**,

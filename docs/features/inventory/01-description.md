@@ -3,6 +3,8 @@
 **Feature:** Inventory & Procurement (Feature 1 of the redo)
 **Status:** Step 1 draft — owner review pending
 **Date:** 2026-09-09
+**See `MILESTONES.md`** for how the 10 Stages below map to build milestones
+and current progress.
 **Supersedes:** `docs/inventory/INVENTORY_FEATURE_PLAN.md` (all phases), and the
 Phase 1 + partial Phase 2 implementation currently deployed but never used.
 

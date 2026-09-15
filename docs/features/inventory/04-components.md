@@ -1866,7 +1866,7 @@ build, not worked around silently again.
   11. **No delete/retire UI anywhere — for items, categories, or
       suppliers.** The backend already fully implemented this (soft-delete
       via `retiredAt`, plus the supplier-specific 409-with-blocking-items
-      orphan protection already documented in `05-plan.md`), but no screen
+      orphan protection already documented in `milestone-1-plan.md`), but no screen
       called any of it. Built a new `ConfirmDialog` primitive
       (`components/ui2/confirm-dialog.tsx`, centered modal on
       `@radix-ui/react-dialog`, same primitive Sheet already uses) per the
@@ -1880,7 +1880,7 @@ build, not worked around silently again.
         screen.tsx`) — new "Retire" action next to Rename (Paper's own row
         only draws Rename/Restore — this is a genuine addition, not a
         restyle). Plain confirm — category retire never blocks per
-        `05-plan.md`'s own line ("Items keep the reference; the label just
+        `milestone-1-plan.md`'s own line ("Items keep the reference; the label just
         stops being offered").
       - **Supplier** (`supplier-form-screen.tsx`) — "Retire this supplier"
         link. New `useRetireSupplier` hook catches the specific 409/
@@ -1903,7 +1903,7 @@ build, not worked around silently again.
   The list already uses `perPage: 100` against only 2 suppliers on file, so
   pagination isn't a real gap at this milestone's actual data volume; the
   mobile hamburger was already wired in the same day's earlier UI-
-  refinement entry. Confirmed in scope per `05-plan.md`'s own milestone
+  refinement entry. Confirmed in scope per `milestone-1-plan.md`'s own milestone
   name ("Catalog, Suppliers & Restock Levels").
 
   **Flagged, not changed — content/design questions, not defects:**

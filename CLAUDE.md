@@ -149,9 +149,12 @@ reason they can't live in the feature folder. No cross-feature deep imports:
 
 The feature-by-feature redo is defined in `docs/FEATURE_REDO_PLAYBOOK.md`.
 
-**Stage: Phase 0 (Design System Foundation) — COMPLETE (2026-09-09).**
-Next: **Feature 1 — Inventory** (Step 1: owner writes `docs/features/inventory/01-description.md`).
-Feature 1 covers redesigning Phase 1 + building Phase 2/3.
+**Design System Foundation — COMPLETE (2026-09-09).**
+**Feature 1 — Inventory & Procurement** is underway, built as 6 workflow-based
+milestones (not phases — see `docs/features/inventory/MILESTONES.md` for the
+full breakdown, current status, and rationale). **Milestone One (Catalog,
+Suppliers & Restock Levels) shipped 2026-09-15.** Milestone Two (Receiving &
+Supplier AP)'s screen group is approved; Step 5 planning is next.
 
 Done so far:
 - Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,

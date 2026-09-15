@@ -1,9 +1,11 @@
-# Inventory & Procurement — High-Level Plan (Step 5)
+# Inventory & Procurement — Milestone One High-Level Plan (Step 5)
 
 **Feature:** Inventory & Procurement (Feature 1 of the redo)
-**Milestone:** **One — Catalog, Suppliers & Restock Levels**
+**Milestone:** **One — Catalog, Suppliers & Restock Levels** — see
+`MILESTONES.md` for the full 6-milestone breakdown and where this one sits.
 **Step:** 5 of the per-feature pipeline — high-level plan
-**Status:** Draft — **owner approval required before Step 6/7**
+**Status:** ✅ Shipped — see `04-components.md`'s Status log for the closing
+entry (2026-09-15) and `MILESTONES.md`.
 **Date:** 2026-09-15
 
 **Traces to:**
