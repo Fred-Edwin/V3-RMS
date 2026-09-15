@@ -115,14 +115,12 @@ back to the slower manual path unless the MCP is unavailable.
 
 ## Project Structure
 
-The backend is mid-migration from group-by-layer to group-by-feature. **New and
-redone features go in `backend/src/modules/<feature>/`** (routes, controller,
-service, repository, validators, types, tests co-located). Shared infrastructure
-goes in `backend/src/shared/`. `routes/index.ts` wires every module together.
-Existing not-yet-redone features still live in the flat
-`controllers/ services/ repositories/ validators/` layout — migrate them as part
-of their redo, never as a separate refactor. Full target layout and rules:
-`docs/FEATURE_REDO_PLAYBOOK.md` §9 and `docs/CODING_STANDARDS.md` §4.
+**Both sides are mid-migration from group-by-layer to group-by-feature.** A
+redone feature is **one folder on each side of the wire**:
+`backend/src/modules/<feature>/` and `frontend/features/<feature>/`. Migrate a
+feature's files as part of its own redo, never as a separate refactor. Full
+target layout and rules: `docs/FEATURE_REDO_PLAYBOOK.md` §9 and
+`docs/CODING_STANDARDS.md` §4 (backend) / §9 (frontend).
 
 ```
 backend/src/
@@ -132,11 +130,20 @@ backend/src/
   controllers/ services/ repositories/ validators/   LEGACY — not-yet-redone features
 
 frontend/
-  app/                 Next.js App Router pages (grouped by role/feature)
-  components/ui/        shadcn/ui primitives on the design tokens (NEW system)
-  components/<feature>/ feature composites, arranged to match the Paper design
-  hooks/ services/ store/ (Zustand) lib/ (apiClient, socket, cn, tokens) types/
+  app/                 Next.js App Router — ROUTING ONLY. Thin page shells that
+                       render feature components; no data fetching or logic.
+  features/<feature>/  NEW — components/ hooks/ services/ store/ types/ + index.ts
+  components/ui2/      NEW design-system primitives on the wds- tokens
+  components/ui/       LEGACY design system — frozen, retired feature by feature
+  components/app/shell/  cross-feature shell (sidebar, topbar, mobile headers)
+  hooks/ services/ store/ types/   LEGACY + genuinely cross-feature only
+  lib/                 apiClient, socket, cn, tokens
 ```
+
+**Frontend feature-module rules (amended 2026-09-15):** pages in `app/` hold
+routing concerns only — Next.js derives URLs from that tree, which is the one
+reason they can't live in the feature folder. No cross-feature deep imports:
+`features/a/` imports `features/b`'s `index.ts`, never its internals.
 
 ## Current Work
 

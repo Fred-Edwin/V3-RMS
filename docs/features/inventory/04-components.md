@@ -7,6 +7,14 @@ finalized on the Milestone pages.
 **Traces to:** `docs/features/inventory/03-design.md` (Paper source of truth),
 `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4, §9 (folder structure)
 
+> **⚠ Path note (2026-09-15).** The frontend was modularized by feature after
+> this doc's composites were built — see `FEATURE_REDO_PLAYBOOK.md` §9. Every
+> `frontend/components/inventory/…` path below was correct when written and is
+> kept as the build record, but the live location for this milestone's 8
+> kebab-case composites is **`frontend/features/inventory/components/`**. The
+> Milestone One build session moves them. `components/ui2/` and
+> `components/app/shell/` are unaffected — they are shared, not feature code.
+
 ---
 
 ## Purpose

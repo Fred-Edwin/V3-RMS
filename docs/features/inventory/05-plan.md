@@ -641,14 +641,17 @@ frontend type comment (`types/inventory.ts`) — never as JS numbers.
 
 **Contract location.** There is no pnpm workspace and no shared package in this
 repo (verified: no `pnpm-workspace.yaml`, frontend and backend are independent
-projects; today's types are hand-mirrored in `frontend/types/inventory.ts`).
+projects; types are hand-mirrored on the frontend side).
 Introducing a workspace is a repo-wide change and **not** something to smuggle
 into a feature milestone. So for Milestone One:
 
 - **Source of truth:** `backend/src/modules/inventory/inventory-validators.ts`
   (Zod) + `inventory.types.ts` (types inferred via `z.infer`).
-- **Frontend mirror:** `frontend/types/inventory.ts`, rewritten to match, with a
-  header comment pointing at the backend file as authoritative.
+- **Frontend mirror:** `frontend/features/inventory/types/`, with a header
+  comment pointing at the backend file as authoritative. (Amended 2026-09-15 —
+  the frontend is now modularized by feature; the legacy `frontend/types/
+  inventory.ts` stays in place for the not-yet-removed legacy pages. See
+  `FEATURE_REDO_PLAYBOOK.md` §9.)
 - A **contract test** in the backend asserts each response serializer satisfies
   its declared type, so drift shows up as a test failure rather than at runtime.
 
@@ -825,7 +828,7 @@ Serial up to the contract freeze, then backend and frontend run in parallel
 | # | Session | Depends on | Parallel with |
 |---|---|---|---|
 | **0** | ~~Owner: run §2's production queries; approve this plan~~ **✅ DONE 2026-09-15** | — | — |
-| **1** | ~~**Step 6 — freeze the contract.**~~ **✅ DONE 2026-09-15** — `inventory-validators.ts` + `inventory.types.ts` committed and marked frozen; `API_CONTRACT.md` §21 added. Frontend mirror (`frontend/types/inventory.ts`) is rewritten by Session 4 as its first task, against the frozen schemas. | 0 | — |
+| **1** | ~~**Step 6 — freeze the contract.**~~ **✅ DONE 2026-09-15** — `inventory-validators.ts` + `inventory.types.ts` committed and marked frozen; `API_CONTRACT.md` §21 added. Frontend mirror is written by Session 4 in `features/inventory/types/`, against the frozen schemas. | 0 | — |
 | **2** | **Backend A — schema & migration.** Prisma models, the hand-edited migration, raw-SQL indexes + CHECK, `seed-inventory-catalog.ts` from the reference photos. Migration verified against a restored production copy. | 1 | 4 |
 | **3** | **Backend B — module build.** `modules/inventory/` routes/controller/service/repository, all §5.3 endpoints, all §5.4 rules, §6.2 tests. **Deletes the legacy inventory code and its tests (§1.4) in this same PR.** | 2 | 4 |
 | **4** | **Frontend — six screens.** Assemble the built composites into real screens against a mock of the frozen contract: route + drawer chrome (Save/Cancel, search boxes) the composites deliberately don't own, wiring, states. Visual-diff each screen against its `B-0` artboard. | 1 | 2, 3 |

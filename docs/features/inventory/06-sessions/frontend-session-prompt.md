@@ -34,10 +34,13 @@ and visual-diff each screen against its Paper artboard.
    plus its **Status** section, which records per-composite decisions you must
    not undo.
 4. **`docs/features/inventory/03-design.md`** — the Paper file/page pointer.
-5. **`CLAUDE.md`** — "Frontend Hook Stability Rules". Non-negotiable; read before
+5. **`docs/FEATURE_REDO_PLAYBOOK.md` §9** — the folder structure, **amended
+   2026-09-15 to modularize the frontend by feature**. You are the first feature
+   to use it. Read it before creating any file.
+6. **`CLAUDE.md`** — "Frontend Hook Stability Rules". Non-negotiable; read before
    writing any hook or effect.
-6. **`docs/CODING_STANDARDS.md` §9–10** — frontend structure, Zustand rules,
-   design-token rules.
+7. **`docs/CODING_STANDARDS.md` §9–10** — frontend feature-module rules, Zustand
+   rules, design-token rules.
 
 ## The six screens
 
@@ -67,29 +70,69 @@ In `frontend/components/`:
 - **`app/shell/`** — Sidebar Nav, Topbar, nav icons (cross-feature)
 - **`inventory/`** (kebab-case files only) — `drawer-shell`, `item-catalog-table`,
   `item-form`, `category-manager-list`, `supplier-form`, `restock-level-grid`,
-  `kpi-strip`, `item-type-icon`
+  `kpi-strip`, `item-type-icon`. **These 8 move to
+  `features/inventory/components/` as your first task** (see Structure above) —
+  moved and re-imported, not rewritten.
 - **`app/shell/`** also has `mobile-headers` and `mobile-status-bar`
 
 > **`components/inventory/` also contains PascalCase files** — `ItemCombobox`,
 > `QuantityStepper`, `QuantityInput`, `PriceTrendChart`, `Sparkline`,
 > `PurchaseOrderStatusBadge`. These are **legacy**, built on the old
 > `components/ui/` system for the not-yet-redone pages. Do not use them, extend
-> them, or import from them. The kebab-case files are this milestone's set.
+> them, import from them, or move them — they migrate with their own feature's
+> redo. The kebab-case files are this milestone's set.
+
+## ⚠ Structure — read this before creating a single file
+
+**The frontend is now modularized by feature, mirroring the backend.** This was
+decided on 2026-09-15 and `FEATURE_REDO_PLAYBOOK.md` §9 was amended for it.
+**Inventory is the first feature to use it, so you are setting the pattern every
+later feature copies.** Do not put feature code in the legacy layer folders.
+
+```
+frontend/features/inventory/
+  components/      MOVE the 8 kebab-case composites here from components/inventory/
+  hooks/           new — data-loading and form hooks
+  services/        new — API module typed to the frozen contract (+ the mock)
+  store/           new — Zustand, only if a screen genuinely needs shared state
+  types/           new — the contract mirror (see item 1 below)
+  index.ts         the module's public entry
+```
+
+Three rules that come with it:
+
+- **`app/` pages hold routing concerns only** — params, metadata, layout, and
+  rendering a feature component. No fetching, no business logic, no feature
+  state. Pages must physically live in `app/` because Next.js derives URLs from
+  that tree; that is the only reason they aren't in the module.
+- **No cross-feature deep imports.** Other features import
+  `features/inventory`'s `index.ts`, never its internals.
+- **`components/ui2/`, `components/app/shell/` and `lib/` stay where they are.**
+  They are shared infrastructure, not feature code. Don't move them.
+
+**What moves, concretely:** the 8 kebab-case composites listed above go from
+`components/inventory/` into `features/inventory/components/`, updating their
+imports. The 6 legacy PascalCase files **stay** in `components/inventory/` —
+they serve not-yet-redone pages and migrate with *their* feature's redo.
 
 ## What you are adding
 
-1. **`frontend/types/inventory.ts`** — rewrite it to mirror the frozen contract.
-   The current file describes the *old* Phase 1 shape (`PASS_THROUGH`,
-   `reorderLevel`, `isActive`) and is wrong in almost every particular. Head the
-   new file with a comment naming the backend file as authoritative.
-2. **A mock service layer** typed to the contract, so screens run end-to-end with
-   no backend. Seed the mocks from the reference data in the Paper artboards.
+1. **`features/inventory/types/`** — the contract mirror. Note the existing
+   `frontend/types/inventory.ts` describes the *old* Phase 1 shape
+   (`PASS_THROUGH`, `reorderLevel`, `isActive`) and is wrong in almost every
+   particular. **Do not edit it in place** — it still serves the legacy pages
+   that are alive until Session 5. Write the new types in the feature module and
+   head the file with a comment naming the backend schema file as authoritative.
+2. **`features/inventory/services/`** — the API module typed to the contract,
+   plus a **mock** implementation so screens run end-to-end with no backend.
+   Seed the mocks from the reference data in the Paper artboards.
 3. **Routes and screen chrome** — this is the real work. `04-components.md` is
    explicit that several composites deliberately don't own their surroundings:
    Save/Cancel footers, search boxes, toolbar wiring, drawer open/close state,
    form state and validation display. That is **this session's job**, not a gap
    in the component set.
-4. **The six screens**, both breakpoints, all states.
+4. **The six screens**, both breakpoints, all states — pages in `app/` as thin
+   shells, the actual screen components in `features/inventory/components/`.
 
 ## The six things most likely to go wrong
 
@@ -109,9 +152,10 @@ In `frontend/components/`:
    across rows, one submit, one `PUT`. A per-row save would misrepresent the
    screen and contradict the contract.
 
-4. **A duplicate item name is a warning, not an error.** The save succeeds and
-   returns `200` with a `warnings` array; the form shows the warning alongside a
-   successful save. Do not model it as a validation failure.
+4. **A duplicate item name is a warning, not an error.** The save succeeds —
+   `201` on create, `200` on update — with a `warnings` array in the response
+   body either way; the form shows the warning alongside a successful save. Do
+   not model it as a validation failure.
 
 5. **"Where it may exist" is conditional, and Paper draws both states.** For
    `RAW_INGREDIENT` it is a read-only display with explanatory helper text; for
@@ -150,9 +194,16 @@ Per `04-components.md`'s "Visual fidelity process":
 
 ## Definition of done
 
-- [ ] `frontend/types/inventory.ts` rewritten to mirror the frozen contract
+- [ ] `features/inventory/` created with `components/ hooks/ services/ types/`
+      (+ `store/` only if genuinely needed) and an `index.ts` public entry
+- [ ] The 8 kebab-case composites moved out of `components/inventory/`, imports
+      updated; the 6 legacy PascalCase files left untouched
+- [ ] Contract mirror written in `features/inventory/types/`; the legacy
+      `types/inventory.ts` left in place for the still-live legacy pages
 - [ ] Mock service layer typed to the contract; screens run with no backend
 - [ ] All six screens built, desktop and mobile where the table specifies
+- [ ] `app/` pages are thin shells — no fetching, business logic, or feature
+      state in any `page.tsx`
 - [ ] `loading` / `empty` / `error` / `permission-denied` on every screen
 - [ ] Visual-diff (or the documented fallback) passing per screen, with evidence
 - [ ] 768px and 1024px spot-checked; no page-body horizontal scroll
@@ -178,10 +229,21 @@ Per `04-components.md`'s "Visual fidelity process":
   styling, the amber-vs-red below-level tone, the 32px restock input) are
   documented, Paper-verified, deliberate differences.
 
-## One known design amendment
+## Two known amendments since freeze
 
-Plan §8.2 q4: **supplier `location`** ("Nyeri town") appears on the supplier
-detail header but is missing from the create/edit drawer. The owner approved
-storing it and adding the field; the contract already includes it. Add it to the
-drawer as part of this session, in the existing two-column row pattern, and note
-it in your report so the Paper file gets updated to match.
+1. **Plan §8.2 q4 — supplier `location`.** ("Nyeri town") appears on the
+   supplier detail header but is missing from the create/edit drawer. The
+   owner approved storing it and adding the field; the contract already
+   includes it. Add it to the drawer as part of this session, in the existing
+   two-column row pattern, and note it in your report so the Paper file gets
+   updated to match.
+
+2. **`UpdateSupplierSchema` contract fix (2026-09-15, backend session).** The
+   original schema was `CreateSupplierSchema.partial()`, which kept
+   `defaultPaymentTerms`'s `.default('INVOICE_TO_FOLLOW')` — so a partial PATCH
+   that never touched `defaultPaymentTerms` would silently reset it anyway. It
+   was rewritten as its own object with every field genuinely optional; no
+   other shape changed. See `API_CONTRACT.md` §21.5. Build your mock/type for
+   `UpdateSupplierInput` so that **omitting `defaultPaymentTerms` from a PATCH
+   never changes it** — only send the field when the user actually edits the
+   payment-terms toggle.

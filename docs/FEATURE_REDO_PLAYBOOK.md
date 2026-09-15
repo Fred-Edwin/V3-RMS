@@ -54,7 +54,8 @@ step.
 - **The API contract is a frozen, typed artifact.** It is the seam that lets
   backend and frontend sessions run in parallel.
 - **New code lands in the new structure and the new design system.** Redone
-  feature X ⇒ `backend/src/modules/x/` + shadcn/ui components on the new tokens.
+  feature X ⇒ `backend/src/modules/x/` + `frontend/features/x/`, built on the
+  new design tokens. One folder per side of the wire.
   During the transition the codebase is half-old, half-new. That is expected.
 - **Paper is the design source of truth.** Its MCP exposes exact dimensions and
   computed styles; the frontend agent builds against the live Paper file and
@@ -208,9 +209,9 @@ gates**.
      component) before marking it done in the inventory doc.
 - Result: the component set in code matches the component set in Paper.
 - Components live in `components/ui2/` (primitives — add here, never in the old
-  `components/ui/`) and `components/<feature>/` (composites, built on `ui2/`) —
-  except shell composites used by every feature (sidebar, topbar, mobile status bar),
-  which go in a shared cross-feature location, not under `components/<feature>/`.
+  `components/ui/`) and `features/<feature>/components/` (composites, built on
+  `ui2/`) — except shell composites used by every feature (sidebar, topbar,
+  mobile status bar), which go in `components/app/shell/`, not under a feature.
 - This feature's pages switch their imports from `components/ui` to
   `components/ui2` as they're rebuilt. Other features' pages are untouched.
 - **Reuse across build units within a feature is the point.** Once a primitive or
@@ -235,7 +236,8 @@ gates**.
   - **Test classification** — existing tests to keep / rewrite / delete; new
     tests required from the new flows.
   - **Structure** — confirms new code goes in `backend/src/modules/<feature>/`
-    and the retirement plan for the old feature's files.
+    and `frontend/features/<feature>/`, and the retirement plan for the old
+    feature's files on both sides.
 - Output: `docs/features/<feature>/05-plan.md` (+ contract types committed to code)
 - **Owner reviews and approves the plan.** For large features, approve the
   high-level plan here; each session's detailed plan is produced just-in-time
@@ -257,7 +259,8 @@ gates**.
   (`get_screenshot` vs. a screenshot of the running app).
 - Backend and frontend sessions for the same feature can run in parallel once the
   contract is frozen (see §8).
-- New code lands in `modules/<feature>/` and the new component set.
+- New code lands in `backend/src/modules/<feature>/` and
+  `frontend/features/<feature>/`, on the new design system.
 - **The PR for each slice removes the old code it replaces** — after its tests
   pass and its migration is written.
 
@@ -292,7 +295,8 @@ gates**.
 - [ ] Integration session done — every flow works end to end
 - [ ] Migration run on a production copy, then deployed via CI/CD
 - [ ] Owner has watched a real user use it
-- [ ] New code in `modules/<feature>/`; old feature code removed
+- [ ] New code in `backend/src/modules/<feature>/` + `frontend/features/<feature>/`;
+      `app/` pages are thin shells; old feature code removed
 - [ ] Docs updated (DATA_MODEL, API_CONTRACT, CLAUDE, feature folder)
 
 ---
@@ -355,26 +359,59 @@ backend/src/
     index.ts           wires every module's routes — the one shared touch-point
 
 frontend/
-  app/                 Next.js pages (already grouped by role/feature)
+  app/                 Next.js App Router — ROUTING ONLY. Thin page shells that
+                       import from features/<feature>/. URLs are derived from
+                       this tree, so pages cannot live anywhere else.
+  features/
+    <feature>/         NEW — everything for one feature, co-located
+      components/      feature composites, matching Paper (built on ui2/)
+      hooks/
+      services/        API-call module, typed to the frozen contract
+      store/           Zustand store(s) for this feature
+      types/           types mirroring the feature's contract
+      index.ts         the module's public entry — other code imports from here
   components/
-    ui/                OLD system — untouched, serves not-yet-redone pages
+    ui/                OLD design system — untouched, serves not-yet-redone pages
     ui2/               NEW — shadcn/ui primitives on the design tokens
-    <feature>/         feature composites, arranged to match Paper (built on ui2/)
-  hooks/
-  services/            one API-call module per feature, typed to the contract
-  store/               Zustand
-  lib/                 apiClient, socket, cn, tokens
-  types/
+    app/shell/         cross-feature shell (sidebar, topbar, mobile headers)
+  hooks/               LEGACY — cross-feature hooks only; feature hooks move out
+  services/            LEGACY — not-yet-redone features; migrate per redo
+  store/               LEGACY — same
+  types/               LEGACY — same; plus genuinely cross-feature types
+  lib/                 apiClient, socket, cn, tokens — shared infrastructure
 ```
+
+> **Frontend feature modules — decided 2026-09-15 (amendment).** The original
+> version of this section grouped the frontend by layer (`hooks/`, `services/`,
+> `store/`, `types/`) while grouping the backend by feature. That asymmetry was
+> never a decision — it was the existing Next.js layout carried forward
+> unexamined. It is now corrected: **the frontend is modularized by feature too**,
+> so a redone feature is one folder on each side of the wire.
+>
+> **The one thing that does not move is `app/`.** Next.js derives URLs from that
+> directory tree, so pages must physically live there. They become thin shells —
+> a page file resolves params, renders a component from `features/<feature>/`,
+> and holds no feature logic of its own. This is the standard Next.js answer to
+> this problem, not a compromise.
+>
+> Migration is **per feature, as part of its redo** — never as a separate
+> refactor, exactly like the backend. Inventory is the first.
 
 Rules:
 - No `prisma` import outside `repositories/` (a `$transaction` in a service is
   allowed; plain reads/writes are not). Add a lint rule to enforce this.
 - No cross-module imports between feature modules except through a module's
-  public entry. Shared code goes in `shared/`.
+  public entry. Shared code goes in `shared/` (backend) or `lib/` +
+  `components/ui2/` + `components/app/` (frontend).
+- **Frontend feature modules mirror this rule:** `features/a/` never reaches
+  into `features/b/`'s internals. It imports `features/b`'s `index.ts`, or the
+  shared code both depend on.
 - `components/ui2/` is design-system only. No feature logic there. Never add to
   `components/ui/` — it's frozen, retired feature by feature (see §4.3), and
   deleted once nothing imports it.
+- A page in `app/` holds routing concerns only — params, metadata, layout
+  choice, and rendering a feature component. Business logic, data fetching, and
+  state belong in the feature module.
 
 ---
 

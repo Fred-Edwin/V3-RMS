@@ -116,15 +116,42 @@ This file is intentionally brief. It defines enforceable rules only.
 ---
 
 ## 9) Frontend Structure and Rules
-### Canonical frontend layout
-- `app/` routes/layouts.
-- `components/` reusable feature components.
-- `ui/` base primitives.
-- `hooks/` custom hooks.
-- `services/` API calls.
-- `store/` Zustand stores.
-- `types/` TS contracts.
-- `lib/` utilities (`apiClient`, `socket`, env helpers).
+### Canonical frontend layout — feature modules
+
+Redone features are **grouped by feature**, mirroring `backend/src/modules/`.
+Amended 2026-09-15; see `FEATURE_REDO_PLAYBOOK.md` §9 for the rationale.
+
+```
+frontend/
+  app/                  ROUTING ONLY — thin page shells (see rule below)
+  features/<feature>/   everything for one feature, co-located
+    components/         composites built on ui2/
+    hooks/
+    services/           API calls, typed to the frozen contract
+    store/              Zustand
+    types/              contract mirror
+    index.ts            public entry — other modules import from here
+  components/
+    ui/                 OLD design system — frozen, retired per feature
+    ui2/                NEW primitives on the design tokens
+    app/shell/          cross-feature shell (sidebar, topbar, mobile headers)
+  hooks/ services/ store/ types/   LEGACY + genuinely cross-feature only
+  lib/                  apiClient, socket, cn, tokens
+```
+
+### Feature module rules
+- **`app/` pages hold routing concerns only** — params, metadata, layout choice,
+  and rendering a feature component. No data fetching, no business logic, no
+  feature state. Pages must live in `app/` because Next.js derives URLs from that
+  tree; everything else belongs in the feature module.
+- **No cross-feature deep imports.** `features/a/` imports `features/b`'s
+  `index.ts`, never `features/b/services/...`. Shared code goes in `lib/`,
+  `components/ui2/`, or `components/app/`.
+- **A feature module's `index.ts` is its public API.** Export what other modules
+  legitimately need; keep the rest internal.
+- **Migrate per feature, as part of its redo** — never as a separate refactor.
+  Not-yet-redone features keep using the legacy `hooks/ services/ store/ types/`
+  folders until their own redo moves them.
 
 ### Component rules
 - Keep components focused and composable.
