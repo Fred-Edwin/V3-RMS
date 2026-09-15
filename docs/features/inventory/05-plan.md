@@ -606,6 +606,26 @@ copy**, not just a clean local DB — that's the only way to catch a row or FK t
 §2 counts didn't surface. Then `prisma migrate status` clean, `pnpm build`,
 `pnpm test` green.
 
+**✅ DONE 2026-09-15.** Owner pulled the nightly backup
+(`~/backups/wendo/wendo_rms_2026-09-15_02-00.sql.gz`, taken 02:00 that morning —
+the actual current production data, not a stale or synthetic snapshot) and
+handed it over. Restored into a disposable local Postgres 16 container (isolated
+from dev, torn down after). Confirmed pre-migration: 23 `inventory_items`, 3
+`suppliers`, 4 `organizations` — matching §2's production counts exactly — old
+schema shape (`reorder_level`, `is_active`, no `categories` table), 59 of 60
+migrations already applied (this one the only pending delta). `prisma migrate
+deploy` **applied cleanly, zero errors**, including the amended step 2 truncate
+of `inventory_transactions`' 37 real rows (the exact scenario that step was
+added to handle — confirmed it actually works, not just reasoned about).
+Post-migration, verified directly: `inventory_items`/`suppliers`/`categories`/
+`restock_levels`/`inventory_transactions` all correctly empty; new schema shape
+present (`category_id`, `preferred_supplier_id`, nullable `conversion_factor`/
+`pack_size`, `deleted_at`); the `inventory_items_raw_no_department` CHECK
+constraint live; both `categories_org_name_live_key` /
+`suppliers_org_name_live_key` partial unique indexes live; `prisma migrate
+status` clean afterward. **This precondition is closed — the migration is
+proven safe to run on real production.**
+
 **Seed — reference photos, not the production rows. [OWNER CONFIRMED 2026-09-15]**
 The question was raised whether to carry the production catalog forward, since it
 was itself derived from the photos. It was *inspired by* them, not extracted from
@@ -964,7 +984,7 @@ shape is known, which makes the package easier to design correctly.
 - [ ] Owner approves the rest of this plan (§8.2 defaults 2, 4, 5 stand if silent)
 - [ ] Supplier `location` field added to the Paper drawer (§8.2 q4)
 - [ ] Contract frozen (Step 6) and mirrored to the frontend
-- [ ] Migration written, run against a restored production copy, committed
+- [x] Migration written, run against a restored production copy, committed — ✅ 2026-09-15, clean
 - [ ] `modules/inventory/` built to contract; legacy inventory code deleted in the same PR
 - [ ] Tests classified per §6, new tests green, `pnpm build` + `pnpm test` clean both projects
 - [ ] Six screens assembled, visual-diffed against their `B-0` artboards
