@@ -141,6 +141,12 @@ path.** [OWNER]
 2. A **Store Attendant** (or the Manager) creates a **Goods Receipt** and records
    what actually arrived, line by line: item, quantity, unit price. There is
    nothing to "check against" — the receipt *is* the record. [REC]
+   **Damaged or rejected goods are sorted out at the door before this step** —
+   the Attendant inspects and returns/rejects damaged items with the driver on
+   the spot, so every quantity entered on the receipt is already what's being
+   kept. There is no separate damaged-quantity field or supplier-claim note on
+   the receipt itself. [OWNER, 2026-09-15 — supersedes the earlier "record only
+   the good quantity + damage note" design in §6 and Flow 2c]
 3. Each line writes a `receive` ledger entry at the Central Store, raising stock
    and setting that item's current cost to the received unit price (§4,
    latest-price costing).
@@ -475,8 +481,8 @@ purchasing, supplier costs, or other branches. [REC]
 | **Discrepancy resolution** | Store Manager records an outcome: found and re-delivered, written off as transit loss, or miscount corrected. The resolution is signed. [REC] |
 | **Over-delivery from a supplier** | Record what actually arrived. There is no PO to violate. If the invoice disagrees with what was received, the receipt is the truth and the invoice difference is a supplier dispute. [REC] |
 | **Price changed since last purchase** | Recorded silently as the new cost; weighted average absorbs it. A **price-change alert** flags any line more than a set % above that item's last price, so the manager notices at the moment of receiving. [REC] |
-| **Damaged goods at receiving** | Do not receive them. Record only the good quantity; note the damaged amount on the receipt as a supplier claim. Damaged stock never enters the ledger. [REC] |
-| **Damage discovered later** | Log as **waste** with a reason. [REC] |
+| **Damaged goods at receiving** | **Superseded 2026-09-15 [OWNER].** Sorted out at the door, before the receipt is entered — the Attendant inspects and returns/rejects damaged items with the driver first, so the receipt only ever records what's being kept. No damaged-quantity field, no supplier-claim note, on the receipt. (Previously: record only the good quantity + a damage note as a supplier claim — that design is retired.) |
+| **Damage discovered later** (after the goods are already in stock) | Log as **waste** with a reason. [REC] — unchanged, this is the only damage path that still exists. |
 | **Returns to supplier** | Out of scope for v1. Handle as a credit note against the supplier invoice. [REC] |
 | **Returns from a branch to the store** | **Not supported.** [REC, carried from prior scope] A department that over-ordered logs waste or carries the stock. Adding a reverse path doubles the ledger's complexity for a rare event. |
 | **Substitution** (store sends a different item) | The store may **add a line** to the dispatch that was not requisitioned, and reduce the requested one to zero. The department sees both and confirms what arrived. [REC] |

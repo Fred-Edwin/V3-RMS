@@ -2168,5 +2168,17 @@ build, not worked around silently again.
   above (full resizable catalog columns vs. a narrower Units-column fix) —
   not blockers, and not part of this milestone's must-ship scope.
 
+- **Owner follow-up (2026-09-15, during Milestone Two screen review) — one
+  more Item Catalog Table gap found, not yet built.** Reviewing Milestone
+  Two's New Purchase drawer (which shows a per-line "last price" reference
+  next to the estimate) surfaced that the Item Catalog Table has no
+  equivalent — there is currently no way to see an item's latest buying price
+  from the catalog itself. **Add a "Last price" column to
+  `item-catalog-table.tsx`** (desktop + mobile), sourced the same way the
+  Item Form's existing "last: KES …" reference already is. Bundle this with
+  the already-flagged Units-column fix (resizable columns vs. a narrower
+  Units-only legibility fix, still awaiting the owner's choice) since both
+  touch the same table in the same pass. Neither blocks Milestone Two.
+
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

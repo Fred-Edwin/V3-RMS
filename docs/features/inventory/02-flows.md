@@ -37,7 +37,8 @@ design per slice (see `02-screens.md` and the slice plan). Flows 1 and 2
 2. Goods receipt at Central Store
    - 2a. Receipt with payment terms = Invoice to follow
    - 2b. Receipt with payment terms = Pay now
-   - 2c. Edge: damaged goods at receiving
+   - 2c. **Retired 2026-09-15** — damaged-goods-at-receiving flow removed;
+     damage is now sorted out at the door before the receipt is entered (§6)
    - 2d. Edge: price-change alert on a line
    - 2e. Edge: over-delivery vs. the invoice
 3. Prep run (after-the-fact)
@@ -190,7 +191,9 @@ or a cash receipt.
   Flow 2b behaviour instead.
 
 **Error / edge paths.**
-- **Damaged goods** → Flow 2c.
+- **Damaged goods** → not handled here. Sorted out at the door before this
+  screen — the Attendant returns/rejects damaged items with the driver first,
+  so every line entered is already good stock (§6; Flow 2c retired 2026-09-15).
 - **Price-change alert fires** → Flow 2d (still records; alert is a nudge).
 - **Invoice number not to hand** → the field can be left blank and the receipt
   still saves as `Received — invoice pending`; the Store Manager fills the
@@ -223,20 +226,17 @@ or a cash receipt.
 - `receive` ledger entries; stock up; current cost updated.
 - Signed goods receipt, status `Received — paid`. No supplier balance change.
 
-### Flow 2c — Edge: damaged goods at receiving
+### Flow 2c — Retired 2026-09-15
 
-Implements: §6 (damaged goods).
-
-1. On a line, the Attendant records **only the good quantity** received.
-2. The Attendant adds a **damage note** on that line: damaged quantity + reason.
-   This is captured as a **supplier claim** on the receipt, not a stock line.
-3. `receive` is written for the good quantity only. **Damaged stock never enters
-   the ledger** (§6).
-4. The receipt prints (optional) with the damage note visible so the store can
-   raise it with the supplier.
-
-**End state.** Stock reflects only sound goods. A supplier-claim note is attached
-to the receipt for the Store Manager to pursue against the invoice (Flow 17a).
+**This flow no longer exists.** The prior design (record only the good
+quantity + a damage note as a supplier claim, captured on the receipt) is
+retired. Damaged or rejected goods are now sorted out with the driver
+**before** the receipt is entered at all — by the time the Attendant is
+filling in the Goods Receipt, every line already reflects what's being kept.
+There is no damaged-quantity field, no supplier-claim note, and no print
+callout for damage on this screen. See `01-description.md` §3 Stage 2 and §6
+for the current rule. Damage discovered **after** goods are already in stock
+still goes through the existing waste flow (Flow 15), unchanged.
 
 ### Flow 2d — Edge: price-change alert on a line
 
@@ -1218,7 +1218,7 @@ against our AP.
 3. For each genuine difference the Accountant works the cause and records a
    **reconciliation adjustment** on the relevant invoice, with a **mandatory
    reason** (§3 Stage 10, §6) — e.g. "supplier applied KSh 500 credit note for
-   damaged goods on receipt GRN-1042" (ties back to Flow 2c).
+   a billing error on receipt GRN-1042."
 4. The adjustment changes the invoice's billed / outstanding figure; the aging
    report reflects it. **No stock ledger entry** — the Accountant cannot move
    stock (§2).
@@ -1241,11 +1241,10 @@ against our AP.
 
 ### Flow 17a — Edge: statement disputes a specific invoice
 
-Implements: §6 (supplier statement disagrees / over-delivery / damaged goods
-claim).
+Implements: §6 (supplier statement disagrees / over-delivery).
 
-1. The statement bills an amount our receipt contradicts (Flow 2e mismatch, or a
-   Flow 2c damage claim not credited).
+1. The statement bills an amount our receipt contradicts (Flow 2e over-delivery
+   mismatch, or any other billing discrepancy the receipt itself settles).
 2. The Accountant records the dispute on the invoice: our figure, their figure,
    the reason, and the supporting receipt / claim reference.
 3. The invoice shows a **Disputed** marker on the aging report; it still ages
