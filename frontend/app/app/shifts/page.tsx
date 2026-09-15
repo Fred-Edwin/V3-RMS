@@ -42,6 +42,7 @@ export default function ShiftsPage(): JSX.Element {
   const { toast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
   const role = useAuthStore((state) => state.role);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const [isLoading, setIsLoading] = useState(true);
   const [upcomingAssignments, setUpcomingAssignments] = useState<ShiftAssignment[]>([]);
   const [historyAssignments, setHistoryAssignments] = useState<ShiftAssignment[]>([]);
@@ -62,13 +63,19 @@ export default function ShiftsPage(): JSX.Element {
         shiftService.listAssignments({ startDate: historyStartKey, endDate: yesterdayKey }, accessToken),
       ]);
 
-      const orderedUpcoming = [...upcoming].sort((l, r) =>
+      // Department heads get the full department roster back from this endpoint
+      // (needed for the scheduling grid) — this page is personal clock-in only,
+      // so narrow to the signed-in user's own assignments.
+      const ownUpcoming = upcoming.filter((a) => a.userId === currentUserId);
+      const ownHistory = history.filter((a) => a.userId === currentUserId);
+
+      const orderedUpcoming = [...ownUpcoming].sort((l, r) =>
         `${l.date} ${l.shift.startTime}`.localeCompare(`${r.date} ${r.shift.startTime}`),
       );
 
       setUpcomingAssignments(orderedUpcoming);
       setHistoryAssignments(
-        [...history].sort((l, r) =>
+        [...ownHistory].sort((l, r) =>
           `${r.date} ${r.shift.startTime}`.localeCompare(`${l.date} ${l.shift.startTime}`),
         ),
       );
@@ -78,7 +85,7 @@ export default function ShiftsPage(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, role, toast]);
+  }, [accessToken, role, currentUserId, toast]);
 
   useEffect(() => { void loadAssignments(); }, [loadAssignments]);
 
