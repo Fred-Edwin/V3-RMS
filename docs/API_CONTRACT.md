@@ -3432,3 +3432,98 @@ Manually adjusts the order total (last-resort correction, e.g. post-close manage
 
 *This API Contract is the authoritative reference for all frontend-backend communication in Wendo RMS. Every endpoint reflects the data model, business rules, and architectural decisions defined in the PRD, Data Model, and TDD. Any new endpoint or change to an existing one must be documented here before implementation.*
 
+
+---
+
+## 21. Inventory — Milestone One (Catalog, Suppliers & Restock Levels)
+
+> **STATUS: FROZEN — 2026-09-15.**
+> Frozen per `docs/FEATURE_REDO_PLAYBOOK.md` Step 6, following owner approval of
+> `docs/features/inventory/05-plan.md`. Backend and frontend build sessions run
+> in parallel against this contract.
+>
+> **Amendment process (playbook Step 6):** if a build session finds the contract
+> wrong, **all affected sessions stop**, the owner approves the amendment, then
+> sessions resume. A session must never edit the contract unilaterally to unblock
+> itself. Expect at least one amendment per feature — it is not a failure.
+
+### 21.1 Source of truth
+
+The contract is **committed code**, not this prose. This section is the index.
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/inventory-validators.ts` |
+| **Types (inferred from schemas)** | `backend/src/modules/inventory/inventory.types.ts` |
+| **Frontend mirror** | `frontend/types/inventory.ts` — hand-mirrored; a backend contract test guards drift |
+| **Design** | Paper page `B-0`, file `01M1ZZJ6S3FZGF5C7PPBGTKY89` |
+| **Plan** | `docs/features/inventory/05-plan.md` §5 |
+
+There is no pnpm workspace in this repo, so there is no shared package to import
+from — hence the mirror plus drift test. A proper shared package is booked as a
+follow-up task after Milestone One ships (plan §8.2 q5).
+
+### 21.2 Conventions specific to this contract
+
+- Standard envelope (§1) unchanged.
+- **Every decimal crosses the wire as a string** — quantities, conversion
+  factors, pack sizes, costs, restock levels. Never a JS number; Prisma stores
+  them as `Decimal` and coercing loses precision.
+- Soft delete is `retiredAt` on the wire (`deletedAt` in the database). There is
+  no hard delete on any resource in this milestone.
+- All routes are under `/api/v1/inventory/…` — namespaced, and deliberately not
+  colliding with the legacy flat `/inventory-items` and `/suppliers` routes
+  during the transition.
+
+### 21.3 Endpoints
+
+All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
+`SM` = `STORE_MANAGER`, `SA` = `STORE_ATTENDANT`, `DH` = `DEPARTMENT_HEAD`,
+`ACC` = `ACCOUNTANT`, `DIR` = `DIRECTOR`.
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/inventory/categories` | SM, SA |
+| `POST` | `/inventory/categories` | SM |
+| `PATCH` | `/inventory/categories/:id` | SM |
+| `DELETE` | `/inventory/categories/:id` | SM |
+| `POST` | `/inventory/categories/:id/restore` | SM |
+| `GET` | `/inventory/items` | SM, SA |
+| `GET` | `/inventory/items/:id` | SM, SA |
+| `POST` | `/inventory/items` | SM |
+| `PATCH` | `/inventory/items/:id` | SM |
+| `DELETE` | `/inventory/items/:id` | SM |
+| `POST` | `/inventory/items/:id/restore` | SM |
+| `GET` | `/inventory/suppliers` | SM, ACC, DIR |
+| `GET` | `/inventory/suppliers/:id` | SM, ACC, DIR |
+| `POST` | `/inventory/suppliers` | SM |
+| `PATCH` | `/inventory/suppliers/:id` | SM |
+| `DELETE` | `/inventory/suppliers/:id` | SM |
+| `POST` | `/inventory/suppliers/:id/restore` | SM |
+| `GET` | `/inventory/restock-levels` | SM, DH |
+| `PUT` | `/inventory/restock-levels` | SM, DH |
+
+Request/response shapes: see the schema file. Full rationale per endpoint,
+including role reasoning and the D-15 scoping rule applied to each: plan §5.3.
+
+### 21.4 Behaviours that are contract, not implementation detail
+
+These are easy to "fix" into something more conventional and wrong. They are
+specified:
+
+1. **A duplicate item name returns `200` with a `warnings` array — it does not
+   fail.** Flow 18: *"warned; allowed only with a distinguishing qualifier."*
+   Create/update responses use the `ItemMutationResponse` envelope for this.
+2. **A raw ingredient may never carry department tags** — rejected at the Zod
+   layer with a field-level message on `departmentTags`, at the service layer,
+   and by a database `CHECK` constraint. All three; the DB layer is what makes
+   it a data rule rather than a convention.
+3. **`PUT /inventory/restock-levels` is a bulk, atomic upsert**, not one request
+   per row — both restock screens are a single "Save restock levels" button over
+   many edited rows. `level: null` clears a row.
+4. **`onHandQty` is derived live from the ledger on every read, never stored,
+   and may be negative.** Negative stock is allowed and flagged, never blocked.
+5. **`conversionFactor` and `packSize` are nullable** — "no conversion" and "—"
+   are real, drawn states, not missing data.
+6. **`categoryName` may be sent instead of `categoryId`** to create a category
+   inline, in the same transaction. Exactly one of the two.

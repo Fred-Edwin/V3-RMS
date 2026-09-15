@@ -535,12 +535,37 @@ push → CI runs `prisma migrate deploy`.
 **Preconditions:**
 1. ~~§2's production counts returned, confirming no rows worth keeping.~~
    **✅ Done 2026-09-15** — all demo data, nothing worth preserving.
-2. ⬜ Exactly one `organizations."isHub" = true` row exists in production.
-3. ⬜ A `CENTRAL_STORE` location exists on **that** hub org.
+2. ~~Exactly one `organizations."isHub" = true` row exists in production.~~
+   **✅ Confirmed 2026-09-15** — one hub org, `"Central Store"`
+   (`2223e6f9-1567-42a8-b1b6-50a86b288863`), alongside three branch orgs
+   (King'ong'o, Nyeri Town, Wendo Nyahururu).
+3. ~~A `CENTRAL_STORE` location exists on **that** hub org.~~
+   **✅ Confirmed 2026-09-15** — exactly one `locations` row,
+   `f4e55452-3d51-4a8f-9e30-3b46fa445b88`, type `CENTRAL_STORE`, `department_tag`
+   null, owned by the hub org. Precisely the D-15 shape.
 
-Preconditions 2 and 3 are **still outstanding** — the original query used
-`is_hub` and errored (§2). They must be confirmed before Session 2 writes the
-migration, since every Milestone One write is hub-scoped.
+**All migration preconditions are met. Session 2 is clear to write the
+migration.**
+
+**One residual check, not a blocker.** The store/department **user** query has
+not returned yet (a shell-quoting error, twice). It matters because D-15 also
+requires `STORE_MANAGER` / `STORE_ATTENDANT` accounts to live on the hub org, and
+that has never been verified against real rows — but it gates **deploy**, not the
+migration, and Session 3's D-15 tests (§6.2) assert the rule independently of
+what production currently holds. Run before Session 6:
+
+```bash
+cd ~/wendo-rms
+docker compose exec -T postgres psql -U wendo_user -d wendo_rms <<'SQL'
+SELECT u.role, u.name, o.name AS org, o."isHub"
+ FROM users u JOIN organizations o ON o.id = u."organizationId"
+ WHERE u.role IN ('STORE_MANAGER','STORE_ATTENDANT','DEPARTMENT_HEAD')
+ ORDER BY u.role;
+SQL
+```
+
+Any `STORE_MANAGER`/`STORE_ATTENDANT` on a non-hub org is a data fix before
+deploy (reassign to the hub org), not a plan change.
 
 **One migration, named `inventory_milestone_one_catalog`**, in this order:
 
@@ -799,8 +824,8 @@ Serial up to the contract freeze, then backend and frontend run in parallel
 
 | # | Session | Depends on | Parallel with |
 |---|---|---|---|
-| **0** | **Owner: run §2's production queries; approve this plan** | — | — |
-| **1** | **Step 6 — freeze the contract.** Commit `inventory-validators.ts` + `inventory.types.ts`, mirror `frontend/types/inventory.ts`, add the §5 section to `API_CONTRACT.md` marked frozen. Per the orchestrator brief this needs no session of its own — it's a commit of already-designed types. | 0 | — |
+| **0** | ~~Owner: run §2's production queries; approve this plan~~ **✅ DONE 2026-09-15** | — | — |
+| **1** | ~~**Step 6 — freeze the contract.**~~ **✅ DONE 2026-09-15** — `inventory-validators.ts` + `inventory.types.ts` committed and marked frozen; `API_CONTRACT.md` §21 added. Frontend mirror (`frontend/types/inventory.ts`) is rewritten by Session 4 as its first task, against the frozen schemas. | 0 | — |
 | **2** | **Backend A — schema & migration.** Prisma models, the hand-edited migration, raw-SQL indexes + CHECK, `seed-inventory-catalog.ts` from the reference photos. Migration verified against a restored production copy. | 1 | 4 |
 | **3** | **Backend B — module build.** `modules/inventory/` routes/controller/service/repository, all §5.3 endpoints, all §5.4 rules, §6.2 tests. **Deletes the legacy inventory code and its tests (§1.4) in this same PR.** | 2 | 4 |
 | **4** | **Frontend — six screens.** Assemble the built composites into real screens against a mock of the frozen contract: route + drawer chrome (Save/Cancel, search boxes) the composites deliberately don't own, wiring, states. Visual-diff each screen against its `B-0` artboard. | 1 | 2, 3 |
