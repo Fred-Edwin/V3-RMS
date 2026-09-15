@@ -38,3 +38,6 @@ local_before_seed_cleanup.sql
 
 # Playwright MCP tool scratch output (screenshots, page snapshots, console logs)
 .playwright-mcp/
+
+# Claude Code session/worktree state — tooling internals, not project content
+.claude/worktrees/

@@ -2,7 +2,13 @@ import type { Config } from 'tailwindcss';
 import wdsPreset from './tailwind.wds.preset';
 
 const config: Config = {
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
+  // `features/**` added 2026-09-15 — the frontend feature-module amendment
+  // (FEATURE_REDO_PLAYBOOK.md §9) moved redone-feature code there, but this
+  // glob predates that and was never updated: any class used only inside
+  // `features/` (never duplicated in `app/`/`components/`) was silently
+  // never generated, with no build error. Inventory is the first feature to
+  // hit this; every later feature would have hit it too.
+  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './features/**/*.{ts,tsx}'],
   // The `wds-*` scale (new design system, used by components/ui2/) lives in its
   // own preset so it never collides with the legacy warm theme below. When
   // components/ui/ is retired, fold the preset in here and drop the prefix.

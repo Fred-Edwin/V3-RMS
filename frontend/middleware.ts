@@ -136,8 +136,17 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
   }
 
   if (pathname.startsWith('/app/inventory')) {
-    // Session 6 ships Attendant's mobile screens only; Manager's desktop/mobile
-    // screens (Sessions 7/8) will extend this once built.
+    // Milestone One redo (2026-09-15), per 05-plan.md §5.2's role table:
+    // restock levels are Store Manager or a department head; suppliers also
+    // reach the Accountant/Director (read-only, enforced in the UI/API —
+    // this gate only needs to admit the route); everything else (catalog)
+    // is Store Manager/Attendant.
+    if (pathname.startsWith('/app/inventory/restock-levels')) {
+      return role === 'STORE_MANAGER' || isDepartmentHead;
+    }
+    if (pathname.startsWith('/app/inventory/suppliers')) {
+      return role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+    }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }
 

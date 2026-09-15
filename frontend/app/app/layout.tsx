@@ -13,25 +13,20 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
-  ClipboardCheck,
   ClipboardList,
   Clock,
   Coffee,
   CreditCard,
-  FileBarChart,
   FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
-  Package,
   Percent,
   ScrollText,
   Settings2,
   ShieldAlert,
   ShoppingCart,
   Tags,
-  Trash2,
-  Truck,
   UserCircle,
   Users,
   UtensilsCrossed,
@@ -223,47 +218,25 @@ const mobileRoleTabs: Record<MobileRole, MobileRoleNavConfig> = {
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
     ],
   },
-  // Mobile-only per feature plan §8.0 — no sidebarSectionsByRole entry, so this
-  // role never qualifies for usesDualShell/useSidebarOnlyShell below and always
-  // renders the plain MobileLayout branch.
+  // Milestone One redo (2026-09-15): every /app/inventory/* route now
+  // bypasses this legacy components/ui shell entirely (see
+  // `isNewInventoryRoute` below) and brings its own mobile chrome
+  // (features/inventory's MobileHubHeader/MobileTaskHeader). This role's
+  // tabs/overflowTabs are unreachable — kept populated only because
+  // `mobileRoleTabs` is an exhaustive `Record<MobileRole, ...>` — and point
+  // at the surviving routes so they're inert rather than dead links.
   STORE_ATTENDANT: {
-    tabs: [
-      { label: 'Dashboard', href: '/app/inventory/attendant-dashboard', icon: LayoutDashboard },
-      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
-      { label: 'Receiving', href: '/app/inventory/receiving', icon: Truck },
-      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
-    ],
+    tabs: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
     overflowTabs: [
-      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
-      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
-      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
-      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
     ],
   },
-  // Desktop is the primary shell for this role (usesDualShell below); this
-  // is the narrow-viewport nav for Session 8's real Manager mobile screens
-  // (feature plan §8.1). Dashboard is the landing tab, matching
-  // lib/role-home.ts (STORE_MANAGER lands on /app/inventory/dashboard on
-  // both shells) — its mobile design is a stat-card grid + tap-through
-  // panels into the real screens below, not the desktop table reflowed.
+  // See the STORE_ATTENDANT comment above — same reasoning, same bypass.
   STORE_MANAGER: {
-    tabs: [
-      { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
-      { label: 'Stock', href: '/app/inventory/stock', icon: Package },
-      { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
-      { label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart },
-    ],
+    tabs: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
     overflowTabs: [
-      { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
-      { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
-      { label: 'Prep', href: '/app/inventory/prep', icon: Coffee },
-      { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
-      { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
-      { label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle },
-      { label: 'Inbox', href: '/app/inbox', icon: MessageSquare },
       { label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff },
       { label: 'Payslips', href: '/app/payslips', icon: FileText },
       { label: 'Profile', href: '/app/profile', icon: UserCircle },
@@ -500,58 +473,10 @@ const sidebarSectionsByRole: Partial<Record<AppRole, NavSection[]>> = {
       ],
     },
   ],
-  // Session 7 — Manager desktop screens (feature plan §8.1). Order follows
-  // the session plan's screen list: landing dashboard, then Stock on Hand
-  // (read) separate from Item Catalog (admin/setup) per the two screens'
-  // distinct purposes, though they share underlying table plumbing.
-  STORE_MANAGER: [
-    {
-      label: 'Central Store',
-      items: [
-        { label: 'Dashboard', href: '/app/inventory/dashboard', icon: LayoutDashboard },
-        { label: 'Stock on Hand', href: '/app/inventory/stock', icon: Package },
-        { label: 'Item Catalog', href: '/app/inventory/catalog', icon: Tags },
-        { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Users },
-        { label: 'Purchases', href: '/app/inventory/purchase-orders', icon: ClipboardList },
-      ],
-    },
-    {
-      label: 'Prep',
-      items: [
-        { label: 'Prep Entry', href: '/app/inventory/prep', icon: Coffee },
-      ],
-    },
-    {
-      label: 'Counting',
-      items: [
-        { label: 'Stock Count', href: '/app/inventory/stock-counts', icon: ClipboardCheck },
-        { label: 'Waste Log', href: '/app/inventory/waste', icon: Trash2 },
-      ],
-    },
-    {
-      label: 'Insights',
-      items: [{ label: 'Reports', href: '/app/inventory/reports', icon: FileBarChart }],
-    },
-    {
-      label: 'Team',
-      items: [{ label: 'Store Staff', href: '/app/inventory/staff', icon: UserCircle }],
-    },
-    {
-      label: 'Communications',
-      items: [{ label: 'Inbox', href: '/app/inbox', icon: MessageSquare }],
-    },
-    {
-      label: 'Leave',
-      items: [{ label: 'My Leave', href: '/app/hr/my-leave', icon: CalendarOff }],
-    },
-    {
-      label: 'Account',
-      items: [
-        { label: 'Payslips', href: '/app/payslips', icon: FileText },
-        { label: 'Profile', href: '/app/profile', icon: UserCircle },
-      ],
-    },
-  ],
+  // STORE_MANAGER intentionally has no entry here (Milestone One redo,
+  // 2026-09-15): every /app/inventory/* route bypasses this legacy shell
+  // and brings its own sidebar (features/inventory) — see
+  // `isNewInventoryRoute` below. This role never reaches this config.
 };
 
 export default function AppLayout({ children }: AppShellLayoutProps): JSX.Element {
@@ -670,7 +595,13 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     );
   }
 
-  if (!role || (isDisplayRoute && isDisplayOnlyRole)) {
+  // Milestone One's redone Inventory screens (`app/app/inventory/*`) bring
+  // their own full-viewport shell (features/inventory's new dark sidebar +
+  // topbar, on the wds-* design system) and must not be double-wrapped by
+  // this legacy components/ui shell.
+  const isNewInventoryRoute = pathname.startsWith('/app/inventory');
+
+  if (!role || (isDisplayRoute && isDisplayOnlyRole) || isNewInventoryRoute) {
     return <>{children}</>;
   }
 

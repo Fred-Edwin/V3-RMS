@@ -13,6 +13,8 @@ export const roleHome: Record<AppRole, string> = {
   HR_MANAGER: '/app/hr',
   STEWARD: '/app/dashboard',
   HOUSEKEEPING: '/app/dashboard',
-  STORE_MANAGER: '/app/inventory/dashboard',
-  STORE_ATTENDANT: '/app/inventory/attendant-dashboard',
+  // Milestone One redo: dashboards aren't in scope yet, so both roles land
+  // on the item catalog — the first screen in the new Central Store nav.
+  STORE_MANAGER: '/app/inventory/catalog',
+  STORE_ATTENDANT: '/app/inventory/catalog',
 };

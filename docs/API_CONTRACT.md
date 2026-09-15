@@ -3527,3 +3527,22 @@ specified:
    are real, drawn states, not missing data.
 6. **`categoryName` may be sent instead of `categoryId`** to create a category
    inline, in the same transaction. Exactly one of the two.
+
+### 21.5 Amendments since freeze
+
+- **2026-09-15 (backend build session).** `UpdateSupplierSchema` was built as
+  `CreateSupplierSchema.partial()`, which kept `defaultPaymentTerms`'s
+  `.default('INVOICE_TO_FOLLOW')` — Zod's `.partial()` makes fields optional
+  to *provide*, it does not strip defaults. Any partial `PATCH
+  /inventory/suppliers/:id` body, even one that never mentions
+  `defaultPaymentTerms`, silently injected the default and overwrote a
+  supplier's real terms (e.g. `PAY_NOW`) back to `INVOICE_TO_FOLLOW`. Found
+  while writing the integration tests (a plain `{}` PATCH body should have
+  been rejected by the "at least one field" refine but instead passed, since
+  the injected default counted as a provided field). Fixed by rewriting
+  `UpdateSupplierSchema` as its own object with every field genuinely
+  optional (no inherited defaults), same fields and validation rules
+  otherwise. No other endpoint's schema shares this pattern. Owner-approved
+  during the session; the frontend session should treat `UpdateSupplierInput`
+  as: send only the fields being changed, and `defaultPaymentTerms` is never
+  implicitly reset.

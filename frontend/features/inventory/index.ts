@@ -10,3 +10,8 @@
 
 // Contract types, mirroring the frozen backend contract.
 export * from './types';
+
+// Milestone One screens — the six real screens `app/app/inventory/*` pages render.
+export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
+export { SuppliersScreen } from './components/screens/suppliers-screen';
+export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';

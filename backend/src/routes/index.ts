@@ -27,18 +27,9 @@ import hrRoutes from './hr-routes';
 import staffTransferRoutes from './staff-transfer-routes';
 import payslipRoutes from './payslip-routes';
 import orderCorrectionRoutes from './order-correction-routes';
-import inventoryItemRoutes from './inventory-item-routes';
-import supplierRoutes from './supplier-routes';
-import purchaseOrderRoutes from './purchase-order-routes';
-import prepRecordRoutes from './prep-record-routes';
-import stockCountRoutes from './stock-count-routes';
-import wasteLogRoutes from './waste-log-routes';
-import supplierInvoiceRoutes from './supplier-invoice-routes';
-import inventoryReportRoutes from './inventory-report-routes';
 import locationRoutes from './location-routes';
 import departmentRoutes from './department-routes';
-import requisitionRoutes from './requisition-routes';
-import dispatchRoutes from './dispatch-routes';
+import inventoryRoutes from '../modules/inventory/inventory-routes';
 
 const apiRouter = Router();
 
@@ -70,17 +61,8 @@ apiRouter.use(hrRoutes);
 apiRouter.use(staffTransferRoutes);
 apiRouter.use(payslipRoutes);
 apiRouter.use(orderCorrectionRoutes);
-apiRouter.use(inventoryItemRoutes);
-apiRouter.use(supplierRoutes);
-apiRouter.use(purchaseOrderRoutes);
-apiRouter.use(prepRecordRoutes);
-apiRouter.use(stockCountRoutes);
-apiRouter.use(wasteLogRoutes);
-apiRouter.use(supplierInvoiceRoutes);
-apiRouter.use(inventoryReportRoutes);
 apiRouter.use(locationRoutes);
 apiRouter.use(departmentRoutes);
-apiRouter.use(requisitionRoutes);
-apiRouter.use(dispatchRoutes);
+apiRouter.use(inventoryRoutes);
 
 export default apiRouter;

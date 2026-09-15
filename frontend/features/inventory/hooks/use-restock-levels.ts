@@ -1,0 +1,78 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { ApiError } from '@/types/api';
+import { listRestockLevels, saveRestockLevels } from '../services';
+import type { RestockLevelRow } from '../types';
+
+export type RestockLevelsActor = { role: 'STORE_MANAGER' | 'DEPARTMENT_HEAD' };
+
+/**
+ * Restock Levels is a bulk-save screen (Central Store and department both):
+ * many rows are edited locally, then one "Save restock levels" click submits
+ * every dirty row in a single `PUT`. This hook owns that dirty-row map so
+ * the screen component only renders rows and calls `setLevel` / `save`.
+ */
+export function useRestockLevels(locationId: string | undefined, actor: RestockLevelsActor) {
+  const [rows, setRows] = useState<RestockLevelRow[]>([]);
+  const [edits, setEdits] = useState<Record<string, string | null>>({});
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setStatus('loading');
+    setError(null);
+    try {
+      const list = await listRestockLevels({ locationId }, actor);
+      setRows(list);
+      setEdits({});
+      setStatus('ready');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not load restock levels.');
+      setStatus('error');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationId, actor.role]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const setLevel = useCallback((inventoryItemId: string, value: string | null) => {
+    setEdits((prev) => ({ ...prev, [inventoryItemId]: value }));
+  }, []);
+
+  const displayRows = useMemo(
+    () =>
+      rows.map((row) =>
+        row.inventoryItemId in edits ? { ...row, level: edits[row.inventoryItemId] } : row
+      ),
+    [rows, edits]
+  );
+
+  const isDirty = Object.keys(edits).length > 0;
+
+  const save = useCallback(async () => {
+    if (!isDirty) return true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const levels = Object.entries(edits).map(([inventoryItemId, level]) => ({ inventoryItemId, level }));
+      const updated = await saveRestockLevels({ locationId, levels }, actor);
+      setRows(updated);
+      setEdits({});
+      return true;
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Could not save restock levels.');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edits, isDirty, locationId, actor.role]);
+
+  const discard = useCallback(() => setEdits({}), []);
+
+  return { rows: displayRows, isDirty, setLevel, save, saving, saveError, discard, status, error, reload: load };
+}

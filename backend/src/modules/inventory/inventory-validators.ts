@@ -21,6 +21,10 @@
  * Amendments follow the playbook's amendment process (§Step 6) — affected
  * sessions stop, the owner approves, sessions resume.
  *
+ * AMENDMENT 2026-09-15: `UpdateSupplierSchema` rewritten to not derive from
+ * `CreateSupplierSchema.partial()` — see the comment on that schema below.
+ * Owner-approved during the backend build session; no other shape changed.
+ *
  * Wire-format rule: every decimal (quantity, factor, pack size, cost, restock
  * level) crosses the wire as a **string**, never a JS number. Prisma stores
  * them as Decimal; coercing to number loses precision.
@@ -272,10 +276,28 @@ export const CreateSupplierSchema = z.object({
   defaultPaymentTerms: supplierPaymentTermsSchema.default('INVOICE_TO_FOLLOW'),
 });
 
-export const UpdateSupplierSchema = CreateSupplierSchema.partial().refine(
-  (data) => Object.values(data).some((v) => v !== undefined),
-  { message: 'At least one field must be provided' },
-);
+/**
+ * Built field-by-field rather than `CreateSupplierSchema.partial()` — a plain
+ * `.partial()` keeps `defaultPaymentTerms`'s `.default('INVOICE_TO_FOLLOW')`,
+ * so an empty/partial PATCH body would silently inject that default into the
+ * update and overwrite a supplier's real terms (e.g. `PAY_NOW`) back to the
+ * default on every edit that doesn't re-send it. AMENDMENT 2026-09-15
+ * (post-freeze, playbook Step 6 process): fixed during the backend build
+ * session; see API_CONTRACT.md §21 changelog.
+ */
+export const UpdateSupplierSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').max(200).optional(),
+    contactName: z.string().trim().max(200).nullish(),
+    categoryId: uuidSchema.nullish(),
+    phone: z.string().trim().max(40).nullish(),
+    email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
+    location: z.string().trim().max(200).nullish(),
+    defaultPaymentTerms: supplierPaymentTermsSchema.optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: 'At least one field must be provided',
+  });
 
 // ---------------------------------------------------------------------------
 // Restock levels

@@ -412,6 +412,15 @@ Rules:
 - A page in `app/` holds routing concerns only — params, metadata, layout
   choice, and rendering a feature component. Business logic, data fetching, and
   state belong in the feature module.
+- **Introducing a new top-level source folder is not just a convention change
+  — update every config that lists source folders in the same commit:**
+  `tailwind.config.ts`'s `content` glob, `tsconfig.json`'s `include`,
+  `.eslintrc`, and any lint/codegen script with a hardcoded directory list.
+  The `features/` folder itself (this amendment) was added without updating
+  Tailwind's `content` glob — every class used only inside `features/`
+  (never duplicated in `app/`/`components/`) was silently never generated,
+  with no build error, until the Inventory Milestone One build hit it and
+  fixed it retroactively. Don't repeat that per future folder.
 
 ---
 

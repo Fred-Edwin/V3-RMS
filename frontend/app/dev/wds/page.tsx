@@ -45,22 +45,22 @@ import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { KpiStrip, KpiRow } from '@/components/inventory/kpi-strip';
-import { DrawerShell } from '@/components/inventory/drawer-shell';
+import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
+import { DrawerShell } from '@/features/inventory/components/drawer-shell';
 import {
   ItemCatalogToolbar,
   ItemCatalogTable,
   ItemCatalogList,
   type ItemCatalogRow,
-} from '@/components/inventory/item-catalog-table';
-import { ItemFormFields, type ItemFormValues } from '@/components/inventory/item-form';
-import { CategoryManagerList, type CategoryRow } from '@/components/inventory/category-manager-list';
-import { SupplierFormFields, type SupplierFormValues } from '@/components/inventory/supplier-form';
+} from '@/features/inventory/components/item-catalog-table';
+import { ItemFormFields, type ItemFormValues } from '@/features/inventory/components/item-form';
+import { CategoryManagerList, type CategoryRow } from '@/features/inventory/components/category-manager-list';
+import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
 import {
   RestockLevelGrid,
   RestockLevelHelperNote,
   type RestockLevelRow,
-} from '@/components/inventory/restock-level-grid';
+} from '@/features/inventory/components/restock-level-grid';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -173,6 +173,7 @@ export default function WdsPreviewPage() {
     category: 'Dairy',
     phone: '+254 722 118 340',
     email: 'orders@samrat.co.ke',
+    location: 'Nyeri town',
     paymentTerms: 'invoice',
   });
   const [restockRows, setRestockRows] = React.useState<RestockLevelRow[]>([
