@@ -245,18 +245,21 @@ For every composite:
 
 ## Known issues
 
-- **`tokens.wds.css` OKLCH-vs-comment drift (Phase 0 origin, most tokens
-  affected).** Nearly every color token is written as `oklch(L C H); /* #HEX */`,
+- **`tokens.wds.css` OKLCH-vs-comment drift (Phase 0 origin) — RESOLVED,
+  dedicated sweep done in the 2026-09-15 Verification Pass, item 3** (see
+  Status log's "Verification pass (2026-09-15) — item 3" entry for full
+  detail). All 46 color tokens in the file were regenerated from their own
+  hex comment and round-trip-verified via canvas `fillStyle`; 31 had real
+  drift (not "some" — most of the file), now corrected. This section is
+  kept as history of how the problem was originally found; it is no
+  longer an open issue.
+- ~~Nearly every color token is written as `oklch(L C H); /* #HEX */`,
   and for most of them the OKLCH triplet doesn't actually convert to the hex in
   its own comment — some by an imperceptible 1-2 RGB units, several by 15-30+
-  (`--color-info-fg` off by 31; several neutrals off by 20+). `--wds-espresso-700`
+  (`--color-info-fg` off by 31; several neutrals off by 20+).~~ `--wds-espresso-700`
   was found and corrected during the Toggle Group build (see Status below,
   owner-confirmed `#693C1B` is correct) since it's the primary brand color and
-  directly affected that primitive's pixel-diff. The rest are untouched — this
-  needs a dedicated pass (regenerate every OKLCH triplet from its own hex
-  comment, verify each in a real browser via canvas `fillStyle` resolution, one
-  `pnpm build` at the end) rather than fixing tokens one-by-one as each
-  primitive happens to touch them. **This session found and fixed three more
+  directly affected that primitive's pixel-diff. **This session found and fixed three more
   instances of the same drift class**, touched because the Sidebar/Topbar
   composites actually consume them (see Status below): `--wds-sidebar-top/mid/
   bottom` (comment hex didn't match the OKLCH value's actual render, *and* the
@@ -1410,6 +1413,79 @@ build, not worked around silently again.
 
   Item 2 is complete. Item 3 (OKLCH-vs-comment token drift, the dedicated
   sweep) is next.
+
+- **Verification pass (2026-09-15) — item 3, the dedicated OKLCH-vs-comment
+  token drift sweep. Every color token in `tokens.wds.css` regenerated
+  from its own hex comment and round-trip-verified, not just the ones a
+  composite happened to touch.** Same technique already used for
+  `wds-surface-raise-end`/`wds-accent-strong`: a canvas `fillStyle` →
+  `getImageData` round-trip in a real browser (not a hand calculation),
+  run via a temporary `/dev/wds-diff/oklch-check` route (deleted after
+  use, per the established pattern for throwaway verification tools —
+  distinct from `/dev/wds-diff` itself, which stays).
+
+  **Every one of the 46 color tokens in the file was checked** (all
+  neutrals, espresso, caramel, semantic fg/bg/border triplets, sidebar
+  text tokens, plus the already-fixed bespoke tokens re-confirmed as
+  still correct). **31 tokens had real drift (>2 RGB units in at least
+  one channel) between their OKLCH value and their own hex comment** —
+  far more than the "some tokens" the Known Issues section flagged;
+  effectively every token nobody had individually touched yet. Two
+  concrete examples of how large the drift was before this pass:
+  `--wds-neutral-800` (`#2E2B27` claimed, actually rendered `#27221F`, off
+  by 7/9/8) and `--wds-caramel-700` (`#8C6230` claimed, actually rendered
+  `#7E572D`, off by 14/11/3) — both silently wrong for the entire time
+  this milestone was built, just never on a token any composite's
+  pixel-diff happened to isolate closely enough to catch.
+
+  **Fix method:** for every drifting token, solved for the OKLCH(L C H)
+  triplet (3-decimal L/C, integer H, matching the file's own precision
+  convention) that actually round-trips to the comment's hex, via a
+  local numeric search around the direct sRGB→OKLab→OKLCH conversion
+  (not a guess-and-check by hand) — then re-verified every corrected
+  value resolves exactly via the same canvas round-trip before writing it
+  to the file. **29 of 31 drifting tokens now round-trip to an exact
+  match** (0,0,0 delta). The remaining 2 (`--wds-success-fg`,
+  `--wds-error-fg`) land 1 RGB unit off in a single channel even after a
+  widened search — the same "1-unit rounding, imperceptible" category
+  already accepted for `--wds-espresso-700` in the original Toggle Group
+  build; documented inline in the token file's comment rather than
+  presented as a clean exact match.
+
+  **Corrected tokens (grouped by scale):**
+  - Neutrals: `-200` through `-950` (8 tokens; `-0`/`-50`/`-100` were
+    already within the ≤2-unit tolerance, left unchanged)
+  - Espresso: `-100`, `-200`, `-400`, `-600`, `-900` (5 tokens; `-50`,
+    `-700`, `-800` already within tolerance from prior sessions' fixes)
+  - Caramel: `-100`, `-300`, `-500`, `-600`, `-700` (all 5 non-DEFAULT
+    steps had drift)
+  - Semantic: `--wds-success-fg/-bg/-border`, `--wds-warning-fg/-bg`,
+    `--wds-error-fg/-bg/-border`, `--wds-info-fg/-bg/-border` (10 of 12
+    semantic tokens; `--wds-warning-border` was already within tolerance)
+  - Sidebar: `--wds-sidebar-fg`, `--wds-sidebar-fg-muted` (2 tokens;
+    `-top/-mid/-bottom/-fg-item/-fg-name/-badge-fg` were already exact
+    from the prior session's fix, `-fg-active` within tolerance)
+  - **Not touched, confirmed still correct:** `--wds-espresso-50/-700/-800`,
+    `--wds-topbar-end`, `--wds-surface-raise-end`, `--wds-accent-strong`,
+    `--wds-sidebar-top/-mid/-bottom/-fg-item/-fg-name/-badge-fg`,
+    `--wds-warning-border` — all already exact or within the 1-2 unit
+    imperceptible-rounding tolerance, left as-is rather than re-touched
+    for the sake of it.
+
+  **Verification:** re-ran the same round-trip check against the updated
+  file — every previously-drifting token now resolves exactly (or within
+  the same 1-unit rounding tolerance already accepted elsewhere), zero
+  tokens remain outside that band. `pnpm build` clean afterward. Visually
+  re-checked `/dev/wds` (the swatch/primitive demo page) in a real
+  browser — the palette still reads as the same coherent warm-coffee
+  system, just numerically precise now; no visual regression, since every
+  correction moves the *rendered* color to match its own already-approved
+  hex, not to a new color.
+
+  This closes out the "dedicated pass" the Known Issues section has
+  called for since Phase 0 — the drift was real and systemic (31 of 46
+  tokens), not the few isolated cases prior sessions individually caught
+  and fixed. Known Issues section below updated to reflect this is done.
 
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

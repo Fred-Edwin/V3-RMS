@@ -24,8 +24,22 @@ independently confirmed as AA-noise (diff-image inspection), not carried
 forward on assumption. `/dev/wds-diff` intentionally left in place for
 Step 5 and the two items below.
 
-**Items 2 (structural/accessibility audit) and 3 (OKLCH token-drift sweep)
-are next** — not started as of this update.
+**Items 2 and 3 are now also complete, same 2026-09-15 session — the full
+3-item Verification Pass is done.** Item 2 (structural/accessibility
+audit): sizing consistency, keyboard/focus, interactive states, and the
+token-regression check all passed clean. Two real WCAG AA contrast
+failures found on `--wds-text-faint`/`--wds-text-muted` at their actual
+body/helper-copy usage sizes — flagged as a design-token decision for the
+owner (see `04-components.md`'s item 2 entry), not silently fixed given
+the site-wide blast radius of darkening a shared neutral-scale step. Item
+3 (OKLCH-vs-comment drift): all 46 color tokens checked, 31 had real
+drift (far more than "some"), all corrected and re-verified via the same
+canvas round-trip method, `pnpm build` clean, no visual regression.
+
+**Only open item: the `--wds-text-faint`/`--wds-text-muted` contrast
+finding needs an owner decision** before it's actionable — see
+`04-components.md`'s item 2 entry for the two options laid out there.
+Everything else in this handoff's original NEXT STEPS is done.
 
 Read `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4 and
 `docs/features/inventory/04-components.md` first if you need the fidelity
