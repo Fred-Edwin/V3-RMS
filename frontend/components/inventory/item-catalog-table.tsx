@@ -91,7 +91,7 @@ export function ItemCatalogToolbar({ itemCount, onManageCategories, className }:
             <DropdownMenuItem>Barista</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <button className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-muted">
+        <button className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-copy-muted">
           Show retired
         </button>
         <DropdownMenu>
@@ -151,7 +151,7 @@ export function ItemCatalogTable({ rows, className }: ItemCatalogTableProps) {
           <TableRow key={row.id} className={row.retired ? 'opacity-55' : undefined}>
             <TableCell className="min-w-[180px] font-medium text-wds-text-ink">{row.name}</TableCell>
             <TableCell className="w-[120px] shrink-0">
-              <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-wds-caption text-wds-text-muted">
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-wds-caption text-wds-text-copy-muted">
                 <span className={cn('size-1.5 shrink-0 rounded-wds-full', typeDotClass[row.type])} aria-hidden />
                 {typeLabel[row.type]}
               </span>
@@ -159,13 +159,13 @@ export function ItemCatalogTable({ rows, className }: ItemCatalogTableProps) {
             <TableCell className="w-[140px] shrink-0 text-wds-caption text-wds-text-ink">
               {row.category}
             </TableCell>
-            <TableCell className="w-[160px] shrink-0 whitespace-nowrap font-wds-mono text-wds-caption text-wds-text-muted">
+            <TableCell className="w-[160px] shrink-0 whitespace-nowrap font-wds-mono text-wds-caption text-wds-text-copy-muted">
               {row.units}
             </TableCell>
-            <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-muted">
+            <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">
               {row.pack}
             </TableCell>
-            <TableCell className="w-[250px] shrink-0 pl-wds-6 text-wds-caption text-wds-text-faint">
+            <TableCell className="w-[250px] shrink-0 pl-wds-6 text-wds-caption text-wds-text-copy-faint">
               {row.departmentScope}
             </TableCell>
           </TableRow>
@@ -205,13 +205,13 @@ export function ItemCatalogList({ rows, className }: ItemCatalogListProps) {
         >
           <div className="flex items-center justify-between">
             <span className="font-wds-sans text-wds-body font-medium text-wds-text-ink">{row.name}</span>
-            <span className="font-wds-mono text-wds-caption text-wds-text-muted">
+            <span className="font-wds-mono text-wds-caption text-wds-text-copy-muted">
               {row.units.split(' · ')[0]}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className={cn('size-1.5 shrink-0 rounded-wds-full', typeDotClass[row.type])} aria-hidden />
-            <span className="font-wds-sans text-wds-caption text-wds-text-muted">
+            <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
               {row.retired
                 ? row.departmentScope
                 : `${typeLabel[row.type]} · ${row.category} · ${row.departmentScope}`}

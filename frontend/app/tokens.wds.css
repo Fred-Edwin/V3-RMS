@@ -73,8 +73,30 @@
   --wds-border-strong:     var(--wds-neutral-300);
   --wds-text:              var(--wds-neutral-800);
   --wds-text-secondary:    var(--wds-neutral-600);
+  /* `-muted` / `-faint` are DECORATIVE-ONLY: input/select placeholders, icon
+     fills, and inert glyphs (the Select chevron, the Sheet close ×, the topbar
+     breadcrumb separator). They are WCAG-AA-exempt in those roles and must not
+     be used for copy a user has to read — at 11-12px they measure 2.30-4.02:1,
+     under the 4.5:1 minimum on both --wds-surface and --wds-surface-sunken.
+     For real helper/caption copy use --wds-text-copy-* below. */
   --wds-text-muted:        var(--wds-neutral-500);
   --wds-text-faint:        var(--wds-neutral-400);
+
+  /* ---- Readable copy tokens (WCAG AA at every size, on both grounds) ------
+     Non-decorative faint/muted *copy* — helper text, captions, field labels,
+     unit annotations. Two steps so the faint/muted hierarchy the design draws
+     survives, with both ends passing AA.
+       -copy-faint  #756E66 -> 5.03:1 on #FFFFFF, 4.61:1 on #F6F5F3  (lighter)
+       -copy-muted  #5E5852 -> 7.01:1 on #FFFFFF, 6.44:1 on #F6F5F3  (darker)
+     Same direction as the decorative pair above (faint lighter than muted),
+     so a `-faint` -> `-copy-faint` swap never inverts the drawn hierarchy.
+     Bespoke values, not scale steps: neutral-500 fails AA and neutral-600
+     (#635E57) is the *secondary text* role, so reusing either would either
+     keep the failure or collapse two distinct roles into one. Both OKLCH
+     triplets round-trip to their comment hex exactly — verified, per this
+     file's documented history of OKLCH-vs-comment drift. */
+  --wds-text-copy-faint:   oklch(0.542 0.015 71);  /* #756E66 */
+  --wds-text-copy-muted:   oklch(0.464 0.012 68);  /* #5E5852 */
   --wds-text-ink:          var(--wds-neutral-950);
   --wds-table-header-bg:   #E7EEF7; /* bespoke cool blue-grey, not on any warm scale — confirmed Paper --color-table-header-bg */
   --wds-topbar-end:        oklch(0.988 0.003 85); /* #FCFBF9 bespoke, barely-tinted — not the espresso-50 tint; confirmed Paper --color-topbar-end via 1GS-0 */

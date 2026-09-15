@@ -1379,6 +1379,28 @@ build, not worked around silently again.
      completeness, not urgent — smaller gap, and on a less code-central
      token than 1-2 above.
 
+  > **RESOLVED 2026-09-15 — owner chose option (b).** Two new AA-passing
+  > copy tokens were added and every non-decorative usage swapped to them:
+  > `--wds-text-copy-faint` `#756E66` (5.03:1 on `--wds-surface`, 4.61:1 on
+  > `--wds-surface-sunken`) and `--wds-text-copy-muted` `#5E5852` (7.01:1 /
+  > 6.44:1). Both OKLCH triplets round-trip to their comment hex exactly.
+  > `--wds-text-faint`/`-muted` keep their values and are now documented as
+  > **decorative-only** — the 9 remaining uses are input/select placeholders,
+  > the search icon, the Select `▾`, the Sheet `×`, the Select scroll arrows,
+  > and the topbar `/` separator, all legitimately AA-exempt.
+  > Verified in a real browser, not inferred from the CSS: all **129** copy
+  > elements across every Milestone One composite measure **4.91–9.06:1**
+  > against their actual rendered backgrounds (canvas-resolved sRGB, since
+  > `getComputedStyle` returns `oklch()` which a naive rgb parse misreads).
+  > 0 failures, 0 console errors. The faint/muted hierarchy Paper draws is
+  > preserved — `-copy-faint` stays lighter than `-copy-muted`, same
+  > direction as the decorative pair, so the swap never inverted a
+  > deliberate visual relationship.
+  > **Paper's own tokens still carry the old values** — the design file
+  > should be updated to match before the next milestone's design pass, so
+  > Paper and code don't drift.
+
+  **Original finding (kept as the record of the decision):**
   **This is a design-token decision, not a code fix applied here:**
   darkening `--wds-neutral-400`/`-500` enough to pass AA (roughly
   `#767676` or darker for `-400`, based on a quick contrast sweep) would

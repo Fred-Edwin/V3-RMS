@@ -34,7 +34,7 @@ export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarPr
       )}
     >
       <div className="flex items-center gap-wds-2">
-        <span className="font-wds-sans text-wds-caption text-wds-text-muted">{breadcrumb.section}</span>
+        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{breadcrumb.section}</span>
         <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
         <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">{breadcrumb.screen}</span>
       </div>

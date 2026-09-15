@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn"
  * are visually joined by the ToggleGroup container's own border + radius.
  */
 const toggleVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap font-wds-sans text-wds-caption font-normal text-wds-text-muted transition-colors hover:bg-wds-neutral-100 focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60 data-[state=on]:bg-wds-primary data-[state=on]:text-wds-primary-fg data-[state=on]:hover:bg-wds-primary [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center whitespace-nowrap font-wds-sans text-wds-caption font-normal text-wds-text-copy-muted transition-colors hover:bg-wds-neutral-100 focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60 data-[state=on]:bg-wds-primary data-[state=on]:text-wds-primary-fg data-[state=on]:hover:bg-wds-primary [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

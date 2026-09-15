@@ -48,11 +48,11 @@ export interface ItemFormFieldsProps {
 }
 
 function FieldLabel({ children }: { variant: ItemFormVariant; children: React.ReactNode }) {
-  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>;
+  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">{children}</span>;
 }
 
 function FieldHelper({ children }: { children: React.ReactNode }) {
-  return <span className="font-wds-sans text-wds-helper text-wds-text-faint">{children}</span>;
+  return <span className="font-wds-sans text-wds-helper text-wds-text-copy-faint">{children}</span>;
 }
 
 export function ItemFormFields({
@@ -183,7 +183,7 @@ export function ItemFormFields({
         {values.type === 'raw' ? (
           <div
             className={cn(
-              'flex h-8 items-center rounded-wds-sm border border-wds-border bg-wds-surface-sunken px-wds-3 font-wds-sans text-wds-body-sm text-wds-text-muted',
+              'flex h-8 items-center rounded-wds-sm border border-wds-border bg-wds-surface-sunken px-wds-3 font-wds-sans text-wds-body-sm text-wds-text-copy-muted',
               fieldInputClass
             )}
           >

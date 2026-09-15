@@ -73,7 +73,7 @@ export function KpiStrip({ cells, className }: KpiStripProps) {
             i < cells.length - 1 && 'border-r border-wds-border'
           )}
         >
-          <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">
+          <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">
             {cell.label}
           </span>
           <span className={cn('font-wds-mono text-wds-kpi', toneClass[cell.tone ?? 'ink'])}>
@@ -87,7 +87,7 @@ export function KpiStrip({ cells, className }: KpiStripProps) {
               </span>
             </span>
           ) : cell.detail ? (
-            <span className="font-wds-sans text-wds-caption text-wds-text-muted">{cell.detail}</span>
+            <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{cell.detail}</span>
           ) : null}
         </div>
       ))}
@@ -114,7 +114,7 @@ export function KpiRow({ cells, className }: KpiRowProps) {
           key={cell.key}
           className="flex grow basis-0 flex-col gap-1 rounded-wds-md border border-wds-border bg-wds-surface p-wds-3"
         >
-          <span className="font-wds-mono text-wds-kpi-label-sm uppercase text-wds-text-muted">
+          <span className="font-wds-mono text-wds-kpi-label-sm uppercase text-wds-text-copy-muted">
             {cell.label}
           </span>
           <span className={cn('font-wds-mono text-wds-kpi-sm', toneClass[cell.tone ?? 'ink'])}>

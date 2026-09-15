@@ -200,7 +200,68 @@ at merge time, not at plan time.)
 
 ---
 
-## 2. Production data check — queries for the owner to run
+## 2. Production data check — **RESULTS IN, 2026-09-15**
+
+**Owner ran the queries; drop-and-replace is confirmed GO.** Findings:
+
+| Table | Rows | | Table | Rows |
+|---|---|---|---|---|
+| `inventory_items` | 23 | | `stock_count_lines` | 56 |
+| `inventory_transactions` | 37 | | `stock_counts` | 4 |
+| `supplier_items` | 23 | | `supplier_invoices` | 3 |
+| `purchase_order_lines` | 14 | | `prep_records` | 3 |
+| `purchase_orders` | 6 | | `supplier_payments` | 2 |
+| `suppliers` | 3 | | `waste_logs`, `prep_recipes`, `locations` | 1 each |
+| `par_levels`, `requisitions`, `dispatches`, `market_purchases` | 0 | | | |
+
+**Confirmed demo data, not real client data.** The item names are invented
+showcase names — *Sunrise Cooking Oil*, *Golden Crown Sugar*, *Millers Choice
+Baking Flour*, *Aberdare Fresh Farm Supplies* — none of which appear on any real
+invoice in `reference-photos/`, and every supplier email is `*.example`. Nothing
+here is worth preserving. **§1.3's drop-and-replace proceeds as written.**
+
+Three findings that change the plan:
+
+1. **`inventory_transactions` holds 37 rows, and §4 step 2 assumed it was
+   empty.** It isn't. Those 37 rows are demo ledger entries pointing at items
+   that are about to be deleted, so they cannot be kept — they'd be orphaned
+   history describing products Wendo never bought. **§4 is amended: truncate
+   `inventory_transactions` as an explicit step rather than relying on it being
+   empty.** This is the one place the original migration sketch would have
+   failed on a FK constraint.
+2. **The enum distribution confirms the type mapping is a pure rename:**
+   `RAW` 16 · `PASS_THROUGH` 6 · `PREPPED` 1. Three values in use, three values
+   in the new enum, no value in production that the new enum can't express.
+3. **The unit vocabulary settles §3.2 decisively — units must stay free text.**
+   19 distinct buy-unit/usage-unit pairs across just 23 items, including
+   `bale (12x2kg)`, `ctn (12x1L)`, `box (72x100g)`, `20L jerrican`, `kg pkt`,
+   `tray`, `pouch`, `cup`. No enum survives this, and it matches the reference
+   photos exactly.
+
+**One query did not run** — `SELECT ... is_hub FROM organizations` failed with
+`column "is_hub" does not exist` (the column is quoted-camelCase `"isHub"`, which
+is a real inconsistency in the schema: `Organization.isHub` has no `@map`, unlike
+every other column). **The hub/location/role checks are therefore still
+outstanding and remain a hard precondition** (§4). The corrected query:
+
+```bash
+cd ~/wendo-rms
+docker compose exec postgres psql -U wendo_user -d wendo_rms -c '
+SELECT id, name, "isHub", "isActive" FROM organizations ORDER BY "isHub" DESC, name;
+SELECT l.id, l.type, l.department_tag, l.name, o.name AS org, o."isHub"
+  FROM locations l JOIN organizations o ON o.id = l.organization_id ORDER BY l.type;
+SELECT role, count(*) FROM users
+  WHERE role IN (''STORE_MANAGER'',''STORE_ATTENDANT'',''DEPARTMENT_HEAD'') GROUP BY role;'
+```
+
+`locations` having exactly 1 row is consistent with a single Central Store, but
+**which org owns it is the thing still unverified** — if it sits on a non-hub org,
+that's a blocker to fix before deploy, not after.
+
+<details>
+<summary>Original queries (kept for the record)</summary>
+
+### Queries as originally issued
 
 Per playbook §7, agents don't SSH. Please run these on the droplet and paste the
 output back. **I already expect these rows to be your own demo seed, not real
@@ -265,6 +326,8 @@ SELECT name, contact_name, phone, email, is_active FROM suppliers LIMIT 25;"
   the restock-level screens have no location to write against.
 - **`buy_unit`/`usage_unit` distribution** → informs the seed's unit vocabulary
   and confirms free-text units (§3.2) rather than an enum.
+
+</details>
 
 ---
 
@@ -469,10 +532,15 @@ file, and it follows `CLAUDE.md`'s workflow exactly: edit schema locally →
 `npx prisma migrate dev --name …` → **hand-edit the generated SQL** → commit →
 push → CI runs `prisma migrate deploy`.
 
-**Preconditions (all must hold before the migration is written):**
-1. §2's production counts returned, confirming no rows worth keeping.
-2. Exactly one `organizations.is_hub = true` row exists in production.
-3. A `CENTRAL_STORE` location exists on that hub org.
+**Preconditions:**
+1. ~~§2's production counts returned, confirming no rows worth keeping.~~
+   **✅ Done 2026-09-15** — all demo data, nothing worth preserving.
+2. ⬜ Exactly one `organizations."isHub" = true` row exists in production.
+3. ⬜ A `CENTRAL_STORE` location exists on **that** hub org.
+
+Preconditions 2 and 3 are **still outstanding** — the original query used
+`is_hub` and errored (§2). They must be confirmed before Session 2 writes the
+migration, since every Milestone One write is hub-scoped.
 
 **One migration, named `inventory_milestone_one_catalog`**, in this order:
 
@@ -482,11 +550,13 @@ push → CI runs `prisma migrate deploy`.
    `prep_record_lines`, `prep_records`, `prep_recipe_lines`, `prep_recipes`,
    `supplier_payments`, `supplier_invoices`, `purchase_order_lines`,
    `purchase_orders`, `supplier_items`, `par_levels`.
-2. Drop `inventory_transactions`' FK to `inventory_items`, then
-   `DROP TABLE inventory_items`, `DROP TABLE suppliers`.
-   *(`inventory_transactions` is empty; it is preserved as a table but
-   necessarily loses its rows' FK target — with zero rows this is a no-op in
-   practice. If §2 shows it non-empty, this step changes and §1.3 reopens.)*
+2. **`TRUNCATE inventory_transactions;`** — then drop its FK to
+   `inventory_items`, then `DROP TABLE inventory_items`, `DROP TABLE suppliers`.
+   **Amended after §2's results:** the table holds **37 demo ledger rows**, not
+   zero as originally assumed. They reference items being deleted, so they are
+   orphaned history about products Wendo never bought — truncated, not migrated.
+   The table itself is preserved (the ledger's redo owns its schema, not this
+   milestone). *Without this step the migration fails on a FK constraint.*
 3. `DROP TYPE` for the now-unreferenced enums: `InventoryItemType`,
    `PurchaseOrderStatus`, `SupplierInvoiceStatus`, `StockCountStatus`,
    `WasteReason`, `RequisitionStatus`, `DispatchStatus`.
@@ -511,7 +581,18 @@ copy**, not just a clean local DB — that's the only way to catch a row or FK t
 §2 counts didn't surface. Then `prisma migrate status` clean, `pnpm build`,
 `pnpm test` green.
 
-**Seed.** The old demo scripts are deleted (§1.4). One replacement,
+**Seed — reference photos, not the production rows. [OWNER CONFIRMED 2026-09-15]**
+The question was raised whether to carry the production catalog forward, since it
+was itself derived from the photos. It was *inspired by* them, not extracted from
+them: the production names are invented stand-ins (*Sunrise Cooking Oil*,
+*Millers Choice Baking Flour*) that appear on no real invoice, with `*.example`
+supplier emails. The photos have the actual products, the actual suppliers
+(Samrat Supermarket Ltd, Summer Limited), the actual pack sizes and prices. Going
+back to the photos costs one session and yields fixtures that match what the
+client will recognise on day one; carrying the production rows forward would bake
+placeholder names into every later milestone's test data. **Photos win.**
+
+The old demo scripts are deleted (§1.4). One replacement,
 `backend/src/scripts/seed-inventory-catalog.ts`, built **from
 `docs/inventory/reference-photos/`** — real supplier names (Samrat Supermarket
 Ltd, Summer Limited), their real categories, and real line items with their real
@@ -735,10 +816,38 @@ depends on 3a only for the shared repository scaffold.
 
 ## 8. Blocking dependencies & open questions
 
-### 8.1 BLOCKER — WCAG AA contrast on `--wds-text-faint` / `--wds-text-muted`
+### 8.1 ~~BLOCKER~~ — WCAG AA contrast — **RESOLVED 2026-09-15**
 
-`04-components.md`'s Known-issues section carries one **still-open, unresolved
-finding**, and it blocks **Session 4 (frontend)**, not the backend sessions:
+**Owner chose option (b); implemented and verified. Session 4 is unblocked.**
+
+Two new AA-passing copy tokens were added, and every non-decorative usage across
+all 14 affected component files was swapped to them:
+
+| Token | Value | on `--wds-surface` | on `--wds-surface-sunken` |
+|---|---|---|---|
+| `--wds-text-copy-faint` | `#756E66` | 5.03:1 | 4.61:1 |
+| `--wds-text-copy-muted` | `#5E5852` | 7.01:1 | 6.44:1 |
+
+`--wds-text-faint` / `--wds-text-muted` keep their values and are now documented
+in `tokens.wds.css` as **decorative-only**. The 9 remaining uses are all
+legitimately AA-exempt: input/select placeholders, the search icon, the Select
+`▾`, the Sheet `×`, the Select scroll arrows, and the topbar `/` separator.
+
+**Verified in a real browser, not inferred from CSS:** all **129** copy elements
+across every Milestone One composite measure **4.91–9.06:1** against their
+actual rendered backgrounds. 0 failures, 0 console errors, `pnpm build` clean.
+The faint/muted hierarchy Paper draws is preserved — `-copy-faint` is still
+lighter than `-copy-muted`.
+
+**Follow-up:** Paper's own `--color-text-faint` / `--color-text-muted` still hold
+the old values. Update the design file before the next milestone's design pass so
+Paper and code don't drift.
+
+<details>
+<summary>Original finding (kept as the record of why this changed)</summary>
+
+`04-components.md`'s Known-issues section carried this as a still-open finding
+blocking **Session 4 (frontend)**, not the backend sessions:
 
 - `--wds-text-faint` (`#A8A39B`) is **2.51:1 on white / 2.30:1 on sunken** —
   below even the 3:1 large-text floor, so no font size rescues it.
@@ -766,24 +875,44 @@ step, exactly as Phase 0's token approval was handled. Session 4 can begin on
 screens/states that don't use those tokens for copy, but cannot be marked done
 until this resolves.
 
-### 8.2 Questions for the owner
+</details>
 
-1. **Schema replacement (§1.3)** — confirm drop-and-replace, contingent on §2's
-   production counts. This is effectively irreversible once Session 2 runs.
-2. **Shared category vocabulary (§3.2)** — one `Category` list for both items and
-   suppliers, as Paper draws it? Or two separate vocabularies?
-3. **Interim functionality gap (§1.4)** — Milestone One removes the
-   purchasing/receiving/prep/counts/waste/reports screens along with the
-   endpoints they call, and they return over later milestones. Confirm that's
-   acceptable. (It follows from `01-description.md` §0, but it becomes visible in
-   the running app at merge time.)
-4. **Supplier `location`** (§3.1) — it appears on the supplier *detail* header
-   (`SX5-0` background, "Nyeri town") but **not** in the create/edit drawer. I've
-   modelled it as an optional stored field. Confirm it's meant to be editable —
-   if so, the drawer is missing a field and the design needs a small amendment
-   before Session 4.
-5. **Contract sharing (§5.1)** — accept hand-mirrored types plus a drift test for
-   this milestone, with a proper shared package as a follow-up task?
+### 8.2 Questions for the owner — each with a recommended default
+
+**Recommended answers stand as decided unless the owner says otherwise.**
+
+| # | Question | Recommendation | Status |
+|---|---|---|---|
+| 1 | Schema drop-and-replace (§1.3) | Proceed | ✅ **Owner approved 2026-09-15**, production counts confirm |
+| 2 | One shared `Category` list for items *and* suppliers, or two vocabularies? | **One shared list** | ⬜ default stands |
+| 3 | Interim gap — screens come down with their endpoints (§1.4) | Accept | ✅ **Owner approved 2026-09-15** ("we're going to replace all these screens anyway") |
+| 4 | Supplier `location` — on the detail header, absent from the drawer | **Store it; add the field to the drawer** | ⬜ default stands |
+| 5 | Contract sharing — hand-mirrored types + drift test? | **Yes, for this milestone** | ⬜ default stands |
+
+**2 — one shared category list.** Paper's supplier drawer (`SX5-0`) shows
+Category = "Dairy", which is also an item category; the same control, the same
+vocabulary. The client's own paper sheets group by "Market items" / "Dry items" —
+one axis, describing *what kind of goods*, which applies equally to a product and
+to the supplier who sells it. Two vocabularies would mean two management screens,
+and Paper only draws one. *Cheap to reverse:* splitting later is an additive
+migration (`SupplierCategory` + a data copy), not a destructive one — so the
+default is the simpler model, and the more complex one stays available.
+
+**4 — store it and add the field.** It's real data the store manager needs
+("which market is this supplier at?"), it's already drawn on the detail header,
+and a stored-but-uneditable field would be strictly worse than either extreme.
+The design amendment is one input in an existing two-column row — small enough to
+fold into Session 4 rather than reopening Step 3. **Flagged as a design
+amendment, not a silent addition** — the Paper drawer and `04-components.md`'s
+Supplier Form entry both need updating to match.
+
+**5 — hand-mirrored + drift test.** The alternative is introducing a pnpm
+workspace, which restructures both projects' builds, CI, and Docker layers. That
+is a repo-wide change and does not belong inside a feature milestone. The drift
+test makes the mirror safe in the meantime (a mismatch fails CI, it doesn't reach
+runtime). **Recommend booking the shared package as its own small task after
+Milestone One ships** — by then the pipeline is proven and the contract's real
+shape is known, which makes the package easier to design correctly.
 
 ### 8.3 Assumptions made (vetoable)
 
@@ -800,8 +929,12 @@ until this resolves.
 
 ## 9. Definition of done for Milestone One
 
-- [ ] Owner approves this plan and §2's production queries come back clean
-- [ ] §8.1 contrast decision made and applied to the tokens
+- [x] §2's production queries returned — all demo data, drop-and-replace GO
+- [x] Owner approved drop-and-replace (§1.3) and the interim screen gap (§1.4)
+- [x] §8.1 contrast decision made and applied — AA verified in-browser, 129/129
+- [ ] Hub-org + Central Store preconditions confirmed (§4 preconditions 2 and 3)
+- [ ] Owner approves the rest of this plan (§8.2 defaults 2, 4, 5 stand if silent)
+- [ ] Supplier `location` field added to the Paper drawer (§8.2 q4)
 - [ ] Contract frozen (Step 6) and mirrored to the frontend
 - [ ] Migration written, run against a restored production copy, committed
 - [ ] `modules/inventory/` built to contract; legacy inventory code deleted in the same PR

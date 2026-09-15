@@ -35,7 +35,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
           {...props}
         />
         {shortcutHint ? (
-          <span className="ml-auto shrink-0 font-wds-mono text-wds-mono-sm text-wds-text-faint">
+          <span className="ml-auto shrink-0 font-wds-mono text-wds-mono-sm text-wds-text-copy-faint">
             {shortcutHint}
           </span>
         ) : null}

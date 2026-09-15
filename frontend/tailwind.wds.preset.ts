@@ -70,8 +70,14 @@ const wdsPreset: Partial<Config> = {
         'wds-text': {
           DEFAULT: 'var(--wds-text)',
           secondary: 'var(--wds-text-secondary)',
+          // Decorative only — placeholders, icon fills, inert glyphs. Fail
+          // WCAG AA as copy; see tokens.wds.css for the contrast figures.
           muted: 'var(--wds-text-muted)',
           faint: 'var(--wds-text-faint)',
+          // Use these for any copy a user reads (helper text, captions,
+          // field labels, unit annotations). AA-passing on both grounds.
+          'copy-faint': 'var(--wds-text-copy-faint)',
+          'copy-muted': 'var(--wds-text-copy-muted)',
           ink: 'var(--wds-text-ink)',
         },
 

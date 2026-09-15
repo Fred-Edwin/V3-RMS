@@ -32,7 +32,7 @@ export interface SupplierFormFieldsProps {
 }
 
 function FieldLabel({ children }: { variant: 'desktop' | 'mobile'; children: React.ReactNode }) {
-  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>;
+  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">{children}</span>;
 }
 
 /**
@@ -66,7 +66,7 @@ function DesktopPaymentTermsToggle({
             onClick={() => onChange(opt.value)}
             className={cn(
               'flex h-8 grow basis-0 items-center justify-center font-wds-sans text-wds-caption',
-              selected ? 'bg-wds-espresso-50 font-medium text-wds-primary' : 'bg-wds-surface text-wds-text-muted',
+              selected ? 'bg-wds-espresso-50 font-medium text-wds-primary' : 'bg-wds-surface text-wds-text-copy-muted',
               i > 0 && 'border-l border-wds-border-strong'
             )}
           >
@@ -154,7 +154,7 @@ export function SupplierFormFields({ variant, values, onChange, categoryOptions,
         ) : (
           <DesktopPaymentTermsToggle value={values.paymentTerms} onChange={(v) => set('paymentTerms', v)} />
         )}
-        <span className="font-wds-sans text-wds-helper text-wds-text-faint">
+        <span className="font-wds-sans text-wds-helper text-wds-text-copy-faint">
           Pre-fills the payment toggle on every goods receipt from this supplier.
         </span>
       </div>

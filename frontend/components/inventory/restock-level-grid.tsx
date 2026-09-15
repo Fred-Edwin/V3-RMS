@@ -64,7 +64,7 @@ export function RestockLevelGrid({
             <div key={row.id} className="flex items-center justify-between border-b border-wds-border p-wds-3">
               <div className="flex flex-col">
                 <span className="font-wds-sans text-wds-body font-medium text-wds-text-ink">{row.name}</span>
-                <span className="font-wds-sans text-wds-caption text-wds-text-faint">{row.unit}</span>
+                <span className="font-wds-sans text-wds-caption text-wds-text-copy-faint">{row.unit}</span>
               </div>
               <div className="flex items-center gap-wds-4">
                 <span
@@ -110,12 +110,12 @@ export function RestockLevelGrid({
           >
             <div className="flex flex-1 flex-col gap-px">
               <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{row.name}</span>
-              <span className="font-wds-sans text-wds-field-label text-wds-text-faint">{row.unit}</span>
+              <span className="font-wds-sans text-wds-field-label text-wds-text-copy-faint">{row.unit}</span>
             </div>
             <span
               className={cn(
                 'w-20 shrink-0 text-right font-wds-mono text-wds-body-sm',
-                below ? belowLevelToneClass.desktop : 'text-wds-text-muted'
+                below ? belowLevelToneClass.desktop : 'text-wds-text-copy-muted'
               )}
             >
               {row.onHand}
@@ -133,7 +133,7 @@ export function RestockLevelGrid({
       <button
         type="button"
         onClick={onAddItem}
-        className="flex h-8 shrink-0 items-center rounded-wds-sm border border-dashed border-wds-border-strong px-wds-2.5 font-wds-sans text-wds-body-sm text-wds-text-faint"
+        className="flex h-8 shrink-0 items-center rounded-wds-sm border border-dashed border-wds-border-strong px-wds-2.5 font-wds-sans text-wds-body-sm text-wds-text-copy-faint"
       >
         + Add an item
       </button>
@@ -165,7 +165,7 @@ export function RestockLevelHelperNote({
       )}
     >
       <span className="mt-[5px] size-1.5 shrink-0 rounded-wds-full bg-wds-neutral-400" aria-hidden />
-      <span className="font-wds-sans text-wds-caption text-wds-text-muted">{children}</span>
+      <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{children}</span>
     </div>
   );
 }

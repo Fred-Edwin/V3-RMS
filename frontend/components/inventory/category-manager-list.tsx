@@ -42,7 +42,7 @@ export function CategoryManagerList({
 
   const addInputClass = isMobile ? 'h-[44px] rounded-wds-md px-wds-3' : 'h-8 rounded-wds-sm px-wds-2.5';
   const rowPaddingClass = isMobile ? 'py-wds-3.5 px-wds-3' : 'h-11 px-wds-2';
-  const linkToneClass = isMobile ? 'text-wds-primary' : 'text-wds-text-muted';
+  const linkToneClass = isMobile ? 'text-wds-primary' : 'text-wds-text-copy-muted';
 
   return (
     <div className={cn('flex flex-col gap-wds-2', className)}>
@@ -57,7 +57,7 @@ export function CategoryManagerList({
         }}
         placeholder="+ Add a category"
         className={cn(
-          'flex items-center border border-dashed border-wds-border-strong bg-wds-surface font-wds-sans text-wds-body-sm text-wds-text-ink placeholder:text-wds-text-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
+          'flex items-center border border-dashed border-wds-border-strong bg-wds-surface font-wds-sans text-wds-body-sm text-wds-text-ink placeholder:text-wds-text-copy-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
           addInputClass
         )}
       />
@@ -73,7 +73,7 @@ export function CategoryManagerList({
           >
             <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{category.name}</span>
             <div className={cn('flex items-center', isMobile ? 'gap-wds-3.5' : 'gap-wds-3')}>
-              <span className="w-16 shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-muted">
+              <span className="w-16 shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">
                 {category.itemCount} items
               </span>
               <button
