@@ -232,7 +232,10 @@ export default function DashboardPage(): JSX.Element {
         },
         accessToken,
       );
-      setTodayShiftAssignments(assignments);
+      // Department heads get the full department roster back from this
+      // endpoint (needed for the scheduling grid) — this widget is personal
+      // clock-in only, so narrow to the signed-in user's own assignment(s).
+      setTodayShiftAssignments(assignments.filter((a) => a.userId === user?.id));
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Unable to load today shift.';
       toast({
@@ -240,7 +243,7 @@ export default function DashboardPage(): JSX.Element {
         title: message,
       });
     }
-  }, [accessToken, role, toast]);
+  }, [accessToken, role, toast, user?.id]);
 
   useEffect(() => {
     void loadTodayShiftAssignments();
