@@ -32,6 +32,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import { BottomNav, ConfirmDialog, DirectorSidebarNav, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
+import { PourReveal } from '@/components/app/shell/pour-reveal';
 import { env } from '@/lib/env';
 import { ShellProvider } from '@/lib/shell-context';
 
@@ -583,14 +584,15 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
     }
   };
 
-  // Show a minimal loading indicator while session hydration is in progress
+  // Auth/session hydration gate — real wait here is an API refresh-token
+  // round trip (~200ms-1s on a normal connection, see authStore's
+  // hydrateSession), not an instant synchronous read. Approved in Paper
+  // (Loading mark explorations) before being built — see PourReveal's own
+  // doc comment for the full design rationale and motion notes.
   if (!role && !isHydrated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-crema">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-amber-700" />
-          <p className="text-body-sm text-stone-500">Loading…</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-wds-canvas">
+        <PourReveal />
       </div>
     );
   }

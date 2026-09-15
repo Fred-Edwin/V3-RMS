@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { SupplierFormFields, type PaymentTerms, type SupplierFormValues } from '../supplier-form';
+import { SupplierDetailSkeletonDesktop, SupplierDetailSkeletonMobile } from '../skeletons';
 import { useRetireSupplier, useSaveSupplier, useSupplier, useSupplierFormOptions } from '../../hooks/use-supplier-form';
 import type { CreateSupplierInput, SupplierPaymentTerms, UpdateSupplierInput } from '../../types';
 
@@ -47,7 +48,8 @@ export interface SupplierFormDrawerProps {
  */
 export function SupplierFormDrawer({ supplierId, open, onOpenChange, onSaved, variant }: SupplierFormDrawerProps) {
   const { categories } = useSupplierFormOptions();
-  const { supplier } = useSupplier(open ? supplierId : null);
+  const { supplier, status: supplierStatus } = useSupplier(open ? supplierId : null);
+  const isLoadingSupplier = supplierId != null && supplierStatus === 'loading';
   const { save, saving, error } = useSaveSupplier();
   const { retire, retiring, error: retireError, blockedBy, clearBlock } = useRetireSupplier();
   const [values, setValues] = React.useState<SupplierFormValues>(EMPTY_VALUES);
@@ -157,10 +159,16 @@ export function SupplierFormDrawer({ supplierId, open, onOpenChange, onSaved, va
 
   if (!open) return null;
 
-  const title = supplier ? 'Edit supplier' : 'New supplier';
+  // Base on `supplierId` (known synchronously), not `supplier` (only set once
+  // the fetch resolves) — otherwise editing an existing supplier briefly
+  // shows "New supplier" / "Create supplier" copy while it's still loading.
+  const isEditing = supplierId != null;
+  const title = isEditing ? 'Edit supplier' : 'New supplier';
   const description = supplier
     ? `${supplier.name} · created ${new Date(supplier.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
-    : 'Add a supplier to Central Store procurement';
+    : isEditing
+      ? ' '
+      : 'Add a supplier to Central Store procurement';
 
   if (variant === 'mobile') {
     return (
@@ -174,27 +182,33 @@ export function SupplierFormDrawer({ supplierId, open, onOpenChange, onSaved, va
           onTrailingAction={() => onOpenChange(false)}
         />
         <div className="flex-1 overflow-y-auto p-4">
-          <SupplierFormFields variant="mobile" values={values} onChange={handleChange} categoryOptions={categoryOptions} />
-          {error ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
-          {retireError ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
-          {supplier ? (
-            <button
-              type="button"
-              onClick={openRetireDialog}
-              className="mt-6 font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
-            >
-              Archive this supplier
-            </button>
-          ) : null}
+          {isLoadingSupplier ? (
+            <SupplierDetailSkeletonMobile />
+          ) : (
+            <>
+              <SupplierFormFields variant="mobile" values={values} onChange={handleChange} categoryOptions={categoryOptions} />
+              {error ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+              {retireError ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
+              {supplier ? (
+                <button
+                  type="button"
+                  onClick={openRetireDialog}
+                  className="mt-6 font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
+                >
+                  Archive this supplier
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
         <div className="border-t border-wds-border p-4">
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || isLoadingSupplier}
             className="flex h-11 w-full items-center justify-center rounded-wds-md bg-wds-gradient-primary font-wds-sans text-wds-body font-medium text-wds-primary-fg disabled:opacity-60"
           >
-            {supplier ? 'Save changes' : 'Create supplier'}
+            {isEditing ? 'Save changes' : 'Create supplier'}
           </button>
         </div>
         {retireDialog}
@@ -210,25 +224,31 @@ export function SupplierFormDrawer({ supplierId, open, onOpenChange, onSaved, va
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
         <div className="flex flex-1 flex-col gap-wds-4 overflow-y-auto px-wds-6 py-wds-5">
-          <SupplierFormFields variant="desktop" values={values} onChange={handleChange} categoryOptions={categoryOptions} />
-          {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
-          {retireError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
-          {supplier ? (
-            <button
-              type="button"
-              onClick={openRetireDialog}
-              className="self-start font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
-            >
-              Archive this supplier
-            </button>
-          ) : null}
+          {isLoadingSupplier ? (
+            <SupplierDetailSkeletonDesktop />
+          ) : (
+            <>
+              <SupplierFormFields variant="desktop" values={values} onChange={handleChange} categoryOptions={categoryOptions} />
+              {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+              {retireError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
+              {supplier ? (
+                <button
+                  type="button"
+                  onClick={openRetireDialog}
+                  className="self-start font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
+                >
+                  Archive this supplier
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
         <SheetFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {supplier ? 'Save changes' : 'Create supplier'}
+          <Button onClick={handleSave} disabled={saving || isLoadingSupplier}>
+            {isEditing ? 'Save changes' : 'Create supplier'}
           </Button>
         </SheetFooter>
       </SheetContent>

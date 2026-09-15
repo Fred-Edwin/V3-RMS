@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { CategoryManagerList, type CategoryRow } from '../category-manager-list';
-import { EmptyState, ErrorState, LoadingState } from '../shell-states';
+import { EmptyState, ErrorState, LoadingState } from '@/components/app/shell/shell-states';
 import { useCategoryManager } from '../../hooks/use-categories';
 import type { Category } from '../../types';
 

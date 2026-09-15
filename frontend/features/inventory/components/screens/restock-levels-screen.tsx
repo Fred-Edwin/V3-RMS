@@ -8,7 +8,7 @@ import { Input } from '@/components/ui2/input';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { RestockLevelGrid, RestockLevelHelperNote, type RestockLevelRow as GridRow } from '../restock-level-grid';
-import { EmptyState, ErrorState, LoadingState } from '../shell-states';
+import { EmptyState, ErrorState, LoadingState } from '@/components/app/shell/shell-states';
 import { useRestockLevels, type RestockLevelsActor } from '../../hooks/use-restock-levels';
 import type { RestockLevelRow } from '../../types';
 

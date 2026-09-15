@@ -5,12 +5,14 @@ import * as React from 'react';
 import { Button } from '@/components/ui2/button';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
+import { Topbar } from '@/components/app/shell/topbar';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
-import { InventoryDesktopShell, InventoryMobileNavDrawer } from '../inventory-shell';
+import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import { ItemCatalogList, ItemCatalogPaginationBar, ItemCatalogTable, ItemCatalogToolbar, type ItemCatalogRow, type ItemType } from '../item-catalog-table';
 import { KpiRow, KpiStrip, type KpiCellData } from '../kpi-strip';
-import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../shell-states';
+import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
+import { ItemCatalogSkeletonDesktop, ItemCatalogSkeletonMobile } from '../skeletons';
 import { CategoryManagerDrawer } from './category-manager-screen';
 import { ItemFormDrawer } from './item-form-screen';
 import { RestockLevelsDrawer } from './restock-levels-screen';
@@ -84,7 +86,7 @@ export function ItemCatalogScreen() {
   const [drawerItemId, setDrawerItemId] = React.useState<string | null | undefined>(undefined);
   const [restockDrawerOpen, setRestockDrawerOpen] = React.useState(false);
   const [categoryDrawerOpen, setCategoryDrawerOpen] = React.useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const { open: openMobileNav } = useMobileNavDrawer();
 
   const filters: ItemCatalogFilters = React.useMemo(
     () => ({
@@ -116,9 +118,10 @@ export function ItemCatalogScreen() {
       <PermissionDeniedState description="Item catalog is visible to Store Managers and Store Attendants only." />
     );
     return isDesktop ? (
-      <InventoryDesktopShell activeKey="catalog" breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Topbar breadcrumb={{ section: 'Central Store', screen: 'Catalog' }} className="shrink-0" />
         <div className="flex flex-1 items-center justify-center">{denied}</div>
-      </InventoryDesktopShell>
+      </div>
     ) : (
       <div className="flex min-h-screen flex-col items-center justify-center bg-wds-canvas p-4">{denied}</div>
     );
@@ -164,10 +167,10 @@ export function ItemCatalogScreen() {
 
   const tableBody = (() => {
     if (status === 'loading' || status === 'idle') {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <LoadingState />
-        </div>
+      return isDesktop ? (
+        <ItemCatalogSkeletonDesktop />
+      ) : (
+        <ItemCatalogSkeletonMobile className="mx-4" />
       );
     }
     if (status === 'error') {
@@ -233,12 +236,7 @@ export function ItemCatalogScreen() {
           title="Item catalog"
           subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`}
           userInitials="JM"
-          onMenuClick={() => setMobileNavOpen(true)}
-        />
-        <InventoryMobileNavDrawer
-          activeKey="catalog"
-          open={mobileNavOpen}
-          onOpenChange={setMobileNavOpen}
+          onMenuClick={openMobileNav}
         />
         <div className="flex flex-1 flex-col gap-4 p-4">
           {meta ? (
@@ -280,26 +278,27 @@ export function ItemCatalogScreen() {
   }
 
   return (
-    <InventoryDesktopShell
-      activeKey="catalog"
-      breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}
-      searchProps={{ placeholder: 'Search items', value: search, onChange: (e) => setSearch(e.target.value) }}
-      actions={
-        canWrite ? (
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setRestockDrawerOpen(true)}
-              disabled={!centralStoreLocationId}
-            >
-              Restock levels
-            </Button>
-            <Button onClick={() => setDrawerItemId(null)}>New item</Button>
-          </>
-        ) : null
-      }
-    >
-      <div className="flex flex-1 flex-col gap-5">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Topbar
+        breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}
+        searchProps={{ placeholder: 'Search items', value: search, onChange: (e) => setSearch(e.target.value) }}
+        actions={
+          canWrite ? (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setRestockDrawerOpen(true)}
+                disabled={!centralStoreLocationId}
+              >
+                Restock levels
+              </Button>
+              <Button onClick={() => setDrawerItemId(null)}>New item</Button>
+            </>
+          ) : null
+        }
+        className="shrink-0"
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Item catalog</h1>
           <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
@@ -332,6 +331,6 @@ export function ItemCatalogScreen() {
         variant="desktop"
         onCategoriesChanged={reload}
       />
-    </InventoryDesktopShell>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Inter } from 'next/font/google';
+import { Cormorant_Garamond, Inter, Playfair_Display } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -16,6 +16,17 @@ const cormorantGaramond = Cormorant_Garamond({
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
+});
+
+// Wordmark-only — the PourReveal loading mark's italic serif treatment,
+// approved in Paper (Loading mark explorations, "1 · Pour reveal" refined).
+// Not part of the WDS token system; scoped narrowly since it has exactly
+// one consumer.
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  style: ['italic'],
+  weight: ['600'],
+  variable: '--font-wordmark',
 });
 
 // New design system (WDS). GeistSans/GeistMono expose --font-geist-sans /
@@ -54,10 +65,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorantGaramond.variable} ${inter.variable} ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body
-        className={`${cormorantGaramond.variable} ${inter.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans`}
+        className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans`}
       >
         <SessionBootstrap />
         <OfflineBanner />

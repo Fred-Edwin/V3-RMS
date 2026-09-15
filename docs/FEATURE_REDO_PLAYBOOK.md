@@ -212,6 +212,15 @@ gates**.
   `components/ui/`) and `features/<feature>/components/` (composites, built on
   `ui2/`) — except shell composites used by every feature (sidebar, topbar,
   mobile status bar), which go in `components/app/shell/`, not under a feature.
+- **Loading/error/empty states and persistent-shell layouts follow specific
+  rules, not ad-hoc per-feature decisions** — screen-mirroring loading
+  skeletons are feature-scoped, generic Empty/Error/Permission-denied cards
+  are shared, a group of screens sharing one sidebar needs a route-group
+  `layout.tsx` (not each screen mounting its own shell), and shell nav links
+  are always `next/link`. Full rules with rationale:
+  `docs/features/inventory/04-components.md` §"Placement rules — read
+  before building a new milestone's screens" — read it before building any
+  new feature's loading/error states or shared shell.
 - This feature's pages switch their imports from `components/ui` to
   `components/ui2` as they're rebuilt. Other features' pages are untouched.
 - **Reuse across build units within a feature is the point.** Once a primitive or

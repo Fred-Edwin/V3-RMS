@@ -8,7 +8,7 @@ import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { SearchInput } from '@/components/ui2/search-input';
 import { useAuthStore } from '@/store/authStore';
 import { RestockLevelGrid, RestockLevelHelperNote, type RestockLevelRow as GridRow } from '../restock-level-grid';
-import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../shell-states';
+import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { useRestockLevels } from '../../hooks/use-restock-levels';
 import type { DepartmentTag, RestockLevelRow } from '../../types';
 

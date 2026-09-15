@@ -44,6 +44,87 @@ it. See "Visual fidelity process" below.
 
 ---
 
+## Placement rules — read before building a new milestone's screens
+
+Established during Milestone One's UI-refinement pass (2026-09-15). These are
+governing rules for every future milestone/feature, not just Milestone One —
+apply them by default, don't re-derive them per feature.
+
+### Loading, error, and empty states
+
+Two distinct tiers, not one generic "loading state" concept:
+
+1. **Screen-mirroring skeletons — the default choice, feature-scoped.**
+   A loading skeleton should mirror the real screen it's loading: same shell
+   (breadcrumb, title, toolbar, KPI strip if the screen has one) rendered
+   normally, with only the data region (table rows, KPI values, form fields)
+   swapped for skeleton blocks in the real layout's shapes and widths. This
+   is the pattern Paper itself draws per-screen (e.g. `5R3-0` "Suppliers
+   list · desktop · loading", `71E-0` "Supplier detail · desktop ·
+   loading") — a real column header row with skeleton cells beneath it, not
+   a generic centered card. **Use this by default for any screen that has a
+   loading state**, matching Milestone One's `features/inventory/components/
+   skeletons.tsx`.
+   - Lives in `features/<feature>/components/skeletons.tsx` (or similar),
+     **not** shared — it hardcodes that screen's real column widths/layout,
+     which is feature- and screen-specific by definition. A future
+     feature's skeleton is a new file, not a reuse of Inventory's.
+   - Build it from the shared `Skeleton` primitive (`components/ui2/
+     skeleton.tsx` — animated sweep, already respects
+     `prefers-reduced-motion`), composed into the target screen's actual
+     shape. Don't invent a new skeleton primitive per feature.
+   - If Paper hasn't drawn a bespoke loading state for a screen (check
+     first — not every screen has one), design a new one that follows the
+     same shell-preserving pattern rather than falling back to the generic
+     card by default.
+2. **Generic Empty / Error / Permission-denied cards — shared, cross-feature.**
+   Content-agnostic states that take `title`/`description` props and don't
+   need to mirror a specific layout. Live in `components/app/shell/
+   shell-states.tsx` (`EmptyState`, `ErrorState`, `PermissionDeniedState`,
+   plus a generic `LoadingState` fallback for screens with no bespoke
+   skeleton yet). These were originally built inside `features/inventory/`
+   and moved out mid-Milestone-One once it was clear they were sourced from
+   the cross-role Session-0 shell, not the Inventory milestone page — don't
+   repeat that placement mistake: if a state component takes no
+   feature-specific props and isn't tied to one screen's layout, it
+   belongs in `components/app/shell/`, not under a feature folder.
+
+The dividing line: **does this component need to know the exact shape of
+one screen (column widths, field layout)?** If yes, it's a
+screen-mirroring skeleton and it's feature-scoped. If no — it's a generic
+message-plus-icon card — it's shared.
+
+### Persistent shells — route groups, not per-screen shell mounts
+
+A group of screens that share one sidebar/topbar (e.g. Milestone One's
+Catalog + Suppliers) must sit under a Next.js **route group** with its own
+`layout.tsx` that mounts the shell once — e.g.
+`app/app/<feature>/(shell)/layout.tsx`. Do **not** have each screen render
+its own copy of the sidebar/topbar/mobile-nav-drawer; that causes a full
+remount (and a visible blank-page flash) on every navigation between those
+screens, since each screen mounting its own shell instance forces React to
+tear down and rebuild the whole tree on route change. Add a
+`(shell)/loading.tsx` alongside it using the screen-mirroring skeleton
+convention above, so Next's route-level Suspense fallback is the real
+skeleton, not a generic spinner.
+
+**Not every screen in a feature belongs in the same shell group.** A
+screen that's an intentional standalone task view (e.g. Milestone One's
+mobile-only Restock Levels, entered via a back-chevron header, not sidebar
+nav) should stay outside the route group — check the screen's own design
+intent before assuming every route in a feature shares one shell.
+
+### Navigation links — always `next/link`, never a plain `<a href>`
+
+Any nav item in a shared shell composite (`SidebarNav`, `SidebarRail`, a
+mobile nav drawer) must use `next/link`'s `<Link>`, not a plain `<a
+href>`. A plain anchor forces a full browser page reload on click, which
+defeats the persistent-shell pattern above even if the layout itself is
+structured correctly — the reload tears down everything, shell included.
+This was a real bug found and fixed in Milestone One's own sidebar.
+
+---
+
 ## Milestone One — Catalog, Suppliers & Restock Levels
 
 Paper reference: page `Milestone One · Catalog, Suppliers & Restock Levels` (`B-0`),
@@ -2039,6 +2120,53 @@ build, not worked around silently again.
   earlier sessions/QA) now correctly appearing in that same column instead
   of a universal "—". Also reconfirmed the Restock Levels drawer still
   renders correctly with the "+ Add an item" button gone.
+
+- **Persistent Inventory shell + loading polish (2026-09-15, closing item for
+  Milestone One)** — fixed the remount-on-navigate bug: every Inventory
+  screen previously mounted its own copy of the sidebar (desktop) and nav
+  drawer (mobile), so clicking a sidebar link unmounted/remounted the whole
+  shell along with the content, producing a blank-page-then-spinner flash.
+
+  Catalog and Suppliers (the two screens sharing one sidebar-driven nav) now
+  live under a route group, `app/app/inventory/(shell)/`, with a persistent
+  `layout.tsx` that mounts `InventorySidebar` / `InventoryMobileNavDrawer`
+  once — only `children` swaps across navigation within the group. Restock
+  Levels stays outside the group by design (a separate, mobile-only
+  full-screen task route reached directly, not via sidebar nav).
+  `use-mobile-nav-drawer.tsx` adds a small context (`MobileNavDrawerProvider`
+  / `useMobileNavDrawer`) so screens can open the drawer via their
+  `MobileHubHeader`'s `onMenuClick` while the layout owns the drawer's
+  render/close.
+
+  `(shell)/loading.tsx` replaces Next's default bare spinner with the
+  existing shared `LoadingState` for the content region only — the sidebar
+  in the layout is a separate layout boundary and stays mounted, unaffected
+  by this Suspense fallback. New screen-mirroring skeletons
+  (`features/inventory/components/skeletons.tsx`) — Suppliers list/detail
+  (desktop sourced from Paper `5R3-0`/`71E-0`; mobile has no Paper node,
+  follows the same "real header/toolbar stays, data region becomes
+  skeleton" convention) and an Item Catalog skeleton (no Paper node either,
+  same convention, column widths matched to `item-catalog-table.tsx`).
+
+  Also replaced the app-wide auth/session-hydration spinner (`app/app/
+  layout.tsx`, shown during the ~200ms–1s refresh-token round trip in
+  `authStore`'s `hydrateSession`) with `PourReveal`
+  (`components/app/shell/pour-reveal.tsx`), a Paper-approved ("Loading mark
+  explorations, 1 · Pour reveal") wordmark loading mark. Added a narrowly-
+  scoped `Playfair_Display` italic font load (`app/layout.tsx`,
+  `--font-wordmark`) for this component's one consumer — not part of the WDS
+  token system, since it has exactly one use site.
+
+  Verified: `npx tsc --noEmit` clean, `pnpm build` clean (including
+  `check-wds-tokens.ts`), confirmed live in a real browser — sidebar/drawer
+  persist across Catalog↔Suppliers navigation with no remount flash, loading
+  skeletons render correctly, `PourReveal` shows during session hydration.
+
+  **This closes out Milestone One (Catalog, Suppliers & Restock Levels).**
+  Everything in this doc's Milestone One scope is built, verified, and
+  committed. Remaining open items are owner-facing decisions already flagged
+  above (full resizable catalog columns vs. a narrower Units-column fix) —
+  not blockers, and not part of this milestone's must-ship scope.
 
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

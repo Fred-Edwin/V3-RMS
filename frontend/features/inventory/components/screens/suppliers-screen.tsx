@@ -6,10 +6,12 @@ import { Button } from '@/components/ui2/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui2/table';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
+import { Topbar } from '@/components/app/shell/topbar';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
-import { InventoryDesktopShell, InventoryMobileNavDrawer } from '../inventory-shell';
-import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../shell-states';
+import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
+import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
+import { SuppliersListSkeletonDesktop, SuppliersListSkeletonMobile } from '../skeletons';
 import { SupplierFormDrawer } from './supplier-form-screen';
 import { useSuppliers } from '../../hooks/use-suppliers';
 
@@ -32,7 +34,7 @@ export function SuppliersScreen() {
   const role = useAuthStore((s) => s.role);
   const [search, setSearch] = React.useState('');
   const [drawerSupplierId, setDrawerSupplierId] = React.useState<string | null | undefined>(undefined);
-  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const { open: openMobileNav } = useMobileNavDrawer();
 
   const { suppliers, status, error, reload } = useSuppliers(search || undefined);
 
@@ -50,9 +52,10 @@ export function SuppliersScreen() {
   if (!canRead) {
     const denied = <PermissionDeniedState description="Suppliers is visible to Store Managers, the Accountant, and Directors only." />;
     return isDesktop ? (
-      <InventoryDesktopShell activeKey="suppliers" breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Topbar breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }} className="shrink-0" />
         <div className="flex flex-1 items-center justify-center">{denied}</div>
-      </InventoryDesktopShell>
+      </div>
     ) : (
       <div className="flex min-h-screen flex-col items-center justify-center bg-wds-canvas p-4">{denied}</div>
     );
@@ -60,11 +63,7 @@ export function SuppliersScreen() {
 
   const body = (() => {
     if (status === 'loading' || status === 'idle') {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <LoadingState />
-        </div>
-      );
+      return isDesktop ? <SuppliersListSkeletonDesktop /> : <SuppliersListSkeletonMobile />;
     }
     if (status === 'error') {
       return (
@@ -147,12 +146,7 @@ export function SuppliersScreen() {
           title="Suppliers"
           subtitle={`${suppliers.length} suppliers on file`}
           userInitials="JM"
-          onMenuClick={() => setMobileNavOpen(true)}
-        />
-        <InventoryMobileNavDrawer
-          activeKey="suppliers"
-          open={mobileNavOpen}
-          onOpenChange={setMobileNavOpen}
+          onMenuClick={openMobileNav}
         />
         <div className="flex flex-1 flex-col gap-4 p-4">{body}</div>
         {canWrite ? (
@@ -174,13 +168,14 @@ export function SuppliersScreen() {
   }
 
   return (
-    <InventoryDesktopShell
-      activeKey="suppliers"
-      breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }}
-      searchProps={{ placeholder: 'Search suppliers', value: search, onChange: (e) => setSearch(e.target.value) }}
-      actions={canWrite ? <Button onClick={() => setDrawerSupplierId(null)}>New supplier</Button> : null}
-    >
-      <div className="flex flex-1 flex-col gap-5">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Topbar
+        breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }}
+        searchProps={{ placeholder: 'Search suppliers', value: search, onChange: (e) => setSearch(e.target.value) }}
+        actions={canWrite ? <Button onClick={() => setDrawerSupplierId(null)}>New supplier</Button> : null}
+        className="shrink-0"
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Suppliers</h1>
           <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
@@ -196,6 +191,6 @@ export function SuppliersScreen() {
         onSaved={reload}
         variant="desktop"
       />
-    </InventoryDesktopShell>
+    </div>
   );
 }

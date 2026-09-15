@@ -82,7 +82,18 @@ export interface InventoryDesktopShellProps {
   children: React.ReactNode;
 }
 
-/** Sidebar (fixed 236px) + Topbar + content column. Reference: `SFQ-0`/`SX5-0`/`T52-0` desktop shell. */
+/**
+ * Sidebar (fixed 236px) + Topbar + content column. Reference:
+ * `SFQ-0`/`SX5-0`/`T52-0` desktop shell.
+ *
+ * Used by screens that don't sit under `app/app/inventory/(shell)/layout.tsx`
+ * (e.g. permission-denied early returns before the real screen mounts).
+ * Catalog and Suppliers no longer use this for their main render path — the
+ * `(shell)` route group's layout now owns the persistent Sidebar so it
+ * doesn't remount on every nav; those screens render `InventorySidebar` is
+ * not needed there at all, just `Topbar` + content directly. See
+ * `InventorySidebar` below for the piece the layout actually uses.
+ */
 export function InventoryDesktopShell({
   activeKey,
   breadcrumb,
@@ -109,6 +120,21 @@ export function InventoryDesktopShell({
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">{children}</div>
       </div>
     </div>
+  );
+}
+
+/** Just the 236px sidebar rail, no Topbar/content column — what `(shell)/layout.tsx` mounts once so it survives Catalog ⇄ Suppliers navigation. */
+export function InventorySidebar({ activeKey }: { activeKey: string }) {
+  const user = useSidebarUser();
+  return (
+    <SidebarNav
+      groups={NAV_GROUPS}
+      activeKey={activeKey}
+      user={user}
+      orgLabel="HUB"
+      logoSrc={WENDO_LOGO_SRC}
+      onSignOut={performLogout}
+    />
   );
 }
 

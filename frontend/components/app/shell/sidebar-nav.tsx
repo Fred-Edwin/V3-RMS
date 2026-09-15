@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
@@ -77,7 +78,7 @@ function DesktopNavItem({
 }) {
   const Icon = item.icon;
   return (
-    <a
+    <Link
       href={item.href}
       onClick={onNavigate ? (e) => onNavigate(item, e) : undefined}
       className={cn('flex h-8 shrink-0 items-center gap-wds-2.5 px-wds-2.5', navItemInteractiveClass)}
@@ -103,7 +104,7 @@ function DesktopNavItem({
           </span>
         </span>
       ) : null}
-    </a>
+    </Link>
   );
 }
 
@@ -211,7 +212,7 @@ export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, onSi
         const active = item.key === activeKey;
         const Icon = item.icon;
         return (
-          <a
+          <Link
             key={item.key}
             href={item.href}
             onClick={onNavigate ? (e) => onNavigate(item, e) : undefined}
@@ -228,7 +229,7 @@ export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, onSi
                 </span>
               </span>
             ) : null}
-          </a>
+          </Link>
         );
       })}
       <div className="mt-auto flex flex-col items-center gap-wds-2.5">
