@@ -242,7 +242,10 @@ export function ItemCatalogTable({ rows, onRowClick, className }: ItemCatalogTab
             <TableCell className="w-[140px] shrink-0 text-wds-caption text-wds-text-ink">
               {row.category}
             </TableCell>
-            <TableCell className="w-[160px] shrink-0 whitespace-nowrap font-wds-mono text-wds-caption text-wds-text-copy-muted">
+            <TableCell
+              className="w-[160px] shrink-0 truncate font-wds-mono text-wds-caption text-wds-text-copy-muted"
+              title={row.units}
+            >
               {row.units}
             </TableCell>
             <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">
