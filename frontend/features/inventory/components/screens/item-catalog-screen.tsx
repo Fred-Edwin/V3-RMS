@@ -14,8 +14,8 @@ import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../
 import { CategoryManagerDrawer } from './category-manager-screen';
 import { ItemFormDrawer } from './item-form-screen';
 import { RestockLevelsDrawer } from './restock-levels-screen';
+import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useItemCatalog, type ItemCatalogFilters } from '../../hooks/use-item-catalog';
-import { CENTRAL_STORE_LOCATION_ID } from '../../services';
 import type { DepartmentTag, InventoryItem, InventoryItemType } from '../../types';
 
 const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
@@ -91,6 +91,7 @@ export function ItemCatalogScreen() {
   );
 
   const { items, meta, categories, status, error, reload } = useItemCatalog(filters);
+  const { locationId: centralStoreLocationId } = useCentralStoreLocation();
 
   const canRead = role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   const canWrite = role === 'STORE_MANAGER';
@@ -246,7 +247,11 @@ export function ItemCatalogScreen() {
       actions={
         canWrite ? (
           <>
-            <Button variant="secondary" onClick={() => setRestockDrawerOpen(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => setRestockDrawerOpen(true)}
+              disabled={!centralStoreLocationId}
+            >
               Restock levels
             </Button>
             <Button onClick={() => setDrawerItemId(null)}>New item</Button>
@@ -272,13 +277,15 @@ export function ItemCatalogScreen() {
         onSaved={reload}
         variant="desktop"
       />
-      <RestockLevelsDrawer
-        open={restockDrawerOpen}
-        onOpenChange={setRestockDrawerOpen}
-        variant="desktop"
-        locationId={CENTRAL_STORE_LOCATION_ID}
-        actor={{ role: 'STORE_MANAGER' }}
-      />
+      {centralStoreLocationId ? (
+        <RestockLevelsDrawer
+          open={restockDrawerOpen}
+          onOpenChange={setRestockDrawerOpen}
+          variant="desktop"
+          locationId={centralStoreLocationId}
+          actor={{ role: 'STORE_MANAGER' }}
+        />
+      ) : null}
       <CategoryManagerDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} variant="desktop" />
     </InventoryDesktopShell>
   );

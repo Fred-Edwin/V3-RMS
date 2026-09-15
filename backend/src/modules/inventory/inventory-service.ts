@@ -171,6 +171,24 @@ const resolveCategoryId = async (
 };
 
 export const inventoryService = {
+  /**
+   * Lets a hub Store Manager discover the Central Store's locationId to pass
+   * to `GET/PUT /inventory/restock-levels`. Added post-freeze (2026-09-15,
+   * owner-approved): the frozen contract required the client to already know
+   * this id but provided no way to look it up (no "list locations" endpoint
+   * in Milestone One scope, and it's not carried in the JWT or user
+   * profile) — found when the frontend session wired the real backend in.
+   * Minimal and read-only; does not touch the restock-levels contract itself.
+   */
+  getCentralStoreLocation: async (actor: Actor): Promise<{ id: string }> => {
+    const organizationId = await requireHubActor(actor);
+    const centralStore = await locationRepository.findCentralStore();
+    if (!centralStore || centralStore.organizationId !== organizationId) {
+      throw new NotFoundError('No Central Store is configured for this organization');
+    }
+    return { id: centralStore.id };
+  },
+
   // ── Categories ───────────────────────────────────────────────────────────
 
   listCategories: async (actor: Actor, includeRetired: boolean) => {

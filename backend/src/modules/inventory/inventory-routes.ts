@@ -7,6 +7,12 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get(
+  '/inventory/central-store-location',
+  requireRole('STORE_MANAGER'),
+  inventoryController.getCentralStoreLocation,
+);
+
 // ── Categories ─────────────────────────────────────────────────────────────
 
 router.get(

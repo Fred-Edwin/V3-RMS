@@ -2,7 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/app';
 import { inventoryService } from '../src/modules/inventory/inventory-service';
-import { ForbiddenError, ValidationError } from '../src/utils/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 
 const hubOrgId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -186,5 +186,42 @@ describe('Inventory restock-level routes', () => {
         .send({ locationId: '55555555-5555-4555-8555-555555555555', levels: [{ inventoryItemId: itemId, level: '10' }] });
       expect(res.status).toBe(400);
     });
+  });
+});
+
+describe('GET /inventory/central-store-location', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns 401 with no token', async () => {
+    const res = await request(app).get('/api/v1/inventory/central-store-location');
+    expect(res.status).toBe(401);
+  });
+
+  it('blocks a Department Head (403) — Store Manager only', async () => {
+    const res = await request(app)
+      .get('/api/v1/inventory/central-store-location')
+      .set('Authorization', `Bearer ${departmentHeadToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns the Central Store id for a hub Store Manager', async () => {
+    vi.spyOn(inventoryService, 'getCentralStoreLocation').mockResolvedValue({ id: centralStoreId });
+    const res = await request(app)
+      .get('/api/v1/inventory/central-store-location')
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ id: centralStoreId });
+  });
+
+  it('surfaces a NotFoundError as 404 when no Central Store is configured', async () => {
+    vi.spyOn(inventoryService, 'getCentralStoreLocation').mockRejectedValue(
+      new NotFoundError('No Central Store is configured for this organization'),
+    );
+    const res = await request(app)
+      .get('/api/v1/inventory/central-store-location')
+      .set('Authorization', `Bearer ${managerToken}`);
+    expect(res.status).toBe(404);
   });
 });

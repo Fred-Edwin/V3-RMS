@@ -1,11 +1,11 @@
 /**
  * Inventory Milestone One — service module.
  *
- * Exports the mock implementation for now. This session builds against a
- * mock of the frozen contract and never waits on the parallel backend build
- * (per the session brief) — swapping this file's re-export for a real
- * `apiClient`-backed implementation is a later, separate change and does not
- * touch any hook or screen that imports from here.
+ * Points at the real backend now that it's built and its test suite passes
+ * (692+ tests, 2026-09-15). The mock (`inventory-mock-service.ts`) is kept
+ * for `/dev/inventory-preview` and offline development — swap this single
+ * export back to it if the backend is ever unavailable; no hook or screen
+ * needs to change either way, since both modules share the same function
+ * signatures.
  */
-export * from './inventory-mock-service';
-export { CENTRAL_STORE_LOCATION_ID } from './mock-data';
+export * from './inventory-api-service';

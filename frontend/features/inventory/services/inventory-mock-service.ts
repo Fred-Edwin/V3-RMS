@@ -31,6 +31,7 @@ import type {
 } from '../types';
 import {
   CATEGORY_SEED,
+  CENTRAL_STORE_LOCATION_ID,
   DEPARTMENT_RESTOCK_LEVEL_SEED,
   ITEM_CATALOG_META,
   ITEM_SEED,
@@ -479,4 +480,10 @@ export async function saveRestockLevels(
   }
   departmentRestockLevels = apply(departmentRestockLevels);
   return departmentRestockLevels;
+}
+
+/** Mirrors the real `getCentralStoreLocation` endpoint's signature for parity — see `inventory-api-service.ts`. */
+export async function getCentralStoreLocation(): Promise<{ id: string }> {
+  await delay();
+  return { id: CENTRAL_STORE_LOCATION_ID };
 }
