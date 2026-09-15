@@ -1258,5 +1258,158 @@ build, not worked around silently again.
       inference, not a re-verified data point — spot-check 1024px directly
       before shipping if that becomes load-bearing.
 
+- **Verification pass (2026-09-15) — item 2, structural/best-practice
+  audit.** Same session as item 1's continuation above. Covers sizing
+  consistency, keyboard/focus, interactive states, color contrast, and the
+  token-regression check across all 7 primitives and 9 composites.
+
+  **Sizing consistency — checked every primitive instance and every
+  composite's control heights against its own Paper node, not against each
+  other by assumption:**
+  - Base primitives (`Input`, `Select`, `Button`) all default to `h-8`
+    (32px, desktop) — consistent across every use.
+  - Mobile form-field height (44px) is applied consistently everywhere a
+    full-width mobile text field appears: Item Form, Supplier Form,
+    Category Manager's add-category input.
+  - `Table` primitive (30px header / 46px rows) and Restock Level Grid's
+    hand-built desktop table (also 30px/46px, confirmed via source read)
+    match exactly, even though Restock Level Grid doesn't reuse the
+    `Table` component — intentional and correct, not drift.
+  - **Two apparent inconsistencies checked against Paper and confirmed as
+    real, intentional, Paper-drawn differences — not bugs:**
+    - Item Form's mobile Type-toggle segments are `h-10` (40px,
+      `TV7-0`); Supplier Form's mobile payment-terms-toggle segments are
+      `h-11` (44px, `TLW-0`). Two different Paper nodes, two different
+      genuine heights — each matches its own reference exactly.
+    - Restock Level Grid's mobile restock-level input is `h-8` (32px),
+      not the 44px mobile-field convention used elsewhere — confirmed
+      against Paper's own `TLX-0` (`w-14 h-8`): a deliberately smaller
+      control for a small numeric stepper inside a compact table row, not
+      a full-width form field. Documented here so this isn't "fixed" to
+      44px in a future pass without checking first.
+
+  **Keyboard & focus — tested interactively in-browser (Playwright),
+  not inferred from markup:**
+  - **Select:** click opens the popover; `ArrowDown` moves the
+    highlighted option (visible `bg-wds-neutral-100`); `Escape` closes
+    without changing the selection and returns focus to the trigger with
+    a visible ring. Correct.
+  - **Toggle Group:** click-then-`ArrowRight` moves *focus* to the next
+    segment without changing the selected value (standard Radix
+    roving-tabindex behavor for a single-select toggle group); `Enter`
+    then activates the focused segment. Correct, not a bug — activation
+    requires an explicit key, matching how the primitive already behaves
+    for mouse clicks.
+  - **Sheet/Drawer:** opens with scrim + focus moved into the panel;
+    `Escape` closes and returns focus to the opening trigger with a
+    visible ring. Correct.
+  - Radix gives all of the above for free; the check here was whether any
+    composite's custom styling suppressed it. It doesn't, anywhere.
+  - **`outline-none` audit** (grep across every primitive/composite):
+    listbox/menu items (`Select`'s `SelectItem`, `DropdownMenu`'s
+    `DropdownMenuItem`/`CheckboxItem`/`RadioItem`) use `outline-none` +
+    `focus:bg-wds-neutral-100` — correct, standard pattern for
+    arrow-key-navigated listbox items (a background highlight, not an
+    outline ring, is the expected treatment). `SearchInput`'s inner
+    `<input>` has bare `outline-none` with no per-element replacement,
+    but the **wrapper div** carries `focus-within:border-wds-primary
+    focus-within:shadow-wds-ring` — correctly gives the visible ring when
+    the inner input is focused. No suppressed-focus bugs found in any
+    Milestone One primitive or composite.
+  - **Out of scope, flagged not fixed:** `ItemCombobox.tsx` and
+    `QuantityStepper.tsx` (used by the pre-existing Prep/Purchase-Orders
+    pages, not Milestone One) also have bare `outline-none` with no
+    visible replacement on their inner inputs — a real gap, but these are
+    legacy, not-yet-redone components per `FEATURE_REDO_PLAYBOOK.md`'s
+    "migrate as part of the redo, not a separate refactor" rule. Not
+    touched here; flag for whichever future redo covers Prep/Purchasing.
+
+  **Interactive states rendering, not just present as classes** — spot-
+  checked in the browser per the state-matrix rule, given this build hit
+  the "class present but resolves invisible" failure mode twice already
+  (sidebar colors, gradient tokens): Select's hover/open state, Toggle
+  Group's hover/selected/focus states, and Button's gradient hover all
+  render visibly distinct in a real browser, confirmed via the keyboard
+  testing above (which exercises focus-visible directly) plus the visual
+  verification already logged per-composite above. No further "class
+  present, renders invisible" instances found beyond the two already
+  fixed earlier this milestone (`wds-sidebar-top/mid/bottom`,
+  `wds-gradient-surface-raise`).
+
+  **Color contrast (WCAG AA) — computed against real background hex
+  values at each token's actual usage context, not visually guessed.**
+  Two real findings, both **token-level, not component-level** — flagging
+  for the owner rather than silently repainting a shared neutral scale
+  token that has wide blast radius beyond this milestone:
+
+  1. **`--wds-text-faint` (`--wds-neutral-400`, `#A8A39B`) fails WCAG AA
+     at every real usage in this milestone.** 2.51:1 on `--wds-surface`
+     (`#FFFFFF`), 2.30:1 on `--wds-surface-sunken` (`#F6F5F3`) — both far
+     under the 4.5:1 normal-text minimum, and also under the 3:1
+     large-text minimum, so there's no font-size that rescues it. It's
+     used as real, load-bearing body/helper copy at 11-12px throughout
+     this milestone, not decoration: Item Form's and Supplier Form's
+     `FieldHelper`/helper-text spans (`wds-helper`, 11px), Restock Level
+     Grid's unit captions (`wds-caption`/`wds-field-label`, 11-12px),
+     Item Catalog Table's Department Scope column (`wds-caption`, 12px),
+     Select's placeholder text, and the Topbar breadcrumb separator.
+     Placeholder text and decorative icon fills are legitimately AA-exempt
+     (confirmed: `input.tsx`'s `placeholder:text-wds-text-muted` and
+     `search-input.tsx`'s search-icon fill are the only genuinely
+     decorative uses) — the problem is specifically the non-exempt
+     helper/caption-copy uses layered on the same token.
+  2. **`--wds-text-muted` (`--wds-neutral-500`, `#847E76`) also fails the
+     4.5:1 normal-text minimum** (4.02:1 on white, 3.69:1 on sunken),
+     though it clears the 3:1 large-text minimum. It's used at
+     `wds-caption` (12px, 14 instances) and `wds-field-label`/`wds-mono-sm`
+     (11px, several more) throughout — none of which qualify as
+     large text, so this also fails AA in its real usage contexts, just
+     by a smaller margin than `wds-text-faint`.
+  3. **Sidebar text tokens, checked for contrast against their own dark
+     backgrounds, are fine:** `--wds-sidebar-fg-item` (`#B5AEA5`) is
+     7.76:1 on `--wds-sidebar-mid` and 9.13:1 on `--wds-sidebar-bottom` —
+     comfortably AA. `--wds-sidebar-fg-muted` (`#8A7F76`) is 4.36:1 on
+     `--wds-sidebar-mid` (fails 4.5:1 by a hair, but this token is only
+     used at `pt-2 pb-1.5`/`pt-4 pb-1.5` **section-label** positions in
+     the Sidebar Nav — arguably non-critical wayfinding text, not primary
+     content) and 5.14:1 on `--wds-sidebar-bottom` (passes). Flagged for
+     completeness, not urgent — smaller gap, and on a less code-central
+     token than 1-2 above.
+
+  **This is a design-token decision, not a code fix applied here:**
+  darkening `--wds-neutral-400`/`-500` enough to pass AA (roughly
+  `#767676` or darker for `-400`, based on a quick contrast sweep) would
+  change the entire neutral scale's decorative/placeholder appearance
+  site-wide, which is exactly the kind of change `FEATURE_REDO_PLAYBOOK.md`
+  routes through Paper/owner approval (see Phase 0's own token-approval
+  precedent), not something to slip in as a drive-by fix during a
+  verification pass. Recommendation for the owner: either (a) darken
+  `--wds-neutral-400` specifically (it's the one that actually fails
+  large-text too, so it's the more urgent of the two), or (b) introduce a
+  distinct, AA-compliant token for non-decorative faint/muted *copy* uses
+  and reserve the current `--wds-neutral-400`/`-500` values for
+  placeholder/decorative uses only, which is what they were probably
+  intended for in the first place given how close `-500` already is to
+  passing.
+
+  **Regression check — nothing built before the mid-build token fixes
+  still relies on the old broken values.** Confirmed by reading source,
+  not just running `pnpm build` (a runtime-color regression wouldn't
+  produce a compile error): every consumer of `wds-sidebar-top/mid/
+  bottom`, `wds-gradient-sidebar`, `wds-gradient-topbar`, and
+  `wds-gradient-surface-raise` resolves through the single current token
+  definition via a Tailwind utility class (`bg-wds-sidebar-mid`,
+  `bg-wds-gradient-topbar`, etc.) — no component hardcodes a duplicated
+  color value that could drift independently of the token file. Since
+  the fix lives in exactly one place (`tokens.wds.css`) and every
+  consumer reads from it, there is no per-component regression surface
+  to check beyond confirming the class-based wiring, which is intact
+  everywhere it's used (`sidebar-nav.tsx`, `topbar.tsx`,
+  `mobile-headers.tsx`, `mobile-status-bar.tsx`, `kpi-strip.tsx`,
+  `card.tsx`).
+
+  Item 2 is complete. Item 3 (OKLCH-vs-comment token drift, the dedicated
+  sweep) is next.
+
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

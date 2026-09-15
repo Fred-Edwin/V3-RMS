@@ -7,18 +7,25 @@ now a historical record of how that build happened, kept for the next
 session's context — not a live "what's left" list. For what's actually
 next, see the "NEXT STEPS" section below (Step 5).
 
-**2026-09-14 update — Verification Pass, item 1 only (see
-`04-components.md`'s Status log for full detail):** the `export` MCP
-tool's single-node schema issue is resolved — confirmed working, real
-`pnpm visual-diff` now run on all 7 composites that previously substituted
-`get_computed_styles` checks. Found and fixed one real bug (Supplier Form's
-mobile layout was using desktop's 2-column field rows). 4 composites pass
-clean (≤2%), most others sit in the 2-8% range consistent with the
-already-established AA-noise pattern, and 5-6 mobile composites remain
-above threshold without a confirmed root cause yet — not all diffed to
-completion; time-boxed. **Items 2 (structural/accessibility audit) and 3
-(OKLCH token-drift sweep) were not started this session** — still open,
-do them next.
+**2026-09-15 update — Verification Pass, item 1 now fully complete** (see
+`04-components.md`'s Status log, "Verification pass (2026-09-15)" entry,
+for full detail). The 6 mobile composites left un-root-caused by the
+2026-09-14 pass are now resolved: 2 real component bugs fixed (mobile
+`FieldLabel` was sentence-case instead of Paper's mono-uppercase in both
+Item Form and Supplier Form; a mobile field-group spacing gap was 16px vs
+Paper's 18px; Item Catalog Table's mobile retired-row caption and units
+string didn't match Paper), 2 harness bugs fixed (Category Manager Mobile's
+Paper reference was captured from the wrong node, missing the "+ Add a
+category" input; two composites' demo data/copy didn't match Paper's exact
+content), and 2 confirmed as the same accepted "composite doesn't own
+trailing shell content" scope gap already established for Supplier Form
+Mobile. The 6 previously-flagged "marginal (2-4%)" composites are now also
+independently confirmed as AA-noise (diff-image inspection), not carried
+forward on assumption. `/dev/wds-diff` intentionally left in place for
+Step 5 and the two items below.
+
+**Items 2 (structural/accessibility audit) and 3 (OKLCH token-drift sweep)
+are next** — not started as of this update.
 
 Read `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4 and
 `docs/features/inventory/04-components.md` first if you need the fidelity
