@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { ApiError } from '@/types/api';
-import { createSupplier, getSupplier, listCategories, updateSupplier } from '../services';
+import { ApiError, formatApiErrorMessage } from '@/types/api';
+import { createSupplier, getSupplier, listCategories, retireSupplier, updateSupplier } from '../services';
 import type { Category, CreateSupplierInput, Supplier, UpdateSupplierInput } from '../types';
 
 export function useSupplierFormOptions() {
@@ -17,7 +17,7 @@ export function useSupplierFormOptions() {
       setCategories(list);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load categories.');
+      setError(formatApiErrorMessage(err, 'Could not load categories.'));
       setStatus('error');
     }
   }, []);
@@ -47,7 +47,7 @@ export function useSupplier(supplierId: string | null) {
       setSupplier(found);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load this supplier.');
+      setError(formatApiErrorMessage(err, 'Could not load this supplier.'));
       setStatus('error');
     }
   }, [supplierId]);
@@ -72,7 +72,7 @@ export function useSaveSupplier() {
         : await createSupplier(input as CreateSupplierInput);
       return saved;
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save this supplier.');
+      setError(formatApiErrorMessage(err, 'Could not save this supplier.'));
       return null;
     } finally {
       setSaving(false);
@@ -80,4 +80,44 @@ export function useSaveSupplier() {
   }, []);
 
   return { save, saving, error };
+}
+
+export interface RetireSupplierBlock {
+  items: Array<{ id: string; name: string }>;
+}
+
+/**
+ * Retire a supplier — the one retire path in this milestone that can be
+ * blocked (409, `CONFLICT`) when a live item still names it as preferred
+ * supplier. `blockedBy` surfaces the blocking item names so the confirm
+ * dialog can escalate to a typed confirmation instead of just failing.
+ */
+export function useRetireSupplier() {
+  const [retiring, setRetiring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [blockedBy, setBlockedBy] = useState<RetireSupplierBlock | null>(null);
+
+  const retire = useCallback(async (id: string): Promise<boolean> => {
+    setRetiring(true);
+    setError(null);
+    setBlockedBy(null);
+    try {
+      await retireSupplier(id);
+      return true;
+    } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 409 && err.details && typeof err.details === 'object') {
+        const details = err.details as { items?: Array<{ id: string; name: string }> };
+        if (Array.isArray(details.items) && details.items.length > 0) {
+          setBlockedBy({ items: details.items });
+          return false;
+        }
+      }
+      setError(formatApiErrorMessage(err, 'Could not archive this supplier.'));
+      return false;
+    } finally {
+      setRetiring(false);
+    }
+  }, []);
+
+  return { retire, retiring, error, blockedBy, clearBlock: () => setBlockedBy(null) };
 }

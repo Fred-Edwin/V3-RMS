@@ -8,7 +8,7 @@ import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
-import { InventoryDesktopShell } from '../inventory-shell';
+import { InventoryDesktopShell, InventoryMobileNavDrawer } from '../inventory-shell';
 import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../shell-states';
 import { SupplierFormDrawer } from './supplier-form-screen';
 import { useSuppliers } from '../../hooks/use-suppliers';
@@ -32,6 +32,7 @@ export function SuppliersScreen() {
   const role = useAuthStore((s) => s.role);
   const [search, setSearch] = React.useState('');
   const [drawerSupplierId, setDrawerSupplierId] = React.useState<string | null | undefined>(undefined);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   const { suppliers, status, error, reload } = useSuppliers(search || undefined);
 
@@ -142,7 +143,17 @@ export function SuppliersScreen() {
     return (
       <div className="flex min-h-screen flex-col bg-wds-canvas">
         <MobileStatusBar />
-        <MobileHubHeader title="Suppliers" subtitle={`${suppliers.length} suppliers on file`} userInitials="JM" />
+        <MobileHubHeader
+          title="Suppliers"
+          subtitle={`${suppliers.length} suppliers on file`}
+          userInitials="JM"
+          onMenuClick={() => setMobileNavOpen(true)}
+        />
+        <InventoryMobileNavDrawer
+          activeKey="suppliers"
+          open={mobileNavOpen}
+          onOpenChange={setMobileNavOpen}
+        />
         <div className="flex flex-1 flex-col gap-4 p-4">{body}</div>
         {canWrite ? (
           <div className="sticky bottom-0 border-t border-wds-border bg-wds-surface p-4">

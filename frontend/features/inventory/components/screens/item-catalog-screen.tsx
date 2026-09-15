@@ -7,8 +7,8 @@ import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
-import { InventoryDesktopShell } from '../inventory-shell';
-import { ItemCatalogList, ItemCatalogTable, ItemCatalogToolbar, type ItemCatalogRow, type ItemType } from '../item-catalog-table';
+import { InventoryDesktopShell, InventoryMobileNavDrawer } from '../inventory-shell';
+import { ItemCatalogList, ItemCatalogPaginationBar, ItemCatalogTable, ItemCatalogToolbar, type ItemCatalogRow, type ItemType } from '../item-catalog-table';
 import { KpiRow, KpiStrip, type KpiCellData } from '../kpi-strip';
 import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '../shell-states';
 import { CategoryManagerDrawer } from './category-manager-screen';
@@ -43,10 +43,15 @@ function formatPack(item: InventoryItem): string {
 }
 
 function formatDepartmentScope(item: InventoryItem): string {
-  if (item.retiredAt) return `Retired ${new Date(item.retiredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · history kept`;
+  if (item.retiredAt) return `Archived ${new Date(item.retiredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · history kept`;
   if (item.type === 'RAW_INGREDIENT') return 'Central Store only';
   if (item.departmentTags.length === 0) return 'Central Store only';
   return `Central Store · ${item.departmentTags.map((t) => DEPARTMENT_LABEL[t]).join(', ')}`;
+}
+
+function formatRestockLevel(item: InventoryItem): string {
+  if (item.centralStoreRestockLevel == null) return '—';
+  return `${item.centralStoreRestockLevel} ${item.usageUnit}`;
 }
 
 function toRow(item: InventoryItem): ItemCatalogRow {
@@ -57,6 +62,7 @@ function toRow(item: InventoryItem): ItemCatalogRow {
     category: item.category?.name ?? '—',
     units: formatUnits(item),
     pack: formatPack(item),
+    restockLevel: formatRestockLevel(item),
     departmentScope: formatDepartmentScope(item),
     retired: Boolean(item.retiredAt),
   };
@@ -78,6 +84,7 @@ export function ItemCatalogScreen() {
   const [drawerItemId, setDrawerItemId] = React.useState<string | null | undefined>(undefined);
   const [restockDrawerOpen, setRestockDrawerOpen] = React.useState(false);
   const [categoryDrawerOpen, setCategoryDrawerOpen] = React.useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
   const filters: ItemCatalogFilters = React.useMemo(
     () => ({
@@ -90,7 +97,7 @@ export function ItemCatalogScreen() {
     [search, type, departmentTag, categoryId, showRetired]
   );
 
-  const { items, meta, categories, status, error, reload } = useItemCatalog(filters);
+  const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
   const { locationId: centralStoreLocationId } = useCentralStoreLocation();
 
   const canRead = role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
@@ -120,7 +127,7 @@ export function ItemCatalogScreen() {
   const kpiCells: KpiCellData[] = meta
     ? [
         { key: 'items', label: 'Items tracked', value: String(meta.itemsTracked), detail: `across ${meta.typesRepresented} types` },
-        { key: 'categories', label: 'Categories', value: String(meta.categoryCount), detail: `${meta.retiredCategoryCount} retired` },
+        { key: 'categories', label: 'Categories', value: String(meta.categoryCount), detail: `${meta.retiredCategoryCount} archived` },
         {
           key: 'departments',
           label: 'Departments',
@@ -138,7 +145,24 @@ export function ItemCatalogScreen() {
     label: DEPARTMENT_LABEL[tag],
   }));
 
-  const body = (() => {
+  const toolbar = (
+    <ItemCatalogToolbar
+      itemCount={pagination?.total ?? rows.length}
+      onManageCategories={() => setCategoryDrawerOpen(true)}
+      typeFilter={type}
+      onTypeFilterChange={(v) => setType(v as InventoryItemType | null)}
+      departmentOptions={departmentOptions}
+      departmentFilter={departmentTag}
+      onDepartmentFilterChange={(v) => setDepartmentTag(v as DepartmentTag | null)}
+      categoryOptions={categoryOptions}
+      categoryFilter={categoryId}
+      onCategoryFilterChange={setCategoryId}
+      showRetired={showRetired}
+      onShowRetiredChange={setShowRetired}
+    />
+  );
+
+  const tableBody = (() => {
     if (status === 'loading' || status === 'idle') {
       return (
         <div className="flex flex-1 items-center justify-center">
@@ -168,33 +192,38 @@ export function ItemCatalogScreen() {
       );
     }
     return isDesktop ? (
-      <div className="flex flex-1 flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
-        <ItemCatalogToolbar
-          itemCount={meta?.itemsTracked ?? rows.length}
-          onManageCategories={() => setCategoryDrawerOpen(true)}
-          typeFilter={type}
-          onTypeFilterChange={(v) => setType(v as InventoryItemType | null)}
-          departmentOptions={departmentOptions}
-          departmentFilter={departmentTag}
-          onDepartmentFilterChange={(v) => setDepartmentTag(v as DepartmentTag | null)}
-          categoryOptions={categoryOptions}
-          categoryFilter={categoryId}
-          onCategoryFilterChange={setCategoryId}
-          showRetired={showRetired}
-          onShowRetiredChange={setShowRetired}
+      <div className="flex-1 overflow-x-auto overflow-y-auto">
+        <ItemCatalogTable
+          rows={rows}
+          onRowClick={canWrite ? (row) => setDrawerItemId(row.id) : undefined}
+          className="min-w-[860px]"
         />
-        <div className="flex-1 overflow-x-auto overflow-y-auto">
-          <ItemCatalogTable
-            rows={rows}
-            onRowClick={canWrite ? (row) => setDrawerItemId(row.id) : undefined}
-            className="min-w-[860px]"
-          />
-        </div>
       </div>
     ) : (
       <ItemCatalogList rows={rows} onRowClick={canWrite ? (row) => setDrawerItemId(row.id) : undefined} />
     );
   })();
+
+  // Desktop-only: the toolbar+table live inside one bordered card, with the
+  // toolbar always rendered (loading/error/empty states swap only the body
+  // beneath it) — a filter that produces zero results must still be
+  // clearable from the same toolbar that caused it.
+  const body = isDesktop ? (
+    <div className="flex flex-1 flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
+      {toolbar}
+      {tableBody}
+      {status === 'ready' && pagination ? (
+        <ItemCatalogPaginationBar
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          onPageChange={setPage}
+        />
+      ) : null}
+    </div>
+  ) : (
+    tableBody
+  );
 
   if (!isDesktop) {
     return (
@@ -204,6 +233,12 @@ export function ItemCatalogScreen() {
           title="Item catalog"
           subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`}
           userInitials="JM"
+          onMenuClick={() => setMobileNavOpen(true)}
+        />
+        <InventoryMobileNavDrawer
+          activeKey="catalog"
+          open={mobileNavOpen}
+          onOpenChange={setMobileNavOpen}
         />
         <div className="flex flex-1 flex-col gap-4 p-4">
           {meta ? (
@@ -234,7 +269,12 @@ export function ItemCatalogScreen() {
           onSaved={reload}
           variant="mobile"
         />
-        <CategoryManagerDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} variant="mobile" />
+        <CategoryManagerDrawer
+          open={categoryDrawerOpen}
+          onOpenChange={setCategoryDrawerOpen}
+          variant="mobile"
+          onCategoriesChanged={reload}
+        />
       </div>
     );
   }
@@ -263,7 +303,7 @@ export function ItemCatalogScreen() {
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Item catalog</h1>
           <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
-            Every item Wendo tracks — raw ingredients, prepped items, stocked items. Retiring keeps history; nothing
+            Every item Wendo tracks — raw ingredients, prepped items, stocked items. Archiving keeps history; nothing
             is hard-deleted.
           </p>
         </div>
@@ -286,7 +326,12 @@ export function ItemCatalogScreen() {
           actor={{ role: 'STORE_MANAGER' }}
         />
       ) : null}
-      <CategoryManagerDrawer open={categoryDrawerOpen} onOpenChange={setCategoryDrawerOpen} variant="desktop" />
+      <CategoryManagerDrawer
+        open={categoryDrawerOpen}
+        onOpenChange={setCategoryDrawerOpen}
+        variant="desktop"
+        onCategoriesChanged={reload}
+      />
     </InventoryDesktopShell>
   );
 }

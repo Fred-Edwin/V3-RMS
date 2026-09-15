@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { Sheet, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription } from '@/components/ui2/sheet';
 import { Button } from '@/components/ui2/button';
+import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { CategoryManagerList, type CategoryRow } from '../category-manager-list';
@@ -24,6 +25,8 @@ export interface CategoryManagerDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   variant: 'desktop' | 'mobile';
+  /** Fired after any add/rename/retire/restore — lets the opening screen refresh its own category list (e.g. the Item Form's dropdown). */
+  onCategoriesChanged?: () => void;
 }
 
 /**
@@ -33,11 +36,12 @@ export interface CategoryManagerDrawerProps {
  * item by reference; retiring keeps the label off new pickers without
  * touching existing items' category reference (plan §5.3).
  */
-export function CategoryManagerDrawer({ open, onOpenChange, variant }: CategoryManagerDrawerProps) {
+export function CategoryManagerDrawer({ open, onOpenChange, variant, onCategoriesChanged }: CategoryManagerDrawerProps) {
   const { categories, status, error, actionError, addCategory, renameCategory, retire, restore, reload } =
-    useCategoryManager();
+    useCategoryManager(onCategoriesChanged);
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState('');
+  const [retiringCategory, setRetiringCategory] = React.useState<CategoryRow | null>(null);
 
   const rows = categories.map(toRow);
 
@@ -87,11 +91,31 @@ export function CategoryManagerDrawer({ open, onOpenChange, variant }: CategoryM
             setRenameValue(category.name);
           }}
           onRestore={(category) => restore(category.id)}
+          onRetire={(category) => setRetiringCategory(category)}
         />
         {actionError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{actionError}</p> : null}
       </div>
     );
   })();
+
+  const retireDialog = (
+    <ConfirmDialog
+      open={retiringCategory !== null}
+      onOpenChange={(next) => !next && setRetiringCategory(null)}
+      title="Archive this category?"
+      description={
+        retiringCategory
+          ? `"${retiringCategory.name}" will stop being offered when creating or editing items. Items already using it keep the reference — you can unarchive this category later.`
+          : ''
+      }
+      confirmLabel="Archive category"
+      onConfirm={async () => {
+        if (!retiringCategory) return;
+        await retire(retiringCategory.id);
+        setRetiringCategory(null);
+      }}
+    />
+  );
 
   if (!open) return null;
 
@@ -101,12 +125,13 @@ export function CategoryManagerDrawer({ open, onOpenChange, variant }: CategoryM
         <MobileStatusBar />
         <MobileTaskHeader
           title="Categories"
-          subtitle="Renaming updates every item. Retiring hides the label."
+          subtitle="Renaming updates every item. Archiving hides the label."
           trailingAction="Done"
           onBack={() => onOpenChange(false)}
           onTrailingAction={() => onOpenChange(false)}
         />
         <div className="flex-1 overflow-y-auto p-4">{body}</div>
+        {retireDialog}
       </div>
     );
   }
@@ -117,7 +142,7 @@ export function CategoryManagerDrawer({ open, onOpenChange, variant }: CategoryM
         <SheetHeader>
           <SheetTitle>Categories</SheetTitle>
           <SheetDescription>
-            Your own labels for organising the catalog. Renaming updates every item; retiring hides the label but
+            Your own labels for organising the catalog. Renaming updates every item; archiving hides the label but
             keeps history.
           </SheetDescription>
         </SheetHeader>
@@ -126,6 +151,7 @@ export function CategoryManagerDrawer({ open, onOpenChange, variant }: CategoryM
           <Button onClick={() => onOpenChange(false)}>Done</Button>
         </SheetFooter>
       </SheetContent>
+      {retireDialog}
     </Sheet>
   );
 }

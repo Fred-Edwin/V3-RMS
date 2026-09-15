@@ -75,6 +75,8 @@ export interface InventoryItem {
   category: { id: string; name: string } | null;
   preferredSupplier: { id: string; name: string } | null;
   currentCost: string;
+  /** Null when no restock level has been set for this item at the Central Store. */
+  centralStoreRestockLevel: string | null;
   retiredAt: string | null;
   createdAt: string;
   updatedAt: string;

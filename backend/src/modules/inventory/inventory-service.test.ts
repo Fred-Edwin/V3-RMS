@@ -41,6 +41,7 @@ vi.mock('./inventory-repository', () => ({
   },
   restockLevelRepository: {
     findAllByLocation: vi.fn(),
+    findByItemIdsForLocation: vi.fn(),
     findLiveItemsForRestock: vi.fn(),
     bulkUpsert: vi.fn(),
     sumOnHandByItemForLocation: vi.fn(),
@@ -138,6 +139,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+  vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
 });
 
 describe('inventoryService — D-15 hub scoping', () => {

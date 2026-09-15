@@ -34,6 +34,7 @@ vi.mock('./inventory-repository', () => ({
   },
   restockLevelRepository: {
     findLiveItemsForRestock: vi.fn(),
+    findByItemIdsForLocation: vi.fn(),
     findAllByLocation: vi.fn(),
     sumOnHandByItemForLocation: vi.fn(),
   },
@@ -67,6 +68,7 @@ beforeEach(() => {
     organizationId: hubOrgId,
     type: 'CENTRAL_STORE',
   } as never);
+  vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
 });
 
 describe('Inventory contract drift guard', () => {

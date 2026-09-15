@@ -22,6 +22,24 @@ import {
   type ItemCatalogRow,
 } from '@/features/inventory/components/item-catalog-table';
 import { ItemFormFields, type ItemFormValues } from '@/features/inventory/components/item-form';
+
+const DEMO_CATEGORY_OPTIONS = [
+  { value: 'dry-goods', label: 'Dry goods' },
+  { value: 'dairy', label: 'Dairy' },
+  { value: 'beverages', label: 'Beverages' },
+  { value: 'prepped-bases', label: 'Prepped bases' },
+];
+const DEMO_SUPPLIER_OPTIONS = [
+  { value: 'samrat', label: 'Samrat Ltd' },
+  { value: 'nyeri-dairy', label: 'Nyeri Dairy Co-op' },
+];
+const DEMO_DEPARTMENT_OPTIONS = [
+  { value: 'KITCHEN', label: 'Kitchen' },
+  { value: 'PASTRY', label: 'Pastry' },
+  { value: 'BARISTA', label: 'Barista' },
+  { value: 'SERVICE', label: 'Service' },
+  { value: 'HOUSEKEEPING', label: 'Housekeeping' },
+];
 import { CategoryManagerList, type CategoryRow } from '@/features/inventory/components/category-manager-list';
 import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
 import {
@@ -31,12 +49,12 @@ import {
 } from '@/features/inventory/components/restock-level-grid';
 
 const demoCatalogRows: ItemCatalogRow[] = [
-  { id: 'rice', name: 'Rice', type: 'raw', category: 'Dry goods', units: 'bag → kg · ÷25', pack: '25 kg', departmentScope: 'Central Store only' },
-  { id: 'coffee', name: 'Coffee beans', type: 'stocked', category: 'Beverages', units: 'kg · no conversion', pack: '1 kg', departmentScope: 'Central Store · Barista' },
-  { id: 'chicken', name: 'Chicken stock', type: 'prepped', category: 'Prepped bases', units: 'litres · no conversion', pack: '—', departmentScope: 'Central Store · Kitchen' },
-  { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', departmentScope: 'Central Store · Kitchen, Barista' },
-  { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', departmentScope: 'Central Store · Kitchen' },
-  { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', departmentScope: 'Retired 04 Aug · history kept', retired: true },
+  { id: 'rice', name: 'Rice', type: 'raw', category: 'Dry goods', units: 'bag → kg · ÷25', pack: '25 kg', restockLevel: '—', departmentScope: 'Central Store only' },
+  { id: 'coffee', name: 'Coffee beans', type: 'stocked', category: 'Beverages', units: 'kg · no conversion', pack: '1 kg', restockLevel: '—', departmentScope: 'Central Store · Barista' },
+  { id: 'chicken', name: 'Chicken stock', type: 'prepped', category: 'Prepped bases', units: 'litres · no conversion', pack: '—', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
+  { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen, Barista' },
+  { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
+  { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', restockLevel: '—', departmentScope: 'Retired 04 Aug · history kept', retired: true },
 ];
 
 const demoCategories: CategoryRow[] = [
@@ -73,13 +91,13 @@ export default function WdsDiffPage() {
   const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
     name: 'Basmati rice',
     type: 'raw',
-    category: 'Dry goods',
-    preferredSupplier: undefined,
+    category: 'dry-goods',
+    preferredSupplierId: undefined,
     buyUnit: 'bag',
     usageUnit: 'kg',
     conversion: '1 bag = 25 kg',
     packSize: '25 kg',
-    whereItMayExist: 'Central Store only',
+    departmentTags: [],
     restockLevel: '',
   });
 
@@ -202,8 +220,9 @@ export default function WdsDiffPage() {
             variant="desktop"
             values={itemFormValues}
             onChange={setItemFormValues}
-            categoryOptions={['Dry goods', 'Dairy', 'Beverages', 'Prepped bases']}
-            supplierOptions={['Samrat Ltd', 'Nyeri Dairy Co-op']}
+            categoryOptions={DEMO_CATEGORY_OPTIONS}
+            supplierOptions={DEMO_SUPPLIER_OPTIONS}
+            departmentOptions={DEMO_DEPARTMENT_OPTIONS}
           />
         </div>
       );
@@ -215,8 +234,9 @@ export default function WdsDiffPage() {
             variant="mobile"
             values={itemFormValues}
             onChange={setItemFormValues}
-            categoryOptions={['Dry goods', 'Dairy', 'Beverages', 'Prepped bases']}
-            supplierOptions={['Samrat Ltd', 'Nyeri Dairy Co-op']}
+            categoryOptions={DEMO_CATEGORY_OPTIONS}
+            supplierOptions={DEMO_SUPPLIER_OPTIONS}
+            departmentOptions={DEMO_DEPARTMENT_OPTIONS}
           />
         </div>
       );

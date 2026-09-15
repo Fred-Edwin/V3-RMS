@@ -26,7 +26,6 @@ export interface RestockLevelGridProps {
   variant: 'desktop' | 'mobile';
   rows: RestockLevelRow[];
   onRestockLevelChange: (id: string, value: string) => void;
-  onAddItem?: () => void;
   className?: string;
 }
 
@@ -39,7 +38,6 @@ export function RestockLevelGrid({
   variant,
   rows,
   onRestockLevelChange,
-  onAddItem,
   className,
 }: RestockLevelGridProps) {
   const isMobile = variant === 'mobile';
@@ -130,13 +128,6 @@ export function RestockLevelGrid({
           </div>
         );
       })}
-      <button
-        type="button"
-        onClick={onAddItem}
-        className="flex h-8 shrink-0 items-center rounded-wds-sm border border-dashed border-wds-border-strong px-wds-2.5 font-wds-sans text-wds-body-sm text-wds-text-copy-faint"
-      >
-        + Add an item
-      </button>
     </div>
   );
 }

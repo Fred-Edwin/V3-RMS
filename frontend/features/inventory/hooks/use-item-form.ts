@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { ApiError } from '@/types/api';
-import { createItem, getItem, listCategories, listSuppliers, updateItem } from '../services';
+import { formatApiErrorMessage } from '@/types/api';
+import { createItem, getItem, listCategories, listSuppliers, retireItem, updateItem } from '../services';
 import type { Category, CreateItemInput, InventoryItem, Supplier, UpdateItemInput } from '../types';
 
 /**
@@ -27,7 +27,7 @@ export function useItemFormOptions() {
       setSuppliers(supplierList.data);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load categories or suppliers.');
+      setError(formatApiErrorMessage(err, 'Could not load categories or suppliers.'));
       setStatus('error');
     }
   }, []);
@@ -57,7 +57,7 @@ export function useItem(itemId: string | null) {
       setItem(found);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load this item.');
+      setError(formatApiErrorMessage(err, 'Could not load this item.'));
       setStatus('error');
     }
   }, [itemId]);
@@ -88,7 +88,7 @@ export function useSaveItem() {
           : await createItem(input as CreateItemInput);
         return { warnings: response.warnings };
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Could not save this item.');
+        setError(formatApiErrorMessage(err, 'Could not save this item.'));
         return null;
       } finally {
         setSaving(false);
@@ -98,4 +98,26 @@ export function useSaveItem() {
   );
 
   return { save, saving, error };
+}
+
+/** Retire (soft-delete) an existing item — no orphan-block case on the contract (unlike suppliers), items are never referenced by other live records this milestone. */
+export function useRetireItem() {
+  const [retiring, setRetiring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const retire = useCallback(async (id: string): Promise<boolean> => {
+    setRetiring(true);
+    setError(null);
+    try {
+      await retireItem(id);
+      return true;
+    } catch (err) {
+      setError(formatApiErrorMessage(err, 'Could not archive this item.'));
+      return false;
+    } finally {
+      setRetiring(false);
+    }
+  }, []);
+
+  return { retire, retiring, error };
 }

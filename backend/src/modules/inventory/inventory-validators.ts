@@ -31,6 +31,22 @@
  */
 import { z } from 'zod';
 
+/**
+ * Bug fix, not a contract change (2026-09-15, UI refinement/bug-fix session):
+ * `z.coerce.boolean()` coerces via JS truthiness of the raw value, so the
+ * query string `includeRetired=false` — a non-empty string — coerced to
+ * `true`. This silently broke every "Show retired" toggle (items,
+ * categories, suppliers) across the whole milestone: retired records were
+ * always included regardless of the flag. The documented behavior
+ * (`includeRetired=false` excludes retired records — API_CONTRACT.md §21)
+ * never changed; only this parsing bug is fixed, so this does not go
+ * through the contract amendment process the top of this file requires for
+ * a shape change.
+ */
+const booleanQueryParamSchema = z
+  .union([z.boolean(), z.string()])
+  .transform((v) => (typeof v === 'string' ? v === 'true' : v));
+
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
@@ -114,7 +130,7 @@ export const CategorySchema = z.object({
 });
 
 export const ListCategoriesQuerySchema = z.object({
-  includeRetired: z.coerce.boolean().default(false),
+  includeRetired: booleanQueryParamSchema.default(false),
 });
 
 export const CreateCategorySchema = z.object({
@@ -152,6 +168,18 @@ export const InventoryItemSchema = z.object({
   category: z.object({ id: uuidSchema, name: z.string() }).nullable(),
   preferredSupplier: z.object({ id: uuidSchema, name: z.string() }).nullable(),
   currentCost: nonNegativeDecimalSchema,
+  /**
+   * AMENDMENT 2026-09-15 (post-freeze, playbook Step 6 process): the read
+   * path (list + single item) carried no restock-level data at all, so the
+   * Item Form couldn't show an existing item's current Central Store restock
+   * level when re-opened for editing, and the catalog table had no way to
+   * add a restock-level column. Owner-approved: join the Central Store's
+   * `RestockLevel` row (if any) into both read endpoints rather than a
+   * second client-side request, to avoid an extra round-trip and the two
+   * lists drifting out of sync. Null when no restock level has been set for
+   * this item at the Central Store.
+   */
+  centralStoreRestockLevel: nonNegativeDecimalSchema.nullable(),
   retiredAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -172,7 +200,7 @@ export const ListItemsQuerySchema = PaginationQuerySchema.extend({
   type: inventoryItemTypeSchema.optional(),
   categoryId: uuidSchema.optional(),
   departmentTag: departmentTagSchema.optional(),
-  includeRetired: z.coerce.boolean().default(false),
+  includeRetired: booleanQueryParamSchema.default(false),
 });
 
 /**
@@ -283,7 +311,7 @@ export const SupplierSchema = z.object({
 
 export const ListSuppliersQuerySchema = PaginationQuerySchema.extend({
   search: z.string().trim().max(200).optional(),
-  includeRetired: z.coerce.boolean().default(false),
+  includeRetired: booleanQueryParamSchema.default(false),
 });
 
 export const CreateSupplierSchema = z.object({

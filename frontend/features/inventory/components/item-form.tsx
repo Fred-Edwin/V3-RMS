@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Input } from '@/components/ui2/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui2/select';
+import { Combobox, type ComboboxOption } from '@/components/ui2/combobox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui2/toggle-group';
 
 /**
@@ -28,22 +28,33 @@ export type ItemFormType = 'raw' | 'prepped' | 'stocked';
 export interface ItemFormValues {
   name: string;
   type: ItemFormType;
+  /** Category id, or a not-yet-created name typed via the combobox's "+ Create" row. */
   category: string;
-  preferredSupplier?: string;
+  categoryIsNew?: boolean;
+  preferredSupplierId?: string;
   buyUnit: string;
   usageUnit: string;
   conversion: string;
   packSize: string;
-  whereItMayExist: string;
+  /** Department tag values (e.g. `KITCHEN`) this item may be stocked in. Empty = Central Store only. */
+  departmentTags: string[];
   restockLevel?: string;
+}
+
+export interface DepartmentOption {
+  value: string;
+  label: string;
 }
 
 export interface ItemFormFieldsProps {
   variant: ItemFormVariant;
   values: ItemFormValues;
   onChange: (values: ItemFormValues) => void;
-  categoryOptions: string[];
-  supplierOptions: string[];
+  categoryOptions: ComboboxOption[];
+  supplierOptions: ComboboxOption[];
+  departmentOptions: DepartmentOption[];
+  /** Whether typing an unmatched category name offers a "+ Create" row — false while the category list is still loading. */
+  allowCreateCategory?: boolean;
   className?: string;
 }
 
@@ -61,6 +72,8 @@ export function ItemFormFields({
   onChange,
   categoryOptions,
   supplierOptions,
+  departmentOptions,
+  allowCreateCategory = true,
   className,
 }: ItemFormFieldsProps) {
   const isMobile = variant === 'mobile';
@@ -104,35 +117,34 @@ export function ItemFormFields({
 
       <div className="flex flex-col gap-wds-1.5">
         <FieldLabel variant={variant}>Category</FieldLabel>
-        <Select value={values.category} onValueChange={(v) => set('category', v)}>
-          <SelectTrigger className={fieldInputClass}>
-            <SelectValue placeholder="Select a category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categoryOptions.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          className={fieldInputClass}
+          value={
+            values.categoryIsNew
+              ? values.category
+              : (categoryOptions.find((o) => o.value === values.category)?.label ?? '')
+          }
+          onValueChange={(v) => onChange({ ...values, category: v, categoryIsNew: false })}
+          options={categoryOptions}
+          placeholder="Select a category"
+          onCreate={
+            allowCreateCategory
+              ? (name) => onChange({ ...values, category: name, categoryIsNew: true })
+              : undefined
+          }
+        />
         <FieldHelper>Pick from your list, or type a new name to add it. One category per item.</FieldHelper>
       </div>
 
       <div className="flex flex-col gap-wds-1.5">
         <FieldLabel variant={variant}>Preferred supplier &mdash; optional</FieldLabel>
-        <Select value={values.preferredSupplier} onValueChange={(v) => set('preferredSupplier', v)}>
-          <SelectTrigger className={fieldInputClass}>
-            <SelectValue placeholder="Select a supplier" />
-          </SelectTrigger>
-          <SelectContent>
-            {supplierOptions.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          className={fieldInputClass}
+          value={supplierOptions.find((o) => o.value === values.preferredSupplierId)?.label ?? ''}
+          onValueChange={(v) => set('preferredSupplierId', v)}
+          options={supplierOptions}
+          placeholder="Select a supplier"
+        />
         <FieldHelper>A default reference only &mdash; you can still receive this item from any supplier later.</FieldHelper>
       </div>
 
@@ -179,7 +191,7 @@ export function ItemFormFields({
       </div>
 
       <div className="flex flex-col gap-wds-1.5">
-        <FieldLabel variant={variant}>Where it may exist</FieldLabel>
+        <FieldLabel variant={variant}>Department scope</FieldLabel>
         {values.type === 'raw' ? (
           <div
             className={cn(
@@ -187,19 +199,42 @@ export function ItemFormFields({
               fieldInputClass
             )}
           >
-            {values.whereItMayExist}
+            Central Store only
           </div>
         ) : (
-          <Input
-            className={fieldInputClass}
-            value={values.whereItMayExist}
-            onChange={(e) => set('whereItMayExist', e.target.value)}
-          />
+          <div className="flex flex-wrap gap-wds-1.5">
+            {departmentOptions.map((dept) => {
+              const checked = values.departmentTags.includes(dept.value);
+              return (
+                <button
+                  key={dept.value}
+                  type="button"
+                  aria-pressed={checked}
+                  onClick={() =>
+                    set(
+                      'departmentTags',
+                      checked
+                        ? values.departmentTags.filter((t) => t !== dept.value)
+                        : [...values.departmentTags, dept.value]
+                    )
+                  }
+                  className={cn(
+                    'rounded-wds-sm border px-wds-2.5 py-1 font-wds-sans text-wds-caption transition-colors',
+                    checked
+                      ? 'border-wds-primary bg-wds-espresso-50 text-wds-primary'
+                      : 'border-wds-border-strong text-wds-text-ink'
+                  )}
+                >
+                  {dept.label}
+                </button>
+              );
+            })}
+          </div>
         )}
         <FieldHelper>
           {values.type === 'raw'
             ? "Raw ingredients can't be scoped to a department — they're only issued via requisition as prepped or stocked items."
-            : 'Choose which departments can stock this item.'}
+            : 'Select every department that may stock this item. None selected = Central Store only.'}
         </FieldHelper>
       </div>
 

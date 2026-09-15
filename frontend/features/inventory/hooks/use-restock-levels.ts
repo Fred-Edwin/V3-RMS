@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { ApiError } from '@/types/api';
+import { formatApiErrorMessage } from '@/types/api';
 import { listRestockLevels, saveRestockLevels } from '../services';
 import type { RestockLevelRow } from '../types';
 
@@ -29,7 +29,7 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
       setEdits({});
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load restock levels.');
+      setError(formatApiErrorMessage(err, 'Could not load restock levels.'));
       setStatus('error');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,7 +64,7 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
       setEdits({});
       return true;
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Could not save restock levels.');
+      setSaveError(formatApiErrorMessage(err, 'Could not save restock levels.'));
       return false;
     } finally {
       setSaving(false);

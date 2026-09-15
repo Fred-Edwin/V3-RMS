@@ -253,6 +253,73 @@ For every composite:
 
 ## Known issues
 
+- **"Show archived" toggle — owner-reported as broken, did not reproduce,
+  status still open pending owner's exact repro steps.** Owner reported
+  clicking "Show archived" (then "Show retired") does nothing, on two
+  separate occasions (once before the 2026-09-15 `includeRetired` backend
+  bug was fixed, once after). Re-tested live both times post-fix: toggling
+  it correctly flips the toolbar to its active state and the Items badge/
+  pagination footer count changes (33 → 36 in the most recent check,
+  matching the real archived-row count in Postgres at the time). Leading
+  theory, not yet confirmed: a stale browser tab that predates a dev-server
+  restart, or a stale `.next`/`tsx watch` cache — both failure modes were
+  independently reproduced and fixed elsewhere in this same day's sessions
+  (see the Status log's "Housekeeping note" and the restock-level join
+  entry's "Caught and fixed during verification" note), so it is plausible
+  but not proven that this is the same class of issue rather than a real
+  remaining bug. **Do not close this without the owner's exact reproduction
+  steps** — ask for the precise click sequence and whether it was in a
+  freshly loaded tab before investigating further.
+- **Item Catalog column resize — real, scoped feature request, explicitly
+  deferred by the owner (2026-09-15), not started.** Table columns
+  (`item-catalog-table.tsx`) use fixed Tailwind widths with no resize
+  handles; the Units column in particular was already flagged as hard to
+  read with real (long) seed data. Owner was asked to choose between a full
+  resizable-columns implementation and a narrower Units-column-only
+  legibility fix, and chose neither for now ("not now") — this is a
+  deliberate hold, not an oversight. Pick this up as its own scoped session
+  when the owner revisits it; don't build either option unprompted.
+- **No persistent shell across `/app/inventory/*` routes — full remount +
+  generic spinner on every navigation, no sidebar collapse. Owner-flagged
+  2026-09-15, deliberately deferred to a dedicated session, not fixed yet.**
+  Root cause confirmed: `app/app/layout.tsx`'s `AppLayout` explicitly bails
+  out for inventory routes (`isNewInventoryRoute` → `return <>{children}</>`)
+  so there is no shared layout at all — each screen
+  (`item-catalog-screen.tsx`, `suppliers-screen.tsx`,
+  `restock-levels-screen.tsx`) independently renders its own
+  `InventoryDesktopShell` (sidebar + topbar) from scratch. Clicking a
+  sidebar link therefore unmounts the entire tree, sidebar included, and
+  remounts everything from zero while data re-fetches — the "spinner takes
+  over the whole page and the sidebar disappears" symptom the owner
+  reported is Next.js's own generic route-transition fallback, not custom
+  app code (there is no literal "Loading…" string anywhere in this
+  codebase). Separately, the new inventory sidebar has no collapse
+  mechanism at all (the legacy `components/ui` shell has one via
+  `sidebarCollapsed`, but inventory routes bypass that shell entirely).
+  **Planned fix, not yet started:** extract the sidebar/topbar out of each
+  screen into a real `app/app/inventory/layout.tsx` shared layout so it
+  mounts once and persists across catalog/suppliers/restock-levels
+  navigation; add per-route `loading.tsx` skeletons (a `LoadingState`-style
+  skeleton already exists at `shell-states.tsx` for content-region loading,
+  just needs to be reused as an immediate route-level fallback instead of
+  Next's generic spinner); add sidebar collapse in the same pass since it
+  touches the same component. Scoped as one contained refactor (extract +
+  wire), not a rewrite — owner chose to hold it for a dedicated session
+  rather than do it inline with the archive-terminology/bug-fix session
+  this was found during.
+- **Restock Levels drawer looked short vs. the Item Catalog table — checked,
+  not a bug.** Owner raised this the same session as the shell issue above,
+  worried the restock grid was silently dropping items. Verified directly:
+  `restockLevelRepository.findLiveItemsForRestock` has no `type` filter and
+  no pagination — it returns every live (non-`deletedAt`) item for the org,
+  full stop. Confirmed against Postgres directly (33 live items) and against
+  the drawer's own rendered row count in the same live session (33 rows,
+  matching exactly). `useRestockLevels` also does no client-side
+  filtering/truncation — `rows` is the full response, `displayRows` only
+  overlays unsaved edits on top of it, nothing drops rows. If a future
+  report says the counts genuinely mismatch, get the exact numbers on both
+  screens before assuming this is the same non-issue — this verification
+  was against a specific 33-item snapshot, not a standing guarantee.
 - **`tokens.wds.css` OKLCH-vs-comment drift (Phase 0 origin) — RESOLVED,
   dedicated sweep done in the 2026-09-15 Verification Pass, item 3** (see
   Status log's "Verification pass (2026-09-15) — item 3" entry for full
@@ -1516,6 +1583,462 @@ build, not worked around silently again.
   called for since Phase 0 — the drift was real and systemic (31 of 46
   tokens), not the few isolated cases prior sessions individually caught
   and fixed. Known Issues section below updated to reflect this is done.
+
+- **UI refinement session (2026-09-15) — owner-reported issues, verified
+  against Paper before fixing, not assumed.** Owner browsed the Item Catalog
+  screen on localhost against Paper's `SFQ-0`/`18O-0` and flagged several
+  things that looked wrong. Each was checked against the real Paper nodes
+  before touching code — two of the owner's suspicions turned out to be
+  already-correct-per-Paper, not bugs (see below).
+
+  1. **Topbar was built against the wrong reference node — real bug, fixed.**
+     `components/app/shell/topbar.tsx` used `rounded-wds-md border` (full
+     border + radius), sourced from specimen node `1GS-0` on the isolated
+     Shells & Primitives page. But no real assembled screen uses that
+     treatment — `get_computed_styles` on `SFQ-0`'s topbar and Supplier
+     form's `T2E-0` both show **border-bottom only, no radius, full-bleed**
+     flush against the sidebar/content. This is exactly why the owner saw it
+     as "looks like the KPI strip" — it was floating as a card when it should
+     sit flush. Fixed: `border-b border-wds-border`, radius removed.
+  2. **Sidebar nav items had zero interactive states — real gap, fixed.**
+     `DesktopNavItem`/`SidebarRail` items were bare links with no hover/
+     focus-visible/active classes. Per this doc's own "Convention-derived
+     states" rule (Paper never draws micro-interactions, so they're derived,
+     not skipped), added a shared `navItemInteractiveClass`: hover/
+     focus-visible background tint using the existing
+     `--wds-sidebar-active-bg` token (already used for the mobile rail's
+     active state, so no new token needed), `shadow-wds-ring` on
+     focus-visible per the established focus convention.
+  3. **Sidebar logo fell back to a flat circle — real wiring gap, fixed.** A
+     real asset (`public/images/wendo-logo.jpg`, already used on the login
+     page) existed but `logoSrc` was never passed at any call site. Wired
+     into `InventoryDesktopShell`/`InventoryMobileRail`/the new mobile nav
+     drawer via a shared `WENDO_LOGO_SRC` constant in `inventory-shell.tsx`.
+  4. **Mobile hamburger was inert — real bug, fixed.** `MobileHubHeader`
+     already supported `onMenuClick`, but `item-catalog-screen.tsx` and
+     `suppliers-screen.tsx` never passed a handler, and no mobile drawer nav
+     existed to open. Added `InventoryMobileNavDrawer` (new, in
+     `inventory-shell.tsx`) — reuses `SidebarNav`'s existing groups/props as
+     a full-width slide-in overlay with a scrim (`bg-wds-scrim`, the same
+     token the Sheet primitive uses). No Paper node for this exact pattern
+     (Paper's mobile artboards only ever draw the persistent icon rail, not
+     an overlay drawer) — it's assembled from already-approved pieces, not a
+     new visual design. Verified interactively: opens on tap, shows real nav
+     + logo + avatar + sign-out, closes on scrim tap or navigation.
+  5. **"Restock levels" button in the catalog topbar — checked against
+     Paper, not removed.** `SFQ-0`'s real topbar only draws "New item"; the
+     built screen also has a secondary "Restock levels" button. Kept as an
+     intentional deviation — Restock Levels (Milestone One screen 5) has no
+     other nav entry point from the sidebar, so removing it would strand the
+     screen. Documenting here per this doc's own discipline rather than
+     leaving it silently undiverged from Paper.
+  6. **Avatar shape and squared vs. Paper — checked, was already correct;
+     then changed anyway per an explicit owner design decision.** Paper's
+     own sidebar-footer node (`SP6-0`) is genuinely `border-radius: 2px`
+     (squared), confirmed via `get_computed_styles` — the built avatar
+     already matched Paper exactly. The owner asked for a circular
+     treatment regardless, as a deliberate deviation from the approved
+     file (scoped to the sidebar footer avatar, desktop + mobile rail, and
+     reserved as the pattern for any future Topbar avatar). Changed
+     `components/ui2/avatar.tsx`'s `rounded-wds-sm` → `rounded-full` on both
+     `Avatar` and `AvatarFallback`. **Paper's file still shows the squared
+     version — flag for the owner to update the design file, or this will
+     read as drift on the next Paper-comparison pass.**
+  7. **Sign-out control — new UI, Paper never designed one.** Confirmed via
+     `get_screenshot` on `18S-0` that Paper's footer specimen has no sign-out
+     affordance at all (just name + role). A working logout path already
+     existed in code (`lib/logout.ts` → `authStore.logout()` +
+     `disconnectSocket()`, backed by a real backend route) but was never
+     wired to any control. Per owner's pattern choice, added a small icon
+     button (new `SignOutIcon` in `nav-icons.tsx`, lucide `log-out` glyph —
+     same "real glyph, no Paper source" deviation category as
+     `SearchInput`'s Search icon) to the right of the name/role text in the
+     existing 52px footer row (desktop) and below the icon list (mobile
+     rail). Verified end-to-end in-browser: click → redirects to
+     `/login?next=<original path>` → logging back in returns correctly.
+
+  **Flagged, not changed this session (design questions for owner/Paper,
+  not implementation bugs):**
+  - **Mobile fake status bar** (9:41 clock + fake signal/wifi/battery,
+    `mobile-status-bar.tsx`) — owner correctly noted this duplicates a real
+    phone's own OS status bar. This is Paper's own deliberate, documented
+    convention (a dedicated `get_guide("mobile-status-bar")` MCP guide
+    exists specifically for it), not an implementation slip — left as-is
+    pending an owner/Paper decision, not silently removed.
+  - **Units column density** (`item-catalog-table.tsx`) — owner found real
+    seed data (`ctn (12x2kg) → kg · ÷24`) harder to parse than the shorter
+    demo strings used while building. Column widths match Paper's `SFT-0`
+    exactly (verified via `get_computed_styles` on `SH9-0`, Name column
+    renders 341px built vs. Paper's ~342px) — not a build defect, but a
+    content-format/legibility question for a future design pass, since the
+    string format itself is backend-shaped, not purely visual.
+
+  All 6 fixes verified: `npx tsc --noEmit` clean, `pnpm build` clean
+  (including the project's `check-wds-tokens.ts` guard — no unregistered
+  token classes introduced), interactive verification in a real browser at
+  both 1440px and 390px (hover state, sign-out round-trip, mobile drawer
+  open/close/navigate all exercised, not just visually inspected).
+
+- **Functional bug-fix session (2026-09-15, continuation of the same day's UI
+  refinement session) — owner used the app with real seeded data (31+ items,
+  2 retired) and found a batch of functional/data-flow bugs a pixel-diff
+  pass can't surface. Each verified against actual code/API behavior before
+  fixing, not assumed from the symptom alone.**
+
+  1. **Root cause of "Show retired" doing nothing — a real backend bug, not
+     frontend.** `inventory-validators.ts`'s `includeRetired: z.coerce.boolean()`
+     coerced via JS truthiness: the query string `includeRetired=false` (a
+     non-empty string) coerced to `true`. This silently broke every
+     "Show retired" toggle — items, categories, **and suppliers** — across
+     the whole milestone; retired records were always included regardless
+     of the flag. Fixed with a proper string-to-boolean transform
+     (`booleanQueryParamSchema`) at all three call sites. Documented inline
+     as a bug fix, not a contract-shape change, since `inventory-validators.ts`
+     is the frozen contract file — the wire shape and documented behavior
+     (API_CONTRACT.md §21) didn't change, only a parsing defect. Verified
+     directly against the backend via curl before and after (31 vs 33 items
+     for `includeRetired=false`/`true`), plus the existing 28-test inventory
+     suite (697 tests project-wide) still green.
+  2. **Toolbar disappeared on empty/error results — real bug, fixed.**
+     `item-catalog-screen.tsx`'s toolbar (with all filter chips) lived only
+     inside the "has rows" branch of the `body` render function, so a
+     filter producing zero rows (or a fetch error) replaced the whole
+     toolbar along with the table — no way to clear the filter that caused
+     it. Restructured: toolbar renders unconditionally, `tableBody` (a new,
+     separate computed value) handles loading/error/empty/populated inside
+     the same bordered card.
+  3. **No pagination — table silently capped at 20 rows.** Backend's
+     `/inventory/items` defaults `perPage: 20`; the frontend never passed
+     `page`/`perPage` and had no page controls, so 11+ of 31 items were
+     simply never fetched — this, not a CSS scroll bug, was the "can't
+     scroll past the first page" symptom. Added `page` state to
+     `useItemCatalog` (resets to 1 on any other filter change) and a new
+     `ItemCatalogPaginationBar` component (Previous/Next + "Page X of Y ·
+     N items") — new, not sourced from Paper, since Paper's mock data never
+     exceeded one page.
+  4. **Toolbar "Items {count}" badge used the wrong count.** Was
+     `meta.itemsTracked`, which the backend's `getCatalogMeta` deliberately
+     always computes live-only (by design, for the KPI strip) — so the
+     toolbar badge never reflected an active filter or the retired toggle.
+     Changed to `pagination.total`, which does reflect the current query's
+     actual filtered count.
+  5. **Topbar/sidebar hairline misaligned — 28px offset, root-caused.**
+     `InventoryDesktopShell`'s content column wrapped **both** the Topbar
+     and the page content in one `px-8 py-7` div, pushing the Topbar down
+     28px instead of sitting flush against the sidebar's own header
+     boundary. Paper's real structure (`SYE-0`/`SYF-0`) keeps the Topbar at
+     zero padding and applies `28px/32px` padding only to the content area
+     below it — restructured to match. (This was actually already fixed as
+     part of item 1 in the same day's earlier UI-refinement entry above,
+     which corrected the Topbar's own border styling; this entry fixes the
+     *parent* padding that was still causing the vertical misalignment.)
+  6. **Category added via "Manage categories" never appeared in the Item
+     Form until a manual page refresh.** `CategoryManagerDrawer` managed its
+     own category state via `useCategoryManager()`, entirely disconnected
+     from `ItemCatalogScreen`'s own category list (the one the Item Form's
+     dropdown actually reads). Added an optional `onChange` callback to
+     `useCategoryManager`, threaded through `CategoryManagerDrawer` as
+     `onCategoriesChanged`, wired to the screen's own `reload` at both call
+     sites (desktop + mobile).
+  7. **Save errors showed only "Validation failed" — the useful part was
+     already in the response, just discarded.** The backend's 400 responses
+     already carry field-specific messages in `error.details[]` (e.g.
+     `"Buy unit is required"`), but every hook's catch block only used
+     `err.message` (the generic top-level string). Added
+     `formatApiErrorMessage()` to `types/api.ts` — pulls the field messages
+     out of `details[]` when present, falls back to `err.message`
+     otherwise — and applied it across all 7 inventory hooks (16 call
+     sites) that previously used the bare `err instanceof ApiError ?
+     err.message : ...` pattern, not just the one the owner hit.
+  8. **Restock Levels drawer had no search and was too narrow for real
+     data.** Widened from Paper's own confirmed 440px spec to 560px
+     (owner-requested, documented as a deliberate deviation — Paper's short
+     demo names never exercised this at scale) and added a client-side
+     search filter (all restock-eligible rows are already loaded at once,
+     no server pagination on this endpoint, so filtering client-side avoids
+     a wasted per-keystroke fetch). Search box sits outside the
+     loading/error/empty conditional, same "toolbar must survive an empty
+     result" fix as item 2.
+  9. **"Where it may exist" was mislabeled and was actually free text, not
+     a picker.** Renamed to "Department scope." Was a plain `<Input>` bound
+     to a display string, regex-parsed back into `DepartmentTag[]` on save
+     (`parseDepartmentTags`) — fragile, and let a user type anything.
+     Replaced with a real multi-select: toggle-able chips for each
+     `DepartmentTag`, built inline in `item-form.tsx` (not the existing
+     `ToggleGroup`, which is single-select-only). `ItemFormValues.
+     whereItMayExist: string` → `departmentTags: string[]`, propagated
+     through `item-form-screen.tsx`'s load/save logic.
+  10. **No inline "add category"/"add supplier" from within the Item
+      Form — had to fully exit and use "Manage categories" separately.**
+      Built a new `Combobox` primitive (`components/ui2/combobox.tsx`) —
+      type-to-filter, with a "+ Create '{query}'" row when the typed text
+      matches nothing. Not built on Radix Select (its trigger isn't a text
+      input, so typing-to-create isn't expressible on top of it) — a plain
+      controlled `<input>` + floating listbox instead, matching Select's
+      visual language (h-8, radius-sm, border-strong, focus ring) and the
+      same `Escape`/arrow-key/`Enter` conventions already established.
+      Category field wired to create-on-save (`categoryIsNew` flag →
+      `categoryName` on the mutation); Supplier field is picker-only (no
+      creation — a supplier needs more required fields than a bare name,
+      so its own drawer stays the creation path, per the owner's approved
+      pattern).
+  11. **No delete/retire UI anywhere — for items, categories, or
+      suppliers.** The backend already fully implemented this (soft-delete
+      via `retiredAt`, plus the supplier-specific 409-with-blocking-items
+      orphan protection already documented in `05-plan.md`), but no screen
+      called any of it. Built a new `ConfirmDialog` primitive
+      (`components/ui2/confirm-dialog.tsx`, centered modal on
+      `@radix-ui/react-dialog`, same primitive Sheet already uses) per the
+      owner-approved pattern: a plain confirm for the normal case,
+      escalating to a typed-name confirmation only when blocked. Wired
+      three places:
+      - **Item** (`item-form-screen.tsx`) — "Retire this item" link, plain
+        confirm (items are never blocked this milestone — nothing else
+        references them by FK).
+      - **Category** (`category-manager-list.tsx` + `category-manager-
+        screen.tsx`) — new "Retire" action next to Rename (Paper's own row
+        only draws Rename/Restore — this is a genuine addition, not a
+        restyle). Plain confirm — category retire never blocks per
+        `05-plan.md`'s own line ("Items keep the reference; the label just
+        stops being offered").
+      - **Supplier** (`supplier-form-screen.tsx`) — "Retire this supplier"
+        link. New `useRetireSupplier` hook catches the specific 409/
+        `CONFLICT` shape and extracts `details.items` (the blocking item
+        names the backend already returns). When blocked, the dialog
+        **does not offer a way to force it through** — there is no backend
+        override for this block, so a "confirm anyway" button would just
+        409 again; instead it clearly lists every blocking item by name
+        and tells the user to reassign or retire those items first,
+        with a non-destructive "Got it" acknowledgment. Verified live
+        against real seed data: retiring "Samrat Supermarket Ltd" (17 live
+        items still naming it as preferred supplier) surfaced the full,
+        correct blocked-dialog copy naming all 17 items by name.
+      All three retire actions call the parent screen's existing `reload`
+      after a successful retire — verified in-browser that KPI counts
+      (Items tracked, Categories, Departments) all live-recompute correctly
+      immediately after a retire, no manual refresh needed.
+
+  **Suppliers screen (item 13 in the owner's list) — checked, not a bug.**
+  The list already uses `perPage: 100` against only 2 suppliers on file, so
+  pagination isn't a real gap at this milestone's actual data volume; the
+  mobile hamburger was already wired in the same day's earlier UI-
+  refinement entry. Confirmed in scope per `05-plan.md`'s own milestone
+  name ("Catalog, Suppliers & Restock Levels").
+
+  **Flagged, not changed — content/design questions, not defects:**
+  - **Units column notation** (e.g. `ctn (12x2kg) → kg · ÷24`) — confirmed
+    the owner's "hard to parse" read is accurate for real (longer) data,
+    but the format itself is backend-shaped (`formatUnits()` composing
+    real field values), not a rendering bug — column widths still match
+    Paper's `SFT-0` exactly. Left for a future content-design pass.
+  - **Department admin** (adding to the fixed Kitchen/Pastry/Barista/
+    Service/Housekeeping list) — explicitly out of scope this session per
+    owner decision; `DepartmentTag` stays a fixed backend enum. Flagged as
+    a future-milestone product question (who can add departments, does it
+    need approval) rather than a same-session fix.
+
+  All fixes verified: `npx tsc --noEmit` clean on both `frontend/` and
+  `backend/`, `pnpm build` clean on `frontend/` (including
+  `check-wds-tokens.ts`), full backend suite green (66 files / 697 tests,
+  including the pre-existing 28-test inventory suite), and every fix
+  exercised live in a real browser against real seeded data — not just
+  visually inspected: pagination Previous/Next, filter-then-clear from an
+  empty result, "Show retired" toggling the count correctly, a full
+  create-with-new-category-and-multi-department-scope round trip with no
+  manual refresh, and all three retire flows (plain, category, and the
+  supplier blocked-with-real-blocking-items case) end to end.
+
+- **Archive-terminology sweep + sidebar nav fix (2026-09-15, following the
+  handover in `06-sessions/handover-2026-09-15-archive-terminology-and-
+  remaining-bugs.md`) — two of the handover's items fully executed, others
+  flagged back to the owner per the handover's own instructions.**
+
+  1. **"Retire" → "Archive" / "Unarchive", full sweep — done, decided
+     terminology executed exactly as specified.** Owner had already decided
+     "Archive"/"Unarchive" over "Retire"/"Restore" (nothing in this feature
+     hard-deletes; Archive is the correct verb for a soft-delete users can
+     reverse). Swept every user-visible string across the whole feature, not
+     just the confirm dialogs built in the prior session: button labels
+     ("Archive"/"Unarchive" in `category-manager-list.tsx`, "Archive this
+     item"/"Archive this supplier" links), dialog titles/descriptions
+     ("Archive this item?", "Archive this category?", "Can't archive this
+     supplier yet", all "restore"/"retire" wording in the body copy),
+     toolbar toggle ("Show archived" in `item-catalog-table.tsx`), the item
+     catalog screen description ("Archiving keeps history…"), the KPI strip
+     detail ("N archived"), the retired-row caption ("Archived {date} ·
+     history kept"), and every hook's user-facing error toast ("Could not
+     archive this item/supplier/that category", "Could not unarchive that
+     category"). Left every internal/contract-level name untouched per the
+     handover's explicit scope: `deletedAt`, `retiredAt`, `includeRetired`,
+     `retireCategory`/`retireItem`/`retireSupplier`,
+     `useRetireItem`/`useRetireSupplier`, `RestockLevelsActor`, the
+     `/restore` API paths, and internal prop names like `showRetired`/
+     `onShowRetiredChange` (kept, per the handover's own suggestion, to
+     avoid unnecessary churn — only their rendered label changed). Verified
+     clean via `grep -ri "retire" frontend/features/inventory/` with every
+     remaining hit being an internal identifier or comment, none
+     user-facing. Not yet raised with the owner: whether Paper's own
+     artboards (`03-design.md`) should be updated to match, or logged as a
+     deliberate code-side deviation like others in this file — flagging
+     back per the handover's own instruction rather than deciding
+     unilaterally.
+
+  2. **Desktop sidebar navigation — fixed, root cause was exactly as the
+     handover described.** `DesktopNavItem`/`SidebarRail` in
+     `components/app/shell/sidebar-nav.tsx` always called
+     `e.preventDefault()` whenever `onNavigate` was non-null, but
+     `InventoryDesktopShell`/`InventoryMobileRail` in
+     `features/inventory/components/inventory-shell.tsx` always passed a
+     non-null `onNavigate` regardless of whether the consuming screen gave
+     them a real one — and neither `item-catalog-screen.tsx` nor
+     `suppliers-screen.tsx` ever did. Net effect: every click prevented
+     native navigation and then called a no-op. Fixed per the handover's
+     preferred option: `SidebarNav`/`SidebarRail` no longer call
+     `preventDefault()` themselves (the callback now receives the raw click
+     event and decides for itself), and `InventoryDesktopShell`/
+     `InventoryMobileRail` only pass a wrapped `onNavigate` down when they
+     were actually given one — letting the plain `<a href>` navigate
+     natively otherwise, since these are real routes, not client-side-only
+     state. `InventoryMobileNavDrawer` was checked too, per the handover's
+     instruction to verify the drawer wasn't hit by the same bug — it
+     wasn't, because its own `onNavigate` handler never called
+     `preventDefault` in the first place (it only needed to close the
+     drawer before falling through to native navigation). Verified live in
+     a real browser at 1440px: clicked "Suppliers" from the Catalog screen
+     and "Catalog" from the Suppliers screen, confirmed the URL actually
+     changed and the correct page rendered both directions, not just a
+     console log.
+
+  **Verified but not re-fixed — the prior session's fix holds; likely a
+  stale-tab report.** Re-tested "Show archived" from a clean page load
+  (fresh `next dev` process, not the one still holding the stale chunks
+  from an accidental `pnpm build` mid-session — see note below): toggling
+  it correctly moved the Items badge 33 → 36 and the pagination footer to
+  "Page 1 of 2 · 36 items", matching the real archived-row count in
+  Postgres. Did not get the owner's exact repro steps this session, so
+  left as unresolved-pending-repro per the handover's own instruction
+  rather than closing it outright — but nothing reproduced, consistent
+  with the handover's stale-tab theory.
+
+  **Flagged back to the owner, not implemented this session (per the
+  handover's explicit "stop and ask" instructions):**
+  - **Restock Levels drawer's "+ Add an item" button** — still wired to
+    nothing. Per the handover, this needs an owner design decision first
+    (remove it vs. repurpose it as a shortcut to "New item"), since every
+    non-retired Central Store item is already listed with an editable
+    restock level — there's nothing left to "add" in the literal sense.
+  - **Restock level blank on item re-open + no Restock Level column in the
+    catalog** (handover items 5/6) — confirmed still present (re-opened
+    "210 Home Baking Flour 12x2kg" live; its restock-level field, `12 kg`
+    in Postgres, showed blank in the form). Both share one root cause — no
+    restock-level data on `GET /inventory/items` or `/inventory/items/:id`
+    — and one fix, but per `inventory-validators.ts`'s own amendment-process
+    header this is a contract-shape change and needs owner sign-off on
+    which approach (join into the existing endpoints vs. a second
+    client-side request) before touching the schema.
+  - **Item Catalog column resize** — real scoped feature work, not a bug;
+    needs an owner decision on full resizable columns vs. a narrower
+    Units-column legibility fix before starting either.
+  - **Conversion field** — no code change; relayed the existing
+    buy-unit/usage-unit/conversion-factor explanation back as documentation,
+    not a defect.
+  - **Delete vs. Archive** — not re-litigated; already decided (no separate
+    hard-delete) per the handover.
+
+  **Housekeeping note:** an in-session `pnpm build` briefly clobbered the
+  running `next dev` process's `.next` output, reproducing the exact
+  stale-chunk 404 symptom the handover warned about (login silently failed
+  to progress past the form). Fixed by killing the dev server, `rm -rf
+  .next`, and restarting — consistent with the handover's own troubleshooting
+  note, now reconfirmed as a real, repeatable failure mode when a build and
+  a dev server touch the same `.next` directory concurrently.
+
+  Both fixes verified: `npx tsc --noEmit` clean on `frontend/` and
+  `backend/` (no backend code touched this session), `pnpm build` clean on
+  `frontend/` (including `check-wds-tokens.ts`), and every fix exercised
+  live in a real browser against real seeded data (33 live items, 2
+  suppliers, 5 categories) — sidebar navigation both directions, the full
+  terminology sweep across item/category/supplier archive dialogs
+  (including the supplier blocked-with-18-real-items case), and category
+  archive/unarchive round-tripping the KPI count correctly with no manual
+  refresh.
+
+- **Owner-approved follow-up (2026-09-15, same day, after owner sign-off on
+  the three items flagged above) — contract amendment for restock-level
+  read data, catalog column, and "+ Add an item" removed.**
+
+  1. **"+ Add an item" removed — owner chose "remove it entirely."**
+     `RestockLevelGrid`'s `onAddItem` prop and its dashed button (never wired
+     to anything, per the handover) deleted from
+     `restock-level-grid.tsx`. No screen was passing the prop, so this is a
+     clean removal with no dangling wiring.
+
+  2. **Contract amendment approved — join Central Store restock level into
+     both item read endpoints, owner chose option (1) over the second-request
+     alternative.** `InventoryItemSchema` gained
+     `centralStoreRestockLevel: nonNegativeDecimalSchema.nullable()`
+     (`inventory-validators.ts`, documented inline as a post-freeze
+     amendment per `API_CONTRACT.md` §21's process). Backend:
+     `restockLevelRepository.findByItemIdsForLocation` (new) batches a
+     lookup by item id for one location; `inventory-service.ts`'s
+     `serializeItem` takes an optional `Prisma.Decimal | null` and a new
+     `getCentralStoreRestockLevelsByItemId` helper resolves the Central
+     Store once and joins its levels into `listItems`, `getItemById`,
+     `createItem`, and `updateItem`'s responses (the last two so a save's
+     own response reflects the just-written level, not a stale value).
+     `retireItem`/`restoreItem` were deliberately left defaulting to `null`
+     — their responses aren't used to display restock data anywhere, so the
+     extra query isn't worth it. Frontend mirror updated
+     (`features/inventory/types/index.ts`), plus the item-form-screen.tsx
+     `useEffect` fixed to read `item.centralStoreRestockLevel ?? ''` instead
+     of hardcoding `''` (this was the actual root cause from item 5 of the
+     handover — the data literally didn't exist on the wire before this).
+     Test mocks (`inventory-service.test.ts`, `inventory-contract.test.ts`)
+     updated with the new repository method and a default empty-map
+     resolution; full 697-test suite green afterward.
+  3. **Restock Level column added to the Item Catalog table — owner chose
+     "yes, add it now" over deferring it.** New `restockLevel` field on
+     `ItemCatalogRow` and a `formatRestockLevel()` helper in
+     `item-catalog-screen.tsx` (`"{level} {usageUnit}"` or `"—"` when unset,
+     matching the Pack/Units column conventions already in the table).
+     Column placed after Pack, before Department scope (both are per-item
+     quantity facts) — a genuine addition, not sourced from Paper, since
+     Paper's file predates this data existing at all; documented inline in
+     `item-catalog-table.tsx`'s own composite comment rather than silently
+     added.
+
+  **Caught and fixed during verification: the classic stale-`tsx watch`
+  trap, reproduced a second time.** After the schema/repository/service
+  changes, a live test (set a restock level via Edit item → Save → re-open)
+  round-tripped correctly at the database layer (confirmed directly via
+  Postgres: `level: "40.0000"`, `updated_at` fresh) but the UI kept showing
+  the field blank and the column showing "—" for that item specifically.
+  Root-caused to the same failure mode the handover flagged for the
+  frontend dev server, this time on the backend: `tsx watch`'s
+  already-running process (started before this session, well before the
+  schema/service edits) never picked up the new code — killing and
+  restarting `tsx watch src/server.ts` fixed it immediately, confirmed
+  against the same item live (field now shows "40", column now shows
+  "40 kg", and every other item with a pre-existing seeded restock level
+  now correctly shows its real value instead of "—"). Worth calling out
+  explicitly: this is not the frontend `.next` staleness the handover
+  already documented — it is the equivalent failure on the backend process,
+  and evidently just as easy to be fooled by (the API was still answering
+  health checks the whole time; only the inventory route's new code was
+  stale).
+
+  All three items verified: `npx tsc --noEmit` clean on both `frontend/`
+  and `backend/`, `backend/`'s `pnpm build` clean, `frontend/`'s `pnpm
+  build` clean (including `check-wds-tokens.ts`), full backend suite green
+  (66 files / 697 tests) after updating the two inventory test files' repo
+  mocks, and the full round trip exercised live end-to-end against real
+  seeded data post-restart: setting "210 Home Baking Flour 12x2kg"'s
+  restock level to 40 kg, confirming it in Postgres, re-opening the item to
+  see "40" pre-filled (not blank), seeing "40 kg" in the new catalog
+  column, and every other seeded item's pre-existing restock level (set in
+  earlier sessions/QA) now correctly appearing in that same column instead
+  of a universal "—". Also reconfirmed the Restock Levels drawer still
+  renders correctly with the "+ Add an item" button gone.
 
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.

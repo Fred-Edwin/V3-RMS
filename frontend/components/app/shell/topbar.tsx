@@ -5,13 +5,17 @@ import { SearchInput, type SearchInputProps } from '@/components/ui2/search-inpu
 
 /**
  * Desktop Topbar — every desktop screen. Cross-feature shared, not
- * Inventory-specific. Reference: Session-0 shell, Paper page `3-0`,
- * node `1GO-0` / specimen `1GS-0`.
+ * Inventory-specific. Reference: the real in-screen instance (Milestone One
+ * `SFQ-0`'s topbar, Supplier form `SX5-0`'s `T2E-0`) — not specimen `1GS-0`
+ * on the Shells & Primitives page, which draws an isolated floating card
+ * (full border + radius) that no assembled screen actually uses.
  *
  * Structure: breadcrumb (section / screen · record-id) — global search — page
  * actions, slotted on the right (secondary + primary button, or whatever the
  * consuming screen needs). 56px tall, `wds-gradient-topbar`
- * (surface → topbar-end), 1px border, radius 4.
+ * (surface → topbar-end), full-bleed with a bottom border only — no radius,
+ * no side/top border (confirmed via `get_computed_styles` on `T2E-0`: only
+ * `borderBottomWidth`/`borderBottomColor` are set).
  */
 export interface TopbarBreadcrumb {
   section: string;
@@ -29,7 +33,7 @@ export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarPr
   return (
     <header
       className={cn(
-        'flex h-14 shrink-0 items-center gap-wds-3 rounded-wds-md border border-wds-border bg-wds-gradient-topbar px-wds-6',
+        'flex h-14 shrink-0 items-center gap-wds-3 border-b border-wds-border bg-wds-gradient-topbar px-wds-6',
         className
       )}
     >

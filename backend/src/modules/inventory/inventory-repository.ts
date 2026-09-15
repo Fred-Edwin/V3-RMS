@@ -429,6 +429,20 @@ export const restockLevelRepository = {
     return prisma.restockLevel.findMany({ where: { organizationId, locationId } });
   },
 
+  /** Levels for a specific set of items at one location — joined into the items read path. */
+  findByItemIdsForLocation: async (
+    organizationId: string,
+    locationId: string,
+    inventoryItemIds: string[],
+  ): Promise<Map<string, Prisma.Decimal>> => {
+    if (inventoryItemIds.length === 0) return new Map();
+    const rows = await prisma.restockLevel.findMany({
+      where: { organizationId, locationId, inventoryItemId: { in: inventoryItemIds } },
+      select: { inventoryItemId: true, level: true },
+    });
+    return new Map(rows.map((r) => [r.inventoryItemId, r.level]));
+  },
+
   /** Items live at this org, optionally filtered by search — the restock grid's row set. */
   findLiveItemsForRestock: async (
     organizationId: string,

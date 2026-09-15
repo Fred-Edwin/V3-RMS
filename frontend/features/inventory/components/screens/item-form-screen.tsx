@@ -6,7 +6,9 @@ import { DrawerShell } from '../drawer-shell';
 import { ItemFormFields, type ItemFormType, type ItemFormValues } from '../item-form';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { useItem, useItemFormOptions, useSaveItem } from '../../hooks/use-item-form';
+import { Button } from '@/components/ui2/button';
+import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
+import { useItem, useItemFormOptions, useRetireItem, useSaveItem } from '../../hooks/use-item-form';
 import type { CreateItemInput, DepartmentTag, InventoryItemType } from '../../types';
 
 const ITEM_FORM_TYPE_TO_CONTRACT: Record<ItemFormType, InventoryItemType> = {
@@ -27,38 +29,22 @@ const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
   SERVICE: 'Service',
   HOUSEKEEPING: 'Housekeeping',
 };
-const LABEL_TO_DEPARTMENT: Record<string, DepartmentTag> = Object.fromEntries(
-  Object.entries(DEPARTMENT_LABEL).map(([tag, label]) => [label, tag as DepartmentTag])
-) as Record<string, DepartmentTag>;
+const DEPARTMENT_OPTIONS = (Object.entries(DEPARTMENT_LABEL) as Array<[DepartmentTag, string]>).map(
+  ([value, label]) => ({ value, label })
+);
 
 const EMPTY_VALUES: ItemFormValues = {
   name: '',
   type: 'raw',
   category: '',
-  preferredSupplier: undefined,
+  preferredSupplierId: undefined,
   buyUnit: '',
   usageUnit: '',
   conversion: '',
   packSize: '',
-  whereItMayExist: 'Central Store only',
+  departmentTags: [],
   restockLevel: '',
 };
-
-/** Parses the free-text "Where it may exist" field back into department tags (comma-separated department names). */
-function parseDepartmentTags(text: string): DepartmentTag[] {
-  if (!text || text === 'Central Store only') return [];
-  return text
-    .replace(/^Central Store\s*·\s*/, '')
-    .split(',')
-    .map((s) => s.trim())
-    .map((label) => LABEL_TO_DEPARTMENT[label])
-    .filter((tag): tag is DepartmentTag => Boolean(tag));
-}
-
-function formatDepartmentTags(tags: DepartmentTag[]): string {
-  if (tags.length === 0) return 'Central Store only';
-  return tags.map((t) => DEPARTMENT_LABEL[t]).join(', ');
-}
 
 export interface ItemFormDrawerProps {
   /** `null` = create; a string = edit that item; `open` gates rendering either way. */
@@ -79,8 +65,10 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
   const { categories, suppliers } = useItemFormOptions();
   const { item } = useItem(open ? itemId : null);
   const { save, saving, error } = useSaveItem();
+  const { retire, retiring, error: retireError } = useRetireItem();
   const [values, setValues] = React.useState<ItemFormValues>(EMPTY_VALUES);
   const [warning, setWarning] = React.useState<string | null>(null);
+  const [confirmRetireOpen, setConfirmRetireOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -88,14 +76,14 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
       setValues({
         name: item.name,
         type: CONTRACT_TYPE_TO_ITEM_FORM[item.type],
-        category: item.category?.name ?? '',
-        preferredSupplier: item.preferredSupplier?.name,
+        category: item.category?.id ?? '',
+        preferredSupplierId: item.preferredSupplier?.id,
         buyUnit: item.buyUnit,
         usageUnit: item.usageUnit,
         conversion: item.conversionFactor ? `1 ${item.buyUnit} = ${item.conversionFactor} ${item.usageUnit}` : '',
         packSize: item.packSize ? `${item.packSize} ${item.usageUnit}` : '',
-        whereItMayExist: formatDepartmentTags(item.departmentTags),
-        restockLevel: '',
+        departmentTags: item.departmentTags,
+        restockLevel: item.centralStoreRestockLevel ?? '',
       });
     } else {
       setValues(EMPTY_VALUES);
@@ -103,38 +91,34 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
     setWarning(null);
   }, [open, item]);
 
-  const categoryOptions = categories.filter((c) => !c.retiredAt).map((c) => c.name);
-  const supplierOptions = suppliers.map((s) => s.name);
+  const categoryOptions = categories.filter((c) => !c.retiredAt).map((c) => ({ value: c.id, label: c.name }));
+  const supplierOptions = suppliers.map((s) => ({ value: s.id, label: s.name }));
 
   const handleValuesChange = (next: ItemFormValues) => {
-    // "Where it may exist" resets to the type-appropriate default when Type changes,
-    // matching the Item Form composite's own conditional-field behavior.
-    if (next.type !== values.type) {
-      next = {
-        ...next,
-        whereItMayExist: next.type === 'raw' ? 'Central Store only' : next.whereItMayExist || 'Central Store only',
-      };
+    // Department scope resets to empty (Central Store only) when Type
+    // changes to Raw, matching the Item Form composite's own
+    // conditional-field behavior — a raw ingredient can never carry tags.
+    if (next.type !== values.type && next.type === 'raw') {
+      next = { ...next, departmentTags: [] };
     }
     setValues(next);
   };
 
   const handleSave = async () => {
-    const category = categories.find((c) => c.name === values.category);
-    const supplier = suppliers.find((s) => s.name === values.preferredSupplier);
     const conversionMatch = values.conversion.match(/=\s*([\d.]+)/);
     const packSizeMatch = values.packSize.match(/^([\d.]+)/);
 
     const input: CreateItemInput = {
       name: values.name,
       type: ITEM_FORM_TYPE_TO_CONTRACT[values.type],
-      categoryId: category?.id ?? null,
-      categoryName: category ? null : values.category || null,
-      preferredSupplierId: supplier?.id ?? null,
+      categoryId: values.categoryIsNew ? null : values.category || null,
+      categoryName: values.categoryIsNew ? values.category : null,
+      preferredSupplierId: values.preferredSupplierId ?? null,
       buyUnit: values.buyUnit,
       usageUnit: values.usageUnit,
       conversionFactor: conversionMatch ? conversionMatch[1] : null,
       packSize: packSizeMatch ? packSizeMatch[1] : null,
-      departmentTags: parseDepartmentTags(values.whereItMayExist),
+      departmentTags: values.type === 'raw' ? [] : (values.departmentTags as DepartmentTag[]),
       centralStoreRestockLevel: values.restockLevel || null,
     };
 
@@ -144,6 +128,15 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
       setWarning(result.warnings[0].message);
       return;
     }
+    onSaved();
+    onOpenChange(false);
+  };
+
+  const handleRetire = async () => {
+    if (!item) return;
+    const ok = await retire(item.id);
+    if (!ok) return;
+    setConfirmRetireOpen(false);
     onSaved();
     onOpenChange(false);
   };
@@ -171,11 +164,22 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
             onChange={handleValuesChange}
             categoryOptions={categoryOptions}
             supplierOptions={supplierOptions}
+            departmentOptions={DEPARTMENT_OPTIONS}
           />
           {warning ? (
             <p className="mt-4 font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p>
           ) : null}
           {error ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+          {retireError ? <p className="mt-4 font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
+          {item ? (
+            <button
+              type="button"
+              onClick={() => setConfirmRetireOpen(true)}
+              className="mt-6 font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
+            >
+              Archive this item
+            </button>
+          ) : null}
         </div>
         <div className="border-t border-wds-border p-4">
           <button
@@ -187,29 +191,66 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
             {item ? 'Save changes' : 'Create item'}
           </button>
         </div>
+        {item ? (
+          <ConfirmDialog
+            open={confirmRetireOpen}
+            onOpenChange={setConfirmRetireOpen}
+            title="Archive this item?"
+            description={`"${item.name}" will be hidden from the catalog by default, but its history is kept — you can unarchive it later with "Show archived".`}
+            confirmLabel="Archive item"
+            confirming={retiring}
+            onConfirm={handleRetire}
+          />
+        ) : null}
       </div>
     );
   }
 
   return (
-    <DrawerShell
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      primaryLabel={item ? 'Save changes' : 'Create item'}
-      onPrimaryAction={handleSave}
-      primaryDisabled={saving}
-    >
-      <ItemFormFields
-        variant="desktop"
-        values={values}
-        onChange={handleValuesChange}
-        categoryOptions={categoryOptions}
-        supplierOptions={supplierOptions}
-      />
-      {warning ? <p className="font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p> : null}
-      {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
-    </DrawerShell>
+    <>
+      <DrawerShell
+        open={open}
+        onOpenChange={onOpenChange}
+        title={title}
+        description={description}
+        primaryLabel={item ? 'Save changes' : 'Create item'}
+        onPrimaryAction={handleSave}
+        primaryDisabled={saving}
+        footerExtra={
+          item ? (
+            <button
+              type="button"
+              onClick={() => setConfirmRetireOpen(true)}
+              className="self-start font-wds-sans text-wds-caption text-wds-error-fg underline underline-offset-2"
+            >
+              Archive this item
+            </button>
+          ) : null
+        }
+      >
+        <ItemFormFields
+          variant="desktop"
+          values={values}
+          onChange={handleValuesChange}
+          categoryOptions={categoryOptions}
+          supplierOptions={supplierOptions}
+          departmentOptions={DEPARTMENT_OPTIONS}
+        />
+        {warning ? <p className="font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p> : null}
+        {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+        {retireError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{retireError}</p> : null}
+      </DrawerShell>
+      {item ? (
+        <ConfirmDialog
+          open={confirmRetireOpen}
+          onOpenChange={setConfirmRetireOpen}
+          title="Archive this item?"
+          description={`"${item.name}" will be hidden from the catalog by default, but its history is kept — you can unarchive it later with "Show archived".`}
+          confirmLabel="Archive item"
+          confirming={retiring}
+          onConfirm={handleRetire}
+        />
+      ) : null}
+    </>
   );
 }

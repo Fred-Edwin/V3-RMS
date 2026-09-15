@@ -18,6 +18,9 @@ import {
   SuppliersIcon,
 } from '@/components/app/shell/nav-icons';
 import { useAuthStore } from '@/store/authStore';
+import { performLogout } from '@/lib/logout';
+
+const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
 
 /**
  * Desktop shell (Sidebar + Topbar) shared by every Milestone One desktop
@@ -97,11 +100,13 @@ export function InventoryDesktopShell({
         activeKey={activeKey}
         user={user}
         orgLabel="HUB"
-        onNavigate={(item) => onNavigate?.(item.href)}
+        logoSrc={WENDO_LOGO_SRC}
+        onNavigate={onNavigate ? (item) => onNavigate(item.href) : undefined}
+        onSignOut={performLogout}
       />
-      <div className="flex min-w-0 flex-1 flex-col gap-5 overflow-hidden px-8 py-7">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={breadcrumb} searchProps={searchProps} actions={actions} className="shrink-0" />
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">{children}</div>
       </div>
     </div>
   );
@@ -115,5 +120,54 @@ export interface InventoryMobileRailProps {
 /** Icon-only mobile rail — used only where a screen needs the persistent nav, not the full-screen tasks. */
 export function InventoryMobileRail({ activeKey, onNavigate }: InventoryMobileRailProps) {
   const user = useSidebarUser();
-  return <SidebarRail groups={NAV_GROUPS} activeKey={activeKey} user={user} onNavigate={(item) => onNavigate?.(item.href)} />;
+  return (
+    <SidebarRail
+      groups={NAV_GROUPS}
+      activeKey={activeKey}
+      user={user}
+      logoSrc={WENDO_LOGO_SRC}
+      onNavigate={onNavigate ? (item) => onNavigate(item.href) : undefined}
+      onSignOut={performLogout}
+    />
+  );
+}
+
+export interface InventoryMobileNavDrawerProps {
+  activeKey: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNavigate?: (href: string) => void;
+}
+
+/**
+ * Mobile nav drawer — opened from `MobileHubHeader`'s hamburger button.
+ * There's no Paper node for this (Paper's mobile artboards only draw the
+ * persistent icon rail, never an overlay drawer), so it reuses the existing
+ * `SidebarRail` groups/icons as a full-width slide-in menu — the same
+ * content the rail exposes, just reachable on the full-screen mobile routes
+ * that don't have room for a persistent 60px rail.
+ */
+export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
+  const user = useSidebarUser();
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-wds-scrim" onClick={() => onOpenChange(false)} />
+      <div className="relative flex h-full w-[280px] max-w-[85vw] flex-col bg-wds-gradient-sidebar">
+        <SidebarNav
+          groups={NAV_GROUPS}
+          activeKey={activeKey}
+          user={user}
+          orgLabel="HUB"
+          logoSrc={WENDO_LOGO_SRC}
+          onNavigate={(item) => {
+            onOpenChange(false);
+            onNavigate?.(item.href);
+          }}
+          onSignOut={performLogout}
+          className="w-full"
+        />
+      </div>
+    </div>
+  );
 }

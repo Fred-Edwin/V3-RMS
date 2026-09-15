@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
+import { SignOutIcon } from './nav-icons';
 import type { NavIcon } from './nav-icons';
 
 /**
@@ -50,9 +51,20 @@ export interface SidebarNavProps {
   user: SidebarNavUser;
   orgLabel?: string;
   logoSrc?: string;
-  onNavigate?: (item: SidebarNavItem) => void;
+  onNavigate?: (item: SidebarNavItem, event: React.MouseEvent<HTMLAnchorElement>) => void;
+  onSignOut?: () => void;
   className?: string;
 }
+
+/**
+ * Hover/focus-visible/active-press states — Paper never draws these (it only
+ * draws default and active), so they're convention-derived per
+ * 04-components.md's "Convention-derived states" rule: a subtle background
+ * tint on hover (consistent with the mobile rail's `active-bg` wash), a
+ * visible focus ring for keyboard nav, and a darker tint on press.
+ */
+const navItemInteractiveClass =
+  'rounded-wds-sm outline-none transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring active:bg-wds-sidebar-active-bg/80';
 
 function DesktopNavItem({
   item,
@@ -61,14 +73,14 @@ function DesktopNavItem({
 }: {
   item: SidebarNavItem;
   active: boolean;
-  onNavigate?: (item: SidebarNavItem) => void;
+  onNavigate?: (item: SidebarNavItem, event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const Icon = item.icon;
   return (
     <a
       href={item.href}
-      onClick={onNavigate ? (e) => { e.preventDefault(); onNavigate(item); } : undefined}
-      className="flex h-8 shrink-0 items-center gap-wds-2.5 px-wds-2.5"
+      onClick={onNavigate ? (e) => onNavigate(item, e) : undefined}
+      className={cn('flex h-8 shrink-0 items-center gap-wds-2.5 px-wds-2.5', navItemInteractiveClass)}
     >
       <Icon
         className={cn('shrink-0', active ? 'text-wds-caramel' : 'text-wds-sidebar-fg-muted')}
@@ -102,6 +114,7 @@ export function SidebarNav({
   orgLabel = 'HUB',
   logoSrc,
   onNavigate,
+  onSignOut,
   className,
 }: SidebarNavProps) {
   return (
@@ -148,14 +161,25 @@ export function SidebarNav({
         <Avatar>
           <AvatarFallback>{user.initials}</AvatarFallback>
         </Avatar>
-        <div className="flex flex-col gap-px">
-          <span className="font-wds-sans text-wds-caption font-medium text-wds-sidebar-fg-name">
+        <div className="flex min-w-0 flex-col gap-px">
+          <span className="truncate font-wds-sans text-wds-caption font-medium text-wds-sidebar-fg-name">
             {user.name}
           </span>
           <span className="font-wds-sans text-wds-overline font-normal normal-case tracking-normal text-wds-sidebar-fg-muted">
             {user.role}
           </span>
         </div>
+        {onSignOut ? (
+          <button
+            type="button"
+            onClick={onSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            className="ml-auto flex size-6 shrink-0 items-center justify-center rounded-wds-sm text-wds-sidebar-fg-muted outline-none transition-colors hover:bg-wds-sidebar-active-bg hover:text-wds-sidebar-fg-active focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring"
+          >
+            <SignOutIcon className="size-3.5" />
+          </button>
+        ) : null}
       </div>
     </nav>
   );
@@ -166,7 +190,8 @@ export interface SidebarRailProps {
   activeKey: string;
   user: Pick<SidebarNavUser, 'initials'>;
   logoSrc?: string;
-  onNavigate?: (item: SidebarNavItem) => void;
+  onNavigate?: (item: SidebarNavItem, event: React.MouseEvent<HTMLAnchorElement>) => void;
+  onSignOut?: () => void;
   className?: string;
 }
 
@@ -174,7 +199,7 @@ export interface SidebarRailProps {
  * Mobile icon rail — flat items across all groups (no group labels, no "More"
  * menu, ever). Reference: `1A5-0`.
  */
-export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, className }: SidebarRailProps) {
+export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, onSignOut, className }: SidebarRailProps) {
   const items = groups.flatMap((g) => g.items);
   return (
     <nav className={cn('flex h-full w-[60px] shrink-0 flex-col items-center bg-wds-gradient-sidebar py-wds-4', className)}>
@@ -189,9 +214,9 @@ export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, clas
           <a
             key={item.key}
             href={item.href}
-            onClick={onNavigate ? (e) => { e.preventDefault(); onNavigate(item); } : undefined}
+            onClick={onNavigate ? (e) => onNavigate(item, e) : undefined}
             className={cn(
-              'relative flex size-10 shrink-0 items-center justify-center rounded-wds-sm',
+              'relative flex size-10 shrink-0 items-center justify-center rounded-wds-sm outline-none transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring',
               active && 'border-l-2 border-wds-caramel bg-wds-sidebar-active-bg'
             )}
           >
@@ -206,8 +231,21 @@ export function SidebarRail({ groups, activeKey, user, logoSrc, onNavigate, clas
           </a>
         );
       })}
-      <div className="mt-auto flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-wds-sm bg-wds-avatar-bg">
-        <span className="font-wds-mono text-[10px]/3 text-wds-avatar-fg">{user.initials}</span>
+      <div className="mt-auto flex flex-col items-center gap-wds-2.5">
+        {onSignOut ? (
+          <button
+            type="button"
+            onClick={onSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex size-8 shrink-0 items-center justify-center rounded-wds-sm text-wds-sidebar-fg-muted outline-none transition-colors hover:bg-wds-sidebar-active-bg hover:text-wds-sidebar-fg-active focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring"
+          >
+            <SignOutIcon className="size-3.5" />
+          </button>
+        ) : null}
+        <div className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-wds-avatar-bg">
+          <span className="font-wds-mono text-[10px]/3 text-wds-avatar-fg">{user.initials}</span>
+        </div>
       </div>
     </nav>
   );

@@ -216,6 +216,7 @@ export async function createItem(input: CreateItemInput): Promise<ItemMutationRe
     category,
     preferredSupplier,
     currentCost: '0',
+    centralStoreRestockLevel: input.centralStoreRestockLevel ?? null,
     retiredAt: null,
     createdAt: nowIso,
     updatedAt: nowIso,

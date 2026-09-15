@@ -68,7 +68,7 @@ const serializeCategory = (category: CategoryWithItemCount) => ({
   updatedAt: category.updatedAt.toISOString(),
 });
 
-const serializeItem = (item: InventoryItemWithRelations) => ({
+const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLevel: Prisma.Decimal | null = null) => ({
   id: item.id,
   name: item.name,
   type: item.type,
@@ -82,6 +82,7 @@ const serializeItem = (item: InventoryItemWithRelations) => ({
   category: item.category,
   preferredSupplier: item.preferredSupplier,
   currentCost: item.currentCost.toString(),
+  centralStoreRestockLevel: toDecimalString(centralStoreRestockLevel),
   retiredAt: item.deletedAt?.toISOString() ?? null,
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
@@ -171,6 +172,22 @@ const resolveCategoryId = async (
   return undefined;
 };
 
+/**
+ * Joined into the items read path (list + single item) so the Item Form can
+ * show an existing item's Central Store restock level on re-open, and the
+ * catalog can carry a restock-level column. Empty map when no Central Store
+ * is configured — restock levels are then simply omitted (null), matching
+ * the item-write paths' own "if (centralStore)" guard.
+ */
+const getCentralStoreRestockLevelsByItemId = async (
+  organizationId: string,
+  inventoryItemIds: string[],
+): Promise<Map<string, Prisma.Decimal>> => {
+  const centralStore = await locationRepository.findCentralStore();
+  if (!centralStore) return new Map();
+  return restockLevelRepository.findByItemIdsForLocation(organizationId, centralStore.id, inventoryItemIds);
+};
+
 export const inventoryService = {
   /**
    * Lets a hub Store Manager discover the Central Store's locationId to pass
@@ -254,9 +271,13 @@ export const inventoryService = {
       perPage: query.perPage,
     });
     const meta = await inventoryItemRepository.getCatalogMeta(organizationId);
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(
+      organizationId,
+      items.map((item) => item.id),
+    );
 
     return {
-      data: items.map(serializeItem),
+      data: items.map((item) => serializeItem(item, restockLevelsByItemId.get(item.id) ?? null)),
       pagination: {
         total,
         page: query.page,
@@ -271,7 +292,8 @@ export const inventoryService = {
     const organizationId = await requireHubActor(actor);
     const item = await inventoryItemRepository.findById(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
-    return serializeItem(item);
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    return serializeItem(item, restockLevelsByItemId.get(item.id) ?? null);
   },
 
   createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse> => {
@@ -315,8 +337,10 @@ export const inventoryService = {
       }
     }
 
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+
     return {
-      item: serializeItem(item),
+      item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
       warnings: duplicate
         ? [{ code: 'DUPLICATE_ITEM_NAME' as const, message: `Another item is already named "${input.name}".` }]
         : [],
@@ -376,8 +400,10 @@ export const inventoryService = {
       }
     }
 
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+
     return {
-      item: serializeItem(item),
+      item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
       warnings: duplicate
         ? [{ code: 'DUPLICATE_ITEM_NAME' as const, message: `Another item is already named "${input.name}".` }]
         : [],

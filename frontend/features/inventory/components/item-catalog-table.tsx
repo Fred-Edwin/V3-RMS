@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui2/badge';
  * rows) / `TN1-0` (mobile: card list, "1m · Item catalog").
  *
  * This is the composite that actually exercises the `Table` primitive with
- * real content — the toolbar, per-type status dot, and the retired-row
+ * real content — the toolbar, per-type status dot, and the archived-row
  * 55%-opacity state were deliberately left out of the bare primitive (see
  * its own Status entry) and belong here instead.
  */
@@ -41,6 +41,7 @@ export interface ItemCatalogRow {
   category: string;
   units: string;
   pack: string;
+  restockLevel: string;
   departmentScope: string;
   retired?: boolean;
 }
@@ -76,7 +77,7 @@ const TYPE_FILTER_OPTIONS: ItemCatalogFilterOption[] = [
 ];
 
 /**
- * "Items {count}" + Type/Department/Category filter chips + Show retired
+ * "Items {count}" + Type/Department/Category filter chips + Show archived
  * toggle + Manage categories link. Reference: `SHQ-0`.
  */
 export function ItemCatalogToolbar({
@@ -160,7 +161,7 @@ export function ItemCatalogToolbar({
             showRetired ? 'text-wds-primary' : 'text-wds-text-copy-muted'
           )}
         >
-          Show retired
+          Show archived
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -210,7 +211,11 @@ export interface ItemCatalogTableProps {
  * min 180px) · Type (120px) · Category (140px) · Units (160px) · Pack
  * (110px, right-aligned) · Department scope (250px, `pl-6`/24px indent —
  * confirmed via `get_computed_styles` on `SH9-0`, not a stray margin).
- * Retired rows: whole row at 55% opacity (`SFU-0`), not just the name text.
+ * Restock level (120px, right-aligned) is a genuine addition, not sourced
+ * from Paper — added once the backend carried the data (owner-approved,
+ * `04-components.md` Status log), placed after Pack and before Department
+ * scope since both are per-item quantity facts.
+ * Archived rows: whole row at 55% opacity (`SFU-0`), not just the name text.
  */
 export function ItemCatalogTable({ rows, onRowClick, className }: ItemCatalogTableProps) {
   return (
@@ -222,6 +227,7 @@ export function ItemCatalogTable({ rows, onRowClick, className }: ItemCatalogTab
           <TableHead className="w-[140px] shrink-0">Category</TableHead>
           <TableHead className="w-[160px] shrink-0">Units</TableHead>
           <TableHead className="w-[110px] shrink-0 text-right">Pack</TableHead>
+          <TableHead className="w-[120px] shrink-0 text-right">Restock level</TableHead>
           <TableHead className="w-[250px] shrink-0 pl-wds-6">Department scope</TableHead>
         </TableRow>
       </TableHeader>
@@ -251,6 +257,9 @@ export function ItemCatalogTable({ rows, onRowClick, className }: ItemCatalogTab
             <TableCell className="w-[110px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">
               {row.pack}
             </TableCell>
+            <TableCell className="w-[120px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">
+              {row.restockLevel}
+            </TableCell>
             <TableCell className="w-[250px] shrink-0 pl-wds-6 text-wds-caption text-wds-text-copy-faint">
               {row.departmentScope}
             </TableCell>
@@ -258,6 +267,56 @@ export function ItemCatalogTable({ rows, onRowClick, className }: ItemCatalogTab
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+/* ------------------------------------------------------------ Pagination */
+
+export interface ItemCatalogPaginationBarProps {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  className?: string;
+}
+
+/**
+ * Page bar for the desktop table and mobile list — new, not sourced from
+ * Paper (Paper's mock data never exceeded a page, so no pagination state was
+ * ever drawn). Added because the backend caps `/inventory/items` at 20 rows
+ * per page by default and the screen has real seed data well past that.
+ */
+export function ItemCatalogPaginationBar({ page, totalPages, total, onPageChange, className }: ItemCatalogPaginationBarProps) {
+  if (totalPages <= 1) return null;
+  return (
+    <div
+      className={cn(
+        'flex h-10 shrink-0 items-center justify-between border-t border-wds-border px-wds-4',
+        className
+      )}
+    >
+      <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+        Page {page} of {totalPages} · {total} items
+      </span>
+      <div className="flex gap-wds-1.5">
+        <button
+          type="button"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-ink disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="rounded-wds-sm border border-wds-border-strong px-wds-2 py-0.5 font-wds-sans text-wds-caption text-wds-text-ink disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -276,8 +335,8 @@ export interface ItemCatalogListProps {
  * " · ÷N" / " · no conversion" suffix desktop's UNITS column keeps —
  * Paper's own mobile card (`TN1-0`) draws bare units, a deliberate
  * space-saving simplification confirmed against the desktop node (`SFT-0`),
- * which keeps the fuller string. Retired rows also swap the caption to just
- * the retirement note, matching Paper's retired-row caption exactly.
+ * which keeps the fuller string. Archived rows also swap the caption to just
+ * the archived note, matching Paper's archived-row caption exactly.
  */
 export function ItemCatalogList({ rows, onRowClick, className }: ItemCatalogListProps) {
   return (

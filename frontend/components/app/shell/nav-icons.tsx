@@ -99,3 +99,30 @@ export const ReportsIcon: NavIcon = (props) => (
     <line x1="6" y1="20" x2="6" y2="14" />
   </svg>
 );
+
+/**
+ * Sign-out glyph — Paper never draws a sign-out control anywhere in the
+ * sidebar footer, so there's no node to source this from. Same deviation
+ * category as SearchInput's lucide Search icon: a real, standard glyph
+ * (lucide's `log-out`) rather than inventing bespoke path data.
+ */
+export const SignOutIcon: NavIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+/**
+ * Hamburger glyph for the mobile hub header's menu button — Paper's `TM8-0`
+ * draws this as a placeholder/generic icon; a standard 3-line hamburger is
+ * the conventional real-world equivalent.
+ */
+export const MenuIcon: NavIcon = (props) => (
+  <svg {...base} {...props}>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);

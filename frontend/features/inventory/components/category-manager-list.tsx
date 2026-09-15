@@ -9,9 +9,9 @@ import { cn } from '@/lib/cn';
  * confirmed via `get_computed_styles` on `SRC-0`, not assumed the same
  * width as every other drawer) / `TX2-0` (mobile, "3m · Manage categories").
  *
- * Retired categories show "Restore" instead of "Rename" and the whole row
+ * Archived categories show "Unarchive" instead of "Rename" and the whole row
  * sits at 55% opacity (`SRH-0`, same convention as the Item Catalog Table's
- * retired-row state) — Paper-verified, not derived.
+ * archived-row state) — Paper-verified, not derived.
  */
 export interface CategoryRow {
   id: string;
@@ -26,6 +26,8 @@ export interface CategoryManagerListProps {
   onAddCategory?: (name: string) => void;
   onRename?: (category: CategoryRow) => void;
   onRestore?: (category: CategoryRow) => void;
+  /** Not in Paper's own row (only Rename/Restore are drawn) — added 2026-09-15, owner-requested retire pipeline. */
+  onRetire?: (category: CategoryRow) => void;
   className?: string;
 }
 
@@ -35,6 +37,7 @@ export function CategoryManagerList({
   onAddCategory,
   onRename,
   onRestore,
+  onRetire,
   className,
 }: CategoryManagerListProps) {
   const isMobile = variant === 'mobile';
@@ -86,8 +89,17 @@ export function CategoryManagerList({
                   category.retired ? 'text-wds-primary' : linkToneClass
                 )}
               >
-                {category.retired ? 'Restore' : 'Rename'}
+                {category.retired ? 'Unarchive' : 'Rename'}
               </button>
+              {!category.retired && onRetire ? (
+                <button
+                  type="button"
+                  onClick={() => onRetire(category)}
+                  className="w-12 shrink-0 text-right font-wds-sans text-wds-caption text-wds-error-fg"
+                >
+                  Archive
+                </button>
+              ) : null}
             </div>
           </div>
         ))}

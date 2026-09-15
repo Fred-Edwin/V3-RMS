@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { ApiError } from '@/types/api';
+import { formatApiErrorMessage } from '@/types/api';
 import { getCentralStoreLocation } from '../services';
 
 /**
@@ -21,7 +21,7 @@ export function useCentralStoreLocation() {
       setLocationId(id);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not find the Central Store.');
+      setError(formatApiErrorMessage(err, 'Could not find the Central Store.'));
       setStatus('error');
     }
   }, []);

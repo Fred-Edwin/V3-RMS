@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { ApiError } from '@/types/api';
+import { formatApiErrorMessage } from '@/types/api';
 import { listSuppliers } from '../services';
 import type { Supplier } from '../types';
 
@@ -18,7 +18,7 @@ export function useSuppliers(search?: string) {
       setSuppliers(response.data);
       setStatus('ready');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load suppliers.');
+      setError(formatApiErrorMessage(err, 'Could not load suppliers.'));
       setStatus('error');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
