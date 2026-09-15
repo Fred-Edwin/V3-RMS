@@ -13,6 +13,7 @@ import type { z } from 'zod';
 
 import type {
   CategorySchema,
+  CentralStoreLocationSchema,
   CreateCategorySchema,
   CreateItemSchema,
   CreateSupplierSchema,
@@ -39,6 +40,10 @@ import type {
 export type InventoryItemType = z.infer<typeof inventoryItemTypeSchema>;
 export type DepartmentTag = z.infer<typeof departmentTagSchema>;
 export type SupplierPaymentTerms = z.infer<typeof supplierPaymentTermsSchema>;
+
+// --- Central Store lookup ---------------------------------------------------
+
+export type CentralStoreLocation = z.infer<typeof CentralStoreLocationSchema>;
 
 // --- Categories ------------------------------------------------------------
 

@@ -3483,6 +3483,7 @@ All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
 
 | Method | Path | Roles |
 |---|---|---|
+| `GET` | `/inventory/central-store-location` | SM |
 | `GET` | `/inventory/categories` | SM, SA |
 | `POST` | `/inventory/categories` | SM |
 | `PATCH` | `/inventory/categories/:id` | SM |
@@ -3546,3 +3547,16 @@ specified:
   during the session; the frontend session should treat `UpdateSupplierInput`
   as: send only the fields being changed, and `defaultPaymentTerms` is never
   implicitly reset.
+
+- **2026-09-15 (integration — real backend wiring).** `GET
+  /inventory/central-store-location` added. The frozen contract required the
+  client to already know the Central Store's `locationId` (needed by both
+  restock-level endpoints for a Store Manager caller — a Department Head's own
+  department is resolved server-side instead), but gave it no way to look that
+  id up: not in the JWT, not on the user profile, no locations endpoint in
+  scope. Found when the frontend session swapped from the mock service to the
+  real backend. `Location` itself is unchanged by this milestone (plan §1.3) —
+  this is a minimal, read-only lookup against it, not a new resource. Response:
+  `{ id: string }` (`CentralStoreLocationSchema`). Store-Manager-only,
+  hub-scoped (D-15) — 404 if no Central Store is configured for the hub org.
+  Owner-approved during the session.

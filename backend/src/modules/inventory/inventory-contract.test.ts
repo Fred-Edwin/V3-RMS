@@ -12,6 +12,7 @@ import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import {
   CategorySchema,
+  CentralStoreLocationSchema,
   InventoryItemSchema,
   ItemMutationResponseSchema,
   RestockLevelRowSchema,
@@ -69,6 +70,11 @@ beforeEach(() => {
 });
 
 describe('Inventory contract drift guard', () => {
+  it('CentralStoreLocationSchema accepts getCentralStoreLocation output', async () => {
+    const location = await inventoryService.getCentralStoreLocation(storeManager);
+    expect(() => CentralStoreLocationSchema.parse(location)).not.toThrow();
+  });
+
   it('CategorySchema accepts listCategories output', async () => {
     vi.mocked(categoryRepository.findAllByOrganization).mockResolvedValue([
       {

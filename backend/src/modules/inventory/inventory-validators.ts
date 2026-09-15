@@ -80,6 +80,26 @@ export const departmentTagSchema = z.enum([
 export const supplierPaymentTermsSchema = z.enum(['INVOICE_TO_FOLLOW', 'PAY_NOW']);
 
 // ---------------------------------------------------------------------------
+// Central Store lookup
+// ---------------------------------------------------------------------------
+
+/**
+ * AMENDMENT 2026-09-15 (post-freeze, playbook Step 6 process): added during
+ * the backend build session. `GET /inventory/restock-levels` and
+ * `PUT /inventory/restock-levels` require the Central Store's `locationId`
+ * for a Store Manager caller (a Department Head's own department is resolved
+ * server-side instead), but the originally frozen contract gave the client no
+ * way to look that id up — not in the JWT, not on the user profile, no
+ * locations endpoint. `Location` is unchanged by this milestone (plan §1.3),
+ * so this is a minimal, read-only lookup against it, not a new resource.
+ * Store-Manager-only and hub-scoped, matching D-15. Owner-approved during the
+ * session; see `API_CONTRACT.md` §21.5.
+ */
+export const CentralStoreLocationSchema = z.object({
+  id: uuidSchema,
+});
+
+// ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
 

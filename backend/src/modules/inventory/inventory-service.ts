@@ -15,6 +15,7 @@ import { prisma } from '../../config/database';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
+  CentralStoreLocation,
   CreateCategoryInput,
   CreateItemInput,
   CreateSupplierInput,
@@ -180,7 +181,7 @@ export const inventoryService = {
    * profile) — found when the frontend session wired the real backend in.
    * Minimal and read-only; does not touch the restock-levels contract itself.
    */
-  getCentralStoreLocation: async (actor: Actor): Promise<{ id: string }> => {
+  getCentralStoreLocation: async (actor: Actor): Promise<CentralStoreLocation> => {
     const organizationId = await requireHubActor(actor);
     const centralStore = await locationRepository.findCentralStore();
     if (!centralStore || centralStore.organizationId !== organizationId) {
