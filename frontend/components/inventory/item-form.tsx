@@ -15,7 +15,11 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui2/toggle-group';
  * confirmed via `get_computed_styles` that mobile fields are genuinely
  * taller/differently-radiused (44px/radius-md) than desktop's (32px/
  * radius-sm), not just a CSS zoom of the same component:
- * desktop `SMA-0`/`SLW-0` vs. mobile `TVA-0`/`TVN-0`.
+ * desktop `SMA-0`/`SLW-0` vs. mobile `TVA-0`/`TVN-0`. The Type toggle's
+ * "raw" segment label also differs by variant — Paper's mobile node
+ * (`TV7-0`) draws the short "Raw", not desktop's ("SL2-0") "Raw ingredient" —
+ * confirmed by reading each platform's own node rather than assuming one
+ * label serves both.
  */
 export type ItemFormVariant = 'desktop' | 'mobile';
 
@@ -43,12 +47,8 @@ export interface ItemFormFieldsProps {
   className?: string;
 }
 
-function FieldLabel({ variant, children }: { variant: ItemFormVariant; children: React.ReactNode }) {
-  return variant === 'desktop' ? (
-    <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>
-  ) : (
-    <span className="font-wds-sans text-wds-body-sm text-wds-text-ink">{children}</span>
-  );
+function FieldLabel({ children }: { variant: ItemFormVariant; children: React.ReactNode }) {
+  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>;
 }
 
 function FieldHelper({ children }: { children: React.ReactNode }) {
@@ -71,7 +71,7 @@ export function ItemFormFields({
   const toggleItemClass = isMobile ? 'h-10 grow basis-0' : undefined;
 
   return (
-    <div className={cn('flex flex-col gap-wds-4', className)}>
+    <div className={cn('flex flex-col', isMobile ? 'gap-wds-4.5' : 'gap-wds-4', className)}>
       <div className="flex flex-col gap-wds-1.5">
         <FieldLabel variant={variant}>Name</FieldLabel>
         <Input
@@ -91,7 +91,7 @@ export function ItemFormFields({
           className={isMobile ? 'flex w-full' : undefined}
         >
           <ToggleGroupItem value="raw" className={toggleItemClass}>
-            Raw ingredient
+            {isMobile ? 'Raw' : 'Raw ingredient'}
           </ToggleGroupItem>
           <ToggleGroupItem value="prepped" className={toggleItemClass}>
             Prepped

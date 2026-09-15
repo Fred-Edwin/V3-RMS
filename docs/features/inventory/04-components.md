@@ -1044,6 +1044,195 @@ build, not worked around silently again.
     from the Verification Pass checklist were **not run this session** —
     scoped out deliberately to fit a time budget, not skipped by oversight.
     Do them as their own pass.
+
+- **Verification pass (2026-09-15) — item 1, root-causing the 6 unresolved
+  mobile failures + confirming the 6 "marginal" composites.** Independent
+  session continuing directly from the 2026-09-14 pass above. Reused the
+  existing `/dev/wds-diff` harness and `.scratch/diff/` captures rather than
+  rebuilding — both were left in place for exactly this.
+
+  **The 6 "marginal (2-4%)" composites (Mobile Hub Header, Item Catalog
+  Table Desktop, Item Form Desktop, KPI Strip desktop + mobile, Drawer
+  Shell, Mobile Task Header Cancel) are now independently confirmed as
+  AA-noise, not defects** — inspected every diff image directly: all show
+  only text-glyph outline highlighting on matching content, no solid-block
+  regions, no structural shift. This was flagged as "not independently
+  re-confirmed" in the prior entry; now it is.
+
+  **The 6 root-cause-pending mobile failures are resolved — one by one,
+  not assumed to share a single explanation. Two were real component bugs,
+  fixed; two were harness bugs, fixed; two are the same accepted
+  "composite doesn't own trailing shell content" scope difference as
+  Supplier Form Mobile, confirmed independently rather than assumed:**
+
+  1. **Item Catalog Table Mobile (was 8.65%, now 8.32%, AA-noise) — two
+     real bugs found and fixed in
+     `components/inventory/item-catalog-table.tsx`'s `ItemCatalogList`:**
+     - Retired rows were rendering the full `"{type} · {category} ·
+       {scope}"` caption like every other row, but Paper's own mobile card
+       (`TN1-0`, last/retired item) draws a different, shorter caption for
+       retired rows: just the retirement note (`departmentScope` alone,
+       e.g. "Retired 04 Aug · history kept"), no type/category prefix.
+       Fixed: `row.retired ? row.departmentScope : `${typeLabel}...``.
+     - The units column was rendering the full desktop-style string
+       (`"bag → kg · ÷25"`, `"kg · no conversion"`) but Paper's mobile card
+       draws bare units only (`"bag → kg"`, `"kg"`) — confirmed by reading
+       `TN1-0`'s `get_jsx` directly: mobile is a deliberate space-saving
+       simplification of desktop's fuller `UNITS` column (`SFT-0`), not a
+       shared value. Fixed: mobile now splits on `" · "` and keeps only
+       the first segment. Documented inline in the component (see the
+       function's own doc comment) so this isn't re-derived per composite.
+     - The harness's own demo data was also wrong independent of the
+       component: it has 6 rows including "Cooking oil", but Paper's
+       `TN1-0` reference only draws 5 (no Cooking oil) — the extra row
+       pushed the last real row out of the mobile crop, swapping in a row
+       Paper never drew. Fixed in `/dev/wds-diff/page.tsx`: mobile capture
+       now filters out the `oil` demo row.
+     - Residual 8.32% is pure text-AA noise (verified: every highlighted
+       pixel is a glyph outline on now-matching content, no solid blocks) —
+       larger than smaller composites' AA-noise because this crop is
+       unusually text-dense (5 full rows of name/units/type/category/scope
+       in a small viewport). Treated as a pass per the established
+       "0% isn't realistic for text" standard, at the higher end of the
+       observed range.
+
+  2. **Category Manager Mobile (was 6.54%, now 3.02%, AA-noise) — one
+     harness bug, not a component bug: the Paper reference was captured
+     from the wrong node.** The prior session's capture used `TX2-0`
+     ("Category list" — list rows only), but Paper's real mobile screen
+     (`TWZ-0`, the actual artboard content) stacks the "+ Add a category"
+     input **above** the list, both inside one `p-4 gap-4` container —
+     confirmed via `get_children`/`get_jsx` on `TWZ-0`. The built
+     component was already correct (renders both, matching `TWZ-0`); the
+     captured Paper reference just omitted the add-input, so everything
+     below it compared one row-height off. Re-exported `TWZ-0` via
+     `export`, re-flattened, re-diffed: 6.54% → 3.02%, and the diff image
+     is now pure text-AA noise across all 6 rows, no structural offset.
+     **Desktop's equivalent capture (`SRG-0`) was already the correct full
+     screen** (it includes the add-input), which is why desktop passed
+     clean at 1.39% last session and only mobile needed re-capturing.
+
+  3. **Mobile Task Header Done (was 5.14%, now 5.38%, AA-noise) — one
+     harness bug: demo copy didn't match Paper's exact text.** Paper's
+     `TZO-0` subtitle reads "...drives the **store low-stock signal**."; the
+     `/dev/wds-diff/page.tsx` demo had "...drives the **stock alerts**." —
+     a copy-editing slip, not a component defect (the component renders
+     whatever subtitle prop it's given). Fixed the demo string to match
+     Paper exactly. Residual 5.38% (barely changed from 5.14%, despite the
+     content now matching) is confirmed line-wrap AA noise: the subtitle
+     wraps to 2 lines in both, breaking 1 word earlier in Paper's version —
+     a sub-pixel width/kerning difference, not a text mismatch. High
+     percentage is a function of the crop being tiny (390×112px), not a
+     large absolute defect (2349 mismatched px total).
+
+  4. **Item Form Mobile (was 11.22%, now 9.88%) and Supplier Form Mobile
+     (was 11.67%, now 9.37%) — three real component bugs found and fixed
+     across both, all in the shared `FieldLabel` pattern + a spacing
+     token, plus one content-only fix in Item Form:**
+     - **Both composites' mobile `FieldLabel` rendered the wrong style
+       entirely.** `item-form.tsx` and `supplier-form.tsx` both had a
+       `variant`-conditional `FieldLabel`: mono-uppercase on desktop,
+       plain sentence-case sans-serif on mobile. Checked against Paper's
+       actual mobile nodes (`TV7-0`, `TLW-0`) rather than assumed correct
+       from the original build — both draw labels in the **same
+       mono-uppercase style as desktop** ("NAME", "TYPE", "SUPPLIER NAME",
+       "CONTACT PERSON", etc.), not sentence-case. This is a real,
+       previously-undetected defect in both composites' mobile variant —
+       it went unnoticed originally because the trailing-button scope gap
+       already dominated both diffs, masking a same-magnitude label bug
+       underneath. Fixed both `FieldLabel`s to always render mono-uppercase
+       regardless of variant (the mobile branch was simply wrong, not a
+       legitimate platform difference like the payment-terms-toggle or
+       below-restock-level-tone cases found earlier this milestone).
+     - **Both composites' mobile root field-group gap was 16px
+       (`gap-wds-4`), but Paper's mobile nodes use 18px
+       (`gap-4.5`/`wds-4.5`)** — confirmed via each platform's own `get_jsx`
+       (`TV7-0`/`TLW-0` mobile `p-4 gap-4.5` vs. `SL2-0`/`SX5-0` desktop
+       `py-5 px-6 gap-4`): this is a genuine desktop/mobile spacing
+       difference, not a shared value, same pattern as the field control
+       heights (44px mobile vs 32px desktop) already documented for Item
+       Form. The 2px-per-gap error compounded across 5-6 field groups into
+       a visible cumulative vertical drift by the bottom of each form —
+       this is what was actually causing much of the "vertical shift"
+       visual pattern in both diff images, not (only) the accepted missing
+       trailing button. Fixed: mobile now uses `gap-wds-4.5`, desktop keeps
+       `gap-wds-4`.
+     - **Item Form's mobile Type-toggle "Raw" segment used desktop's fuller
+       label.** Both variants hardcoded "Raw ingredient"; Paper's mobile
+       node (`TV7-0`) draws the shorter "Raw" for the same segment, desktop
+       (`SL2-0`) draws "Raw ingredient" — read independently rather than
+       assumed identical, per this milestone's established practice for
+       genuine per-platform label differences. Fixed: `{isMobile ? 'Raw' :
+       'Raw ingredient'}`.
+     - After all three fixes, residual 9.88%/9.37% is the same accepted
+       "composite doesn't own trailing shell content" gap already
+       documented for Supplier Form Mobile — re-confirmed, not assumed,
+       by inspecting the post-fix diff images: content and spacing now
+       align cleanly through the entire field list in both, and the only
+       remaining highlighted region in each is the trailing button area
+       (Item Form: also the "Central Store restock level" field, which
+       Paper's mobile mock (`TV7-0`) genuinely never draws at all — see
+       below — desktop's `SL2-0` does draw it, so the field is real and
+       stays; Supplier Form: just "Save changes"). Neither is a defect to
+       fix in these composites; both belong to whichever screen assembles
+       them in Step 5.
+     - **New, Paper-confirmed scope note for Item Form specifically:**
+       `TV7-0` (mobile) has no "Central Store restock level" field at all —
+       it jumps from "Where it may exist" straight to "Create item".
+       Desktop's `SL2-0` does draw it (last field before Save). The
+       component currently renders it on both variants, matching the
+       04-components.md composite table's own "Identical field set both
+       places" statement and desktop's stated behavior — **not removed**,
+       since removing a real, useful field to chase a lower diff % would
+       be the wrong call; Paper's mobile mock most likely just abbreviates
+       the full field list the way it does for other screens, not a
+       deliberate field cut. Flagged here for whoever wires the real
+       mobile route in Step 5, in case product intends this field to be
+       desktop (Central-Store-drawer) only.
+
+  5. **Restock Level Grid Mobile (was 7.76%, unchanged, no code fix) —
+     confirmed as the accepted scope difference, not root-caused
+     further.** Paper's full mobile mock (`TLX-0`/`U03-0`) includes a
+     leading "Search an item" search box (screen/shell-level, not owned by
+     `RestockLevelGrid`) and a trailing "Save restock levels" button
+     (same), both outside what this composite ever claimed to render — the
+     composite's own grid rows + helper note match Paper pixel-for-pixel
+     within the AA-noise band once the leading/trailing regions are
+     visually excluded from consideration. No code change; same category
+     as Supplier Form Mobile's original finding, now applied here too
+     after checking rather than assuming.
+
+  **Net result — final numbers, all re-verified this session (not carried
+  forward from memory):**
+  | Composite | Prior | Now | Status |
+  |---|---|---|---|
+  | Mobile Task Header Done | 5.14% (content mismatch) | 5.38% | AA-noise, pass |
+  | Category Manager Mobile | 6.54% | 3.02% | AA-noise, pass |
+  | Item Catalog Table Mobile | 8.65% | 8.32% | AA-noise, pass |
+  | Restock Level Grid Mobile | 7.76% | 7.76% | Accepted scope gap, pass |
+  | Supplier Form Mobile | 11.67% | 9.37% | Accepted scope gap, pass |
+  | Item Form Mobile | 11.22% | 9.88% | Accepted scope gap, pass |
+
+  None of these hit the literal ≤2% bar, but none are being waved through
+  on assumption either — every one was inspected as a diff image, cross-
+  checked against the specific Paper node it's supposed to match, and its
+  remaining gap traced to a specific, named cause (AA noise on matching
+  content, or a documented scope boundary). That is the same judgment-call
+  standard already established for Select/Toggle Group/Sidebar/Topbar,
+  applied with the same rigor to composites with larger absolute
+  percentages, not a relaxed bar for this batch.
+
+  **Decision on `/dev/wds-diff`: left in place, not deleted.** Still
+  useful for Step 5 (re-verifying once real screens replace these isolated
+  demo renders) and for the two items (2, 3) still open in this
+  Verification Pass. Delete once Step 5's real screens make the isolated
+  harness redundant, per the prior session's own note.
+
+  Capture artifacts updated in `.scratch/diff/{paper,paper-flat,built}/`
+  (gitignored, not committed) — `category-manager-mobile.png` in
+  `paper`/`paper-flat` now holds the corrected `TWZ-0` export (previously
+  `TX2-0`); all six affected composites' `built/*.png` and `*.diff.png`
+  are current as of this session, not the 2026-09-14 ones.
 - [x] Pixel-diff passed (≤2%, or confirmed-AA-noise per the documented
       judgment call) at both Paper anchors — for Sidebar Nav / Mobile Icon
       Rail / Topbar. **Every composite after Topbar (Mobile Header/Task

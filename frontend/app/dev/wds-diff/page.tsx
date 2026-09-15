@@ -112,7 +112,7 @@ export default function WdsDiffPage() {
         <div className="w-[390px]">
           <MobileTaskHeader
             title="Restock levels"
-            subtitle="Central Store items only. Store restock level drives the stock alerts."
+            subtitle="Central Store items only. Store restock level drives the store low-stock signal."
             trailingAction="Done"
           />
         </div>
@@ -190,7 +190,7 @@ export default function WdsDiffPage() {
     case 'item-catalog-table-mobile':
       return (
         <div className="w-[358px]">
-          <ItemCatalogList rows={demoCatalogRows} />
+          <ItemCatalogList rows={demoCatalogRows.filter((r) => r.id !== 'oil')} />
         </div>
       );
 

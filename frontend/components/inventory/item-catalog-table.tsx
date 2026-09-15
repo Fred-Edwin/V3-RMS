@@ -185,6 +185,12 @@ export interface ItemCatalogListProps {
 /**
  * Mobile card list — not a table. Each row: name + units on top, dot +
  * "Type · Category · Scope" caption below. Reference: `TN1-0`/`TN2-0`.
+ * Units shows only the base unit/conversion arrow, dropping the trailing
+ * " · ÷N" / " · no conversion" suffix desktop's UNITS column keeps —
+ * Paper's own mobile card (`TN1-0`) draws bare units, a deliberate
+ * space-saving simplification confirmed against the desktop node (`SFT-0`),
+ * which keeps the fuller string. Retired rows also swap the caption to just
+ * the retirement note, matching Paper's retired-row caption exactly.
  */
 export function ItemCatalogList({ rows, className }: ItemCatalogListProps) {
   return (
@@ -199,12 +205,16 @@ export function ItemCatalogList({ rows, className }: ItemCatalogListProps) {
         >
           <div className="flex items-center justify-between">
             <span className="font-wds-sans text-wds-body font-medium text-wds-text-ink">{row.name}</span>
-            <span className="font-wds-mono text-wds-caption text-wds-text-muted">{row.units}</span>
+            <span className="font-wds-mono text-wds-caption text-wds-text-muted">
+              {row.units.split(' · ')[0]}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className={cn('size-1.5 shrink-0 rounded-wds-full', typeDotClass[row.type])} aria-hidden />
             <span className="font-wds-sans text-wds-caption text-wds-text-muted">
-              {typeLabel[row.type]} &middot; {row.category} &middot; {row.departmentScope}
+              {row.retired
+                ? row.departmentScope
+                : `${typeLabel[row.type]} · ${row.category} · ${row.departmentScope}`}
             </span>
           </div>
         </div>

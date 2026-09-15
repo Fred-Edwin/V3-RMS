@@ -31,12 +31,8 @@ export interface SupplierFormFieldsProps {
   className?: string;
 }
 
-function FieldLabel({ variant, children }: { variant: 'desktop' | 'mobile'; children: React.ReactNode }) {
-  return variant === 'desktop' ? (
-    <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>
-  ) : (
-    <span className="font-wds-sans text-wds-body-sm text-wds-text-ink">{children}</span>
-  );
+function FieldLabel({ children }: { variant: 'desktop' | 'mobile'; children: React.ReactNode }) {
+  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-muted">{children}</span>;
 }
 
 /**
@@ -91,7 +87,7 @@ export function SupplierFormFields({ variant, values, onChange, categoryOptions,
   const toggleItemClass = isMobile ? 'h-11 grow basis-0' : undefined;
 
   return (
-    <div className={cn('flex flex-col gap-wds-4', className)}>
+    <div className={cn('flex flex-col', isMobile ? 'gap-wds-4.5' : 'gap-wds-4', className)}>
       <div className="flex flex-col gap-wds-1.5">
         <FieldLabel variant={variant}>Supplier name</FieldLabel>
         <Input className={fieldInputClass} value={values.name} onChange={(e) => set('name', e.target.value)} />
