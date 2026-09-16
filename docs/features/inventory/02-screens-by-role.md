@@ -43,6 +43,13 @@ gaps visible so design proceeds role by role without orphan screens.
   `Invoice to follow`). Those are working modes, not error states. Slice A's
   richer state lists (A2's 5, A6's 7) predate this policy and stay as the frozen
   Slice A record; new work follows the policy.
+  **Mobile addendum (2026-09-15):** `15W-0`'s universal-states shell was
+  desktop-only — no mobile equivalent existed, so mobile screens had nothing to
+  point to. Added `10m · Universal states · mobile` (page `3-0`, artboard
+  `X7O-0`) as the mobile counterpart: the same four states composited with the
+  Mobile Hub Header. New mobile screens reference `X7O-0` the same way desktop
+  screens reference `15W-0`; still never redrawn per screen unless the state
+  changes that screen's layout (same exception as desktop).
 
 ### Universal shared shells (designed once, Session 0 — `15W-0`)
 
@@ -65,15 +72,15 @@ Central Store; never a branch-internal or sales context.
 | # | Screen | Purpose | Surface | Device | Status | Flows | Journey order |
 |---|---|---|---|---|---|---|---|
 | 1 | **Central Store dashboard** | At-a-glance: low stock, expected deliveries, receipts awaiting invoice, counts to verify, open discrepancies | route | desktop | **DESIGNED** — populated `1UF-0` · all-clear `2E7-0` · loading `2TM-0` · error `31Y-0` | 1,2,5,20 | 1 (home) |
-| 2 | **Purchasing hub** | KPI strip (on-hand value, owed AP, overdue) · INBOUND band (expected + receive + add-invoice) · HISTORY band (needs-invoice filter) | route (hub-landing) | desktop | **DESIGNED** — populated `3JM-0` · empty `3OH-0` | 1,2,14 | 2 |
-| 3 | → New purchase | Supplier + estimate lines; saves an `Awaiting delivery` row | drawer (off hub) | desktop | **DESIGNED** — `4D9-0` | 1 | 2a |
-| 4 | → Record supplier invoice | Bundle receipts, invoice no./date/amount, mismatch callout → `UNPAID` | drawer | desktop | **DESIGNED** — `4LD-0` | 14 | 2b |
-| 5 | → Record supplier payment | Allocate across invoices, partial, overpayment → credit | drawer | desktop | **DESIGNED** — `4UM-0` · overpayment `53P-0` | 15 | 2c |
+| 2 | **Purchasing hub** | KPI strip (on-hand value, owed AP, overdue) · INBOUND band (expected + receive + add-invoice) · HISTORY band (needs-invoice filter) | route (hub-landing) | desktop + mobile | **DESIGNED** — populated `3JM-0` · empty `3OH-0` · loading `W4V-0` · error `WBP-0` · mobile `WUL-0` (page `C-0`: loading/error `WK4-0`/`WPL-0`, mobile `WUL-0`) | 1,2,14 | 2 |
+| 3 | → New purchase | Supplier + estimate lines; saves an `Awaiting delivery` row | drawer (off hub); mobile: full-screen route | desktop + mobile | **DESIGNED** — `4D9-0` · mobile `X1O-0` | 1 | 2a |
+| 4 | → Record supplier invoice | Bundle receipts, invoice no./date/amount, mismatch callout → `UNPAID` | drawer; mobile: full-screen route | desktop + mobile | **DESIGNED** — `4LD-0` · mobile `X2Y-0` | 14 | 2b |
+| 5 | → Record supplier payment | Allocate across invoices, partial, overpayment → credit | drawer; mobile: full-screen route | desktop + mobile | **DESIGNED** — `4UM-0` · overpayment `53P-0` · mobile `X4O-0` (overpayment variant not redrawn for mobile — see MILESTONES.md session note) | 15 | 2c |
 | 6 | **New Goods Receipt** | Pricing line grid, price alerts, damage notes, PIN sign, move stock | route | desktop (mobile-primary for Attendant) | **DESIGNED** — price-alert `3TG-0` · Pay-now `44L-0` · mid-signature `3YT-0` · empty `7T0-0` · pre-filled `7Y9-0` · offline `83I-0` | 2,2a–2e | 3 |
 | 7 | **Goods Receipt detail (signed) + print** | Immutable signed record; hard copy | route | desktop | **DESIGNED** — populated `8CJ-0` · loading `8J5-0` · error `8N1-0` | 2 | 3a |
-| 8 | **Suppliers / AP landing** | Supplier index + AP position + aging (absorbs A11): KPI strip, age-bucket table, filters, export | route | desktop | **DESIGNED** — populated `5GE-0` · loading `5R3-0` · empty `5XA-0` · error `63H-0` · perm-denied `69O-0` | 16 | 4 |
-| 9 | **Supplier detail** | One supplier: profile, AP panel, invoices, payments, history | route | desktop | **DESIGNED** — populated `6IJ-0` · loading `71E-0` · submitting `783-0` · error `7ES-0` · perm-denied `7LH-0` | 1,14,15 | 4a |
-| 10 | → New / edit supplier | 3 fields | drawer (over detail; also inline from New-purchase) | desktop | **DESIGNED** — `6TF-0` | 18 | 4b |
+| 8 | **Suppliers / AP landing** | Supplier index + AP position + aging (absorbs A11): KPI strip, age-bucket table, filters, export | route | desktop + mobile | **DESIGNED** — populated `5GE-0` · loading `5R3-0` · empty `5XA-0` · error `63H-0` · perm-denied `69O-0` · mobile `WXO-0` | 16 | 4 |
+| 9 | **Supplier detail** | One supplier: profile, AP panel, invoices, payments, history | route | desktop + mobile | **DESIGNED** — populated `6IJ-0` · loading `71E-0` · submitting `783-0` · error `7ES-0` · perm-denied `7LH-0` · mobile `WZF-0` (stacked sections: profile → AP → invoices → history) | 1,14,15 | 4a |
+| 10 | → New / edit supplier | 3 fields | drawer (over detail; also inline from New-purchase); mobile: full-screen route | desktop + mobile | **DESIGNED** — `6TF-0` · mobile `X6B-0` | 18 | 4b |
 | 11 | **Dispatch queue** | Approved requisitions waiting; one card per branch → 5 dept sections; oldest-first | route | desktop (mobile secondary) | **MISSING** (C1) — 1 artboard: populated | 9 | 5 |
 | 12 | **Fulfil & dispatch** | Per-line dispatched qty, substitutions, per-department PIN sign, print delivery note | route | desktop | **MISSING** (C2) — 3: populated, mid-signature, dispatched (signed record: script-font signer + timestamp, In-Transit status, ledger written, print) | 9,9a,9b | 5a |
 | 13 | **Delivery note (signed) + print** | The driver's copy, per department | route (print artefact) | desktop | **MISSING** (C3) — 1: on-screen signed view (print layout deferred to O-PRINT pass) | 9 | 5b |
@@ -99,6 +106,16 @@ signing modes are the Session-0 Sign sheet composited over the screen). Screens
 **Store Manager mobile:** the SM is desktop-primary. Goods Receipt (#6) and Spot
 count (#18) are usable on mobile but reuse the Attendant mobile artboard / the
 drawer; no SM-specific mobile artboards are planned. **Flag O-SM1** below.
+
+**Override for Milestone Two (2026-09-15):** screens 2–5 and 8–10 above now have
+SM-specific mobile artboards (Purchasing hub, New purchase, Record supplier
+invoice, Record supplier payment, Suppliers/AP landing, Supplier detail,
+New/edit supplier) — see O-SM1's updated note. These live on Paper page
+`Milestone Two · Receiving & Supplier AP` (`C-0`), not on this page's own
+Paper page, since Milestone Two builds from its own dedicated page. Only the
+populated state was drawn per mobile screen — empty/loading/error/
+permission-denied reference the new `10m · Universal states · mobile`
+(`X7O-0`, page `3-0`), same as desktop screens reference `15W-0`.
 
 ### Store Manager — design status (Paper page `F1 Inventory · Store Manager`)
 
@@ -347,6 +364,18 @@ MCP tools. The design pass will **rebuild** on the new role pages, cloning from
   Spot count) are "usable on mobile". Recommendation: **no** SM-specific mobile
   artboards — the SM on a phone reuses the Attendant mobile receipt / the drawer.
   Confirm.
+  **Overridden 2026-09-15 for Milestone Two specifically.** The owner reviewed
+  Milestone Two's screen set on Paper page `C-0` and found 7 of its 10 screens
+  had no mobile version at all (Purchasing hub, New purchase, Record supplier
+  invoice, Record supplier payment, Suppliers/AP landing, Supplier detail,
+  New/edit supplier) — a real gap, not covered by "reuses the Attendant
+  artboard" since these are Buying/Supplier-AP screens the Attendant never
+  sees. Mobile versions were designed for all 7 (responsive adaptations of the
+  approved desktop layouts, not new visual direction) plus the previously
+  undesigned Receiving-worklist mobile clone. This does **not** revert the
+  original O-SM1 recommendation for other milestones/screens — it is scoped to
+  Milestone Two's screen set only. Any future milestone should re-ask the
+  question rather than assume the override carries forward.
 - **O-ATT-SIDEBAR — RESOLVED 2026-09-10 (spec wins).** Attendant nav = Dashboard ·
   Receiving · Prep · Dispatch · Stock & counts (no PROCUREMENT group). Locked;
   applied on page `5-0`. Deep-links to hidden areas → permission-denied (`ILY-0`).

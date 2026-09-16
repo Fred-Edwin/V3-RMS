@@ -145,6 +145,11 @@ const wdsPreset: Partial<Config> = {
           'SFMono-Regular',
           'monospace',
         ],
+        // Signature rendering only (Goods Receipt sign sheet + signed detail).
+        // Paper token: --font-signature: 'Alex Brush', cursive. next/font
+        // registers the --font-signature CSS var via app/layout.tsx's
+        // alexBrush export.
+        'wds-signature': ['var(--font-signature)', 'Alex Brush', 'cursive'],
       },
 
       /* Type scale — px-locked, dense. Matches the Typography artboard. */
@@ -153,6 +158,10 @@ const wdsPreset: Partial<Config> = {
         'wds-h1': ['26px', { lineHeight: '32px', letterSpacing: '-0.02em', fontWeight: '600' }],
         'wds-h2': ['20px', { lineHeight: '26px', letterSpacing: '-0.015em', fontWeight: '600' }],
         'wds-h3': ['16px', { lineHeight: '22px', fontWeight: '600' }],
+        // Paper's own --text-section/--leading-section pair (15px/20px) —
+        // a distinct step below h3, used for dialog/section titles like the
+        // Sign Sheet's "Confirm & sign" heading (D61-0).
+        'wds-section': ['15px', { lineHeight: '20px', fontWeight: '600' }],
         'wds-drawer-title': ['16px', { lineHeight: '20px', fontWeight: '600' }],
         'wds-mobile-title': ['24px', { lineHeight: '30px', fontWeight: '600' }],
         'wds-mobile-task-title': ['20px', { lineHeight: '24px', fontWeight: '600' }],
@@ -175,6 +184,7 @@ const wdsPreset: Partial<Config> = {
       spacing: {
         'wds-0.5': '2px',
         'wds-1': '4px',
+        'wds-1.25': '5px',
         'wds-1.5': '6px',
         'wds-2': '8px',
         'wds-2.5': '10px',

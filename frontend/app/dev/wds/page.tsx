@@ -79,6 +79,15 @@ import {
   RestockLevelHelperNote,
   type RestockLevelRow,
 } from '@/features/inventory/components/restock-level-grid';
+import { SignSheetDialog, SignedBySignature } from '@/features/inventory/components/sign-sheet';
+import { ReceiptLineGrid, type ReceiptLineRow } from '@/features/inventory/components/receipt-line-grid';
+import {
+  BundleCheckboxList,
+  BundleRunningTotal,
+  type BundleRow,
+} from '@/features/inventory/components/bundle-checkbox-list';
+import { DisputeCallout } from '@/features/inventory/components/dispute-callout';
+import { AgingBucketTable, type AgingBucketTableRow } from '@/features/inventory/components/aging-bucket-table';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -185,6 +194,10 @@ export default function WdsPreviewPage() {
     setDiffTarget(new URLSearchParams(window.location.search).get('diff'));
   }, []);
   const [drawerShellOpen, setDrawerShellOpen] = React.useState(false);
+  const [signSheetOpen, setSignSheetOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (diffTarget === 'sign-sheet') setSignSheetOpen(true);
+  }, [diffTarget]);
   const [supplierFormValues, setSupplierFormValues] = React.useState<SupplierFormValues>({
     name: 'Samrat Ltd',
     contactPerson: 'Rajesh Samrat',
@@ -194,6 +207,54 @@ export default function WdsPreviewPage() {
     location: 'Nyeri town',
     paymentTerms: 'invoice',
   });
+  const [receiptRows, setReceiptRows] = React.useState<ReceiptLineRow[]>([
+    {
+      id: 'chicken',
+      itemName: 'Whole Chicken 1.2kg',
+      unitConversionLabel: 'buy: crate (12) → usage: kg',
+      qty: '18.0',
+      buyUnit: 'kg',
+      unitPrice: '420',
+      subtotal: '7,560',
+    },
+    {
+      id: 'syrup',
+      itemName: 'Dormans Syrup Hazelnut 750ml',
+      unitConversionLabel: 'buy: pack (2) → usage: unit',
+      qty: '2',
+      buyUnit: 'pkt',
+      unitPrice: '1,650',
+      subtotal: '3,300',
+      priceAlertLabel: '38% above last',
+    },
+  ]);
+  const [bundleRows, setBundleRows] = React.useState<BundleRow[]>([
+    { id: 'grn-1042', title: 'GRN-1042', subtitle: '08 Sep · 3 lines', amountLabel: 'KES 7,668', checked: true },
+    { id: 'grn-1035', title: 'GRN-1035', subtitle: '31 Aug · 2 lines', amountLabel: 'KES 3,120', checked: false },
+  ]);
+  const agingRows: AgingBucketTableRow[] = [
+    {
+      id: 'kimathi',
+      supplierName: 'Kimathi Butchery',
+      disputedCount: 1,
+      termsLabel: 'Invoice',
+      lastActivityLabel: '05 Sep',
+      invoiced: '312,400',
+      paid: '194,000',
+      buckets: { current: '–', '1-30': '–', '31-60': '28,400', '61-90': '–', '90+': '90,000' },
+      outstanding: '118,400',
+    },
+    {
+      id: 'samrat',
+      supplierName: 'Samrat Ltd',
+      termsLabel: 'Invoice',
+      lastActivityLabel: '08 Sep',
+      invoiced: '218,400',
+      paid: '176,220',
+      buckets: { current: '26,180', '1-30': '16,000', '31-60': '–', '61-90': '–', '90+': '–' },
+      outstanding: '42,180',
+    },
+  ];
   const [restockRows, setRestockRows] = React.useState<RestockLevelRow[]>([
     { id: 'coffee', name: 'Coffee beans', unit: 'kg', onHand: 12, restockLevel: 30 },
     { id: 'milk', name: 'Milk', unit: 'litres', onHand: 128, restockLevel: 80 },
@@ -873,6 +934,102 @@ export default function WdsPreviewPage() {
                   </RestockLevelHelperNote>
                 </div>
               </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Signature font token"
+            note="Milestone Two — font-wds-signature (Alex Brush via next/font/google, --font-signature CSS var). Feeds the Sign sheet + signed Goods Receipt detail. Paper token: --font-signature: 'Alex Brush', cursive."
+          >
+            <p className="font-wds-signature text-[32px] leading-[38px] text-wds-text-ink">David Kariuki</p>
+          </Section>
+
+          <Section
+            title="Sign Sheet"
+            note="Milestone Two — features/inventory/components/sign-sheet.tsx. PIN entry dialog (new InputOTP primitive, components/ui2/input-otp.tsx, restyled onto WDS tokens from shadcn's default) + the read-only rendered-signature block. Reference: page 4-0, D61-0 (mid-signature PIN dialog) / GEO-0 (signed state) — not cloned onto C-0; New Goods Receipt sign & save and the signed Goods Receipt detail reuse this exact pattern."
+          >
+            <div className="flex flex-col gap-wds-4">
+              <Button variant="primary" onClick={() => setSignSheetOpen(true)}>
+                Open sign sheet (PIN entry)
+              </Button>
+              <div className="w-fit rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
+                <SignedBySignature
+                  label="RECEIVED & SIGNED BY"
+                  name="David Kariuki"
+                  roleLine="Store Manager · PIN verified 16 Sep 09:20"
+                />
+              </div>
+            </div>
+            <SignSheetDialog
+              open={signSheetOpen}
+              onOpenChange={setSignSheetOpen}
+              title="Confirm & sign Goods Receipt"
+              subtitle="GRN-1042 · Samrat Ltd · 4 lines · KES 8,385"
+              helperText="This re-authenticates you as the signer. Your name and the time are recorded on the receipt and the receive ledger entries for every line."
+              onSubmit={() => setSignSheetOpen(false)}
+            />
+          </Section>
+
+          <Section
+            title="Receipt Line Grid"
+            note="Milestone Two — features/inventory/components/receipt-line-grid.tsx. New Goods Receipt (UQE-0, grid node UQV-0). Qty + buy-unit chip + unit price + computed subtotal + inline price-alert badge per row — built fresh, using restock-level-grid.tsx as the row-layout pattern reference only, not extended directly (a materially different row shape). Desktop-only; Paper draws no mobile counterpart for this screen this milestone."
+          >
+            <div className="w-[1000px] max-w-full">
+              <ReceiptLineGrid
+                rows={receiptRows}
+                onQtyChange={(id, value) =>
+                  setReceiptRows((rows) => rows.map((r) => (r.id === id ? { ...r, qty: value } : r)))
+                }
+                onUnitPriceChange={(id, value) =>
+                  setReceiptRows((rows) => rows.map((r) => (r.id === id ? { ...r, unitPrice: value } : r)))
+                }
+                onAddLine={() => {}}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Bundling Checkbox List"
+            note="Milestone Two — features/inventory/components/bundle-checkbox-list.tsx. Record supplier invoice (UZJ-0, 'RECEIPTS TO BUNDLE') and Record supplier payment (V7Z-0, 'INVOICES TO ALLOCATE') share this identical pattern — built once, used both places. Reference: V0L-0 (checkbox rows) + V0I-0 (running total)."
+          >
+            <div className="w-[430px] max-w-full flex flex-col gap-wds-3">
+              <BundleCheckboxList
+                title="Receipts to bundle"
+                rows={bundleRows}
+                onToggle={(id) =>
+                  setBundleRows((rows) => rows.map((r) => (r.id === id ? { ...r, checked: !r.checked } : r)))
+                }
+              />
+              <BundleRunningTotal
+                label={`Our figure (${bundleRows.filter((r) => r.checked).length} receipt${bundleRows.filter((r) => r.checked).length === 1 ? '' : 's'} selected)`}
+                amountLabel={`KES ${bundleRows
+                  .filter((r) => r.checked)
+                  .reduce((sum, r) => sum + Number(r.amountLabel.replace(/[^\d]/g, '')), 0)
+                  .toLocaleString()}`}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Mismatch/Dispute Callout"
+            note="Milestone Two — features/inventory/components/dispute-callout.tsx. Record supplier invoice (UZJ-0), callout node UZV-0. Warning-toned, two action buttons (Hold / Record at billed — open dispute)."
+          >
+            <div className="w-[430px] max-w-full">
+              <DisputeCallout
+                title="Billed exceeds our figure by KES 500"
+                description="Our receipt total is KES 7,668. Choose how to proceed:"
+                onHold={() => {}}
+                onRecordAtBilled={() => {}}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="How Overdue Bucket Table"
+            note="Milestone Two — features/inventory/components/aging-bucket-table.tsx. Suppliers screen (VGE-0). Five-bucket set (CURRENT/1-30/31-60/61-90/90+) shares its cell renderer with item 7's Supplier detail panel (aging-bucket-cell.tsx) — one bucket-cell component both screens consume, never two separate layouts or calculations. Row 1 (Kimathi Butchery) is Paper's own disputed-supplier reference case."
+          >
+            <div className="w-[1100px] max-w-full">
+              <AgingBucketTable rows={agingRows} />
             </div>
           </Section>
 

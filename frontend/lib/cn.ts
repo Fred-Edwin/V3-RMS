@@ -26,6 +26,7 @@ const customTextScale = [
   'wds-h1',
   'wds-h2',
   'wds-h3',
+  'wds-section',
   'wds-drawer-title',
   'wds-mobile-title',
   'wds-mobile-task-title',

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond, Inter, Playfair_Display } from 'next/font/google';
+import { Alex_Brush, Cormorant_Garamond, Inter, Playfair_Display } from 'next/font/google';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -33,6 +33,15 @@ const playfairDisplay = Playfair_Display({
 // --font-geist-mono; the wds preset's font-wds-* families point at those.
 // Consumed via `font-wds-sans` / `font-wds-mono` in components/ui2/.
 
+// Signature rendering only (Goods Receipt sign sheet + signed detail) — the
+// Paper token `--font-signature` maps to this. Scoped narrowly like
+// playfairDisplay above since it has exactly one visual purpose.
+const alexBrush = Alex_Brush({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-signature',
+});
+
 export const viewport: Viewport = {
   themeColor: '#2C1810',
   width: 'device-width',
@@ -65,10 +74,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${alexBrush.variable} ${GeistSans.variable} ${GeistMono.variable}`}
     >
       <body
-        className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans`}
+        className={`${cormorantGaramond.variable} ${inter.variable} ${playfairDisplay.variable} ${alexBrush.variable} ${GeistSans.variable} ${GeistMono.variable} font-sans`}
       >
         <SessionBootstrap />
         <OfflineBanner />

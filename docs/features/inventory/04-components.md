@@ -182,6 +182,12 @@ status-dot.
 | Supplier Form | New/edit supplier, desktop + mobile | `6TF-0` / `TLW-0` | Name, Contact, Category, Phone, Email, Payment terms toggle |
 | Restock Level Grid | Restock Levels, desktop + mobile | `T52-0` / `TLX-0` / `TD1-0` | Item rows: name/unit, on-hand (red if below level), editable restock input. Includes the helper-note callout band (dot + muted caption). |
 
+**Not yet built — designed but no code, not scoped to any one milestone:**
+
+| Composite | Screens | Paper reference | Notes |
+|---|---|---|---|
+| Mobile Universal States (empty / loading / error / permission-denied) | every mobile screen (cross-feature) | `X7O-0` (page `3-0`, added 2026-09-15) | The mobile counterpart to `15W-0`'s desktop universal-states shell — didn't exist until the Milestone Two design-completion session found the gap. Same category as Mobile Hub Header / Mobile Task Header above (cross-feature shell, not Inventory-specific), so it belongs in `frontend/components/app/shell/` (e.g. `mobile-states.tsx`) alongside `mobile-headers.tsx` / `mobile-status-bar.tsx`, not under `components/inventory/`. **Deliberately not built this session** — no live mobile screen exists yet to verify it against with a real pixel-diff (Milestone One's mobile screens don't consume it; Milestone Two's do, but Milestone Two hasn't reached Step 7). Build it as part of whichever Step 7 session first ships a mobile screen that needs a real empty/loading/error state — verify it the same way every other composite in this doc was (pixel-diff + structural + accessibility, logged in Status below) rather than building it in isolation now and trusting the Paper screenshot alone. |
+
 ---
 
 ## Sourcing: shadcn for primitives, hand-built for composites
@@ -334,6 +340,11 @@ For every composite:
 
 ## Known issues
 
+- **Mobile Universal States composite designed, not yet built.** See the
+  "Not yet built" row in the Composites table above (`X7O-0`) — a cross-
+  feature shell, deliberately deferred to the first Step 7 session that ships
+  a mobile screen needing a real empty/loading/error state, so it gets
+  verified against something live rather than built in isolation.
 - **"Show archived" toggle — owner-reported as broken, did not reproduce,
   status still open pending owner's exact repro steps.** Owner reported
   clicking "Show archived" (then "Show retired") does nothing, on two
@@ -2179,6 +2190,283 @@ build, not worked around silently again.
   the already-flagged Units-column fix (resizable columns vs. a narrower
   Units-only legibility fix, still awaiting the owner's choice) since both
   touch the same table in the same pass. Neither blocks Milestone Two.
+
+## Milestone Two — Receiving & Supplier AP (S0 component inventory)
+
+Paper reference: page `Milestone Two · Receiving & Supplier AP` (`C-0`), file
+`01M1ZZJ6S3FZGF5C7PPBGTKY89`. Full audit and screen-by-screen breakdown:
+`docs/features/inventory/milestone-2-plan.md` §6. This is the S0 session
+(`06-sessions/milestone-2-s0-component-inventory-prompt.md`) — component
+extraction only, no schema/endpoint/screen-assembly work.
+
+**Reused as-is from Milestone One (plan §6.1), confirmed still fitting —
+zero new build, zero re-diff:** KPI Strip, Drawer Shell, Inventory Shell,
+Skeletons (as a primitive to compose from), Supplier Form, Table primitive,
+Status Dot, Toggle Group, Search Input/Combobox/Select, Mobile Hub
+Header/Task Header/Status Bar.
+
+**Adapted from an existing pattern, not reused as-is (plan §6.2):**
+`restock-level-grid.tsx` is the row-layout pattern reference for the new
+Receipt Line Grid (item 3 below), not extended directly. `shell-states.tsx`'s
+desktop Empty/Loading/Error/PermissionDenied cards are reused verbatim for
+desktop; the mobile counterpart is item 9 below.
+
+**Genuinely new this milestone (plan §6.3) — status:**
+
+| # | Composite | File | Status |
+|---|---|---|---|
+| 1 | Signature font token | `frontend/app/layout.tsx`, `tailwind.wds.preset.ts` | Built |
+| 2 | Sign sheet (PIN entry + signed state) | `frontend/features/inventory/components/sign-sheet.tsx` | Built |
+| 3 | Receipt Line Grid | `frontend/features/inventory/components/receipt-line-grid.tsx` | Built |
+| 4 | Bundling checkbox list | `frontend/features/inventory/components/bundle-checkbox-list.tsx` | Built |
+| 5 | Mismatch/dispute callout | `frontend/features/inventory/components/dispute-callout.tsx` | Built |
+| 6 | "How overdue" bucket table | `frontend/features/inventory/components/aging-bucket-table.tsx` | Pending |
+| 7 | "What we owe" bucket panel | `frontend/features/inventory/components/aging-bucket-panel.tsx` | Pending |
+| 8 | Mixed-type Inbound/History row | `frontend/features/inventory/components/purchasing-history-row.tsx` | Pending |
+| 9 | Mobile universal states | `frontend/components/app/shell/mobile-states.tsx` | Pending |
+
+- [x] **Signature font token built** — `frontend/app/layout.tsx` adds
+      `alexBrush` (`next/font/google`'s `Alex_Brush`, weight 400, scoped
+      narrowly like the existing `playfairDisplay` wordmark font — not part
+      of the general wds-sans/wds-mono system), registering the
+      `--font-signature` CSS var on `<html>`/`<body>`.
+      `tailwind.wds.preset.ts`'s `fontFamily` gains
+      `wds-signature: ['var(--font-signature)', 'Alex Brush', 'cursive']`,
+      matching Paper's own token (`--font-signature: 'Alex Brush', cursive`,
+      confirmed via `get_tokens`) and the existing `wds-sans`/`wds-mono`
+      convention of pointing at the CSS var next/font registers, not a
+      hardcoded family name. Consumed as `font-wds-signature`.
+
+      **Verified in a real browser, not just that it compiles:** added a demo
+      swatch to `/dev/wds` (`Section "Signature font token"`), started the
+      dev server, and read `getComputedStyle(...).fontFamily` on the
+      rendered node via Playwright — resolved to
+      `__Alex_Brush_e47be3, __Alex_Brush_Fallback_e47be3, "Alex Brush", cursive`
+      (next/font's actual loaded font, not the fallback), zero console
+      errors. Screenshot confirms a genuine cursive script render, not a
+      silent fallback to the browser's generic `cursive` font (which would
+      look structurally different — this was the actual failure mode this
+      token exists to prevent, per the plan's own warning that a missed
+      token silently falls back with no build error).
+
+- **Process note (owner-approved 2026-09-16): the automated `pnpm
+  visual-diff` pixel-diff is dropped for the remainder of this session's
+  composites, falling back to the standard `04-components.md` already
+  established for primitives when the automated path wasn't practical**
+  (`get_computed_styles`/`get_jsx` sourcing + a real-browser by-eye
+  screenshot check, no `pixelmatch` run). Reason: composites in this
+  milestone render variable-length production content (receipt numbers,
+  supplier names, dynamic helper text), so the automated diff's
+  exact-dimension requirement forces a root-cause-and-recapture loop for
+  every text-wrap difference between the Paper reference's specific copy and
+  a demo's placeholder copy — as happened on the Sign Sheet below, where a
+  12% mismatch traced entirely to different helper-text copy lengths
+  changing line-wrap, not a real layout/color/spacing defect (confirmed via
+  `get_computed_styles` cross-check once identified). This is the same
+  category of gap the Milestone One Status log already documents repeatedly
+  for the `export`-tool schema blocker; this session hits it for a different
+  reason (dynamic content, not tooling) and applies the same documented
+  fallback rather than inventing a new one.
+
+- [x] **Sign sheet built** —
+      `frontend/features/inventory/components/sign-sheet.tsx`
+      (`SignSheetDialog` — PIN re-entry modal; `SignedBySignature` — the
+      read-only rendered-signature block). Reference: page `4-0` (Store
+      Manager), `D61-0` ("C2 · Fulfil & dispatch · desktop · mid-signature")
+      for the PIN dialog — Paper's own layer is literally named "Sign
+      sheet" (node `DBX-0`), confirming this is the right cross-flow
+      reference — and `GEO-0` ("C2 · Fulfil & dispatch · desktop ·
+      dispatched (signed)") for the rendered-signature block. Not cloned
+      onto Milestone Two's own page (`C-0`); the New Goods Receipt (sign &
+      save) and signed Goods Receipt detail screens (S6) reuse this exact
+      pattern per the S0 brief.
+
+      **New primitive: `components/ui2/input-otp.tsx`** — added via
+      `npx shadcn@latest add input-otp`, then restyled: shadcn's default
+      joins slots into one first/last-rounded group, but Paper draws 4
+      independently-bordered 40×44px boxes with an 8px gap between them
+      (confirmed via `get_jsx`/`get_computed_styles` on `D61-0`'s 4
+      `Rectangle` children, each exactly 48px apart = 40px box + 8px gap) —
+      restructured `InputOTPSlot` to render each slot as its own bordered
+      box rather than using the group's shared-border convention. Filled
+      state is `border-wds-neutral-950 bg-wds-neutral-950` with no visible
+      character (Paper's filled boxes render solid, no dot/digit glyph at
+      all — confirmed by reading the JSX, not assumed); empty state is
+      `border-wds-border-strong bg-wds-surface`. Active slot gets
+      `shadow-wds-ring`, the same focus treatment every other primitive
+      uses.
+
+      **Two new tokens added, both confirmed against Paper values before
+      being added (not force-fit onto an existing step):** `wds-section`
+      fontSize (15px/20px/600 — Paper's own `--text-section`/
+      `--leading-section` pair, a real distinct type-scale step below `h3`
+      that nothing existing covered, used for the dialog's title) and
+      `wds-1.25` spacing (5px — the gap in `SignedBySignature`'s label
+      stack). `wds-section` registered in `lib/cn.ts`'s `customTextScale`
+      allowlist in the same edit, per the documented `tailwind-merge`
+      gotcha (a token missing from that list silently loses to a
+      `text-wds-*-ink` color class on the same element with no build
+      error).
+
+      **Verification — by-eye + computed-styles (see process note above),
+      not the automated pixel-diff:** `get_computed_styles` on every Paper
+      node in the Sign sheet subtree (`DBY-0`/`DC1-0`/`DC9-0` section
+      padding/gap; `DC2-0`/`DC8-0` label/helper text size+weight+color;
+      `DC4-0` PIN box dims; `DCA-0`/`DCC-0` footer button height/gradient)
+      cross-checked exactly against the built component's Tailwind classes
+      — all matched on first pass except one real 1px gap found and fixed:
+      the helper text is `11px/15px` in Paper (`DC8-0`), one px looser than
+      the existing `wds-field-label`/`wds-helper` tokens (both `11px/14px`)
+      — not worth a new token for a single 1px variant, so kept as an
+      inline arbitrary Tailwind value (`text-[11px] leading-[15px]`) with an
+      inline comment explaining why. A real-browser screenshot (Playwright,
+      `/dev/wds` demo, both the empty and mid-entry PIN states, plus the
+      signed block) confirmed the fix and that structure/spacing/colors
+      match Paper's `D61-0`/`GEO-0` exactly — box borders, radius, gradient
+      direction on the primary button, and signature rendering in
+      `font-wds-signature` all correct. Zero console errors.
+
+      Also attempted the automated `pnpm visual-diff` before the process
+      change above was approved: `export`'d Paper's `DBX-0` ("Sign sheet")
+      node directly to disk (the `export` tool works cleanly this session,
+      no schema issue), captured the built dialog at matching dimensions
+      via a Playwright `clip`, and got a 12.06% mismatch — inspected the
+      diff image and confirmed it was entirely overlapping text-glyph
+      outlines from different copy (Paper's reference reads "Confirm & sign
+      dispatch — Kitchen" / "Sign & dispatch", a different domain's actual
+      button/title text since this is a cross-flow reused pattern; the
+      Goods Receipt demo naturally uses different, real words), not a
+      structural defect — this is what prompted dropping the automated
+      diff for the rest of the session rather than continuing to chase
+      demo-copy-length matches.
+
+      **Bug found and fixed after the fact, while building item 3 (same
+      class as the `wds-3.5`/`wds-4.5` spacing gap and the sidebar
+      `top`/`mid`/`bottom` color gap already documented in Milestone One's
+      Known issues — a bare (non-`wds-`-prefixed) Tailwind numeric utility
+      that isn't on Tailwind's default scale silently generates no rule):**
+      `w-55` (used for the signature divider's 220px width) isn't a real
+      Tailwind width step (the default scale jumps 44→48→52→56, no 55) —
+      confirmed by grepping `tailwindcss/defaultTheme`'s spacing keys, not
+      assumed. It compiled without error and rendered a zero-width divider
+      with no visible defect at the placeholder-text lengths tested, which
+      is exactly why this class of bug is dangerous: no build error, no
+      obviously-broken screenshot. Fixed to the arbitrary value
+      `w-[220px]`. Re-verified visually — the divider now renders at the
+      correct width.
+
+- [x] **Receipt Line Grid built** —
+      `frontend/features/inventory/components/receipt-line-grid.tsx`
+      (`ReceiptLineGrid`, desktop-only — Paper draws no mobile counterpart
+      for this screen this milestone). Reference: `UQE-0` ("4 · New Goods
+      Receipt · desktop"), grid node `UQV-0`. Built fresh per plan §6.2,
+      using `restock-level-grid.tsx` as the row-layout/tone-convention
+      pattern reference only (a materially different row shape: qty input
+      with a trailing buy-unit chip, a unit-price input that gets a warning
+      border when a price alert fires, a computed subtotal, and an inline
+      price-alert badge next to the item name — none of which
+      `restock-level-grid.tsx`'s single-editable-number-per-row shape has).
+
+      **Price-alert state is Paper-verified, not invented:** row 2
+      (`Dormans Syrup Hazelnut 750ml`) shows a `warning-fg` dot + "38% above
+      last" label inline next to the item name, and its unit-price input
+      gets a `border-warning-fg` outline instead of the ordinary
+      `border-border-strong` — confirmed via `get_jsx` on `UQV-0`, modeled
+      as a single optional `priceAlertLabel` prop that drives both the
+      badge and the input border together (never settable independently —
+      Paper draws them as one state, not two).
+
+      **Real bug found and fixed before this was verified correct — a bare
+      numeric Tailwind utility not on Tailwind's default scale (`w-27.5`,
+      `w-30`, `h-11.5`, `h-7.5`, `size-1.25`), same failure class as the
+      `w-55` bug above and the `wds-3.5`/`wds-4.5` spacing gap already
+      documented in Milestone One's Known issues: these compiled with zero
+      build error but generated no actual width/height/size rule, so the
+      column header labels ("QTY", "UNIT PRICE", "SUBTOTAL") rendered with
+      no box constraint at all and ran together as `QtyUnit
+      priceSubtotal`.** Caught in the first real-browser screenshot (not
+      assumed fine from the code), confirmed via
+      `getComputedStyle(...).width` returning `1036px` instead of the
+      intended `110px` for one label. Fixed by converting every bare
+      fractional/uncommon-value utility to an explicit arbitrary value
+      (`w-[110px]`, `w-[120px]`, `h-[46px]`, `h-[30px]`, `size-[5px]`) —
+      matching the precedent already set in `restock-level-grid.tsx`'s own
+      `w-[100px]`/`w-[72px]` usage for the same reason. **This bug class
+      (a bare Tailwind numeric step that looks plausible but isn't on the
+      default scale) is now confirmed to have hit three separate composites
+      this session (Sign sheet's `w-55`, this grid's five instances) — flag
+      it as a recurring gotcha worth checking explicitly on every future
+      composite that copies a Paper pixel value into a bare `w-`/`h-`/`size-`
+      class, not just the `wds-`-prefixed custom scale.**
+
+      **Verification — by-eye + computed-styles (per the process note
+      above):** `get_jsx`/`get_computed_styles` on `UQV-0` and its row/cell
+      children confirmed header height (30px), row height (46px), column
+      widths (110/120/110px for Qty/Unit price/Subtotal, matching Paper's
+      `w-27.5`/`w-30`/`w-27.5` Tailwind arbitrary units converted to px),
+      qty-input unit-chip structure, and price-alert dot+label+border
+      styling. Real-browser screenshot (Playwright, `/dev/wds` demo, both
+      rows with matching Paper's own two demo items) confirmed the fix and
+      full visual match against `UQE-0`'s screenshot — spacing, colors,
+      borders, and the warning-toned second row all correct. Zero console
+      errors.
+
+- [x] **Bundling checkbox list built** —
+      `frontend/features/inventory/components/bundle-checkbox-list.tsx`
+      (`BundleCheckboxList` + `BundleRunningTotal`). Reference: `UZJ-0`
+      ("6 · Record supplier invoice · drawer"), panel node `V0L-0`
+      (checkbox rows) + `V0I-0` (running-total row). Record supplier invoice
+      and Record supplier payment (`V7Z-0`) use the identical pattern
+      (checkbox rows + a running total that recomputes live) — built once
+      here per the S0 brief, both drawers consume the same component with
+      different `title`/row data.
+
+      **Checked vs. unchecked is a real, Paper-drawn state pair, not
+      derived:** `get_jsx` on `V0L-0` shows the checked row's box is
+      `espresso-700` fill + `espresso-700` border, `1.5px` border width, and
+      its label is full `--color-ink`; the unchecked row's box is
+      transparent with a `border-strong` outline and its label (both title
+      and amount) drops to `--color-text-muted` — modeled as one `checked`
+      boolean driving box fill, border, and label/amount tone together, not
+      three independent props.
+
+      **Built this one using arbitrary pixel values from the start
+      (`h-[30px]`, `size-[14px]`)** rather than bare numeric Tailwind
+      classes, applying the lesson from the Receipt Line Grid bug
+      immediately above rather than re-discovering it a third time.
+
+      **Verification — by-eye + computed-styles:** `get_jsx`/
+      `get_computed_styles` on `V0L-0`/`V0I-0` confirmed header height
+      (30px), row height (44px), checkbox size (14px, 1.5px border) and
+      color states, and the running-total row's `neutral-50` background +
+      `body`-sized amount vs. `caption`-sized label. Real-browser screenshot
+      (Playwright, `/dev/wds` demo) before and after clicking an unchecked
+      row confirmed: the checkbox fills, the label brightens from muted to
+      ink, and the running total recomputes live (1 receipt · KES 7,668 → 2
+      receipts · KES 10,788) — the actual interaction the "running total
+      that recomputes live" requirement describes, not just a static
+      screenshot match. Zero console errors.
+
+- [x] **Mismatch/dispute callout built** —
+      `frontend/features/inventory/components/dispute-callout.tsx`
+      (`DisputeCallout`). Reference: `UZJ-0`, callout node `UZV-0`.
+      Warning-toned (`wds-warning-bg`/`wds-warning-border`), dot + bold
+      title + muted description + two outlined action buttons (Hold /
+      Record at billed — open dispute). The composite renders the callout
+      only — per plan §3.2 both buttons hit the same
+      `POST /supplier-invoices` endpoint (Hold is the genuine no-write
+      branch that just closes the drawer), so the write-path decision
+      belongs to the consuming screen (S8), not this component.
+
+      **Verification — by-eye + computed-styles:** `get_jsx` on `UZV-0`
+      confirmed padding (`py-3 px-3.5`), dot size/position (`size-1.5`,
+      `mt-1.25`≈5px), title weight (500)/description tone
+      (`text-copy-muted`), and both buttons' shared styling (`py-1 px-2.5`,
+      `border-strong`, `rounded-sm`) — all matched on first pass, no bugs
+      found this time (built directly with arbitrary/default-scale values
+      throughout, applying the lesson from items 3–4). Real-browser
+      screenshot (Playwright, `/dev/wds` demo) confirmed full visual match
+      against `UZJ-0`'s reference screenshot. Zero console errors.
 
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.
