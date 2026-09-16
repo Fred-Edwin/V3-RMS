@@ -3455,7 +3455,7 @@ The contract is **committed code**, not this prose. This section is the index.
 |---|---|
 | **Schemas (authoritative)** | `backend/src/modules/inventory/inventory-validators.ts` |
 | **Types (inferred from schemas)** | `backend/src/modules/inventory/inventory.types.ts` |
-| **Frontend mirror** | `frontend/types/inventory.ts` — hand-mirrored; a backend contract test guards drift |
+| **Frontend mirror** | `frontend/features/inventory/types/index.ts` — hand-mirrored; a backend contract test guards drift. (Corrected 2026-09-16 — this row previously pointed at `frontend/types/inventory.ts`, which is the *legacy* Phase 1 file, trimmed but never removed; it never held the Milestone One mirror.) |
 | **Design** | Paper page `B-0`, file `01M1ZZJ6S3FZGF5C7PPBGTKY89` |
 | **Plan** | `docs/features/inventory/milestone-1-plan.md` §5 |
 
@@ -3560,3 +3560,130 @@ specified:
   `{ id: string }` (`CentralStoreLocationSchema`). Store-Manager-only,
   hub-scoped (D-15) — 404 if no Central Store is configured for the hub org.
   Owner-approved during the session.
+
+---
+
+## 22. Inventory — Milestone Two (Receiving & Supplier AP)
+
+> **STATUS: FROZEN — 2026-09-16.**
+> Frozen per `docs/FEATURE_REDO_PLAYBOOK.md` Step 6, following owner approval of
+> `docs/features/inventory/milestone-2-plan.md` and resolution of all six of its
+> §7 open questions. Backend and frontend build sessions (S3–S8 in the plan's
+> session breakdown) run in parallel against this contract, once S1 (schema)
+> and S0 (component inventory) clear.
+
+### 22.1 Source of truth
+
+The contract is **committed code**, not this prose. This section is the index.
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/receiving-validators.ts` |
+| **Types (inferred from schemas)** | `backend/src/modules/inventory/receiving.types.ts` |
+| **Frontend mirror** | `frontend/features/inventory/types/receiving.ts`, re-exported from `frontend/features/inventory/types/index.ts` — hand-mirrored, same as Milestone One (no pnpm workspace, so no shared package to import from) |
+| **Design** | Paper page `C-0` ("Milestone Two · Receiving & Supplier AP"), file `01M1ZZJ6S3FZGF5C7PPBGTKY89` |
+| **Plan** | `docs/features/inventory/milestone-2-plan.md` §3 |
+| **Migration** | `backend/prisma/migrations/20260916031604_inventory_milestone_two_receiving_ap` |
+
+### 22.2 Conventions specific to this contract
+
+- Standard envelope (§1) unchanged.
+- **Every decimal crosses the wire as a string** — quantities, unit prices,
+  line totals, invoice/payment amounts, outstanding balances. Never a JS
+  number; Prisma stores them as `Decimal` and coercing loses precision.
+- **Terminology: user-facing labels say "what we owe" / "how overdue", never
+  "AP" / "aging"** (owner decision 2026-09-16 — those are accountant's terms,
+  not the product's). Schema/type/field names stay technical
+  (`SupplierApRow`, `/inventory/ap/…`) since those are never user-facing;
+  only display copy at the component layer follows the plain-language rule.
+- All routes are under `/api/v1/inventory/…`, alongside Milestone One's.
+- `STORE_ATTENDANT` gets a **narrower response shape**, not a hidden UI
+  element, on any endpoint touching money: `ExpectedDeliverySummary.
+  estimatedTotal` is `null` in an Attendant's response, not merely omitted
+  client-side. `STORE_ATTENDANT` is 403'd outright on every what-we-owe
+  endpoint (invoices, payments, aging).
+
+### 22.3 Endpoints
+
+All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
+`SM` = `STORE_MANAGER`, `SA` = `STORE_ATTENDANT`, `ACC` = `ACCOUNTANT`,
+`DIR` = `DIRECTOR`.
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/inventory/purchasing/summary` | SM, SA, ACC, DIR |
+| `GET` | `/inventory/expected-deliveries` | SM, SA, ACC, DIR |
+| `POST` | `/inventory/expected-deliveries` | SM |
+| `POST` | `/inventory/expected-deliveries/:id/cancel` | SM |
+| `GET` | `/inventory/purchasing/history` | SM, SA, ACC, DIR |
+| `GET` | `/inventory/goods-receipts` | SM, SA |
+| `GET` | `/inventory/goods-receipts/:id` | SM, SA |
+| `POST` | `/inventory/goods-receipts` | SM, SA |
+| `PATCH` | `/inventory/goods-receipts/:id` | SM, SA |
+| `POST` | `/inventory/goods-receipts/:id/sign` | SM, SA |
+| `GET` | `/inventory/items/:id/last-price` | SM, SA |
+| `GET` | `/inventory/ap/summary` | SM, ACC, DIR |
+| `GET` | `/inventory/ap/suppliers` | SM, ACC, DIR |
+| `GET` | `/inventory/ap/suppliers/:id` | SM, ACC, DIR |
+| `POST` | `/inventory/supplier-invoices` | SM |
+| `POST` | `/inventory/supplier-invoices/:id/adjustments` | SM, ACC |
+| `POST` | `/inventory/supplier-payments` | SM, ACC |
+| `POST` | `/inventory/supplier-payments/:id/reverse` | SM, ACC |
+
+`STORE_ATTENDANT` is deliberately absent from every `ap/`, `supplier-invoices`,
+and `supplier-payments` row — not an oversight (§22.2). Request/response
+shapes: see the schema file. Full rationale per endpoint, including the
+mismatch/dispute and overpayment/credit branches: plan §3.2.
+
+### 22.4 Behaviours that are contract, not implementation detail
+
+1. **A Goods Receipt's ledger write happens exactly once, at signing** — never
+   on create or edit of a `DRAFT`. `POST /goods-receipts` and
+   `PATCH /goods-receipts/:id` never touch `InventoryTransaction`;
+   `POST /goods-receipts/:id/sign` is the only endpoint that does, inside one
+   `prisma.$transaction` (plan §1.6).
+2. **The price-alert comparison price is a snapshot, not a live join.**
+   `GoodsReceiptLine.priceAlertPrevPrice` is written at signing and never
+   recomputed — by the time a signed receipt is read back,
+   `InventoryItem.currentCost` has already moved on to a later price (plan
+   §1.2). Don't "simplify" this into a join against `InventoryItem` later;
+   it will silently change what a signed, printed document says.
+3. **Receipt↔invoice is many-to-many.** One invoice may bundle several
+   receipts (`SupplierInvoiceReceipt`); `CreateSupplierInvoiceInput.
+   goodsReceiptIds` takes an array, not a single id.
+4. **"Record at billed — open dispute" and plain "Save invoice" are the same
+   endpoint.** `CreateSupplierInvoiceInput.dispute` is optional on
+   `POST /supplier-invoices`; there is no separate dispute-invoice endpoint.
+   "Hold" (the third option on the mismatch callout) calls nothing at all.
+5. **Dispute is independent of payment status, not a value within it.**
+   `SupplierInvoice.status` (`UNPAID`/`PARTIALLY_PAID`/`PAID`) and
+   `SupplierInvoice.dispute.status` (`OPEN`/`RESOLVED`) vary independently —
+   a disputed invoice still ages and can still be paid (Flow 17a). Don't
+   collapse these into one enum; a disputed-and-partly-paid invoice needs to
+   be representable.
+6. **Overpayment is allowed, not an error, and is never a stored balance.**
+   `CreateSupplierPaymentInput.allocations` may sum to less than `amount`;
+   the excess is a derived credit (`Σ payments.amount − Σ allocations.
+   amount`), never a `creditBalance` column (plan §1.4, §1.5).
+7. **Payments are immutable — a correction is a reversal, never an edit.**
+   `POST /supplier-payments/:id/reverse` creates a new payment with
+   `reversalOfId` set and a negative allocation; there is no
+   `PATCH /supplier-payments/:id`.
+8. **`dueDate` is computed once, at invoice creation, and stored** — as
+   `invoiceDate + Supplier.paymentDays`. A later change to
+   `Supplier.paymentDays` must never retroactively shift the due date, or
+   status, of an invoice already recorded (plan §1.3, §7 Q3(b)).
+9. **Aging buckets are always the same five** — `current`, `days1To30`,
+   `days31To60`, `days61To90`, `days90Plus` (`AgingBucketsSchema`). Any
+   screen showing fewer merges buckets for display; the underlying
+   calculation and the wire shape are never four-bucket (plan §7 Q4).
+10. **The `IN TRANSIT` KPI does not exist in this contract.** Dropped, not
+    deferred (plan §7 Q1) — `PurchasingSummarySchema` has three tiles.
+11. **The Flow 17 reconciliation workspace is out of scope.** The adjustment
+    endpoint (`POST /supplier-invoices/:id/adjustments`) exists so a dispute
+    opened by Flow 14 has somewhere to close, but there is no
+    statement-import or matching endpoint this milestone (plan §7 Q6).
+
+### 22.5 Amendments since freeze
+
+None yet.

@@ -236,3 +236,9 @@ export interface Paginated<T> {
 export interface ItemCatalogListResponse extends Paginated<InventoryItem> {
   meta: ItemCatalogMeta;
 }
+
+// ─── Milestone Two — Receiving & Supplier AP ───────────────────────────────
+// Kept in its own file (./receiving.ts) since it's a separate milestone's
+// contract, re-exported here so `features/inventory` (this module's public
+// entry) exposes both milestones' types from one place.
+export * from './receiving';
