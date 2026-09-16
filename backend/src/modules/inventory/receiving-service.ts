@@ -16,6 +16,7 @@ import type {
   CreateExpectedDeliveryInput as CreateExpectedDeliveryContractInput,
   ExpectedDeliverySummary,
   ListExpectedDeliveriesQuery,
+  PurchasingHistoryRow,
   PurchasingSummary,
 } from './receiving.types';
 
@@ -73,6 +74,39 @@ const serializeExpectedDelivery = (
 };
 
 const canSeeMoney = (actor: Actor): boolean => actor.role !== 'STORE_ATTENDANT';
+
+const paymentTermsLabel = (terms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW'): string =>
+  terms === 'PAY_NOW' ? 'Paid on delivery' : 'Invoice';
+
+/**
+ * Maps an ExpectedDelivery into the History band's pre-formatted row shape
+ * (`PurchasingHistoryRowSchema`'s `expectedDelivery` variant) — the service
+ * owns display copy here, not the component, per the 2026-09-16 amendment
+ * (API_CONTRACT.md §22.3).
+ */
+const toHistoryRow = (
+  delivery: ExpectedDeliveryWithRelations,
+  includeMoney: boolean,
+  now: Date,
+): PurchasingHistoryRow => {
+  const summary = serializeExpectedDelivery(delivery, includeMoney, now);
+  const isCancelled = summary.status === 'CANCELLED';
+  const statusLabel = isCancelled ? 'Cancelled' : summary.isOverdue ? 'Overdue' : 'Awaiting delivery';
+  const statusTone: 'neutral' | 'error' | 'info' = isCancelled ? 'neutral' : summary.isOverdue ? 'error' : 'info';
+  const detailLabel = includeMoney && summary.estimatedTotal ? `~KES ${summary.estimatedTotal}` : summary.itemSummary;
+
+  return {
+    type: 'expectedDelivery',
+    id: summary.id,
+    supplierName: summary.supplierName,
+    paymentTermsLabel: paymentTermsLabel(delivery.paymentTerms),
+    detailLabel,
+    ageLabel: summary.ageLabel,
+    statusLabel,
+    statusTone,
+    actions: [{ label: 'View' }, { label: 'Cancel', emphasized: false }],
+  };
+};
 
 export const receivingService = {
   // ── Expected deliveries ──────────────────────────────────────────────────
@@ -190,9 +224,7 @@ export const receivingService = {
   getPurchasingHistory: async (
     actor: Actor,
     query: { search?: string; supplierId?: string; status?: string; from?: string; to?: string; limit: number },
-  ): Promise<
-    Array<{ type: 'EXPECTED_DELIVERY'; delivery: ExpectedDeliverySummary }>
-  > => {
+  ): Promise<PurchasingHistoryRow[]> => {
     const organizationId = await requireHubActor(actor);
     const includeMoney = canSeeMoney(actor);
     const now = new Date();
@@ -206,9 +238,10 @@ export const receivingService = {
       limit: query.limit,
     });
 
-    // TODO(S4): merge in GoodsReceipt rows (`{ type: 'GOODS_RECEIPT', receipt: ... }`)
-    // and re-sort the combined list by date, once GoodsReceipt rows exist.
-    return deliveries.map((d) => ({ type: 'EXPECTED_DELIVERY' as const, delivery: serializeExpectedDelivery(d, includeMoney, now) }));
+    // TODO(S4): merge in `goodsReceipt` rows and re-sort the combined list by
+    // date, once GoodsReceipt rows exist. `PurchasingHistoryRowSchema` already
+    // declares that variant (API_CONTRACT.md §22.3).
+    return deliveries.map((d) => toHistoryRow(d, includeMoney, now));
   },
 
   // ── Last price ───────────────────────────────────────────────────────────

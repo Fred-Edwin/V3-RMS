@@ -11,7 +11,7 @@ import { receivingService } from './receiving-service';
 import { expectedDeliveryRepository, referenceCounterRepository } from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
-import { ExpectedDeliverySummarySchema, PurchasingSummarySchema } from './receiving-validators';
+import { ExpectedDeliverySummarySchema, PurchasingHistoryRowSchema, PurchasingSummarySchema } from './receiving-validators';
 
 vi.mock('./receiving-repository', () => ({
   expectedDeliveryRepository: {
@@ -19,6 +19,7 @@ vi.mock('./receiving-repository', () => ({
     create: vi.fn(),
     countByStatus: vi.fn(),
     countOverdue: vi.fn(),
+    findHistoryRows: vi.fn(),
   },
   referenceCounterRepository: { nextReference: vi.fn() },
   lastPriceRepository: { findLastReceiptLine: vi.fn() },
@@ -154,5 +155,29 @@ describe('Receiving contract drift guard', () => {
     const summary = await receivingService.getPurchasingSummary(storeManager);
     expect(() => PurchasingSummarySchema.parse(summary)).not.toThrow();
     expect(summary).not.toHaveProperty('inTransit');
+  });
+
+  it('PurchasingHistoryRowSchema accepts getPurchasingHistory output — expectedDelivery variant', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([
+      {
+        id: deliveryId,
+        organizationId: hubOrgId,
+        reference: 'EXP-0091',
+        supplierId,
+        supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        status: 'AWAITING',
+        expectedDate: new Date(Date.now() - 86400000),
+        estimatedTotal: new Prisma.Decimal('8100'),
+        createdById: 'sm1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lines: [],
+      },
+    ] as never);
+
+    const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
+    expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
+    expect(row!.type).toBe('expectedDelivery');
   });
 });

@@ -3571,6 +3571,10 @@ specified:
 > §7 open questions. Backend and frontend build sessions (S3–S8 in the plan's
 > session breakdown) run in parallel against this contract, once S1 (schema)
 > and S0 (component inventory) clear.
+>
+> **AMENDMENT 2026-09-16 (post-freeze, during S3):** `PurchasingHistoryRowSchema`
+> added — `GET /inventory/purchasing/history`'s response shape was missed at
+> freeze time. See §22.3 below.
 
 ### 22.1 Source of truth
 
@@ -3634,6 +3638,16 @@ All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
 and `supplier-payments` row — not an oversight (§22.2). Request/response
 shapes: see the schema file. Full rationale per endpoint, including the
 mismatch/dispute and overpayment/credit branches: plan §3.2.
+
+**`GET /inventory/purchasing/history` response — `PurchasingHistoryRowSchema`,**
+a discriminated union on `type` (`expectedDelivery` | `goodsReceipt`, matching
+`purchasing-history-row.tsx`'s existing prop shape verbatim — the UI component
+was built first and isn't re-diffed to match a server-picked casing). Each row
+is pre-formatted for direct rendering (`detailLabel`, `statusLabel`,
+`statusTone`, two `actions`), not raw record fields — the service, not the
+component, owns turning an `ExpectedDelivery`/`GoodsReceipt` into display copy.
+S3 emits only `expectedDelivery` rows for real (no `GoodsReceipt` rows exist
+until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
 
 ### 22.4 Behaviours that are contract, not implementation detail
 

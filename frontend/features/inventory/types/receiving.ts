@@ -270,6 +270,46 @@ export interface PurchasingSummary {
   owed: { amount: string; over30Count: number };
 }
 
+/**
+ * AMENDMENT 2026-09-16 (post-freeze, during S3): added — the History band's
+ * response shape was missed at freeze time. `type` matches
+ * `frontend/features/inventory/components/purchasing-history-row.tsx`'s
+ * existing discriminant (`expectedDelivery` / `goodsReceipt`, camelCase) —
+ * that component was built first (S0) and is the harder thing to re-diff, so
+ * the wire format conforms to it. S3 can only emit `expectedDelivery` rows
+ * for real; `goodsReceipt` rows arrive with S4.
+ */
+export type PurchasingRowStatusTone = 'neutral' | 'error' | 'info';
+
+interface PurchasingRowAction {
+  label: string;
+  emphasized?: boolean;
+}
+
+export type PurchasingHistoryRow =
+  | {
+      type: 'expectedDelivery';
+      id: string;
+      supplierName: string;
+      paymentTermsLabel: string;
+      detailLabel: string;
+      ageLabel: string;
+      statusLabel: string;
+      statusTone: PurchasingRowStatusTone;
+      actions: [PurchasingRowAction, PurchasingRowAction];
+    }
+  | {
+      type: 'goodsReceipt';
+      id: string;
+      title: string;
+      subtitleLabel: string;
+      detailLabel: string;
+      ageLabel: string;
+      statusLabel: string;
+      statusTone: PurchasingRowStatusTone;
+      actions: [PurchasingRowAction, PurchasingRowAction];
+    };
+
 export interface ListSupplierApQuery {
   search?: string;
   terms?: SupplierPaymentTerms;

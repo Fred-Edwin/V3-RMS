@@ -30,6 +30,7 @@ import type {
   GoodsReceiptLineSchema,
   ListExpectedDeliveriesQuerySchema,
   ListSupplierApQuerySchema,
+  PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
   ReverseSupplierPaymentSchema,
   SignGoodsReceiptSchema,
@@ -80,4 +81,5 @@ export type AgingBuckets = z.infer<typeof AgingBucketsSchema>;
 export type SupplierApRow = z.infer<typeof SupplierApRowSchema>;
 export type ApSummary = z.infer<typeof ApSummarySchema>;
 export type PurchasingSummary = z.infer<typeof PurchasingSummarySchema>;
+export type PurchasingHistoryRow = z.infer<typeof PurchasingHistoryRowSchema>;
 export type ListSupplierApQuery = z.infer<typeof ListSupplierApQuerySchema>;

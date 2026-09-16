@@ -39,6 +39,11 @@
  * Wire-format rule (inherited, non-negotiable): every decimal — quantity,
  * price, total, outstanding — crosses the wire as a **string**, never a JS
  * number. Prisma stores them as Decimal; coercing to number loses precision.
+ *
+ * AMENDMENT 2026-09-16 (post-freeze, during S3): `PurchasingHistoryRowSchema`
+ * added — `GET /inventory/purchasing/history`'s response shape was missed at
+ * freeze time despite being called out in plan §3.2/§6.3. See that schema's
+ * own comment for detail. No other shape changed.
  */
 import { z } from 'zod';
 
@@ -151,6 +156,54 @@ export const CreateExpectedDeliverySchema = z.object({
     )
     .min(1, 'at least one line is required'),
 });
+
+/**
+ * AMENDMENT 2026-09-16 (post-freeze, S3 build session): the frozen contract
+ * never specified `GET /inventory/purchasing/history`'s response shape,
+ * even though plan §3.2/§6.3 call out this exact discriminated-union need
+ * (the History band mixes ExpectedDelivery and GoodsReceipt rows in one
+ * table). Adding it now, before S5 builds against it, rather than letting
+ * S5 reverse-engineer the service's return type. `type` values match what
+ * S0's `purchasing-history-row.tsx` component already expects
+ * (`expectedDelivery` / `goodsReceipt`, camelCase) — the component was built
+ * first and is the harder thing to re-diff, so the wire format conforms to
+ * it, not the other way around.
+ *
+ * This session (S3) can only produce `expectedDelivery` rows for real — no
+ * `GoodsReceipt` rows exist until S4. The `goodsReceipt` variant is declared
+ * here so S4 only has to start emitting it, not amend the contract again.
+ */
+const purchasingRowStatusToneSchema = z.enum(['neutral', 'error', 'info']);
+
+const purchasingRowActionSchema = z.object({
+  label: z.string(),
+  emphasized: z.boolean().optional(),
+});
+
+export const PurchasingHistoryRowSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('expectedDelivery'),
+    id: uuid,
+    supplierName: z.string(),
+    paymentTermsLabel: z.string(),
+    detailLabel: z.string(),
+    ageLabel: z.string(),
+    statusLabel: z.string(),
+    statusTone: purchasingRowStatusToneSchema,
+    actions: z.tuple([purchasingRowActionSchema, purchasingRowActionSchema]),
+  }),
+  z.object({
+    type: z.literal('goodsReceipt'),
+    id: uuid,
+    title: z.string(),
+    subtitleLabel: z.string(),
+    detailLabel: z.string(),
+    ageLabel: z.string(),
+    statusLabel: z.string(),
+    statusTone: purchasingRowStatusToneSchema,
+    actions: z.tuple([purchasingRowActionSchema, purchasingRowActionSchema]),
+  }),
+]);
 
 export const ListExpectedDeliveriesQuerySchema = z.object({
   status: expectedDeliveryStatusSchema.optional(),
