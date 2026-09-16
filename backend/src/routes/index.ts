@@ -30,6 +30,7 @@ import orderCorrectionRoutes from './order-correction-routes';
 import locationRoutes from './location-routes';
 import departmentRoutes from './department-routes';
 import inventoryRoutes from '../modules/inventory/inventory-routes';
+import receivingRoutes from '../modules/inventory/receiving-routes';
 
 const apiRouter = Router();
 
@@ -64,5 +65,6 @@ apiRouter.use(orderCorrectionRoutes);
 apiRouter.use(locationRoutes);
 apiRouter.use(departmentRoutes);
 apiRouter.use(inventoryRoutes);
+apiRouter.use(receivingRoutes);
 
 export default apiRouter;
