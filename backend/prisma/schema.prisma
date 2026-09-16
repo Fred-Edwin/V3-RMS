@@ -61,6 +61,11 @@ model Organization {
   suppliers                    Supplier[]
   restockLevels                RestockLevel[]
   inventoryTransactions        InventoryTransaction[]
+  referenceCounters            ReferenceCounter[]
+  expectedDeliveries           ExpectedDelivery[]
+  goodsReceipts                GoodsReceipt[]
+  supplierInvoices             SupplierInvoice[]
+  supplierPayments             SupplierPayment[]
 
   @@map("organizations")
 }
@@ -80,73 +85,80 @@ model OrderCounter {
 }
 
 model User {
-  id                                 String                        @id @default(uuid())
-  organizationId                     String?                       @map("organization_id")
-  name                               String
-  email                              String                        @unique
-  phone                              String?
-  passwordHash                       String                        @map("password_hash")
-  fcmToken                           String?                       @map("fcm_token")
-  role                               UserRole
-  departmentTag                      DepartmentTag?                @map("department_tag")
-  isDepartmentHead                   Boolean                       @default(false) @map("is_department_head")
-  previousRole                       UserRole?                     @map("previous_role")
-  isActive                           Boolean                       @default(true) @map("is_active")
-  isTestUser                         Boolean                       @default(false) @map("is_test_user")
-  createdAt                          DateTime                      @default(now()) @map("created_at")
-  updatedAt                          DateTime                      @updatedAt @map("updated_at")
-  deletedAt                          DateTime?                     @map("deleted_at")
-  organization                       Organization?                 @relation(fields: [organizationId], references: [id])
-  ordersCreated                      Order[]                       @relation("OrderCreatedBy")
-  ordersCancelled                    Order[]                       @relation("OrderCancelledBy")
-  orderCancellationRequestsRequested OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")
-  orderCancellationRequestsResolved  OrderCancellationRequest[]    @relation("OrderCancellationResolvedBy")
-  shiftAssignments                   ShiftAssignment[]
-  clockRecords                       ClockRecord[]
-  prepTicketsClaimed                 PrepTicket[]                  @relation("PrepTicketClaimedBy")
-  prepTicketsRejected                PrepTicket[]                  @relation("PrepTicketRejectedBy")
-  refreshTokens                      RefreshToken[]
-  modRequestsCreated                 OrderModificationRequest[]    @relation("ModRequestedBy")
-  modRequestsReviewed                OrderModificationRequest[]    @relation("ModReviewedBy")
-  incidentsActed                     IncidentLog[]                 @relation("IncidentActor")
-  printJobsRequested                 PrintJob[]                    @relation("PrintJobRequester")
-  houseAccount                       HouseAccount?                 @relation("HouseAccountHolder")
-  houseAccountsGranted               HouseAccount[]                @relation("HouseAccountGrantedBy")
-  houseAccountSettlements            HouseAccountSettlement[]      @relation("HouseAccountSettledBy")
-  houseAuthRequestsRequested         HouseAccountAuthRequest[]     @relation("HouseAuthRequestedBy")
-  houseAuthRequestsResolved          HouseAccountAuthRequest[]     @relation("HouseAuthResolvedBy")
-  corporateAccountsCreated           CorporateAccount[]            @relation("CorporateAccountCreatedBy")
-  corporateSettlements               CorporateAccountSettlement[]  @relation("CorporateAccountSettledBy")
-  customerCreditAccountsCreated      CustomerCreditAccount[]       @relation("CustomerCreditAccountCreatedBy")
-  customerCreditSettlements          CustomerCreditSettlement[]    @relation("CustomerCreditSettledBy")
-  otherIncomeEntries                 OtherIncomeEntry[]            @relation("OtherIncomeRecordedBy")
-  otherIncomeEntryEdits              OtherIncomeEntryEdit[]        @relation("OtherIncomeEntryEditedBy")
-  ordersDiscounted                   Order[]                       @relation("OrderDiscountedBy")
-  staffDiscountRequestsRequested     StaffDiscountAuthRequest[]    @relation("StaffDiscountRequestedBy")
-  staffDiscountRequestsResolved      StaffDiscountAuthRequest[]    @relation("StaffDiscountResolvedBy")
-  discountsCreated                   Discount[]                    @relation("DiscountCreatedBy")
-  customerDiscountRequestsRequested  CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
-  customerDiscountRequestsResolved   CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
-  directConversationsAsA             DirectConversation[]          @relation("ConvParticipantA")
-  directConversationsAsB             DirectConversation[]          @relation("ConvParticipantB")
-  directMessagesSent                 DirectMessage[]               @relation("DirectMessageSender")
-  broadcastsSent                     Broadcast[]                   @relation("BroadcastSender")
-  broadcastRecipients                BroadcastRecipient[]          @relation("BroadcastRecipientUser")
-  formalNoticesIssued                FormalNotice[]                @relation("FormalNoticeIssuer")
-  formalNoticeRecipients             FormalNoticeRecipient[]       @relation("FormalNoticeRecipientUser")
-  employeeProfile                    EmployeeProfile?              @relation("EmployeeProfileUser")
-  managedEmployeeProfiles            EmployeeProfile[]             @relation("EmployeeProfileManager")
-  leaveRequestsReviewed              LeaveRequest[]                @relation("LeaveReviewedBy")
-  leaveRequestsCancelled             LeaveRequest[]                @relation("LeaveCancelledBy")
-  leaveRequestAcknowledgements       LeaveRequestAcknowledgement[]
-  disciplinaryRecordsIssued          DisciplinaryRecord[]          @relation("DisciplinaryIssuedBy")
-  hrDocumentsUploaded                HrDocument[]                  @relation("HrDocumentUploadedBy")
-  payslips                           Payslip[]                     @relation("StaffPayslips")
-  createdPayslips                    Payslip[]                     @relation("PayslipsCreated")
-  staffTransfers                     StaffTransfer[]               @relation("StaffTransferUser")
-  staffTransfersAuthorized           StaffTransfer[]               @relation("StaffTransferAuthorizedBy")
-  inventoryTransactions              InventoryTransaction[]        @relation("InventoryTransactionUser")
-  restockLevelsSet                   RestockLevel[]                @relation("RestockLevelSetBy")
+  id                                  String                        @id @default(uuid())
+  organizationId                      String?                       @map("organization_id")
+  name                                String
+  email                               String                        @unique
+  phone                               String?
+  passwordHash                        String                        @map("password_hash")
+  fcmToken                            String?                       @map("fcm_token")
+  role                                UserRole
+  departmentTag                       DepartmentTag?                @map("department_tag")
+  isDepartmentHead                    Boolean                       @default(false) @map("is_department_head")
+  previousRole                        UserRole?                     @map("previous_role")
+  isActive                            Boolean                       @default(true) @map("is_active")
+  isTestUser                          Boolean                       @default(false) @map("is_test_user")
+  createdAt                           DateTime                      @default(now()) @map("created_at")
+  updatedAt                           DateTime                      @updatedAt @map("updated_at")
+  deletedAt                           DateTime?                     @map("deleted_at")
+  organization                        Organization?                 @relation(fields: [organizationId], references: [id])
+  ordersCreated                       Order[]                       @relation("OrderCreatedBy")
+  ordersCancelled                     Order[]                       @relation("OrderCancelledBy")
+  orderCancellationRequestsRequested  OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")
+  orderCancellationRequestsResolved   OrderCancellationRequest[]    @relation("OrderCancellationResolvedBy")
+  shiftAssignments                    ShiftAssignment[]
+  clockRecords                        ClockRecord[]
+  prepTicketsClaimed                  PrepTicket[]                  @relation("PrepTicketClaimedBy")
+  prepTicketsRejected                 PrepTicket[]                  @relation("PrepTicketRejectedBy")
+  refreshTokens                       RefreshToken[]
+  modRequestsCreated                  OrderModificationRequest[]    @relation("ModRequestedBy")
+  modRequestsReviewed                 OrderModificationRequest[]    @relation("ModReviewedBy")
+  incidentsActed                      IncidentLog[]                 @relation("IncidentActor")
+  printJobsRequested                  PrintJob[]                    @relation("PrintJobRequester")
+  houseAccount                        HouseAccount?                 @relation("HouseAccountHolder")
+  houseAccountsGranted                HouseAccount[]                @relation("HouseAccountGrantedBy")
+  houseAccountSettlements             HouseAccountSettlement[]      @relation("HouseAccountSettledBy")
+  houseAuthRequestsRequested          HouseAccountAuthRequest[]     @relation("HouseAuthRequestedBy")
+  houseAuthRequestsResolved           HouseAccountAuthRequest[]     @relation("HouseAuthResolvedBy")
+  corporateAccountsCreated            CorporateAccount[]            @relation("CorporateAccountCreatedBy")
+  corporateSettlements                CorporateAccountSettlement[]  @relation("CorporateAccountSettledBy")
+  customerCreditAccountsCreated       CustomerCreditAccount[]       @relation("CustomerCreditAccountCreatedBy")
+  customerCreditSettlements           CustomerCreditSettlement[]    @relation("CustomerCreditSettledBy")
+  otherIncomeEntries                  OtherIncomeEntry[]            @relation("OtherIncomeRecordedBy")
+  otherIncomeEntryEdits               OtherIncomeEntryEdit[]        @relation("OtherIncomeEntryEditedBy")
+  ordersDiscounted                    Order[]                       @relation("OrderDiscountedBy")
+  staffDiscountRequestsRequested      StaffDiscountAuthRequest[]    @relation("StaffDiscountRequestedBy")
+  staffDiscountRequestsResolved       StaffDiscountAuthRequest[]    @relation("StaffDiscountResolvedBy")
+  discountsCreated                    Discount[]                    @relation("DiscountCreatedBy")
+  customerDiscountRequestsRequested   CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
+  customerDiscountRequestsResolved    CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
+  directConversationsAsA              DirectConversation[]          @relation("ConvParticipantA")
+  directConversationsAsB              DirectConversation[]          @relation("ConvParticipantB")
+  directMessagesSent                  DirectMessage[]               @relation("DirectMessageSender")
+  broadcastsSent                      Broadcast[]                   @relation("BroadcastSender")
+  broadcastRecipients                 BroadcastRecipient[]          @relation("BroadcastRecipientUser")
+  formalNoticesIssued                 FormalNotice[]                @relation("FormalNoticeIssuer")
+  formalNoticeRecipients              FormalNoticeRecipient[]       @relation("FormalNoticeRecipientUser")
+  employeeProfile                     EmployeeProfile?              @relation("EmployeeProfileUser")
+  managedEmployeeProfiles             EmployeeProfile[]             @relation("EmployeeProfileManager")
+  leaveRequestsReviewed               LeaveRequest[]                @relation("LeaveReviewedBy")
+  leaveRequestsCancelled              LeaveRequest[]                @relation("LeaveCancelledBy")
+  leaveRequestAcknowledgements        LeaveRequestAcknowledgement[]
+  disciplinaryRecordsIssued           DisciplinaryRecord[]          @relation("DisciplinaryIssuedBy")
+  hrDocumentsUploaded                 HrDocument[]                  @relation("HrDocumentUploadedBy")
+  payslips                            Payslip[]                     @relation("StaffPayslips")
+  createdPayslips                     Payslip[]                     @relation("PayslipsCreated")
+  staffTransfers                      StaffTransfer[]               @relation("StaffTransferUser")
+  staffTransfersAuthorized            StaffTransfer[]               @relation("StaffTransferAuthorizedBy")
+  inventoryTransactions               InventoryTransaction[]        @relation("InventoryTransactionUser")
+  restockLevelsSet                    RestockLevel[]                @relation("RestockLevelSetBy")
+  expectedDeliveriesCreated           ExpectedDelivery[]            @relation("ExpectedDeliveryCreatedBy")
+  goodsReceiptsSigned                 GoodsReceipt[]                @relation("GoodsReceiptSignedBy")
+  goodsReceiptsCreated                GoodsReceipt[]                @relation("GoodsReceiptCreatedBy")
+  goodsReceiptLinePriceAlertsAccepted GoodsReceiptLine[]            @relation("GoodsReceiptLinePriceAlertAcceptedBy")
+  supplierInvoicesRecorded            SupplierInvoice[]             @relation("SupplierInvoiceRecordedBy")
+  supplierInvoiceAdjustmentsRecorded  SupplierInvoiceAdjustment[]   @relation("SupplierInvoiceAdjustmentRecordedBy")
+  supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -880,11 +892,11 @@ model OtherIncomeEntry {
 /// Audit trail for corrections made to an OtherIncomeEntry after it was recorded.
 /// One row per edit action; `changes` holds an array of { field, from, to } objects.
 model OtherIncomeEntryEdit {
-  id        String   @id @default(uuid())
-  entryId   String   @map("entry_id")
-  editedById String  @map("edited_by_id")
-  changes   Json
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  entryId    String   @map("entry_id")
+  editedById String   @map("edited_by_id")
+  changes    Json
+  createdAt  DateTime @default(now()) @map("created_at")
 
   entry    OtherIncomeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   editedBy User             @relation("OtherIncomeEntryEditedBy", fields: [editedById], references: [id])
@@ -1427,6 +1439,7 @@ model Location {
   organization  Organization           @relation(fields: [organizationId], references: [id])
   transactions  InventoryTransaction[]
   restockLevels RestockLevel[]
+  goodsReceipts GoodsReceipt[]
 
   // Phase 1 creates exactly one CENTRAL_STORE row per organization (feature
   // plan D-1) — this constraint enforces that invariant at the DB level.
@@ -1494,11 +1507,13 @@ model InventoryItem {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization      Organization           @relation(fields: [organizationId], references: [id])
-  category          Category?              @relation(fields: [categoryId], references: [id])
-  preferredSupplier Supplier?              @relation(fields: [preferredSupplierId], references: [id])
-  restockLevels     RestockLevel[]
-  transactions      InventoryTransaction[]
+  organization          Organization           @relation(fields: [organizationId], references: [id])
+  category              Category?              @relation(fields: [categoryId], references: [id])
+  preferredSupplier     Supplier?              @relation(fields: [preferredSupplierId], references: [id])
+  restockLevels         RestockLevel[]
+  transactions          InventoryTransaction[]
+  expectedDeliveryLines ExpectedDeliveryLine[]
+  goodsReceiptLines     GoodsReceiptLine[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1516,14 +1531,27 @@ model Supplier {
   email               String?
   location            String? // free text, e.g. "Nyeri town"
   defaultPaymentTerms SupplierPaymentTerms @default(INVOICE_TO_FOLLOW) @map("default_payment_terms")
+  // Milestone Two (Receiving & Supplier AP), added 20260916: what makes an
+  // invoice overdue. SupplierPaymentTerms says only WHETHER a supplier bills
+  // on account, never WHEN it's due — the "what we owe" screens bucket
+  // invoices by days overdue, which needs a due date to measure from.
+  // Editable on the supplier form; default backfills existing rows (30 is a
+  // starting assumption, not researched from real terms — review against
+  // production suppliers before relying on it). See milestone-2-plan.md §1.3,
+  // §7 Q3(b).
+  paymentDays         Int                  @default(30) @map("payment_days")
 
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization      Organization    @relation(fields: [organizationId], references: [id])
-  category          Category?       @relation(fields: [categoryId], references: [id])
-  preferredForItems InventoryItem[]
+  organization       Organization       @relation(fields: [organizationId], references: [id])
+  category           Category?          @relation(fields: [categoryId], references: [id])
+  preferredForItems  InventoryItem[]
+  expectedDeliveries ExpectedDelivery[]
+  goodsReceipts      GoodsReceipt[]
+  supplierInvoices   SupplierInvoice[]
+  supplierPayments   SupplierPayment[]
 
   @@index([organizationId])
   @@index([organizationId, deletedAt])
@@ -1570,11 +1598,13 @@ enum InventoryTransactionType {
   SALE
 }
 
-// purchaseOrderLineId/prepRecordId/wasteLogId/stockCountLineId/dispatchLineId/
-// marketPurchaseLineId are retained as unlinked nullable columns: the models
-// they referenced were dropped by Milestone One (plan §1.3/§4), and the ledger
-// itself is out of scope this milestone (plan §0). Each is restored as a real
-// FK when the milestone that rebuilds that flow lands.
+// prepRecordId/wasteLogId/stockCountLineId/dispatchLineId/marketPurchaseLineId
+// are retained as unlinked nullable columns: the models they referenced were
+// dropped by Milestone One (plan §1.3/§4), and those ledger paths are still
+// out of scope. Each is restored as a real FK when the milestone that rebuilds
+// that flow lands. goodsReceiptLineId (formerly purchaseOrderLineId) was the
+// first of these restored — Milestone Two (Receiving & Supplier AP) is the
+// first writer to this ledger; see milestone-2-plan.md §1.6.
 model InventoryTransaction {
   id                   String                   @id @default(uuid())
   organizationId       String                   @map("organization_id")
@@ -1584,7 +1614,7 @@ model InventoryTransaction {
   quantity             Decimal                  @db.Decimal(12, 4)
   unitCost             Decimal                  @map("unit_cost") @db.Decimal(12, 4)
   reason               String?
-  purchaseOrderLineId  String?                  @map("purchase_order_line_id")
+  goodsReceiptLineId   String?                  @map("goods_receipt_line_id")
   prepRecordId         String?                  @map("prep_record_id")
   wasteLogId           String?                  @map("waste_log_id")
   stockCountLineId     String?                  @map("stock_count_line_id")
@@ -1593,14 +1623,297 @@ model InventoryTransaction {
   userId               String                   @map("user_id")
   createdAt            DateTime                 @default(now()) @map("created_at")
 
-  organization  Organization  @relation(fields: [organizationId], references: [id])
-  location      Location      @relation(fields: [locationId], references: [id])
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
-  user          User          @relation("InventoryTransactionUser", fields: [userId], references: [id])
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  location         Location          @relation(fields: [locationId], references: [id])
+  inventoryItem    InventoryItem     @relation(fields: [inventoryItemId], references: [id])
+  user             User              @relation("InventoryTransactionUser", fields: [userId], references: [id])
+  goodsReceiptLine GoodsReceiptLine? @relation(fields: [goodsReceiptLineId], references: [id])
 
   @@index([organizationId])
   @@index([locationId])
   @@index([inventoryItemId])
   @@index([type])
+  @@index([goodsReceiptLineId])
   @@map("inventory_transactions")
+}
+
+// ============================================================================
+// Milestone Two — Receiving & Supplier AP
+// Stage 1 (Buying/estimate), Stage 2 (Receiving), Stage 10 (Supplier payment).
+// Plan: docs/features/inventory/milestone-2-plan.md.
+// ============================================================================
+
+/// Reference-number counters (GRN-, EXP-, …), one row per (org, prefix).
+/// Incremented inside the same transaction as the document it numbers, so
+/// numbers stay gap-free — a printed, signed document with a missing number
+/// looks like a lost record with no way to prove otherwise. Same pattern as
+/// OrderCounter, generalized across document types instead of reset per day.
+model ReferenceCounter {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  prefix         String // "GRN", "EXP"
+  lastNumber     Int      @default(0) @map("last_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, prefix])
+  @@index([organizationId])
+  @@map("reference_counters")
+}
+
+enum ExpectedDeliveryStatus {
+  AWAITING
+  FULFILLED
+  CANCELLED
+}
+
+/// Stage 1 (Buying) — an estimate, explicitly NOT a purchase order
+/// (01-description.md §3 Stage 1, §7: "Purchase orders are removed
+/// entirely"). Writes no ledger entry; the goods receipt (below) is the only
+/// thing that ever moves stock.
+model ExpectedDelivery {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  reference      String // "EXP-0091", generated via ReferenceCounter
+  supplierId     String                 @map("supplier_id")
+  paymentTerms   SupplierPaymentTerms   @map("payment_terms") // defaulted from supplier, per-record
+  status         ExpectedDeliveryStatus @default(AWAITING)
+  expectedDate   DateTime?              @map("expected_date")
+  // Stored, not derived: an estimate that never needs to reconcile with
+  // anything (the receipt supersedes it) — storing avoids a per-row line
+  // aggregation on the Purchasing hub's hottest query. See plan §1.1.
+  estimatedTotal Decimal                @default(0) @map("estimated_total") @db.Decimal(12, 2)
+  createdById    String                 @map("created_by_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  supplier      Supplier               @relation(fields: [supplierId], references: [id])
+  createdBy     User                   @relation("ExpectedDeliveryCreatedBy", fields: [createdById], references: [id])
+  lines         ExpectedDeliveryLine[]
+  goodsReceipts GoodsReceipt[]
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@map("expected_deliveries")
+}
+
+model ExpectedDeliveryLine {
+  id                 String  @id @default(uuid())
+  expectedDeliveryId String  @map("expected_delivery_id")
+  inventoryItemId    String  @map("inventory_item_id")
+  quantity           Decimal @db.Decimal(12, 4) // in the item's BUY unit
+  estimatedUnitPrice Decimal @map("estimated_unit_price") @db.Decimal(12, 4)
+  lineOrder          Int     @map("line_order")
+
+  expectedDelivery ExpectedDelivery @relation(fields: [expectedDeliveryId], references: [id], onDelete: Cascade)
+  inventoryItem    InventoryItem    @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([expectedDeliveryId])
+  @@index([inventoryItemId])
+  @@map("expected_delivery_lines")
+}
+
+/// DRAFT holds an unsigned receipt (UQE-0's "Save draft" vs "Sign & save");
+/// no ledger rows exist while DRAFT. RECEIVED_INVOICE_PENDING vs RECEIVED_PAID
+/// is the payment-terms branch that decides whether AP is ever created
+/// (01-description.md §3 Stage 2). INVOICE_RECORDED is set once Flow 14 runs.
+enum GoodsReceiptStatus {
+  DRAFT
+  RECEIVED_INVOICE_PENDING
+  RECEIVED_PAID
+  INVOICE_RECORDED
+  CANCELLED
+}
+
+/// Stage 2 (Receiving) — every item entering the company lands here first
+/// (01-description.md §3 Stage 2: "There is no other inbound path"). The
+/// first writer to InventoryTransaction (plan §0, §1.6).
+model GoodsReceipt {
+  id                 String               @id @default(uuid())
+  organizationId     String               @map("organization_id")
+  reference          String // "GRN-1042", generated via ReferenceCounter
+  supplierId         String               @map("supplier_id")
+  expectedDeliveryId String?              @map("expected_delivery_id") // nullable: receiving without an estimate is allowed (Flow 1)
+  paymentTerms       SupplierPaymentTerms @map("payment_terms") // defaulted from supplier, editable per receipt
+  status             GoodsReceiptStatus   @default(DRAFT)
+  supplierDocNumber  String?              @map("supplier_doc_number") // "INVOICE / DELIVERY NOTE No." — nullable per Flow 2a
+  supplierDocDate    DateTime?            @map("supplier_doc_date")
+  receiptTotal       Decimal              @default(0) @map("receipt_total") @db.Decimal(12, 2) // snapshot at signing, immutable
+  locationId         String               @map("location_id") // the CENTRAL_STORE location
+  signedById         String?              @map("signed_by_id")
+  signedAt           DateTime?            @map("signed_at")
+  createdById        String               @map("created_by_id")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  organization     Organization             @relation(fields: [organizationId], references: [id])
+  supplier         Supplier                 @relation(fields: [supplierId], references: [id])
+  expectedDelivery ExpectedDelivery?        @relation(fields: [expectedDeliveryId], references: [id])
+  location         Location                 @relation(fields: [locationId], references: [id])
+  signedBy         User?                    @relation("GoodsReceiptSignedBy", fields: [signedById], references: [id])
+  createdBy        User                     @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
+  lines            GoodsReceiptLine[]
+  invoices         SupplierInvoiceReceipt[]
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@index([expectedDeliveryId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id                     String   @id @default(uuid())
+  goodsReceiptId         String   @map("goods_receipt_id")
+  inventoryItemId        String   @map("inventory_item_id")
+  quantityBuyUnit        Decimal  @map("quantity_buy_unit") @db.Decimal(12, 4) // as entered ("18.0 kg", "2 pkt")
+  quantityUsageUnit      Decimal  @map("quantity_usage_unit") @db.Decimal(12, 4) // computed at save via conversionFactor; what hits the ledger
+  unitPrice              Decimal  @map("unit_price") @db.Decimal(12, 4) // per BUY unit, as invoiced
+  lineTotal              Decimal  @map("line_total") @db.Decimal(12, 2)
+  lineOrder              Int      @map("line_order")
+  // Price-alert snapshot — persisted, never recomputed. By the time the
+  // signed receipt is read back, latest-price costing has already
+  // overwritten InventoryItem.currentCost, so the comparison price is gone.
+  // See plan §1.2.
+  priceAlertPct          Decimal? @map("price_alert_pct") @db.Decimal(6, 2) // null = no alert fired
+  priceAlertPrevPrice    Decimal? @map("price_alert_prev_price") @db.Decimal(12, 4)
+  priceAlertAcceptedById String?  @map("price_alert_accepted_by_id")
+
+  goodsReceipt         GoodsReceipt           @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  inventoryItem        InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  priceAlertAcceptedBy User?                  @relation("GoodsReceiptLinePriceAlertAcceptedBy", fields: [priceAlertAcceptedById], references: [id])
+  ledgerTransactions   InventoryTransaction[]
+
+  @@index([goodsReceiptId])
+  @@index([inventoryItemId])
+  @@map("goods_receipt_lines")
+}
+
+enum SupplierInvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+/// Deliberately NOT folded into SupplierInvoiceStatus — a disputed invoice
+/// still ages and can still be paid (Flow 17a), so dispute and payment status
+/// must be independently representable. See plan §1.3.
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+/// Stage 10 (Supplier payment) — a running tab per supplier, Flow 14.
+model SupplierInvoice {
+  id               String                @id @default(uuid())
+  organizationId   String                @map("organization_id")
+  supplierId       String                @map("supplier_id")
+  invoiceNumber    String                @map("invoice_number") // supplier's own number
+  invoiceDate      DateTime              @map("invoice_date")
+  // Computed once at creation as invoiceDate + supplier.paymentDays, then
+  // stored — a later change to the supplier's terms must not retroactively
+  // shift the due date of an invoice already on the books. See plan §1.3.
+  dueDate          DateTime              @map("due_date")
+  amountBilled     Decimal               @map("amount_billed") @db.Decimal(12, 2) // as stated on their document
+  status           SupplierInvoiceStatus @default(UNPAID)
+  disputeStatus    DisputeStatus?        @map("dispute_status")
+  disputeOurFigure Decimal?              @map("dispute_our_figure") @db.Decimal(12, 2)
+  disputeReason    String?               @map("dispute_reason")
+  recordedById     String                @map("recorded_by_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  organization Organization                @relation(fields: [organizationId], references: [id])
+  supplier     Supplier                    @relation(fields: [supplierId], references: [id])
+  recordedBy   User                        @relation("SupplierInvoiceRecordedBy", fields: [recordedById], references: [id])
+  receipts     SupplierInvoiceReceipt[]
+  adjustments  SupplierInvoiceAdjustment[]
+  allocations  SupplierPaymentAllocation[]
+
+  @@unique([organizationId, supplierId, invoiceNumber])
+  @@index([organizationId, status])
+  @@index([supplierId, dueDate])
+  @@map("supplier_invoices")
+}
+
+/// Join — an invoice bundles MANY receipts (UZJ-0's "RECEIPTS TO BUNDLE"
+/// checkbox list; Flow 14: "One invoice covers multiple receipts").
+model SupplierInvoiceReceipt {
+  supplierInvoiceId String @map("supplier_invoice_id")
+  goodsReceiptId    String @map("goods_receipt_id")
+
+  supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+  goodsReceipt    GoodsReceipt    @relation(fields: [goodsReceiptId], references: [id])
+
+  @@id([supplierInvoiceId, goodsReceiptId])
+  @@index([goodsReceiptId])
+  @@map("supplier_invoice_receipts")
+}
+
+/// The Accountant's reconciliation adjustment (Flow 17) — mandatory reason,
+/// changes the invoice's outstanding figure. No stock ledger entry; the
+/// Accountant cannot move stock (01-description.md §2).
+model SupplierInvoiceAdjustment {
+  id                String   @id @default(uuid())
+  supplierInvoiceId String   @map("supplier_invoice_id")
+  amount            Decimal  @db.Decimal(12, 2)
+  reason            String
+  recordedById      String   @map("recorded_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+  recordedBy      User            @relation("SupplierInvoiceAdjustmentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([supplierInvoiceId])
+  @@map("supplier_invoice_adjustments")
+}
+
+enum SupplierPaymentMethod {
+  BANK
+  CASH
+  MPESA
+}
+
+/// Flow 15 — payments are immutable once saved; a correction is a reversal
+/// (negative allocation) with a reason, never an edit or delete.
+model SupplierPayment {
+  id             String                @id @default(uuid())
+  organizationId String                @map("organization_id")
+  supplierId     String                @map("supplier_id")
+  amount         Decimal               @db.Decimal(12, 2) // may exceed the sum of allocations -> credit
+  paidAt         DateTime              @map("paid_at")
+  method         SupplierPaymentMethod
+  reference      String? // "EFT-88213"
+  reversalOfId   String?               @map("reversal_of_id")
+  reversalReason String?               @map("reversal_reason")
+  recordedById   String                @map("recorded_by_id")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  organization Organization                @relation(fields: [organizationId], references: [id])
+  supplier     Supplier                    @relation(fields: [supplierId], references: [id])
+  recordedBy   User                        @relation("SupplierPaymentRecordedBy", fields: [recordedById], references: [id])
+  reversalOf   SupplierPayment?            @relation("SupplierPaymentReversal", fields: [reversalOfId], references: [id])
+  reversals    SupplierPayment[]           @relation("SupplierPaymentReversal")
+  allocations  SupplierPaymentAllocation[]
+
+  @@index([organizationId, supplierId])
+  @@map("supplier_payments")
+}
+
+model SupplierPaymentAllocation {
+  id                String  @id @default(uuid())
+  supplierPaymentId String  @map("supplier_payment_id")
+  supplierInvoiceId String  @map("supplier_invoice_id")
+  amount            Decimal @db.Decimal(12, 2) // negative allowed ONLY on a reversal payment's allocation
+
+  supplierPayment SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  supplierInvoice SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
+
+  @@unique([supplierPaymentId, supplierInvoiceId])
+  @@index([supplierInvoiceId])
+  @@map("supplier_payment_allocations")
 }
