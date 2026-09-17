@@ -91,6 +91,8 @@ model User {
   email                               String                        @unique
   phone                               String?
   passwordHash                        String                        @map("password_hash")
+  /** 4-digit numeric PIN, bcrypt-hashed like passwordHash. Null until the user sets one via POST /users/me/pin. Used for in-app re-authentication (e.g. signing a Goods Receipt) distinct from the login password. */
+  pinHash                             String?                       @map("pin_hash")
   fcmToken                            String?                       @map("fcm_token")
   role                                UserRole
   departmentTag                       DepartmentTag?                @map("department_tag")

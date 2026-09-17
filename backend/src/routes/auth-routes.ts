@@ -68,5 +68,8 @@ authRoutes.post('/auth/register-device', authenticate, branchScope, requireRole(
   'KITCHEN_DISPLAY',
   'BARISTA_DISPLAY',
 ), authController.registerDevice);
+// Every authenticated role may set their own PIN — no role restriction beyond
+// authentication (the route always acts on req.user.id, never a target id).
+authRoutes.post('/users/me/pin', authenticate, branchScope, authController.setPin);
 
 export default authRoutes;

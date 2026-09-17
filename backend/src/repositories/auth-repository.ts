@@ -11,6 +11,7 @@ const userAuthSelect = {
   isDepartmentHead: true,
   isActive: true,
   passwordHash: true,
+  pinHash: true,
   organization: {
     select: {
       name: true,
@@ -85,6 +86,13 @@ export const authRepository = {
     return prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+  },
+
+  updatePinHash: async (userId: string, pinHash: string) => {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { pinHash },
     });
   },
 

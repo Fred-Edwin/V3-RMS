@@ -57,4 +57,35 @@ router.get(
   receivingController.getRecentSupplierItems,
 );
 
+// ── Goods receipts ───────────────────────────────────────────────────────
+// STORE_MANAGER and STORE_ATTENDANT both have full access here (S4) — unlike
+// the Supplier-AP endpoints S7 builds, where the Attendant is excluded
+// (01-description.md Stage 10, plan §3.1).
+
+router.get(
+  '/inventory/goods-receipts',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
+  receivingController.listGoodsReceipts,
+);
+router.get(
+  '/inventory/goods-receipts/:id',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
+  receivingController.getGoodsReceipt,
+);
+router.post(
+  '/inventory/goods-receipts',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
+  receivingController.createGoodsReceipt,
+);
+router.patch(
+  '/inventory/goods-receipts/:id',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
+  receivingController.updateGoodsReceipt,
+);
+router.post(
+  '/inventory/goods-receipts/:id/sign',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
+  receivingController.signGoodsReceipt,
+);
+
 export default router;

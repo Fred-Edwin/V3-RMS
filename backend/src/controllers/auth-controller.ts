@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { env } from '../config/env';
 import { authService } from '../services/auth-service';
-import { changePasswordSchema, loginSchema, registerDeviceSchema, verifyPasswordSchema } from '../validators/auth-schemas';
+import { changePasswordSchema, loginSchema, registerDeviceSchema, setPinSchema, verifyPasswordSchema } from '../validators/auth-schemas';
 import { UnauthorizedError } from '../utils/errors';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
@@ -159,6 +159,23 @@ export const authController = {
     res.status(200).json({
       success: true,
       message: 'Device registered for notifications',
+    });
+  },
+
+  setPin: async (req: Request, res: Response): Promise<void> => {
+    const data = setPinSchema.parse(req.body);
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    await authService.setPin({
+      userId: req.user.id,
+      pin: data.pin,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'PIN updated successfully',
     });
   },
 };

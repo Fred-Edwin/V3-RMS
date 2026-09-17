@@ -19,6 +19,35 @@ receipts, signing, ledger write) is done and its endpoints are live. Your job
 is the two screens built on top of it: the entry form and the immutable
 signed record.
 
+**Read before starting — two things S4 added that are not in the frozen
+contract**, because they were decided during the S4 build session itself,
+after checking the live Sign Sheet design in Paper (not present when
+`API_CONTRACT.md` §22 was frozen):
+
+1. **PIN is a real, separate credential — and no user has one set yet.**
+   `POST /inventory/goods-receipts/:id/sign` verifies `pin` against a new
+   `User.pinHash` column (bcrypt, 4 digits — matches the Sign Sheet's
+   `InputOTP` exactly), not the login password. There is currently **no
+   frontend UI to set a PIN** — S4 only added a minimal
+   `POST /users/me/pin` endpoint (body `{ pin: string }`, any authenticated
+   user, sets their own PIN) so it's possible to set one at all. **Before you
+   can test the sign flow live, you must set a PIN for your test user**
+   yourself — via a direct API call (e.g. `curl`/Postman/`fetch` in the
+   console), not through any UI, since none exists. Do not build a "Set PIN"
+   UI in this session — that's explicitly out of scope for S4 and S6 alike;
+   flag it as a follow-up if the owner wants one built. If you sign in as a
+   user who has never called this endpoint, `sign` will 401 with "No PIN is
+   set for this account" — that is expected, not a bug in your integration.
+2. **The sign endpoint returns two distinct 401 messages, not one generic
+   "bad PIN."** `"No PIN is set for this account"` (no `pinHash` on the
+   user yet) vs `"Incorrect PIN"` (wrong PIN, `pinHash` exists). Both are
+   plain 401s with no distinguishing `code` field beyond the message string
+   — if you want the Sign sheet to show different copy for these two cases
+   (e.g. "no PIN set — contact your manager" vs "wrong PIN, try again"),
+   branch on the error message text, or ask the owner whether a dedicated
+   error code is worth adding to the contract now. Either way, confirm which
+   message renders in the Sign sheet's error slot before marking this done.
+
 ## Read first, in this order
 
 1. `docs/features/inventory/milestone-2-plan.md` §0 (screens 4 and 5, their
@@ -102,10 +131,16 @@ don't go looking for something that isn't there.
   not just silently accept a second click.
 - **Every write action has a real, verified failure path — this session has
   the most consequential ones in the milestone.** Trigger and confirm visible
-  feedback for: a bad PIN (401 on sign — does the Sign sheet show an error
-  and let the user retry, per Flow 2a's "signature not applied, receipt stays
-  in draft" rule?), signing an already-signed or empty receipt (409), and a
-  failed draft save. None of these should fail silently to the console.
+  feedback for: a bad PIN (401 "Incorrect PIN") and no PIN set yet (401 "No
+  PIN is set for this account" — see the PIN prerequisite note above; you
+  will hit this one first, before you can even test the "bad PIN" case) — in
+  both cases, does the Sign sheet show an error and let the user retry, per
+  Flow 2a's "signature not applied, receipt stays in draft" rule? — signing
+  an already-signed or empty receipt (409), a receipt saved with no Central
+  Store configured for the hub org (404, not 422 — S4 matched the existing
+  codebase's error-class convention rather than the original S4 session
+  prompt's 422 assumption), and a failed draft save. None of these should
+  fail silently to the console.
 
 ## Stop condition
 

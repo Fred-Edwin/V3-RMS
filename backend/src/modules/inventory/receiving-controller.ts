@@ -4,8 +4,12 @@ import { receivingService } from './receiving-service';
 import { IdParamSchema } from './inventory-validators';
 import {
   CreateExpectedDeliverySchema,
+  CreateGoodsReceiptSchema,
   ListExpectedDeliveriesQuerySchema,
+  ListGoodsReceiptsQuerySchema,
   RecentSupplierItemsQuerySchema,
+  SignGoodsReceiptSchema,
+  UpdateGoodsReceiptSchema,
 } from './receiving-validators';
 import { z } from 'zod';
 
@@ -79,5 +83,44 @@ export const receivingController = {
     const { limit } = RecentSupplierItemsQuerySchema.parse(req.query);
     const data = await receivingService.getRecentSupplierItems(actor, id, limit);
     res.status(200).json({ success: true, data });
+  },
+
+  // ── Goods receipts ───────────────────────────────────────────────────────
+
+  listGoodsReceipts: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ListGoodsReceiptsQuerySchema.parse(req.query);
+    const data = await receivingService.listGoodsReceipts(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getGoodsReceipt: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const data = await receivingService.getGoodsReceipt(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  createGoodsReceipt: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const input = CreateGoodsReceiptSchema.parse(req.body);
+    const data = await receivingService.createGoodsReceipt(actor, input);
+    res.status(201).json({ success: true, data, message: 'Goods receipt saved as draft' });
+  },
+
+  updateGoodsReceipt: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const input = UpdateGoodsReceiptSchema.parse(req.body);
+    const data = await receivingService.updateGoodsReceipt(actor, id, input);
+    res.status(200).json({ success: true, data, message: 'Goods receipt updated' });
+  },
+
+  signGoodsReceipt: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const input = SignGoodsReceiptSchema.parse(req.body);
+    const data = await receivingService.signGoodsReceipt(actor, id, input);
+    res.status(200).json({ success: true, data, message: 'Goods receipt signed' });
   },
 };

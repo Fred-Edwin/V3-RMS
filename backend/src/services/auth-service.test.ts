@@ -11,6 +11,7 @@ vi.mock('../repositories/auth-repository', () => ({
     deleteRefreshToken: vi.fn(),
     findUserById: vi.fn(),
     saveRefreshToken: vi.fn(),
+    updatePinHash: vi.fn(),
   },
 }));
 
@@ -84,5 +85,22 @@ describe('authService.refresh', () => {
     await expect(refreshAttempt).rejects.toThrow(UnauthorizedError);
     await expect(refreshAttempt).rejects.toThrow('Refresh token already used');
     expect(authRepository.saveRefreshToken).not.toHaveBeenCalled();
+  });
+});
+
+describe('authService.setPin', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('hashes the PIN and stores it against the caller', async () => {
+    vi.mocked(authRepository.updatePinHash).mockResolvedValue({} as never);
+
+    await authService.setPin({ userId: 'user-1', pin: '4821' });
+
+    expect(authRepository.updatePinHash).toHaveBeenCalledTimes(1);
+    const [userId, pinHash] = vi.mocked(authRepository.updatePinHash).mock.calls[0]!;
+    expect(userId).toBe('user-1');
+    expect(pinHash).not.toBe('4821'); // stored hashed, never plaintext
   });
 });

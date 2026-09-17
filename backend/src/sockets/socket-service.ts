@@ -35,6 +35,13 @@ export interface OrderClosedPayload {
   dailyNumber: number;
 }
 
+export interface GoodsReceiptSignedPayload {
+  goodsReceiptId: string;
+  reference: string;
+  supplierName: string;
+  signedByName: string;
+}
+
 const emitToStations = (
   organizationId: string,
   stations: PrepStation[],
@@ -76,6 +83,12 @@ export const socketService = {
   emitOrderPaid: (waiterId: string, payload: OrderPaidPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:paid', payload);
+  },
+
+  /** Signing a Goods Receipt notifies the hub's Store Manager(s) (plan §3.3). */
+  emitGoodsReceiptSigned: (userId: string, payload: GoodsReceiptSignedPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('goods-receipt:signed', payload);
   },
 
   emitOrderClosed: (organizationId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

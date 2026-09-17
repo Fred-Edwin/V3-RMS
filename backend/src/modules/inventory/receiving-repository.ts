@@ -1,4 +1,12 @@
-import { Prisma, type ExpectedDelivery, type ExpectedDeliveryLine, type ExpectedDeliveryStatus } from '@prisma/client';
+import {
+  Prisma,
+  type ExpectedDelivery,
+  type ExpectedDeliveryLine,
+  type ExpectedDeliveryStatus,
+  type GoodsReceipt,
+  type GoodsReceiptLine,
+  type GoodsReceiptStatus,
+} from '@prisma/client';
 import { prisma } from '../../config/database';
 
 type TxClient = Prisma.TransactionClient;
@@ -241,5 +249,222 @@ export const lastPriceRepository = {
     });
     if (!line || !line.goodsReceipt.signedAt) return null;
     return { unitPrice: line.unitPrice, signedAt: line.goodsReceipt.signedAt };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Goods receipts (Stage 2 — S4). The ledger write itself (InventoryTransaction
+// rows + InventoryItem.currentCost) happens in the service's sign transaction,
+// not here — this repository only owns the GoodsReceipt/-Line rows.
+// ---------------------------------------------------------------------------
+
+export type GoodsReceiptWithRelations = GoodsReceipt & {
+  supplier: { id: string; name: string };
+  signedBy: { id: string; name: string; role: string } | null;
+  createdBy: { id: string; name: string };
+  lines: (GoodsReceiptLine & {
+    inventoryItem: { id: string; name: string; buyUnit: string; usageUnit: string };
+    priceAlertAcceptedBy: { id: string; name: string } | null;
+  })[];
+  invoices: { supplierInvoice: { id: string; invoiceNumber: string } }[];
+};
+
+export type GoodsReceiptLineInput = {
+  inventoryItemId: string;
+  quantityBuyUnit: Prisma.Decimal.Value;
+  quantityUsageUnit: Prisma.Decimal.Value;
+  unitPrice: Prisma.Decimal.Value;
+  lineTotal: Prisma.Decimal.Value;
+  priceAlertPct: Prisma.Decimal.Value | null;
+  priceAlertPrevPrice: Prisma.Decimal.Value | null;
+};
+
+export type CreateGoodsReceiptInput = {
+  supplierId: string;
+  expectedDeliveryId: string | null;
+  paymentTerms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW';
+  supplierDocNumber: string | null;
+  supplierDocDate: Date | null;
+  locationId: string;
+  createdById: string;
+  lines: GoodsReceiptLineInput[];
+};
+
+export type ListGoodsReceiptsFilters = {
+  status?: GoodsReceiptStatus;
+  supplierId?: string;
+  limit: number;
+  cursor?: string;
+};
+
+const goodsReceiptInclude = {
+  supplier: { select: { id: true, name: true } },
+  signedBy: { select: { id: true, name: true, role: true } },
+  createdBy: { select: { id: true, name: true } },
+  lines: {
+    include: {
+      inventoryItem: { select: { id: true, name: true, buyUnit: true, usageUnit: true } },
+      priceAlertAcceptedBy: { select: { id: true, name: true } },
+    },
+    orderBy: { lineOrder: 'asc' },
+  },
+  invoices: { include: { supplierInvoice: { select: { id: true, invoiceNumber: true } } }, take: 1 },
+} satisfies Prisma.GoodsReceiptInclude;
+
+const computeLineTotal = (
+  quantityBuyUnit: Prisma.Decimal.Value,
+  unitPrice: Prisma.Decimal.Value,
+): Prisma.Decimal => new Prisma.Decimal(quantityBuyUnit).times(new Prisma.Decimal(unitPrice));
+
+export const goodsReceiptRepository = {
+  findAllByOrganization: async (
+    organizationId: string,
+    filters: ListGoodsReceiptsFilters,
+  ): Promise<GoodsReceiptWithRelations[]> => {
+    const where: Prisma.GoodsReceiptWhereInput = {
+      organizationId,
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
+    };
+
+    return prisma.goodsReceipt.findMany({
+      where,
+      include: goodsReceiptInclude,
+      orderBy: { createdAt: 'desc' },
+      take: filters.limit,
+      ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
+    });
+  },
+
+  findById: async (id: string, organizationId: string): Promise<GoodsReceiptWithRelations | null> => {
+    return prisma.goodsReceipt.findFirst({ where: { id, organizationId }, include: goodsReceiptInclude });
+  },
+
+  create: async (
+    organizationId: string,
+    reference: string,
+    input: CreateGoodsReceiptInput,
+    tx: TxClient,
+  ): Promise<GoodsReceiptWithRelations> => {
+    const receiptTotal = input.lines.reduce(
+      (sum, line) => sum.plus(computeLineTotal(line.quantityBuyUnit, line.unitPrice)),
+      new Prisma.Decimal(0),
+    );
+
+    return tx.goodsReceipt.create({
+      data: {
+        organizationId,
+        reference,
+        supplierId: input.supplierId,
+        expectedDeliveryId: input.expectedDeliveryId,
+        paymentTerms: input.paymentTerms,
+        supplierDocNumber: input.supplierDocNumber,
+        supplierDocDate: input.supplierDocDate,
+        receiptTotal,
+        locationId: input.locationId,
+        createdById: input.createdById,
+        lines: {
+          createMany: {
+            data: input.lines.map((line, index) => ({
+              inventoryItemId: line.inventoryItemId,
+              quantityBuyUnit: new Prisma.Decimal(line.quantityBuyUnit),
+              quantityUsageUnit: new Prisma.Decimal(line.quantityUsageUnit),
+              unitPrice: new Prisma.Decimal(line.unitPrice),
+              lineTotal: new Prisma.Decimal(line.lineTotal),
+              priceAlertPct: line.priceAlertPct !== null ? new Prisma.Decimal(line.priceAlertPct) : null,
+              priceAlertPrevPrice:
+                line.priceAlertPrevPrice !== null ? new Prisma.Decimal(line.priceAlertPrevPrice) : null,
+              lineOrder: index,
+            })),
+          },
+        },
+      },
+      include: goodsReceiptInclude,
+    });
+  },
+
+  /** Status-guarded like `expectedDeliveryRepository.cancel` — DRAFT only, replaces all lines. */
+  update: async (
+    id: string,
+    organizationId: string,
+    input: Partial<Omit<CreateGoodsReceiptInput, 'supplierId' | 'createdById' | 'locationId'>>,
+  ): Promise<GoodsReceiptWithRelations | null> => {
+    const updated = await prisma.goodsReceipt.updateMany({
+      where: { id, organizationId, status: 'DRAFT' },
+      data: {
+        ...(input.expectedDeliveryId !== undefined ? { expectedDeliveryId: input.expectedDeliveryId } : {}),
+        ...(input.paymentTerms !== undefined ? { paymentTerms: input.paymentTerms } : {}),
+        ...(input.supplierDocNumber !== undefined ? { supplierDocNumber: input.supplierDocNumber } : {}),
+        ...(input.supplierDocDate !== undefined ? { supplierDocDate: input.supplierDocDate } : {}),
+        ...(input.lines !== undefined
+          ? {
+              receiptTotal: input.lines.reduce(
+                (sum, line) => sum.plus(computeLineTotal(line.quantityBuyUnit, line.unitPrice)),
+                new Prisma.Decimal(0),
+              ),
+            }
+          : {}),
+      },
+    });
+    if (updated.count === 0) return null;
+
+    if (input.lines !== undefined) {
+      // Replace-all: simplest correct approach for a draft-only edit — no
+      // partial-line-update semantics are exposed by the contract (plan §3.2
+      // just says "edit a draft"), and drafts have no ledger rows yet, so
+      // there is nothing else keyed to the old line ids to preserve.
+      await prisma.goodsReceiptLine.deleteMany({ where: { goodsReceiptId: id } });
+      await prisma.goodsReceiptLine.createMany({
+        data: input.lines.map((line, index) => ({
+          goodsReceiptId: id,
+          inventoryItemId: line.inventoryItemId,
+          quantityBuyUnit: new Prisma.Decimal(line.quantityBuyUnit),
+          quantityUsageUnit: new Prisma.Decimal(line.quantityUsageUnit),
+          unitPrice: new Prisma.Decimal(line.unitPrice),
+          lineTotal: new Prisma.Decimal(line.lineTotal),
+          priceAlertPct: line.priceAlertPct !== null ? new Prisma.Decimal(line.priceAlertPct) : null,
+          priceAlertPrevPrice: line.priceAlertPrevPrice !== null ? new Prisma.Decimal(line.priceAlertPrevPrice) : null,
+          lineOrder: index,
+        })),
+      });
+    }
+
+    return goodsReceiptRepository.findById(id, organizationId);
+  },
+
+  /**
+   * Runs inside the caller's `$transaction` (the ledger-writing one). Guards
+   * DRAFT → * the same way every other status transition in this module
+   * does: `updateMany` with the current status in the `where`, zero count
+   * means someone already signed/cancelled it concurrently.
+   */
+  markSigned: async (
+    id: string,
+    organizationId: string,
+    tx: TxClient,
+    data: { status: GoodsReceiptStatus; signedById: string; signedAt: Date },
+  ): Promise<number> => {
+    const updated = await tx.goodsReceipt.updateMany({
+      where: { id, organizationId, status: 'DRAFT' },
+      data,
+    });
+    return updated.count;
+  },
+
+  /** Stamps acceptance on the alerted lines, inside the same sign transaction. */
+  markPriceAlertsAccepted: async (lineIds: string[], acceptedById: string, tx: TxClient): Promise<void> => {
+    if (lineIds.length === 0) return;
+    await tx.goodsReceiptLine.updateMany({
+      where: { id: { in: lineIds } },
+      data: { priceAlertAcceptedById: acceptedById },
+    });
+  },
+
+  /** Recipients for the post-sign notification (plan §3.3) — every active Store Manager on the hub org. */
+  findHubStoreManagers: async (hubOrganizationId: string): Promise<{ id: string; name: string }[]> => {
+    return prisma.user.findMany({
+      where: { organizationId: hubOrganizationId, role: 'STORE_MANAGER', isActive: true, deletedAt: null },
+      select: { id: true, name: true },
+    });
   },
 };

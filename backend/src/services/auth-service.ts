@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { authRepository } from '../repositories/auth-repository';
-import { comparePassword, hashPassword } from '../utils/password';
+import { comparePassword, hashPassword, hashPin } from '../utils/password';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { UnauthorizedError, ValidationError } from '../utils/errors';
 import { env } from '../config/env';
@@ -187,5 +187,14 @@ export const authService = {
 
   registerDevice: async (input: { userId: string; fcmToken: string }): Promise<void> => {
     await authRepository.saveFcmToken(input.userId, input.fcmToken);
+  },
+
+  // Sets the caller's own in-app PIN (Inventory Milestone Two's Sign Sheet
+  // and future re-authentication surfaces). No current-PIN check on first
+  // set (pinHash starts null); overwrites unconditionally otherwise — there
+  // is no "forgot PIN" flow yet, so this doubles as the reset path.
+  setPin: async (input: { userId: string; pin: string }): Promise<void> => {
+    const pinHash = await hashPin(input.pin);
+    await authRepository.updatePinHash(input.userId, pinHash);
   },
 };

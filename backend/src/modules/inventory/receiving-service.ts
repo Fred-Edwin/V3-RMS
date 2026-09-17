@@ -2,24 +2,37 @@ import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import {
   expectedDeliveryRepository,
+  goodsReceiptRepository,
   lastPriceRepository,
   recentSupplierItemsRepository,
   referenceCounterRepository,
   type ExpectedDeliveryWithRelations,
+  type GoodsReceiptLineInput,
+  type GoodsReceiptWithRelations,
 } from './receiving-repository';
 import { supplierRepository } from './inventory-repository';
 import { inventoryItemRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
+import { locationRepository } from '../../repositories/location-repository';
+import { authRepository } from '../../repositories/auth-repository';
 import { prisma } from '../../config/database';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
+import { socketService } from '../../sockets/socket-service';
+import { fcmService } from '../../services/fcm-service';
+import { comparePin } from '../../utils/password';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
   CreateExpectedDeliveryInput as CreateExpectedDeliveryContractInput,
+  CreateGoodsReceiptInput as CreateGoodsReceiptContractInput,
   ExpectedDeliverySummary,
+  GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
+  ListGoodsReceiptsQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
   RecentSupplierItem,
+  SignGoodsReceiptInput,
+  UpdateGoodsReceiptInput,
 } from './receiving.types';
 
 type Actor = NonNullable<Request['user']>;
@@ -37,6 +50,15 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
 };
 
 const toDecimalString = (value: Prisma.Decimal): string => value.toString();
+
+/**
+ * A line's entered unit price this many percent above the item's last signed
+ * price triggers a price alert (01-description.md §4 says "a set %" but
+ * defines no number). 15% is a starting default, not owner-researched —
+ * flag for review once real supplier pricing history exists, same treatment
+ * as Supplier.paymentDays's 30-day default (plan §2).
+ */
+const PRICE_ALERT_THRESHOLD_PCT = 15;
 
 const formatAgeLabel = (createdAt: Date): string => {
   const days = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
@@ -115,6 +137,125 @@ const toHistoryRow = (
     statusTone,
     actions: [{ label: 'View' }, { label: 'Cancel', emphasized: false }],
   };
+};
+
+/**
+ * Maps a signed or draft GoodsReceipt to the wire shape. Price-alert fields
+ * come straight off the stored line columns — never recomputed against
+ * current `InventoryItem.currentCost` (contract behaviour #2, API_CONTRACT.md
+ * §22.4): by the time this is read back, signing has already moved the
+ * item's cost on to this receipt's own price.
+ */
+const serializeGoodsReceipt = (receipt: GoodsReceiptWithRelations): GoodsReceiptDetail => {
+  const linkedInvoiceRow = receipt.invoices[0];
+  return {
+    id: receipt.id,
+    reference: receipt.reference,
+    supplierId: receipt.supplierId,
+    supplierName: receipt.supplier.name,
+    expectedDeliveryId: receipt.expectedDeliveryId,
+    paymentTerms: receipt.paymentTerms,
+    status: receipt.status,
+    supplierDocNumber: receipt.supplierDocNumber,
+    supplierDocDate: receipt.supplierDocDate ? receipt.supplierDocDate.toISOString() : null,
+    receiptTotal: toDecimalString(receipt.receiptTotal),
+    lines: receipt.lines.map((line) => ({
+      id: line.id,
+      inventoryItemId: line.inventoryItemId,
+      itemName: line.inventoryItem.name,
+      quantityBuyUnit: toDecimalString(line.quantityBuyUnit),
+      buyUnit: line.inventoryItem.buyUnit,
+      quantityUsageUnit: toDecimalString(line.quantityUsageUnit),
+      usageUnit: line.inventoryItem.usageUnit,
+      unitPrice: toDecimalString(line.unitPrice),
+      lineTotal: toDecimalString(line.lineTotal),
+      priceAlert:
+        line.priceAlertPct !== null && line.priceAlertPrevPrice !== null
+          ? {
+              percentAboveLast: toDecimalString(line.priceAlertPct),
+              previousPrice: toDecimalString(line.priceAlertPrevPrice),
+              acceptedByName: line.priceAlertAcceptedBy ? line.priceAlertAcceptedBy.name : null,
+            }
+          : null,
+    })),
+    signature:
+      receipt.signedBy && receipt.signedAt
+        ? {
+            signedByName: receipt.signedBy.name,
+            signedByRole: receipt.signedBy.role,
+            signedAt: receipt.signedAt.toISOString(),
+          }
+        : null,
+    linkedInvoice: linkedInvoiceRow
+      ? { id: linkedInvoiceRow.supplierInvoice.id, invoiceNumber: linkedInvoiceRow.supplierInvoice.invoiceNumber }
+      : null,
+    createdAt: receipt.createdAt.toISOString(),
+  };
+};
+
+/**
+ * Buy→usage unit conversion (plan §1.6) and per-line total. `conversionFactor`
+ * null means 1:1 (buy unit === usage unit, e.g. "unit" items) — `packSize` is
+ * an unrelated display-only field (Milestone One, "12 per pack" caption) and
+ * is never used in this calculation, confirmed by grep: no existing code
+ * multiplies against it.
+ */
+const buildLineInput = (
+  line: { inventoryItemId: string; quantityBuyUnit: string; unitPrice: string },
+  item: { conversionFactor: Prisma.Decimal | null },
+  lastPrice: Prisma.Decimal | null,
+): GoodsReceiptLineInput => {
+  const quantityBuyUnit = new Prisma.Decimal(line.quantityBuyUnit);
+  const unitPrice = new Prisma.Decimal(line.unitPrice);
+  const conversionFactor = item.conversionFactor ?? new Prisma.Decimal(1);
+  const quantityUsageUnit = quantityBuyUnit.times(conversionFactor);
+  const lineTotal = quantityBuyUnit.times(unitPrice);
+
+  let priceAlertPct: Prisma.Decimal | null = null;
+  let priceAlertPrevPrice: Prisma.Decimal | null = null;
+  if (lastPrice && lastPrice.greaterThan(0)) {
+    const percentAbove = unitPrice.minus(lastPrice).dividedBy(lastPrice).times(100);
+    if (percentAbove.greaterThan(PRICE_ALERT_THRESHOLD_PCT)) {
+      priceAlertPct = percentAbove;
+      priceAlertPrevPrice = lastPrice;
+    }
+  }
+
+  return {
+    inventoryItemId: line.inventoryItemId,
+    quantityBuyUnit,
+    quantityUsageUnit,
+    unitPrice,
+    lineTotal,
+    priceAlertPct,
+    priceAlertPrevPrice,
+  };
+};
+
+/**
+ * Fire-and-forget: never blocks or fails the sign response (called with
+ * `void` from `signGoodsReceipt`). Composed inline from the existing
+ * socket/FCM primitives — no generic `notifyRole()` helper exists in this
+ * codebase; every service wires its own call site the same way.
+ */
+const notifyHubStoreManagersOfSignedReceipt = async (
+  hubOrganizationId: string,
+  receipt: GoodsReceiptWithRelations,
+  signerId: string,
+  signerName: string,
+): Promise<void> => {
+  const managers = await goodsReceiptRepository.findHubStoreManagers(hubOrganizationId);
+  const recipientIds = managers.map((m) => m.id).filter((recipientId) => recipientId !== signerId);
+  if (recipientIds.length === 0) return;
+
+  const payload = {
+    goodsReceiptId: receipt.id,
+    reference: receipt.reference,
+    supplierName: receipt.supplier.name,
+    signedByName: signerName,
+  };
+  recipientIds.forEach((recipientId) => socketService.emitGoodsReceiptSigned(recipientId, payload));
+  await fcmService.sendGoodsReceiptSignedPush(recipientIds, payload);
 };
 
 export const receivingService = {
@@ -288,5 +429,216 @@ export const receivingService = {
     const lastLine = await lastPriceRepository.findLastReceiptLine(itemId, organizationId);
     if (!lastLine) return null;
     return { unitPrice: toDecimalString(lastLine.unitPrice), asOf: lastLine.signedAt.toISOString() };
+  },
+
+  // ── Goods receipts (S4) ──────────────────────────────────────────────────
+
+  listGoodsReceipts: async (actor: Actor, query: ListGoodsReceiptsQuery): Promise<GoodsReceiptDetail[]> => {
+    const organizationId = await requireHubActor(actor);
+    const receipts = await goodsReceiptRepository.findAllByOrganization(organizationId, {
+      status: query.status,
+      supplierId: query.supplierId,
+      limit: query.limit,
+      cursor: query.cursor,
+    });
+    return receipts.map(serializeGoodsReceipt);
+  },
+
+  getGoodsReceipt: async (actor: Actor, id: string): Promise<GoodsReceiptDetail> => {
+    const organizationId = await requireHubActor(actor);
+    const receipt = await goodsReceiptRepository.findById(id, organizationId);
+    if (!receipt) throw new NotFoundError('Goods receipt not found');
+    return serializeGoodsReceipt(receipt);
+  },
+
+  createGoodsReceipt: async (actor: Actor, input: CreateGoodsReceiptContractInput): Promise<GoodsReceiptDetail> => {
+    const organizationId = await requireHubActor(actor);
+
+    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+    if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+
+    const centralStore = await locationRepository.findCentralStore();
+    if (!centralStore || centralStore.organizationId !== organizationId) {
+      throw new NotFoundError('No Central Store is configured for this organization');
+    }
+
+    const itemIds = input.lines.map((l) => l.inventoryItemId);
+    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+    const itemsById = new Map(liveItems.map((i) => [i.id, i]));
+    for (const line of input.lines) {
+      if (!itemsById.has(line.inventoryItemId)) {
+        throw new ValidationError('One or more items were not found');
+      }
+    }
+
+    // Price-alert comparison price per line, fetched before the transaction
+    // — read-only, same lastPriceRepository the GET /items/:id/last-price
+    // endpoint uses (S3), not a live join against InventoryItem.currentCost.
+    const lastPrices = await Promise.all(
+      input.lines.map((l) => lastPriceRepository.findLastReceiptLine(l.inventoryItemId, organizationId)),
+    );
+
+    const lines: GoodsReceiptLineInput[] = input.lines.map((line, index) => {
+      const item = itemsById.get(line.inventoryItemId)!;
+      const lastPrice = lastPrices[index] ? lastPrices[index]!.unitPrice : null;
+      return buildLineInput(line, item, lastPrice);
+    });
+
+    // No ledger entry is ever written here (contract behaviour #1,
+    // API_CONTRACT.md §22.4) — DRAFT only. No InventoryTransaction import,
+    // no ledger $transaction; only the reference counter and the
+    // GoodsReceipt/-Line rows themselves are written.
+    const created = await prisma
+      .$transaction(async (tx) => {
+        const reference = await referenceCounterRepository.nextReference(tx, organizationId, 'GRN');
+        return goodsReceiptRepository.create(
+          organizationId,
+          reference,
+          {
+            supplierId: input.supplierId,
+            expectedDeliveryId: input.expectedDeliveryId ?? null,
+            paymentTerms: input.paymentTerms,
+            supplierDocNumber: input.supplierDocNumber ?? null,
+            supplierDocDate: input.supplierDocDate ? new Date(input.supplierDocDate) : null,
+            locationId: centralStore.id,
+            createdById: actor.id,
+            lines,
+          },
+          tx,
+        );
+      })
+      .catch((error: unknown) => mapPrismaError(error));
+
+    return serializeGoodsReceipt(created);
+  },
+
+  updateGoodsReceipt: async (
+    actor: Actor,
+    id: string,
+    input: UpdateGoodsReceiptInput,
+  ): Promise<GoodsReceiptDetail> => {
+    const organizationId = await requireHubActor(actor);
+    const existing = await goodsReceiptRepository.findById(id, organizationId);
+    if (!existing) throw new NotFoundError('Goods receipt not found');
+    if (existing.status !== 'DRAFT') throw new ConflictError('Only a draft receipt can be edited');
+
+    let lines: GoodsReceiptLineInput[] | undefined;
+    if (input.lines) {
+      const itemIds = input.lines.map((l) => l.inventoryItemId);
+      const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+      const itemsById = new Map(liveItems.map((i) => [i.id, i]));
+      for (const line of input.lines) {
+        if (!itemsById.has(line.inventoryItemId)) {
+          throw new ValidationError('One or more items were not found');
+        }
+      }
+      const lastPrices = await Promise.all(
+        input.lines.map((l) => lastPriceRepository.findLastReceiptLine(l.inventoryItemId, organizationId)),
+      );
+      lines = input.lines.map((line, index) => {
+        const item = itemsById.get(line.inventoryItemId)!;
+        const lastPrice = lastPrices[index] ? lastPrices[index]!.unitPrice : null;
+        return buildLineInput(line, item, lastPrice);
+      });
+    }
+
+    const updated = await goodsReceiptRepository.update(id, organizationId, {
+      expectedDeliveryId: input.expectedDeliveryId,
+      paymentTerms: input.paymentTerms,
+      supplierDocNumber: input.supplierDocNumber,
+      supplierDocDate: input.supplierDocDate ? new Date(input.supplierDocDate) : undefined,
+      lines,
+    });
+    // Race-safety re-check (same pattern as cancelExpectedDelivery): the
+    // findById above confirmed DRAFT, but update's own status-guarded
+    // updateMany is the actual source of truth if a concurrent sign happened
+    // in between.
+    if (!updated) throw new ConflictError('Only a draft receipt can be edited');
+
+    return serializeGoodsReceipt(updated);
+  },
+
+  /**
+   * The ledger-writing endpoint (plan §1.6, API_CONTRACT.md §22.4 #1). The
+   * ledger write and the DRAFT→* status transition happen in the same
+   * `prisma.$transaction`, and nowhere else.
+   */
+  signGoodsReceipt: async (
+    actor: Actor,
+    id: string,
+    input: SignGoodsReceiptInput,
+  ): Promise<GoodsReceiptDetail> => {
+    const organizationId = await requireHubActor(actor);
+
+    const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
+    if (!actorWithPin || !actorWithPin.pinHash) {
+      throw new UnauthorizedError('No PIN is set for this account');
+    }
+    const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
+    if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
+
+    const receipt = await goodsReceiptRepository.findById(id, organizationId);
+    if (!receipt) throw new NotFoundError('Goods receipt not found');
+    if (receipt.status !== 'DRAFT') throw new ConflictError('This receipt has already been signed');
+    if (receipt.lines.length === 0) throw new ConflictError('A receipt with no lines cannot be signed');
+
+    const centralStore = await locationRepository.findCentralStore();
+    if (!centralStore || centralStore.organizationId !== organizationId) {
+      throw new NotFoundError('No Central Store is configured for this organization');
+    }
+
+    const signedAt = new Date();
+    const newStatus = receipt.paymentTerms === 'PAY_NOW' ? 'RECEIVED_PAID' : 'RECEIVED_INVOICE_PENDING';
+
+    await prisma.$transaction(async (tx) => {
+      const signedCount = await goodsReceiptRepository.markSigned(id, organizationId, tx, {
+        status: newStatus,
+        signedById: actor.id,
+        signedAt,
+      });
+      if (signedCount === 0) {
+        // Someone else signed/cancelled it between the findById above and
+        // this update — the whole transaction rolls back, no ledger rows,
+        // no partial state (plan §1.6's "no partial-signed state" rule).
+        throw new ConflictError('This receipt has already been signed');
+      }
+
+      for (const line of receipt.lines) {
+        await tx.inventoryTransaction.create({
+          data: {
+            organizationId,
+            locationId: centralStore.id,
+            inventoryItemId: line.inventoryItemId,
+            type: 'RECEIVE',
+            quantity: line.quantityUsageUnit,
+            unitCost: line.unitPrice,
+            goodsReceiptLineId: line.id,
+            userId: actor.id,
+          },
+        });
+        // Latest-price costing (01-description.md §4): the new price wins
+        // outright, no averaging. The prior value survives only in this
+        // line's own priceAlertPrevPrice snapshot, taken at create/update
+        // time — never recomputed from here.
+        await tx.inventoryItem.update({
+          where: { id: line.inventoryItemId },
+          data: { currentCost: line.unitPrice },
+        });
+      }
+
+      await goodsReceiptRepository.markPriceAlertsAccepted(input.acceptedPriceAlerts, actor.id, tx);
+    });
+
+    const signed = await goodsReceiptRepository.findById(id, organizationId);
+    if (!signed) throw new NotFoundError('Goods receipt not found');
+
+    // Fire-and-forget notification (plan §3.3) — composed inline from the
+    // existing socket/FCM primitives (no generic notifyRole() helper exists
+    // in this codebase; every service wires its own call site the same way).
+    // Never blocks or fails the sign response.
+    void notifyHubStoreManagersOfSignedReceipt(organizationId, signed, actor.id, actorWithPin.name);
+
+    return serializeGoodsReceipt(signed);
   },
 };

@@ -45,6 +45,11 @@
  * freeze time despite being called out in plan §3.2/§6.3. See that schema's
  * own comment for detail. No other shape changed.
  *
+ * AMENDMENT 2026-09-17 (post-freeze, during S4): `UpdateGoodsReceiptSchema`
+ * and `ListGoodsReceiptsQuerySchema` added — the frozen contract named both
+ * endpoints (plan §3.2) but never defined their bodies. See each schema's
+ * own comment for detail.
+ *
  * AMENDMENT 2026-09-17 (New purchase redesign, owner-approved in Paper —
  * `01M1ZZJ6S3FZGF5C7PPBGTKY89`, artboards `X9J-0`/`XXR-0`): supplier becomes
  * **optional** on an expected delivery. The redesigned New-purchase screen
@@ -384,6 +389,39 @@ export const SignGoodsReceiptSchema = z.object({
   pin: z.string().min(4),
   /** Each alerted line must be explicitly accepted — recorded on the line. */
   acceptedPriceAlerts: z.array(uuid).default([]),
+});
+
+/**
+ * AMENDMENT 2026-09-17 (post-freeze, S4 build session): the frozen contract
+ * lists `PATCH /inventory/goods-receipts/:id` (plan §3.2 — "edit a draft
+ * only") but never defined its body schema. All fields optional (a partial
+ * edit, not a full replace) except `supplierId`, which stays fixed once a
+ * receipt exists — changing the supplier on an existing draft would silently
+ * invalidate its price-alert comparisons and payment-terms default; a
+ * different supplier is a new receipt, not an edit to this one.
+ */
+export const UpdateGoodsReceiptSchema = z.object({
+  expectedDeliveryId: uuid.optional(),
+  paymentTerms: supplierPaymentTermsSchema.optional(),
+  supplierDocNumber: z.string().trim().min(1).optional(),
+  supplierDocDate: isoDate.optional(),
+  lines: z
+    .array(
+      z.object({
+        inventoryItemId: uuid,
+        quantityBuyUnit: positiveDecimalString,
+        unitPrice: decimalString,
+      }),
+    )
+    .min(1, 'at least one line is required')
+    .optional(),
+});
+
+export const ListGoodsReceiptsQuerySchema = z.object({
+  status: goodsReceiptStatusSchema.optional(),
+  supplierId: uuid.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: uuid.optional(),
 });
 
 // --- Supplier invoices (Stage 10, Flow 14) ---------------------------------

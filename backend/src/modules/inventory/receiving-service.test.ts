@@ -3,14 +3,20 @@ import { Prisma } from '@prisma/client';
 import { receivingService } from './receiving-service';
 import {
   expectedDeliveryRepository,
+  goodsReceiptRepository,
   lastPriceRepository,
   recentSupplierItemsRepository,
   referenceCounterRepository,
 } from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
+import { locationRepository } from '../../repositories/location-repository';
+import { authRepository } from '../../repositories/auth-repository';
+import { socketService } from '../../sockets/socket-service';
+import { fcmService } from '../../services/fcm-service';
+import { comparePin } from '../../utils/password';
 import { prisma } from '../../config/database';
-import { ConflictError, ForbiddenError, NotFoundError } from '../../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../../utils/errors';
 
 vi.mock('./receiving-repository', () => ({
   expectedDeliveryRepository: {
@@ -21,6 +27,15 @@ vi.mock('./receiving-repository', () => ({
     countByStatus: vi.fn(),
     countOverdue: vi.fn(),
     findHistoryRows: vi.fn(),
+  },
+  goodsReceiptRepository: {
+    findAllByOrganization: vi.fn(),
+    findById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    markSigned: vi.fn(),
+    markPriceAlertsAccepted: vi.fn(),
+    findHubStoreManagers: vi.fn(),
   },
   referenceCounterRepository: {
     nextReference: vi.fn(),
@@ -47,9 +62,37 @@ vi.mock('../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn() },
 }));
 
+vi.mock('../../repositories/location-repository', () => ({
+  locationRepository: { findCentralStore: vi.fn() },
+}));
+
+vi.mock('../../repositories/auth-repository', () => ({
+  authRepository: { findUserByIdWithPassword: vi.fn() },
+}));
+
+vi.mock('../../sockets/socket-service', () => ({
+  socketService: { emitGoodsReceiptSigned: vi.fn() },
+}));
+
+vi.mock('../../services/fcm-service', () => ({
+  fcmService: { sendGoodsReceiptSignedPush: vi.fn() },
+}));
+
+vi.mock('../../utils/password', () => ({
+  comparePin: vi.fn(),
+}));
+
+const txInventoryTransactionCreate = vi.fn();
+const txInventoryItemUpdate = vi.fn();
+
 vi.mock('../../config/database', () => ({
   prisma: {
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
+      fn({
+        inventoryTransaction: { create: txInventoryTransactionCreate },
+        inventoryItem: { update: txInventoryItemUpdate },
+      }),
+    ),
   },
 }));
 
@@ -77,7 +120,67 @@ const buildItem = (overrides: Record<string, unknown> = {}) => ({
   id: itemId,
   organizationId: hubOrgId,
   name: 'Milk 500ml',
+  buyUnit: 'crate',
+  usageUnit: 'unit',
+  conversionFactor: new Prisma.Decimal('12'),
+  currentCost: new Prisma.Decimal('2025'),
   deletedAt: null,
+  ...overrides,
+});
+
+const goodsReceiptId = '77777777-7777-4777-8777-777777777777';
+
+const buildGoodsReceiptLine = (overrides: Record<string, unknown> = {}) => ({
+  id: 'grline1',
+  goodsReceiptId,
+  inventoryItemId: itemId,
+  inventoryItem: { id: itemId, name: 'Milk 500ml', buyUnit: 'crate', usageUnit: 'unit' },
+  quantityBuyUnit: new Prisma.Decimal('4'),
+  quantityUsageUnit: new Prisma.Decimal('48'),
+  unitPrice: new Prisma.Decimal('2025'),
+  lineTotal: new Prisma.Decimal('8100'),
+  lineOrder: 0,
+  priceAlertPct: null,
+  priceAlertPrevPrice: null,
+  priceAlertAcceptedById: null,
+  priceAlertAcceptedBy: null,
+  ...overrides,
+});
+
+const buildGoodsReceipt = (overrides: Record<string, unknown> = {}) => ({
+  id: goodsReceiptId,
+  organizationId: hubOrgId,
+  reference: 'GRN-0001',
+  supplierId,
+  supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
+  expectedDeliveryId: null,
+  paymentTerms: 'INVOICE_TO_FOLLOW' as const,
+  status: 'DRAFT' as const,
+  supplierDocNumber: 'INV-001',
+  supplierDocDate: null,
+  receiptTotal: new Prisma.Decimal('8100'),
+  locationId: 'central-store-1',
+  signedById: null,
+  signedAt: null,
+  signedBy: null,
+  createdById: 'sm1',
+  createdBy: { id: 'sm1', name: 'Joseph Mwangi' },
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  lines: [buildGoodsReceiptLine()],
+  invoices: [],
+  ...overrides,
+});
+
+const centralStore = { id: 'central-store-1', organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+
+const actorWithPin = (overrides: Record<string, unknown> = {}) => ({
+  id: 'sm1',
+  name: 'Joseph Mwangi',
+  role: 'STORE_MANAGER' as const,
+  organizationId: hubOrgId,
+  passwordHash: 'hashed-password',
+  pinHash: 'hashed-pin',
   ...overrides,
 });
 
@@ -397,5 +500,424 @@ describe('receivingService.getRecentSupplierItems', () => {
         lastPurchasedAt: '2026-09-10T00:00:00.000Z',
       },
     ]);
+  });
+});
+
+describe('receivingService.createGoodsReceipt', () => {
+  it('writes zero ledger entries — DRAFT only, no InventoryTransaction', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue(null);
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockResolvedValue(buildGoodsReceipt() as never);
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+    });
+
+    expect(txInventoryTransactionCreate).not.toHaveBeenCalled();
+    expect(goodsReceiptRepository.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('converts buy-unit quantity to usage-unit quantity via conversionFactor', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([
+      buildItem({ buyUnit: 'crate (12)', usageUnit: 'kg', conversionFactor: new Prisma.Decimal('12') }),
+    ] as never);
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue(null);
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      // The plan's own example: 18.0 kg entered against a crate(12) buy unit — but
+      // here quantityBuyUnit=1.5 crates * conversionFactor 12 = 18 kg usage units.
+      expect(input.lines[0]!.quantityUsageUnit.toString()).toBe('18');
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '1.5', unitPrice: '2025' }],
+    });
+
+    expect(goodsReceiptRepository.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a null conversionFactor as 1:1 (no conversion)', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([
+      buildItem({ conversionFactor: null }),
+    ] as never);
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue(null);
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      expect(input.lines[0]!.quantityUsageUnit.toString()).toBe('4');
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+    });
+  });
+
+  it('flags a price alert when the entered price exceeds the threshold above last price', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
+      unitPrice: new Prisma.Decimal('1049'),
+      signedAt: new Date(),
+    });
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      // 1650 vs 1049 last price = ~57% above — over the 15% threshold.
+      expect(input.lines[0]!.priceAlertPct).not.toBeNull();
+      expect(input.lines[0]!.priceAlertPrevPrice!.toString()).toBe('1049');
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650' }],
+    });
+  });
+
+  it('does not flag a price alert within the threshold', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
+      unitPrice: new Prisma.Decimal('2000'),
+      signedAt: new Date(),
+    });
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      // 2025 vs 2000 = 1.25% above — under the 15% threshold.
+      expect(input.lines[0]!.priceAlertPct).toBeNull();
+      expect(input.lines[0]!.priceAlertPrevPrice).toBeNull();
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+    });
+  });
+
+  it('404s on an unknown supplier', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(null);
+    await expect(
+      receivingService.createGoodsReceipt(storeManager, {
+        supplierId,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('409s on a retired supplier', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier({ deletedAt: new Date() }) as never);
+    await expect(
+      receivingService.createGoodsReceipt(storeManager, {
+        supplierId,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it('404s when no Central Store is configured for this hub org', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
+    await expect(
+      receivingService.createGoodsReceipt(storeManager, {
+        supplierId,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('rejects a non-hub Store Manager with a ForbiddenError', async () => {
+    await expect(
+      receivingService.createGoodsReceipt(nonHubStoreManager, {
+        supplierId,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe('receivingService.updateGoodsReceipt', () => {
+  it('edits a DRAFT receipt', async () => {
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(buildGoodsReceipt() as never);
+    vi.mocked(goodsReceiptRepository.update).mockResolvedValue(
+      buildGoodsReceipt({ supplierDocNumber: 'INV-002' }) as never,
+    );
+
+    const result = await receivingService.updateGoodsReceipt(storeManager, goodsReceiptId, {
+      supplierDocNumber: 'INV-002',
+    });
+    expect(result.supplierDocNumber).toBe('INV-002');
+  });
+
+  it('409s when the receipt is already signed', async () => {
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ status: 'RECEIVED_PAID' }) as never,
+    );
+    await expect(
+      receivingService.updateGoodsReceipt(storeManager, goodsReceiptId, { supplierDocNumber: 'INV-002' }),
+    ).rejects.toThrow(ConflictError);
+    expect(goodsReceiptRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('404s on an unknown id', async () => {
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(null);
+    await expect(
+      receivingService.updateGoodsReceipt(storeManager, goodsReceiptId, { supplierDocNumber: 'INV-002' }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('receivingService.signGoodsReceipt', () => {
+  const validSignInput = { pin: '1234', acceptedPriceAlerts: [] };
+
+  it('writes the ledger exactly once per line, atomically, and transitions status', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById)
+      .mockResolvedValueOnce(buildGoodsReceipt() as never)
+      .mockResolvedValueOnce(buildGoodsReceipt({ status: 'RECEIVED_INVOICE_PENDING', signedAt: new Date() }) as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(txInventoryTransactionCreate).toHaveBeenCalledTimes(1);
+    expect(txInventoryTransactionCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: 'RECEIVE',
+        locationId: centralStore.id,
+        inventoryItemId: itemId,
+        quantity: expect.anything(),
+        unitCost: expect.anything(),
+        goodsReceiptLineId: 'grline1',
+        userId: storeManager.id,
+        organizationId: hubOrgId,
+      }),
+    });
+    expect(txInventoryItemUpdate).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('a forced failure mid-loop rolls back — the mocked $transaction rejects and no partial writes are observable', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({
+        lines: [buildGoodsReceiptLine({ id: 'l1' }), buildGoodsReceiptLine({ id: 'l2' }), buildGoodsReceiptLine({ id: 'l3' })],
+      }) as never,
+    );
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    txInventoryTransactionCreate
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('simulated failure on line 2'));
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow('simulated failure on line 2');
+
+    // The mocked prisma.$transaction just invokes the callback directly (no
+    // real rollback semantics in a unit test), but the callback itself never
+    // reaches line 3 or the status/price-alert writes once line 2 throws —
+    // that ordering is what a real Postgres transaction rolls back atomically.
+    expect(txInventoryTransactionCreate).toHaveBeenCalledTimes(2);
+    expect(goodsReceiptRepository.markPriceAlertsAccepted).not.toHaveBeenCalled();
+  });
+
+  it('latest-price costing sets InventoryItem.currentCost to the signed price, no averaging', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ lines: [buildGoodsReceiptLine({ unitPrice: new Prisma.Decimal('2200') })] }) as never,
+    );
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(txInventoryItemUpdate).toHaveBeenCalledWith({
+      where: { id: itemId },
+      data: { currentCost: expect.objectContaining({ toString: expect.any(Function) }) },
+    });
+    const call = txInventoryItemUpdate.mock.calls[0]![0];
+    expect(call.data.currentCost.toString()).toBe('2200');
+  });
+
+  it('the price-alert snapshot on a signed line is never recomputed on read (survives a later price change)', async () => {
+    const signedReceipt = buildGoodsReceipt({
+      status: 'RECEIVED_INVOICE_PENDING',
+      lines: [
+        buildGoodsReceiptLine({
+          priceAlertPct: new Prisma.Decimal('38'),
+          priceAlertPrevPrice: new Prisma.Decimal('1049'),
+        }),
+      ],
+    });
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(signedReceipt as never);
+
+    const result = await receivingService.getGoodsReceipt(storeManager, goodsReceiptId);
+
+    expect(result.lines[0]!.priceAlert).toEqual({
+      percentAboveLast: '38',
+      previousPrice: '1049',
+      acceptedByName: null,
+    });
+  });
+
+  it('PAY_NOW transitions to RECEIVED_PAID', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ paymentTerms: 'PAY_NOW' }) as never,
+    );
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(goodsReceiptRepository.markSigned).toHaveBeenCalledWith(
+      goodsReceiptId,
+      hubOrgId,
+      expect.anything(),
+      expect.objectContaining({ status: 'RECEIVED_PAID' }),
+    );
+  });
+
+  it('INVOICE_TO_FOLLOW transitions to RECEIVED_INVOICE_PENDING', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ paymentTerms: 'INVOICE_TO_FOLLOW' }) as never,
+    );
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(goodsReceiptRepository.markSigned).toHaveBeenCalledWith(
+      goodsReceiptId,
+      hubOrgId,
+      expect.anything(),
+      expect.objectContaining({ status: 'RECEIVED_INVOICE_PENDING' }),
+    );
+  });
+
+  it('401s on an incorrect PIN', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(false);
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(goodsReceiptRepository.findById).not.toHaveBeenCalled();
+  });
+
+  it('401s when no PIN has been set yet', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin({ pinHash: null }) as never);
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(comparePin).not.toHaveBeenCalled();
+  });
+
+  it('409s when the receipt is already signed', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ status: 'RECEIVED_PAID' }) as never,
+    );
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(ConflictError);
+    expect(txInventoryTransactionCreate).not.toHaveBeenCalled();
+  });
+
+  it('409s when the receipt has zero lines', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(buildGoodsReceipt({ lines: [] }) as never);
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it('404s (No Central Store configured) when the hub has none', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(buildGoodsReceipt() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
+
+    await expect(
+      receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(NotFoundError);
+    expect(txInventoryTransactionCreate).not.toHaveBeenCalled();
+  });
+
+  it('notifies hub Store Managers other than the signer, not the signer themselves', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(buildGoodsReceipt() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([
+      { id: storeManager.id, name: 'Joseph Mwangi' },
+      { id: 'sm-other', name: 'Другой Manager' },
+    ]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+    // Fire-and-forget: flush microtasks so the void async call resolves.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(socketService.emitGoodsReceiptSigned).toHaveBeenCalledTimes(1);
+    expect(socketService.emitGoodsReceiptSigned).toHaveBeenCalledWith('sm-other', expect.anything());
+    expect(fcmService.sendGoodsReceiptSignedPush).toHaveBeenCalledWith(['sm-other'], expect.anything());
+  });
+
+  it('rejects a non-hub Store Manager with a ForbiddenError', async () => {
+    await expect(
+      receivingService.signGoodsReceipt(nonHubStoreManager, goodsReceiptId, validSignInput),
+    ).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe('receivingService.listGoodsReceipts / getGoodsReceipt', () => {
+  it('lists receipts scoped to the hub org', async () => {
+    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([buildGoodsReceipt()] as never);
+    const result = await receivingService.listGoodsReceipts(storeManager, { limit: 25 });
+    expect(result).toHaveLength(1);
+    expect(goodsReceiptRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
+  });
+
+  it('404s on an unknown id', async () => {
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(null);
+    await expect(receivingService.getGoodsReceipt(storeManager, goodsReceiptId)).rejects.toThrow(NotFoundError);
   });
 });

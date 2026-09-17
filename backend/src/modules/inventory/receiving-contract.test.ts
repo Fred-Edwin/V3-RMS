@@ -8,11 +8,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { receivingService } from './receiving-service';
-import { expectedDeliveryRepository, recentSupplierItemsRepository, referenceCounterRepository } from './receiving-repository';
+import {
+  expectedDeliveryRepository,
+  goodsReceiptRepository,
+  recentSupplierItemsRepository,
+  referenceCounterRepository,
+} from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
+import { locationRepository } from '../../repositories/location-repository';
 import {
   ExpectedDeliverySummarySchema,
+  GoodsReceiptDetailSchema,
   PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
   RecentSupplierItemSchema,
@@ -27,6 +34,11 @@ vi.mock('./receiving-repository', () => ({
     countOverdue: vi.fn(),
     findHistoryRows: vi.fn(),
   },
+  goodsReceiptRepository: {
+    findAllByOrganization: vi.fn(),
+    findById: vi.fn(),
+    create: vi.fn(),
+  },
   referenceCounterRepository: { nextReference: vi.fn() },
   lastPriceRepository: { findLastReceiptLine: vi.fn() },
   recentSupplierItemsRepository: { findRecentBySupplier: vi.fn() },
@@ -39,6 +51,10 @@ vi.mock('./inventory-repository', () => ({
 
 vi.mock('../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn() },
+}));
+
+vi.mock('../../repositories/location-repository', () => ({
+  locationRepository: { findCentralStore: vi.fn() },
 }));
 
 vi.mock('../../config/database', () => ({
@@ -349,5 +365,51 @@ describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
     // SupplierInvoice/SupplierPayment repository exists to call yet, and this
     // test will need updating (not silently pass) the moment S7 adds one.
     expect(expectedDeliveryRepository.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('GoodsReceiptDetailSchema accepts getGoodsReceipt output, including a price-alerted line and no linked invoice', async () => {
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue({
+      id: '77777777-7777-4777-8777-777777777777',
+      organizationId: hubOrgId,
+      reference: 'GRN-0001',
+      supplierId,
+      supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
+      expectedDeliveryId: null,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      status: 'RECEIVED_INVOICE_PENDING',
+      supplierDocNumber: 'INV-001',
+      supplierDocDate: null,
+      receiptTotal: new Prisma.Decimal('8100'),
+      locationId: 'central-store-1',
+      signedById: 'sm1',
+      signedAt: new Date(),
+      signedBy: { id: 'sm1', name: 'Joseph Mwangi', role: 'STORE_MANAGER' },
+      createdById: 'sm1',
+      createdBy: { id: 'sm1', name: 'Joseph Mwangi' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lines: [
+        {
+          id: '99999999-9999-4999-8999-999999999999',
+          goodsReceiptId: '77777777-7777-4777-8777-777777777777',
+          inventoryItemId: itemId,
+          inventoryItem: { id: itemId, name: 'Dormans Syrup Hazelnut 750ml', buyUnit: 'pkt', usageUnit: 'unit' },
+          quantityBuyUnit: new Prisma.Decimal('2'),
+          quantityUsageUnit: new Prisma.Decimal('2'),
+          unitPrice: new Prisma.Decimal('1650'),
+          lineTotal: new Prisma.Decimal('3300'),
+          lineOrder: 0,
+          priceAlertPct: new Prisma.Decimal('38'),
+          priceAlertPrevPrice: new Prisma.Decimal('1049'),
+          priceAlertAcceptedById: 'sm1',
+          priceAlertAcceptedBy: { id: 'sm1', name: 'D. Kariuki' },
+        },
+      ],
+      invoices: [],
+    } as never);
+
+    const result = await receivingService.getGoodsReceipt(storeManager, '77777777-7777-4777-8777-777777777777');
+    const parsed = GoodsReceiptDetailSchema.safeParse(result);
+    expect(parsed.success).toBe(true);
   });
 });
