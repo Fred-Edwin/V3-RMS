@@ -15,3 +15,7 @@ export * from './types';
 export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
 export { SuppliersScreen } from './components/screens/suppliers-screen';
 export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';
+
+// Milestone Two (Receiving & Supplier AP) — S5's three screens.
+export { PurchasingHubScreen } from './components/screens/purchasing-hub-screen';
+export { ReceivingWorklistScreen } from './components/screens/receiving-worklist-screen';

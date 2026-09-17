@@ -57,7 +57,7 @@ const InputOTPSlot = React.forwardRef<
       {filled ? null : char}
       {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-4 w-px animate-caret-blink bg-wds-ink duration-1000" />
+          <div className="h-4 w-px animate-caret-blink bg-wds-neutral-950 duration-1000" />
         </div>
       )}
     </div>

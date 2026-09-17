@@ -79,16 +79,44 @@ and live. Your job is the four screens built on top of it.
   screens render, never "AP"/"aging" — this is the session where the
   terminology decision actually shows up most, unlike S5/S6.
 - Composites come from S0's output (bundling checkbox list, bucket table,
-  bucket panel) — confirm each is logged as built and pixel-diff-verified in
+  bucket panel) — confirm each is logged as built and verified by eye against Paper in
   `04-components.md` before assembling a screen from it.
 - Route-group `layout.tsx` for the shared shell if not already covered.
-- Visual-diff every screen against Paper, including the mismatch callout and
+- Compare every screen by eye against Paper (plus `get_computed_styles` for
+  exact values — **never the banned automated `pnpm visual-diff`/`pixelmatch`
+  script**, owner decision 2026-09-16), including the mismatch callout and
   overpayment states where drawn.
+- **The by-eye comparison confirms layout fidelity only — it is not the whole
+  verification.** The Suppliers screen's how-overdue table, and Supplier
+  detail's invoice/payment/purchase-history lists, are checked separately
+  against `04-components.md`'s "Table and list-screen quality bar": wired to
+  the endpoints' real `limit`/`cursor` params (not rendered unbounded),
+  deliberate column widths for the money columns, horizontal scroll on
+  narrow viewports. Test each with more rows than Paper's mock shows, not
+  just the handful of suppliers/invoices the artboard happened to draw —
+  this is the exact class of gap a prior milestone shipped with.
+- **Interactive states on every clickable element** — supplier rows, the
+  bundling checkboxes, Hold/Save invoice/Record at billed buttons, the
+  invoice multi-select in Record payment. `04-components.md`'s "Interactive
+  states" section: hover, focus-visible, active/pressed, disabled — the
+  "Save invoice"/"Record payment" buttons must visibly disable while their
+  request is in flight, not accept a double-submit.
+- **Every write action has a real, verified failure path — this session has
+  the richest set of real business-rule failures in the milestone.** Trigger
+  and confirm visible feedback for: a duplicate invoice number (409), a
+  receipt already invoiced (409), receipts spanning two suppliers on one
+  invoice (400), a payment allocation exceeding an invoice's outstanding
+  (400), and allocating against an already-`PAID` invoice (409). None of
+  these are edge cases you can defer — they're named explicitly in the
+  frozen contract (`API_CONTRACT.md` §22.3) and a user will hit at least one
+  of them in normal use.
 
 ## Stop condition
 
-All four screens built and visually verified, hooked up to S7's real
-endpoints, manually exercised in a browser (record a real invoice with a
+All four screens built, visually verified, checked against the table/list
+quality bar, and checked for interactive states + failure feedback (all of
+the above, not any subset), hooked up to S7's real endpoints, manually
+exercised in a browser (record a real invoice with a
 mismatch, record a real overpayment, confirm the Suppliers-screen row and
 the Supplier-detail panel agree for that supplier). Do not start S9
 (integration) — that's a dedicated session covering all of S3–S8 together,

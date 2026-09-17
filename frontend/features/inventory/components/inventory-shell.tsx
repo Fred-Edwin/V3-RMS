@@ -37,8 +37,8 @@ const NAV_GROUPS: SidebarNavGroup[] = [
     label: 'CENTRAL STORE',
     items: [
       { key: 'dashboard', label: 'Dashboard', href: '#', icon: DashboardIcon },
-      { key: 'receiving', label: 'Receiving', href: '#', icon: ReceivingIcon },
-      { key: 'purchasing', label: 'Purchasing', href: '#', icon: PurchasingIcon },
+      { key: 'receiving', label: 'Receiving', href: '/app/inventory/receiving', icon: ReceivingIcon },
+      { key: 'purchasing', label: 'Purchasing', href: '/app/inventory/purchasing', icon: PurchasingIcon },
       { key: 'prep', label: 'Prep', href: '#', icon: PrepIcon },
       { key: 'dispatch', label: 'Dispatch', href: '#', icon: DispatchIcon },
       { key: 'stock-counts', label: 'Stock & counts', href: '#', icon: StockCountsIcon },

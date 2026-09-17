@@ -44,7 +44,6 @@ import { SearchInput } from '@/components/ui2/search-input';
 import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/shell/sidebar-nav';
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
 import { DrawerShell } from '@/features/inventory/components/drawer-shell';
 import {
@@ -88,6 +87,14 @@ import {
 } from '@/features/inventory/components/bundle-checkbox-list';
 import { DisputeCallout } from '@/features/inventory/components/dispute-callout';
 import { AgingBucketTable, type AgingBucketTableRow } from '@/features/inventory/components/aging-bucket-table';
+import { AgingBucketPanel } from '@/features/inventory/components/aging-bucket-panel';
+import { PurchasingHistoryRowView, type PurchasingHistoryRow } from '@/features/inventory/components/purchasing-history-row';
+import {
+  MobileEmptyState,
+  MobileLoadingState,
+  MobileErrorState,
+  MobilePermissionDeniedState,
+} from '@/components/app/shell/mobile-states';
 import {
   DashboardIcon,
   ReceivingIcon,
@@ -253,6 +260,50 @@ export default function WdsPreviewPage() {
       paid: '176,220',
       buckets: { current: '26,180', '1-30': '16,000', '31-60': '–', '61-90': '–', '90+': '–' },
       outstanding: '42,180',
+    },
+  ];
+  const purchasingRows: PurchasingHistoryRow[] = [
+    {
+      type: 'expectedDelivery',
+      id: 'samrat',
+      supplierName: 'Samrat Ltd',
+      paymentTermsLabel: 'Invoice',
+      detailLabel: 'Milk, cream, yoghurt · 6 lines · ~KES 8,100',
+      ageLabel: '2d',
+      statusLabel: 'Awaiting delivery',
+      statusTone: 'neutral',
+      actions: [
+        { label: 'Cancel', onClick: () => {} },
+        { label: 'Receive', emphasized: true, onClick: () => {} },
+      ],
+    },
+    {
+      type: 'expectedDelivery',
+      id: 'kimathi',
+      supplierName: 'Kimathi Butchery',
+      paymentTermsLabel: 'Invoice',
+      detailLabel: 'Beef, chicken · 3 lines · ~KES 21,000',
+      ageLabel: '5d',
+      statusLabel: 'Overdue',
+      statusTone: 'error',
+      actions: [
+        { label: 'Cancel', onClick: () => {} },
+        { label: 'Receive', emphasized: true, onClick: () => {} },
+      ],
+    },
+    {
+      type: 'goodsReceipt',
+      id: 'grn-1042',
+      title: 'GRN-1042 · Samrat Ltd',
+      subtitleLabel: 'Received 08 Sep · KES 7,668',
+      detailLabel: 'Milk, cream, yoghurt · 3 lines',
+      ageLabel: '1h',
+      statusLabel: 'Received — invoice pending',
+      statusTone: 'info',
+      actions: [
+        { label: 'View', onClick: () => {} },
+        { label: 'Add invoice', emphasized: true, onClick: () => {} },
+      ],
     },
   ];
   const [restockRows, setRestockRows] = React.useState<RestockLevelRow[]>([
@@ -715,25 +766,22 @@ export default function WdsPreviewPage() {
 
           <Section
             title="Mobile Hub Header"
-            note="Cross-feature shared — components/app/shell/mobile-headers.tsx. Hamburger + org label + avatar, then title/subtitle. Always on the dark sidebar-mid ground. Reference: TM8-0."
+            note="Cross-feature shared — components/app/shell/mobile-headers.tsx. Hamburger + org label + avatar, then title/subtitle. Always on the dark sidebar-mid ground. Reference: TM8-0. Status bar removed from this demo (2026-09-16, owner feedback) — it's OS chrome a real device already renders, never part of this component; MobileStatusBar stays a separate, standalone composite for whoever explicitly composes a full-screen mock that needs one."
           >
             <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border" id="mobile-hub-header-pixel-diff-anchor">
-              <MobileStatusBar />
               <MobileHubHeader title="Item catalog" subtitle="148 items · raw, prepped, stocked" userInitials="JM" />
             </div>
           </Section>
 
           <Section
             title="Mobile Task Header"
-            note="Back chevron + Cancel/Done + title/subtitle. Cancel for create/edit forms (TUY-0), Done for save-as-you-go screens like Restock Levels (TZO-0)."
+            note="Back chevron + Cancel/Done + title/subtitle. Cancel for create/edit forms (TUY-0), Done for save-as-you-go screens like Restock Levels (TZO-0). Status bar removed from this demo (2026-09-16, owner feedback) — same reasoning as Mobile Hub Header above."
           >
             <div className="flex flex-col gap-wds-4 sm:flex-row">
               <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border" id="mobile-task-header-cancel-pixel-diff-anchor">
-                <MobileStatusBar />
                 <MobileTaskHeader title="New item" subtitle="Type decides where the item can exist." trailingAction="Cancel" />
               </div>
               <div className="w-[390px] max-w-full overflow-hidden rounded-wds-md border border-wds-border">
-                <MobileStatusBar />
                 <MobileTaskHeader
                   title="Restock levels"
                   subtitle="Central Store items only. Store restock level drives the stock alerts."
@@ -1030,6 +1078,60 @@ export default function WdsPreviewPage() {
           >
             <div className="w-[1100px] max-w-full">
               <AgingBucketTable rows={agingRows} />
+            </div>
+          </Section>
+
+          <Section
+            title="What We Owe Bucket Panel"
+            note="Milestone Two — features/inventory/components/aging-bucket-panel.tsx. Supplier detail (VND-0), panel node VQ2-0. Four visible columns (merges 61-90 + 90+ into '60+ DAYS' for display) over the same bucket data item 6's table uses. Empty cells here render text-faint, a genuine Paper-verified difference from the table's fixed-tone-per-column convention."
+          >
+            <div className="w-[1100px] max-w-full">
+              <AgingBucketPanel
+                current={{ label: 'CURRENT', amountLabel: 'KES 26,180', tone: 'neutral' }}
+                oneToThirty={{ label: '1–30 DAYS', amountLabel: 'KES 16,000', tone: 'warning' }}
+                thirtyOneToSixty={{ label: '31–60 DAYS', amountLabel: '–', tone: 'warning' }}
+                sixtyPlus={{ label: '60+ DAYS', amountLabel: '–', tone: 'error' }}
+                outstanding={{ label: 'OUTSTANDING', amountLabel: 'KES 42,180', tone: 'neutral', emphasized: true }}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Mixed-Type Inbound/History Row"
+            note="Milestone Two — features/inventory/components/purchasing-history-row.tsx. Purchasing hub (U7V-0). A discriminated-union row renderer for ExpectedDelivery (estimate, ~KES, Cancel/Receive) and GoodsReceipt (exact amount, View/Add invoice) rows in the same table. Three status tones (neutral/error/info) each confirmed independently via get_computed_styles."
+          >
+            <div className="w-[1100px] max-w-full overflow-hidden rounded-wds-md border border-wds-border">
+              {purchasingRows.map((row) => (
+                <PurchasingHistoryRowView key={row.id} row={row} />
+              ))}
+            </div>
+          </Section>
+
+          <Section
+            title="Mobile Universal States"
+            note="Milestone Two, cross-feature shell — components/app/shell/mobile-states.tsx (not features/inventory/). Reference: page 3-0, X7O-0 ('10m · Universal states · mobile') — designed alongside the desktop set, deliberately left unbuilt until a Milestone Two mobile screen needed it. Composited with the Mobile Hub Header (chrome stays, content area swaps); each card below pairs MobileHubHeader with one state."
+          >
+            <div className="flex flex-wrap gap-wds-4">
+              <div className="w-[380px] overflow-hidden rounded-wds-lg border border-wds-border">
+                <MobileHubHeader title="Purchasing" subtitle="Everything supplier-inbound" userInitials="JM" />
+                <MobileEmptyState title="Nothing here yet" description="New items appear here as they're added." />
+              </div>
+              <div className="w-[380px] overflow-hidden rounded-wds-lg border border-wds-border">
+                <MobileHubHeader title="Purchasing" subtitle="Everything supplier-inbound" userInitials="JM" />
+                <MobileLoadingState />
+              </div>
+              <div className="w-[380px] overflow-hidden rounded-wds-lg border border-wds-border">
+                <MobileHubHeader title="Purchasing" subtitle="Everything supplier-inbound" userInitials="JM" />
+                <MobileErrorState
+                  title="Couldn't load this screen"
+                  description="Check your connection and try again."
+                  onRetry={() => {}}
+                />
+              </div>
+              <div className="w-[380px] overflow-hidden rounded-wds-lg border border-wds-border">
+                <MobileHubHeader title="Purchasing" subtitle="Everything supplier-inbound" userInitials="JM" />
+                <MobilePermissionDeniedState description="Supplier AP is visible to Store Managers, the Accountant, and Directors only." />
+              </div>
             </div>
           </Section>
 

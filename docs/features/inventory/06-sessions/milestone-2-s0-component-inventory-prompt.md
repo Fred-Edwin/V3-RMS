@@ -4,7 +4,8 @@ Paste everything below the line to the agent running this session. This is a
 **Step 4 component-extraction session** (`FEATURE_REDO_PLAYBOOK.md` §5, Step
 4) — not Step 5 planning (already done, see `milestone-2-plan.md`) and not a
 Step 7 build session. Stop when `04-components.md`'s Milestone Two section
-exists, every item below is built and pixel-diff-verified, and its Status
+exists, every item below is built and verified by eye against Paper (plus
+`get_computed_styles` for exact values), and its Status
 table is updated. Do not start writing endpoints, schema, or screen-assembly
 code — that's S1 onward, and depends on this session's output.
 
@@ -24,7 +25,8 @@ before its own build sessions, recorded in `docs/features/inventory/
 2. `docs/features/inventory/04-components.md` — read the whole doc, not just
    the Milestone One section: §"Placement rules" (loading/error/empty state
    rules, persistent-shell rules, nav-link rules — non-negotiable, not
-   per-feature judgment calls), §"Pixel-diff verification" (the objective
+   per-feature judgment calls), §"Verification standard: by-eye +
+computed-styles" (the objective
    check every new composite must pass before being marked done), and the
    Milestone One section itself (the precedent — what "done" looks like in
    this doc).
@@ -108,10 +110,13 @@ For every item in the "genuinely new" table:
 4. **Build the composite** in `frontend/features/inventory/components/`
    (or `frontend/components/app/shell/` for item 9, and the font-load part of
    item 1).
-5. **Pixel-diff it** — `get_screenshot` of the Paper node vs. a screenshot of
-   the running component — before marking it done. Follow
-   `04-components.md`'s existing verification process exactly; don't invent a
-   new bar.
+5. **Verify it by eye against Paper** — compare `get_screenshot` of the Paper
+   node against a screenshot of the running component, and confirm exact
+   values (spacing, color, type) via `get_computed_styles` on the real node.
+   **The automated `pnpm visual-diff`/`pixelmatch` script is banned
+   project-wide (owner decision, 2026-09-16) — do not run it, propose it, or
+   fall back to it.** Follow `04-components.md`'s existing verification
+   standard exactly; don't invent a new bar.
 6. **Log it in `04-components.md`'s Status table**, under a new "Milestone
    Two" heading matching the doc's existing per-milestone structure — Paper
    reference, diff result, date. This is a live build log, not a one-time
@@ -141,8 +146,9 @@ the order among items is your judgment; there's no other hard dependency.
 
 ## Stop condition
 
-Every item in the "genuinely new" table exists in code, pixel-diff-verified
-against its Paper reference, and logged in `04-components.md`'s Status table
-under a new Milestone Two heading. Do not start S1 (schema/migration) or any
+Every item in the "genuinely new" table exists in code, verified by eye
+against its Paper reference (plus `get_computed_styles` for exact values —
+never the banned automated `pnpm visual-diff` script), and logged in
+`04-components.md`'s Status table under a new Milestone Two heading. Do not start S1 (schema/migration) or any
 other Step 7 build session — that's separate work this session unblocks, not
 extends.

@@ -580,8 +580,9 @@ onward is strictly sequential.
 | S9 | Integration (playbook Step 8) — wire real backend, run Flows 1, 2a, 2b, 2d, 2e, 14, 15, 16 end to end | Not started | S3–S8 | not yet drafted |
 
 **S0 exists because of a real gap, and I am naming it rather than assuming it
-away.** Milestone One's Step 5 could plan against an already-verified,
-pixel-diffed component inventory. `04-components.md` has **no Milestone Two
+away.** Milestone One's Step 5 could plan against an already-verified
+component inventory (verified by eye against Paper, per `04-components.md`'s
+verification standard). `04-components.md` has **no Milestone Two
 section** — confirmed this session. Of the three options the brief offered
 (this session's output / a named Step-7 prerequisite / folded into the first
 frontend session), **I recommend the named prerequisite session (S0)** and did
@@ -589,13 +590,14 @@ not fold it into S5: the inventory spans eight screens across two frontend
 sessions (S5/S6 and S8), so folding it into S5 would make S8 silently depend on
 work done under another session's scope — the exact ambiguity the brief warns
 about. It is not this session's own output because building components is Step
-4 work requiring live pixel-diffs against running code, not planning.
+4 work requiring live by-eye verification against running code (plus
+`get_computed_styles` for exact values), not planning.
 
 **`X7O-0` (Mobile Universal States) belongs to S5** — the first session that
 ships a mobile screen needing a real empty/loading/error state (`WUL-0`,
 `WSO-0`). Per `04-components.md` it goes in
 `frontend/components/app/shell/mobile-states.tsx` as cross-feature shell, not
-under the feature, and gets verified by pixel-diff against a running screen
+under the feature, and gets verified by eye against a running screen
 rather than in isolation. S0 lists it; S5 builds it. It is not a separate
 untracked task.
 
@@ -672,9 +674,12 @@ so S0 doesn't have to infer it: for every row in §6.3, in this order —
    `frontend/features/inventory/components/` (or `components/app/shell/` for
    the two cross-feature items — Sign sheet's font token and Mobile Universal
    States).
-4. **Pixel-diff it** — `get_screenshot` of the Paper node vs. a screenshot of
-   the running component — before marking it done. This is the same objective
-   check `04-components.md` §"Pixel-diff verification" already defines; S0
+4. **Verify it by eye against Paper** — `get_screenshot` of the Paper node vs.
+   a screenshot of the running component, plus `get_computed_styles` for
+   exact values — before marking it done. **The automated `pnpm
+   visual-diff`/`pixelmatch` script is banned project-wide** (owner decision
+   2026-09-16). This is the same by-eye standard `04-components.md`
+   §"Verification standard: by-eye + computed-styles" already defines; S0
    doesn't invent a new one.
 5. **Log it in `04-components.md`'s Status table**, the same live build log
    Milestone One's composites are recorded in, with its Paper reference and
@@ -829,8 +834,10 @@ supplier contract test change with it.
   write stock (Flow 15's separation-of-duties rule).
 - Cross-org isolation on every new endpoint; hub-org scoping per D-15.
 
-**New — frontend.** Per-screen visual diff against the `C-0` artboards
-(playbook Step 7), plus the mobile screens against `X7O-0` states.
+**New — frontend.** Per-screen by-eye comparison against the `C-0`
+artboards (playbook Step 7 — not the banned automated `pnpm visual-diff`
+script, owner decision 2026-09-16), plus the mobile screens against `X7O-0`
+states.
 
 ---
 

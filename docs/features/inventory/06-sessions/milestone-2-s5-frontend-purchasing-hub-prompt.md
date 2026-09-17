@@ -24,7 +24,11 @@ now serves for real.
    generic default).
 2. `frontend/features/inventory/types/receiving.ts` — the frontend mirror of
    the frozen contract. Your API calls' response shapes must match this
-   exactly.
+   exactly. Note `PurchasingHistoryRowSchema` (amended 2026-09-16,
+   post-freeze) — the History band's response is pre-formatted rows
+   (`detailLabel`, `statusLabel`, `statusTone`, `actions`), not raw records.
+   Render it directly into `purchasing-history-row.tsx`'s props; don't
+   reformat it again client-side.
 3. `docs/features/inventory/04-components.md`'s Milestone Two section
    (written by S0 — confirm S0 is far enough along that the composites you
    need exist; if S0 hasn't reached the KPI Strip / mixed-type row items yet,
@@ -75,14 +79,39 @@ hub's `owed` KPI tile is one place it does.
   Zustand selectors over destructuring the whole store.
 - A screen group sharing one sidebar needs a route-group `layout.tsx`, not
   each screen mounting its own shell (`04-components.md` placement rules).
-- Visual-diff each screen against its Paper artboard (`get_screenshot` vs. a
-  screenshot of the running app) before marking it done — not optional for UI
-  work, per `CLAUDE.md`'s "use the feature in a browser" rule. Use the
-  Playwright/chrome-devtools MCP to drive the real running page.
+- Compare each screen by eye against its Paper artboard (`get_screenshot` vs.
+  a screenshot of the running app), and confirm exact values via
+  `get_computed_styles` on the real node, before marking it done — not
+  optional for UI work, per `CLAUDE.md`'s "use the feature in a browser"
+  rule. Use the Playwright/chrome-devtools MCP to drive the real running
+  page. **The automated `pnpm visual-diff`/`pixelmatch` script is banned
+  project-wide (owner decision, 2026-09-16) — do not run it.**
+- **The by-eye comparison is not the whole verification, only layout
+  fidelity.**
+  `04-components.md`'s "Table and list-screen quality bar" section
+  (established 2026-09-16) is a second, separate check: the Inbound and
+  History bands on the Purchasing hub, and the Receiving worklist, are all
+  list screens and must be checked against that bar — pagination/load-more
+  wired to the `limit`/`cursor` params these endpoints already return,
+  deliberate column widths, horizontal scroll on narrow viewports — before
+  either is marked done, not just diffed against Paper's small mock dataset.
+- **Interactive states, all four, on every clickable element** — the
+  "Receive"/"Cancel"/"Add invoice" row actions, the KPI tiles if they're
+  clickable, "Save purchase"/"+ Add line" in the New purchase drawer.
+  `04-components.md`'s "Interactive states" section (2026-09-16): hover,
+  focus-visible, active/pressed, and disabled — Paper only draws the default
+  state, so the other three exist only if you wire them.
+- **Every write action has a real, verified failure path.** `POST
+  /expected-deliveries` and the cancel action must surface a visible error
+  (toast/inline) on a 400/404/409 response, not just on the happy path —
+  trigger an actual failure (e.g. an invalid supplier id) and confirm the
+  user sees something, per `04-components.md`'s "Feedback on failed actions."
 
 ## Stop condition
 
-All three screens built, visually verified against Paper, hooked up to S3's
-real endpoints (no mocks left in the code path), and manually exercised in a
-browser. Do not start the Goods Receipt entry screen (S6) — that's next, not
-a continuation of this session.
+All three screens built, visually verified against Paper, checked against
+`04-components.md`'s table/list quality bar, and checked for interactive
+states + failure feedback (all of the above, not any subset), hooked up to
+S3's real endpoints (no mocks left in the code path), and manually exercised
+in a browser. Do not start the Goods Receipt entry screen
+(S6) — that's next, not a continuation of this session.

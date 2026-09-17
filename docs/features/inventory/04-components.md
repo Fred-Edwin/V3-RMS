@@ -123,6 +123,105 @@ defeats the persistent-shell pattern above even if the layout itself is
 structured correctly — the reload tears down everything, shell included.
 This was a real bug found and fixed in Milestone One's own sidebar.
 
+### Table and list-screen quality bar — non-negotiable, checked before "done"
+
+**Established 2026-09-16, after a Milestone One review found tables that
+rendered correctly against Paper's mock data but broke under real
+conditions** — no pagination (an unbounded render past Paper's ~5-row mock),
+columns that didn't hold their width, and no horizontal handling on narrow
+viewports. The root cause: a screen was marked done once it visually matched
+Paper, and visual match was silently treated as the whole definition of
+done. It isn't. **Every data table or list screen in this feature — whether
+or not Paper's artboard shows it at scale — must handle:**
+
+1. **Pagination or cursor-based load-more past ~20–30 rows.** Every list
+   endpoint in this feature's contract already returns `limit`/`cursor` —
+   using them is not optional polish, it's consuming a parameter the backend
+   already sends. Never an unbounded render, regardless of how few rows
+   Paper's mock data happened to show.
+2. **Deliberate column widths.** Numeric and money columns are right-aligned
+   and fixed-width. Text columns truncate with the full value available on
+   hover/title, not a layout that reflows unpredictably as content length
+   varies row to row.
+3. **Horizontal scroll on narrow viewports, never silent column-squashing.**
+   A table that becomes unreadable rather than scrollable on a narrow screen
+   is not built to this project's standard, mobile-card-per-row layouts
+   (already this project's established pattern in places) are the preferred
+   alternative where one exists.
+4. **Sort where the data model supports it cheaply and the screen's own
+   design implies ordering matters** (a flow doc or artboard using language
+   like "oldest-first").
+
+**Loading, empty, and error states are part of this same bar, not a separate
+concern:** every list/table screen has all three, using the shared
+`shell-states.tsx` primitives unless it mirrors a bespoke Paper artboard (see
+"Placement rules" above) — and the loading state is the real screen-mirroring
+skeleton, not a generic spinner, for any screen with a defined layout.
+
+**Verification is two separate checks, not one.** A pixel-diff against Paper
+(`get_screenshot` vs. the running screen) confirms *layout fidelity* —
+spacing, color, type match the design. It does **not** confirm *functional
+completeness* — that pagination actually works, that all three states
+render, that the table holds up under more rows than the mock (and, per the
+two subsections below, that interactive states are wired and that failed
+actions give feedback). Both checks are required before a screen is marked
+done in any session's stop condition; passing the visual diff alone is not
+sufficient and should never be reported as "done" on its own.
+
+### Interactive states — every interactive element, not just the default
+
+**Added 2026-09-16, same root cause as the table bar above.** Paper draws one
+static state per artboard — usually the resting/default state. Nothing about
+matching that one drawing pixel-for-pixel implies the other states exist;
+they only exist if someone deliberately wires them. **Every interactive
+element — button, link, input, table row with a click/hover action, toggle,
+tab — must have, at minimum:**
+
+- **Hover** — a visible change for pointer users (this project's design
+  tokens already define hover treatments for the seeded `ui2/` primitives;
+  use them, don't invent new ones per screen).
+- **Focus-visible** — a visible focus ring or equivalent for keyboard
+  navigation, not just mouse hover. This is not the same state as hover and
+  both must exist independently; an element that only responds to mouse
+  hover is not focus-accessible.
+- **Active/pressed** — visible feedback for the moment of the click/tap
+  itself, distinct from hover.
+- **Disabled** — where an element can legitimately be disabled (a submit
+  button mid-request, an action blocked by role/permission), it must look
+  and behave disabled, not just silently do nothing on click.
+
+If a shared `ui2/` primitive already implements a state correctly, reuse it —
+this rule is about not skipping states when assembling a screen or composite
+from primitives, not about redesigning states that already exist.
+
+### Feedback on failed actions — no silent failures
+
+**Added 2026-09-16.** An action that calls an endpoint and gets a 400/403/409
+back must surface that to the user — a toast, an inline error, a field-level
+message from the response — not fail with nothing visible beyond a browser
+console error. This is the same class of gap as a filter that doesn't filter
+(Milestone One, 2026-09-16 review): the control *looks* wired because it's
+present and clickable, but a user watching the screen has no way to tell the
+action failed. Every write action (`POST`/`PATCH`/`DELETE`) built in this
+feature must have a real, verified failure path — test it by triggering an
+actual error response, not just the happy path.
+
+### Worth checking, lower priority than the above — use judgment
+
+Not held to the same "non-negotiable, checked before done" bar as the
+sections above, but worth a look on any screen with meaningful write actions
+or complex navigation:
+
+- **Keyboard operability** — can every action on the screen be reached and
+  triggered without a mouse (sane tab order; custom interactive elements
+  respond to Enter/Space, not just click)? Matters more on desktop screens
+  used at a shared terminal than on mobile-only ones.
+- **Optimistic vs. pessimistic UI consistency** — does the screen wait for a
+  write's server response before updating, or assume success and roll back
+  on failure? Either is acceptable; an unstated mix of both across screens in
+  the same feature reads as unpolished. Pick one approach per feature and
+  note the choice if it isn't obvious from the surrounding code.
+
 ---
 
 ## Milestone One — Catalog, Suppliers & Restock Levels
@@ -269,61 +368,72 @@ Applies to every composite above, and every future milestone's composites.
    `className` at all — cost real pixel-diff debugging time before the actual
    cause (the allowlist, not the token) was found.
 
-### Pixel-diff verification (objective, not eyeballed)
+### Verification standard: by-eye + computed-styles (mandatory; automated pixel-diff is banned)
 
-**Applies to composites, not bare primitives.** A primitive built in isolation
-(no real Paper content, minimal demo markup) often can't be pixel-exact against
-Paper on its own — e.g. an HTML `<table>`'s column-width math is genuinely
-different from Paper's flex-row layout even with identical numbers typed in,
-so a bare `Table` primitive chasing ≤2% against Paper's export just measures
-that architectural gap, not a real defect. For a primitive: source every value
-from Paper (`get_jsx`/`get_computed_styles`, never a screenshot), restyle onto
-tokens, and confirm with one real-browser screenshot compared **by eye**
-against Paper's — colors, spacing, type, borders all present and correct. Save
-the automated diff for the **composite** that actually consumes the primitive
-with Paper's real content — that's the version that ships and where pixel
-fidelity is the correct thing to enforce.
+**Owner decision, 2026-09-16 (during the Milestone Two S0 session): the
+automated `pnpm visual-diff` / `pixelmatch` pixel-diff approach is banned
+project-wide, permanently, not just for this session.** Do not resurrect
+it, propose it, or fall back to it even as an optional extra check. Reason:
+it requires the Paper export and the built-component screenshot to be
+*exactly* the same pixel dimensions before it will even run, and most real
+composites render variable-length production content (names, reference
+numbers, dynamic helper text) — a placeholder string in a demo that wraps
+to a different number of lines than Paper's specific reference copy is
+enough to make the tool refuse to run, or return a large "mismatch" that
+is actually just differently-positioned text glyphs, not a real layout,
+spacing, or color defect. Chasing exact-dimension matches by rewriting
+demo copy over and over wasted significant time for no accuracy gain over
+the alternative below, which sources the same values from Paper directly.
+`scripts/visual-diff.ts` may stay in the repo as dead code, or be deleted
+in a later cleanup pass — either way, do not run it.
 
-An agent visually comparing two screenshots by eye is not reliable at the pixel
-level — "looks about right" is not the bar. Every composite gets an actual,
-automated pixel diff before it's marked done:
+**The mandatory standard for every primitive and composite, no exceptions:**
 
-1. Capture the **Paper reference** at the artboard's exact width: `get_screenshot`
-   on the composite's node, saved as a PNG.
-2. Capture the **built version** at the identical viewport width (1440 for desktop
-   composites, 390 for mobile) — Playwright/chrome-devtools MCP navigates to the
-   page rendering the component and screenshots it.
-3. Run `pnpm visual-diff <paper.png> <built.png> <outDiff.png>` — this project's
-   `scripts/visual-diff.ts`, using `pixelmatch`. It errors immediately if the two
-   images aren't the same dimensions (a mismatch there usually means the wrong
-   viewport width was used, not a real design difference), otherwise it prints a
-   mismatch percentage and writes a red-highlighted diff image showing exactly
-   which pixels differ.
-4. **Threshold: ≤2% mismatch to pass** (default in the script, override with
-   `--threshold=`). Zero is not the realistic target — Paper's renderer and a real
-   browser will never rasterize text/anti-aliasing bit-identically — but 2% catches
-   any real layout, spacing, or color defect while tolerating font-rendering noise.
-   A failing diff image makes it obvious whether the mismatch is "noise" (scattered
-   single pixels along text edges) or "real" (a solid red block = wrong
-   spacing/color/missing element) — don't raise the threshold to make a real defect
-   disappear.
-5. Iterate: any real mismatch → re-check `get_computed_styles` on the specific
-   Paper node in question, fix the code value/token mapping, rebuild, re-diff.
+1. **Source every value from Paper directly** — `get_jsx`, `get_computed_styles`,
+   `get_node_info` on the real node. Never a bare magic number when a
+   design token already covers the value; never a value read off a
+   screenshot.
+2. **Map every value to a design token** where one exists; add a new token
+   (following this doc's existing conventions) when Paper draws a
+   genuinely new value, rather than force-fitting a nearby token.
+3. **Build the component**, then take **one real-browser screenshot**
+   (Playwright or chrome-devtools MCP) and compare it **by eye** against a
+   `get_screenshot` capture of the Paper reference node — structure,
+   spacing, colors, type, borders, and any conditional/populated states
+   Paper actually draws.
+4. **Cross-check the specific values that matter** with
+   `get_computed_styles` / `getComputedStyle()` in the browser rather than
+   trusting the screenshot alone for anything precise (exact px values,
+   exact colors) — this is what makes the check more than "looks about
+   right."
+5. Check the browser console for errors as part of the same pass — zero
+   console errors is part of "done," not a separate step.
+6. Log the verification in this doc's Status section: what was checked,
+   against which Paper node, and any real defect found and fixed. A
+   by-eye check is still a real check and gets logged with the same rigor
+   an automated diff result would have — cite the specific nodes and
+   values compared, not just "looks right."
+
+This replaces the old two-tier standard (relaxed check for primitives,
+automated diff for composites) with one standard for everything. It is not
+a lowering of rigor — sourcing values from Paper and cross-checking with
+`get_computed_styles` catches the same class of defect (wrong spacing,
+wrong color, wrong token) the automated diff caught; it just doesn't get
+tripped up by content-length differences that were never real defects.
 
 ### Responsiveness — the part Paper can't verify for us
 
 Paper only designed **two fixed points**: 1440px desktop and 390px mobile. Nothing
-in between, nothing beyond. The pixel-diff above only proves those two exact widths
-are correct — it says nothing about whether the component holds up at every width
-a real user's window/device actually is. Per `FEATURE_REDO_PLAYBOOK.md` §5 Step 3:
+in between, nothing beyond. The by-eye check above only confirms those two exact
+widths are correct — it says nothing about whether the component holds up at every
+width a real user's window/device actually is. Per `FEATURE_REDO_PLAYBOOK.md` §5 Step 3:
 "Paper artboards are fixed-width; anything not drawn is left to the frontend agent's
 responsive judgement" — that judgement has to be exercised deliberately, not skipped.
 
 For every composite:
 1. Build with Tailwind's responsive utilities and the spacing/type tokens (not fixed
    pixel widths) so it flexes rather than breaks between the two anchors.
-2. Pixel-diff-verify the two exact Paper anchors (above) — this is the strict,
-   automated check.
+2. Verify the two exact Paper anchors by eye + computed-styles (above).
 3. **Additionally spot-check at intermediate widths** the design never drew:
    ~768px (tablet) and ~1024px (small laptop) at minimum, since these are real
    device classes staff will actually use. This is judgment-based, not diffed
@@ -2220,10 +2330,10 @@ desktop; the mobile counterpart is item 9 below.
 | 3 | Receipt Line Grid | `frontend/features/inventory/components/receipt-line-grid.tsx` | Built |
 | 4 | Bundling checkbox list | `frontend/features/inventory/components/bundle-checkbox-list.tsx` | Built |
 | 5 | Mismatch/dispute callout | `frontend/features/inventory/components/dispute-callout.tsx` | Built |
-| 6 | "How overdue" bucket table | `frontend/features/inventory/components/aging-bucket-table.tsx` | Pending |
-| 7 | "What we owe" bucket panel | `frontend/features/inventory/components/aging-bucket-panel.tsx` | Pending |
-| 8 | Mixed-type Inbound/History row | `frontend/features/inventory/components/purchasing-history-row.tsx` | Pending |
-| 9 | Mobile universal states | `frontend/components/app/shell/mobile-states.tsx` | Pending |
+| 6 | "How overdue" bucket table | `frontend/features/inventory/components/aging-bucket-table.tsx` | Built |
+| 7 | "What we owe" bucket panel | `frontend/features/inventory/components/aging-bucket-panel.tsx` | Built |
+| 8 | Mixed-type Inbound/History row | `frontend/features/inventory/components/purchasing-history-row.tsx` | Built |
+| 9 | Mobile universal states | `frontend/components/app/shell/mobile-states.tsx` | Built |
 
 - [x] **Signature font token built** — `frontend/app/layout.tsx` adds
       `alexBrush` (`next/font/google`'s `Alex_Brush`, weight 400, scoped
@@ -2295,6 +2405,23 @@ desktop; the mobile counterpart is item 9 below.
       `border-wds-border-strong bg-wds-surface`. Active slot gets
       `shadow-wds-ring`, the same focus treatment every other primitive
       uses.
+
+      **Bug found by `pnpm build`'s own `check-wds-tokens.ts`, not by
+      review — a leftover `bg-wds-ink` on the caret-blink indicator**
+      (shadcn's default fake-caret element, restyled but not fully swept):
+      `wds-ink` was never a registered color utility (`ink` lives under the
+      `wds-text` color group as `text-wds-text-ink`, not as a flat
+      `wds-ink` — the same distinction already documented for the Sign
+      Sheet composite above). This one specifically survived the earlier
+      per-primitive fix because it's on an internal, rarely-rendered
+      sub-element (`hasFakeCaret`) that the by-eye screenshot check never
+      triggered. Fixed to `bg-wds-neutral-950`, matching the filled-slot
+      color already used elsewhere in the same file. **Confirms the value
+      of running the project's own `pnpm build` (which runs
+      `check-wds-tokens.ts`) at the end of a build session, not just
+      `tsc --noEmit`** — this class of bug (a token name that looks
+      plausible but was never registered) is exactly what that script
+      exists to catch, and it caught one here that manual review missed.
 
       **Two new tokens added, both confirmed against Paper values before
       being added (not force-fit onto an existing step):** `wds-section`
@@ -2468,5 +2595,316 @@ desktop; the mobile counterpart is item 9 below.
       screenshot (Playwright, `/dev/wds` demo) confirmed full visual match
       against `UZJ-0`'s reference screenshot. Zero console errors.
 
+- [x] **"How overdue" bucket table built** —
+      `frontend/features/inventory/components/aging-bucket-table.tsx`
+      (`AgingBucketTable`) + a new shared file,
+      `frontend/features/inventory/components/aging-bucket-cell.tsx`
+      (`AgingBucketCell`, `AGING_BUCKET_COLUMNS`). Reference: `VGE-0` ("8 ·
+      Suppliers / AP landing · desktop"), header row `VIY-0`, populated row
+      `VIJ-0` (Kimathi Butchery — Paper's own disputed-supplier reference
+      case). Built item 6 before item 7 per the S0 brief's explicit
+      dependency — the shared bucket-cell component is built here first,
+      then item 7's panel consumes it.
+
+      **The five-bucket tone assignment is fixed per column, not derived
+      from whether a cell is populated — confirmed by reading multiple
+      cells independently, not assumed uniform:** `get_jsx` on `VIJ-0`
+      shows CURRENT always renders in plain ink, 1-30/31-60 always in
+      `warning-fg`, and 61-90/90+ always in `error-fg` — including their
+      empty "–" values (`VIJ-0`'s 61-90 cell is "–" but still `error-fg`,
+      not neutral). This is a real, deliberate Paper-drawn detail (the last
+      two buckets read as "hotter" even when empty) — modeled as a
+      `tone: 'neutral' | 'warning' | 'error'` fixed on `AGING_BUCKET_COLUMNS`
+      per column, applied identically whether the cell value is populated
+      or "–", not conditionally recomputed per cell.
+
+      **The disputed badge (`error-bg`/`error-border`, dot + "N disputed")
+      and the terms/last-activity caption in `info-fg`** (a blue tone,
+      distinct from the usual muted caption color — confirmed via `get_jsx`
+      on `VIJ-0`, not assumed to be the standard caption tone) are both
+      per-row conditional/styled elements sourced exactly from Paper, not
+      invented.
+
+      **A "— DAYS OVERDUE —" spanning label row sits above the real column
+      header row** (`VJ8-0`, 20px tall, `text-faint`, `0.08em` tracking,
+      centered over the five bucket columns only — confirmed via
+      `get_computed_styles`, the supplier/invoiced/paid/outstanding columns
+      have empty spacer divs at this row so the label visually centers only
+      over the bucket span) — modeled as its own 20px row above the 30px
+      header row, not merged into one taller header.
+
+      **Verification — by-eye + computed-styles:** `get_jsx`/
+      `get_computed_styles` on `VIY-0` (header) and `VIJ-0` (row) confirmed
+      all 9 column widths (180/96/90/78×4/104px, converted from Paper's
+      `min-w-45`/`w-24`/`w-22.5`/`w-22`/`w-19.5`×4/`w-26` Tailwind
+      arbitrary-scale units), row min-height (52px), disputed-badge styling,
+      and bucket tone-per-column. Built every width as an explicit
+      `w-[Npx]` arbitrary value from the start (no bare numeric utilities),
+      applying the item-3 lesson. Real-browser screenshot (Playwright,
+      `/dev/wds` demo, both rows matching Paper's own Kimathi
+      Butchery/Samrat Ltd data) confirmed full visual match — bucket tones,
+      disputed badge, spanning label row, and column alignment all correct.
+      Zero console errors.
+
+- [x] **"What we owe" bucket panel built** —
+      `frontend/features/inventory/components/aging-bucket-panel.tsx`
+      (`AgingBucketPanel`). Reference: `VND-0` ("9 · Supplier detail ·
+      desktop"), panel node `VQ2-0`. Four visible columns (merges 61-90 and
+      90+ into one "60+ DAYS" column for display, plan §7 Q4) over the same
+      underlying five-bucket data item 6's table uses — the merge is a
+      caller-side formatting choice (sum 61-90 + 90+ before passing
+      `sixtyPlus`), never a separate four-bucket calculation inside this
+      component.
+
+      **Zero-value cell tone is a genuine, independently-confirmed
+      difference from item 6's aging table — checked, not assumed to
+      match:** `get_jsx` on `VQ2-0` shows the empty 31-60/60+ cells render
+      `text-faint` (a plain "nothing here" gray), unlike the aging table's
+      convention (item 6) where an empty bucket still carries its column's
+      fixed warning/error tone. Modeled as: tone applies only when the cell
+      has a real value; an empty ("–"/"—") cell always renders
+      `text-faint` regardless of its assigned tone. This is the second
+      case this milestone (after Supplier Form's payment-terms toggle and
+      Restock Level Grid's tone split in Milestone One) where reading each
+      composite's actual empty-state rendering independently — rather than
+      assuming one established convention carries over — caught a real
+      difference.
+
+      **Verification — by-eye + computed-styles:** `get_jsx` on `VQ2-0`
+      confirmed all 5 cells' padding (`py-3 px-3.5`), label styling
+      (`field-label`/muted), value size (16px/20px — a size not used
+      elsewhere, kept as an arbitrary value rather than forcing `wds-body`
+      or `wds-h3`), the OUTSTANDING cell's `neutral-50` background + medium
+      weight, and the empty-cell `text-faint` override. Real-browser
+      screenshot (Playwright, `/dev/wds` demo, Samrat Ltd's own data from
+      `VND-0`) confirmed full visual match. Zero console errors.
+
+- [x] **Mixed-type Inbound/History row built** —
+      `frontend/features/inventory/components/purchasing-history-row.tsx`
+      (`PurchasingHistoryRowView`, a `PurchasingHistoryRow` discriminated
+      union on `type: 'expectedDelivery' | 'goodsReceipt'`). Reference:
+      `U7V-0` ("1 · Purchasing hub · desktop"), expected-delivery row
+      `UAQ-0` (Samrat Ltd, "Awaiting delivery") and goods-receipt row
+      `U9K-0` (GRN-1042, "Received — invoice pending").
+
+      **Three status-tone variants confirmed independently, not assumed
+      from two rows:** `get_computed_styles` on the "Overdue" row's status
+      text (a third row, not `UAQ-0`/`U9K-0`) confirmed `error-fg` —
+      combined with `UAQ-0`'s `neutral-500` ("Awaiting delivery") and
+      `U9K-0`'s `info-fg` ("Received — invoice pending"), that's all three
+      tones this composite needs, each read off its own real row rather
+      than guessed from the two rows already open.
+
+      **Both row types share one skeleton** (200px title/subtitle column,
+      grow detail column, 90px age column, 150px status column with a
+      `pl-6` indent, 150px action-button column) **and differ only in
+      content** — confirmed via `get_jsx` on both `UAQ-0` and `U9K-0`
+      showing byte-identical Tailwind classes for the shell, just different
+      text/tone/action-label values — modeled as one row view function
+      switching on the union's `type` for which fields to read, not two
+      separate row components.
+
+      **Flagged, not built into this composite:** the Purchasing hub's KPI
+      strip in the current `U7V-0` screenshot still shows 4 tiles including
+      `IN TRANSIT` — per the plan's Q1 resolution this is dropped to 3
+      tiles (Expected / Awaiting invoice / Owed). That's the KPI Strip
+      composite (already built, Milestone One), not this row renderer, and
+      is a Paper-artboard-needs-redrawing flag for S5 to carry forward, per
+      the plan's own note — not a gap in this item.
+
+      **Verification — by-eye + computed-styles:** `get_jsx` on `UAQ-0`/
+      `U9K-0` confirmed the shared shell's column widths, row height (56px),
+      and both rows' distinct detail/status/action content. Real-browser
+      screenshot (Playwright, `/dev/wds` demo, 3 rows: two
+      `expectedDelivery` — one neutral, one error/overdue — and one
+      `goodsReceipt`) confirmed full visual match against `U7V-0`'s
+      Inbound band. Zero console errors.
+
+- [x] **Mobile universal states built** —
+      `frontend/components/app/shell/mobile-states.tsx`
+      (`MobileEmptyState`, `MobileLoadingState`, `MobileErrorState`,
+      `MobilePermissionDeniedState`). Lands in
+      `components/app/shell/` per the placement rules — cross-feature shell,
+      same category as `mobile-headers.tsx`/`mobile-status-bar.tsx`, not
+      under `features/inventory/`. Reference: page `3-0`, node `X7O-0`
+      ("10m · Universal states · mobile") — designed alongside the desktop
+      set (`shell-states.tsx`/`15W-0`) but deliberately left unbuilt in
+      Milestone One, per its own note, until a real mobile screen needed a
+      genuine empty/loading/error state. This session is that build; no
+      live Milestone Two mobile screen consumes it yet (that's S5/S8), so
+      it's verified as a standalone composite the same way Milestone One's
+      composites were, not against a real screen.
+
+      **This composite renders only the content area, not the header —
+      confirmed from Paper's own subtitle on `X7O-0`:** *"Composited with
+      the Mobile Hub Header; chrome stays, content area swaps."* Each
+      exported state is a content-only block; the consuming screen renders
+      `MobileHubHeader` itself (already built, Milestone One) and swaps in
+      one of these four as the body. Mirrors the desktop `shell-states.tsx`
+      API shape (`title`/`description`/`onRetry`/`action`) for consistency
+      between the two platforms' state components, while the visual layout
+      is genuinely different per platform — confirmed by reading `X7O-0`
+      directly rather than assuming the desktop 320×220 card just resizes
+      (it's a different composition: full-width content area under a
+      header, not a centered fixed-size card).
+
+      **The loading skeleton shape is Paper-specific, not a resize of the
+      desktop's three lines:** `get_jsx` on `X86-0` shows a KPI-strip-shaped
+      two-cell skeleton followed by two bordered card skeletons (Paper's
+      own inline note: *"skeleton · animated sweep, neutral not
+      espresso"*) — a materially different shape from the desktop card's
+      three left-aligned lines, confirmed by reading the actual node rather
+      than assuming the same skeleton pattern applies at a smaller size.
+      Modeled with a `rows` prop so a consuming screen can add more card
+      skeletons for a longer list, rather than hardcoding exactly two.
+
+      **Bug found and fixed:** used `bg-wds-bg` (Paper's `--color-bg`
+      token name, read directly off the JSX) before checking it against
+      this codebase's actual preset — `wds-bg` was never registered as a
+      Tailwind color utility here; the codebase's equivalent is
+      `wds-canvas` (`--wds-canvas`, pointing at the same `neutral-0` value).
+      Caught by grepping the preset before trusting the class compiled
+      silently wrong (same discipline applied after the Receipt Line
+      Grid/Sign Sheet bugs, not by accident) — fixed to `bg-wds-canvas`.
+
+      **Verification — by-eye + computed-styles:** `get_jsx` on `X7U-0`
+      (Empty)/`X86-0` (Loading)/`X8T-0` (Error)/`X97-0` (Permission-denied)
+      confirmed padding (`py-12 px-6`), glyph sizes/styles (dashed square,
+      error dot, ring), title/description sizing, and the Retry button's
+      border/padding. Real-browser screenshot (Playwright, `/dev/wds`
+      demo, each state composed with a real `MobileHubHeader` per Paper's
+      own compositing note) confirmed all four states render correctly
+      side-by-side, matching `X7O-0`'s reference screenshot. Zero console
+      errors.
+
+**All 9 items in the S0 component inventory are now built and verified.**
+Per the owner-approved process change (2026-09-16, logged above), items 2–9
+were verified by-eye + computed-styles rather than the automated
+`pnpm visual-diff` pixel-diff, after item 2 (Sign Sheet) demonstrated the
+automated diff's exact-dimension requirement was a poor fit for composites
+rendering variable-length production content. This session found and fixed
+five real bugs across the nine composites — three instances of a bare
+Tailwind numeric utility not on the default scale silently generating no
+layout rule (`w-55`, and five instances in the Receipt Line Grid), and one
+instance of a Paper-token-name color class (`wds-bg`) not actually
+registered under that name in this codebase's preset — all caught by
+real-browser verification before being marked done, not assumed correct
+from the code alone.
+
 Update the checkboxes as Step 4 build work completes each item — this is a live
 build log now, not just a plan.
+
+## Milestone Two — S5 (Purchasing hub, New purchase, Receiving worklist)
+
+Session `06-sessions/milestone-2-s5-frontend-purchasing-hub-prompt.md`. Built
+against S3's real endpoints, no mocks. All three screens assembled from S0's
+already-built composites (`KpiStrip`/`KpiRow`, `PurchasingHistoryRowView`,
+`shell-states.tsx`/`mobile-states.tsx`) plus new screen-local pieces:
+
+- **Purchasing hub** (`purchasing-hub-screen.tsx`) — 3-tile KPI strip
+  (`IN TRANSIT` dropped per plan §7 Q1), Inbound band (real `ExpectedDelivery`
+  rows only — S4's `GoodsReceipt` rows aren't live yet), History band via the
+  existing `PurchasingHistoryRowView` composite. Bespoke loading (`WK4-0`) and
+  error (`WPL-0`) skeletons added to `skeletons.tsx`
+  (`PurchasingHubKpiSkeletonDesktop`/`InboundSkeletonDesktop`/
+  `HistorySkeletonDesktop`/`SkeletonMobile`).
+
+  **Mobile KPI grid is a screen-local composite, not a reuse of `KpiRow`** —
+  confirmed via `get_jsx` on `WUL-0` that Paper draws a 2×2 wrapping grid
+  (joined hairline cells, `flex-wrap` + `basis-[45%]`), a materially
+  different layout from `KpiRow`'s single non-wrapping row. Built as
+  `MobilePurchasingKpiGrid` inside the screen file rather than changing the
+  shared composite other screens depend on.
+
+- **New purchase** (`new-purchase-screen.tsx`, `NewPurchaseDrawer`) —
+  supplier picker + "Last purchase …" caption (from
+  `GET /inventory/items/:id/last-price`, keyed off the first line's item
+  since the endpoint is per-item not per-supplier), payment-terms toggle
+  (`INVOICE_TO_FOLLOW`/`PAY_NOW` enum unchanged, "Invoice"/"Paid on delivery"
+  display labels only, plan §7 Q3a — confirmed against `UEP-0`'s `get_jsx`:
+  selected state is a flat `espresso-700` fill + white text, a different
+  selected treatment from Supplier Form's `espresso-50` tint, read
+  independently not assumed to match), line entry, `POST
+  /expected-deliveries` on save. Desktop drawer + mobile full-screen
+  (`MobileTaskHeader` + sticky footer Save button, matching the established
+  Item Form convention).
+
+- **Receiving worklist** (`receiving-worklist-screen.tsx`), Attendant-only —
+  no money columns at all. Renders conditionally on `estimatedTotal` being
+  present in the response rather than adding a client-side role check
+  (plan §3.1: the backend already omits the field for this role). No bespoke
+  Paper artboard exists for loading (plan §3a) — built the generic
+  screen-mirroring skeleton default (`ReceivingWorklistSkeletonDesktop`/
+  `Mobile`) per the placement rules.
+
+**Routes:** `app/app/inventory/(shell)/purchasing/page.tsx` and
+`(shell)/receiving/page.tsx` — both inside the existing shell route group
+(both are proper sidebar-nav destinations per their own artboards' sidebar,
+unlike Restock Levels' standalone-task placement). Sidebar `NAV_GROUPS`
+hrefs updated from `#` to real routes for `purchasing`/`receiving`;
+`(shell)/layout.tsx`'s `activeKeyFromPathname` extended to match both.
+
+**Verification — real browser, real backend, no mocks:** started the actual
+`pnpm dev` backend + frontend, logged in as `store.manager@wendo.test` /
+`store.attendant@wendo.test` (seeded dev accounts), and drove the full
+create → cancel write path through the real `POST /expected-deliveries` /
+`POST /expected-deliveries/:id/cancel` endpoints via Playwright — confirmed
+end-to-end on both desktop and mobile, not just that the code compiles.
+Screenshotted every screen/state (populated desktop + mobile, bespoke
+loading via a delayed-route simulation, bespoke error via an aborted-route
+simulation, Attendant's no-money worklist) and compared against the Paper
+screenshots/`get_jsx` captured at the start of the session. One real bug
+caught this way and fixed: `useNewPurchaseOptions` requested
+`perPage: 200` for the item picker, exceeding the backend's actual
+`perPage.max(100)` validator — a 400 that only surfaced once the drawer's
+option-loading hook actually ran against the real endpoint, not from
+type-checking or a mock. Zero console errors on any screen after the fix.
+
+**Second pass — table/list quality-bar audit + a real desktop rendering bug.**
+Partway through the session the owner added the "Table and list-screen
+quality bar" standard (see "Placement rules" above) after S5's first pass was
+already built. Re-audited all three screens against it:
+
+- Real `limit`/cursor pagination wired for Inbound and History (Purchasing
+  hub) and the Receiving worklist, replacing unbounded rendering. History has
+  no real cursor from the backend (`GET /inventory/purchasing/history`'s
+  schema and repository omit it end to end) — its "Load more" bumps `limit`
+  instead; documented as a backend gap in `use-purchasing-hub.ts`'s doc
+  comment, not papered over.
+- Fixed-width, right-aligned `Est.`/`Age` columns; `overflow-x-auto` row
+  wrappers with `min-w-[...]` bodies; `truncate` + `title=` on
+  Supplier/Detail text.
+- Hover/focus-visible/active states added to every plain `<button>` and
+  hand-rolled table row across all three screens plus
+  `purchasing-history-row.tsx`, matching existing `Button`/`TableRow`/
+  `SidebarNav` conventions.
+- `Receive` buttons disabled with an explanatory `title` (S6, Goods Receipt
+  entry, doesn't exist yet) instead of looking broken with no affordance.
+- Real data bug fixed in `new-purchase-screen.tsx`: the unit-price field only
+  showed `item.currentCost` as a `placeholder`, never seeding it as the
+  actual controlled value — tabbing past the field silently submitted `'0'`.
+  `onValueChange` for the item picker now seeds `estimatedUnitPrice` from
+  `selected.currentCost` when the field is still empty.
+- Verified pagination and horizontal-scroll mechanics end-to-end against 30
+  real `ExpectedDelivery` rows (bulk-created via `POST /expected-deliveries`,
+  not a DB insert) — Inbound's cursor-based "Load more" and History's
+  limit-bump "Load more" both correctly hide once exhausted.
+
+**Bug found and fixed: `KpiStrip` clipped its own cell content on desktop.**
+`purchasing-hub-screen.tsx` was the first screen to give `KpiStrip` cells
+with three stacked lines (label + `text-wds-kpi` value + detail, ~108px of
+content) — `item-catalog-screen.tsx`'s cells only ever had two. Root cause,
+confirmed via direct DOM measurement (`getBoundingClientRect`/computed
+styles) rather than guessing from a screenshot: the row's `overflow-hidden`
+(used only to clip the joined-cell background to the strip's rounded
+corners) triggers a Chromium flexbox quirk where a `flex-row` container with
+`overflow: hidden` computes its own auto height from something shorter than
+its tallest child's actual content box, independent of `align-items`. Toggling
+just the `overflow-hidden` class in a live devtools session reproduced it
+directly: 24.97px with the class present, 110px (correct) with it removed —
+`align-items`/`align-content` permutations made no difference, isolating the
+cause to `overflow-hidden` itself, not stretch behavior. Fix: dropped
+`overflow-hidden` from the row and moved corner-rounding to the first/last
+cell individually (`rounded-l-wds-md`/`rounded-r-wds-md`) — same visual
+result, no clipping. Verified fixed on both `KpiStrip` consumers (Purchasing
+hub, Item Catalog) at 1440px.

@@ -35,7 +35,7 @@ signed record.
    from an ordinary form + detail view.
 3. `docs/features/inventory/04-components.md`'s Milestone Two section (S0's
    output) — confirm the Sign sheet and Receipt Line Grid composites are
-   logged as built and pixel-diff-verified before you start assembling this
+   logged as built and verified by eye against Paper before you start assembling this
    screen from them.
 
 ## What to build
@@ -80,10 +80,32 @@ don't go looking for something that isn't there.
   ad hoc inside a screen component (`04-components.md`'s placement rules).
 - Route-group `layout.tsx` for the shared shell, per the persistent-shell
   rule, if these two screens weren't already covered by S5's route group.
-- Visual-diff both screens against Paper before marking done, including the
-  mid-signature state (pull that artboard from the Store Manager page `4-0`,
-  since it isn't cloned onto page `C-0` — S0's prompt already had to find it
-  there; reuse whatever S0 recorded rather than re-searching).
+- Compare both screens by eye against Paper before marking done (plus
+  `get_computed_styles` for exact values — **never the banned automated
+  `pnpm visual-diff`/`pixelmatch` script**, owner decision 2026-09-16),
+  including the mid-signature state (pull that artboard from the Store
+  Manager page `4-0`, since it isn't cloned onto page `C-0` — S0's prompt
+  already had to find it there; reuse whatever S0 recorded rather than
+  re-searching).
+- **The by-eye comparison is layout fidelity only, not the whole verification.**
+  Neither screen here is a paginated list, but `04-components.md`'s "Table
+  and list-screen quality bar" still applies to the Receipt Line Grid's
+  column widths (item name, qty, unit chip, price, subtotal must hold their
+  widths and not reflow as item names vary in length) — check it against a
+  receipt with more lines than Paper's mock shows, not just the exact line
+  count the artboard happened to draw.
+- **Interactive states on every clickable element** — every line's inputs,
+  "+ Add line," "Save draft" vs. "Sign & save," the PIN-entry keys/field in
+  the Sign sheet, "Print" on the signed detail. `04-components.md`'s
+  "Interactive states" section: hover, focus-visible, active/pressed,
+  disabled — a submit button mid-request must visibly show disabled/loading,
+  not just silently accept a second click.
+- **Every write action has a real, verified failure path — this session has
+  the most consequential ones in the milestone.** Trigger and confirm visible
+  feedback for: a bad PIN (401 on sign — does the Sign sheet show an error
+  and let the user retry, per Flow 2a's "signature not applied, receipt stays
+  in draft" rule?), signing an already-signed or empty receipt (409), and a
+  failed draft save. None of these should fail silently to the console.
 
 ## Stop condition
 

@@ -61,7 +61,7 @@ export function KpiStrip({ cells, className }: KpiStripProps) {
   return (
     <div
       className={cn(
-        'flex overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface',
+        'flex rounded-wds-md border border-wds-border bg-wds-surface',
         className
       )}
     >
@@ -70,7 +70,9 @@ export function KpiStrip({ cells, className }: KpiStripProps) {
           key={cell.key}
           className={cn(
             'flex grow basis-0 flex-col gap-wds-1.5 bg-wds-gradient-surface-raise p-wds-4',
-            i < cells.length - 1 && 'border-r border-wds-border'
+            i < cells.length - 1 && 'border-r border-wds-border',
+            i === 0 && 'rounded-l-wds-md',
+            i === cells.length - 1 && 'rounded-r-wds-md'
           )}
         >
           <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">
