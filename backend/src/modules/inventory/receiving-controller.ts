@@ -2,7 +2,11 @@ import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../utils/errors';
 import { receivingService } from './receiving-service';
 import { IdParamSchema } from './inventory-validators';
-import { CreateExpectedDeliverySchema, ListExpectedDeliveriesQuerySchema } from './receiving-validators';
+import {
+  CreateExpectedDeliverySchema,
+  ListExpectedDeliveriesQuerySchema,
+  RecentSupplierItemsQuerySchema,
+} from './receiving-validators';
 import { z } from 'zod';
 
 const requireActor = (req: Request) => {
@@ -64,6 +68,16 @@ export const receivingController = {
     const actor = requireActor(req);
     const { id } = IdParamSchema.parse(req.params);
     const data = await receivingService.getLastPrice(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  // ── Suppliers ────────────────────────────────────────────────────────────
+
+  getRecentSupplierItems: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const { limit } = RecentSupplierItemsQuerySchema.parse(req.query);
+    const data = await receivingService.getRecentSupplierItems(actor, id, limit);
     res.status(200).json({ success: true, data });
   },
 };

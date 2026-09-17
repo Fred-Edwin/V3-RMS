@@ -165,6 +165,57 @@ export const expectedDeliveryRepository = {
 };
 
 // ---------------------------------------------------------------------------
+// Recent items by supplier — feeds the New-purchase item combobox's
+// "Recently purchased from this supplier" section (2026-09-17 UI refinement,
+// see receiving-validators.ts's AMENDMENT comment on RecentSupplierItemsQuerySchema).
+// Sourced from ExpectedDeliveryLine, not GoodsReceiptLine: GoodsReceipt has no
+// real signed data yet (S4 hasn't shipped), while ExpectedDeliveryLine already
+// has real seeded rows this milestone owns.
+// ---------------------------------------------------------------------------
+
+export const recentSupplierItemsRepository = {
+  /**
+   * Most-recently-purchased distinct items for a supplier, newest first.
+   * Dedup is done in application code rather than a Prisma `groupBy` (which
+   * can't also return "the most recent row's price/date per group" without
+   * a second query) — per-supplier line counts are small enough (tens of
+   * rows) that fetching a generous window and deduping in memory is simpler
+   * than a raw SQL window-function query, and cheap at this data volume.
+   */
+  findRecentBySupplier: async (
+    organizationId: string,
+    supplierId: string,
+    limit: number,
+  ): Promise<{ inventoryItemId: string; itemName: string; buyUnit: string; lastUnitPrice: Prisma.Decimal; lastPurchasedAt: Date }[]> => {
+    const lines = await prisma.expectedDeliveryLine.findMany({
+      where: { expectedDelivery: { organizationId, supplierId } },
+      include: {
+        inventoryItem: { select: { id: true, name: true, buyUnit: true } },
+        expectedDelivery: { select: { createdAt: true } },
+      },
+      orderBy: { expectedDelivery: { createdAt: 'desc' } },
+      take: limit * 5, // generous window to dedupe from — a supplier with few distinct items exhausts this fast
+    });
+
+    const seen = new Set<string>();
+    const result: { inventoryItemId: string; itemName: string; buyUnit: string; lastUnitPrice: Prisma.Decimal; lastPurchasedAt: Date }[] = [];
+    for (const line of lines) {
+      if (seen.has(line.inventoryItemId)) continue;
+      seen.add(line.inventoryItemId);
+      result.push({
+        inventoryItemId: line.inventoryItemId,
+        itemName: line.inventoryItem.name,
+        buyUnit: line.inventoryItem.buyUnit,
+        lastUnitPrice: line.estimatedUnitPrice,
+        lastPurchasedAt: line.expectedDelivery.createdAt,
+      });
+      if (result.length === limit) break;
+    }
+    return result;
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Last-price lookup — feeds the price-alert comparison and the New-purchase
 // drawer's "Last purchase 2 Sep · KES 6,410" reference (plan §3.2). Reads only
 // InventoryItem + GoodsReceiptLine (no new-model dependency): the receipt

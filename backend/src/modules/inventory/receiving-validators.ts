@@ -213,6 +213,28 @@ export const ListExpectedDeliveriesQuerySchema = z.object({
   cursor: uuid.optional(),
 });
 
+/**
+ * AMENDMENT 2026-09-17 (post-freeze, UI refinement session): New Purchase's
+ * item picker was a flat scrollable dropdown over the whole catalog — poor
+ * UX once a supplier has many items. This schema/endpoint feeds a "recently
+ * purchased from this supplier" section shown first in a searchable
+ * combobox, surfaced before the owner asked for it to become the top of the
+ * item list. Sourced from `ExpectedDeliveryLine` (this milestone's own new
+ * table — no dependency on GoodsReceipt, which S4 hasn't shipped yet).
+ */
+export const RecentSupplierItemsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(8),
+});
+
+export const RecentSupplierItemSchema = z.object({
+  inventoryItemId: uuid,
+  itemName: z.string(),
+  buyUnit: z.string(),
+  /** The most recent estimated unit price seen for this item from this supplier. */
+  lastUnitPrice: decimalString,
+  lastPurchasedAt: isoDate,
+});
+
 // --- Goods receipts (Stage 2) ----------------------------------------------
 
 export const GoodsReceiptLineSchema = z.object({

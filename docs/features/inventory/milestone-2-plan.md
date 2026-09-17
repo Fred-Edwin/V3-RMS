@@ -426,6 +426,14 @@ rather than the frontend hiding a column it was sent.
 - `GET /inventory/items/:id/last-price` — feeds the price-alert comparison and
   the New-purchase drawer's "Last purchase 2 Sep · KES 6,410" reference.
   (Also unblocks the `04-components.md` catalog "Last price" follow-up — §6.)
+- **`GET /inventory/suppliers/:id/recent-items` — added post-freeze
+  (AMENDMENT 2026-09-17, `receiving-validators.ts`), not part of the
+  original frozen contract.** Feeds the New Purchase item combobox's
+  "Recently purchased from this supplier" section, an owner-requested UI
+  refinement on top of S5. Sourced from `ExpectedDeliveryLine`, same
+  `authenticate`/`requireRole`/`organizationId`-scoping pattern as every
+  other endpoint here. See `04-components.md`'s "Milestone Two — S5
+  refinements (batch 2)" entry for the full build/verification record.
 
 **What we owe (Supplier AP)**
 - `GET /inventory/ap/summary` → `VGE-0`'s 4 KPIs.

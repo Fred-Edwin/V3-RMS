@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { receivingService } from './receiving-service';
-import { expectedDeliveryRepository, lastPriceRepository, referenceCounterRepository } from './receiving-repository';
+import {
+  expectedDeliveryRepository,
+  lastPriceRepository,
+  recentSupplierItemsRepository,
+  referenceCounterRepository,
+} from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { prisma } from '../../config/database';
@@ -22,6 +27,9 @@ vi.mock('./receiving-repository', () => ({
   },
   lastPriceRepository: {
     findLastReceiptLine: vi.fn(),
+  },
+  recentSupplierItemsRepository: {
+    findRecentBySupplier: vi.fn(),
   },
 }));
 
@@ -277,5 +285,46 @@ describe('receivingService.getLastPrice', () => {
   it('404s on an unknown item', async () => {
     vi.mocked(inventoryItemRepository.findById).mockResolvedValue(null);
     await expect(receivingService.getLastPrice(storeManager, itemId)).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('receivingService.getRecentSupplierItems', () => {
+  it('rejects a non-hub Store Manager with a ForbiddenError', async () => {
+    await expect(
+      receivingService.getRecentSupplierItems(nonHubStoreManager, supplierId, 8),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('404s on an unknown supplier', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(null);
+    await expect(receivingService.getRecentSupplierItems(storeManager, supplierId, 8)).rejects.toThrow(
+      NotFoundError,
+    );
+  });
+
+  it('returns decimal-as-string, ISO-date rows scoped to the hub org', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(recentSupplierItemsRepository.findRecentBySupplier).mockResolvedValue([
+      {
+        inventoryItemId: itemId,
+        itemName: 'Milk 500ml',
+        buyUnit: 'crate',
+        lastUnitPrice: new Prisma.Decimal('2025'),
+        lastPurchasedAt: new Date('2026-09-10T00:00:00Z'),
+      },
+    ]);
+
+    const result = await receivingService.getRecentSupplierItems(storeManager, supplierId, 8);
+
+    expect(recentSupplierItemsRepository.findRecentBySupplier).toHaveBeenCalledWith(hubOrgId, supplierId, 8);
+    expect(result).toEqual([
+      {
+        inventoryItemId: itemId,
+        itemName: 'Milk 500ml',
+        buyUnit: 'crate',
+        lastUnitPrice: '2025',
+        lastPurchasedAt: '2026-09-10T00:00:00.000Z',
+      },
+    ]);
   });
 });

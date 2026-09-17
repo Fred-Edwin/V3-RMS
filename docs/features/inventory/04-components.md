@@ -2908,3 +2908,154 @@ cause to `overflow-hidden` itself, not stretch behavior. Fix: dropped
 cell individually (`rounded-l-wds-md`/`rounded-r-wds-md`) — same visual
 result, no clipping. Verified fixed on both `KpiStrip` consumers (Purchasing
 hub, Item Catalog) at 1440px.
+
+---
+
+## Milestone Two — S5 refinements (batch 2)
+
+Owner walked the real S5 build live (both by eye and in DevTools) after batch
+1 (mobile scroll fixes, Receiving worklist money column, KPI copy — folded
+into the S5 commit) and asked for a larger UX pass on three things: the
+Purchasing hub's Inbound/History bands being cramped inline tables, the New
+Purchase drawer's item picker being a plain scrollable dropdown over the
+whole catalog, and no way to create a supplier without leaving the flow.
+Built directly in the primary checkout (not delegated to a background
+agent — two prior attempts at delegating this batch failed on worktree/
+commit-sync issues before any code was written; see the session transcript,
+not repeated here since it's process history, not a build decision).
+
+**Purchasing hub → compact previews + two new dedicated pages.** The hub's
+Inbound and History bands no longer render their full result set inline —
+`usePurchasingHub` now fetches an 8-row preview batch (`PREVIEW_SIZE` in
+`use-purchasing-hub.ts`) per band, each with a "View all →" link. Two new
+routes hold the full experience:
+- `/inventory/purchasing/inbound` (`inbound-list-screen.tsx`,
+  `use-inbound-list.ts`) — real cursor pagination (same
+  `GET /inventory/expected-deliveries` endpoint), a search box, sticky
+  table header.
+- `/inventory/purchasing/history` (`history-list-screen.tsx`,
+  `use-purchasing-history-list.ts`) — same limit-bump "Load more" workaround
+  `usePurchasingHub` already used and documented (`GET
+  /inventory/purchasing/history` still has no real cursor server-side; this
+  refinement does not add one, out of scope per the plan).
+
+The shared "Load more" button row moved from a private function inside
+`purchasing-hub-screen.tsx` to an exported `LoadMoreRow` in
+`purchasing-history-row.tsx`, since three screens need it now instead of one.
+
+**New Purchase: drawer → full-page builder.** `NewPurchaseDrawer` is gone;
+`NewPurchaseScreen` (same file, `new-purchase-screen.tsx`) is now a full page
+at `/inventory/purchasing/new`, used by both desktop and mobile (no more
+separate drawer/full-screen variants). Same underlying save call
+(`POST /expected-deliveries`, still "not a purchase order — an estimate").
+
+**Item picker: new `ItemPickerCombobox` composite.** Replaces the plain
+`<Select>` scrollable dropdown. Type-to-filter over the full catalog, plus a
+"Recently purchased from this supplier" section shown first (with per-item
+last price) once a supplier is selected. Deliberately not built on the
+shared `components/ui2/combobox.tsx` primitive — that one only supports a
+flat option list, and adding a sectioned "Recent" group to its contract
+would change behavior for its one other consumer (`item-form.tsx`'s
+category/supplier pickers) for a need only this screen has. Same visual
+language and keyboard conventions (`Escape`/`ArrowUp`/`ArrowDown`/`Enter`) as
+the shared primitive, so it reads as the same field family.
+
+**New backend endpoint: `GET /inventory/suppliers/:id/recent-items`.**
+Added to the existing `receiving-*.ts` file set (not a new module), same
+pattern as every other Milestone Two endpoint — `authenticate` +
+`requireRole('STORE_MANAGER')`, `organizationId`-scoped, decimal-as-string
+wire format. Sourced from `ExpectedDeliveryLine` (this milestone's own
+table — no dependency on `GoodsReceipt`, which has no real signed data until
+S4 ships). `recentSupplierItemsRepository.findRecentBySupplier` fetches a
+generous window (`limit * 5`) ordered by delivery `createdAt` desc and
+dedupes to distinct items in application code, rather than a raw SQL
+window-function query — per-supplier line counts are small enough (tens of
+rows) that this is simpler and cheap at this data volume. Documented in
+`receiving-validators.ts` as an AMENDMENT (2026-09-17, post-freeze), same
+convention as the `PurchasingHistoryRowSchema` amendment S3 made. Backend
+tests added to `receiving-service.test.ts` (hub-org scoping, 404 on unknown
+supplier, decimal/date contract shape) and `receiving-contract.test.ts`
+(`RecentSupplierItemSchema` drift guard) — 737 backend tests pass total (up
+from 697 before this session), full suite, no failures.
+
+**Inline supplier quick-create.** Uses the shared `Combobox` primitive's
+existing `onCreate` hook (already built for `item-form.tsx`'s category
+field) — typing a name with no match shows "+ Create '<name>'", which opens
+a small nested panel (name pre-filled in the header, phone, payment-terms
+toggle) inline in the page, not a stacked drawer/dialog. No new backend
+work: reuses `POST /inventory/suppliers` and the existing `createSupplier()`
+client function. `useNewPurchaseOptions` gained an `addSupplier` action that
+appends the newly created supplier to local state so it's selectable
+immediately, instead of a full supplier-list reload.
+
+**Real bugs found and fixed during verification, not just compile-checked:**
+- **Supplier combobox showed the raw UUID instead of the supplier's name**
+  once selected. Root cause: the shared `Combobox` primitive's `value` prop
+  is the *displayed label*, not an id to look up — `item-form.tsx`'s
+  existing usage already does `options.find(...).label ?? ''` before
+  passing `value`, which this screen's first draft skipped. Fixed by doing
+  the same lookup. Confirmed via live snapshot (`value="c3d67be8-…"` before,
+  `value="Summer Limited"` after) — a real functional gap unrelated to any
+  layout/compile check.
+- **Unit price seeded to a real but useless `"0"` for some items.** The
+  original seeding logic (`chosen?.currentCost`) is correct, but several
+  seed-data items genuinely have `currentCost: "0"` in the catalog (never
+  received yet), so the field silently filled with a wrong-looking zero
+  instead of staying empty or using a better default. Fixed by preferring
+  the selected supplier's own last price from `recentItems` (already fetched
+  for the "Recently purchased" section) over `currentCost`, and treating a
+  `"0"` result as "no real price" rather than seeding it. Caught by actually
+  selecting a real item in the running app, not by reading the code.
+- **Item combobox dropdown was clipped by its own table's rounded corners.**
+  The New Purchase line-items table wrapper used `overflow-hidden` (to clip
+  the header background to the table's `rounded-wds-md` corners), which also
+  clipped the item combobox's absolutely-positioned dropdown to a sliver a
+  few rows tall — reported live by the owner mid-session, screenshotted from
+  an actual browser window (not this session's own devtools session), a
+  genuinely different failure mode from anything a static code read would
+  have caught. Fixed by removing `overflow-hidden` from the table wrapper
+  and moving the corner-rounding to the header row (`rounded-t-wds-md`) and
+  the trailing "+ Add line" button (`rounded-b-wds-md`) individually — same
+  visual result, no clipping. The same class of fix as the `KpiStrip`
+  clipping bug above, different composite.
+
+**Verification — real browser, real backend, no mocks, per the table/list
+quality bar and failure-feedback standards this doc already sets:**
+- Navigated the full flow end to end against the real running dev servers
+  (logged in as `store.manager@wendo.test`, no session/auth mocking):
+  Purchasing hub → "View all" on both Inbound and History (confirmed sticky
+  header, sticky search, pagination/"Load more" both work) → "New purchase"
+  → supplier search/select → item search, confirmed the "Recently purchased"
+  section renders real data from the new endpoint (checked the network
+  response body directly, not just the rendered UI) → filled qty/price →
+  saved → confirmed `POST /expected-deliveries` returned `201`, redirected
+  back to the hub, and the new row appeared in both the Inbound preview
+  (`Today`) and the KPI count (30 → 31) — an actual end-to-end write, not a
+  UI-only check.
+- Inline supplier quick-create exercised fully: typed a non-matching name,
+  clicked "+ Create", filled phone + terms, clicked "Create & select",
+  confirmed `POST /inventory/suppliers` returned `201` and the new supplier
+  was immediately selected and usable in the same purchase (verified its
+  "Recently purchased" section came back empty, correctly, since it has no
+  purchase history yet).
+- Failure feedback tested by patching `window.fetch` in a live devtools
+  session to force a `400` on `POST /expected-deliveries`: confirmed a
+  visible red error message renders on the page (not just console), the
+  entered form data is preserved, and the user can retry — no silent
+  failure.
+- Both new pages and the new full-page builder checked on desktop (1440px)
+  and mobile (390px) viewports; zero console errors on any screen across the
+  whole session.
+- `cd backend && pnpm build && pnpm test` — clean build, 737/737 tests pass.
+- `cd frontend && pnpm build` — clean build (had to kill a stray dev-server
+  process bound to the same `.next` directory first; the concurrent write
+  produced a misleading `PageNotFoundError` on an unrelated route the first
+  time, resolved by stopping the dev server before rebuilding — not a code
+  regression, see the session's own note on why the two must not run
+  concurrently against the same `.next`).
+
+**Not done this session, flagged for later:** the `ageLabel` formatter
+occasionally renders "expected Today ago" (should read "expected today") —
+a pre-existing cosmetic string-concatenation quirk noticed during mobile
+verification, not introduced by this refinement and not fixed here since it
+wasn't part of the requested scope.

@@ -16,6 +16,7 @@ import type {
   ListExpectedDeliveriesQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
+  RecentSupplierItem,
 } from '../types/receiving';
 
 function token(): string | undefined {
@@ -72,4 +73,13 @@ export async function cancelExpectedDelivery(id: string): Promise<ExpectedDelive
 
 export async function getLastPrice(itemId: string): Promise<{ unitPrice: string; asOf: string } | null> {
   return apiClient.get<{ unitPrice: string; asOf: string } | null>(`/inventory/items/${itemId}/last-price`, token());
+}
+
+// ─── Suppliers ──────────────────────────────────────────────────────────────
+
+export async function getRecentSupplierItems(supplierId: string, limit = 8): Promise<RecentSupplierItem[]> {
+  return apiClient.get<RecentSupplierItem[]>(
+    `/inventory/suppliers/${supplierId}/recent-items${toQueryString({ limit })}`,
+    token()
+  );
 }

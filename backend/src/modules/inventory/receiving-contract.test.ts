@@ -8,10 +8,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { receivingService } from './receiving-service';
-import { expectedDeliveryRepository, referenceCounterRepository } from './receiving-repository';
+import { expectedDeliveryRepository, recentSupplierItemsRepository, referenceCounterRepository } from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
-import { ExpectedDeliverySummarySchema, PurchasingHistoryRowSchema, PurchasingSummarySchema } from './receiving-validators';
+import {
+  ExpectedDeliverySummarySchema,
+  PurchasingHistoryRowSchema,
+  PurchasingSummarySchema,
+  RecentSupplierItemSchema,
+} from './receiving-validators';
 
 vi.mock('./receiving-repository', () => ({
   expectedDeliveryRepository: {
@@ -23,6 +28,7 @@ vi.mock('./receiving-repository', () => ({
   },
   referenceCounterRepository: { nextReference: vi.fn() },
   lastPriceRepository: { findLastReceiptLine: vi.fn() },
+  recentSupplierItemsRepository: { findRecentBySupplier: vi.fn() },
 }));
 
 vi.mock('./inventory-repository', () => ({
@@ -179,5 +185,26 @@ describe('Receiving contract drift guard', () => {
     const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
     expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
     expect(row!.type).toBe('expectedDelivery');
+  });
+
+  it('RecentSupplierItemSchema accepts getRecentSupplierItems output', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue({
+      id: supplierId,
+      organizationId: hubOrgId,
+      name: 'Samrat Supermarket Ltd',
+      deletedAt: null,
+    } as never);
+    vi.mocked(recentSupplierItemsRepository.findRecentBySupplier).mockResolvedValue([
+      {
+        inventoryItemId: itemId,
+        itemName: 'Milk 500ml',
+        buyUnit: 'crate',
+        lastUnitPrice: new Prisma.Decimal('2025'),
+        lastPurchasedAt: new Date(),
+      },
+    ]);
+
+    const [row] = await receivingService.getRecentSupplierItems(storeManager, supplierId, 8);
+    expect(() => RecentSupplierItemSchema.parse(row)).not.toThrow();
   });
 });

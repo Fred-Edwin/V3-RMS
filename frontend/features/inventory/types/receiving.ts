@@ -89,6 +89,20 @@ export interface ListExpectedDeliveriesQuery {
   cursor?: string;
 }
 
+/**
+ * AMENDMENT 2026-09-17 (post-freeze, UI refinement session): feeds the New
+ * Purchase item combobox's "Recently purchased from this supplier" section.
+ * Mirrors backend/src/modules/inventory/receiving-validators.ts's
+ * RecentSupplierItemSchema.
+ */
+export interface RecentSupplierItem {
+  inventoryItemId: string;
+  itemName: string;
+  buyUnit: string;
+  lastUnitPrice: string;
+  lastPurchasedAt: string;
+}
+
 // ─── Goods receipts (Stage 2) ───────────────────────────────────────────────
 
 export interface GoodsReceiptLine {

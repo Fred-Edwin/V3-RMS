@@ -48,4 +48,13 @@ router.get(
   receivingController.getLastPrice,
 );
 
+// ── Suppliers ─────────────────────────────────────────────────────────────
+// New-purchase builder only — same audience as expected-deliveries create.
+
+router.get(
+  '/inventory/suppliers/:id/recent-items',
+  requireRole('STORE_MANAGER'),
+  receivingController.getRecentSupplierItems,
+);
+
 export default router;

@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
@@ -23,8 +25,18 @@ import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import type { ExpectedDeliverySummary, PurchasingHistoryRow as ServerHistoryRow } from '../../types/receiving';
 import type { SupplierPaymentTerms } from '../../types';
 import { cancelExpectedDelivery } from '../../services/receiving-api-service';
-import { NewPurchaseDrawer } from './new-purchase-screen';
 import { PurchasingHistoryRowView, type PurchasingHistoryRow as ViewHistoryRow } from '../purchasing-history-row';
+
+/**
+ * Compact preview row count for the hub's Inbound/History bands (2026-09-17
+ * UI refinement). The hub is a dashboard, not a worklist — showing every row
+ * inline made the page mostly a scroll box on small desktop viewports with
+ * no room to actually browse. Each band now shows a handful of rows with a
+ * "View all" link to its own dedicated full page
+ * (`/purchasing/inbound`, `/purchasing/history`), which gets sticky headers,
+ * real search/filters, and full pagination.
+ */
+const HUB_PREVIEW_ROW_COUNT = 6;
 
 /** Adapts the server's history-row shape (plain `emphasized?` actions) to `PurchasingHistoryRowView`'s props (actions need an `onClick`) — no view-level fields, so it's a pure structural map, not a reformat. */
 function toViewRow(row: ServerHistoryRow): ViewHistoryRow {
@@ -52,22 +64,6 @@ function formatEstimate(amount: string | null): string | null {
   return `~KES ${Number(amount).toLocaleString()}`;
 }
 
-/** Shared "Load more" row — bottom of a band's table, only rendered when the hook reports more rows exist. */
-function LoadMoreRow({ loading, onClick }: { loading: boolean; onClick: () => void }) {
-  return (
-    <div className="flex h-11 shrink-0 items-center justify-center border-t border-wds-border">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={loading}
-        className="rounded-wds-sm px-wds-2 py-wds-1 font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60"
-      >
-        {loading ? 'Loading…' : 'Load more'}
-      </button>
-    </div>
-  );
-}
-
 /**
  * Purchasing hub — screen 1 of S5 (`U7V-0` desktop, `WUL-0` mobile).
  * KPI strip is 3 tiles (Expected / Awaiting invoice / Owed), `IN TRANSIT`
@@ -87,21 +83,18 @@ export function PurchasingHubScreen() {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const { open: openMobileNav } = useMobileNavDrawer();
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const {
     summary,
     inbound,
-    inboundHasMore,
-    inboundLoadingMore,
-    loadMoreInbound,
     history,
-    historyHasMore,
-    historyLoadingMore,
-    loadMoreHistory,
     status,
     error,
     reload,
   } = usePurchasingHub();
-  const [drawerOpen, setDrawerOpen] = React.useState(false);
+
+  const inboundPreview = inbound.slice(0, HUB_PREVIEW_ROW_COUNT);
+  const historyPreview = history.slice(0, HUB_PREVIEW_ROW_COUNT);
 
   const handleCancel = async (id: string) => {
     await cancelExpectedDelivery(id);
@@ -135,9 +128,8 @@ export function PurchasingHubScreen() {
 
   if (!hydrated) return null;
 
-  const newPurchaseButton = (
-    <Button onClick={() => setDrawerOpen(true)}>New purchase</Button>
-  );
+  const goToNewPurchase = () => router.push('/app/inventory/purchasing/new');
+  const newPurchaseButton = <Button onClick={goToNewPurchase}>New purchase</Button>;
 
   if (!isDesktop) {
     return (
@@ -157,37 +149,41 @@ export function PurchasingHubScreen() {
           ) : (
             <>
               <MobilePurchasingKpiGrid cells={kpiCells} />
-              <Button className="w-full" onClick={() => setDrawerOpen(true)}>
+              <Button className="w-full" onClick={goToNewPurchase}>
                 + New purchase
               </Button>
               <div className="flex flex-col gap-wds-2.5">
-                <div className="flex items-center gap-wds-2">
-                  <span className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">Inbound</span>
-                  <span className="font-wds-mono text-wds-label text-wds-text-copy-muted">{inbound.length}</span>
+                <div className="flex items-center justify-between gap-wds-2">
+                  <div className="flex items-center gap-wds-2">
+                    <span className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">Inbound</span>
+                    <span className="font-wds-mono text-wds-label text-wds-text-copy-muted">{inbound.length}</span>
+                  </div>
+                  <Link
+                    href="/app/inventory/purchasing/inbound"
+                    className="font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:text-wds-caramel-700 focus-visible:shadow-wds-ring"
+                  >
+                    View all →
+                  </Link>
                 </div>
-                {inbound.length === 0 ? (
+                {inboundPreview.length === 0 ? (
                   <MobileEmptyState title="Nothing here yet" description="No purchases or receipts in progress." />
                 ) : (
-                  <>
-                    {inbound.map((row) => (
-                      <MobileInboundCard key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
-                    ))}
-                    {inboundHasMore ? (
-                      <button
-                        type="button"
-                        onClick={loadMoreInbound}
-                        disabled={inboundLoadingMore}
-                        className="flex h-9 items-center justify-center rounded-wds-sm font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60"
-                      >
-                        {inboundLoadingMore ? 'Loading…' : 'Load more'}
-                      </button>
-                    ) : null}
-                  </>
+                  inboundPreview.map((row) => (
+                    <MobileInboundCard key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
+                  ))
                 )}
               </div>
               <div className="flex flex-col gap-wds-2.5">
-                <span className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">History</span>
-                {history.map((row) =>
+                <div className="flex items-center justify-between gap-wds-2">
+                  <span className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">History</span>
+                  <Link
+                    href="/app/inventory/purchasing/history"
+                    className="font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:text-wds-caramel-700 focus-visible:shadow-wds-ring"
+                  >
+                    View all →
+                  </Link>
+                </div>
+                {historyPreview.map((row) =>
                   row.type === 'expectedDelivery' ? (
                     <div key={row.id} className="flex items-center justify-between gap-wds-3 rounded-wds-md border border-wds-border bg-wds-surface p-wds-3">
                       <div className="flex min-w-0 flex-col gap-px">
@@ -202,26 +198,10 @@ export function PurchasingHubScreen() {
                     </div>
                   ) : null
                 )}
-                {historyHasMore ? (
-                  <button
-                    type="button"
-                    onClick={loadMoreHistory}
-                    disabled={historyLoadingMore}
-                    className="flex h-9 items-center justify-center rounded-wds-sm font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60"
-                  >
-                    {historyLoadingMore ? 'Loading…' : 'Load more'}
-                  </button>
-                ) : null}
               </div>
             </>
           )}
         </div>
-        <NewPurchaseDrawer
-          open={drawerOpen}
-          onOpenChange={setDrawerOpen}
-          onSaved={reload}
-          variant="mobile"
-        />
       </div>
     );
   }
@@ -261,16 +241,24 @@ export function PurchasingHubScreen() {
             <KpiStrip cells={kpiCells} />
 
             <div className="flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
-              <div className="flex h-10 shrink-0 items-center gap-2 border-b border-wds-border px-wds-4">
-                <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Inbound</span>
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-wds-sm bg-wds-neutral-100 px-1.25">
-                  <span className="font-wds-mono text-wds-label text-wds-text-copy-muted">{inbound.length}</span>
-                </span>
-                <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-                  open right now — expected, awaiting invoice
-                </span>
+              <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-wds-border px-wds-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Inbound</span>
+                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-wds-sm bg-wds-neutral-100 px-1.25">
+                    <span className="font-wds-mono text-wds-label text-wds-text-copy-muted">{inbound.length}</span>
+                  </span>
+                  <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+                    open right now — expected, awaiting invoice
+                  </span>
+                </div>
+                <Link
+                  href="/app/inventory/purchasing/inbound"
+                  className="font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:text-wds-caramel-700 focus-visible:shadow-wds-ring"
+                >
+                  View all →
+                </Link>
               </div>
-              {inbound.length === 0 ? (
+              {inboundPreview.length === 0 ? (
                 <div className="flex items-center justify-center py-10">
                   <EmptyState title="Nothing here yet" description="No purchases or receipts in progress." />
                 </div>
@@ -285,21 +273,28 @@ export function PurchasingHubScreen() {
                     <span className="w-[130px] shrink-0" />
                   </div>
                   <div className="min-w-[720px]">
-                    {inbound.map((row) => (
+                    {inboundPreview.map((row) => (
                       <InboundRow key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
                     ))}
                   </div>
-                  {inboundHasMore ? <LoadMoreRow loading={inboundLoadingMore} onClick={loadMoreInbound} /> : null}
                 </div>
               )}
             </div>
 
             <div className="flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
-              <div className="flex h-10 shrink-0 items-center gap-2 border-b border-wds-border px-wds-4">
-                <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">History</span>
-                <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">all purchases &amp; receipts</span>
+              <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-wds-border px-wds-4">
+                <div className="flex items-center gap-2">
+                  <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">History</span>
+                  <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">all purchases &amp; receipts</span>
+                </div>
+                <Link
+                  href="/app/inventory/purchasing/history"
+                  className="font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:text-wds-caramel-700 focus-visible:shadow-wds-ring"
+                >
+                  View all →
+                </Link>
               </div>
-              {history.length === 0 ? (
+              {historyPreview.length === 0 ? (
                 <div className="flex items-center justify-center py-10">
                   <EmptyState title="Nothing here yet" description="No purchase history yet." />
                 </div>
@@ -313,18 +308,16 @@ export function PurchasingHubScreen() {
                     <span className="w-[150px] shrink-0" />
                   </div>
                   <div className="min-w-[680px]">
-                    {history.map((row) => (
+                    {historyPreview.map((row) => (
                       <PurchasingHistoryRowView key={row.id} row={toViewRow(row)} />
                     ))}
                   </div>
-                  {historyHasMore ? <LoadMoreRow loading={historyLoadingMore} onClick={loadMoreHistory} /> : null}
                 </div>
               )}
             </div>
           </>
         )}
       </div>
-      <NewPurchaseDrawer open={drawerOpen} onOpenChange={setDrawerOpen} onSaved={reload} variant="desktop" />
     </div>
   );
 }

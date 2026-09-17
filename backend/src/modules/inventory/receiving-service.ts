@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import {
   expectedDeliveryRepository,
   lastPriceRepository,
+  recentSupplierItemsRepository,
   referenceCounterRepository,
   type ExpectedDeliveryWithRelations,
 } from './receiving-repository';
@@ -18,6 +19,7 @@ import type {
   ListExpectedDeliveriesQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
+  RecentSupplierItem,
 } from './receiving.types';
 
 type Actor = NonNullable<Request['user']>;
@@ -242,6 +244,23 @@ export const receivingService = {
     // date, once GoodsReceipt rows exist. `PurchasingHistoryRowSchema` already
     // declares that variant (API_CONTRACT.md §22.3).
     return deliveries.map((d) => toHistoryRow(d, includeMoney, now));
+  },
+
+  // ── Recent items by supplier ─────────────────────────────────────────────
+
+  getRecentSupplierItems: async (actor: Actor, supplierId: string, limit: number): Promise<RecentSupplierItem[]> => {
+    const organizationId = await requireHubActor(actor);
+    const supplier = await supplierRepository.findById(supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+
+    const rows = await recentSupplierItemsRepository.findRecentBySupplier(organizationId, supplierId, limit);
+    return rows.map((row) => ({
+      inventoryItemId: row.inventoryItemId,
+      itemName: row.itemName,
+      buyUnit: row.buyUnit,
+      lastUnitPrice: toDecimalString(row.lastUnitPrice),
+      lastPurchasedAt: row.lastPurchasedAt.toISOString(),
+    }));
   },
 
   // ── Last price ───────────────────────────────────────────────────────────

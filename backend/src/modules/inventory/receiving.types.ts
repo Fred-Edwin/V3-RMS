@@ -32,6 +32,8 @@ import type {
   ListSupplierApQuerySchema,
   PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
+  RecentSupplierItemSchema,
+  RecentSupplierItemsQuerySchema,
   ReverseSupplierPaymentSchema,
   SignGoodsReceiptSchema,
   SupplierApRowSchema,
@@ -58,6 +60,8 @@ export type ExpectedDeliveryLine = z.infer<typeof ExpectedDeliveryLineSchema>;
 export type ExpectedDeliverySummary = z.infer<typeof ExpectedDeliverySummarySchema>;
 export type CreateExpectedDeliveryInput = z.infer<typeof CreateExpectedDeliverySchema>;
 export type ListExpectedDeliveriesQuery = z.infer<typeof ListExpectedDeliveriesQuerySchema>;
+export type RecentSupplierItem = z.infer<typeof RecentSupplierItemSchema>;
+export type RecentSupplierItemsQuery = z.infer<typeof RecentSupplierItemsQuerySchema>;
 
 // --- Goods receipts --------------------------------------------------------
 

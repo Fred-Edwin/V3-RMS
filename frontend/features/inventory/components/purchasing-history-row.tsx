@@ -15,6 +15,26 @@ import { cn } from '@/lib/cn';
  * were each read independently off their own row rather than assumed —
  * `get_computed_styles` on the "Overdue" row confirmed `error-fg`.
  */
+/**
+ * Shared "Load more" row (2026-09-17 UI refinement) — bottom of a band's
+ * table on the Purchasing hub preview and the dedicated Inbound/History
+ * pages, only rendered when a list hook reports more rows exist.
+ */
+export function LoadMoreRow({ loading, onClick }: { loading: boolean; onClick: () => void }) {
+  return (
+    <div className="flex h-11 shrink-0 items-center justify-center border-t border-wds-border">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={loading}
+        className="rounded-wds-sm px-wds-2 py-wds-1 font-wds-sans text-wds-caption font-medium text-wds-caramel-600 outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60"
+      >
+        {loading ? 'Loading…' : 'Load more'}
+      </button>
+    </div>
+  );
+}
+
 export type PurchasingRowStatusTone = 'neutral' | 'error' | 'info';
 
 interface PurchasingRowAction {
