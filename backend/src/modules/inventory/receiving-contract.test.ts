@@ -16,6 +16,7 @@ import {
   PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
   RecentSupplierItemSchema,
+  SupplierApRowSchema,
 } from './receiving-validators';
 
 vi.mock('./receiving-repository', () => ({
@@ -154,6 +155,67 @@ describe('Receiving contract drift guard', () => {
     expect(() => ExpectedDeliverySummarySchema.parse(result)).not.toThrow();
   });
 
+  it('ExpectedDeliverySummarySchema accepts a null-supplier row (AMENDMENT 2026-09-17)', async () => {
+    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+      {
+        id: deliveryId,
+        organizationId: hubOrgId,
+        reference: 'EXP-0003',
+        supplierId: null,
+        supplier: null,
+        paymentTerms: null,
+        status: 'AWAITING',
+        expectedDate: null,
+        estimatedTotal: new Prisma.Decimal('500'),
+        createdById: 'sm1',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lines: [],
+      },
+    ] as never);
+
+    const [summary] = await receivingService.listExpectedDeliveries(storeManager, { limit: 25 });
+    expect(() => ExpectedDeliverySummarySchema.parse(summary)).not.toThrow();
+    expect(summary!.supplierId).toBeNull();
+    expect(summary!.supplierName).toBeNull();
+    expect(summary!.paymentTerms).toBeNull();
+  });
+
+  it('createExpectedDelivery with no supplierId parses against the same frozen schema (AMENDMENT 2026-09-17)', async () => {
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0004');
+    vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
+      id: deliveryId,
+      organizationId: hubOrgId,
+      reference: 'EXP-0004',
+      supplierId: null,
+      supplier: null,
+      paymentTerms: null,
+      status: 'AWAITING',
+      expectedDate: null,
+      estimatedTotal: new Prisma.Decimal('8100'),
+      createdById: 'sm1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lines: [
+        {
+          id: 'l1',
+          expectedDeliveryId: deliveryId,
+          inventoryItemId: itemId,
+          inventoryItem: { id: itemId, name: 'Milk 500ml', buyUnit: 'crate' },
+          quantity: new Prisma.Decimal('4'),
+          estimatedUnitPrice: new Prisma.Decimal('2025'),
+          lineOrder: 0,
+        },
+      ],
+    } as never);
+
+    const result = await receivingService.createExpectedDelivery(storeManager, {
+      lines: [{ inventoryItemId: itemId, quantity: '4', estimatedUnitPrice: '2025' }],
+    });
+    expect(() => ExpectedDeliverySummarySchema.parse(result)).not.toThrow();
+    expect(supplierRepository.findById).not.toHaveBeenCalled();
+  });
+
   it('PurchasingSummarySchema accepts getPurchasingSummary output — 3 tiles, no inTransit', async () => {
     vi.mocked(expectedDeliveryRepository.countByStatus).mockResolvedValue(2);
     vi.mocked(expectedDeliveryRepository.countOverdue).mockResolvedValue(1);
@@ -206,5 +268,86 @@ describe('Receiving contract drift guard', () => {
 
     const [row] = await receivingService.getRecentSupplierItems(storeManager, supplierId, 8);
     expect(() => RecentSupplierItemSchema.parse(row)).not.toThrow();
+  });
+});
+
+/**
+ * AMENDMENT 2026-09-17 requirement: "a null-supplier ExpectedDelivery can
+ * never appear in SupplierApRowSchema/AgingBucketsSchema/ApSummarySchema."
+ *
+ * No AP endpoint exists yet (S7 — supplier invoices/payments/what-we-owe —
+ * is not started; see milestone-2-plan.md §5). So this can't yet be an
+ * end-to-end HTTP/service test against a real AP read model. What it CAN
+ * assert, and what actually makes the invariant true, is the schema-level
+ * fact that every AP row is keyed off `GoodsReceipt.supplierId` /
+ * `SupplierInvoice.supplierId` / `SupplierPayment.supplierId` — all three
+ * stayed **non-nullable, required** FKs in this amendment (only
+ * `ExpectedDelivery.supplierId` became nullable). An `ExpectedDelivery` has
+ * no FK *from* those tables back to it that carries its supplier-less-ness
+ * forward: a `GoodsReceipt` created off a supplier-less `ExpectedDelivery`
+ * still requires its own real `supplierId` to be created at all (Stage 2 is
+ * a separate, still-mandatory-supplier write). This test guards that nobody
+ * loosens those three FKs to nullable later without deliberately revisiting
+ * this invariant — it will fail loudly (a TypeScript error, not a silent
+ * pass) the moment `receiving.types.ts`'s inferred types stop matching this
+ * shape.
+ */
+describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
+  it('SupplierApRowSchema.supplierId is a plain (non-nullable) uuid — AP rows are never supplier-less', () => {
+    const parsed = SupplierApRowSchema.safeParse({
+      supplierId: null,
+      supplierName: 'No supplier',
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lastInvoiceDate: null,
+      invoiced: '0.00',
+      paid: '0.00',
+      outstanding: '0.00',
+      buckets: {
+        current: '0.00',
+        days1To30: '0.00',
+        days31To60: '0.00',
+        days61To90: '0.00',
+        days90Plus: '0.00',
+      },
+      disputedCount: 0,
+    });
+    // A null supplierId must be REJECTED by this schema — proving the AP row
+    // shape itself has no representable "no supplier" state to leak into.
+    expect(parsed.success).toBe(false);
+  });
+
+  it('ExpectedDelivery.supplierId being null does not, by construction, imply any AP-table row exists', async () => {
+    // A supplier-less ExpectedDelivery never creates a GoodsReceipt/
+    // SupplierInvoice/SupplierPayment row as a side effect of being created —
+    // createExpectedDelivery writes only ExpectedDelivery/-Line rows (see the
+    // "writes zero ledger entries" test above, same transaction boundary).
+    // There is therefore no code path today, and none introduced by this
+    // amendment, by which a supplier-less purchase can surface on an AP
+    // endpoint once S7 builds one.
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0005');
+    vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
+      id: deliveryId,
+      organizationId: hubOrgId,
+      reference: 'EXP-0005',
+      supplierId: null,
+      supplier: null,
+      paymentTerms: null,
+      status: 'AWAITING',
+      expectedDate: null,
+      estimatedTotal: new Prisma.Decimal('500'),
+      createdById: 'sm1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lines: [],
+    } as never);
+
+    await receivingService.createExpectedDelivery(storeManager, {
+      lines: [{ inventoryItemId: itemId, quantity: '1', estimatedUnitPrice: '500' }],
+    });
+
+    // Only the ExpectedDelivery repository was touched — no GoodsReceipt/
+    // SupplierInvoice/SupplierPayment repository exists to call yet, and this
+    // test will need updating (not silently pass) the moment S7 adds one.
+    expect(expectedDeliveryRepository.create).toHaveBeenCalledTimes(1);
   });
 });

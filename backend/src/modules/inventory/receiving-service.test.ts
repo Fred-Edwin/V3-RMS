@@ -170,6 +170,77 @@ describe('receivingService.createExpectedDelivery', () => {
   });
 });
 
+describe('receivingService.createExpectedDelivery — optional supplier (AMENDMENT 2026-09-17)', () => {
+  it('succeeds with no supplierId — a pure shopping list', async () => {
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0002');
+    vi.mocked(expectedDeliveryRepository.create).mockResolvedValue(
+      buildDelivery({ supplierId: null, supplier: null, paymentTerms: null }) as never,
+    );
+
+    const result = await receivingService.createExpectedDelivery(storeManager, {
+      lines: [{ inventoryItemId: itemId, quantity: '4', estimatedUnitPrice: '2025' }],
+    });
+
+    // No supplier lookup at all when supplierId is omitted — nothing to 404/409 on.
+    expect(supplierRepository.findById).not.toHaveBeenCalled();
+    expect(expectedDeliveryRepository.create).toHaveBeenCalledTimes(1);
+    expect(result.supplierId).toBeNull();
+    expect(result.supplierName).toBeNull();
+    expect(result.paymentTerms).toBeNull();
+  });
+
+  it('still validates a supplier when one IS supplied', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(null);
+    await expect(
+      receivingService.createExpectedDelivery(storeManager, {
+        supplierId,
+        lines: [{ inventoryItemId: itemId, quantity: '4', estimatedUnitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('receivingService — "No supplier" rendering (AMENDMENT 2026-09-17)', () => {
+  it('ExpectedDeliverySummary carries null supplierId/supplierName/paymentTerms when unassigned', async () => {
+    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+      buildDelivery({ supplierId: null, supplier: null, paymentTerms: null }),
+    ] as never);
+
+    const [row] = await receivingService.listExpectedDeliveries(storeManager, { limit: 25 });
+
+    expect(row!.supplierId).toBeNull();
+    expect(row!.supplierName).toBeNull();
+    expect(row!.paymentTerms).toBeNull();
+  });
+
+  it('the History band row renders the literal "No supplier" string, never null, and a dash for terms', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([
+      buildDelivery({ supplierId: null, supplier: null, paymentTerms: null }),
+    ] as never);
+
+    const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
+
+    expect(row).toMatchObject({
+      type: 'expectedDelivery',
+      supplierName: 'No supplier',
+      paymentTermsLabel: '—',
+    });
+  });
+
+  it('a delivery WITH a supplier still renders its real name/terms label (no regression)', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([buildDelivery()] as never);
+
+    const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
+
+    expect(row).toMatchObject({
+      type: 'expectedDelivery',
+      supplierName: 'Samrat Supermarket Ltd',
+      paymentTermsLabel: 'Invoice',
+    });
+  });
+});
+
 describe('receivingService — STORE_ATTENDANT money omission', () => {
   it('omits estimatedTotal for STORE_ATTENDANT but not STORE_MANAGER', async () => {
     vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([buildDelivery()] as never);

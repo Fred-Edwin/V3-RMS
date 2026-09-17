@@ -1677,8 +1677,14 @@ model ExpectedDelivery {
   id             String                 @id @default(uuid())
   organizationId String                 @map("organization_id")
   reference      String // "EXP-0091", generated via ReferenceCounter
-  supplierId     String                 @map("supplier_id")
-  paymentTerms   SupplierPaymentTerms   @map("payment_terms") // defaulted from supplier, per-record
+  // AMENDMENT 2026-09-17 (New purchase redesign, receiving-validators.ts):
+  // nullable — a purchase list may be saved with no supplier (a pure shopping
+  // list). paymentTerms is nullable in lockstep: terms are meaningless without
+  // a supplier to owe them to, and the New-purchase screen greys the field out
+  // until a supplier is picked. See receiving-validators.ts's header comment
+  // for the full amendment record.
+  supplierId     String?                @map("supplier_id")
+  paymentTerms   SupplierPaymentTerms?  @map("payment_terms") // defaulted from supplier, per-record; null when supplierId is null
   status         ExpectedDeliveryStatus @default(AWAITING)
   expectedDate   DateTime?              @map("expected_date")
   // Stored, not derived: an estimate that never needs to reconcile with
@@ -1690,7 +1696,7 @@ model ExpectedDelivery {
   updatedAt      DateTime               @updatedAt @map("updated_at")
 
   organization  Organization           @relation(fields: [organizationId], references: [id])
-  supplier      Supplier               @relation(fields: [supplierId], references: [id])
+  supplier      Supplier?              @relation(fields: [supplierId], references: [id])
   createdBy     User                   @relation("ExpectedDeliveryCreatedBy", fields: [createdById], references: [id])
   lines         ExpectedDeliveryLine[]
   goodsReceipts GoodsReceipt[]

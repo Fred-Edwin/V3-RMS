@@ -3059,3 +3059,77 @@ occasionally renders "expected Today ago" (should read "expected today") —
 a pre-existing cosmetic string-concatenation quirk noticed during mobile
 verification, not introduced by this refinement and not fixed here since it
 wasn't part of the requested scope.
+
+---
+
+## Milestone Two — New Purchase redesign (owner-approved Paper flow, 2026-09-17)
+
+Replaces the full-page line-by-line builder (`new-purchase-screen.tsx`,
+previous entry above) with the checkbox-driven catalog picker + live
+selection panel flow approved in Paper. Six artboards, all on page `C-0`:
+`X9J-0` (desktop), `XN8-0` (printable list), `XOK-0` (desktop confirmation),
+`XUT-0` (mobile catalog), `XXR-0` (mobile review tray), `XZM-0` (mobile
+confirmation). Superseded artboards `UEP-0`/`X1O-0` are not built against.
+
+### Reused as-is (no rebuild, no re-diff)
+
+Per §6.1 of `milestone-2-plan.md`, confirmed still correct for this screen:
+KPI-strip pattern N/A here, but Drawer Shell/Inventory Shell/Topbar,
+`MobileStatusBar`, `MobileTaskHeader`, `components/ui2/button.tsx`,
+`components/ui2/combobox.tsx` (for the optional supplier field —
+`item-form.tsx`'s `options.find(...).label` pattern applies again),
+`components/ui2/toggle-group.tsx`-equivalent segmented control pattern (the
+existing hand-rolled `PaymentTermsToggle` in the old `new-purchase-screen.tsx`
+is kept, now with a disabled/45%-opacity state added per Paper), and
+`useSaveExpectedDelivery` / `useNewPurchaseOptions` / `useCreateSupplierInline`
+/ `useRecentSupplierItems` from `use-new-purchase-form.ts` (all reused
+unchanged — only the catalog-selection and layout are new, per this task's
+brief).
+
+### New primitive
+
+| Component | File | Paper reference | Notes |
+|---|---|---|---|
+| Checkbox | `components/ui2/checkbox.tsx` | `XDD-0`'s `get_jsx` (checked/unchecked catalog rows) | Added via `npx shadcn@latest add checkbox`, then restyled off the stock rounded/filled treatment to match Paper exactly: square (no radius), `1.5px` border, unchecked = `--wds-border-strong` border on `--wds-surface` fill; checked = `--wds-select-blue` border, fill stays `--wds-surface` (not solid blue — the tick alone carries the color), tick `size-2.5` `strokeWidth 3` in `--wds-select-blue`. New token `--wds-select-blue: #2C6ECB` added to `tokens.wds.css` + `tailwind.wds.preset.ts` (was on Paper's token list, not yet in the codebase — confirmed via `get_tokens`). This is Paper's one deliberate departure from the espresso/caramel palette for this control. |
+
+### New composites — `frontend/features/inventory/components/`
+
+| Component | File | Screens / Paper reference | Notes |
+|---|---|---|---|
+| Purchase Catalog Picker | `purchase-catalog-picker.tsx` | Desktop table `X9J-0` → `XDD-0`/`XCW-0`; mobile list `XUT-0` | Desktop: filter bar (search + category select + stock-level select + low-stock toggle chip) above a bordered table (`Item`/`Category`/`On hand`/`Par` columns, `Checkbox` primitive leading each row, item name + buy-unit/pack sub-line, category name, on-hand as status-dot + value, par as muted value). Mobile: condensed filter bar (search + "Filters" button opening a `Sheet` — sheet contents not designed in Paper, built to `DESIGN_SYSTEM.md` conventions per the brief's explicit allowance) + low-stock chip + card rows (name/category·unit sub-line left, status-dot qty + "par N" right). Both share one row-data shape and selection-state contract; only the outer chrome differs per breakpoint. |
+| Purchase Selection Panel | `purchase-selection-panel.tsx` | Desktop `XEW-0` (panel shell: header count badge, selected-list, supplier section, footer); mobile expanded tray `XXR-0` | Per-item row: name + `KES <price>/<unit>` stacked left, stepper directly above the line total on the right (exact grouping the brief calls a hard requirement — verified against `XEW-0`'s `get_jsx`, which stacks the stepper over the total, not price over stepper). Supplier field uses `Combobox`, labelled "Supplier · optional"; payment-terms toggle sits below at 45% opacity + `pointer-events-none` until a supplier is chosen, matching `XEW-0`'s `opacity-[0.45]` on the whole payment-terms block. Footer: Est. total row, gradient "Save purchase" primary button, outline "Print list" secondary button (icon + label). The mobile tray (`XXR-0`) is the same panel content, full-screen, with a dark `MobileTaskHeader`-style header showing "Review purchase" + item count/total, and a sticky footer (`box-shadow` per `get_jsx`) instead of the desktop's plain bordered footer. |
+| Purchase Stepper | inlined in `purchase-selection-panel.tsx` (not split into its own file — a 3-cell `–`/count/`+` control with no reuse elsewhere yet) | `XEW-0` (desktop `h-6.5`), `XXR-0` (mobile `h-7`, wider cells) | Kept as a private component in the selection panel file rather than promoted to `ui2/` — only one consumer exists; promote later if a second screen needs it, per the "don't build ahead of a second real consumer" default. |
+| Printable Purchase List | `printable-purchase-list.tsx` | `XN8-0` | Distinct print-only layout, no app chrome: masthead (org name + "Central Store — Purchase list", date + "Not a purchase order"), supplier/requested-by two-column meta row, item table (checkbox column for physical tick-off, Item/Quantity/Unit/Est. cost), total row with "Estimate only — confirm prices at time of purchase." caption, Notes divider, two-column signature-line section ("Purchased by / date", "Actual amount paid"). Rendered at a route the app opens in a new tab and calls `window.print()` on (desktop) — mobile routes the same content through the OS share sheet per the brief (no `window.print()` on mobile). |
+| New Purchase Confirmation | `purchase-confirmation.tsx` | Desktop `XOK-0`; mobile `XZM-0` | Shared success-state content (success-tone circular check icon, "Purchase list saved" heading, "N items · ~KES total · saved to Inbound as a shopping list" line) rendered two ways: desktop keeps the persistent shell (topbar breadcrumb visible) with inline Print list + Go to Purchasing buttons; mobile is full-bleed on a light background (explicitly *not* the dark status bar/task header pattern — confirmed by `get_jsx` on `XZM-0`, which has no `MobileStatusBar`/dark header at all, just `bg-surface` top to bottom) with a sticky footer (Go to Purchasing primary, "Share / print list" secondary using the OS share sheet, not `window.print()`). |
+
+### Judgement calls
+
+- **Mobile "Filters" sheet contents** — Paper's `XUT-0` shows only a
+  "Filters" button, no expanded sheet artboard. Built a `Sheet` (existing
+  `ui2/sheet.tsx`) containing the same category/stock-level controls the
+  desktop filter bar shows inline, per the brief's explicit allowance to use
+  judgement here.
+- **Print route** — Paper doesn't specify a URL. Added
+  `app/app/inventory/purchasing-print/new/page.tsx` (deliberately outside
+  the `(shell)` route group, alongside the existing standalone
+  `restock-levels` route — no sidebar/topbar chrome, per requirement #5) as
+  a thin routing shell rendering `PrintablePurchaseList`, reading the draft
+  from a short-lived client-side handoff (`sessionStorage`, key
+  `inventory:new-purchase:print-draft`) written by the screen right before
+  `window.open` rather than fetching the just-saved delivery back from the
+  API — the printable list is the *draft estimate* being saved, not a
+  re-fetch, and the copy explicitly says "estimate only," so re-fetching a
+  persisted record isn't required.
+- **Stepper min bound** — Paper's stepper always shows a live "–" as fully
+  enabled; built it to floor at quantity 1 (decrementing from 1 removes the
+  row, mirroring the row's own trailing "×" remove action) since Paper's
+  static frame doesn't show a boundary state and 0/negative quantities have
+  no meaning here.
+
+### Visual verification status
+
+See the session's final report for the per-screen by-eye + computed-styles
+verification record (screenshot-vs-Paper for all six artboards, or an
+explicit list of which were not completed if the session ran out of budget
+before finishing all six) — not duplicated here to avoid drift between two
+copies of the same record.

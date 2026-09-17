@@ -176,8 +176,8 @@ function WorklistRow({ row }: { row: ExpectedDeliverySummary }) {
   const detailText = `${row.itemSummary} · ${row.lineCount} lines`;
   return (
     <div className="flex h-14 items-center border-b border-wds-neutral-100 px-wds-4 transition-colors last:border-b-0 hover:bg-wds-surface-sunken">
-      <span className="w-[220px] min-w-0 shrink-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName}>
-        {row.supplierName}
+      <span className="w-[220px] min-w-0 shrink-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName ?? 'No supplier'}>
+        {row.supplierName ?? 'No supplier'}
       </span>
       <span className="min-w-0 grow truncate font-wds-sans text-wds-body-sm text-wds-text-ink" title={detailText}>
         {detailText}
@@ -206,8 +206,8 @@ function MobileWorklistCard({ row }: { row: ExpectedDeliverySummary }) {
       className={`flex flex-col gap-wds-2 rounded-wds-md border p-wds-3.5 ${status.tone === 'error' ? 'border-wds-error-fg' : 'border-wds-border'}`}
     >
       <div className="flex min-w-0 items-center justify-between gap-wds-2">
-        <span className="min-w-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName}>
-          {row.supplierName}
+        <span className="min-w-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName ?? 'No supplier'}>
+          {row.supplierName ?? 'No supplier'}
         </span>
         <span className={`shrink-0 font-wds-sans text-wds-caption ${toneText[status.tone]}`}>{status.label}</span>
       </div>

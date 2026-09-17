@@ -44,6 +44,61 @@
  * added — `GET /inventory/purchasing/history`'s response shape was missed at
  * freeze time despite being called out in plan §3.2/§6.3. See that schema's
  * own comment for detail. No other shape changed.
+ *
+ * AMENDMENT 2026-09-17 (New purchase redesign, owner-approved in Paper —
+ * `01M1ZZJ6S3FZGF5C7PPBGTKY89`, artboards `X9J-0`/`XXR-0`): supplier becomes
+ * **optional** on an expected delivery. The redesigned New-purchase screen
+ * lets a Store Manager save a pure shopping list (items + quantities, no
+ * supplier assigned yet) — "Save purchase" no longer requires picking a
+ * supplier first. Concretely:
+ *
+ *  - `CreateExpectedDeliverySchema.supplierId` is now `.optional()`.
+ *  - `CreateExpectedDeliverySchema.paymentTerms` is now `.optional()` too —
+ *    terms describe a relationship with a supplier ("Invoice" / "Paid on
+ *    delivery"); they are meaningless with no supplier chosen. The New
+ *    Purchase screen greys the payment-terms control out with the caption
+ *    "Select a supplier to set payment terms" until a supplier is picked, so
+ *    the UI never actually offers terms without a supplier — the schema
+ *    matches that by making terms optional rather than defaulting them to
+ *    some value nobody chose. **Least-invasive choice over the alternative**
+ *    (keep `paymentTerms` required and force a default enum member): a
+ *    silently-defaulted payment term on a supplier-less purchase would be
+ *    meaningless data sitting in the row, indistinguishable from a real
+ *    choice once a supplier is later assigned. Optional + `null` keeps
+ *    "nobody has decided this yet" representable.
+ *  - `ExpectedDeliverySummarySchema.supplierId` and `.supplierName` become
+ *    `.nullable()` (not empty-string sentinels — matches the existing
+ *    convention on `estimatedTotal`/`expectedDate`). Wherever a supplier name
+ *    would render, a `null` here means literal display copy **"No
+ *    supplier"** (service-owned display string, same pattern as
+ *    `paymentTermsLabel`/`statusLabel` elsewhere in this file — the
+ *    component renders what it's given, it does not invent the fallback
+ *    text itself).
+ *  - `PurchasingHistoryRowSchema`'s `expectedDelivery` variant already only
+ *    carries pre-formatted `supplierName`/`paymentTermsLabel` strings (no
+ *    raw ids) — `receiving-service.ts`'s `toHistoryRow` now emits `"No
+ *    supplier"` for the name and an empty payment-terms label (rendered as a
+ *    dash) when `supplierId` is null. No schema change needed there; only
+ *    the service's mapping changes.
+ *  - **What-we-owe (Supplier AP) is unaffected by construction, not by a
+ *    special case.** Every AP read model (`SupplierApRowSchema`,
+ *    `AgingBucketsSchema`, `ApSummarySchema` below) is keyed by
+ *    `supplierId` and built by joining `SupplierInvoice`/`SupplierPayment`
+ *    rows to a `Supplier` row — `ExpectedDelivery` never feeds them directly
+ *    (an AP row exists once a `SupplierInvoice` is recorded against a
+ *    signed `GoodsReceipt`, not from the Stage-1 estimate). A supplier-less
+ *    `ExpectedDelivery` therefore has no path into an AP query today; §8 of
+ *    `receiving-service.test.ts` adds a regression test asserting this stays
+ *    true once S7 (AP endpoints) lands, rather than trusting the absence of
+ *    code to keep being the reason.
+ *  - Prisma: `ExpectedDelivery.supplierId`/`paymentTerms` become nullable
+ *    columns (migration `20260917000000_expected_delivery_optional_supplier`,
+ *    see `schema.prisma`'s own comment on the model for the same rationale).
+ *    `GoodsReceipt`/`SupplierInvoice`/`SupplierPayment` are untouched — a
+ *    signed receipt and everything downstream of it still requires a real
+ *    supplier; only the Stage-1 *estimate* may be supplier-less.
+ *  - `docs/API_CONTRACT.md` §22.5 records this amendment; §22 is otherwise
+ *    unchanged.
  */
 import { z } from 'zod';
 
@@ -121,9 +176,19 @@ export const ExpectedDeliveryLineSchema = z.object({
 export const ExpectedDeliverySummarySchema = z.object({
   id: uuid,
   reference: z.string(),
-  supplierId: uuid,
-  supplierName: z.string(),
-  paymentTerms: supplierPaymentTermsSchema,
+  /** Null when the purchase was saved with no supplier (AMENDMENT 2026-09-17). */
+  supplierId: uuid.nullable(),
+  /**
+   * Null when `supplierId` is null. Matches the existing nullable-not-
+   * sentinel convention (`estimatedTotal`, `expectedDate`) rather than an
+   * empty string. Display layers (Purchasing hub Inbound band, History row)
+   * render the literal string "No supplier" when this is null — that
+   * fallback text lives at the service/component layer, not baked into the
+   * wire value.
+   */
+  supplierName: z.string().nullable(),
+  /** Null when `supplierId` is null — terms are meaningless with no supplier chosen. */
+  paymentTerms: supplierPaymentTermsSchema.nullable(),
   status: expectedDeliveryStatusSchema,
   /** "Milk, cream, yoghurt · 6 lines" — the DETAIL column. */
   itemSummary: z.string(),
@@ -143,8 +208,10 @@ export const ExpectedDeliverySummarySchema = z.object({
 });
 
 export const CreateExpectedDeliverySchema = z.object({
-  supplierId: uuid,
-  paymentTerms: supplierPaymentTermsSchema,
+  /** Optional (AMENDMENT 2026-09-17) — a purchase list may be saved with no supplier. */
+  supplierId: uuid.optional(),
+  /** Optional in lockstep with `supplierId` — see this file's header amendment. */
+  paymentTerms: supplierPaymentTermsSchema.optional(),
   expectedDate: isoDate.optional(),
   lines: z
     .array(

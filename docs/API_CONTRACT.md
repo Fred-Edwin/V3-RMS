@@ -3575,6 +3575,11 @@ specified:
 > **AMENDMENT 2026-09-16 (post-freeze, during S3):** `PurchasingHistoryRowSchema`
 > added — `GET /inventory/purchasing/history`'s response shape was missed at
 > freeze time. See §22.3 below.
+>
+> **AMENDMENT 2026-09-17 (New purchase redesign):** supplier becomes optional
+> on an expected delivery (`CreateExpectedDeliverySchema.supplierId`/
+> `paymentTerms`, `ExpectedDeliverySummarySchema.supplierId`/`supplierName`/
+> `paymentTerms`). See §22.5 below.
 
 ### 22.1 Source of truth
 
@@ -3700,4 +3705,37 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
 
 ### 22.5 Amendments since freeze
 
-None yet.
+> **AMENDMENT 2026-09-17 (New purchase redesign, owner-approved in Paper —
+> `01M1ZZJ6S3FZGF5C7PPBGTKY89`, artboards `X9J-0`/`XXR-0`/`XN8-0`/`XOK-0`/
+> `XUT-0`/`XXR-0`/`XZM-0`): supplier becomes optional on an expected
+> delivery.** The redesigned New-purchase screen lets a Store Manager save a
+> pure shopping list (items + quantities, no supplier assigned yet) —
+> "Save purchase" no longer requires picking a supplier first.
+>
+> - `CreateExpectedDeliverySchema.supplierId` and `.paymentTerms` are now
+>   both `.optional()` (paymentTerms in lockstep — terms are meaningless
+>   without a supplier to owe them to; the screen greys the control out with
+>   "Select a supplier to set payment terms" until one is picked).
+> - `ExpectedDeliverySummarySchema.supplierId` and `.supplierName` are now
+>   `.nullable()` (not empty-string sentinels — matches the existing
+>   `estimatedTotal`/`expectedDate` convention); `.paymentTerms` is
+>   `.nullable()` too.
+> - Display copy: wherever a supplier name would render (Purchasing hub
+>   Inbound band, `PurchasingHistoryRowSchema`'s `expectedDelivery` variant),
+>   a null supplier renders the literal string **"No supplier"**; payment
+>   terms render a dash. This is service-owned display copy
+>   (`receiving-service.ts`'s `toHistoryRow`/`paymentTermsLabel`), not a
+>   client-side fallback.
+> - **What-we-owe (Supplier AP) is unaffected by construction.** Every AP
+>   read model (`SupplierApRowSchema`, `AgingBucketsSchema`, `ApSummarySchema`)
+>   is keyed by a non-nullable `supplierId` on `GoodsReceipt`/
+>   `SupplierInvoice`/`SupplierPayment` — none of those three FKs changed.
+>   `ExpectedDelivery` never feeds an AP row directly. See
+>   `receiving-contract.test.ts`'s "AP exclusion invariant" tests.
+> - Prisma: `ExpectedDelivery.supplierId` and `.paymentTerms` became nullable
+>   columns — migration
+>   `20260917134537_expected_delivery_optional_supplier`.
+>   `GoodsReceipt`/`SupplierInvoice`/`SupplierPayment` are untouched.
+> - Full rationale: `receiving-validators.ts`'s header comment (this file's
+>   own amendment block, dated 2026-09-17, immediately above
+>   `ExpectedDeliverySummarySchema`/`CreateExpectedDeliverySchema`).

@@ -53,12 +53,23 @@ export interface ExpectedDeliveryLine {
   estimatedUnitPrice: string;
 }
 
+/**
+ * AMENDMENT 2026-09-17 (New purchase redesign, owner-approved in Paper —
+ * artboards X9J-0/XXR-0): supplier is optional — a purchase list may be
+ * saved with no supplier (a pure shopping list). `supplierId`/`supplierName`
+ * are nullable (not empty-string sentinels, matching `estimatedTotal`/
+ * `expectedDate`'s existing convention); `paymentTerms` is nullable in
+ * lockstep, since terms are meaningless with no supplier chosen. See
+ * backend/src/modules/inventory/receiving-validators.ts's header comment for
+ * the full amendment record.
+ */
 export interface ExpectedDeliverySummary {
   id: string;
   reference: string;
-  supplierId: string;
-  supplierName: string;
-  paymentTerms: SupplierPaymentTerms;
+  supplierId: string | null;
+  /** Null when supplierId is null. Render "No supplier" at the display layer. */
+  supplierName: string | null;
+  paymentTerms: SupplierPaymentTerms | null;
   status: ExpectedDeliveryStatus;
   itemSummary: string;
   lineCount: number;
@@ -71,8 +82,10 @@ export interface ExpectedDeliverySummary {
 }
 
 export interface CreateExpectedDeliveryInput {
-  supplierId: string;
-  paymentTerms: SupplierPaymentTerms;
+  /** Optional (AMENDMENT 2026-09-17) — a purchase list may be saved with no supplier. */
+  supplierId?: string;
+  /** Optional in lockstep with supplierId. */
+  paymentTerms?: SupplierPaymentTerms;
   expectedDate?: string;
   lines: Array<{
     inventoryItemId: string;

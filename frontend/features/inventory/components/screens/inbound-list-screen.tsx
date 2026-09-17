@@ -168,10 +168,12 @@ function DesktopRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel:
   return (
     <div className="flex h-14 items-center border-b border-wds-neutral-100 px-wds-4 transition-colors last:border-b-0 hover:bg-wds-surface-sunken">
       <div className="flex w-[220px] min-w-0 shrink-0 flex-col gap-px">
-        <span className="truncate font-wds-sans text-wds-body-sm font-medium text-wds-text-ink" title={row.supplierName}>
-          {row.supplierName}
+        <span className="truncate font-wds-sans text-wds-body-sm font-medium text-wds-text-ink" title={row.supplierName ?? 'No supplier'}>
+          {row.supplierName ?? 'No supplier'}
         </span>
-        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{PAYMENT_TERMS_LABEL[row.paymentTerms]}</span>
+        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+          {row.paymentTerms ? PAYMENT_TERMS_LABEL[row.paymentTerms] : '—'}
+        </span>
       </div>
       <span className="min-w-0 grow truncate font-wds-sans text-wds-body-sm text-wds-text-ink" title={detailText}>
         {detailText}
@@ -210,8 +212,8 @@ function MobileRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: 
   return (
     <div className="flex flex-col gap-wds-2 rounded-wds-md border border-wds-border bg-wds-surface p-wds-3.5">
       <div className="flex min-w-0 items-center justify-between gap-wds-2">
-        <span className="min-w-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName}>
-          {row.supplierName}
+        <span className="min-w-0 truncate font-wds-sans text-wds-body font-medium text-wds-text-ink" title={row.supplierName ?? 'No supplier'}>
+          {row.supplierName ?? 'No supplier'}
         </span>
         <span className={`shrink-0 font-wds-sans text-wds-caption ${statusToneText[status.tone]}`}>{status.label}</span>
       </div>

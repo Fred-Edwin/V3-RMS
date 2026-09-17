@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { formatApiErrorMessage } from '@/types/api';
 import { createSupplier, listItems, listSuppliers } from '../services';
-import { createExpectedDelivery, getLastPrice, getRecentSupplierItems } from '../services/receiving-api-service';
+import { createExpectedDelivery } from '../services/receiving-api-service';
 import type { CreateSupplierInput, InventoryItem, Supplier } from '../types';
-import type { CreateExpectedDeliveryInput, ExpectedDeliverySummary, RecentSupplierItem } from '../types/receiving';
+import type { CreateExpectedDeliveryInput, ExpectedDeliverySummary } from '../types/receiving';
 
 /**
  * Supplier + item picker option lists for the New purchase full page.
@@ -72,65 +72,6 @@ export function useCreateSupplierInline() {
   }, []);
 
   return { create, saving, error };
-}
-
-/** "Recently purchased from this supplier" section for the item combobox — empty until a supplier is selected. */
-export function useRecentSupplierItems(supplierId: string | null) {
-  const [items, setItems] = useState<RecentSupplierItem[]>([]);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-
-  useEffect(() => {
-    if (!supplierId) {
-      setItems([]);
-      setStatus('idle');
-      return;
-    }
-    let cancelled = false;
-    setStatus('loading');
-    void getRecentSupplierItems(supplierId)
-      .then((result) => {
-        if (!cancelled) {
-          setItems(result);
-          setStatus('ready');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [supplierId]);
-
-  return { items, status };
-}
-
-/**
- * "Last purchase 2 Sep · KES 6,410 · milk, cream, yoghurt" reference caption
- * (`UEP-0`) — keyed to the selected supplier's most-purchased item as a
- * proxy, since the endpoint is per-item (`GET /inventory/items/:id/last-price`),
- * not per-supplier. Only the unit price + date are real; the item-names
- * fragment is cosmetic copy the contract doesn't return, so it's omitted
- * here rather than fabricated.
- */
-export function useLastPrice(itemId: string | null) {
-  const [lastPrice, setLastPrice] = useState<{ unitPrice: string; asOf: string } | null>(null);
-
-  useEffect(() => {
-    if (!itemId) {
-      setLastPrice(null);
-      return;
-    }
-    let cancelled = false;
-    void getLastPrice(itemId).then((result) => {
-      if (!cancelled) setLastPrice(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [itemId]);
-
-  return lastPrice;
 }
 
 export function useSaveExpectedDelivery() {

@@ -61,8 +61,9 @@ const serializeExpectedDelivery = (
   return {
     id: delivery.id,
     reference: delivery.reference,
+    // Nullable in lockstep (AMENDMENT 2026-09-17, receiving-validators.ts header).
     supplierId: delivery.supplierId,
-    supplierName: delivery.supplier.name,
+    supplierName: delivery.supplier ? delivery.supplier.name : null,
     paymentTerms: delivery.paymentTerms,
     status: delivery.status,
     itemSummary,
@@ -77,8 +78,11 @@ const serializeExpectedDelivery = (
 
 const canSeeMoney = (actor: Actor): boolean => actor.role !== 'STORE_ATTENDANT';
 
-const paymentTermsLabel = (terms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW'): string =>
-  terms === 'PAY_NOW' ? 'Paid on delivery' : 'Invoice';
+/** Null (no supplier chosen yet, AMENDMENT 2026-09-17) renders as a dash, never a guessed default. */
+const paymentTermsLabel = (terms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW' | null): string => {
+  if (terms === null) return '—';
+  return terms === 'PAY_NOW' ? 'Paid on delivery' : 'Invoice';
+};
 
 /**
  * Maps an ExpectedDelivery into the History band's pre-formatted row shape
@@ -100,7 +104,10 @@ const toHistoryRow = (
   return {
     type: 'expectedDelivery',
     id: summary.id,
-    supplierName: summary.supplierName,
+    // "No supplier" literal (AMENDMENT 2026-09-17) — never null on this
+    // pre-formatted row shape; PurchasingHistoryRowSchema's supplierName
+    // stays a plain (non-nullable) string.
+    supplierName: summary.supplierName ?? 'No supplier',
     paymentTermsLabel: paymentTermsLabel(delivery.paymentTerms),
     detailLabel,
     ageLabel: summary.ageLabel,
@@ -136,9 +143,14 @@ export const receivingService = {
   ): Promise<ExpectedDeliverySummary> => {
     const organizationId = await requireHubActor(actor);
 
-    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
-    if (!supplier) throw new NotFoundError('Supplier not found');
-    if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+    // AMENDMENT 2026-09-17: supplierId is optional — a pure shopping list has
+    // no supplier to validate against. Only look one up (and 404/409 on it)
+    // when the caller actually supplied one.
+    if (input.supplierId) {
+      const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+      if (!supplier) throw new NotFoundError('Supplier not found');
+      if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+    }
 
     const itemIds = input.lines.map((l) => l.inventoryItemId);
     const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);

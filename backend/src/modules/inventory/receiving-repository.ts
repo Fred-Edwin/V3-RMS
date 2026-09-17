@@ -27,13 +27,15 @@ export const referenceCounterRepository = {
 // ---------------------------------------------------------------------------
 
 export type ExpectedDeliveryWithRelations = ExpectedDelivery & {
-  supplier: { id: string; name: string };
+  // Nullable in lockstep with the FK (AMENDMENT 2026-09-17 — supplier is optional).
+  supplier: { id: string; name: string } | null;
   lines: (ExpectedDeliveryLine & { inventoryItem: { id: string; name: string; buyUnit: string } })[];
 };
 
 export type CreateExpectedDeliveryInput = {
-  supplierId: string;
-  paymentTerms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW';
+  /** Optional (AMENDMENT 2026-09-17) — see receiving-validators.ts header. */
+  supplierId?: string;
+  paymentTerms?: 'INVOICE_TO_FOLLOW' | 'PAY_NOW';
   expectedDate: Date | null;
   createdById: string;
   lines: { inventoryItemId: string; quantity: Prisma.Decimal.Value; estimatedUnitPrice: Prisma.Decimal.Value }[];
@@ -99,8 +101,8 @@ export const expectedDeliveryRepository = {
       data: {
         organizationId,
         reference,
-        supplierId: input.supplierId,
-        paymentTerms: input.paymentTerms,
+        supplierId: input.supplierId ?? null,
+        paymentTerms: input.paymentTerms ?? null,
         expectedDate: input.expectedDate,
         estimatedTotal,
         createdById: input.createdById,

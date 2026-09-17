@@ -182,6 +182,19 @@ describe('Receiving — expected deliveries + purchasing hub routes', () => {
       expect(res.body.data.reference).toBe('EXP-0001');
     });
 
+    it('POST /inventory/expected-deliveries succeeds with no supplierId — a pure shopping list (AMENDMENT 2026-09-17)', async () => {
+      vi.spyOn(receivingService, 'createExpectedDelivery').mockResolvedValue(
+        buildDeliverySummary({ supplierId: null, supplierName: null, paymentTerms: null }) as never,
+      );
+      const res = await request(app)
+        .post('/api/v1/inventory/expected-deliveries')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ lines: validCreateBody.lines });
+      expect(res.status).toBe(201);
+      expect(res.body.data.supplierId).toBeNull();
+      expect(res.body.data.paymentTerms).toBeNull();
+    });
+
     it('POST /inventory/expected-deliveries rejects an empty lines array (400)', async () => {
       const res = await request(app)
         .post('/api/v1/inventory/expected-deliveries')

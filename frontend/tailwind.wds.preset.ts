@@ -24,6 +24,7 @@ const wdsPreset: Partial<Config> = {
         'wds-ring': 'var(--wds-ring)',
         'wds-scrim': 'var(--wds-scrim)',
         'wds-table-header-bg': 'var(--wds-table-header-bg)',
+        'wds-select-blue': 'var(--wds-select-blue)',
 
         'wds-neutral': {
           0: 'var(--wds-neutral-0)',
