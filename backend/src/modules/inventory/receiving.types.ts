@@ -24,6 +24,7 @@ import type {
   CreateInvoiceAdjustmentSchema,
   CreateSupplierInvoiceSchema,
   CreateSupplierPaymentSchema,
+  ExpectedDeliveryDetailSchema,
   ExpectedDeliveryLineSchema,
   ExpectedDeliverySummarySchema,
   GoodsReceiptDetailSchema,
@@ -60,6 +61,7 @@ export type SupplierPaymentMethod = z.infer<typeof supplierPaymentMethodSchema>;
 
 export type ExpectedDeliveryLine = z.infer<typeof ExpectedDeliveryLineSchema>;
 export type ExpectedDeliverySummary = z.infer<typeof ExpectedDeliverySummarySchema>;
+export type ExpectedDeliveryDetail = z.infer<typeof ExpectedDeliveryDetailSchema>;
 export type CreateExpectedDeliveryInput = z.infer<typeof CreateExpectedDeliverySchema>;
 export type ListExpectedDeliveriesQuery = z.infer<typeof ListExpectedDeliveriesQuerySchema>;
 export type RecentSupplierItem = z.infer<typeof RecentSupplierItemSchema>;

@@ -37,7 +37,9 @@ export const referenceCounterRepository = {
 export type ExpectedDeliveryWithRelations = ExpectedDelivery & {
   // Nullable in lockstep with the FK (AMENDMENT 2026-09-17 — supplier is optional).
   supplier: { id: string; name: string } | null;
-  lines: (ExpectedDeliveryLine & { inventoryItem: { id: string; name: string; buyUnit: string } })[];
+  lines: (ExpectedDeliveryLine & {
+    inventoryItem: { id: string; name: string; buyUnit: string; usageUnit: string; conversionFactor: Prisma.Decimal | null };
+  })[];
 };
 
 export type CreateExpectedDeliveryInput = {
@@ -60,7 +62,9 @@ export type ListExpectedDeliveriesFilters = {
 const expectedDeliveryInclude = {
   supplier: { select: { id: true, name: true } },
   lines: {
-    include: { inventoryItem: { select: { id: true, name: true, buyUnit: true } } },
+    include: {
+      inventoryItem: { select: { id: true, name: true, buyUnit: true, usageUnit: true, conversionFactor: true } },
+    },
     orderBy: { lineOrder: 'asc' },
   },
 } satisfies Prisma.ExpectedDeliveryInclude;
@@ -138,6 +142,21 @@ export const expectedDeliveryRepository = {
     return expectedDeliveryRepository.findById(id, organizationId);
   },
 
+  /**
+   * Called from inside `signGoodsReceipt`'s transaction when the receipt
+   * being signed is linked to an expected delivery — the moment stock
+   * actually lands is the moment the estimate it was expected against is
+   * done. `where: { status: 'AWAITING' }` makes this a no-op (0 rows) if the
+   * delivery was already fulfilled/cancelled by some other path; the caller
+   * doesn't need the result, this never blocks or fails the sign.
+   */
+  markFulfilled: async (id: string, organizationId: string, tx: TxClient): Promise<void> => {
+    await tx.expectedDelivery.updateMany({
+      where: { id, organizationId, status: 'AWAITING' },
+      data: { status: 'FULFILLED' },
+    });
+  },
+
   // ── Purchasing hub summary + history ────────────────────────────────────
 
   countByStatus: async (organizationId: string, status: ExpectedDeliveryStatus): Promise<number> => {
@@ -150,10 +169,25 @@ export const expectedDeliveryRepository = {
     });
   },
 
-  /** History band's ExpectedDelivery half of the union query (plan §3.2 — the GoodsReceipt half lands in S4). */
+  /**
+   * History band's ExpectedDelivery half of the union query (plan §3.2). The
+   * GoodsReceipt half is `goodsReceiptRepository.findHistoryRows` (2026-09-18
+   * amendment). `cursor` added alongside that amendment — the Purchasing
+   * hub's own `getPurchasingHistory` still uses this without a cursor
+   * (limit-bump, a known gap noted on `use-purchasing-history-list.ts`); the
+   * new `getReceivingHistory` service method is what actually passes one.
+   */
   findHistoryRows: async (
     organizationId: string,
-    filters: { search?: string; supplierId?: string; status?: ExpectedDeliveryStatus; from?: Date; to?: Date; limit: number },
+    filters: {
+      search?: string;
+      supplierId?: string;
+      status?: ExpectedDeliveryStatus;
+      from?: Date;
+      to?: Date;
+      limit: number;
+      cursor?: string;
+    },
   ): Promise<ExpectedDeliveryWithRelations[]> => {
     const where: Prisma.ExpectedDeliveryWhereInput = {
       organizationId,
@@ -170,6 +204,7 @@ export const expectedDeliveryRepository = {
       include: expectedDeliveryInclude,
       orderBy: { createdAt: 'desc' },
       take: filters.limit,
+      ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
     });
   },
 };
@@ -310,6 +345,31 @@ const goodsReceiptInclude = {
   },
   invoices: { include: { supplierInvoice: { select: { id: true, invoiceNumber: true } } }, take: 1 },
 } satisfies Prisma.GoodsReceiptInclude;
+
+/**
+ * Lighter than `goodsReceiptInclude` — a history row needs the linked
+ * invoice's AP status/dispute state (for "Invoice recorded" / "Paid" /
+ * "Disputed" tone), not the full line array a detail screen needs. Selecting
+ * `status`/`disputeStatus` here is new: `goodsReceiptInclude` above only ever
+ * fetched `id`/`invoiceNumber` because no caller before this needed AP state
+ * off a receipt (2026-09-18 amendment, receiving-validators.ts header).
+ */
+const goodsReceiptHistoryInclude = {
+  supplier: { select: { id: true, name: true } },
+  lines: { select: { inventoryItem: { select: { name: true } } } },
+  invoices: {
+    include: { supplierInvoice: { select: { id: true, invoiceNumber: true, status: true, disputeStatus: true } } },
+    take: 1,
+  },
+} satisfies Prisma.GoodsReceiptInclude;
+
+export type GoodsReceiptHistoryRow = GoodsReceipt & {
+  supplier: { id: string; name: string };
+  lines: { inventoryItem: { name: string } }[];
+  invoices: {
+    supplierInvoice: { id: string; invoiceNumber: string; status: string; disputeStatus: string | null };
+  }[];
+};
 
 const computeLineTotal = (
   quantityBuyUnit: Prisma.Decimal.Value,
@@ -465,6 +525,45 @@ export const goodsReceiptRepository = {
     return prisma.user.findMany({
       where: { organizationId: hubOrganizationId, role: 'STORE_MANAGER', isActive: true, deletedAt: null },
       select: { id: true, name: true },
+    });
+  },
+
+  /**
+   * The GoodsReceipt half of the Receiving History union (2026-09-18
+   * amendment, receiving-validators.ts header) — the `TODO(S4)` in
+   * `receiving-service.ts` this finally resolves. Filters on `createdAt`
+   * like `expectedDeliveryRepository.findHistoryRows`, not `signedAt`: a
+   * still-DRAFT receipt has no `signedAt` yet but is still a real row a
+   * Manager searching history by date range should find.
+   */
+  findHistoryRows: async (
+    organizationId: string,
+    filters: {
+      search?: string;
+      supplierId?: string;
+      status?: GoodsReceiptStatus;
+      from?: Date;
+      to?: Date;
+      limit: number;
+      cursor?: string;
+    },
+  ): Promise<GoodsReceiptHistoryRow[]> => {
+    const where: Prisma.GoodsReceiptWhereInput = {
+      organizationId,
+      ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.search ? { supplier: { name: { contains: filters.search, mode: 'insensitive' } } } : {}),
+      ...(filters.from || filters.to
+        ? { createdAt: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } }
+        : {}),
+    };
+
+    return prisma.goodsReceipt.findMany({
+      where,
+      include: goodsReceiptHistoryInclude,
+      orderBy: { createdAt: 'desc' },
+      take: filters.limit,
+      ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
     });
   },
 };

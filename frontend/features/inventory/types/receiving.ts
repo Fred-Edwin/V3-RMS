@@ -50,6 +50,7 @@ export interface ExpectedDeliveryLine {
   itemName: string;
   quantity: string;
   buyUnit: string;
+  usageUnit: string;
   estimatedUnitPrice: string;
 }
 
@@ -79,6 +80,15 @@ export interface ExpectedDeliverySummary {
   isOverdue: boolean;
   ageLabel: string;
   createdAt: string;
+}
+
+/**
+ * AMENDMENT 2026-09-17 (S6 follow-up): mirrors backend's
+ * ExpectedDeliveryDetailSchema — added so New Goods Receipt can prefill
+ * from the linked delivery instead of starting blank.
+ */
+export interface ExpectedDeliveryDetail extends ExpectedDeliverySummary {
+  lines: ExpectedDeliveryLine[];
 }
 
 export interface CreateExpectedDeliveryInput {
@@ -174,6 +184,24 @@ export interface CreateGoodsReceiptInput {
 export interface SignGoodsReceiptInput {
   pin: string;
   acceptedPriceAlerts: string[];
+}
+
+/**
+ * AMENDMENT 2026-09-17 (post-freeze): mirrors backend's UpdateGoodsReceiptSchema.
+ * supplierId is deliberately absent — immutable once a receipt is created.
+ * All fields optional (partial update); `lines`, if present, replaces the
+ * full line set (backend requires min 1 when provided).
+ */
+export interface UpdateGoodsReceiptInput {
+  expectedDeliveryId?: string;
+  paymentTerms?: SupplierPaymentTerms;
+  supplierDocNumber?: string;
+  supplierDocDate?: string;
+  lines?: Array<{
+    inventoryItemId: string;
+    quantityBuyUnit: string;
+    unitPrice: string;
+  }>;
 }
 
 // ─── Supplier invoices (Stage 10, Flow 14) ─────────────────────────────────

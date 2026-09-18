@@ -72,8 +72,9 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
    `components/ui/` (shadcn + design tokens) — not the old flat `controllers/`,
    `services/` layout. See `docs/FEATURE_REDO_PLAYBOOK.md` §9.
 10. Always use pnpm — install, run scripts, build, run.
-11. The owner runs on Windows PowerShell; agents here run on Linux/WSL. Give the
-    owner PowerShell commands, but run your own tooling with POSIX shell.
+11. The owner runs Omarchy Linux; agents here also run Linux. Give the owner
+    and run your own tooling with the same POSIX shell commands — no
+    PowerShell, no WSL distinction needed anymore.
 
 ## Task Tracking
 
@@ -208,29 +209,29 @@ modules, the old "warm" UI roadmap) is in `docs/archive/` — see
 
 ### Local Dev - Core
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
+```bash
+cd ~/Projects/V3-RMS
 docker compose up -d postgres redis api worker
 docker compose ps
-Invoke-RestMethod http://localhost:4000/api/v1/health
+curl http://localhost:4000/api/v1/health
 ```
 
 Frontend:
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS\frontend"
+```bash
+cd ~/Projects/V3-RMS/frontend
 pnpm install
 pnpm dev
 ```
 
 Build checks (run BOTH before every push — `typecheck` alone is not sufficient):
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS\backend"
+```bash
+cd ~/Projects/V3-RMS/backend
 pnpm build
 pnpm test
 
-Set-Location "d:\AI applications\web\V3-RMS\frontend"
+cd ~/Projects/V3-RMS/frontend
 pnpm build
 ```
 
@@ -240,8 +241,8 @@ pnpm build
 
 1. Edit `backend/prisma/schema.prisma` locally
 2. Generate the migration SQL file locally:
-   ```powershell
-   Set-Location "d:\AI applications\web\V3-RMS\backend"
+   ```bash
+   cd ~/Projects/V3-RMS/backend
    npx prisma migrate dev --name describe_your_change
    ```
 3. Commit the generated migration file in `backend/prisma/migrations/`
@@ -254,8 +255,8 @@ pnpm build
 **Never run `prisma migrate dev` on production — it will prompt to reset (wipe) the database.**
 **Never run `prisma migrate deploy` without a committed migration file — it will report "No pending migrations" and the schema change won't apply.**
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
+```bash
+cd ~/Projects/V3-RMS
 docker compose exec api npx prisma migrate deploy
 docker compose exec api npx prisma migrate status
 docker compose exec api node dist/scripts/seed-admin.js
@@ -263,36 +264,37 @@ docker compose exec api node dist/scripts/seed-admin.js
 
 Reset local DB/data volumes:
 
-```powershell
+```bash
 docker compose down -v
 docker compose up -d postgres redis api worker
 ```
 
 ### Prisma Studio (Important Distinction)
 
-- **Local DB Studio** (run on local Windows machine):
+- **Local DB Studio** (run on local machine):
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
-.\scripts\db-studio-local.ps1
+```bash
+cd ~/Projects/V3-RMS
+./scripts/db-studio-local.sh
 ```
 
-- **Production DB Studio** (run on local Windows machine; opens SSH tunnel):
+- **Production DB Studio** (run on local machine; opens SSH tunnel):
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
-.\scripts\db-studio.ps1
+```bash
+cd ~/Projects/V3-RMS
+./scripts/db-studio.sh
 ```
 
-Do **not** run `.ps1` scripts inside Ubuntu server shell.
+Do **not** run these scripts inside the production server's own shell — they
+open an SSH tunnel *to* it and are meant to run from your local machine.
 Production Prisma Studio tunnels to server host port `5433`.
 
 ### Logs
 
 Local Docker logs:
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
+```bash
+cd ~/Projects/V3-RMS
 docker compose logs -f api
 docker compose logs -f worker
 docker compose logs --tail=100 postgres
@@ -300,10 +302,10 @@ docker compose logs --tail=100 postgres
 
 Production logs from local machine:
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
-.\scripts\logs.ps1
-.\scripts\logs.ps1 worker
+```bash
+cd ~/Projects/V3-RMS
+./scripts/logs.sh
+./scripts/logs.sh worker
 ```
 
 ### Production Server - Safe DB Commands
@@ -336,10 +338,10 @@ Set phone-facing envs:
 
 Then:
 
-```powershell
-Set-Location "d:\AI applications\web\V3-RMS"
+```bash
+cd ~/Projects/V3-RMS
 docker compose up -d --force-recreate api worker
-Set-Location "d:\AI applications\web\V3-RMS\frontend"
+cd ~/Projects/V3-RMS/frontend
 pnpm dev -- -H 0.0.0.0 -p 3000
 ```
 
@@ -367,7 +369,7 @@ Push Notifications — if it shows Enabled, they can log out and back in to re-r
 
 ### GitHub CLI (gh) — PR & Deploy Workflow
 
-```powershell
+```bash
 # After pushing a branch — monitor CI live (no browser needed)
 gh run watch
 
@@ -390,7 +392,8 @@ gh run list --branch main --limit 5 --repo Fred-Edwin/V3-RMS
 gh run view <run-id> --log
 ```
 
-PowerShell profile shortcuts (defined in `$PROFILE`):
+Shell shortcuts (define these as functions/aliases in your shell rc file,
+e.g. `~/.bashrc` or `~/.zshrc`, if you want them):
 
 | Shortcut | What it does |
 |---|---|

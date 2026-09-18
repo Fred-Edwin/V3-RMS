@@ -7,6 +7,7 @@ import {
   CreateGoodsReceiptSchema,
   ListExpectedDeliveriesQuerySchema,
   ListGoodsReceiptsQuerySchema,
+  ReceivingHistoryQuerySchema,
   RecentSupplierItemsQuerySchema,
   SignGoodsReceiptSchema,
   UpdateGoodsReceiptSchema,
@@ -43,12 +44,28 @@ export const receivingController = {
     res.status(200).json({ success: true, data });
   },
 
+  // ── Receiving history (Attendant-safe, 2026-09-18 amendment) ─────────────
+
+  getReceivingHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ReceivingHistoryQuerySchema.parse(req.query);
+    const data = await receivingService.getReceivingHistory(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
   // ── Expected deliveries ──────────────────────────────────────────────────
 
   listExpectedDeliveries: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const query = ListExpectedDeliveriesQuerySchema.parse(req.query);
     const data = await receivingService.listExpectedDeliveries(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getExpectedDelivery: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const data = await receivingService.getExpectedDelivery(actor, id);
     res.status(200).json({ success: true, data });
   },
 

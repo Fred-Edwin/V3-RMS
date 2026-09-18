@@ -3622,6 +3622,7 @@ All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
 |---|---|---|
 | `GET` | `/inventory/purchasing/summary` | SM, SA, ACC, DIR |
 | `GET` | `/inventory/expected-deliveries` | SM, SA, ACC, DIR |
+| `GET` | `/inventory/expected-deliveries/:id` | SM, SA, ACC, DIR |
 | `POST` | `/inventory/expected-deliveries` | SM |
 | `POST` | `/inventory/expected-deliveries/:id/cancel` | SM |
 | `GET` | `/inventory/purchasing/history` | SM, SA, ACC, DIR |
@@ -3704,6 +3705,42 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
     statement-import or matching endpoint this milestone (plan §7 Q6).
 
 ### 22.5 Amendments since freeze
+
+> **AMENDMENT 2026-09-18 (S6 follow-up): signing a Goods Receipt now marks its
+> linked ExpectedDelivery `FULFILLED`.** Previously `POST /goods-receipts/:id/
+> sign` never touched the `ExpectedDelivery` row it was created against —
+> `ExpectedDeliveryStatus.FULFILLED` existed in the enum but nothing ever set
+> it, so a delivery stayed `AWAITING` (and kept showing on the Receiving
+> worklist / Purchasing hub's "Expected" count) even after it was fully
+> received and signed. Fixed inside `signGoodsReceipt`'s existing
+> `prisma.$transaction`: if `receipt.expectedDeliveryId` is set, a new
+> `expectedDeliveryRepository.markFulfilled(id, organizationId, tx)` call
+> flips it to `FULFILLED`, conditioned on `status: 'AWAITING'` (a no-op, not
+> an error, if it was already fulfilled/cancelled some other way). No new
+> endpoint, no schema change — `ExpectedDeliveryStatus` already had this
+> value. Receipts with no linked delivery (walk-in / no-expected-delivery
+> receiving) are unaffected, since there's nothing to mark.
+
+> **AMENDMENT 2026-09-17 (S6 follow-up): `GET /inventory/expected-deliveries/:id`
+> added.** The frozen contract only ever defined a list and a cancel action for
+> expected deliveries — no single-record read. The New Goods Receipt entry
+> screen (`UQE-0`) needs to prefill its supplier, payment terms, and Receipt
+> Line Grid from the expected delivery a Receiving-worklist "Receive" click
+> carries (`?expectedDeliveryId=`), so a Store Manager/Attendant is confirming
+> what already arrived against the estimate, not re-entering it from scratch.
+>
+> - New schema `ExpectedDeliveryDetailSchema` — `ExpectedDeliverySummarySchema`
+>   extended with `lines: ExpectedDeliveryLineSchema[]`.
+> - `ExpectedDeliveryLineSchema` gained `usageUnit` (alongside the existing
+>   `buyUnit`) so the client can render the same "buy: X → usage: Y"
+>   conversion label the Receipt Line Grid already shows for goods-receipt
+>   lines — no schema change needed for the summary variant, which never
+>   showed a per-line conversion label.
+> - Same role set as the list endpoint (SM, SA, ACC, DIR) — this is a read,
+>   no new access surface.
+> - No Prisma migration — `ExpectedDeliveryLine`/`InventoryItem` already had
+>   every field needed; only the repository's existing `include` gained
+>   `usageUnit`/`conversionFactor` on the joined item.
 
 > **AMENDMENT 2026-09-17 (New purchase redesign, owner-approved in Paper —
 > `01M1ZZJ6S3FZGF5C7PPBGTKY89`, artboards `X9J-0`/`XXR-0`/`XN8-0`/`XOK-0`/

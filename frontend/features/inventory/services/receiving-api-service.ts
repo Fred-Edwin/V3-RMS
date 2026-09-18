@@ -12,11 +12,16 @@ import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type {
   CreateExpectedDeliveryInput,
+  CreateGoodsReceiptInput,
+  ExpectedDeliveryDetail,
   ExpectedDeliverySummary,
+  GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
   RecentSupplierItem,
+  SignGoodsReceiptInput,
+  UpdateGoodsReceiptInput,
 } from '../types/receiving';
 
 function token(): string | undefined {
@@ -51,12 +56,35 @@ export async function getPurchasingHistory(query: PurchasingHistoryQuery = {}): 
   return apiClient.get<PurchasingHistoryRow[]>(`/inventory/purchasing/history${toQueryString(query)}`, token());
 }
 
+// ─── Receiving history (2026-09-18, S6) ────────────────────────────────────
+// Attendant-safe sibling of getPurchasingHistory above — same union row
+// shape, but reachable by STORE_ATTENDANT (money/AP fields omitted
+// server-side) and with a real cursor.
+
+export interface ReceivingHistoryQuery {
+  search?: string;
+  supplierId?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export async function getReceivingHistory(query: ReceivingHistoryQuery = {}): Promise<PurchasingHistoryRow[]> {
+  return apiClient.get<PurchasingHistoryRow[]>(`/inventory/receiving/history${toQueryString(query)}`, token());
+}
+
 // ─── Expected deliveries ────────────────────────────────────────────────────
 
 export async function listExpectedDeliveries(
   query: ListExpectedDeliveriesQuery = {}
 ): Promise<ExpectedDeliverySummary[]> {
   return apiClient.get<ExpectedDeliverySummary[]>(`/inventory/expected-deliveries${toQueryString(query)}`, token());
+}
+
+export async function getExpectedDelivery(id: string): Promise<ExpectedDeliveryDetail> {
+  return apiClient.get<ExpectedDeliveryDetail>(`/inventory/expected-deliveries/${id}`, token());
 }
 
 export async function createExpectedDelivery(
@@ -67,6 +95,24 @@ export async function createExpectedDelivery(
 
 export async function cancelExpectedDelivery(id: string): Promise<ExpectedDeliverySummary> {
   return apiClient.post<ExpectedDeliverySummary>(`/inventory/expected-deliveries/${id}/cancel`, {}, token());
+}
+
+// ─── Goods receipts ─────────────────────────────────────────────────────────
+
+export async function getGoodsReceipt(id: string): Promise<GoodsReceiptDetail> {
+  return apiClient.get<GoodsReceiptDetail>(`/inventory/goods-receipts/${id}`, token());
+}
+
+export async function createGoodsReceipt(input: CreateGoodsReceiptInput): Promise<GoodsReceiptDetail> {
+  return apiClient.post<GoodsReceiptDetail>('/inventory/goods-receipts', input, token());
+}
+
+export async function updateGoodsReceipt(id: string, input: UpdateGoodsReceiptInput): Promise<GoodsReceiptDetail> {
+  return apiClient.patch<GoodsReceiptDetail>(`/inventory/goods-receipts/${id}`, input, token());
+}
+
+export async function signGoodsReceipt(id: string, input: SignGoodsReceiptInput): Promise<GoodsReceiptDetail> {
+  return apiClient.post<GoodsReceiptDetail>(`/inventory/goods-receipts/${id}/sign`, input, token());
 }
 
 // ─── Items ──────────────────────────────────────────────────────────────────

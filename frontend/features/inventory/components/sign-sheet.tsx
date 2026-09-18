@@ -17,12 +17,19 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui2/input-ot
  * the New Goods Receipt (sign & save) and signed detail screens reuse this
  * exact pattern per the S0 session brief.
  */
+export interface SignSheetDocumentSummary {
+  title: string;
+  detail: string;
+}
+
 export interface SignSheetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   subtitle: string;
   helperText: string;
+  /** Optional context card (e.g. "Goods Receipt — Samrat Ltd" / "2 lines · KES 10,860") shown above the PIN input, so the signer can confirm what they're about to lock in. */
+  documentSummary?: SignSheetDocumentSummary;
   confirmLabel?: string;
   cancelLabel?: string;
   onSubmit: (pin: string) => void;
@@ -38,6 +45,7 @@ export function SignSheetDialog({
   title,
   subtitle,
   helperText,
+  documentSummary,
   confirmLabel = 'Sign & save',
   cancelLabel = 'Cancel',
   onSubmit,
@@ -69,6 +77,13 @@ export function SignSheetDialog({
               {subtitle}
             </DialogPrimitive.Description>
           </div>
+
+          {documentSummary ? (
+            <div className="mx-wds-5 mt-wds-4 flex flex-col gap-wds-0.5 rounded-wds-sm border border-wds-border bg-wds-surface-sunken px-wds-3.5 py-wds-2.5">
+              <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{documentSummary.title}</span>
+              <span className="font-wds-mono text-wds-caption text-wds-text-copy-muted">{documentSummary.detail}</span>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-wds-2 p-wds-5">
             <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">

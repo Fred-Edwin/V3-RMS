@@ -1,4 +1,5 @@
 import * as React from 'react';
+import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { SearchInput, type SearchInputProps } from '@/components/ui2/search-input';
@@ -20,6 +21,8 @@ import { SearchInput, type SearchInputProps } from '@/components/ui2/search-inpu
 export interface TopbarBreadcrumb {
   section: string;
   screen: string;
+  /** Optional — when set, the section segment becomes a link back to it (e.g. a sub-screen returning to its list). Omit for the default static breadcrumb every other screen uses. */
+  sectionHref?: string;
 }
 
 export interface TopbarProps {
@@ -38,7 +41,16 @@ export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarPr
       )}
     >
       <div className="flex items-center gap-wds-2">
-        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{breadcrumb.section}</span>
+        {breadcrumb.sectionHref ? (
+          <Link
+            href={breadcrumb.sectionHref}
+            className="font-wds-sans text-wds-caption text-wds-text-copy-muted outline-none transition-colors hover:text-wds-text-ink focus-visible:shadow-wds-ring"
+          >
+            {breadcrumb.section}
+          </Link>
+        ) : (
+          <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{breadcrumb.section}</span>
+        )}
         <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
         <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">{breadcrumb.screen}</span>
       </div>

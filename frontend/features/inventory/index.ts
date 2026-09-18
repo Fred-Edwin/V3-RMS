@@ -19,6 +19,9 @@ export { DepartmentRestockLevelsScreen } from './components/screens/department-r
 // Milestone Two (Receiving & Supplier AP) — S5's three screens.
 export { PurchasingHubScreen } from './components/screens/purchasing-hub-screen';
 export { ReceivingWorklistScreen } from './components/screens/receiving-worklist-screen';
+export { ReceivingHistoryScreen } from './components/screens/receiving-history-screen';
 export { InboundListScreen } from './components/screens/inbound-list-screen';
 export { HistoryListScreen } from './components/screens/history-list-screen';
 export { NewPurchaseScreen } from './components/screens/new-purchase-screen';
+export { NewGoodsReceiptScreen } from './components/screens/new-goods-receipt-screen';
+export { GoodsReceiptDetailScreen } from './components/screens/goods-receipt-detail-screen';

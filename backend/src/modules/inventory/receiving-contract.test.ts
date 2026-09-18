@@ -38,6 +38,7 @@ vi.mock('./receiving-repository', () => ({
     findAllByOrganization: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
+    findHistoryRows: vi.fn(),
   },
   referenceCounterRepository: { nextReference: vi.fn() },
   lastPriceRepository: { findLastReceiptLine: vi.fn() },
@@ -259,10 +260,60 @@ describe('Receiving contract drift guard', () => {
         lines: [],
       },
     ] as never);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([]);
 
     const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
     expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
     expect(row!.type).toBe('expectedDelivery');
+  });
+
+  const goodsReceiptHistoryFixture = {
+    id: '55555555-5555-4555-8555-555555555555',
+    organizationId: hubOrgId,
+    reference: 'GRN-1041',
+    supplierId,
+    supplier: { id: supplierId, name: 'Kimathi Butchery' },
+    expectedDeliveryId: null,
+    paymentTerms: 'INVOICE_TO_FOLLOW',
+    status: 'RECEIVED_INVOICE_PENDING',
+    supplierDocNumber: null,
+    supplierDocDate: null,
+    receiptTotal: new Prisma.Decimal('21300'),
+    locationId: 'loc1',
+    signedById: 'sm1',
+    signedAt: new Date(),
+    createdById: 'sm1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lines: [{ inventoryItem: { name: 'Beef' } }],
+    invoices: [],
+  };
+
+  it('PurchasingHistoryRowSchema accepts getPurchasingHistory output — goodsReceipt variant (2026-09-18)', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([goodsReceiptHistoryFixture] as never);
+
+    const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
+    expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
+    expect(row!.type).toBe('goodsReceipt');
+  });
+
+  it('getReceivingHistory (2026-09-18) omits AP status for STORE_ATTENDANT — a goodsReceipt row collapses to "Received"', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([goodsReceiptHistoryFixture] as never);
+
+    const [row] = await receivingService.getReceivingHistory(storeAttendant, { limit: 25 });
+    expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
+    expect(row).toMatchObject({ type: 'goodsReceipt', statusLabel: 'Received', detailLabel: 'Beef' });
+  });
+
+  it('getReceivingHistory (2026-09-18) includes real AP status/KES total for STORE_MANAGER', async () => {
+    vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([goodsReceiptHistoryFixture] as never);
+
+    const [row] = await receivingService.getReceivingHistory(storeManager, { limit: 25 });
+    expect(() => PurchasingHistoryRowSchema.parse(row)).not.toThrow();
+    expect(row).toMatchObject({ type: 'goodsReceipt', statusLabel: 'Received — invoice pending', detailLabel: 'KES 21300' });
   });
 
   it('RecentSupplierItemSchema accepts getRecentSupplierItems output', async () => {

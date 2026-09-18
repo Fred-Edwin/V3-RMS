@@ -104,6 +104,37 @@
  *    supplier; only the Stage-1 *estimate* may be supplier-less.
  *  - `docs/API_CONTRACT.md` §22.5 records this amendment; §22 is otherwise
  *    unchanged.
+ *
+ * AMENDMENT 2026-09-18 (S6, Receiving worklist redesign, owner-approved in
+ * Paper): the Receiving worklist gains a "History" section — a dedicated,
+ * filterable, paginated view over the same expectedDelivery/goodsReceipt
+ * union `PurchasingHistoryRowSchema` already declares, but reachable by
+ * `STORE_ATTENDANT` (the `/inventory/purchasing/history` endpoint is not —
+ * see `receiving-routes.ts`'s Purchasing-hub comment). Rather than add
+ * `STORE_ATTENDANT` to that route's role list (which would leak
+ * `estimatedTotal`/AP status fields the Attendant must never see, per
+ * `serializeExpectedDelivery`'s own comment), this adds a parallel endpoint,
+ * `GET /inventory/receiving/history`, whose service method reuses the same
+ * `toHistoryRow`/new `toGoodsReceiptHistoryRow` mappers with `includeMoney`
+ * gated by `canSeeMoney(actor)` exactly like every other endpoint in this
+ * file — an Attendant calling this route gets `statusLabel: "Received"` on
+ * every `goodsReceipt` row (no AP/invoice/payment status, not even
+ * "Cancelled" vs "Disputed" — a single neutral label) and `detailLabel` set
+ * to the item summary instead of a KES figure, same convention as
+ * `ExpectedDeliverySummarySchema.estimatedTotal`.
+ *
+ * This also finally resolves the `goodsReceipt` variant of
+ * `PurchasingHistoryRowSchema`, declared since the 2026-09-16 amendment but
+ * never emitted (`receiving-service.ts`'s `getPurchasingHistory` had an
+ * unresolved `TODO(S4): merge in goodsReceipt rows`) — both
+ * `/inventory/purchasing/history` and the new `/inventory/receiving/history`
+ * now emit real `goodsReceipt` rows, sorted together with `expectedDelivery`
+ * rows by date.
+ *
+ * Real cursor pagination (`cursor`/`hasMore`) is added here rather than
+ * repeating `findHistoryRows`'s existing limit-bump gap — `ReceivingHistoryQuerySchema`
+ * takes a `cursor` the same shape as `ListExpectedDeliveriesQuerySchema`'s.
+ * `docs/API_CONTRACT.md` §22.6 records this amendment.
  */
 import { z } from 'zod';
 
@@ -175,6 +206,13 @@ export const ExpectedDeliveryLineSchema = z.object({
   /** In the item's BUY unit — the drawer shows "4 crate", "10 unit". */
   quantity: decimalString,
   buyUnit: z.string(),
+  /**
+   * AMENDMENT: added alongside ExpectedDeliveryDetailSchema — the Goods
+   * Receipt entry screen prefills its Receipt Line Grid from this and needs
+   * the same "buy: X → usage: Y" conversion label the grid already renders
+   * for goods-receipt lines.
+   */
+  usageUnit: z.string(),
   estimatedUnitPrice: decimalString,
 });
 
@@ -210,6 +248,17 @@ export const ExpectedDeliverySummarySchema = z.object({
   isOverdue: z.boolean(),
   ageLabel: z.string(),
   createdAt: isoDate,
+});
+
+/**
+ * AMENDMENT (post-freeze): the New Goods Receipt entry screen (`UQE-0`)
+ * needs to prefill its supplier/terms/lines from the expected delivery a
+ * Receive click carries — the frozen contract only had the list/cancel
+ * shapes, never a single-record read with lines. Same summary fields as
+ * `ExpectedDeliverySummarySchema` plus the full line array.
+ */
+export const ExpectedDeliveryDetailSchema = ExpectedDeliverySummarySchema.extend({
+  lines: z.array(ExpectedDeliveryLineSchema),
 });
 
 export const CreateExpectedDeliverySchema = z.object({
@@ -420,6 +469,22 @@ export const UpdateGoodsReceiptSchema = z.object({
 export const ListGoodsReceiptsQuerySchema = z.object({
   status: goodsReceiptStatusSchema.optional(),
   supplierId: uuid.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: uuid.optional(),
+});
+
+/**
+ * `GET /inventory/receiving/history` (AMENDMENT 2026-09-18, see this file's
+ * header). `status` accepts either enum's members since the row union covers
+ * both — the service filters the underlying query by whichever type each
+ * value belongs to.
+ */
+export const ReceivingHistoryQuerySchema = z.object({
+  search: z.string().trim().min(1).optional(),
+  supplierId: uuid.optional(),
+  status: z.union([expectedDeliveryStatusSchema, goodsReceiptStatusSchema]).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: uuid.optional(),
 });

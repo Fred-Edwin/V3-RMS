@@ -21,6 +21,18 @@ router.get(
   receivingController.getPurchasingHistory,
 );
 
+// ── Receiving history ────────────────────────────────────────────────────
+// Attendant-safe sibling of /inventory/purchasing/history above (2026-09-18
+// amendment, receiving-validators.ts header) — STORE_ATTENDANT gets the same
+// union rows with money/AP fields omitted (service-level canSeeMoney gate),
+// not merely blocked at the route like the Purchasing-hub endpoint above.
+
+router.get(
+  '/inventory/receiving/history',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT', 'ACCOUNTANT', 'DIRECTOR'),
+  receivingController.getReceivingHistory,
+);
+
 // ── Expected deliveries ──────────────────────────────────────────────────
 // STORE_ATTENDANT: read-only, response omits estimatedTotal (serializer-level).
 
@@ -28,6 +40,11 @@ router.get(
   '/inventory/expected-deliveries',
   requireRole('STORE_MANAGER', 'STORE_ATTENDANT', 'ACCOUNTANT', 'DIRECTOR'),
   receivingController.listExpectedDeliveries,
+);
+router.get(
+  '/inventory/expected-deliveries/:id',
+  requireRole('STORE_MANAGER', 'STORE_ATTENDANT', 'ACCOUNTANT', 'DIRECTOR'),
+  receivingController.getExpectedDelivery,
 );
 router.post(
   '/inventory/expected-deliveries',

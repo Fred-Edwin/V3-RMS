@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 
 import { SearchInput } from '@/components/ui2/search-input';
 import { Topbar } from '@/components/app/shell/topbar';
@@ -8,21 +9,11 @@ import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/app/shell/shell-states';
 import { MobileEmptyState, MobileErrorState, MobileLoadingState } from '@/components/app/shell/mobile-states';
-import { LoadMoreRow, PurchasingHistoryRowView, type PurchasingHistoryRow as ViewHistoryRow } from '../purchasing-history-row';
+import { LoadMoreRow, PurchasingHistoryRowView, toReceivingHistoryViewRow } from '../purchasing-history-row';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import { usePurchasingHistoryList } from '../../hooks/use-purchasing-history-list';
-import type { PurchasingHistoryRow as ServerHistoryRow } from '../../types/receiving';
-
-/** Same structural adapter `purchasing-hub-screen.tsx` uses — the server's row has no click handlers, the view component needs them. Row actions aren't wired yet (View/Cancel land with S4/S9). */
-function toViewRow(row: ServerHistoryRow): ViewHistoryRow {
-  const actions: [{ label: string; emphasized?: boolean; onClick: () => void }, { label: string; emphasized?: boolean; onClick: () => void }] = [
-    { ...row.actions[0], onClick: () => undefined },
-    { ...row.actions[1], onClick: () => undefined },
-  ];
-  return { ...row, actions };
-}
 
 /**
  * Dedicated History page (2026-09-17 UI refinement) — the Purchasing hub's
@@ -35,6 +26,7 @@ export function HistoryListScreen() {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const { open: openMobileNav } = useMobileNavDrawer();
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const { rows, search, setSearch, hasMore, loadingMore, loadMore, status, error, reload } = usePurchasingHistoryList();
 
   if (!hydrated) return null;
@@ -59,15 +51,20 @@ export function HistoryListScreen() {
             <MobileEmptyState title="Nothing here yet" description="No purchase history yet." />
           ) : (
             <>
-              {rows.map((row) =>
-                row.type === 'expectedDelivery' ? (
+              {rows.map((row) => {
+                const titleLine = row.type === 'expectedDelivery' ? row.supplierName : row.title;
+                const isGoodsReceipt = row.type === 'goodsReceipt';
+                return (
                   <div
                     key={row.id}
+                    role={isGoodsReceipt ? 'button' : undefined}
+                    tabIndex={isGoodsReceipt ? 0 : undefined}
+                    onClick={isGoodsReceipt ? () => router.push(`/app/inventory/receiving/${row.id}`) : undefined}
                     className="flex items-center justify-between gap-wds-3 rounded-wds-md border border-wds-border bg-wds-surface p-wds-3"
                   >
                     <div className="flex min-w-0 flex-col gap-px">
-                      <span className="truncate font-wds-sans text-wds-body-sm font-medium text-wds-text-ink" title={row.supplierName}>
-                        {row.supplierName}
+                      <span className="truncate font-wds-sans text-wds-body-sm font-medium text-wds-text-ink" title={titleLine}>
+                        {titleLine}
                       </span>
                       <span className="truncate font-wds-sans text-wds-caption text-wds-text-copy-muted" title={row.detailLabel}>
                         {row.detailLabel}
@@ -75,8 +72,8 @@ export function HistoryListScreen() {
                     </div>
                     <span className="shrink-0 font-wds-sans text-wds-caption text-wds-text-copy-muted">{row.statusLabel}</span>
                   </div>
-                ) : null
-              )}
+                );
+              })}
               {hasMore ? (
                 <button
                   type="button"
@@ -129,7 +126,7 @@ export function HistoryListScreen() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {rows.map((row) => (
-                    <PurchasingHistoryRowView key={row.id} row={toViewRow(row)} />
+                    <PurchasingHistoryRowView key={row.id} row={toReceivingHistoryViewRow(row, router.push)} />
                   ))}
                   {hasMore ? <LoadMoreRow loading={loadingMore} onClick={loadMore} /> : null}
                 </div>

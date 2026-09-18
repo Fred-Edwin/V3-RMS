@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import type { PurchasingHistoryRow as ServerHistoryRow } from '../types/receiving';
 
 /**
  * Mixed-type Inbound/History row — Purchasing hub (U7V-0). Genuinely new
@@ -78,6 +79,39 @@ const toneTextClass: Record<PurchasingRowStatusTone, string> = {
   error: 'text-wds-error-fg',
   info: 'text-wds-info-fg',
 };
+
+/**
+ * Wires a server `PurchasingHistoryRow` (no click handlers — Zod types are
+ * plain data) into the view component's row shape (2026-09-18 amendment).
+ * Previously both `purchasing-hub-screen.tsx` and `history-list-screen.tsx`
+ * had their own copy of this with `onClick: () => undefined` on every
+ * action — the "View" button on a `goodsReceipt` row did nothing. Only
+ * `goodsReceipt`'s "View" is wired (to the signed-receipt detail screen,
+ * `goods-receipt-detail-screen.tsx`); `expectedDelivery` has no detail
+ * screen of its own (it's a Stage-1 estimate, not a receipt) so its actions
+ * stay inert until one exists.
+ */
+export function toReceivingHistoryViewRow(
+  row: ServerHistoryRow,
+  navigate: (path: string) => void,
+): PurchasingHistoryRow {
+  if (row.type === 'goodsReceipt') {
+    return {
+      ...row,
+      actions: [
+        { ...row.actions[0], onClick: () => navigate(`/app/inventory/receiving/${row.id}`) },
+        { ...row.actions[1], onClick: () => undefined },
+      ],
+    };
+  }
+  return {
+    ...row,
+    actions: [
+      { ...row.actions[0], onClick: () => undefined },
+      { ...row.actions[1], onClick: () => undefined },
+    ],
+  };
+}
 
 export function PurchasingHistoryRowView({ row, className }: { row: PurchasingHistoryRow; className?: string }) {
   const titleLine = row.type === 'expectedDelivery' ? row.supplierName : row.title;

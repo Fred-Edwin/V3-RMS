@@ -36,6 +36,7 @@ vi.mock('./receiving-repository', () => ({
     markSigned: vi.fn(),
     markPriceAlertsAccepted: vi.fn(),
     findHubStoreManagers: vi.fn(),
+    findHistoryRows: vi.fn(),
   },
   referenceCounterRepository: {
     nextReference: vi.fn(),
@@ -321,6 +322,7 @@ describe('receivingService — "No supplier" rendering (AMENDMENT 2026-09-17)', 
     vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([
       buildDelivery({ supplierId: null, supplier: null, paymentTerms: null }),
     ] as never);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([]);
 
     const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
 
@@ -333,6 +335,7 @@ describe('receivingService — "No supplier" rendering (AMENDMENT 2026-09-17)', 
 
   it('a delivery WITH a supplier still renders its real name/terms label (no regression)', async () => {
     vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([buildDelivery()] as never);
+    vi.mocked(goodsReceiptRepository.findHistoryRows).mockResolvedValue([]);
 
     const [row] = await receivingService.getPurchasingHistory(storeManager, { limit: 25 });
 

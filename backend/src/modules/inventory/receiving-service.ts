@@ -7,6 +7,7 @@ import {
   recentSupplierItemsRepository,
   referenceCounterRepository,
   type ExpectedDeliveryWithRelations,
+  type GoodsReceiptHistoryRow,
   type GoodsReceiptLineInput,
   type GoodsReceiptWithRelations,
 } from './receiving-repository';
@@ -24,6 +25,7 @@ import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
   CreateExpectedDeliveryInput as CreateExpectedDeliveryContractInput,
   CreateGoodsReceiptInput as CreateGoodsReceiptContractInput,
+  ExpectedDeliveryDetail,
   ExpectedDeliverySummary,
   GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
@@ -98,6 +100,24 @@ const serializeExpectedDelivery = (
   };
 };
 
+/** Detail variant of `serializeExpectedDelivery` — adds the full line array for the New Goods Receipt prefill. */
+const serializeExpectedDeliveryDetail = (
+  delivery: ExpectedDeliveryWithRelations,
+  includeMoney: boolean,
+  now: Date,
+): ExpectedDeliveryDetail => ({
+  ...serializeExpectedDelivery(delivery, includeMoney, now),
+  lines: delivery.lines.map((line) => ({
+    id: line.id,
+    inventoryItemId: line.inventoryItemId,
+    itemName: line.inventoryItem.name,
+    quantity: toDecimalString(line.quantity),
+    buyUnit: line.inventoryItem.buyUnit,
+    usageUnit: line.inventoryItem.usageUnit,
+    estimatedUnitPrice: toDecimalString(line.estimatedUnitPrice),
+  })),
+});
+
 const canSeeMoney = (actor: Actor): boolean => actor.role !== 'STORE_ATTENDANT';
 
 /** Null (no supplier chosen yet, AMENDMENT 2026-09-17) renders as a dash, never a guessed default. */
@@ -137,6 +157,96 @@ const toHistoryRow = (
     statusTone,
     actions: [{ label: 'View' }, { label: 'Cancel', emphasized: false }],
   };
+};
+
+/**
+ * Maps a GoodsReceipt into the History union's `goodsReceipt` row (2026-09-18
+ * amendment — see receiving-validators.ts header). `includeMoney` gates two
+ * separate things, not one: the KES `detailLabel` (existing convention, same
+ * as `toHistoryRow`) AND the AP/invoice status itself — an Attendant must not
+ * learn a receipt is "Disputed" or "Paid" (those are money-adjacent facts),
+ * so `includeMoney: false` collapses every non-cancelled status down to the
+ * single neutral "Received" rather than picking a narrower-but-still-AP-
+ * flavoured label.
+ */
+const toGoodsReceiptHistoryRow = (
+  receipt: GoodsReceiptHistoryRow,
+  includeMoney: boolean,
+  now: Date,
+): PurchasingHistoryRow => {
+  const itemNames = receipt.lines.map((l) => l.inventoryItem.name);
+  const itemSummary =
+    itemNames.length <= 2 ? itemNames.join(', ') : `${itemNames.slice(0, 2).join(', ')} · ${itemNames.length} lines`;
+  const linkedInvoice = receipt.invoices[0]?.supplierInvoice ?? null;
+
+  let statusLabel: string;
+  let statusTone: 'neutral' | 'error' | 'info';
+  if (!includeMoney) {
+    statusLabel = receipt.status === 'CANCELLED' ? 'Cancelled' : 'Received';
+    statusTone = receipt.status === 'CANCELLED' ? 'neutral' : 'info';
+  } else if (receipt.status === 'CANCELLED') {
+    statusLabel = 'Cancelled';
+    statusTone = 'neutral';
+  } else if (linkedInvoice?.disputeStatus === 'OPEN') {
+    statusLabel = 'Disputed';
+    statusTone = 'error';
+  } else if (linkedInvoice?.status === 'PAID') {
+    statusLabel = 'Paid';
+    statusTone = 'neutral';
+  } else if (linkedInvoice) {
+    statusLabel = 'Invoice recorded';
+    statusTone = 'neutral';
+  } else if (receipt.status === 'RECEIVED_INVOICE_PENDING') {
+    statusLabel = 'Received — invoice pending';
+    statusTone = 'info';
+  } else {
+    statusLabel = 'Received';
+    statusTone = 'info';
+  }
+
+  return {
+    type: 'goodsReceipt',
+    id: receipt.id,
+    title: `${receipt.reference} · ${receipt.supplier.name}`,
+    subtitleLabel: `Received ${receipt.createdAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+    detailLabel: includeMoney ? `KES ${toDecimalString(receipt.receiptTotal)}` : itemSummary,
+    ageLabel: formatAgeLabel(receipt.createdAt),
+    statusLabel,
+    statusTone,
+    actions: [{ label: 'View' }, { label: 'Print', emphasized: false }],
+  };
+};
+
+/**
+ * Merges the two History sub-queries by `createdAt desc` and maps each to
+ * its wire row, taking the top `limit`. Both sub-queries are fetched with
+ * the same `limit`/date bound, so the merged+sliced result is correct as
+ * long as neither side's true "next `limit` rows" run out before the merge
+ * point — true here because each side already independently fetched up to
+ * `limit` rows newer than the cursor bound.
+ */
+const mergeHistoryRows = (
+  deliveries: ExpectedDeliveryWithRelations[],
+  receipts: GoodsReceiptHistoryRow[],
+  includeMoney: boolean,
+  now: Date,
+  limit: number,
+): PurchasingHistoryRow[] => {
+  const combined: { createdAt: Date; row: PurchasingHistoryRow }[] = [
+    ...deliveries.map((d) => ({ createdAt: d.createdAt, row: toHistoryRow(d, includeMoney, now) })),
+    ...receipts.map((r) => ({ createdAt: r.createdAt, row: toGoodsReceiptHistoryRow(r, includeMoney, now) })),
+  ];
+  combined.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return combined.slice(0, limit).map((c) => c.row);
+};
+
+/** Resolves a History row's `id` (either table) to its `createdAt`, for cursor pagination across the merged union. */
+const findHistoryCursorDate = async (organizationId: string, id: string): Promise<Date | undefined> => {
+  const [delivery, receipt] = await Promise.all([
+    prisma.expectedDelivery.findFirst({ where: { id, organizationId }, select: { createdAt: true } }),
+    prisma.goodsReceipt.findFirst({ where: { id, organizationId }, select: { createdAt: true } }),
+  ]);
+  return delivery?.createdAt ?? receipt?.createdAt ?? undefined;
 };
 
 /**
@@ -278,6 +388,13 @@ export const receivingService = {
     return deliveries.map((d) => serializeExpectedDelivery(d, includeMoney, now));
   },
 
+  getExpectedDelivery: async (actor: Actor, id: string): Promise<ExpectedDeliveryDetail> => {
+    const organizationId = await requireHubActor(actor);
+    const delivery = await expectedDeliveryRepository.findById(id, organizationId);
+    if (!delivery) throw new NotFoundError('Expected delivery not found');
+    return serializeExpectedDeliveryDetail(delivery, canSeeMoney(actor), new Date());
+  },
+
   createExpectedDelivery: async (
     actor: Actor,
     input: CreateExpectedDeliveryContractInput,
@@ -372,9 +489,12 @@ export const receivingService = {
 
   /**
    * History band: a union of ExpectedDelivery and GoodsReceipt rows in one
-   * table (plan §3.2). This session can only return the ExpectedDelivery half
-   * — no GoodsReceipt rows exist yet — but the shape is the union shape now so
-   * S4 only has to add the other branch, not restructure the endpoint.
+   * table (plan §3.2). Both halves are queried and merged by `createdAt desc`
+   * (2026-09-18 amendment resolves the `TODO(S4)` this comment used to carry
+   * — see `mergeHistoryRows` below for the merge/pagination approach). No
+   * `cursor` support on this endpoint (unchanged from S3) — the Purchasing
+   * hub's own `usePurchasingHistoryList` still uses limit-bump; only the new
+   * `getReceivingHistory` below takes a real cursor.
    */
   getPurchasingHistory: async (
     actor: Actor,
@@ -384,19 +504,90 @@ export const receivingService = {
     const includeMoney = canSeeMoney(actor);
     const now = new Date();
 
-    const deliveries = await expectedDeliveryRepository.findHistoryRows(organizationId, {
-      search: query.search,
-      supplierId: query.supplierId,
-      status: query.status as never,
-      from: query.from ? new Date(query.from) : undefined,
-      to: query.to ? new Date(query.to) : undefined,
-      limit: query.limit,
-    });
+    const [deliveries, receipts] = await Promise.all([
+      expectedDeliveryRepository.findHistoryRows(organizationId, {
+        search: query.search,
+        supplierId: query.supplierId,
+        status: query.status as never,
+        from: query.from ? new Date(query.from) : undefined,
+        to: query.to ? new Date(query.to) : undefined,
+        limit: query.limit,
+      }),
+      goodsReceiptRepository.findHistoryRows(organizationId, {
+        search: query.search,
+        supplierId: query.supplierId,
+        status: query.status as never,
+        from: query.from ? new Date(query.from) : undefined,
+        to: query.to ? new Date(query.to) : undefined,
+        limit: query.limit,
+      }),
+    ]);
 
-    // TODO(S4): merge in `goodsReceipt` rows and re-sort the combined list by
-    // date, once GoodsReceipt rows exist. `PurchasingHistoryRowSchema` already
-    // declares that variant (API_CONTRACT.md §22.3).
-    return deliveries.map((d) => toHistoryRow(d, includeMoney, now));
+    return mergeHistoryRows(deliveries, receipts, includeMoney, now, query.limit);
+  },
+
+  /**
+   * `GET /inventory/receiving/history` (2026-09-18 amendment) — the
+   * Attendant-safe sibling of `getPurchasingHistory` above. Same merge, same
+   * `canSeeMoney` gate, but reachable by `STORE_ATTENDANT` (route-level, see
+   * receiving-routes.ts) and with real cursor pagination: `cursor` is the
+   * last row's `id` from the *merged* page, resolved back to a `createdAt`
+   * boundary via `findCreatedAtCursor` so both sub-queries can independently
+   * fetch "everything older than this row" before being re-merged.
+   */
+  getReceivingHistory: async (
+    actor: Actor,
+    query: {
+      search?: string;
+      supplierId?: string;
+      status?: string;
+      from?: string;
+      to?: string;
+      limit: number;
+      cursor?: string;
+    },
+  ): Promise<PurchasingHistoryRow[]> => {
+    const organizationId = await requireHubActor(actor);
+    const includeMoney = canSeeMoney(actor);
+    const now = new Date();
+
+    let to = query.to ? new Date(query.to) : undefined;
+    if (query.cursor) {
+      const cursorDate = await findHistoryCursorDate(organizationId, query.cursor);
+      if (cursorDate) {
+        to = to && to < cursorDate ? to : cursorDate;
+      }
+    }
+
+    const [deliveries, receipts] = await Promise.all([
+      expectedDeliveryRepository.findHistoryRows(organizationId, {
+        search: query.search,
+        supplierId: query.supplierId,
+        status: query.status as never,
+        from: query.from ? new Date(query.from) : undefined,
+        to,
+        limit: query.limit,
+      }),
+      goodsReceiptRepository.findHistoryRows(organizationId, {
+        search: query.search,
+        supplierId: query.supplierId,
+        status: query.status as never,
+        from: query.from ? new Date(query.from) : undefined,
+        to,
+        limit: query.limit,
+      }),
+    ]);
+
+    // Cursor row itself is excluded (it was already sent on a previous page)
+    // — `to` above is an inclusive upper bound, so drop an exact re-match.
+    const withoutCursorRow = query.cursor
+      ? {
+          deliveries: deliveries.filter((d) => d.id !== query.cursor),
+          receipts: receipts.filter((r) => r.id !== query.cursor),
+        }
+      : { deliveries, receipts };
+
+    return mergeHistoryRows(withoutCursorRow.deliveries, withoutCursorRow.receipts, includeMoney, now, query.limit);
   },
 
   // ── Recent items by supplier ─────────────────────────────────────────────
@@ -628,6 +819,10 @@ export const receivingService = {
       }
 
       await goodsReceiptRepository.markPriceAlertsAccepted(input.acceptedPriceAlerts, actor.id, tx);
+
+      if (receipt.expectedDeliveryId) {
+        await expectedDeliveryRepository.markFulfilled(receipt.expectedDeliveryId, organizationId, tx);
+      }
     });
 
     const signed = await goodsReceiptRepository.findById(id, organizationId);

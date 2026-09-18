@@ -22,10 +22,10 @@ import {
 } from '../skeletons';
 import { usePurchasingHub } from '../../hooks/use-purchasing-hub';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
-import type { ExpectedDeliverySummary, PurchasingHistoryRow as ServerHistoryRow } from '../../types/receiving';
+import type { ExpectedDeliverySummary } from '../../types/receiving';
 import type { SupplierPaymentTerms } from '../../types';
 import { cancelExpectedDelivery } from '../../services/receiving-api-service';
-import { PurchasingHistoryRowView, type PurchasingHistoryRow as ViewHistoryRow } from '../purchasing-history-row';
+import { PurchasingHistoryRowView, toReceivingHistoryViewRow } from '../purchasing-history-row';
 
 /**
  * Compact preview row count for the hub's Inbound/History bands (2026-09-17
@@ -37,15 +37,6 @@ import { PurchasingHistoryRowView, type PurchasingHistoryRow as ViewHistoryRow }
  * real search/filters, and full pagination.
  */
 const HUB_PREVIEW_ROW_COUNT = 6;
-
-/** Adapts the server's history-row shape (plain `emphasized?` actions) to `PurchasingHistoryRowView`'s props (actions need an `onClick`) — no view-level fields, so it's a pure structural map, not a reformat. */
-function toViewRow(row: ServerHistoryRow): ViewHistoryRow {
-  const actions: [{ label: string; emphasized?: boolean; onClick: () => void }, { label: string; emphasized?: boolean; onClick: () => void }] = [
-    { ...row.actions[0], onClick: () => undefined },
-    { ...row.actions[1], onClick: () => undefined },
-  ];
-  return { ...row, actions };
-}
 
 const PAYMENT_TERMS_LABEL: Record<SupplierPaymentTerms, string> = {
   INVOICE_TO_FOLLOW: 'Invoice',
@@ -309,7 +300,7 @@ export function PurchasingHubScreen() {
                   </div>
                   <div className="min-w-[680px]">
                     {historyPreview.map((row) => (
-                      <PurchasingHistoryRowView key={row.id} row={toViewRow(row)} />
+                      <PurchasingHistoryRowView key={row.id} row={toReceivingHistoryViewRow(row, router.push)} />
                     ))}
                   </div>
                 </div>
