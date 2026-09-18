@@ -18,8 +18,9 @@ import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import { PurchasingHistoryRowView, toReceivingHistoryViewRow } from '../purchasing-history-row';
 import type { ExpectedDeliverySummary } from '../../types/receiving';
 
-/** History preview band caps at this many rows — a taste, not the full ledger. "View all" is the only way to see more (Paper `YAM-0`). */
-const HISTORY_PREVIEW_ROW_COUNT = 4;
+/** History preview band caps at this many rows — a taste, not the full ledger. "View all" is the only way to see more (Paper `YAM-0`). Desktop's band scrolls internally so it can afford a deeper preview than the mobile band's fixed-height cards. */
+const HISTORY_PREVIEW_ROW_COUNT = 10;
+const MOBILE_HISTORY_PREVIEW_ROW_COUNT = 4;
 
 /**
  * Receiving worklist — screen 3 (redesigned `YAM-0` desktop, `YPP-0` mobile,
@@ -124,7 +125,7 @@ export function ReceivingWorklistScreen() {
           </button>
 
           <MobileReceivingHistoryBand
-            rows={history.rows.slice(0, HISTORY_PREVIEW_ROW_COUNT)}
+            rows={history.rows.slice(0, MOBILE_HISTORY_PREVIEW_ROW_COUNT)}
             status={history.status}
             error={history.error}
             onRetry={history.reload}
@@ -158,7 +159,7 @@ export function ReceivingWorklistScreen() {
             <ErrorState title="Couldn't load receiving" description={error ?? 'Try again.'} onRetry={reload} />
           </div>
         ) : (
-          <div className="flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
+          <div className="flex max-h-[380px] shrink-0 flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
             <div className="flex h-10 shrink-0 items-center gap-2 border-b border-wds-border px-wds-4">
               <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Expected today</span>
               <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-wds-sm bg-wds-neutral-100 px-1.25">
@@ -168,7 +169,7 @@ export function ReceivingWorklistScreen() {
             {deliveries.length === 0 ? (
               <EmptyExpectedToday />
             ) : (
-              <div className="flex flex-col">
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {deliveries.map((row) => (
                   <WorklistRow key={row.id} row={row} onReceive={() => goToNewReceipt(row.id)} />
                 ))}
@@ -262,15 +263,15 @@ function ReceivingHistoryBand({
           <EmptyState title="No history yet" description="Signed goods receipts will show up here." />
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="flex h-[30px] w-full min-w-[780px] shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
-            <span className="w-[200px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Ref</span>
-            <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Supplier</span>
-            <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Age</span>
-            <span className="w-[150px] shrink-0 pl-6 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Status</span>
-            <span className="w-[150px] shrink-0" />
-          </div>
+        <div className="max-h-[440px] overflow-auto">
           <div className="min-w-[780px]">
+            <div className="sticky top-0 z-10 flex h-[30px] w-full shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+              <span className="w-[200px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Ref</span>
+              <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Supplier</span>
+              <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Age</span>
+              <span className="w-[150px] shrink-0 pl-6 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Status</span>
+              <span className="w-[150px] shrink-0" />
+            </div>
             {rows.map((row) => (
               <PurchasingHistoryRowView key={row.id} row={toReceivingHistoryViewRow(row, navigate)} />
             ))}
