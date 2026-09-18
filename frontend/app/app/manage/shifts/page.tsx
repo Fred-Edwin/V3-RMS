@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Copy, Expand, Minimize2, Search, ShieldAlert, Trash2, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Copy, Download, Expand, Minimize2, Search, ShieldAlert, Trash2, X } from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -19,6 +19,8 @@ import { Sheet, type SheetColumn, type SheetColumnGroup, type SheetRowContext } 
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/cn';
 import { getTodayYmdInTimeZone, toYmdInTimeZone } from '@/lib/date';
+import { downloadBlob } from '@/lib/payroll-xlsx';
+import { buildShiftScheduleWorkbook } from '@/lib/shift-schedule-xlsx';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { shiftService } from '@/services/shiftService';
 import { staffService, type StaffDto } from '@/services/staffService';
@@ -695,6 +697,33 @@ export default function ShiftManagementPage(): JSX.Element {
     return { person, minutes };
   }), [assignmentsBySlot, filteredStaff, getCellDraftOrCurrent, shiftMap, weekDays]);
 
+  const handleExportSchedule = useCallback(async (): Promise<void> => {
+    if (filteredStaff.length === 0) return;
+    const generated = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Africa/Nairobi' }).format(new Date());
+    try {
+      const exportRows = staffWithHours.map(({ person, minutes }) => ({
+        name: person.name,
+        role: person.role,
+        cells: weekDays.map((day) => {
+          const dateKey = dateToYmd(day);
+          const assignments = assignmentsBySlot.get(getCellKey(person.id, dateKey)) ?? [];
+          const shiftLabel = assignments.length === 0 ? 'OFF' : assignments.map((assignment) => assignment.shift.name).join(' / ');
+          return {
+            date: dateKey,
+            dayLabel: `${day.toLocaleDateString([], { weekday: 'short' })} ${day.toLocaleDateString([], { day: 'numeric', month: 'short' })}`,
+            shiftLabel,
+          };
+        }),
+        hours: formatHours(minutes),
+      }));
+      const blob = await buildShiftScheduleWorkbook(exportRows, formatWeekRange(weekStart), generated, branchName);
+      downloadBlob(`Wendo-Shift-Schedule-${branchName.replace(/\s+/g, '-')}-${viewStartDate}.xlsx`, blob);
+      toast({ variant: 'success', title: 'Shift schedule exported', message: `${filteredStaff.length} staff for ${formatWeekRange(weekStart)}.` });
+    } catch {
+      toast({ variant: 'error', title: 'Export failed', message: 'Could not build the Excel workbook. Please try again.' });
+    }
+  }, [assignmentsBySlot, branchName, filteredStaff.length, staffWithHours, toast, viewStartDate, weekDays, weekStart]);
+
   const scheduleTotals = useMemo(() => {
     const assigned = staffWithHours.reduce((sum, row) => sum + weekDays.filter((day) => {
       const value = getCellDraftOrCurrent(row.person.id, dateToYmd(day));
@@ -866,6 +895,16 @@ export default function ShiftManagementPage(): JSX.Element {
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Button variant="secondary" size="sm" leftIcon={<Copy size={14} />} onClick={() => setCopyWeekModal((current) => ({ ...current, isOpen: true }))} disabled={!hasBranchScope || shifts.length === 0 || staff.length === 0}>Copy Week</Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Download size={14} />}
+          onClick={() => void handleExportSchedule()}
+          disabled={!hasBranchScope || filteredStaff.length === 0 || dirtyCount > 0}
+          title={dirtyCount > 0 ? 'Save pending changes before exporting' : undefined}
+        >
+          Export to Excel
+        </Button>
         <Button variant="secondary" size="sm" leftIcon={isExpanded ? <Minimize2 size={14} /> : <Expand size={14} />} onClick={() => setIsExpanded((current) => !current)}>{isExpanded ? 'Collapse' : 'Expand sheet'}</Button>
         <Button size="sm" onClick={() => void handleSaveSchedule()} isLoading={isSavingSchedule} disabled={!hasBranchScope || dirtyCount === 0}>Save now</Button>
       </div>
