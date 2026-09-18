@@ -62,6 +62,7 @@ export function RecordSupplierInvoiceDrawer({
     setInvoiceNumber('');
     setInvoiceDate(new Date().toISOString().slice(0, 10));
     setAmountBilled('');
+    setAmountTouched(false);
     setError(null);
     setLoadingReceipts(true);
     listGoodsReceipts({ status: 'RECEIVED_INVOICE_PENDING', supplierId, limit: 100 })
@@ -73,6 +74,17 @@ export function RecordSupplierInvoiceDrawer({
   const ourFigure = receipts
     .filter((r) => selected.has(r.id))
     .reduce((sum, r) => sum + Number(r.receiptTotal), 0);
+
+  // Defaults AMOUNT BILLED to what we received once a receipt is selected —
+  // the common case is the supplier bills exactly that, so this saves a
+  // retype. Only touches the field while it still matches our own running
+  // total: once the Store Manager edits it away from that (to match the real
+  // invoice), their figure is never overwritten by a later selection change.
+  const [amountTouched, setAmountTouched] = React.useState(false);
+  React.useEffect(() => {
+    if (!amountTouched) setAmountBilled(selected.size > 0 ? String(ourFigure) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ourFigure, selected.size]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -183,7 +195,10 @@ export function RecordSupplierInvoiceDrawer({
               min="0"
               step="0.01"
               value={amountBilled}
-              onChange={(e) => setAmountBilled(e.target.value)}
+              onChange={(e) => {
+                setAmountTouched(true);
+                setAmountBilled(e.target.value);
+              }}
               className="h-8 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wds-primary"
             />
           </div>

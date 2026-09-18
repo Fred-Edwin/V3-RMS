@@ -287,7 +287,8 @@ export function NewGoodsReceiptMobile({
 
       <div className="flex shrink-0 flex-col gap-2.5 border-t border-wds-border bg-wds-surface px-4 py-3.5 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <p className="font-wds-sans text-[11px] leading-[15px] text-wds-text-copy-muted">
-          On sign: stock rises at the Central Store · status becomes Received — invoice pending · Store Manager notified.
+          On sign: stock rises at the Central Store · status becomes{' '}
+          {paymentTerms === 'PAY_NOW' ? 'Paid' : 'Received — invoice pending'} · Store Manager notified.
         </p>
         {draftError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{draftError}</p> : null}
         <div className="flex items-baseline justify-between">

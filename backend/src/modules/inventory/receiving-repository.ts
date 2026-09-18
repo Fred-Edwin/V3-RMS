@@ -195,7 +195,13 @@ export const expectedDeliveryRepository = {
     const where: Prisma.ExpectedDeliveryWhereInput = {
       organizationId,
       ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
-      ...(filters.status ? { status: filters.status } : {}),
+      // A FULFILLED delivery's story is already told by its resulting
+      // GoodsReceipt row (the other half of this union) — showing the
+      // expected-delivery row too is redundant, and toHistoryRow's status
+      // mapping doesn't handle FULFILLED, so it rendered "Awaiting delivery"
+      // for a receipt that had already arrived. Excluded by default; an
+      // explicit status filter (e.g. the "Cancelled" filter chip) overrides this.
+      ...(filters.status ? { status: filters.status } : { status: { not: 'FULFILLED' } }),
       ...(filters.search ? { supplier: { name: { contains: filters.search, mode: 'insensitive' } } } : {}),
       ...(filters.from || filters.to
         ? { createdAt: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } }

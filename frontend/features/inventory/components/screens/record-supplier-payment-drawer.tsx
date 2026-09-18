@@ -123,12 +123,24 @@ export function RecordSupplierPaymentDrawer({
     setSubmitting(true);
     setError(null);
     try {
-      // Overpayment allowed: allocations may sum to less than `amount` —
-      // allocate the full outstanding to each selected invoice (never more
-      // than what's owed, since the backend 400s on over-allocation).
+      // Overpayment allowed: allocations may sum to less than `amount` — in
+      // that case allocate the full outstanding to each selected invoice
+      // (never more than what's owed, since the backend 400s on
+      // over-allocation). But if the typed amount is LESS than the selected
+      // total (a partial payment across the selection), allocate only up to
+      // `amount`, in selection order, so an invoice never gets marked PAID
+      // for more than it actually received — the remainder stays UNPAID/
+      // PARTIALLY_PAID and outstanding, rather than being silently written off.
+      let remaining = amountNumber;
       const allocations = invoices
         .filter((inv) => selected.has(inv.id))
-        .map((inv) => ({ supplierInvoiceId: inv.id, amount: inv.outstanding }));
+        .map((inv) => {
+          const outstanding = Number(inv.outstanding);
+          const allocate = Math.max(0, Math.min(outstanding, remaining));
+          remaining -= allocate;
+          return { supplierInvoiceId: inv.id, amount: String(allocate) };
+        })
+        .filter((a) => Number(a.amount) > 0);
       await createSupplierPayment({
         supplierId,
         amount,

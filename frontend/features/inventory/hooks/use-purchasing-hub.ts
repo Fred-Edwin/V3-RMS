@@ -28,7 +28,7 @@ export function usePurchasingHub() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isStale: () => boolean) => {
     setStatus('loading');
     setError(null);
     try {
@@ -37,19 +37,32 @@ export function usePurchasingHub() {
         listExpectedDeliveries({ status: 'AWAITING', limit: PREVIEW_SIZE }),
         getPurchasingHistory({ limit: PREVIEW_SIZE }),
       ]);
+      // React 18 StrictMode (dev only) double-invokes this effect, firing two
+      // overlapping loads; without this guard the earlier request can resolve
+      // after the later one and clobber fresh state with stale rows (seen
+      // live: a cancelled/received expected delivery reappearing after the
+      // API had already stopped returning it).
+      if (isStale()) return;
       setSummary(summaryResponse);
       setInbound(inboundResponse);
       setHistory(historyResponse);
       setStatus('ready');
     } catch (err) {
+      if (isStale()) return;
       setError(formatApiErrorMessage(err, 'Something went wrong fetching inbound purchases and receipts.'));
       setStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    let stale = false;
+    void load(() => stale);
+    return () => {
+      stale = true;
+    };
   }, [load]);
 
-  return { summary, inbound, history, status, error, reload: load };
+  const reload = useCallback(() => load(() => false), [load]);
+
+  return { summary, inbound, history, status, error, reload };
 }

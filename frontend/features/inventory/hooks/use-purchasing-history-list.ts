@@ -32,23 +32,31 @@ export function usePurchasingHistoryList() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (searchValue: string) => {
+  const load = useCallback(async (searchValue: string, isStale: () => boolean) => {
     setStatus('loading');
     setError(null);
     setLimit(PAGE_SIZE);
     try {
       const response = await getPurchasingHistory({ limit: PAGE_SIZE, search: searchValue || undefined });
+      // Guards against React 18 StrictMode's dev-only double-invoke, and a
+      // stale in-flight search request resolving after a newer one.
+      if (isStale()) return;
       setRows(response);
       setHasMore(response.length === PAGE_SIZE);
       setStatus('ready');
     } catch (err) {
+      if (isStale()) return;
       setError(formatApiErrorMessage(err, 'Something went wrong fetching purchasing history.'));
       setStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    void load(search);
+    let stale = false;
+    void load(search, () => stale);
+    return () => {
+      stale = true;
+    };
   }, [search, load]);
 
   const loadMore = useCallback(async () => {
@@ -67,5 +75,5 @@ export function usePurchasingHistoryList() {
     }
   }, [limit, loadingMore, search]);
 
-  return { rows, search, setSearch, hasMore, loadingMore, loadMore, status, error, reload: () => load(search) };
+  return { rows, search, setSearch, hasMore, loadingMore, loadMore, status, error, reload: () => load(search, () => false) };
 }

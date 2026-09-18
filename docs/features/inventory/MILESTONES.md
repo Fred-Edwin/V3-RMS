@@ -13,8 +13,14 @@ Supplier detail, Record invoice/payment, desktop + mobile — landed
 2026-09-18, including a same-day backend amendment closing three contract
 gaps found while building: `Supplier.paymentDays` now exposed on read
 models, `SupplierApDetailSchema` frozen with a contract test, and
-`listSupplierAp` given real `limit`/`cursor` pagination). S9 (integration)
-is next.
+`listSupplierAp` given real `limit`/`cursor` pagination). **S9 (integration)
+ran and completed 2026-09-18** — Flows 1, 2a, 2b, 2d, 2e, 14, 15, 16 walked
+end to end in a real browser; found and fixed a partial-payment
+over-allocation bug, a stale Pay-now status label, and a dead "Receive"
+button left disabled since before S6 shipped (see `milestone-2-plan.md` §5
+S9 row for full detail). **Milestone Two is functionally complete** —
+Milestone 3 (Prep) planning is next, but needs a Paper design pass first
+(desktop New-prep-run screen is MISSING).
 **Date:** 2026-09-18
 **Do not use "Phase 1/2/3" language for this feature** — that framing is from
 a discarded prior iteration. Milestones here are workflow-based groups, not
@@ -43,7 +49,7 @@ share one screen set or one causal chain, so nothing ships half-wired.
 | # | Milestone | Stages covered | Design status | Build status |
 |---|---|---|---|---|
 | 1 | **Catalog, Suppliers & Restock Levels** | Foundational reference data (feeds Stage 1) | DESIGNED | ✅ **Shipped** 2026-09-15 |
-| 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | Screen group approved 2026-09-15; **Step 5 plan approved 2026-09-16** — Step 7: S0–S8 done, S9 (integration) next |
+| 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | ✅ **Shipped** 2026-09-18 — Step 5 plan approved 2026-09-16, Step 7 (S0–S9) complete, integration verified in a real browser |
 | 3 | **Prep** | Stage 3 | Mobile DESIGNED; desktop New-prep-run **MISSING** | Not started |
 | 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | Mixed — list/approval views DESIGNED-REDO (rebuild, not fresh design); signed-doc view MISSING | Not started |
 | 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | Mostly MISSING (dispatch queue, fulfil & dispatch, delivery note, branch incoming/confirm); mobile dispatch/fulfil DESIGNED | Not started |
@@ -82,7 +88,7 @@ before it could build. Milestone Two is the exception: fully designed already.
 | Milestone | Plan doc |
 |---|---|
 | 1 | `milestone-1-plan.md` (shipped) |
-| 2 | `milestone-2-plan.md` (approved 2026-09-16 — Step 7: S0–S8 done, S9 next) |
+| 2 | `milestone-2-plan.md` (shipped 2026-09-18 — Step 7: S0–S9 all done) |
 | 3–6 | not yet created |
 
 Session-level prompts and handoffs for a shipped milestone move to

@@ -39,7 +39,7 @@ export function useReceivingHistoryList() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (f: ReceivingHistoryFilters) => {
+  const load = useCallback(async (f: ReceivingHistoryFilters, isStale: () => boolean) => {
     setStatus('loading');
     setError(null);
     try {
@@ -51,17 +51,25 @@ export function useReceivingHistoryList() {
         from: f.from,
         to: f.to,
       });
+      // Guards against React 18 StrictMode's dev-only double-invoke, and a
+      // stale in-flight filtered request resolving after a newer one.
+      if (isStale()) return;
       setRows(response);
       setHasMore(response.length === PAGE_SIZE);
       setStatus('ready');
     } catch (err) {
+      if (isStale()) return;
       setError(formatApiErrorMessage(err, 'Could not load receiving history.'));
       setStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    void load(filters);
+    let stale = false;
+    void load(filters, () => stale);
+    return () => {
+      stale = true;
+    };
   }, [filters, load]);
 
   const loadMore = useCallback(async () => {
@@ -96,6 +104,6 @@ export function useReceivingHistoryList() {
     loadMore,
     status,
     error,
-    reload: () => load(filters),
+    reload: () => load(filters, () => false),
   };
 }

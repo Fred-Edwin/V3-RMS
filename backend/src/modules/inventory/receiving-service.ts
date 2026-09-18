@@ -216,6 +216,9 @@ const toGoodsReceiptHistoryRow = (
   } else if (receipt.status === 'RECEIVED_INVOICE_PENDING') {
     statusLabel = 'Received — invoice pending';
     statusTone = 'info';
+  } else if (receipt.status === 'RECEIVED_PAID') {
+    statusLabel = 'Paid';
+    statusTone = 'neutral';
   } else {
     statusLabel = 'Received';
     statusTone = 'info';

@@ -160,7 +160,12 @@ export function PurchasingHubScreen() {
                   <MobileEmptyState title="Nothing here yet" description="No purchases or receipts in progress." />
                 ) : (
                   inboundPreview.map((row) => (
-                    <MobileInboundCard key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
+                    <MobileInboundCard
+                      key={row.id}
+                      row={row}
+                      onCancel={() => handleCancel(row.id)}
+                      onReceive={() => router.push(`/app/inventory/receiving/new?expectedDeliveryId=${row.id}`)}
+                    />
                   ))
                 )}
               </div>
@@ -265,7 +270,12 @@ export function PurchasingHubScreen() {
                   </div>
                   <div className="min-w-[720px]">
                     {inboundPreview.map((row) => (
-                      <InboundRow key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
+                      <InboundRow
+                        key={row.id}
+                        row={row}
+                        onCancel={() => handleCancel(row.id)}
+                        onReceive={() => router.push(`/app/inventory/receiving/new?expectedDeliveryId=${row.id}`)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -366,7 +376,15 @@ function inboundRowStatus(row: ExpectedDeliverySummary): { label: string; tone: 
   return { label: 'Awaiting delivery', tone: 'neutral' };
 }
 
-function InboundRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: () => void }) {
+function InboundRow({
+  row,
+  onCancel,
+  onReceive,
+}: {
+  row: ExpectedDeliverySummary;
+  onCancel: () => void;
+  onReceive: () => void;
+}) {
   const status = inboundRowStatus(row);
   const detailText = `${row.itemSummary} · ${row.lineCount} lines`;
   const estimate = formatEstimate(row.estimatedTotal);
@@ -401,8 +419,7 @@ function InboundRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel:
         </button>
         <button
           type="button"
-          disabled
-          title="Goods Receipt entry ships in S6"
+          onClick={onReceive}
           className="flex h-7 items-center rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-sans text-wds-caption font-medium text-wds-text-ink outline-none transition-colors hover:enabled:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
           Receive
@@ -412,7 +429,15 @@ function InboundRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel:
   );
 }
 
-function MobileInboundCard({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: () => void }) {
+function MobileInboundCard({
+  row,
+  onCancel,
+  onReceive,
+}: {
+  row: ExpectedDeliverySummary;
+  onCancel: () => void;
+  onReceive: () => void;
+}) {
   const status = inboundRowStatus(row);
   const detailText = `${row.itemSummary} · ${row.lineCount} lines`;
   const estimate = formatEstimate(row.estimatedTotal);
@@ -438,7 +463,7 @@ function MobileInboundCard({ row, onCancel }: { row: ExpectedDeliverySummary; on
           >
             Cancel
           </button>
-          <Button size="sm" disabled title="Goods Receipt entry ships in S6">
+          <Button size="sm" onClick={onReceive}>
             Receive
           </Button>
         </div>

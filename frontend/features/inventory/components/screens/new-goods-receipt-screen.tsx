@@ -407,7 +407,8 @@ export function NewGoodsReceiptScreen() {
 
         <div className="flex flex-col gap-3 rounded-wds-md border border-wds-border bg-wds-surface-sunken p-wds-4">
           <p className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-            On sign: stock rises at the Central Store · status becomes Received — invoice pending · Store Manager notified.
+            On sign: stock rises at the Central Store · status becomes{' '}
+            {paymentTerms === 'PAY_NOW' ? 'Paid' : 'Received — invoice pending'} · Store Manager notified.
           </p>
           {draftError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{draftError}</p> : null}
           <div className="flex items-center justify-between">

@@ -82,7 +82,12 @@ export function InboundListScreen() {
           ) : (
             <>
               {rows.map((row) => (
-                <MobileRow key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
+                <MobileRow
+                  key={row.id}
+                  row={row}
+                  onCancel={() => handleCancel(row.id)}
+                  onReceive={() => router.push(`/app/inventory/receiving/new?expectedDeliveryId=${row.id}`)}
+                />
               ))}
               {hasMore ? (
                 <button
@@ -148,7 +153,12 @@ export function InboundListScreen() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {rows.map((row) => (
-                    <DesktopRow key={row.id} row={row} onCancel={() => handleCancel(row.id)} />
+                    <DesktopRow
+                      key={row.id}
+                      row={row}
+                      onCancel={() => handleCancel(row.id)}
+                      onReceive={() => router.push(`/app/inventory/receiving/new?expectedDeliveryId=${row.id}`)}
+                    />
                   ))}
                   {hasMore ? <LoadMoreRow loading={loadingMore} onClick={loadMore} /> : null}
                 </div>
@@ -161,7 +171,15 @@ export function InboundListScreen() {
   );
 }
 
-function DesktopRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: () => void }) {
+function DesktopRow({
+  row,
+  onCancel,
+  onReceive,
+}: {
+  row: ExpectedDeliverySummary;
+  onCancel: () => void;
+  onReceive: () => void;
+}) {
   const status = rowStatus(row);
   const detailText = `${row.itemSummary} · ${row.lineCount} lines`;
   const estimate = formatEstimate(row.estimatedTotal);
@@ -194,8 +212,7 @@ function DesktopRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel:
         </button>
         <button
           type="button"
-          disabled
-          title="Goods Receipt entry ships in S6"
+          onClick={onReceive}
           className="flex h-7 items-center rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-sans text-wds-caption font-medium text-wds-text-ink outline-none transition-colors hover:enabled:bg-wds-neutral-50 focus-visible:shadow-wds-ring disabled:cursor-not-allowed disabled:opacity-50"
         >
           Receive
@@ -205,7 +222,15 @@ function DesktopRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel:
   );
 }
 
-function MobileRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: () => void }) {
+function MobileRow({
+  row,
+  onCancel,
+  onReceive,
+}: {
+  row: ExpectedDeliverySummary;
+  onCancel: () => void;
+  onReceive: () => void;
+}) {
   const status = rowStatus(row);
   const detailText = `${row.itemSummary} · ${row.lineCount} lines`;
   const estimate = formatEstimate(row.estimatedTotal);
@@ -231,7 +256,7 @@ function MobileRow({ row, onCancel }: { row: ExpectedDeliverySummary; onCancel: 
           >
             Cancel
           </button>
-          <Button size="sm" disabled title="Goods Receipt entry ships in S6">
+          <Button size="sm" onClick={onReceive}>
             Receive
           </Button>
         </div>

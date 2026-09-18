@@ -27,23 +27,34 @@ export function useReceivingWorklist() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isStale: () => boolean) => {
     setStatus('loading');
     setError(null);
     try {
       const response = await listExpectedDeliveries({ status: 'AWAITING', limit: PAGE_SIZE });
+      // Guards against React 18 StrictMode's dev-only double-invoke of this
+      // effect: without it, an earlier overlapping request can resolve after
+      // a later one and repaint stale rows over correct, freshly-fetched state.
+      if (isStale()) return;
       setDeliveries(response);
       setHasMore(response.length === PAGE_SIZE);
       setStatus('ready');
     } catch (err) {
+      if (isStale()) return;
       setError(formatApiErrorMessage(err, 'Could not load the receiving worklist.'));
       setStatus('error');
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    let stale = false;
+    void load(() => stale);
+    return () => {
+      stale = true;
+    };
   }, [load]);
+
+  const reload = useCallback(() => load(() => false), [load]);
 
   const loadMore = useCallback(async () => {
     const lastId = deliveries[deliveries.length - 1]?.id;
@@ -60,5 +71,5 @@ export function useReceivingWorklist() {
     }
   }, [deliveries, loadingMore]);
 
-  return { deliveries, hasMore, loadingMore, loadMore, status, error, reload: load };
+  return { deliveries, hasMore, loadingMore, loadMore, status, error, reload };
 }
