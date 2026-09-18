@@ -5,10 +5,15 @@ import { IdParamSchema } from './inventory-validators';
 import {
   CreateExpectedDeliverySchema,
   CreateGoodsReceiptSchema,
+  CreateInvoiceAdjustmentSchema,
+  CreateSupplierInvoiceSchema,
+  CreateSupplierPaymentSchema,
   ListExpectedDeliveriesQuerySchema,
   ListGoodsReceiptsQuerySchema,
+  ListSupplierApQuerySchema,
   ReceivingHistoryQuerySchema,
   RecentSupplierItemsQuerySchema,
+  ReverseSupplierPaymentSchema,
   SignGoodsReceiptSchema,
   UpdateGoodsReceiptSchema,
 } from './receiving-validators';
@@ -139,5 +144,57 @@ export const receivingController = {
     const input = SignGoodsReceiptSchema.parse(req.body);
     const data = await receivingService.signGoodsReceipt(actor, id, input);
     res.status(200).json({ success: true, data, message: 'Goods receipt signed' });
+  },
+
+  // ── What we owe (Supplier AP) — S7 ───────────────────────────────────────
+
+  getApSummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = await receivingService.getApSummary(actor);
+    res.status(200).json({ success: true, data });
+  },
+
+  listSupplierAp: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ListSupplierApQuerySchema.parse(req.query);
+    const data = await receivingService.listSupplierAp(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getSupplierApDetail: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const data = await receivingService.getSupplierApDetail(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  createSupplierInvoice: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const input = CreateSupplierInvoiceSchema.parse(req.body);
+    const data = await receivingService.createSupplierInvoice(actor, input);
+    res.status(201).json({ success: true, data, message: 'Supplier invoice recorded' });
+  },
+
+  createInvoiceAdjustment: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const input = CreateInvoiceAdjustmentSchema.parse(req.body);
+    const data = await receivingService.createInvoiceAdjustment(actor, id, input);
+    res.status(201).json({ success: true, data, message: 'Adjustment recorded' });
+  },
+
+  createSupplierPayment: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const input = CreateSupplierPaymentSchema.parse(req.body);
+    const data = await receivingService.createSupplierPayment(actor, input);
+    res.status(201).json({ success: true, data, message: 'Payment recorded' });
+  },
+
+  reverseSupplierPayment: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const input = ReverseSupplierPaymentSchema.parse(req.body);
+    const data = await receivingService.reverseSupplierPayment(actor, id, input);
+    res.status(201).json({ success: true, data, message: 'Payment reversed' });
   },
 };

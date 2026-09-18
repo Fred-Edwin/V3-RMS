@@ -6,10 +6,16 @@ import {
   lastPriceRepository,
   recentSupplierItemsRepository,
   referenceCounterRepository,
+  supplierApRepository,
+  supplierInvoiceRepository,
+  supplierPaymentRepository,
   type ExpectedDeliveryWithRelations,
   type GoodsReceiptHistoryRow,
   type GoodsReceiptLineInput,
   type GoodsReceiptWithRelations,
+  type SupplierForAp,
+  type SupplierInvoiceWithRelations,
+  type SupplierPaymentWithRelations,
 } from './receiving-repository';
 import { supplierRepository } from './inventory-repository';
 import { inventoryItemRepository } from './inventory-repository';
@@ -23,17 +29,27 @@ import { comparePin } from '../../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
+  AgingBuckets,
+  ApSummary,
   CreateExpectedDeliveryInput as CreateExpectedDeliveryContractInput,
   CreateGoodsReceiptInput as CreateGoodsReceiptContractInput,
+  CreateInvoiceAdjustmentInput,
+  CreateSupplierInvoiceInput as CreateSupplierInvoiceContractInput,
+  CreateSupplierPaymentInput as CreateSupplierPaymentContractInput,
   ExpectedDeliveryDetail,
   ExpectedDeliverySummary,
   GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
   ListGoodsReceiptsQuery,
+  ListSupplierApQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
+  ReverseSupplierPaymentInput,
   RecentSupplierItem,
   SignGoodsReceiptInput,
+  SupplierApRow,
+  SupplierInvoice,
+  SupplierPayment,
   UpdateGoodsReceiptInput,
 } from './receiving.types';
 
@@ -368,6 +384,149 @@ const notifyHubStoreManagersOfSignedReceipt = async (
   await fcmService.sendGoodsReceiptSignedPush(recipientIds, payload);
 };
 
+// ---------------------------------------------------------------------------
+// Supplier invoices, payments, what-we-owe reads (S7). Every figure below is
+// derived at call time from the raw invoice/payment/adjustment rows — never
+// cached or stored (plan §1.5): outstanding = amountBilled + Σ adjustments −
+// Σ allocations; a supplier's credit = Σ payments.amount − Σ allocations.
+// amount. The three read models (`/ap/summary`, `/ap/suppliers`,
+// `/ap/suppliers/:id`) all call these same helpers so they can never disagree
+// (the reconciliation invariant this session's tests exist to prove).
+// ---------------------------------------------------------------------------
+
+/** Sum of this invoice's adjustments (can be negative — a correction either way). */
+const sumAdjustments = (invoice: SupplierInvoiceWithRelations): Prisma.Decimal =>
+  invoice.adjustments.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0));
+
+/** Sum of this invoice's payment allocations (reversal allocations are already negative). */
+const sumAllocations = (invoice: SupplierInvoiceWithRelations): Prisma.Decimal =>
+  invoice.allocations.reduce((sum, a) => sum.plus(a.amount), new Prisma.Decimal(0));
+
+/** Plan §1.5: `outstanding = amountBilled + Σ adjustments − Σ allocations`. */
+const computeOutstanding = (invoice: SupplierInvoiceWithRelations): Prisma.Decimal =>
+  invoice.amountBilled.plus(sumAdjustments(invoice)).minus(sumAllocations(invoice));
+
+/** Derives the invoice's UNPAID/PARTIALLY_PAID/PAID status from its outstanding figure. */
+const deriveInvoiceStatus = (invoice: SupplierInvoiceWithRelations): 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' => {
+  const outstanding = computeOutstanding(invoice);
+  if (outstanding.lessThanOrEqualTo(0)) return 'PAID';
+  if (sumAllocations(invoice).greaterThan(0)) return 'PARTIALLY_PAID';
+  return 'UNPAID';
+};
+
+/**
+ * Days overdue is measured from `dueDate`, not `invoiceDate` (`VGE-0`'s
+ * "— DAYS OVERDUE —" columns, plan §1.5). Bucketed CURRENT (≤0) / 1–30 /
+ * 31–60 / 61–90 / 90+ — always these five, never merged here (contract
+ * behaviour #9); a screen that wants four buckets merges for display only.
+ */
+const bucketForDaysOverdue = (daysOverdue: number): keyof AgingBuckets => {
+  if (daysOverdue <= 0) return 'current';
+  if (daysOverdue <= 30) return 'days1To30';
+  if (daysOverdue <= 60) return 'days31To60';
+  if (daysOverdue <= 90) return 'days61To90';
+  return 'days90Plus';
+};
+
+const emptyBuckets = (): Record<keyof AgingBuckets, Prisma.Decimal> => ({
+  current: new Prisma.Decimal(0),
+  days1To30: new Prisma.Decimal(0),
+  days31To60: new Prisma.Decimal(0),
+  days61To90: new Prisma.Decimal(0),
+  days90Plus: new Prisma.Decimal(0),
+});
+
+const bucketsToWire = (buckets: Record<keyof AgingBuckets, Prisma.Decimal>): AgingBuckets => ({
+  current: toDecimalString(buckets.current),
+  days1To30: toDecimalString(buckets.days1To30),
+  days31To60: toDecimalString(buckets.days31To60),
+  days61To90: toDecimalString(buckets.days61To90),
+  days90Plus: toDecimalString(buckets.days90Plus),
+});
+
+/**
+ * Aggregates one supplier's invoices into the row shape shared by
+ * `/ap/suppliers` and `/ap/suppliers/:id` — the single derivation both
+ * endpoints call, so they can never disagree (plan §1.5's reconciliation
+ * invariant). Only invoices with `outstanding > 0` land in a bucket; a fully
+ * paid invoice contributes to `invoiced`/`paid` but not to any aging bucket.
+ */
+const buildSupplierApRow = (supplier: SupplierForAp, invoices: SupplierInvoiceWithRelations[], now: Date): SupplierApRow => {
+  const buckets = emptyBuckets();
+  let invoiced = new Prisma.Decimal(0);
+  let paid = new Prisma.Decimal(0);
+  let outstanding = new Prisma.Decimal(0);
+  let disputedCount = 0;
+  let lastInvoiceDate: Date | null = null;
+
+  for (const invoice of invoices) {
+    invoiced = invoiced.plus(invoice.amountBilled).plus(sumAdjustments(invoice));
+    const allocated = sumAllocations(invoice);
+    paid = paid.plus(allocated);
+    const invoiceOutstanding = computeOutstanding(invoice);
+    outstanding = outstanding.plus(invoiceOutstanding);
+    if (invoice.disputeStatus === 'OPEN') disputedCount += 1;
+    if (!lastInvoiceDate || invoice.invoiceDate > lastInvoiceDate) lastInvoiceDate = invoice.invoiceDate;
+
+    if (invoiceOutstanding.greaterThan(0)) {
+      const daysOverdue = Math.floor((now.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const bucket = bucketForDaysOverdue(daysOverdue);
+      buckets[bucket] = buckets[bucket].plus(invoiceOutstanding);
+    }
+  }
+
+  return {
+    supplierId: supplier.id,
+    supplierName: supplier.name,
+    paymentTerms: supplier.paymentTerms,
+    lastInvoiceDate: lastInvoiceDate ? lastInvoiceDate.toISOString() : null,
+    invoiced: toDecimalString(invoiced),
+    paid: toDecimalString(paid),
+    outstanding: toDecimalString(outstanding),
+    buckets: bucketsToWire(buckets),
+    disputedCount,
+  };
+};
+
+const serializeSupplierInvoice = (invoice: SupplierInvoiceWithRelations): SupplierInvoice => ({
+  id: invoice.id,
+  supplierId: invoice.supplierId,
+  supplierName: invoice.supplier.name,
+  invoiceNumber: invoice.invoiceNumber,
+  invoiceDate: invoice.invoiceDate.toISOString(),
+  dueDate: invoice.dueDate.toISOString(),
+  amountBilled: toDecimalString(invoice.amountBilled),
+  outstanding: toDecimalString(computeOutstanding(invoice)),
+  status: deriveInvoiceStatus(invoice),
+  dispute:
+    invoice.disputeStatus !== null
+      ? {
+          status: invoice.disputeStatus,
+          ourFigure: toDecimalString(invoice.disputeOurFigure ?? new Prisma.Decimal(0)),
+          reason: invoice.disputeReason ?? '',
+        }
+      : null,
+  goodsReceiptIds: invoice.receipts.map((r) => r.goodsReceiptId),
+  createdAt: invoice.createdAt.toISOString(),
+});
+
+const serializeSupplierPayment = (payment: SupplierPaymentWithRelations): SupplierPayment => ({
+  id: payment.id,
+  supplierId: payment.supplierId,
+  amount: toDecimalString(payment.amount),
+  paidAt: payment.paidAt.toISOString(),
+  method: payment.method,
+  reference: payment.reference,
+  allocations: payment.allocations.map((a) => ({
+    supplierInvoiceId: a.supplierInvoiceId,
+    invoiceNumber: a.supplierInvoice.invoiceNumber,
+    amount: toDecimalString(a.amount),
+  })),
+  reversalOfId: payment.reversalOfId,
+  recordedByName: payment.recordedBy.name,
+  createdAt: payment.createdAt.toISOString(),
+});
+
 export const receivingService = {
   // ── Expected deliveries ──────────────────────────────────────────────────
 
@@ -473,17 +632,39 @@ export const receivingService = {
   getPurchasingSummary: async (actor: Actor): Promise<PurchasingSummary> => {
     const organizationId = await requireHubActor(actor);
     const now = new Date();
-    const [expectedCount, overdueCount] = await Promise.all([
+    const [expectedCount, overdueCount, awaitingInvoiceReceipts, invoices] = await Promise.all([
       expectedDeliveryRepository.countByStatus(organizationId, 'AWAITING'),
       expectedDeliveryRepository.countOverdue(organizationId, now),
+      goodsReceiptRepository.findAllByOrganization(organizationId, {
+        status: 'RECEIVED_INVOICE_PENDING',
+        limit: 100,
+      }),
+      supplierInvoiceRepository.findAllByOrganization(organizationId),
     ]);
+
+    const oldestAwaitingInvoiceDays =
+      awaitingInvoiceReceipts.length === 0
+        ? null
+        : Math.max(
+            ...awaitingInvoiceReceipts.map((r) =>
+              Math.floor((now.getTime() - new Date(r.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+            ),
+          );
+
+    let owedAmount = new Prisma.Decimal(0);
+    let over30Count = 0;
+    for (const invoice of invoices) {
+      const outstanding = computeOutstanding(invoice);
+      if (outstanding.lessThanOrEqualTo(0)) continue;
+      owedAmount = owedAmount.plus(outstanding);
+      const daysOverdue = Math.floor((now.getTime() - invoice.dueDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysOverdue > 30) over30Count += 1;
+    }
 
     return {
       expected: { count: expectedCount, overdue: overdueCount },
-      // Filled in by S4 (goods receipts / RECEIVED_INVOICE_PENDING queue).
-      awaitingInvoice: { count: 0, oldestDays: null },
-      // Filled in by S7 (supplier invoices / payments read model).
-      owed: { amount: '0.00', over30Count: 0 },
+      awaitingInvoice: { count: awaitingInvoiceReceipts.length, oldestDays: oldestAwaitingInvoiceDays },
+      owed: { amount: toDecimalString(owedAmount), over30Count },
     };
   },
 
@@ -835,5 +1016,302 @@ export const receivingService = {
     void notifyHubStoreManagersOfSignedReceipt(organizationId, signed, actor.id, actorWithPin.name);
 
     return serializeGoodsReceipt(signed);
+  },
+
+  // ── What we owe (Supplier AP) — S7 ───────────────────────────────────────
+
+  getApSummary: async (actor: Actor): Promise<ApSummary> => {
+    const organizationId = await requireHubActor(actor);
+    const invoices = await supplierInvoiceRepository.findAllByOrganization(organizationId);
+    const supplierIds = new Set(invoices.map((i) => i.supplierId));
+
+    let totalInvoiced = new Prisma.Decimal(0);
+    let totalPaid = new Prisma.Decimal(0);
+    let totalOutstanding = new Prisma.Decimal(0);
+    const suppliersWithBalance = new Set<string>();
+
+    for (const invoice of invoices) {
+      totalInvoiced = totalInvoiced.plus(invoice.amountBilled).plus(sumAdjustments(invoice));
+      totalPaid = totalPaid.plus(sumAllocations(invoice));
+      const outstanding = computeOutstanding(invoice);
+      totalOutstanding = totalOutstanding.plus(outstanding);
+      if (outstanding.greaterThan(0)) suppliersWithBalance.add(invoice.supplierId);
+    }
+
+    return {
+      totalInvoiced: toDecimalString(totalInvoiced),
+      totalPaid: toDecimalString(totalPaid),
+      totalOutstanding: toDecimalString(totalOutstanding),
+      supplierCount: supplierIds.size,
+      suppliersWithBalance: suppliersWithBalance.size,
+    };
+  },
+
+  /**
+   * The how-overdue table. Computed at query time, never cached (plan §1.5) —
+   * every request re-derives every supplier's row from its live invoice set.
+   */
+  listSupplierAp: async (actor: Actor, query: ListSupplierApQuery): Promise<SupplierApRow[]> => {
+    const organizationId = await requireHubActor(actor);
+    const now = new Date();
+
+    const suppliers = await supplierApRepository.findSuppliersWithInvoices(organizationId);
+    let filteredSuppliers = suppliers;
+    if (query.search) {
+      const term = query.search.toLowerCase();
+      filteredSuppliers = filteredSuppliers.filter((s) => s.name.toLowerCase().includes(term));
+    }
+    if (query.terms) {
+      filteredSuppliers = filteredSuppliers.filter((s) => s.paymentTerms === query.terms);
+    }
+
+    const rows = await Promise.all(
+      filteredSuppliers.map(async (supplier) => {
+        const invoices = await supplierInvoiceRepository.findAllBySupplier(supplier.id, organizationId);
+        return buildSupplierApRow(supplier, invoices, now);
+      }),
+    );
+
+    let filteredRows = rows;
+    if (query.hasBalance !== undefined) {
+      filteredRows = filteredRows.filter((r) => (Number(r.outstanding) > 0) === query.hasBalance);
+    }
+    if (query.agingBucket) {
+      filteredRows = filteredRows.filter((r) => Number(r.buckets[query.agingBucket!]) > 0);
+    }
+
+    return filteredRows;
+  },
+
+  /**
+   * Supplier detail: profile, bucket panel, invoices, payments, purchase
+   * history. Calls the exact same `buildSupplierApRow` derivation as
+   * `listSupplierAp` so the two views can never disagree — the plan §1.5
+   * invariant this session's reconciliation test asserts.
+   */
+  getSupplierApDetail: async (
+    actor: Actor,
+    supplierId: string,
+  ): Promise<{
+    row: SupplierApRow;
+    invoices: SupplierInvoice[];
+    payments: SupplierPayment[];
+  }> => {
+    const organizationId = await requireHubActor(actor);
+    const supplier = await supplierApRepository.findSupplierForAp(supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+
+    const [invoices, payments] = await Promise.all([
+      supplierInvoiceRepository.findAllBySupplier(supplierId, organizationId),
+      supplierPaymentRepository.findAllBySupplier(supplierId, organizationId),
+    ]);
+
+    return {
+      row: buildSupplierApRow(supplier, invoices, new Date()),
+      invoices: invoices.map(serializeSupplierInvoice),
+      payments: payments.map(serializeSupplierPayment),
+    };
+  },
+
+  /**
+   * One endpoint for "Save invoice", "Record at billed — open dispute", AND
+   * "Hold" (Hold never calls this at all — it's the client-side no-write
+   * branch). Plan §3.2, API_CONTRACT.md §22.4 #4.
+   */
+  createSupplierInvoice: async (
+    actor: Actor,
+    input: CreateSupplierInvoiceContractInput,
+  ): Promise<SupplierInvoice> => {
+    const organizationId = await requireHubActor(actor);
+
+    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+    if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+
+    const receipts = await Promise.all(
+      input.goodsReceiptIds.map((id) => goodsReceiptRepository.findById(id, organizationId)),
+    );
+    for (const [index, receipt] of receipts.entries()) {
+      if (!receipt) throw new NotFoundError(`Goods receipt ${input.goodsReceiptIds[index]} not found`);
+    }
+    const foundReceipts = receipts as GoodsReceiptWithRelations[];
+
+    const distinctSuppliers = new Set(foundReceipts.map((r) => r.supplierId));
+    if (distinctSuppliers.size > 1 || (distinctSuppliers.size === 1 && !distinctSuppliers.has(input.supplierId))) {
+      throw new ValidationError('All receipts on one invoice must belong to the same supplier');
+    }
+
+    const alreadyInvoiced = await supplierInvoiceRepository.findInvoicedReceiptIds(input.goodsReceiptIds);
+    if (alreadyInvoiced.size > 0) {
+      throw new ConflictError('One or more receipts are already invoiced');
+    }
+
+    const invoiceDate = new Date(input.invoiceDate);
+    // Computed once, at creation, and stored — never recomputed from a later
+    // change to Supplier.paymentDays (plan §1.3, contract behaviour #8).
+    const dueDate = new Date(invoiceDate);
+    dueDate.setDate(dueDate.getDate() + supplier.paymentDays);
+
+    const created = await prisma
+      .$transaction(async (tx) => {
+        const invoice = await supplierInvoiceRepository.create(
+          organizationId,
+          {
+            supplierId: input.supplierId,
+            goodsReceiptIds: input.goodsReceiptIds,
+            invoiceNumber: input.invoiceNumber,
+            invoiceDate,
+            dueDate,
+            amountBilled: input.amountBilled,
+            dispute: input.dispute,
+            recordedById: actor.id,
+          },
+          tx,
+        );
+        await supplierInvoiceRepository.markReceiptsInvoiceRecorded(input.goodsReceiptIds, tx);
+        return invoice;
+      })
+      .catch((error: unknown) =>
+        mapPrismaError(error, { conflict: 'An invoice with this number already exists for this supplier' }),
+      );
+
+    return serializeSupplierInvoice(created);
+  },
+
+  /**
+   * The Accountant's reconciliation adjustment (Flow 17 step 3) — mandatory
+   * reason (enforced at the Zod layer), never touches InventoryTransaction
+   * (the Accountant cannot move stock, 01-description.md §2).
+   */
+  createInvoiceAdjustment: async (
+    actor: Actor,
+    invoiceId: string,
+    input: CreateInvoiceAdjustmentInput,
+  ): Promise<SupplierInvoice> => {
+    const organizationId = await requireHubActor(actor);
+    const invoice = await supplierInvoiceRepository.findById(invoiceId, organizationId);
+    if (!invoice) throw new NotFoundError('Supplier invoice not found');
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await supplierInvoiceRepository.createAdjustment(
+        invoiceId,
+        { amount: input.amount, reason: input.reason, recordedById: actor.id },
+        tx,
+      );
+      const refreshed = await supplierInvoiceRepository.findById(invoiceId, organizationId, tx);
+      if (!refreshed) throw new NotFoundError('Supplier invoice not found');
+      await supplierInvoiceRepository.updateStatus(invoiceId, deriveInvoiceStatus(refreshed), tx);
+      return supplierInvoiceRepository.findById(invoiceId, organizationId, tx);
+    });
+    if (!updated) throw new NotFoundError('Supplier invoice not found');
+
+    return serializeSupplierInvoice(updated);
+  },
+
+  /**
+   * Overpayment (Σ allocations < amount) is allowed, not an error — the
+   * excess is never written to a stored balance; it's derived at read time
+   * (plan §1.4, §1.5, contract behaviour #6).
+   */
+  createSupplierPayment: async (
+    actor: Actor,
+    input: CreateSupplierPaymentContractInput,
+  ): Promise<SupplierPayment> => {
+    const organizationId = await requireHubActor(actor);
+
+    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+
+    const invoices = await Promise.all(
+      input.allocations.map((a) => supplierInvoiceRepository.findById(a.supplierInvoiceId, organizationId)),
+    );
+    for (const [index, invoice] of invoices.entries()) {
+      if (!invoice) throw new NotFoundError(`Invoice ${input.allocations[index]!.supplierInvoiceId} not found`);
+    }
+    const foundInvoices = invoices as SupplierInvoiceWithRelations[];
+
+    for (const [index, invoice] of foundInvoices.entries()) {
+      const status = deriveInvoiceStatus(invoice);
+      if (status === 'PAID') {
+        throw new ConflictError(`Invoice ${invoice.invoiceNumber} is already fully paid`);
+      }
+      const outstanding = computeOutstanding(invoice);
+      const allocationAmount = new Prisma.Decimal(input.allocations[index]!.amount);
+      if (allocationAmount.greaterThan(outstanding)) {
+        throw new ValidationError(`Allocation exceeds invoice ${invoice.invoiceNumber}'s outstanding balance`);
+      }
+    }
+
+    const created = await prisma
+      .$transaction(async (tx) => {
+        const payment = await supplierPaymentRepository.create(
+          organizationId,
+          {
+            supplierId: input.supplierId,
+            amount: input.amount,
+            paidAt: new Date(input.paidAt),
+            method: input.method,
+            reference: input.reference ?? null,
+            allocations: input.allocations.map((a) => ({ supplierInvoiceId: a.supplierInvoiceId, amount: a.amount })),
+            recordedById: actor.id,
+          },
+          tx,
+        );
+        for (const invoice of foundInvoices) {
+          const refreshed = await supplierInvoiceRepository.findById(invoice.id, organizationId, tx);
+          if (refreshed) {
+            await supplierInvoiceRepository.updateStatus(invoice.id, deriveInvoiceStatus(refreshed), tx);
+          }
+        }
+        return payment;
+      })
+      .catch((error: unknown) => mapPrismaError(error));
+
+    return serializeSupplierPayment(created);
+  },
+
+  /**
+   * Payments are immutable — a correction is a reversal, never an edit
+   * (contract behaviour #7). Creates a new payment row with `reversalOfId`
+   * set and negative allocations; the original is never mutated or deleted.
+   */
+  reverseSupplierPayment: async (
+    actor: Actor,
+    paymentId: string,
+    input: ReverseSupplierPaymentInput,
+  ): Promise<SupplierPayment> => {
+    const organizationId = await requireHubActor(actor);
+    const payment = await supplierPaymentRepository.findById(paymentId, organizationId);
+    if (!payment) throw new NotFoundError('Supplier payment not found');
+    if (payment.reversalOfId !== null) {
+      throw new ConflictError('A reversal payment cannot itself be reversed');
+    }
+
+    const reversal = await prisma.$transaction(async (tx) => {
+      const created = await supplierPaymentRepository.createReversal(
+        organizationId,
+        {
+          supplierId: payment.supplierId,
+          reversalOfId: payment.id,
+          reversalReason: input.reason,
+          recordedById: actor.id,
+          allocations: payment.allocations.map((a) => ({ supplierInvoiceId: a.supplierInvoiceId, amount: a.amount })),
+        },
+        tx,
+      );
+      for (const allocation of payment.allocations) {
+        const refreshed = await supplierInvoiceRepository.findById(allocation.supplierInvoiceId, organizationId, tx);
+        if (refreshed) {
+          await supplierInvoiceRepository.updateStatus(
+            allocation.supplierInvoiceId,
+            deriveInvoiceStatus(refreshed),
+            tx,
+          );
+        }
+      }
+      return created;
+    });
+
+    return serializeSupplierPayment(reversal);
   },
 };

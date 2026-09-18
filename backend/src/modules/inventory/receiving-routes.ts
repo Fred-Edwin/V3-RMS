@@ -105,4 +105,44 @@ router.post(
   receivingController.signGoodsReceipt,
 );
 
+// ── What we owe (Supplier AP) — S7 ──────────────────────────────────────────
+// STORE_ATTENDANT is deliberately absent from every route below — 403'd
+// outright, not filtered (01-description.md Stage 10, plan §3.1, §22.3).
+
+router.get(
+  '/inventory/ap/summary',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  receivingController.getApSummary,
+);
+router.get(
+  '/inventory/ap/suppliers',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  receivingController.listSupplierAp,
+);
+router.get(
+  '/inventory/ap/suppliers/:id',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  receivingController.getSupplierApDetail,
+);
+router.post(
+  '/inventory/supplier-invoices',
+  requireRole('STORE_MANAGER'),
+  receivingController.createSupplierInvoice,
+);
+router.post(
+  '/inventory/supplier-invoices/:id/adjustments',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  receivingController.createInvoiceAdjustment,
+);
+router.post(
+  '/inventory/supplier-payments',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  receivingController.createSupplierPayment,
+);
+router.post(
+  '/inventory/supplier-payments/:id/reverse',
+  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  receivingController.reverseSupplierPayment,
+);
+
 export default router;

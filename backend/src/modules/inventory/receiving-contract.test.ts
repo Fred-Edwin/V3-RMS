@@ -13,17 +13,22 @@ import {
   goodsReceiptRepository,
   recentSupplierItemsRepository,
   referenceCounterRepository,
+  supplierInvoiceRepository,
 } from './receiving-repository';
 import { inventoryItemRepository, supplierRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import {
+  AgingBucketsSchema,
+  ApSummarySchema,
   ExpectedDeliverySummarySchema,
   GoodsReceiptDetailSchema,
   PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
   RecentSupplierItemSchema,
   SupplierApRowSchema,
+  SupplierInvoiceSchema,
+  SupplierPaymentSchema,
 } from './receiving-validators';
 
 vi.mock('./receiving-repository', () => ({
@@ -43,6 +48,26 @@ vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
   lastPriceRepository: { findLastReceiptLine: vi.fn() },
   recentSupplierItemsRepository: { findRecentBySupplier: vi.fn() },
+  supplierInvoiceRepository: {
+    findById: vi.fn(),
+    findInvoicedReceiptIds: vi.fn(),
+    create: vi.fn(),
+    markReceiptsInvoiceRecorded: vi.fn(),
+    createAdjustment: vi.fn(),
+    updateStatus: vi.fn(),
+    findAllBySupplier: vi.fn(),
+    findAllByOrganization: vi.fn(),
+  },
+  supplierPaymentRepository: {
+    findById: vi.fn(),
+    create: vi.fn(),
+    createReversal: vi.fn(),
+    findAllBySupplier: vi.fn(),
+  },
+  supplierApRepository: {
+    findSuppliersWithInvoices: vi.fn(),
+    findSupplierForAp: vi.fn(),
+  },
 }));
 
 vi.mock('./inventory-repository', () => ({
@@ -236,6 +261,8 @@ describe('Receiving contract drift guard', () => {
   it('PurchasingSummarySchema accepts getPurchasingSummary output — 3 tiles, no inTransit', async () => {
     vi.mocked(expectedDeliveryRepository.countByStatus).mockResolvedValue(2);
     vi.mocked(expectedDeliveryRepository.countOverdue).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([]);
 
     const summary = await receivingService.getPurchasingSummary(storeManager);
     expect(() => PurchasingSummarySchema.parse(summary)).not.toThrow();
@@ -462,5 +489,118 @@ describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
     const result = await receivingService.getGoodsReceipt(storeManager, '77777777-7777-4777-8777-777777777777');
     const parsed = GoodsReceiptDetailSchema.safeParse(result);
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
+  const invoiceId = 'bbbbbbb1-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const paymentId = 'ccccccc1-cccc-4ccc-8ccc-cccccccccccc';
+  const goodsReceiptId = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+  const buildInvoiceRow = (overrides: Record<string, unknown> = {}) => ({
+    id: invoiceId,
+    organizationId: hubOrgId,
+    supplierId,
+    supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
+    invoiceNumber: 'INV-001',
+    invoiceDate: new Date(),
+    dueDate: new Date(),
+    amountBilled: new Prisma.Decimal('10000'),
+    disputeStatus: null,
+    disputeOurFigure: null,
+    disputeReason: null,
+    receipts: [{ goodsReceiptId }],
+    adjustments: [],
+    allocations: [],
+    recordedById: 'sm1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  });
+
+  it('ApSummarySchema accepts getApSummary output', async () => {
+    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([buildInvoiceRow()] as never);
+    const summary = await receivingService.getApSummary(storeManager);
+    expect(ApSummarySchema.safeParse(summary).success).toBe(true);
+  });
+
+  it('SupplierApRowSchema/AgingBucketsSchema accept listSupplierAp output', async () => {
+    const { supplierApRepository } = await import('./receiving-repository');
+    vi.mocked(supplierApRepository.findSuppliersWithInvoices).mockResolvedValue([
+      { id: supplierId, name: 'Samrat Supermarket Ltd', paymentTerms: 'INVOICE_TO_FOLLOW' },
+    ] as never);
+    vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue([buildInvoiceRow()] as never);
+
+    const [row] = await receivingService.listSupplierAp(storeManager, { limit: 25 } as never);
+    expect(SupplierApRowSchema.safeParse(row).success).toBe(true);
+    expect(AgingBucketsSchema.safeParse(row!.buckets).success).toBe(true);
+  });
+
+  it('SupplierInvoiceSchema accepts createSupplierInvoice output, including the dispute variant', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue({
+      id: supplierId,
+      organizationId: hubOrgId,
+      name: 'Samrat Supermarket Ltd',
+      deletedAt: null,
+      paymentDays: 30,
+    } as never);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue({
+      id: goodsReceiptId,
+      supplierId,
+    } as never);
+    vi.mocked(supplierInvoiceRepository.findInvoicedReceiptIds).mockResolvedValue(new Set());
+    vi.mocked(supplierInvoiceRepository.create).mockResolvedValue(
+      buildInvoiceRow({ disputeStatus: 'OPEN', disputeOurFigure: new Prisma.Decimal('9000'), disputeReason: 'Mismatch' }) as never,
+    );
+    vi.mocked(supplierInvoiceRepository.markReceiptsInvoiceRecorded).mockResolvedValue(undefined);
+
+    const result = await receivingService.createSupplierInvoice(storeManager, {
+      supplierId,
+      goodsReceiptIds: [goodsReceiptId],
+      invoiceNumber: 'INV-001',
+      invoiceDate: new Date().toISOString(),
+      amountBilled: '9500',
+      dispute: { ourFigure: '9000', reason: 'Mismatch' },
+    });
+
+    expect(SupplierInvoiceSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('SupplierPaymentSchema accepts createSupplierPayment output', async () => {
+    const { supplierPaymentRepository } = await import('./receiving-repository');
+    vi.mocked(supplierRepository.findById).mockResolvedValue({
+      id: supplierId,
+      organizationId: hubOrgId,
+      name: 'Samrat Supermarket Ltd',
+      deletedAt: null,
+    } as never);
+    vi.mocked(supplierInvoiceRepository.findById).mockResolvedValue(buildInvoiceRow() as never);
+    vi.mocked(supplierPaymentRepository.create).mockResolvedValue({
+      id: paymentId,
+      organizationId: hubOrgId,
+      supplierId,
+      amount: new Prisma.Decimal('5000'),
+      paidAt: new Date(),
+      method: 'BANK',
+      reference: 'EFT-1',
+      reversalOfId: null,
+      reversalReason: null,
+      recordedById: 'sm1',
+      recordedBy: { id: 'sm1', name: 'Joseph Mwangi' },
+      createdAt: new Date(),
+      allocations: [
+        { supplierInvoiceId: invoiceId, amount: new Prisma.Decimal('5000'), supplierInvoice: { id: invoiceId, invoiceNumber: 'INV-001' } },
+      ],
+    } as never);
+
+    const result = await receivingService.createSupplierPayment(storeManager, {
+      supplierId,
+      amount: '5000',
+      paidAt: new Date().toISOString(),
+      method: 'BANK',
+      allocations: [{ supplierInvoiceId: invoiceId, amount: '5000' }],
+    });
+
+    expect(SupplierPaymentSchema.safeParse(result).success).toBe(true);
   });
 });

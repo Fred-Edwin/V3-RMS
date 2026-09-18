@@ -34,12 +34,50 @@ and live. Your job is the four screens built on top of it.
    buckets, never a separate calculation) and Q5 (overpayment has no
    dedicated UI this milestone — render what the backend sends, don't add a
    credit-balance indicator that doesn't exist in the contract).
-2. `frontend/features/inventory/types/receiving.ts` — `SupplierApRowSchema`-
-   and `SupplierInvoiceSchema`-derived types.
+2. **`frontend/features/inventory/types/receiving.ts` does NOT yet have the
+   S7 shapes mirrored in.** S7 (backend) only touched
+   `backend/src/modules/inventory/receiving-validators.ts` /
+   `receiving.types.ts` — nobody has hand-mirrored
+   `SupplierInvoiceSchema`, `CreateSupplierInvoiceSchema`,
+   `CreateInvoiceAdjustmentSchema`, `SupplierPaymentSchema`,
+   `CreateSupplierPaymentSchema`, `ReverseSupplierPaymentSchema`,
+   `AgingBucketsSchema`, `SupplierApRowSchema`, or `ApSummarySchema` to the
+   frontend yet. **Before building any screen, mirror these by hand** into
+   `frontend/features/inventory/types/receiving.ts`, following exactly the
+   same convention the existing Milestone Two types there already use
+   (decimals as strings, nullable-not-sentinel, etc. — copy the pattern, not
+   just the field names) and re-export them from
+   `frontend/features/inventory/types/index.ts` the same way the existing
+   ones are. Treat `backend/src/modules/inventory/receiving-validators.ts` as
+   the source of truth for exact field names/types — do not guess from this
+   prompt's prose descriptions below.
 3. `docs/features/inventory/04-components.md`'s Milestone Two section — the
    "how overdue" bucket table and "what we owe" bucket panel composites
    (S0's items #6–7) and the bundling checkbox list (#4) are what these
    screens assemble from.
+
+### S7 endpoints this session builds against (already live)
+
+All under `/api/v1/inventory/…`, all requiring `authenticate` + `requireRole`.
+`STORE_ATTENDANT` is **403'd outright** on every one of these — not filtered
+to a narrower response like the Receiving/Purchasing endpoints elsewhere in
+this milestone. This is why screen 8's `PermissionDeniedState` path is real,
+not theoretical (see §3a row 8 above): an Attendant who reaches this route
+gets a 403 from the API itself, not an empty list to render.
+
+| Method | Path | Roles | Used by |
+|---|---|---|---|
+| `GET` | `/inventory/ap/summary` | SM, ACC, DIR | Suppliers screen KPI strip |
+| `GET` | `/inventory/ap/suppliers` | SM, ACC, DIR | Suppliers screen how-overdue table |
+| `GET` | `/inventory/ap/suppliers/:id` | SM, ACC, DIR | Supplier detail |
+| `POST` | `/inventory/supplier-invoices` | SM | Record supplier invoice |
+| `POST` | `/inventory/supplier-invoices/:id/adjustments` | SM, ACC | (not built by this screen set — Accountant reconciliation, out of scope) |
+| `POST` | `/inventory/supplier-payments` | SM, ACC | Record supplier payment |
+| `POST` | `/inventory/supplier-payments/:id/reverse` | SM, ACC | (not built by this screen set) |
+
+Response shapes for each are defined by the Zod schemas named in the "read
+first" section above — read the schema file directly rather than relying on
+this table for field-level detail.
 
 ## What to build
 

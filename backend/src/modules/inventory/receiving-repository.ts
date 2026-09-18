@@ -1,11 +1,14 @@
 import {
   Prisma,
+  type DisputeStatus,
   type ExpectedDelivery,
   type ExpectedDeliveryLine,
   type ExpectedDeliveryStatus,
   type GoodsReceipt,
   type GoodsReceiptLine,
   type GoodsReceiptStatus,
+  type SupplierInvoiceStatus,
+  type SupplierPaymentMethod,
 } from '@prisma/client';
 import { prisma } from '../../config/database';
 
@@ -567,3 +570,257 @@ export const goodsReceiptRepository = {
     });
   },
 };
+
+// ---------------------------------------------------------------------------
+// Supplier invoices, payments, what-we-owe reads (S7 — Stage 10, Flows 14/15).
+// Every "what we owe" figure is derived at query time, never stored (plan
+// §1.5): outstanding = amountBilled + Σ adjustments − Σ allocations; a
+// supplier's credit = Σ payments.amount − Σ allocations.amount. This
+// repository fetches the raw rows the service derives those figures from —
+// it never precomputes or caches a balance itself.
+// ---------------------------------------------------------------------------
+
+export type SupplierInvoiceWithRelations = Prisma.SupplierInvoiceGetPayload<{
+  include: typeof supplierInvoiceInclude;
+}>;
+
+const supplierInvoiceInclude = {
+  supplier: { select: { id: true, name: true } },
+  receipts: { select: { goodsReceiptId: true } },
+  adjustments: true,
+  allocations: {
+    include: { supplierPayment: { select: { id: true, method: true, paidAt: true, reversalOfId: true } } },
+  },
+} satisfies Prisma.SupplierInvoiceInclude;
+
+export type CreateSupplierInvoiceInput = {
+  supplierId: string;
+  goodsReceiptIds: string[];
+  invoiceNumber: string;
+  invoiceDate: Date;
+  dueDate: Date;
+  amountBilled: Prisma.Decimal.Value;
+  dispute?: { ourFigure: Prisma.Decimal.Value; reason: string };
+  recordedById: string;
+};
+
+export const supplierInvoiceRepository = {
+  findById: async (
+    id: string,
+    organizationId: string,
+    client: Client = prisma,
+  ): Promise<SupplierInvoiceWithRelations | null> => {
+    return client.supplierInvoice.findFirst({ where: { id, organizationId }, include: supplierInvoiceInclude });
+  },
+
+  /** Which of these receipts (if any) is already bundled into some invoice — used for the 409 check. */
+  findInvoicedReceiptIds: async (goodsReceiptIds: string[], client: Client = prisma): Promise<Set<string>> => {
+    const rows = await client.supplierInvoiceReceipt.findMany({
+      where: { goodsReceiptId: { in: goodsReceiptIds } },
+      select: { goodsReceiptId: true },
+    });
+    return new Set(rows.map((r) => r.goodsReceiptId));
+  },
+
+  create: async (organizationId: string, input: CreateSupplierInvoiceInput, tx: TxClient): Promise<SupplierInvoiceWithRelations> => {
+    return tx.supplierInvoice.create({
+      data: {
+        organizationId,
+        supplierId: input.supplierId,
+        invoiceNumber: input.invoiceNumber,
+        invoiceDate: input.invoiceDate,
+        dueDate: input.dueDate,
+        amountBilled: new Prisma.Decimal(input.amountBilled),
+        disputeStatus: input.dispute ? 'OPEN' : null,
+        disputeOurFigure: input.dispute ? new Prisma.Decimal(input.dispute.ourFigure) : null,
+        disputeReason: input.dispute ? input.dispute.reason : null,
+        recordedById: input.recordedById,
+        receipts: { createMany: { data: input.goodsReceiptIds.map((goodsReceiptId) => ({ goodsReceiptId })) } },
+      },
+      include: supplierInvoiceInclude,
+    });
+  },
+
+  /** Marks every receipt this invoice bundles as INVOICE_RECORDED (History band status). */
+  markReceiptsInvoiceRecorded: async (goodsReceiptIds: string[], tx: TxClient): Promise<void> => {
+    await tx.goodsReceipt.updateMany({
+      where: { id: { in: goodsReceiptIds } },
+      data: { status: 'INVOICE_RECORDED' },
+    });
+  },
+
+  createAdjustment: async (
+    supplierInvoiceId: string,
+    input: { amount: Prisma.Decimal.Value; reason: string; recordedById: string },
+    tx: TxClient,
+  ): Promise<void> => {
+    await tx.supplierInvoiceAdjustment.create({
+      data: {
+        supplierInvoiceId,
+        amount: new Prisma.Decimal(input.amount),
+        reason: input.reason,
+        recordedById: input.recordedById,
+      },
+    });
+  },
+
+  /** Recomputes and persists `status` (UNPAID/PARTIALLY_PAID/PAID) from the derived outstanding figure. */
+  updateStatus: async (id: string, status: SupplierInvoiceStatus, tx: TxClient): Promise<void> => {
+    await tx.supplierInvoice.update({ where: { id }, data: { status } });
+  },
+
+  /** All invoices for one supplier, for the aging/outstanding derivation and the Supplier detail panel. */
+  findAllBySupplier: async (supplierId: string, organizationId: string): Promise<SupplierInvoiceWithRelations[]> => {
+    return prisma.supplierInvoice.findMany({
+      where: { organizationId, supplierId },
+      include: supplierInvoiceInclude,
+      orderBy: { invoiceDate: 'desc' },
+    });
+  },
+
+  /** All invoices in the org, for the `/ap/suppliers` table's per-supplier aggregation. */
+  findAllByOrganization: async (organizationId: string): Promise<SupplierInvoiceWithRelations[]> => {
+    return prisma.supplierInvoice.findMany({
+      where: { organizationId },
+      include: supplierInvoiceInclude,
+    });
+  },
+};
+
+export type SupplierPaymentWithRelations = Prisma.SupplierPaymentGetPayload<{
+  include: typeof supplierPaymentInclude;
+}>;
+
+const supplierPaymentInclude = {
+  recordedBy: { select: { id: true, name: true } },
+  allocations: { include: { supplierInvoice: { select: { id: true, invoiceNumber: true } } } },
+} satisfies Prisma.SupplierPaymentInclude;
+
+export type CreateSupplierPaymentInput = {
+  supplierId: string;
+  amount: Prisma.Decimal.Value;
+  paidAt: Date;
+  method: SupplierPaymentMethod;
+  reference: string | null;
+  allocations: { supplierInvoiceId: string; amount: Prisma.Decimal.Value }[];
+  recordedById: string;
+};
+
+export const supplierPaymentRepository = {
+  findById: async (
+    id: string,
+    organizationId: string,
+    client: Client = prisma,
+  ): Promise<SupplierPaymentWithRelations | null> => {
+    return client.supplierPayment.findFirst({ where: { id, organizationId }, include: supplierPaymentInclude });
+  },
+
+  create: async (organizationId: string, input: CreateSupplierPaymentInput, tx: TxClient): Promise<SupplierPaymentWithRelations> => {
+    return tx.supplierPayment.create({
+      data: {
+        organizationId,
+        supplierId: input.supplierId,
+        amount: new Prisma.Decimal(input.amount),
+        paidAt: input.paidAt,
+        method: input.method,
+        reference: input.reference,
+        recordedById: input.recordedById,
+        allocations: {
+          createMany: {
+            data: input.allocations.map((a) => ({
+              supplierInvoiceId: a.supplierInvoiceId,
+              amount: new Prisma.Decimal(a.amount),
+            })),
+          },
+        },
+      },
+      include: supplierPaymentInclude,
+    });
+  },
+
+  /**
+   * A reversal is a brand-new payment row — the original is never mutated
+   * (Flow 15). `allocations` here take positive magnitudes (how much of each
+   * invoice's prior allocation to undo); this repository is the one place
+   * that negates them into the stored, allowed-negative allocation amounts.
+   */
+  createReversal: async (
+    organizationId: string,
+    input: {
+      supplierId: string;
+      reversalOfId: string;
+      reversalReason: string;
+      recordedById: string;
+      allocations: { supplierInvoiceId: string; amount: Prisma.Decimal.Value }[];
+    },
+    tx: TxClient,
+  ): Promise<SupplierPaymentWithRelations> => {
+    const totalReversed = input.allocations.reduce(
+      (sum, a) => sum.plus(new Prisma.Decimal(a.amount)),
+      new Prisma.Decimal(0),
+    );
+    return tx.supplierPayment.create({
+      data: {
+        organizationId,
+        supplierId: input.supplierId,
+        amount: totalReversed.negated(),
+        paidAt: new Date(),
+        method: 'BANK', // reversal has no real payment method of its own; not shown for reversal rows in the UI
+        reversalOfId: input.reversalOfId,
+        reversalReason: input.reversalReason,
+        recordedById: input.recordedById,
+        allocations: {
+          createMany: {
+            data: input.allocations.map((a) => ({
+              supplierInvoiceId: a.supplierInvoiceId,
+              amount: new Prisma.Decimal(a.amount).negated(),
+            })),
+          },
+        },
+      },
+      include: supplierPaymentInclude,
+    });
+  },
+
+  findAllBySupplier: async (supplierId: string, organizationId: string): Promise<SupplierPaymentWithRelations[]> => {
+    return prisma.supplierPayment.findMany({
+      where: { organizationId, supplierId },
+      include: supplierPaymentInclude,
+      orderBy: { paidAt: 'desc' },
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// What-we-owe / aging reads — computed at query time (plan §1.5). Fetches the
+// per-supplier invoice set the service aggregates into AgingBuckets/
+// SupplierApRow; no bucket math or balance lives in this repository.
+// ---------------------------------------------------------------------------
+
+export type SupplierForAp = {
+  id: string;
+  name: string;
+  paymentTerms: 'INVOICE_TO_FOLLOW' | 'PAY_NOW';
+};
+
+export const supplierApRepository = {
+  /** Every supplier in the org that has at least one invoice — the `/ap/suppliers` table's row set. */
+  findSuppliersWithInvoices: async (organizationId: string): Promise<SupplierForAp[]> => {
+    const suppliers = await prisma.supplier.findMany({
+      where: { organizationId, supplierInvoices: { some: {} } },
+      select: { id: true, name: true, defaultPaymentTerms: true },
+    });
+    return suppliers.map((s) => ({ id: s.id, name: s.name, paymentTerms: s.defaultPaymentTerms }));
+  },
+
+  findSupplierForAp: async (id: string, organizationId: string): Promise<SupplierForAp | null> => {
+    const supplier = await prisma.supplier.findFirst({
+      where: { id, organizationId },
+      select: { id: true, name: true, defaultPaymentTerms: true },
+    });
+    if (!supplier) return null;
+    return { id: supplier.id, name: supplier.name, paymentTerms: supplier.defaultPaymentTerms };
+  },
+};
+
+export type { DisputeStatus, SupplierInvoiceStatus, SupplierPaymentMethod };

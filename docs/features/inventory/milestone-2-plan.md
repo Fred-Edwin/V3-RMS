@@ -6,8 +6,9 @@ Stage 2 (Receiving), Stage 10 (Supplier payment). See `MILESTONES.md` for why
 these three Stages are one ship unit.
 **Step:** 5 of the per-feature pipeline — high-level plan
 **Status:** APPROVED 2026-09-16 (all six §7 questions resolved). Step 7 build
-underway: S0 (component inventory) in progress; S1 (schema + migration) and
-S2 (contract freeze) complete — see §5 for current session status.
+underway: S0, S1, S2, S3, S5, S4, S6, S7 complete (S6's frontend work and the
+S7 backend slice below both landed 2026-09-18) — see §5 for current session
+status. S8 is next.
 **Date:** 2026-09-16
 
 **Traces to:**
@@ -552,11 +553,16 @@ GROUP BY default_payment_terms;
 ```
 
 Local results: query 1 returned only `suppliers` (Milestone One's) and three
-unrelated customer-credit/orders tables. **Owner: please run all three against
-production and paste the results back.** Query 2 is the one that matters — if
-`non_null_orphan_fk > 0` in production, the §1.6 rename needs a data decision
-first. Expected: 0. Query 3 has no pass/fail — it's context for whether 30
-days is a reasonable blanket default before real supplier terms are entered.
+unrelated customer-credit/orders tables. **Resolved, historical — no longer a
+live ask.** This check gated migration `20260916031604_
+inventory_milestone_two_receiving_ap` (§2), which has since been generated,
+committed, and deployed through the normal CI/CD pipeline (S1, done) without
+incident — the eight new tables and the two ALTERs landed cleanly, confirming
+query 2's expectation (`non_null_orphan_fk = 0`) held in production too.
+Query 3's `paymentDays = 30` blanket default (§2 ALTER 2) is live on every
+supplier row; still worth the owner reviewing per-supplier via the supplier
+form once real payment terms are known, but that's an ordinary data-quality
+follow-up now, not a migration blocker.
 
 ---
 
@@ -576,14 +582,14 @@ onward is strictly sequential.
 
 | # | Session | Status | Depends on | Session prompt |
 |---|---|---|---|---|
-| **S0** | **Milestone Two component inventory** — write `04-components.md`'s Milestone Two section against page `C-0`; build only the genuinely new composites (§6). | **In progress** | plan approved | `06-sessions/milestone-2-s0-component-inventory-prompt.md` |
+| **S0** | **Milestone Two component inventory** — write `04-components.md`'s Milestone Two section against page `C-0`; build only the genuinely new composites (§6). | **Done** | plan approved | `06-sessions/milestone-2-s0-component-inventory-prompt.md` |
 | S1 | Schema + migration + reference-number counters (§1, §2). Backend only, no endpoints | **Done** — migration `20260916031604_inventory_milestone_two_receiving_ap`; build + all 697 tests pass | plan approved | (schema-only session, no separate prompt file) |
 | S2 | Contract freeze (Step 6): commit `receiving-validators.ts` + `receiving.types.ts`, mirror to frontend, add `API_CONTRACT.md` §22 | **Done** — frozen 2026-09-16, all six §7 questions resolved and reflected in the shapes | S1 | (contract-only session, no separate prompt file) |
-| S3 | Backend — expected deliveries + purchasing hub read models | Not started | S2 | `06-sessions/milestone-2-s3-backend-expected-deliveries-prompt.md` |
-| S5 | Frontend — Purchasing hub, New purchase, Receiving worklist (desktop + mobile), against **S3's real endpoints** | Not started | S0, S3 | `06-sessions/milestone-2-s5-frontend-purchasing-hub-prompt.md` |
-| S4 | Backend — goods receipts incl. signing, ledger write, latest-price costing (the riskiest session; own tests) | Not started | S3 | `06-sessions/milestone-2-s4-backend-goods-receipts-prompt.md` |
-| S6 | Frontend — Goods receipt entry + signed detail/print, against **S4's real endpoints**; needs S0's Sign sheet composite | Not started | S0, S4 | `06-sessions/milestone-2-s6-frontend-goods-receipt-prompt.md` |
-| S7 | Backend — supplier invoices (bundling, disputes) + payments (allocation, overpayment, reversal) + what-we-owe/how-overdue read models | Not started | S4 | `06-sessions/milestone-2-s7-backend-invoices-payments-prompt.md` |
+| S3 | Backend — expected deliveries + purchasing hub read models | **Done** | S2 | `06-sessions/milestone-2-s3-backend-expected-deliveries-prompt.md` |
+| S5 | Frontend — Purchasing hub, New purchase, Receiving worklist (desktop + mobile), against **S3's real endpoints** | **Done** | S0, S3 | `06-sessions/milestone-2-s5-frontend-purchasing-hub-prompt.md` |
+| S4 | Backend — goods receipts incl. signing, ledger write, latest-price costing (the riskiest session; own tests) | **Done** | S3 | `06-sessions/milestone-2-s4-backend-goods-receipts-prompt.md` |
+| S6 | Frontend — Goods receipt entry + signed detail/print, against **S4's real endpoints**; needs S0's Sign sheet composite | **Done** — including the follow-up Receiving worklist/History redesign work (`06-sessions/milestone-2-s6-followup-receiving-history-handoff.md`) | S0, S4 | `06-sessions/milestone-2-s6-frontend-goods-receipt-prompt.md` |
+| S7 | Backend — supplier invoices (bundling, disputes) + payments (allocation, overpayment, reversal) + what-we-owe/how-overdue read models | **Done** (2026-09-18) — `pnpm build` + `pnpm test` clean, 814/814 tests pass including the three-way what-we-owe reconciliation test and aging-bucket boundary tests | S4 | `06-sessions/milestone-2-s7-backend-invoices-payments-prompt.md` |
 | S8 | Frontend — Suppliers screen (what we owe), Supplier detail, Record invoice, Record payment (desktop + mobile), against **S7's real endpoints** | Not started | S0, S7 | `06-sessions/milestone-2-s8-frontend-suppliers-screen-prompt.md` |
 | S9 | Integration (playbook Step 8) — wire real backend, run Flows 1, 2a, 2b, 2d, 2e, 14, 15, 16 end to end | Not started | S3–S8 | not yet drafted |
 
@@ -810,11 +816,13 @@ in historical migration SQL (immutable) and in the schema's own comments about
 the orphaned columns. So nothing goes stale when this milestone lands models
 under the same names.
 
-**Watch, may need updating.** `inventory-service.test.ts` and
+**Watched, resolved.** `inventory-service.test.ts` and
 `inventory-contract.test.ts` reference `defaultPaymentTerms:
-'INVOICE_TO_FOLLOW'`. If Q3(a) resolves as a rename, these change mechanically.
-If Q3(b) adds `paymentDays` to `Supplier`, the supplier fixtures and the
-supplier contract test change with it.
+'INVOICE_TO_FOLLOW'`. Q3(a) resolved as no rename (§7), so these needed no
+change. Q3(b) added `paymentDays` to `Supplier` (§1.3, §2) — confirmed during
+S7 that the existing supplier fixtures and contract test still pass
+unmodified against the new column (it carries a default, so old fixtures
+that don't set it explicitly remain valid).
 
 **New — backend.** Per-model unit tests, plus specifically:
 - **Signing writes the ledger exactly once, atomically** — including that a

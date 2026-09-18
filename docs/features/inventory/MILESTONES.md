@@ -8,9 +8,10 @@ approved and Step 5 planning actually starts — this page is the index, not a
 replacement for those.
 **Status:** Milestone One shipped. Milestone Two's screen group approved
 2026-09-15; Step 5 plan approved 2026-09-16 (`milestone-2-plan.md`, all six
-§7 questions resolved). Step 7 build underway — S0 (component inventory) in
-progress, S1 (schema/migration) and S2 (contract freeze) complete.
-**Date:** 2026-09-15
+§7 questions resolved). Step 7 build: S0–S7 complete (S7 — supplier invoices,
+payments, what-we-owe reads — landed 2026-09-18); S8 (Suppliers screen
+frontend) is next.
+**Date:** 2026-09-18
 **Do not use "Phase 1/2/3" language for this feature** — that framing is from
 a discarded prior iteration. Milestones here are workflow-based groups, not
 phases.
@@ -38,7 +39,7 @@ share one screen set or one causal chain, so nothing ships half-wired.
 | # | Milestone | Stages covered | Design status | Build status |
 |---|---|---|---|---|
 | 1 | **Catalog, Suppliers & Restock Levels** | Foundational reference data (feeds Stage 1) | DESIGNED | ✅ **Shipped** 2026-09-15 |
-| 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | Screen group approved 2026-09-15; **Step 5 plan approved 2026-09-16** — Step 7 underway (S0 in progress, S1+S2 done) |
+| 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | Screen group approved 2026-09-15; **Step 5 plan approved 2026-09-16** — Step 7: S0–S7 done, S8 next |
 | 3 | **Prep** | Stage 3 | Mobile DESIGNED; desktop New-prep-run **MISSING** | Not started |
 | 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | Mixed — list/approval views DESIGNED-REDO (rebuild, not fresh design); signed-doc view MISSING | Not started |
 | 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | Mostly MISSING (dispatch queue, fulfil & dispatch, delivery note, branch incoming/confirm); mobile dispatch/fulfil DESIGNED | Not started |
@@ -77,7 +78,7 @@ before it could build. Milestone Two is the exception: fully designed already.
 | Milestone | Plan doc |
 |---|---|
 | 1 | `milestone-1-plan.md` (shipped) |
-| 2 | `milestone-2-plan.md` (approved 2026-09-16 — Step 7 build underway) |
+| 2 | `milestone-2-plan.md` (approved 2026-09-16 — Step 7: S0–S7 done, S8 next) |
 | 3–6 | not yet created |
 
 Session-level prompts and handoffs for a shipped milestone move to
