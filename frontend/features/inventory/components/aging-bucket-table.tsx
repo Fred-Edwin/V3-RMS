@@ -27,9 +27,17 @@ export interface AgingBucketTableRow {
 export interface AgingBucketTableProps {
   rows: AgingBucketTableRow[];
   className?: string;
+  /**
+   * AMENDMENT 2026-09-18 (S8): optional per-row click-through to Supplier
+   * detail (`VND-0`) — the composite itself stayed read-only-only through
+   * S0, since no consumer needed navigation yet. Renders each row as a
+   * `<button>` (full interactive states: hover/focus-visible/active) instead
+   * of a plain `<div>` when provided; unchanged, static row otherwise.
+   */
+  onRowClick?: (id: string) => void;
 }
 
-export function AgingBucketTable({ rows, className }: AgingBucketTableProps) {
+export function AgingBucketTable({ rows, className, onRowClick }: AgingBucketTableProps) {
   return (
     <div className={cn('flex flex-col overflow-hidden rounded-wds-md border border-wds-border', className)}>
       <div className="flex h-[20px] shrink-0 items-center border-b border-wds-border bg-wds-surface px-wds-4">
@@ -62,32 +70,54 @@ export function AgingBucketTable({ rows, className }: AgingBucketTableProps) {
         <span className="w-[104px] shrink-0 text-right font-wds-mono text-wds-table-label text-wds-text-ink">Outstanding</span>
       </div>
 
-      {rows.map((row) => (
-        <div key={row.id} className="flex min-h-[52px] items-center border-b border-wds-neutral-100 px-wds-4 last:border-b-0">
-          <div className="flex min-w-[180px] grow flex-col items-start gap-[2px] py-wds-2">
-            <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{row.supplierName}</span>
-            {row.disputedCount ? (
-              <span className="flex items-center gap-wds-1 rounded-wds-sm border border-wds-error-border bg-wds-error-bg px-wds-1.5 py-px">
-                <span className="size-[5px] shrink-0 rounded-wds-full bg-wds-error-fg" aria-hidden />
-                <span className="font-wds-sans text-[10px] leading-3 text-wds-error-fg">{row.disputedCount} disputed</span>
+      {rows.map((row) => {
+        const rowContent = (
+          <>
+            <div className="flex min-w-[180px] grow flex-col items-start gap-[2px] py-wds-2">
+              <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{row.supplierName}</span>
+              {row.disputedCount ? (
+                <span className="flex items-center gap-wds-1 rounded-wds-sm border border-wds-error-border bg-wds-error-bg px-wds-1.5 py-px">
+                  <span className="size-[5px] shrink-0 rounded-wds-full bg-wds-error-fg" aria-hidden />
+                  <span className="font-wds-sans text-[10px] leading-3 text-wds-error-fg">{row.disputedCount} disputed</span>
+                </span>
+              ) : null}
+              <span className="font-wds-sans text-wds-field-label text-wds-info-fg">
+                {row.termsLabel} · {row.lastActivityLabel}
               </span>
-            ) : null}
-            <span className="font-wds-sans text-wds-field-label text-wds-info-fg">
-              {row.termsLabel} · last {row.lastActivityLabel}
-            </span>
-          </div>
-          <span className="w-[96px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">{row.invoiced}</span>
-          <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">{row.paid}</span>
-          {AGING_BUCKET_COLUMNS.map((col) => (
-            <div key={col.key} className="w-[78px] shrink-0 text-right">
-              <AgingBucketCell value={row.buckets[col.key] ?? '–'} tone={col.tone} />
             </div>
-          ))}
-          <span className="w-[104px] shrink-0 text-right font-wds-mono text-wds-body-sm font-medium text-wds-text-ink">
-            {row.outstanding}
-          </span>
-        </div>
-      ))}
+            <span className="w-[96px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">{row.invoiced}</span>
+            <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-caption text-wds-text-copy-muted">{row.paid}</span>
+            {AGING_BUCKET_COLUMNS.map((col) => (
+              <div key={col.key} className="w-[78px] shrink-0 text-right">
+                <AgingBucketCell value={row.buckets[col.key] ?? '–'} tone={col.tone} />
+              </div>
+            ))}
+            <span className="w-[104px] shrink-0 text-right font-wds-mono text-wds-body-sm font-medium text-wds-text-ink">
+              {row.outstanding}
+            </span>
+          </>
+        );
+
+        if (onRowClick) {
+          return (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => onRowClick(row.id)}
+              aria-label={`View ${row.supplierName}`}
+              className="flex min-h-[52px] items-center border-b border-wds-neutral-100 px-wds-4 text-left transition-colors last:border-b-0 hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wds-primary active:bg-wds-neutral-100"
+            >
+              {rowContent}
+            </button>
+          );
+        }
+
+        return (
+          <div key={row.id} className="flex min-h-[52px] items-center border-b border-wds-neutral-100 px-wds-4 last:border-b-0">
+            {rowContent}
+          </div>
+        );
+      })}
     </div>
   );
 }

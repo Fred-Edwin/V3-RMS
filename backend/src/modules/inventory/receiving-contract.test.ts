@@ -26,6 +26,7 @@ import {
   PurchasingHistoryRowSchema,
   PurchasingSummarySchema,
   RecentSupplierItemSchema,
+  SupplierApDetailSchema,
   SupplierApRowSchema,
   SupplierInvoiceSchema,
   SupplierPaymentSchema,
@@ -602,5 +603,73 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
     });
 
     expect(SupplierPaymentSchema.safeParse(result).success).toBe(true);
+  });
+
+  it('SupplierApDetailSchema accepts getSupplierApDetail output, including profile fields and purchase history (AMENDMENT 2026-09-18)', async () => {
+    const { supplierPaymentRepository } = await import('./receiving-repository');
+    vi.mocked(supplierRepository.findById).mockResolvedValue({
+      id: supplierId,
+      organizationId: hubOrgId,
+      name: 'Samrat Supermarket Ltd',
+      contactName: 'Dattu',
+      category: null,
+      phone: '+254722160400',
+      email: 'samratnyeri@gmail.com',
+      location: 'Nyeri town',
+      defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
+      paymentDays: 30,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+    vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue([buildInvoiceRow()] as never);
+    vi.mocked(supplierPaymentRepository.findAllBySupplier).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([
+      {
+        id: goodsReceiptId,
+        organizationId: hubOrgId,
+        reference: 'GRN-1042',
+        supplierId,
+        supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
+        expectedDeliveryId: null,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        status: 'RECEIVED_INVOICE_PENDING',
+        supplierDocNumber: null,
+        supplierDocDate: null,
+        receiptTotal: new Prisma.Decimal('9500'),
+        lines: [],
+        signedBy: null,
+        signedAt: null,
+        invoices: [],
+        createdAt: new Date(),
+      },
+    ] as never);
+
+    const result = await receivingService.getSupplierApDetail(storeManager, supplierId);
+
+    expect(SupplierApDetailSchema.safeParse(result).success).toBe(true);
+    expect(result.supplier.paymentDays).toBe(30);
+    expect(result.purchaseHistory).toHaveLength(1);
+  });
+
+  it('listSupplierAp applies limit/cursor for real, rather than returning every supplier unbounded (AMENDMENT 2026-09-18)', async () => {
+    const { supplierApRepository } = await import('./receiving-repository');
+    const supplierTwoId = '55555555-5555-4555-8555-555555555555';
+    vi.mocked(supplierApRepository.findSuppliersWithInvoices).mockResolvedValue([
+      { id: supplierId, name: 'Alpha Distributors', paymentTerms: 'INVOICE_TO_FOLLOW' },
+      { id: supplierTwoId, name: 'Beta Supplies', paymentTerms: 'INVOICE_TO_FOLLOW' },
+    ] as never);
+    vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue([buildInvoiceRow()] as never);
+
+    const firstPage = await receivingService.listSupplierAp(storeManager, { limit: 1 } as never);
+    expect(firstPage).toHaveLength(1);
+    expect(firstPage[0]!.supplierName).toBe('Alpha Distributors');
+
+    const secondPage = await receivingService.listSupplierAp(storeManager, {
+      limit: 1,
+      cursor: firstPage[0]!.supplierId,
+    } as never);
+    expect(secondPage).toHaveLength(1);
+    expect(secondPage[0]!.supplierName).toBe('Beta Supplies');
   });
 });

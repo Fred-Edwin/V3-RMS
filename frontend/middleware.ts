@@ -145,7 +145,16 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
       return role === 'STORE_MANAGER' || isDepartmentHead;
     }
     if (pathname.startsWith('/app/inventory/suppliers')) {
-      return role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+      // AMENDMENT 2026-09-18 (Milestone Two S8): STORE_ATTENDANT now admitted
+      // to this route rather than bounced here — the Suppliers screen ("what
+      // we owe") is the one screen in Milestone Two where permission-denied
+      // is real, not theoretical (plan §3a row 8): an Attendant who reaches
+      // it gets an actual 403 from `GET /inventory/ap/summary`/`/ap/suppliers`
+      // and the screen renders `PermissionDeniedState` from that. A
+      // middleware-level redirect here would silently bounce them to their
+      // role home instead, which is exactly the "hidden nav link" behavior
+      // the plan says this screen must NOT have.
+      return role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'STORE_ATTENDANT';
     }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }

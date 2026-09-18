@@ -804,11 +804,37 @@ export type SupplierForAp = {
 };
 
 export const supplierApRepository = {
-  /** Every supplier in the org that has at least one invoice — the `/ap/suppliers` table's row set. */
-  findSuppliersWithInvoices: async (organizationId: string): Promise<SupplierForAp[]> => {
+  /**
+   * Every live supplier in the org — the `/ap/suppliers` table's row set,
+   * before the derived `hasBalance`/`agingBucket` filters (those need each
+   * supplier's aggregated row, so the service applies them after
+   * `buildSupplierApRow`). `search`/`terms` are pushed into the query here
+   * since neither needs derivation.
+   *
+   * AMENDMENT 2026-09-18 (owner feedback during S8 manual walkthrough): no
+   * longer filtered to `supplierInvoices: { some: {} }`. That filter meant a
+   * brand-new supplier (created via "New supplier" on this same screen)
+   * never appeared here — not a bug, but confusing: the button that creates
+   * a supplier lives on the exact screen where the result was invisible,
+   * and there is no other screen left to browse the full roster (Milestone
+   * One's profile-only Suppliers screen was retired when this AP-aware one
+   * replaced its route). A supplier with no invoices now shows a genuinely
+   * empty row (all buckets "–", outstanding 0), which is correct — it's
+   * derived from real (empty) data, not faked.
+   */
+  findSuppliersWithInvoices: async (
+    organizationId: string,
+    filters: { search?: string; terms?: 'INVOICE_TO_FOLLOW' | 'PAY_NOW' } = {},
+  ): Promise<SupplierForAp[]> => {
     const suppliers = await prisma.supplier.findMany({
-      where: { organizationId, supplierInvoices: { some: {} } },
+      where: {
+        organizationId,
+        deletedAt: null,
+        ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
+        ...(filters.terms ? { defaultPaymentTerms: filters.terms } : {}),
+      },
       select: { id: true, name: true, defaultPaymentTerms: true },
+      orderBy: { name: 'asc' },
     });
     return suppliers.map((s) => ({ id: s.id, name: s.name, paymentTerms: s.defaultPaymentTerms }));
   },

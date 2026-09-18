@@ -47,6 +47,7 @@ import type {
   ReverseSupplierPaymentInput,
   RecentSupplierItem,
   SignGoodsReceiptInput,
+  SupplierApDetail,
   SupplierApRow,
   SupplierInvoice,
   SupplierPayment,
@@ -1050,23 +1051,29 @@ export const receivingService = {
   /**
    * The how-overdue table. Computed at query time, never cached (plan §1.5) —
    * every request re-derives every supplier's row from its live invoice set.
+   *
+   * AMENDMENT 2026-09-18 (S8): `limit`/`cursor` were accepted by
+   * `ListSupplierApQuerySchema` but never applied — every request derived
+   * every supplier-with-invoices in the org, unbounded. `search`/`terms`
+   * (cheap, no derivation needed) are now pushed into the DB query;
+   * `hasBalance`/`agingBucket` stay as post-derivation filters (they depend
+   * on each supplier's computed row); the final filtered set is sorted by
+   * name (matching the repository's `orderBy`) and paginated by
+   * `supplierId` cursor. The frontend infers `hasMore` from
+   * `data.length === limit`, same convention as this module's other
+   * bare-array list endpoints (`use-purchasing-history-list.ts`).
    */
   listSupplierAp: async (actor: Actor, query: ListSupplierApQuery): Promise<SupplierApRow[]> => {
     const organizationId = await requireHubActor(actor);
     const now = new Date();
 
-    const suppliers = await supplierApRepository.findSuppliersWithInvoices(organizationId);
-    let filteredSuppliers = suppliers;
-    if (query.search) {
-      const term = query.search.toLowerCase();
-      filteredSuppliers = filteredSuppliers.filter((s) => s.name.toLowerCase().includes(term));
-    }
-    if (query.terms) {
-      filteredSuppliers = filteredSuppliers.filter((s) => s.paymentTerms === query.terms);
-    }
+    const suppliers = await supplierApRepository.findSuppliersWithInvoices(organizationId, {
+      search: query.search,
+      terms: query.terms,
+    });
 
     const rows = await Promise.all(
-      filteredSuppliers.map(async (supplier) => {
+      suppliers.map(async (supplier) => {
         const invoices = await supplierInvoiceRepository.findAllBySupplier(supplier.id, organizationId);
         return buildSupplierApRow(supplier, invoices, now);
       }),
@@ -1080,7 +1087,10 @@ export const receivingService = {
       filteredRows = filteredRows.filter((r) => Number(r.buckets[query.agingBucket!]) > 0);
     }
 
-    return filteredRows;
+    filteredRows.sort((a, b) => a.supplierName.localeCompare(b.supplierName));
+
+    const startIndex = query.cursor ? filteredRows.findIndex((r) => r.supplierId === query.cursor) + 1 : 0;
+    return filteredRows.slice(startIndex, startIndex + query.limit);
   },
 
   /**
@@ -1088,28 +1098,55 @@ export const receivingService = {
    * history. Calls the exact same `buildSupplierApRow` derivation as
    * `listSupplierAp` so the two views can never disagree — the plan §1.5
    * invariant this session's reconciliation test asserts.
+   *
+   * AMENDMENT 2026-09-18 (S8): `supplier` (profile fields) and
+   * `purchaseHistory` added — both named in-scope for `VND-0` by plan §0 but
+   * missing from the original response. Profile now comes from
+   * `supplierRepository.findById` (Milestone One's full-row query, now
+   * carrying `paymentDays`) instead of `supplierApRepository.findSupplierForAp`
+   * (id/name/terms only) — the latter is kept for `listSupplierAp`, which
+   * only needs those three fields per row. Purchase history reuses
+   * `goodsReceiptRepository.findAllByOrganization` filtered by `supplierId`
+   * — no new query.
    */
-  getSupplierApDetail: async (
-    actor: Actor,
-    supplierId: string,
-  ): Promise<{
-    row: SupplierApRow;
-    invoices: SupplierInvoice[];
-    payments: SupplierPayment[];
-  }> => {
+  getSupplierApDetail: async (actor: Actor, supplierId: string): Promise<SupplierApDetail> => {
     const organizationId = await requireHubActor(actor);
-    const supplier = await supplierApRepository.findSupplierForAp(supplierId, organizationId);
-    if (!supplier) throw new NotFoundError('Supplier not found');
+    const supplierRow = await supplierRepository.findById(supplierId, organizationId);
+    if (!supplierRow) throw new NotFoundError('Supplier not found');
+    const supplierForAp: SupplierForAp = {
+      id: supplierRow.id,
+      name: supplierRow.name,
+      paymentTerms: supplierRow.defaultPaymentTerms,
+    };
 
-    const [invoices, payments] = await Promise.all([
+    const [invoices, payments, purchaseHistory] = await Promise.all([
       supplierInvoiceRepository.findAllBySupplier(supplierId, organizationId),
       supplierPaymentRepository.findAllBySupplier(supplierId, organizationId),
+      goodsReceiptRepository.findAllByOrganization(organizationId, {
+        supplierId,
+        limit: 100,
+      }),
     ]);
 
     return {
-      row: buildSupplierApRow(supplier, invoices, new Date()),
+      supplier: {
+        id: supplierRow.id,
+        name: supplierRow.name,
+        contactName: supplierRow.contactName,
+        category: supplierRow.category,
+        phone: supplierRow.phone,
+        email: supplierRow.email,
+        location: supplierRow.location,
+        defaultPaymentTerms: supplierRow.defaultPaymentTerms,
+        paymentDays: supplierRow.paymentDays,
+        retiredAt: supplierRow.deletedAt?.toISOString() ?? null,
+        createdAt: supplierRow.createdAt.toISOString(),
+        updatedAt: supplierRow.updatedAt.toISOString(),
+      },
+      row: buildSupplierApRow(supplierForAp, invoices, new Date()),
       invoices: invoices.map(serializeSupplierInvoice),
       payments: payments.map(serializeSupplierPayment),
+      purchaseHistory: purchaseHistory.map(serializeGoodsReceipt),
     };
   },
 

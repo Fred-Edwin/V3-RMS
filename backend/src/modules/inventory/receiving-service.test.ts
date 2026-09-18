@@ -136,7 +136,15 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
   organizationId: hubOrgId,
   name: 'Samrat Supermarket Ltd',
+  contactName: 'Dattu',
+  category: null,
+  phone: '+254722160400',
+  email: 'samratnyeri@gmail.com',
+  location: 'Nyeri town',
+  defaultPaymentTerms: 'INVOICE_TO_FOLLOW' as const,
   deletedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
   ...overrides,
 });
 
@@ -1362,6 +1370,27 @@ describe('receivingService — aging buckets', () => {
   });
 });
 
+describe('receivingService.listSupplierAp — a supplier with no invoices still appears (owner feedback, 2026-09-18)', () => {
+  it('returns a zero row for a brand-new supplier, not an omitted one', async () => {
+    // findSuppliersWithInvoices (repository) is what changed — it used to
+    // filter to `supplierInvoices: { some: {} }`, silently dropping a
+    // supplier the "New supplier" drawer had just created on this same
+    // screen. The service layer under test here just has to not do
+    // anything that would re-introduce that filter.
+    vi.mocked(supplierApRepository.findSuppliersWithInvoices).mockResolvedValue([
+      buildSupplierForAp({ id: 'no-invoices-yet', name: 'Zero Ltd' }),
+    ] as never);
+    vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue([]);
+
+    const [row] = await receivingService.listSupplierAp(storeManager, { limit: 25 } as never);
+
+    expect(row).toBeDefined();
+    expect(row!.supplierName).toBe('Zero Ltd');
+    expect(row!.invoiced).toBe('0');
+    expect(row!.outstanding).toBe('0');
+  });
+});
+
 describe('receivingService — the three what-we-owe views reconcile (plan §1.5 invariant)', () => {
   it('listSupplierAp row, getSupplierApDetail panel, and a straight sum of invoices all agree', async () => {
     const invoices = [
@@ -1384,8 +1413,9 @@ describe('receivingService — the three what-we-owe views reconcile (plan §1.5
 
     vi.mocked(supplierApRepository.findSuppliersWithInvoices).mockResolvedValue([buildSupplierForAp()] as never);
     vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue(invoices as never);
-    vi.mocked(supplierApRepository.findSupplierForAp).mockResolvedValue(buildSupplierForAp() as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplierWithPaymentDays() as never);
     vi.mocked(supplierPaymentRepository.findAllBySupplier).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([]);
 
     const [listRow] = await receivingService.listSupplierAp(storeManager, { limit: 25 } as never);
     const detail = await receivingService.getSupplierApDetail(storeManager, supplierId);

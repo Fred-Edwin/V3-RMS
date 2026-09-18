@@ -19,6 +19,12 @@ export interface DisputeCalloutProps {
   onRecordAtBilled: () => void;
   holdLabel?: string;
   recordAtBilledLabel?: string;
+  /**
+   * AMENDMENT 2026-09-18 (S8): disables both actions while the consuming
+   * screen's request is in flight — prevents a double-submit on
+   * "Record at billed" (a real write), not just a UX nicety.
+   */
+  disabled?: boolean;
   className?: string;
 }
 
@@ -29,6 +35,7 @@ export function DisputeCallout({
   onRecordAtBilled,
   holdLabel = 'Hold',
   recordAtBilledLabel = 'Record at billed — open dispute',
+  disabled,
   className,
 }: DisputeCalloutProps) {
   return (
@@ -46,14 +53,16 @@ export function DisputeCallout({
           <button
             type="button"
             onClick={onHold}
-            className="min-w-12 shrink-0 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 py-1 font-wds-sans text-wds-caption text-wds-text-ink"
+            disabled={disabled}
+            className="min-w-12 shrink-0 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 py-1 font-wds-sans text-wds-caption text-wds-text-ink transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wds-primary active:bg-wds-neutral-100 disabled:pointer-events-none disabled:opacity-60"
           >
             {holdLabel}
           </button>
           <button
             type="button"
             onClick={onRecordAtBilled}
-            className="shrink-0 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 py-1 font-wds-sans text-wds-caption text-wds-text-ink"
+            disabled={disabled}
+            className="shrink-0 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 py-1 font-wds-sans text-wds-caption text-wds-text-ink transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wds-primary active:bg-wds-neutral-100 disabled:pointer-events-none disabled:opacity-60"
           >
             {recordAtBilledLabel}
           </button>

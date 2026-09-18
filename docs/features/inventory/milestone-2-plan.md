@@ -6,9 +6,9 @@ Stage 2 (Receiving), Stage 10 (Supplier payment). See `MILESTONES.md` for why
 these three Stages are one ship unit.
 **Step:** 5 of the per-feature pipeline — high-level plan
 **Status:** APPROVED 2026-09-16 (all six §7 questions resolved). Step 7 build
-underway: S0, S1, S2, S3, S5, S4, S6, S7 complete (S6's frontend work and the
-S7 backend slice below both landed 2026-09-18) — see §5 for current session
-status. S8 is next.
+underway: S0, S1, S2, S3, S5, S4, S6, S7, S8 complete (S8 landed 2026-09-18,
+including a same-day backend amendment — see its own row below) — see §5 for
+current session status. S9 (integration) is next.
 **Date:** 2026-09-16
 
 **Traces to:**
@@ -590,7 +590,7 @@ onward is strictly sequential.
 | S4 | Backend — goods receipts incl. signing, ledger write, latest-price costing (the riskiest session; own tests) | **Done** | S3 | `06-sessions/milestone-2-s4-backend-goods-receipts-prompt.md` |
 | S6 | Frontend — Goods receipt entry + signed detail/print, against **S4's real endpoints**; needs S0's Sign sheet composite | **Done** — including the follow-up Receiving worklist/History redesign work (`06-sessions/milestone-2-s6-followup-receiving-history-handoff.md`) | S0, S4 | `06-sessions/milestone-2-s6-frontend-goods-receipt-prompt.md` |
 | S7 | Backend — supplier invoices (bundling, disputes) + payments (allocation, overpayment, reversal) + what-we-owe/how-overdue read models | **Done** (2026-09-18) — `pnpm build` + `pnpm test` clean, 814/814 tests pass including the three-way what-we-owe reconciliation test and aging-bucket boundary tests | S4 | `06-sessions/milestone-2-s7-backend-invoices-payments-prompt.md` |
-| S8 | Frontend — Suppliers screen (what we owe), Supplier detail, Record invoice, Record payment (desktop + mobile), against **S7's real endpoints** | Not started | S0, S7 | `06-sessions/milestone-2-s8-frontend-suppliers-screen-prompt.md` |
+| S8 | Frontend — Suppliers screen (what we owe), Supplier detail, Record invoice, Record payment (desktop + mobile), against **S7's real endpoints** | **Done** (2026-09-18) — required a same-day backend amendment first: `GET /inventory/ap/suppliers/:id` was missing `paymentDays`/profile fields and purchase history (no schema/contract test existed for it at all), and `listSupplierAp` accepted but never applied `limit`/`cursor`. All three closed in `receiving-validators.ts`/`receiving-repository.ts`/`receiving-service.ts` (see file header for the amendment record) before the four screens were built. `backend`: `pnpm build` + `pnpm test` clean, 816/816 passing (2 new contract tests). `frontend`: `pnpm build` clean; real-browser verified (Playwright) — full invoice+payment round trip incl. a real mismatch/dispute and a real overpayment, cross-screen reconciliation confirmed by eye, `STORE_ATTENDANT` 403 → real `PermissionDeniedState` (required fixing a `middleware.ts` route guard that was silently redirecting Attendants away from `/app/inventory/suppliers` before the page could even render the denial card), duplicate-invoice-number/receipt-already-invoiced/cross-supplier failure paths confirmed with specific backend error text surfaced, not a generic toast. | S0, S7 | `06-sessions/milestone-2-s8-frontend-suppliers-screen-prompt.md` |
 | S9 | Integration (playbook Step 8) — wire real backend, run Flows 1, 2a, 2b, 2d, 2e, 14, 15, 16 end to end | Not started | S3–S8 | not yet drafted |
 
 **S0 exists because of a real gap, and I am naming it rather than assuming it

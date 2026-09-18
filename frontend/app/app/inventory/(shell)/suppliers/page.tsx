@@ -1,5 +1,5 @@
-import { SuppliersScreen } from '@/features/inventory';
+import { SuppliersApScreen } from '@/features/inventory';
 
 export default function SuppliersPage() {
-  return <SuppliersScreen />;
+  return <SuppliersApScreen />;
 }

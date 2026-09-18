@@ -97,6 +97,7 @@ const serializeSupplier = (supplier: SupplierWithRelations) => ({
   email: supplier.email,
   location: supplier.location,
   defaultPaymentTerms: supplier.defaultPaymentTerms,
+  paymentDays: supplier.paymentDays,
   retiredAt: supplier.deletedAt?.toISOString() ?? null,
   createdAt: supplier.createdAt.toISOString(),
   updatedAt: supplier.updatedAt.toISOString(),
@@ -468,6 +469,7 @@ export const inventoryService = {
         email: input.email ?? null,
         location: input.location ?? null,
         defaultPaymentTerms: input.defaultPaymentTerms,
+        paymentDays: input.paymentDays,
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: 'A supplier with this name already exists' }));
     return serializeSupplier(supplier);

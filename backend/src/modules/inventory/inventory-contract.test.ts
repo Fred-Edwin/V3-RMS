@@ -147,6 +147,7 @@ describe('Inventory contract drift guard', () => {
           email: 'samratnyeri@gmail.com',
           location: 'Nyeri town',
           defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
+          paymentDays: 30,
           deletedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),

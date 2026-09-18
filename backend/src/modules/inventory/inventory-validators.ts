@@ -304,6 +304,13 @@ export const SupplierSchema = z.object({
   /** Free text, e.g. "Nyeri town" — shown on the supplier detail header. */
   location: z.string().nullable(),
   defaultPaymentTerms: supplierPaymentTermsSchema,
+  /**
+   * AMENDMENT 2026-09-18 (Milestone Two S8): a real `Supplier` column since
+   * migration `20260916031604_inventory_milestone_two_receiving_ap` — S7's
+   * `SupplierInvoice.dueDate` is computed from it — that no read model
+   * exposed until now. Editable on the supplier form (`VU2-0`/`X6B-0`).
+   */
+  paymentDays: z.number().int(),
   retiredAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -322,6 +329,8 @@ export const CreateSupplierSchema = z.object({
   email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
   location: z.string().trim().max(200).nullish(),
   defaultPaymentTerms: supplierPaymentTermsSchema.default('INVOICE_TO_FOLLOW'),
+  /** Optional — the Prisma column default (30) applies when omitted. */
+  paymentDays: z.number().int().positive().optional(),
 });
 
 /**
@@ -342,6 +351,7 @@ export const UpdateSupplierSchema = z
     email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
     location: z.string().trim().max(200).nullish(),
     defaultPaymentTerms: supplierPaymentTermsSchema.optional(),
+    paymentDays: z.number().int().positive().optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'At least one field must be provided',

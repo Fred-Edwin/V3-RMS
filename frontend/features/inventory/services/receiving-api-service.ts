@@ -11,16 +11,26 @@
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type {
+  ApSummary,
   CreateExpectedDeliveryInput,
   CreateGoodsReceiptInput,
+  CreateSupplierInvoiceInput,
+  CreateSupplierPaymentInput,
   ExpectedDeliveryDetail,
   ExpectedDeliverySummary,
   GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
+  ListGoodsReceiptsQuery,
+  ListSupplierApQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
   RecentSupplierItem,
+  ReverseSupplierPaymentInput,
   SignGoodsReceiptInput,
+  SupplierApDetail,
+  SupplierApRow,
+  SupplierInvoice,
+  SupplierPayment,
   UpdateGoodsReceiptInput,
 } from '../types/receiving';
 
@@ -99,6 +109,10 @@ export async function cancelExpectedDelivery(id: string): Promise<ExpectedDelive
 
 // ─── Goods receipts ─────────────────────────────────────────────────────────
 
+export async function listGoodsReceipts(query: ListGoodsReceiptsQuery = {}): Promise<GoodsReceiptDetail[]> {
+  return apiClient.get<GoodsReceiptDetail[]>(`/inventory/goods-receipts${toQueryString(query)}`, token());
+}
+
 export async function getGoodsReceipt(id: string): Promise<GoodsReceiptDetail> {
   return apiClient.get<GoodsReceiptDetail>(`/inventory/goods-receipts/${id}`, token());
 }
@@ -128,4 +142,30 @@ export async function getRecentSupplierItems(supplierId: string, limit = 8): Pro
     `/inventory/suppliers/${supplierId}/recent-items${toQueryString({ limit })}`,
     token()
   );
+}
+
+// ─── What we owe (Supplier AP) — S7/S8 ──────────────────────────────────────
+
+export async function getApSummary(): Promise<ApSummary> {
+  return apiClient.get<ApSummary>('/inventory/ap/summary', token());
+}
+
+export async function listSupplierAp(query: ListSupplierApQuery = {}): Promise<SupplierApRow[]> {
+  return apiClient.get<SupplierApRow[]>(`/inventory/ap/suppliers${toQueryString(query)}`, token());
+}
+
+export async function getSupplierApDetail(supplierId: string): Promise<SupplierApDetail> {
+  return apiClient.get<SupplierApDetail>(`/inventory/ap/suppliers/${supplierId}`, token());
+}
+
+export async function createSupplierInvoice(input: CreateSupplierInvoiceInput): Promise<SupplierInvoice> {
+  return apiClient.post<SupplierInvoice>('/inventory/supplier-invoices', input, token());
+}
+
+export async function createSupplierPayment(input: CreateSupplierPaymentInput): Promise<SupplierPayment> {
+  return apiClient.post<SupplierPayment>('/inventory/supplier-payments', input, token());
+}
+
+export async function reverseSupplierPayment(id: string, input: ReverseSupplierPaymentInput): Promise<SupplierPayment> {
+  return apiClient.post<SupplierPayment>(`/inventory/supplier-payments/${id}/reverse`, input, token());
 }

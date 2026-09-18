@@ -3706,6 +3706,54 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
 
 ### 22.5 Amendments since freeze
 
+> **AMENDMENT 2026-09-18 (owner feedback during S8 manual walkthrough):
+> `GET /inventory/ap/suppliers` no longer excludes suppliers with zero
+> invoices.** `supplierApRepository.findSuppliersWithInvoices` previously
+> filtered to `supplierInvoices: { some: {} }` — a brand-new supplier
+> (created via "New supplier" on this same screen) never appeared in the
+> how-overdue table, which the owner found while testing and reasonably
+> read as "the app didn't save it." Not a caching bug — the query itself
+> excluded it by design. Fixed by dropping that filter (now `deletedAt:
+> null` only, matching the rest of this module's soft-delete convention). A
+> supplier with no invoices now returns a genuine zero row (every bucket
+> "–", outstanding 0) rather than being silently omitted — derived from
+> real (empty) data, not faked. No schema change — `SupplierApRowSchema`
+> already tolerates zero amounts everywhere.
+
+> **AMENDMENT 2026-09-18 (S8, Suppliers/Supplier-detail frontend build session):
+> three gaps closed in the contract before the frontend could build to plan
+> §0's stated scope.**
+>
+> 1. **`SupplierSchema` gains `paymentDays: number`.** A real `Supplier`
+>    column since migration `20260916031604_inventory_milestone_two_receiving_ap`
+>    (S7's `SupplierInvoice.dueDate` is computed from it) that no read model —
+>    not `SupplierSchema`, not the AP read models — had exposed until now.
+>    `CreateSupplierSchema`/`UpdateSupplierSchema` both gain an optional
+>    `paymentDays` (the Prisma column default of 30 applies when omitted) so
+>    the New/edit supplier form (`VU2-0`/`X6B-0`) can display and edit it, per
+>    plan §0 item 5.
+> 2. **New schema `SupplierApDetailSchema`** for `GET /inventory/ap/suppliers/:id`
+>    (`VND-0`). This endpoint had no response schema or contract test at all
+>    before this amendment — every other S7 read model did. Shape:
+>    `{ supplier: SupplierSchema, row: SupplierApRowSchema, invoices:
+>    SupplierInvoiceSchema[], payments: SupplierPaymentSchema[],
+>    purchaseHistory: GoodsReceiptDetailSchema[] }`. `supplier` and
+>    `purchaseHistory` are new on the wire — the endpoint previously returned
+>    only `{ row, invoices, payments }`, missing the profile fields and
+>    purchase history plan §0 names as in-scope for Supplier detail.
+>    `purchaseHistory` reuses `goodsReceiptRepository.findAllByOrganization`
+>    filtered by `supplierId` — no new query.
+> 3. **`GET /inventory/ap/suppliers` (`listSupplierAp`) now actually applies
+>    `limit`/`cursor`.** `ListSupplierApQuerySchema` accepted both since
+>    freeze, but the service ignored them and derived every supplier-with-
+>    invoices in the org, unbounded, on every request. `search`/`terms` (no
+>    derivation needed) are now pushed into the DB query; `hasBalance`/
+>    `agingBucket` stay as post-derivation filters; the final filtered set is
+>    sorted by supplier name and paginated by `supplierId` cursor. No schema
+>    change — the frontend infers `hasMore` from `data.length === limit`,
+>    the same convention this module's other bare-array list endpoints
+>    already use (`use-purchasing-history-list.ts`, `use-receiving-worklist.ts`).
+
 > **AMENDMENT 2026-09-18 (S6 follow-up): signing a Goods Receipt now marks its
 > linked ExpectedDelivery `FULFILLED`.** Previously `POST /goods-receipts/:id/
 > sign` never touched the `ExpectedDelivery` row it was created against —

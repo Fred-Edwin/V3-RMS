@@ -368,6 +368,7 @@ export async function createSupplier(input: CreateSupplierInput): Promise<Suppli
     email: input.email?.trim() ?? null,
     location: input.location?.trim() ?? null,
     defaultPaymentTerms: input.defaultPaymentTerms ?? 'INVOICE_TO_FOLLOW',
+    paymentDays: input.paymentDays ?? 30,
     retiredAt: null,
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -404,6 +405,7 @@ export async function updateSupplier(id: string, input: UpdateSupplierInput): Pr
     email: input.email !== undefined ? input.email?.trim() ?? null : existing.email,
     location: input.location !== undefined ? input.location?.trim() ?? null : existing.location,
     defaultPaymentTerms: input.defaultPaymentTerms !== undefined ? input.defaultPaymentTerms : existing.defaultPaymentTerms,
+    paymentDays: input.paymentDays !== undefined ? input.paymentDays : existing.paymentDays,
     updatedAt: new Date().toISOString(),
   };
   suppliers = suppliers.map((s) => (s.id === id ? updated : s));

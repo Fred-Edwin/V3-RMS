@@ -145,6 +145,12 @@ export interface Supplier {
   /** Free text, e.g. "Nyeri town" — shown on the supplier detail header. */
   location: string | null;
   defaultPaymentTerms: SupplierPaymentTerms;
+  /**
+   * AMENDMENT 2026-09-18 (Milestone Two S8): a real `Supplier` column
+   * (`SupplierInvoice.dueDate` is computed from it) that no read model
+   * exposed until now. Editable on the supplier form (`VU2-0`/`X6B-0`).
+   */
+  paymentDays: number;
   retiredAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -165,6 +171,8 @@ export interface CreateSupplierInput {
   email?: string | null;
   location?: string | null;
   defaultPaymentTerms?: SupplierPaymentTerms;
+  /** Optional — the backend's Prisma column default (30) applies when omitted. */
+  paymentDays?: number;
 }
 
 /**
@@ -182,6 +190,7 @@ export interface UpdateSupplierInput {
   email?: string | null;
   location?: string | null;
   defaultPaymentTerms?: SupplierPaymentTerms;
+  paymentDays?: number;
 }
 
 // ─── Restock levels ─────────────────────────────────────────────────────────

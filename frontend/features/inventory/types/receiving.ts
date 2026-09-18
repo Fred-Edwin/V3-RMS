@@ -17,7 +17,7 @@
 // Type and field names below stay technical (matching the backend contract);
 // only display copy changes, at the component layer.
 
-import type { SupplierPaymentTerms } from './index';
+import type { Supplier, SupplierPaymentTerms } from './index';
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
 
@@ -204,6 +204,18 @@ export interface UpdateGoodsReceiptInput {
   }>;
 }
 
+/**
+ * AMENDMENT 2026-09-18 (S8): mirrors backend's `ListGoodsReceiptsQuerySchema`
+ * — missing from this file until now. Used by the "RECEIPTS TO BUNDLE"
+ * picker in Record supplier invoice (`status: 'RECEIVED_INVOICE_PENDING'`).
+ */
+export interface ListGoodsReceiptsQuery {
+  status?: GoodsReceiptStatus;
+  supplierId?: string;
+  limit?: number;
+  cursor?: string;
+}
+
 // ─── Supplier invoices (Stage 10, Flow 14) ─────────────────────────────────
 
 export interface SupplierInvoice {
@@ -316,6 +328,23 @@ export interface ApSummary {
   totalOutstanding: string;
   supplierCount: number;
   suppliersWithBalance: number;
+}
+
+/**
+ * `GET /inventory/ap/suppliers/:id` (`VND-0`) — profile, the what-we-owe
+ * bucket panel data (`row`, same derivation `SupplierApRow` uses — plan
+ * §1.5's reconciliation invariant), invoice list, payment list, and purchase
+ * history. AMENDMENT 2026-09-18 (S8): this type didn't exist before — the
+ * endpoint previously returned only `{ row, invoices, payments }`, missing
+ * `supplier` and `purchaseHistory`, both named in-scope for Supplier detail
+ * by plan §0.
+ */
+export interface SupplierApDetail {
+  supplier: Supplier;
+  row: SupplierApRow;
+  invoices: SupplierInvoice[];
+  payments: SupplierPayment[];
+  purchaseHistory: GoodsReceiptDetail[];
 }
 
 /** Three tiles, not four — `IN TRANSIT` was dropped, not deferred (owner decision 2026-09-16). */

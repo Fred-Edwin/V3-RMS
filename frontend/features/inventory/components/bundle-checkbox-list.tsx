@@ -37,7 +37,7 @@ export function BundleCheckboxList({ title, rows, onToggle, className }: BundleC
           type="button"
           onClick={() => onToggle(row.id)}
           className={cn(
-            'flex h-11 shrink-0 items-center gap-wds-2.5 px-wds-3 text-left',
+            'flex h-11 shrink-0 items-center gap-wds-2.5 px-wds-3 text-left transition-colors hover:bg-wds-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wds-primary active:bg-wds-neutral-100',
             i < rows.length - 1 && 'border-b border-wds-neutral-100'
           )}
         >

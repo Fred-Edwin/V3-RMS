@@ -305,6 +305,14 @@ export type CreateSupplierInput = {
   phone: string | null;
   email: string | null;
   location: string | null;
+  /**
+   * AMENDMENT 2026-09-18 (S8): a real `Supplier` column since migration
+   * `20260916031604_inventory_milestone_two_receiving_ap` (S7's `dueDate`
+   * computation depends on it) that no create/update/read path exposed
+   * until now — added so the supplier form can display and edit it.
+   * Optional on create: the Prisma column default (30) applies when omitted.
+   */
+  paymentDays?: number;
   defaultPaymentTerms: SupplierPaymentTerms;
 };
 
@@ -360,6 +368,7 @@ export const supplierRepository = {
         email: data.email,
         location: data.location,
         defaultPaymentTerms: data.defaultPaymentTerms,
+        ...(data.paymentDays !== undefined ? { paymentDays: data.paymentDays } : {}),
       },
       include: supplierInclude,
     });
@@ -380,6 +389,7 @@ export const supplierRepository = {
         ...(data.email !== undefined ? { email: data.email } : {}),
         ...(data.location !== undefined ? { location: data.location } : {}),
         ...(data.defaultPaymentTerms !== undefined ? { defaultPaymentTerms: data.defaultPaymentTerms } : {}),
+        ...(data.paymentDays !== undefined ? { paymentDays: data.paymentDays } : {}),
       },
     });
 

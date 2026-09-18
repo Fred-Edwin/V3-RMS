@@ -21,11 +21,9 @@ import { Skeleton } from '@/components/ui2/skeleton';
 /* ----------------------------------------------------- Suppliers · list */
 
 /** The 3-cell KPI row from `5R3-0` (dash placeholder, matching Paper's
- * literal "—" for a value that hasn't loaded). Split out from the table
- * skeleton below since the live `SuppliersScreen` doesn't render this strip
- * yet (Milestone One's contract is profile-only — see the screen's own
- * comment) — kept here, unused for now, for whichever later milestone adds
- * the AP-aware KPI strip `5R3-0` actually shows. */
+ * literal "—" for a value that hasn't loaded). Now rendered by
+ * `SuppliersApScreen` (Milestone Two S8) — the KPI strip `VGE-0`/`5R3-0`
+ * always showed, deferred until this session added the AP read models. */
 export function SuppliersKpiSkeletonDesktop({ className }: { className?: string }) {
   return (
     <div className={cn('flex rounded-wds-md border border-wds-border bg-wds-surface', className)}>
@@ -68,7 +66,7 @@ export function SuppliersListSkeletonDesktop({ className }: { className?: string
 /**
  * Mobile — not in Paper (only desktop drawn for A2). Follows the same
  * "real header/title stays, content becomes skeleton" rule, shaped to match
- * `SuppliersScreen`'s actual mobile card list (name + subtitle per row).
+ * `SuppliersApScreen`'s actual mobile card list (name + subtitle per row).
  */
 export function SuppliersListSkeletonMobile({ className }: { className?: string }) {
   return (

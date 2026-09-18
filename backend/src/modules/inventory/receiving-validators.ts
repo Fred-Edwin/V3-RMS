@@ -135,10 +135,38 @@
  * repeating `findHistoryRows`'s existing limit-bump gap — `ReceivingHistoryQuerySchema`
  * takes a `cursor` the same shape as `ListExpectedDeliveriesQuerySchema`'s.
  * `docs/API_CONTRACT.md` §22.6 records this amendment.
+ *
+ * AMENDMENT 2026-09-18 (S8, Suppliers/Supplier-detail frontend build
+ * session): three gaps found while building against this contract, closed
+ * here rather than left for the frontend to work around:
+ *
+ *  1. `listSupplierAp` (`GET /inventory/ap/suppliers`) accepted `limit`/
+ *     `cursor` on `ListSupplierApQuerySchema` but never applied them — the
+ *     service fetched every supplier with an invoice, unbounded, on every
+ *     request. No schema change was needed; the service/repository now
+ *     apply real cursor pagination (same `take`/`cursor`/`skip: 1` shape as
+ *     `goodsReceiptRepository.findAllByOrganization`), and the frontend
+ *     infers `hasMore` from `data.length === limit`, the same convention
+ *     already used by `use-purchasing-history-list.ts`/
+ *     `use-receiving-worklist.ts` for this module's other bare-array list
+ *     endpoints — no `hasMore` wrapper field added.
+ *  2. `GET /inventory/ap/suppliers/:id` had no response schema or contract
+ *     test at all (every other S7 read model has one). `SupplierApDetailSchema`
+ *     is added below to close that gap.
+ *  3. That same endpoint's response carried no supplier profile fields
+ *     (phone/email/contactName/location/paymentDays) and no purchase
+ *     history — both named in-scope for Supplier detail (`VND-0`) by plan
+ *     §0. `SupplierApDetailSchema.supplier` adds the profile fields
+ *     (reusing `SupplierSchema`'s shape from `inventory-validators.ts` plus
+ *     `paymentDays`, which is a real `Supplier` column, migration
+ *     `20260916031604_inventory_milestone_two_receiving_ap`, that no read
+ *     model had exposed until now); `.purchaseHistory` reuses
+ *     `GoodsReceiptDetailSchema` via `goodsReceiptRepository.findAllByOrganization`
+ *     filtered by `supplierId` — no new query, no new shape.
  */
 import { z } from 'zod';
 
-import { supplierPaymentTermsSchema } from './inventory-validators';
+import { SupplierSchema, supplierPaymentTermsSchema } from './inventory-validators';
 
 // --- Shared primitives ------------------------------------------------------
 
@@ -625,6 +653,28 @@ export const ApSummarySchema = z.object({
   totalOutstanding: decimalString,
   supplierCount: z.number().int(),
   suppliersWithBalance: z.number().int(),
+});
+
+/**
+ * `GET /inventory/ap/suppliers/:id` (`VND-0`) — profile, the what-we-owe
+ * bucket panel data (`row`, same derivation `listSupplierAp` uses — plan
+ * §1.5's reconciliation invariant), invoice list, payment list, and purchase
+ * history. AMENDMENT 2026-09-18 (S8): this schema didn't exist before —
+ * every other S7 read model had a frozen response schema and contract test;
+ * this endpoint's shape was implicit in the service's return type only.
+ * `supplier` reuses `SupplierSchema` (now carrying `paymentDays`, itself a
+ * same-day amendment) rather than a bespoke profile shape, since a supplier
+ * detail screen's profile fields are identical to the New/edit supplier
+ * form's. `purchaseHistory` reuses `GoodsReceiptDetailSchema` — no new
+ * query or shape, just `goodsReceiptRepository.findAllByOrganization`
+ * filtered by `supplierId` (that filter already existed for S4/S6).
+ */
+export const SupplierApDetailSchema = z.object({
+  supplier: SupplierSchema,
+  row: SupplierApRowSchema,
+  invoices: z.array(SupplierInvoiceSchema),
+  payments: z.array(SupplierPaymentSchema),
+  purchaseHistory: z.array(GoodsReceiptDetailSchema),
 });
 
 /**
