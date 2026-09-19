@@ -3565,12 +3565,14 @@ specified:
 
 ## 22. Inventory — Milestone Two (Receiving & Supplier AP)
 
-> **STATUS: FROZEN — 2026-09-16.**
-> Frozen per `docs/FEATURE_REDO_PLAYBOOK.md` Step 6, following owner approval of
-> `docs/features/inventory/milestone-2-plan.md` and resolution of all six of its
-> §7 open questions. Backend and frontend build sessions (S3–S8 in the plan's
-> session breakdown) run in parallel against this contract, once S1 (schema)
-> and S0 (component inventory) clear.
+> **STATUS: SHIPPED — 2026-09-18** (deployed to production 2026-09-19).
+> Frozen 2026-09-16 per `docs/FEATURE_REDO_PLAYBOOK.md` Step 6, following owner
+> approval of `docs/features/inventory/milestone-2-plan.md` and resolution of
+> all six of its §7 open questions. Backend and frontend build sessions
+> (S3–S8) ran against this contract, then S9 integration testing (a real
+> end-to-end browser walkthrough plus an owner manual walkthrough) found and
+> fixed several service-layer bugs without changing any shape below — see
+> `docs/features/inventory/milestone-2-plan.md` §5's S9 row for detail.
 >
 > **AMENDMENT 2026-09-16 (post-freeze, during S3):** `PurchasingHistoryRowSchema`
 > added — `GET /inventory/purchasing/history`'s response shape was missed at

@@ -1,24 +1,33 @@
 # Data Model
 ## Wendo Coffee Bistro — Restaurant Management System (RMS)
-**Version:** 2.1
+**Version:** 2.2
 **Status:** Partially stale — see note below
-**Date:** 2026-05-04 (core) · 2026-09-07 (staleness note + HR additions)
+**Date:** 2026-05-04 (core) · 2026-09-07 (staleness note + HR additions) · 2026-09-19 (Inventory Milestones One & Two)
 **Stack:** PostgreSQL · Prisma ORM
 
-> **Staleness note (2026-09-07).** This document was written at Phase 8. The
-> schema is now at ~72 models / 34 enums. **`backend/prisma/schema.prisma` is the
+> **Staleness note (2026-09-19).** This document was written at Phase 8. The
+> schema is now at 66 models / 34 enums. **`backend/prisma/schema.prisma` is the
 > source of truth.** Known gaps in this doc:
 > - **HR:** `ContractType`, `LeavePolicy`, `LeaveRequestAcknowledgement`,
 >   `Payslip` are documented in §4.44–4.47 below (added 2026-09-07). The
 >   `EmployeeProfile` block in §4.39 predates the statutory-ID / bank-details /
 >   contract-type fields — check the schema.
-> - **Inventory (Phase 1, live in production):** `Location`, `InventoryItem`,
->   `Supplier`, `SupplierItem`, `PurchaseOrder(+Line)`, `SupplierInvoice`,
->   `SupplierPayment`, `PrepRecipe(+Line)`, `PrepRecord(+Line)`, `StockCount(+Line)`,
->   `WasteLog`, `InventoryTransaction`, `ParLevel` — **not documented here.** They
->   will be documented during the Inventory redo (see `docs/FEATURE_REDO_PLAYBOOK.md`).
-> - **Inventory Phase 2 scaffolding:** `Requisition(+Line)`, `Dispatch(+Line)`,
->   `MarketPurchase(+Line)` — partial, not documented, subject to the redo.
+> - **Inventory (Milestones One & Two, shipped and live in production):**
+>   `Category`, `InventoryItem`, `Supplier`, `RestockLevel`, `InventoryTransaction`,
+>   `ReferenceCounter`, `ExpectedDelivery(+Line)`, `GoodsReceipt(+Line)`,
+>   `SupplierInvoice(+Receipt/Adjustment)`, `SupplierPayment(+Allocation)` are
+>   documented in §4.48–4.62 below (added 2026-09-19). These **replace** the
+>   pre-redo Phase 1 models (`SupplierItem`, `PurchaseOrder(+Line)`,
+>   `PrepRecipe(+Line)`, `PrepRecord(+Line)`, `StockCount(+Line)`, `WasteLog`,
+>   `ParLevel`) named in earlier copies of this note — those models no longer
+>   exist; do not reference them. `Location` (unchanged by the redo) is not yet
+>   documented here.
+> - **Inventory Milestones 3–6 (Prep, Requisition/Approval, Dispatch/Branch
+>   Receiving, Counting/Closing):** not yet built — see
+>   `docs/features/inventory/MILESTONES.md`. The pre-redo Phase 2 scaffolding
+>   models (`Requisition(+Line)`, `Dispatch(+Line)`, `MarketPurchase(+Line)`)
+>   still exist in the schema but are subject to the redo when those
+>   milestones land; not documented here.
 > - **Order/menu/staff core:** additions from Phases 10–12 (guest split,
 >   cancellation approval, order correction) and the department-head marker are
 >   not reflected in §4.13–4.15 / §4.3.
@@ -75,6 +84,25 @@
    - [LeaveRequest](#441-leaverequest)
    - [DisciplinaryRecord](#442-disciplinaryrecord)
    - [HrDocument](#443-hrdocument)
+   - [ContractType](#444-contracttype)
+   - [LeavePolicy](#445-leavepolicy)
+   - [LeaveRequestAcknowledgement](#446-leaverequestacknowledgement)
+   - [Payslip](#447-payslip)
+   - [Category (Inventory)](#448-category)
+   - [InventoryItem](#449-inventoryitem)
+   - [Supplier](#450-supplier)
+   - [RestockLevel](#451-restocklevel)
+   - [InventoryTransaction](#452-inventorytransaction)
+   - [ReferenceCounter](#453-referencecounter)
+   - [ExpectedDelivery](#454-expecteddelivery)
+   - [ExpectedDeliveryLine](#455-expecteddeliveryline)
+   - [GoodsReceipt](#456-goodsreceipt)
+   - [GoodsReceiptLine](#457-goodsreceiptline)
+   - [SupplierInvoice](#458-supplierinvoice)
+   - [SupplierInvoiceReceipt](#459-supplierinvoicereceipt)
+   - [SupplierInvoiceAdjustment](#460-supplierinvoiceadjustment)
+   - [SupplierPayment](#461-supplierpayment)
+   - [SupplierPaymentAllocation](#462-supplierpaymentallocation)
 5. [Enums](#5-enums)
 6. [Key Design Decisions](#6-key-design-decisions)
 7. [Index Strategy](#7-index-strategy)
@@ -1655,6 +1683,466 @@ model Payslip {
 - `@@unique([organizationId, userId, payPeriod])` — one payslip per person per period.
 - `isLocked` — once locked, the payslip is immutable (finalised for payment).
 - `otherDeductions` JSON shape: `[{ label: string, amount: number }]`.
+
+---
+
+### 4.48 Category
+
+Item catalog categories (Milestone One, 2026-09-15). Distinct from the
+system-level `MenuCategory` (§4.6) — this is a per-organization grouping for
+inventory items and suppliers, not menu routing.
+
+```prisma
+model Category {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  name           String
+  deletedAt      DateTime? @map("deleted_at")   -- retire; never hard-delete
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("categories")
+}
+```
+
+**Notes:**
+- Case-insensitive uniqueness among *live* categories only, enforced by a partial unique index on `lower(name) WHERE deleted_at IS NULL` (raw SQL — not expressible in the Prisma DSL). A retired "Seasonal" must not block creating a new "Seasonal".
+- Shared by both `InventoryItem` and `Supplier` (a supplier's category and an item's category are the same lookup table).
+
+---
+
+### 4.49 InventoryItem
+
+The item catalog (Milestone One). Every raw ingredient, stocked item, and
+prepped item Wendo tracks — supersedes the pre-redo `SupplierItem`/`ParLevel`
+combination named in the staleness note above.
+
+```prisma
+model InventoryItem {
+  id                  String            @id @default(uuid())
+  organizationId      String            @map("organization_id")
+  name                String
+  type                InventoryItemType                      -- RAW_INGREDIENT, STOCKED, PREPPED
+  categoryId          String?           @map("category_id")
+  preferredSupplierId String?           @map("preferred_supplier_id")
+
+  buyUnit          String   @map("buy_unit")                 -- free text: bag, crate, jerrican, ctn
+  usageUnit        String   @map("usage_unit")                -- free text: kg, L, ml, pcs
+  conversionFactor Decimal? @map("conversion_factor") @db.Decimal(12, 4)  -- null = "no conversion"
+  packSize         Decimal? @map("pack_size") @db.Decimal(12, 4)          -- null = "—"
+
+  departmentTags DepartmentTag[] @map("department_tags")      -- MUST be [] when type = RAW_INGREDIENT
+  currentCost    Decimal         @default(0) @map("current_cost") @db.Decimal(12, 4)
+
+  deletedAt DateTime? @map("deleted_at")   -- retire; history preserved
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([categoryId])
+  @@index([organizationId, deletedAt])     -- the catalog list's default filter
+  @@map("inventory_items")
+}
+```
+
+**Notes:**
+- **`currentCost` is written only by receiving, never edited directly.** Signing a `GoodsReceipt` sets `currentCost` to that line's `unitPrice` — this is **latest-price costing**, an owner-confirmed design (not weighted average): buy at 250, cost is 250; buy again at 280, cost is 280 from that moment on. There is deliberately no separate "set buying price" field on this model or its form.
+- `buyUnit`/`usageUnit`/`conversionFactor` is the unit-conversion model: purchase in `buyUnit` (e.g. a `ctn (12x2kg)`), stock and consume in `usageUnit` (e.g. `kg`), converted by `conversionFactor`.
+- `departmentTags` — which departments (besides the Central Store) also stock this item; a check constraint enforces it stays empty for `RAW_INGREDIENT` (raw ingredients live at the Central Store only).
+- Soft-deleted items ("retired") keep their history; a retired item cannot be selected on a new purchase or receipt but still appears in past records.
+
+---
+
+### 4.50 Supplier
+
+Suppliers Wendo buys from (Milestone One + Two). Central Store hub-org
+scoping (D-15, `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`) applies:
+suppliers live on the hub Organization only.
+
+```prisma
+model Supplier {
+  id                  String               @id @default(uuid())
+  organizationId      String               @map("organization_id")
+  name                String
+  contactName         String?              @map("contact_name")
+  categoryId          String?              @map("category_id")
+  phone               String?
+  email               String?
+  location            String?                                        -- free text, e.g. "Nyeri town"
+  defaultPaymentTerms SupplierPaymentTerms @default(INVOICE_TO_FOLLOW) @map("default_payment_terms")
+  paymentDays         Int                  @default(30) @map("payment_days")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+  @@map("suppliers")
+}
+```
+
+**Notes:**
+- `defaultPaymentTerms` is only ever a *default* — the actual terms for a given purchase/receipt live on `ExpectedDelivery`/`GoodsReceipt` and can be overridden per document (e.g. a normally on-account supplier marked `PAY_NOW` for a one-off cash run).
+- `paymentDays` (added Milestone Two, 2026-09-16) is what makes an invoice overdue — `defaultPaymentTerms` says only *whether* a supplier bills on account, never *when* it's due. Defaults to 30 for existing rows; this is a starting assumption, not researched from real supplier terms.
+
+---
+
+### 4.51 RestockLevel
+
+Replaces the pre-redo `ParLevel`. One row per (location, item) — the
+low-stock threshold that drives the "Low stock only" filter and dashboard
+alerts.
+
+```prisma
+model RestockLevel {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  locationId      String   @map("location_id")
+  inventoryItemId String   @map("inventory_item_id")
+  level           Decimal  @map("level") @db.Decimal(12, 4)   -- in the item's usage unit
+  setById         String   @map("set_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([locationId, inventoryItemId])
+  @@index([organizationId])
+  @@index([inventoryItemId])
+  @@map("restock_levels")
+}
+```
+
+**Notes:**
+- Set by whoever owns the stock: the Store Manager for the Central Store, each department head for their own department's items.
+- `@@unique([locationId, inventoryItemId])` — a location can only have one restock level per item.
+
+---
+
+### 4.52 InventoryTransaction
+
+The append-only stock ledger. **Stock on hand is always derived from this
+table, never a stored counter** — every movement (receive, prep, waste,
+adjustment, dispatch, sale) is a row here with location, item, quantity,
+cost, user, and timestamp.
+
+```prisma
+model InventoryTransaction {
+  id                   String                   @id @default(uuid())
+  organizationId       String                   @map("organization_id")
+  locationId           String                   @map("location_id")
+  inventoryItemId      String                   @map("inventory_item_id")
+  type                 InventoryTransactionType
+  quantity             Decimal                  @db.Decimal(12, 4)
+  unitCost             Decimal                  @map("unit_cost") @db.Decimal(12, 4)
+  reason               String?
+  goodsReceiptLineId   String?                  @map("goods_receipt_line_id")
+  prepRecordId         String?                  @map("prep_record_id")          -- unlinked; Prep not yet redone
+  wasteLogId           String?                  @map("waste_log_id")            -- unlinked; Waste not yet redone
+  stockCountLineId     String?                  @map("stock_count_line_id")     -- unlinked; Counting not yet redone
+  dispatchLineId       String?                  @map("dispatch_line_id")        -- unlinked; Dispatch not yet redone
+  marketPurchaseLineId String?                  @map("market_purchase_line_id") -- unlinked; not yet redone
+  userId               String                   @map("user_id")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([inventoryItemId])
+  @@index([type])
+  @@index([goodsReceiptLineId])
+  @@map("inventory_transactions")
+}
+```
+
+**Notes:**
+- **Costing is latest-price, not weighted average** [OWNER decision]. A movement is costed at whatever `InventoryItem.currentCost` was in force *when it happened* — a dispatch that left Tuesday keeps Tuesday's cost forever, even after a Thursday price rise. This is a deliberate trade-off: latest-price costing revalues stock already on hand (holding 40 units bought at 250 and receiving 10 more at 280 values all 50 at 280), which weighted-average costing would prevent, but Wendo's stock turns over in days so the distortion is accepted as small and short-lived, and is explicitly the Accountant's reporting problem, not the store's.
+- Five of the six line-reference columns (`prepRecordId`, `wasteLogId`, `stockCountLineId`, `dispatchLineId`, `marketPurchaseLineId`) are retained as **unlinked nullable columns** — the models they referenced were dropped when Milestone One redid this table, and those ledger paths (Prep, Waste, Counting, Dispatch) are still out of scope for the redo. Each is restored as a real FK when the milestone that rebuilds that flow lands; do not restructure this column set when that happens.
+- `goodsReceiptLineId` (formerly `purchaseOrderLineId`) was the first of these restored — Milestone Two's `GoodsReceipt` signing is the first writer to this ledger since the redo began.
+- `InventoryTransactionType` ships its full enum now (§5) even though only `RECEIVE`, `PREP_CONSUME`, `PREP_PRODUCE`, `WASTE`, `ADJUSTMENT` are currently written; `DISPATCH_OUT`, `DISPATCH_IN`, `MARKET_RECEIVE`, `SALE` are reserved for later milestones.
+
+---
+
+### 4.53 ReferenceCounter
+
+Milestone Two. Gap-free reference-number counters (`GRN-`, `EXP-`, …), one
+row per (organization, prefix).
+
+```prisma
+model ReferenceCounter {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  prefix         String                              -- "GRN", "EXP"
+  lastNumber     Int      @default(0) @map("last_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, prefix])
+  @@index([organizationId])
+  @@map("reference_counters")
+}
+```
+
+**Notes:**
+- Incremented inside the same database transaction as the document it numbers, so numbers stay gap-free — a printed, signed document with a missing number would look like a lost record with no way to prove otherwise.
+- Same pattern as the older `OrderCounter` (§4.2), generalized across document types instead of reset per day.
+
+---
+
+### 4.54 ExpectedDelivery
+
+Milestone Two, Stage 1 (Buying) — an *estimate*, explicitly **not** a
+purchase order (purchase orders were removed entirely from this feature's
+redo). Writes no ledger entry; only a signed `GoodsReceipt` ever moves stock.
+
+```prisma
+model ExpectedDelivery {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  reference      String                                          -- "EXP-0091", via ReferenceCounter
+  supplierId     String?                @map("supplier_id")      -- nullable: a pure shopping list may have none
+  paymentTerms   SupplierPaymentTerms?  @map("payment_terms")    -- defaulted from supplier; null when supplierId is null
+  status         ExpectedDeliveryStatus @default(AWAITING)
+  expectedDate   DateTime?              @map("expected_date")
+  estimatedTotal Decimal                @default(0) @map("estimated_total") @db.Decimal(12, 2)
+  createdById    String                 @map("created_by_id")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@map("expected_deliveries")
+}
+```
+
+**Notes:**
+- `supplierId`/`paymentTerms` nullable in lockstep (amendment 2026-09-17) — a purchase list may be saved with no supplier at all. Payment terms are meaningless without a supplier to owe them to, and the New Purchase screen greys the terms toggle out until a supplier is picked (this is intentional design, not a bug — see `docs/features/inventory/02-flows.md` Flow 1).
+- `estimatedTotal` is **stored, not derived** — an estimate that never needs to reconcile with anything (the eventual receipt supersedes it), so storing it avoids a per-row line aggregation on the Purchasing hub's hottest query.
+- A `FULFILLED` row's real history is told by its resulting `GoodsReceipt` — the Purchasing History band excludes `FULFILLED` deliveries by default to avoid showing the same event twice (fixed 2026-09-18; see `docs/features/inventory/milestone-2-plan.md` §5 S9 row).
+- A Store Manager may skip this model entirely and go straight to a `GoodsReceipt` — this record is a convenience for tracking what's coming, never a prerequisite for receiving.
+
+---
+
+### 4.55 ExpectedDeliveryLine
+
+```prisma
+model ExpectedDeliveryLine {
+  id                 String  @id @default(uuid())
+  expectedDeliveryId String  @map("expected_delivery_id")
+  inventoryItemId    String  @map("inventory_item_id")
+  quantity           Decimal @db.Decimal(12, 4)                        -- in the item's BUY unit
+  estimatedUnitPrice Decimal @map("estimated_unit_price") @db.Decimal(12, 4)
+  lineOrder          Int     @map("line_order")
+
+  @@index([expectedDeliveryId])
+  @@index([inventoryItemId])
+  @@map("expected_delivery_lines")
+}
+```
+
+**Notes:**
+- Cascade-deletes with its parent `ExpectedDelivery`.
+- `estimatedUnitPrice` pre-fills from the item's `currentCost` as a reference, but is editable — it's an estimate, not what was actually paid (that's recorded separately on the `GoodsReceiptLine`).
+
+---
+
+### 4.56 GoodsReceipt
+
+Milestone Two, Stage 2 (Receiving) — **every item entering the company lands
+here first; there is no other inbound path.** The first (and currently only)
+writer to `InventoryTransaction` since the redo began.
+
+```prisma
+model GoodsReceipt {
+  id                 String               @id @default(uuid())
+  organizationId     String               @map("organization_id")
+  reference          String                                     -- "GRN-1042", via ReferenceCounter
+  supplierId         String               @map("supplier_id")
+  expectedDeliveryId String?              @map("expected_delivery_id")   -- nullable: receiving without an estimate is allowed
+  paymentTerms       SupplierPaymentTerms @map("payment_terms")   -- defaulted from supplier, editable per receipt
+  status             GoodsReceiptStatus   @default(DRAFT)
+  supplierDocNumber  String?              @map("supplier_doc_number")    -- "INVOICE / DELIVERY NOTE No."
+  supplierDocDate    DateTime?            @map("supplier_doc_date")
+  receiptTotal       Decimal              @default(0) @map("receipt_total") @db.Decimal(12, 2)   -- snapshot at signing, immutable
+  locationId         String               @map("location_id")            -- the CENTRAL_STORE location
+  signedById         String?              @map("signed_by_id")
+  signedAt           DateTime?            @map("signed_at")
+  createdById        String               @map("created_by_id")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status])
+  @@index([supplierId])
+  @@index([expectedDeliveryId])
+  @@map("goods_receipts")
+}
+```
+
+**Notes:**
+- `status` — `DRAFT` holds an unsigned receipt with no ledger rows written yet; `RECEIVED_INVOICE_PENDING` vs `RECEIVED_PAID` is the payment-terms branch that decides whether AP is ever created; `INVOICE_RECORDED` is set once a `SupplierInvoice` is recorded against it.
+- Signing is irreversible: it writes `InventoryTransaction` rows raising stock at the Central Store and sets `receiptTotal` as a permanent snapshot, even if item prices later change.
+- **The receipt is never auto-converted into a supplier invoice.** This is deliberate, confirmed against standard AP/procurement practice: auto-generating the invoice from the receipt would eliminate the 3-way match (PO/estimate vs. receipt vs. supplier's actual invoice) that the mismatch-detection in Flow 2e / Flow 14 relies on. See `docs/features/inventory/milestone-2-plan.md` §5 S9 row.
+- `expectedDeliveryId` nullable — a Store Manager can receive goods with no prior `ExpectedDelivery` record at all (an ad-hoc receipt).
+
+---
+
+### 4.57 GoodsReceiptLine
+
+```prisma
+model GoodsReceiptLine {
+  id                     String   @id @default(uuid())
+  goodsReceiptId         String   @map("goods_receipt_id")
+  inventoryItemId        String   @map("inventory_item_id")
+  quantityBuyUnit        Decimal  @map("quantity_buy_unit") @db.Decimal(12, 4)     -- as entered ("18.0 kg", "2 pkt")
+  quantityUsageUnit      Decimal  @map("quantity_usage_unit") @db.Decimal(12, 4)   -- computed via conversionFactor; what hits the ledger
+  unitPrice              Decimal  @map("unit_price") @db.Decimal(12, 4)           -- per BUY unit, as invoiced
+  lineTotal              Decimal  @map("line_total") @db.Decimal(12, 2)
+  lineOrder              Int      @map("line_order")
+  priceAlertPct          Decimal? @map("price_alert_pct") @db.Decimal(6, 2)       -- null = no alert fired
+  priceAlertPrevPrice    Decimal? @map("price_alert_prev_price") @db.Decimal(12, 4)
+  priceAlertAcceptedById String?  @map("price_alert_accepted_by_id")
+
+  @@index([goodsReceiptId])
+  @@index([inventoryItemId])
+  @@map("goods_receipt_lines")
+}
+```
+
+**Notes:**
+- `priceAlertPct`/`priceAlertPrevPrice` are a **persisted snapshot, never recomputed** — by the time a signed receipt is read back, latest-price costing has already overwritten `InventoryItem.currentCost`, so the price this line was compared against at entry time would otherwise be lost.
+- A price-change alert does not block signing — it only requires the receiving user to acknowledge it (`priceAlertAcceptedById`) before "Sign & save" enables. On save, the entered price becomes the item's current cost regardless (latest-price costing).
+- `unitPrice` on save becomes `InventoryItem.currentCost` for that item — the only path by which the catalog's cost figure changes.
+
+---
+
+### 4.58 SupplierInvoice
+
+Milestone Two, Stage 10 (Supplier payment) — a running tab per supplier.
+Recorded as a genuinely separate step from the `GoodsReceipt` (never
+auto-generated from it — see §4.56's notes) so it can be checked against
+what was actually received.
+
+```prisma
+model SupplierInvoice {
+  id               String                @id @default(uuid())
+  organizationId   String                @map("organization_id")
+  supplierId       String                @map("supplier_id")
+  invoiceNumber    String                @map("invoice_number")     -- the supplier's own document number
+  invoiceDate      DateTime              @map("invoice_date")
+  dueDate          DateTime              @map("due_date")           -- computed once at creation, then stored
+  amountBilled     Decimal               @map("amount_billed") @db.Decimal(12, 2)   -- as stated on their document
+  status           SupplierInvoiceStatus @default(UNPAID)
+  disputeStatus    DisputeStatus?        @map("dispute_status")
+  disputeOurFigure Decimal?              @map("dispute_our_figure") @db.Decimal(12, 2)
+  disputeReason    String?               @map("dispute_reason")
+  recordedById     String                @map("recorded_by_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@unique([organizationId, supplierId, invoiceNumber])
+  @@index([organizationId, status])
+  @@index([supplierId, dueDate])
+  @@map("supplier_invoices")
+}
+```
+
+**Notes:**
+- `dueDate = invoiceDate + supplier.paymentDays`, computed **once at creation and then stored** — a later change to the supplier's payment terms must not retroactively shift the due date of an invoice already on the books.
+- `status` (`UNPAID`/`PARTIALLY_PAID`/`PAID`) is derived at read/write time from `amountBilled + Σ SupplierInvoiceAdjustment.amount − Σ SupplierPaymentAllocation.amount`, never trusted as authoritative on its own — see `receiving-service.ts`'s `deriveInvoiceStatus`.
+- `disputeStatus`/`disputeOurFigure`/`disputeReason` are deliberately **not folded into `status`** — a disputed invoice still ages and can still be paid, so dispute and payment status must be independently representable.
+- If the supplier's billed amount doesn't match what the linked receipts total, the recording screen flags a mismatch and offers to record at the billed amount while opening a dispute (`disputeStatus = OPEN`) rather than silently accepting either figure.
+
+---
+
+### 4.59 SupplierInvoiceReceipt
+
+Join table — an invoice can bundle many receipts (one delivery note commonly
+covers several `GoodsReceipt`s from the same supplier).
+
+```prisma
+model SupplierInvoiceReceipt {
+  supplierInvoiceId String @map("supplier_invoice_id")
+  goodsReceiptId    String @map("goods_receipt_id")
+
+  @@id([supplierInvoiceId, goodsReceiptId])
+  @@index([goodsReceiptId])
+  @@map("supplier_invoice_receipts")
+}
+```
+
+---
+
+### 4.60 SupplierInvoiceAdjustment
+
+The Accountant's month-end reconciliation adjustment against a supplier
+statement. Mandatory reason; changes the invoice's outstanding figure. Writes
+no stock ledger entry — the Accountant cannot move stock.
+
+```prisma
+model SupplierInvoiceAdjustment {
+  id                String   @id @default(uuid())
+  supplierInvoiceId String   @map("supplier_invoice_id")
+  amount            Decimal  @db.Decimal(12, 2)   -- can be negative — a correction either way
+  reason            String
+  recordedById      String   @map("recorded_by_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([supplierInvoiceId])
+  @@map("supplier_invoice_adjustments")
+}
+```
+
+---
+
+### 4.61 SupplierPayment
+
+Flow 15. **Payments are immutable once saved** — a correction is a reversal
+(a new row with a negative allocation and a reason), never an edit or
+delete of the original.
+
+```prisma
+model SupplierPayment {
+  id             String                @id @default(uuid())
+  organizationId String                @map("organization_id")
+  supplierId     String                @map("supplier_id")
+  amount         Decimal               @db.Decimal(12, 2)   -- may exceed the sum of allocations -> becomes a credit
+  paidAt         DateTime              @map("paid_at")
+  method         SupplierPaymentMethod
+  reference      String?                                    -- "EFT-88213"
+  reversalOfId   String?               @map("reversal_of_id")
+  reversalReason String?               @map("reversal_reason")
+  recordedById   String                @map("recorded_by_id")
+  createdAt      DateTime              @default(now()) @map("created_at")
+
+  @@index([organizationId, supplierId])
+  @@map("supplier_payments")
+}
+```
+
+**Notes:**
+- **Overpayment is allowed, not an error** — if `amount` exceeds the sum of its allocations, the excess is never written to a stored balance; it's derived at read time as a supplier credit.
+- `SupplierPaymentAllocation` (§4.62, below) determines how much of `amount` actually pays down each selected invoice — the payment amount and its allocations are independently recorded and can legitimately differ (e.g. a genuine partial payment across a single invoice: `amount` is the real cash paid, the allocation is capped at that same figure so the invoice's remaining balance is never silently written off). Fixed 2026-09-18 after this exact bug was found live — see `docs/features/inventory/milestone-2-plan.md` §5 S9 row.
+
+---
+
+### 4.62 SupplierPaymentAllocation
+
+```prisma
+model SupplierPaymentAllocation {
+  id                String  @id @default(uuid())
+  supplierPaymentId String  @map("supplier_payment_id")
+  supplierInvoiceId String  @map("supplier_invoice_id")
+  amount            Decimal @db.Decimal(12, 2)   -- negative allowed ONLY on a reversal payment's allocation
+
+  @@unique([supplierPaymentId, supplierInvoiceId])
+  @@index([supplierInvoiceId])
+  @@map("supplier_payment_allocations")
+}
+```
+
+**Notes:**
+- A reversal payment's allocations mirror the original payment's allocations but negated — this is how a correction "un-pays" an invoice without ever mutating the original payment row.
 
 ---
 
