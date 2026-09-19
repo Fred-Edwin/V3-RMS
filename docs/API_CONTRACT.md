@@ -3826,3 +3826,111 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
 > - Full rationale: `receiving-validators.ts`'s header comment (this file's
 >   own amendment block, dated 2026-09-17, immediately above
 >   `ExpectedDeliverySummarySchema`/`CreateExpectedDeliverySchema`).
+
+---
+
+## 23. Inventory — Milestone Three (Prep)
+
+> **STATUS: BUILDING — S0 (Step 7, backend + frontend vertical slice)**,
+> started 2026-09-19. Plan: `docs/features/inventory/milestone-3-plan.md`,
+> all four §6 modeling questions owner-resolved 2026-09-19.
+
+Prep is the **second writer to the stock ledger** after Milestone Two, and
+the **first writer of a negative-signed ledger row** (`PREP_CONSUME`) — see
+`prep-service.ts`'s `createPrepRun` comment. `InventoryTransaction.
+prepRecordId` is restored as a real FK to `PrepRun.id` (was a dangling
+nullable column since Milestone One), same restoration pattern Milestone Two
+did for `goodsReceiptLineId`.
+
+**Naming.** Routes live under `/inventory/prep/…` throughout, never a bare
+`/prep…` path — §5 of this document, "Prep Tickets & Incidents", is a
+completely different domain (BDS/KDS order-item prep tickets, see CLAUDE.md's
+"one ticket per order-item line" system). No name or route may collide with
+it.
+
+### 23.1 Source of truth
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/prep-validators.ts` |
+| **Types (inferred from schemas)** | `backend/src/modules/inventory/prep.types.ts` |
+| **Frontend mirror** | `frontend/features/inventory/types/prep.ts` — hand-mirrored, same as Milestone Two (no shared package to import from) |
+| **Design** | Paper page `Milestone Three · Prep` (`p-D-0`), file `01M1ZZJ6S3FZGF5C7PPBGTKY89` |
+| **Plan** | `docs/features/inventory/milestone-3-plan.md` §1, §3 |
+| **Migration** | `backend/prisma/migrations/20260919144255_inventory_milestone_three_prep` |
+
+### 23.2 Conventions specific to this contract
+
+Inherits §22.2's conventions: standard envelope unchanged, every decimal
+crosses the wire as a string, all routes under `/api/v1/inventory/…`.
+
+**No role-based response narrowing.** Unlike Receiving/AP, both
+`STORE_MANAGER` and `STORE_ATTENDANT` see identical Prep data including cost
+figures — confirmed against the approved Paper screens (unit cost shown on
+both roles' table/card views). No `ExpectedDeliverySummary`-style narrowing
+pattern applies here.
+
+### 23.3 Endpoints
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/inventory/prep/runs` | SM, SA |
+| `GET` | `/inventory/prep/runs/:id` | SM, SA |
+| `POST` | `/inventory/prep/runs` | SM, SA |
+| `GET` | `/inventory/prep/summary` | SM, SA |
+| `GET` | `/inventory/items/:id/typical-yield` | SM, SA |
+
+- **`GET /inventory/prep/runs`** — paginated (`limit`/`cursor`), backs both
+  the Prep runs list preview and Prep History's full browse. Query params:
+  `search` (output item name or attendant name), `outputItemId`, `yieldFlag`
+  (`'normal'|'low'|'high'`), `dateFrom`/`dateTo`.
+- **`GET /inventory/prep/runs/:id`** — the immutable detail record. No
+  `PATCH`, no `DELETE` — a prep run is never editable after confirm (ledger
+  stays append-only).
+- **`POST /inventory/prep/runs`** — the one write endpoint. Body:
+  `outputItemId`, `inputLines: {inventoryItemId, quantity}[]`,
+  `actualYield`. The server computes `totalInputCost`, `outputUnitCost`,
+  `typicalYieldAtRunTime`, `yieldVarianceLabel`, `notifiedStoreManager`
+  inside the same `$transaction` that writes the ledger rows — none of these
+  are client-supplied.
+- **`GET /inventory/prep/summary`** — KPI strip data (`runsInRange`,
+  `totalInputCost`, `yieldFlagCount`), parameterized by the same
+  `dateFrom`/`dateTo` as the list endpoint so Prep History's strip stays
+  scoped to the active filter range.
+- **`GET /inventory/items/:id/typical-yield`** — powers the New Prep Run
+  screen's "Typical: ~6kg chicken → ~22L" nudge, fetched the moment an
+  output item is picked, before any input lines exist to post.
+
+### 23.4 Contract-formatting resolutions (not §6 modeling questions — build-time decisions)
+
+The plan's §3.3 response-shape sketch left five formatting details open.
+Resolved at S0 build time (see `prep-validators.ts`'s own header comment for
+the full rationale of each):
+
+1. `PrepRunSummary.yieldUnit` sources from the **output item's
+   `usageUnit`**.
+2. `inputsPreview.firstItemLabel` is formatted `"${quantity}${unit}
+   ${itemName}"` (e.g. `"6kg chicken"`), matching `TypicalYield.
+   typicalInputSummary`'s own `"~6 kg chicken"` convention.
+3. `yieldVarianceLabel` is stored as `'normal'` (never `null`) once a
+   typical yield exists but the run is within the warn band; `null` is
+   reserved for "no typical yet, unflaggable" only.
+4. `yieldVarianceDelta` is a signed **quantity** delta (`actualYield −
+   typicalYieldAtRunTime`, one decimal place, e.g. `"+0.5"`), not a
+   percentage — the percentage stays internal to threshold logic.
+5. `createdByInitials` reuses this feature's existing
+   `name.slice(0,2).toUpperCase()` convention.
+
+### 23.5 Yield-variance thresholds and rolling-average window (plan §6 Q1, Q3)
+
+Named constants in `prep-service.ts`, not inline magic numbers:
+
+- **±15%** deviation from the rolling-average typical yield → non-blocking
+  UI warning (`yieldVarianceLabel` becomes `'low yield'`/`'high yield'`).
+- **±35%** deviation → additionally sets `notifiedStoreManager: true`.
+  Records the fact only — no notification delivery is built this milestone
+  (plan §0).
+- Rolling average: **last 10 runs OR last 30 days, whichever gives fewer
+  data points.** Flagged/outlier runs are always included in the average,
+  never excluded (plan §6 Q3b) — avoids a circular "what's typical"
+  definition.
