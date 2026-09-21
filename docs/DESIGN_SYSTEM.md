@@ -137,9 +137,10 @@ tuned independently.
 
 | Token | Value | Role |
 |---|---|---|
-| `wds-sidebar-top` | `#211A15` | gradient top (warm-dark coffee) |
-| `wds-sidebar-mid` | `#201A14` | gradient mid |
-| `wds-sidebar-bottom` | `#17110C` | gradient bottom (near-black) |
+| `wds-sidebar-top` | `#4A290E` | gradient top (warm-dark coffee) — **revised 2026-09-21** (Milestone Four owner pass), was `#2E1806`; richer/more saturated |
+| `wds-sidebar-upper-mid` | `#381E09` | gradient upper-mid — **new 2026-09-21**, transition stop between top and mid |
+| `wds-sidebar-mid` | `#2C1707` | gradient mid — unchanged |
+| `wds-sidebar-bottom` | `#0F0601` | gradient bottom (near-black) — unchanged |
 | `wds-sidebar-fg` | `#B5AEA5` | nav item text (inactive) |
 | `wds-sidebar-fg-active` | `#F5F3EF` | active item text (brighter) |
 | `wds-sidebar-fg-muted` | `#8A7F76` | group label · inactive icon stroke |
@@ -263,16 +264,21 @@ genuinely floats above the page.
 
 ## 8. Gradients
 
-Six named gradient tokens. **Every stop references a colour-scale token** — never
-a raw hex — so a ramp retune flows through. Interpolated `in oklab` for clean
-brown-to-brown transitions. Used **only** on the surfaces below; everything else
-is flat. Table rows, inputs, badges, dropdowns, modals, status dots stay flat.
+Nine named gradient tokens. **Every stop references a colour-scale token** —
+never a raw hex — so a ramp retune flows through, with two documented bespoke
+stops (`primary-btn-start`, `primary-btn-end`) that sit off the espresso scale
+on purpose (see §2). Interpolated `in oklab` for clean brown-to-brown
+transitions. Used **only** on the surfaces below; everything else is flat.
+Table rows, inputs, badges, dropdowns, modals, status dots stay flat.
 
 | Token | Where | Direction | Stops |
 |---|---|---|---|
-| `bg-wds-gradient-sidebar` | nav rail | 165° | sidebar-top → mid @30% → sidebar-bottom |
-| `bg-wds-gradient-primary` | primary button, active nav marker | 180° | espresso-600 → espresso-700 (+ `shadow-wds-sheen`) |
+| `bg-wds-gradient-sidebar` | nav rail | 169° | sidebar-top @0.2% → upper-mid @35.68% → mid @50.1% → sidebar-bottom @100% — **revised 2026-09-21** (Milestone Four owner pass): added the upper-mid stop and richened the top stop (see §3.6); mid and bottom unchanged. Applies to every sidebar app-wide, not just new screens. |
+| `bg-wds-gradient-primary` | primary button, active nav marker | 180° | `primary-btn-start` (`#B0610F`, bespoke) → `primary-btn-end` (`#4A1D00`, bespoke) (+ `shadow-wds-sheen`) — **revised 2026-09-21** (Milestone Four owner pass): was espresso-700 → primary-btn-end; the richer, more saturated top stop gives more contrast against light surfaces. Applies to every primary button app-wide, not just new screens. |
 | `bg-wds-gradient-primary-hover` | primary button hover | 180° | one step lighter each stop |
+| `bg-wds-gradient-secondary-btn` | secondary (white/outline) button | 180° | neutral-0 → neutral-200 — **new 2026-09-21.** Pair with a `border-strong` outline. More pronounced than `surface-raise` (below) since an interactive button needs to visibly read as raised/pressable; `surface-raise` is for static cards. |
+| `bg-wds-gradient-secondary-btn-hover` | secondary button hover | 180° | neutral-50 → neutral-300 |
+| `bg-wds-gradient-secondary-btn-pressed` | secondary button active/pressed | 180° | neutral-100 → neutral-400 |
 | `bg-wds-gradient-surface-raise` | KPI / stat cards | 180° | `#FFFFFF` → espresso-50 (~2%) |
 | `bg-wds-gradient-topbar` | top bar | 180° | `#FFFFFF` → espresso-50 |
 | `bg-wds-gradient-scroll-scrim` | under top bar on scroll | 180° | `rgb(ink / 0.05)` → transparent, 8px tall |
@@ -281,6 +287,11 @@ is flat. Table rows, inputs, badges, dropdowns, modals, status dots stay flat.
 
 The skeleton gradient falls back to a flat `neutral-100` under
 `prefers-reduced-motion` (handled in `tokens.wds.css`).
+
+**Secondary button states are gradients, not flat fills** (revised
+2026-09-21) — a disabled secondary button stays flat (`neutral-100`, no
+gradient, `text-faint`, plain `border` not `border-strong`) since disabled
+elements should read as inert, not raised.
 
 ---
 
@@ -307,10 +318,17 @@ tokens). Never add to the legacy `components/ui/`.
 **Built in Phase 0:** button, input, badge, card, separator, skeleton, label,
 status-dot.
 
-**Core set still to add** (per feature, as screens need them — restyle each to
-the Paper design at that point): select, combobox, dialog, sheet, drawer, table,
-data-table, tabs, toast, dropdown-menu, tooltip, form, checkbox, radio, switch,
-popover, command, avatar, scroll-area.
+**Built since, as features needed them:** table (real `<table>` markup, not
+div/flex — column alignment is the browser's table-layout algorithm, not
+manual `min-width:0`/fixed-width bookkeeping), select, combobox, checkbox,
+sheet, dropdown-menu, avatar, toggle, toggle-group, input-otp, search-input,
+confirm-dialog. **Always check `frontend/components/ui2/` before assuming a
+primitive doesn't exist or building a one-off** — this list is a record of
+what shipped, not a queue.
+
+**Still genuinely missing** (per feature, as screens need them — restyle each
+to the Paper design at that point): tabs, toast, tooltip, form, radio, popover,
+command, scroll-area, a general (non-confirm) dialog.
 
 **App composites** (in `components/<feature>/`, built on `ui2/`): sidebar nav,
 KPI strip, ledger table, KDS/BDS card — designed per feature in Paper.
@@ -331,10 +349,12 @@ Sizes: `default` h-32, `sm` h-28, `lg` h-36, `icon` 32×32.
 A proper **sidebar**, not a bottom nav. On mobile it collapses to an icon rail
 (never a "More" menu with a pile of links). The rail:
 
-- background: `bg-wds-gradient-sidebar` — three warm-brown oklab stops
-  (`oklab(23.4% 0.025 0.039)` → `oklab(22.9% 0.024 0.036)` at ~40% →
-  `oklab(13.6% 0.011 0.022)`). **No bare-percentage colour hints** in the
-  gradient string — Paper (and some engines) turn them into grey/black stops.
+- background: `bg-wds-gradient-sidebar` — four warm-brown oklab stops, revised
+  2026-09-21 (`oklab(31.9% 0.034 0.053)` @0.2% → `oklab(26.7% 0.028 0.043)`
+  @35.68% → `oklab(22.9% 0.024 0.036)` @50.1% → `oklab(13.6% 0.011 0.022)`
+  @100%). **No bare-percentage colour hints** in the gradient string — every
+  percentage here is attached directly to a stop's `var(...)`, never left bare;
+  Paper (and some engines) turn a bare hint into an implicit grey/black stop.
 - nav items grouped; each group has a quiet **ALL-CAPS label**
   (`text-wds-overline`, `wds-sidebar-fg-muted`). **No hairline** (removed
   2026-09-09).
@@ -357,6 +377,97 @@ clear WCAG AA on `wds-neutral-0`; espresso-700 on white is 8.9:1).
 
 ---
 
+## 13. Color as an exception signal, not decoration
+
+Codified from the Milestone Four screen-review pass (2026-09-21) — a data-dense
+review/approval screen (Branch Manager approval view) went through several
+rounds of "too many colours, too cluttered" before converging on the rules
+below. Apply these to any screen with a list of records the user is scanning
+for what needs their attention (approval queues, review tables, reconciliation
+views) — not to marketing surfaces or hero moments.
+
+**Rule: spend colour on the exception, not on the row.** A screen where every
+row carries a tint, a border, and a status dot teaches the eye that nothing is
+more important than anything else. Default state is quiet plain text; colour
+(the primary accent, a border, a bold label) is reserved for the one thing
+that actually changed or needs a decision. If more than ~20% of visible rows
+are coloured, the colour has stopped meaning anything — fix the data shown,
+not the palette.
+
+- **Editable table values:** unedited/default values render as plain text, no
+  border, same weight as their neighbouring read-only columns — still fully
+  interactive (click to edit), the box just doesn't announce itself until the
+  value actually differs from its source. Only a genuinely edited value gets a
+  visible bordered field + `wds-primary` accent.
+- **Grouping/hierarchy (e.g. category → subcategory → item):** convey with
+  **indent + type size/weight only**, never colour. Each level down steps one
+  notch quieter (smaller, lighter, or more muted) and one step further
+  indented. Reserve accent colour for the thing that needs action, not for
+  structural nesting.
+- **Section/record separation** (e.g. department blocks in a list): a
+  **hairline + whitespace**, not a bordered card with a tinted header fill.
+  Cards-with-fills read as "5 equally important boxes"; a hairline + heading
+  weight reads as "5 sections of one document," which is usually the correct
+  hierarchy when one status (Kitchen: 1 line changed) matters more than the
+  other four (as requested).
+
+### Three-tier hairline system
+
+When a screen has structural dividers at more than one level (e.g. between
+sections vs. between rows within a section), give each tier a distinct,
+deliberately-ordered weight — don't reuse one hairline colour everywhere:
+
+1. **Strongest** — the primary structural divider (e.g. the column split in a
+   master–detail layout). `wds-neutral-800`.
+2. **Medium** — between top-level records/sections (e.g. between department
+   blocks). `wds-neutral-800` (same tier as #1 is acceptable when there's no
+   third level to distinguish it from).
+3. **Faintest** — between individual rows inside one section/table.
+   `wds-neutral-200`. Barely-there; its job is rhythm, not separation.
+
+### No stacking inside a dense table row
+
+A row in a dense table is **one horizontal line** — every value that belongs
+to that row (category label, item name, a short annotation like "added from
+note") lives in the row, aligned to its column. Never stack a second line
+under a row (e.g. an edit-reason on its own line below the item) — it breaks
+vertical rhythm and makes row height inconsistent down the table. If content
+doesn't fit inline, **truncate with ellipsis and reveal the rest on
+hover/click** — don't wrap it into a second line.
+
+### Column alignment is a flex-basis discipline, not a visual check
+
+Numeric/fixed-width columns in a row-based table must share an identical
+`width` + `flexShrink: 0` across the header and every row — but that alone
+isn't sufficient. **Every variable-width cell before them (the Item cell, an
+inline category-prefix label) must also carry `min-width: 0` and
+`overflow: hidden`.** Without `min-width: 0`, a flex child's intrinsic content
+width can silently overflow its flex-basis and push every column after it out
+of alignment — the box model looks correct in isolation but rows visibly drift
+against each other and against the header. When a category/subcategory label
+prefixes an item name inline (e.g. `CHICKEN · Grilled Chicken Portion`), give
+the prefix itself a shared fixed width too, or rows with longer category names
+will start their item text at a different x-position than rows with shorter
+ones.
+
+### Expand/collapse affordance: prefer reusing existing text over a new icon
+
+Before adding a chevron/caret to signal "this expands," check whether an
+element already on the row (a line count, a submitter name, any metadata
+already rendered) can double as the click target — underline it on hover
+instead of introducing new icon vocabulary. Reserve a dedicated
+expand/collapse glyph for cases where no existing text can plausibly serve as
+the trigger.
+
+### Table header contrast
+
+Column header labels (`ITEM`, `ON HAND`, …) must read clearly against the
+page background at a glance — `wds-neutral-600` (muted) + semibold, not
+`wds-neutral-400` (faint). Faint is for de-emphasised body content, not for
+labels the user relies on to parse a table.
+
+---
+
 ## Change log
 
 - **2026-09-09** — Phase 0. Foundation established: neutrals, espresso + caramel
@@ -374,3 +485,22 @@ clear WCAG AA on `wds-neutral-0`; espresso-700 on white is 8.9:1).
   the standing chart palette, authorized during the Inventory reports pass
   (O-REPORTS). Ranked-horizontal-bar established as the default pattern for
   "which items are the problem" questions, in place of a waterfall.
+- **2026-09-21** — §13 added: colour-as-exception-signal rules, codified from
+  the Milestone Four (Requisition & Branch Approval) Branch Manager desktop
+  screen review. Covers dense-table row/column discipline (no vertical
+  stacking, `min-width: 0` + shared fixed-width prefixes for true column
+  alignment), the three-tier hairline system, reusing existing row text as an
+  expand/collapse trigger instead of a chevron, and table-header contrast.
+- **2026-09-21** — Sidebar gradient (§3.6, §11) revised during the same
+  Milestone Four pass: richer top stop (`#2E1806` → `#4A290E`) and a new
+  `wds-sidebar-upper-mid` (`#381E09`) transition stop; mid/bottom unchanged.
+  Applied app-wide in `frontend/app/tokens.wds.css` and
+  `tailwind.wds.preset.ts`, not scoped to new screens only. Also corrected
+  stale hex values in §3.6's token table that predated this change (they'd
+  drifted from the live CSS file). §10's "still to add" component list was
+  also corrected — `table`, `select`, `combobox`, `checkbox`, `sheet`,
+  `dropdown-menu`, `avatar` etc. already exist in `components/ui2/` and had
+  been listed as not-yet-built; see `frontend/components/ui2/table.tsx` for
+  the real (and already-correct) table primitive — semantic `<table>` markup,
+  so the column-alignment issues found in this session's Paper mockups
+  (`min-width:0`/fixed-width bookkeeping) don't apply to the real component.

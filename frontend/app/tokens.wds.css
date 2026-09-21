@@ -40,6 +40,7 @@
   --wds-espresso-800: oklch(0.330 0.066 52);   /* #4E2C14  pressed */
   --wds-espresso-900: oklch(0.263 0.041 61);   /* #33200F  deep */
   --wds-primary-btn-end: #4A1D00;              /* bespoke gradient end-stop — not on the espresso scale, matches Paper --color-primary-btn-end exactly */
+  --wds-primary-btn-start: #B0610F;            /* bespoke gradient start-stop (Milestone Four owner revision, 2026-09-21) — not on the espresso scale; richer/more saturated than espresso-600 on purpose, so primary buttons read with more contrast against light surfaces. Does not replace espresso-600, which keeps its own uses (hover tint, gradient-brand start stop) unchanged. */
 
   /* ---- Caramel / crema — secondary. Grace notes only, never a fill. ----- */
   --wds-caramel-100: oklch(0.965 0.021 77);    /* #FCF2E4 */
@@ -110,9 +111,10 @@
   --wds-ring:              oklch(0.404 0.078 54 / 0.40);   /* espresso-700 @ 40% */
 
   /* ---- Sidebar (nav rail) — its own tokens, not tied to espresso-900 --- */
-  --wds-sidebar-top:       oklch(0.235 0.046 58);   /* #2E1806 warm-dark coffee */
-  --wds-sidebar-mid:       oklch(0.230 0.043 56);   /* #2C1707 */
-  --wds-sidebar-bottom:    oklch(0.134 0.025 64);   /* #0F0601 near-black */
+  --wds-sidebar-top:       oklch(0.371 0.062 55);   /* #4A290E warm-dark coffee — refined 2026-09-21, richer/more saturated than the original */
+  --wds-sidebar-upper-mid: oklch(0.311 0.052 54);   /* #381E09 new stop, 2026-09-21 — transition between top and mid */
+  --wds-sidebar-mid:       oklch(0.230 0.043 56);   /* #2C1707 — unchanged */
+  --wds-sidebar-bottom:    oklch(0.134 0.025 64);   /* #0F0601 near-black — unchanged */
   --wds-sidebar-fg:        oklch(0.911 0.006 75);   /* #E4E1DD nav item text */
   --wds-sidebar-fg-item:   oklch(0.754 0.015 74);   /* #B5AEA5 default (inactive) nav item label — distinct from fg/fg-active, confirmed 35L-0 */
   --wds-sidebar-fg-active: oklch(0.965 0.006 60);   /* #F5F3EF */
@@ -145,14 +147,15 @@
 
   /* ---- Gradients — every stop references a scale token -------------- */
   --wds-gradient-sidebar: linear-gradient(
-    164.69deg in oklab,
-    var(--wds-sidebar-top) 0%,
-    var(--wds-sidebar-mid) 40%,
+    168.89deg in oklab,
+    var(--wds-sidebar-top) 0.2%,
+    var(--wds-sidebar-upper-mid) 35.68%,
+    var(--wds-sidebar-mid) 50.1%,
     var(--wds-sidebar-bottom) 100%
   );
   --wds-gradient-primary: linear-gradient(
     180deg in oklab,
-    var(--wds-espresso-700) 0%,
+    var(--wds-primary-btn-start) 0%,
     var(--wds-primary-btn-end) 100%
   );
   --wds-gradient-primary-hover: linear-gradient(
@@ -164,6 +167,25 @@
     180deg in oklab,
     var(--wds-surface) 0%,
     var(--wds-surface-raise-end) 100%
+  );
+  /* Secondary (white/outline) button gradient — Milestone Four owner addition,
+     2026-09-21. More pronounced than gradient-surface-raise (which is for
+     static KPI/stat cards) since an interactive button needs to visibly read
+     as raised/pressable. Pair with a border-strong outline, not border. */
+  --wds-gradient-secondary-btn: linear-gradient(
+    180deg in oklab,
+    var(--wds-neutral-0) 0%,
+    var(--wds-neutral-200) 100%
+  );
+  --wds-gradient-secondary-btn-hover: linear-gradient(
+    180deg in oklab,
+    var(--wds-neutral-50) 0%,
+    var(--wds-neutral-300) 100%
+  );
+  --wds-gradient-secondary-btn-pressed: linear-gradient(
+    180deg in oklab,
+    var(--wds-neutral-100) 0%,
+    var(--wds-neutral-400) 100%
   );
   --wds-gradient-topbar: linear-gradient(
     180deg in oklch,

@@ -43,6 +43,43 @@ tracking the Prep route). Full outcome log: `milestone-3-plan.md` §5.
 a discarded prior iteration. Milestones here are workflow-based groups, not
 phases.
 
+**Milestone Four (Requisition & Branch Approval) — screen-set review
+underway (2026-09-21).** On inspection, most of the screen group marked
+DESIGNED-REDO/MISSING in `02-screens-by-role.md` was stale documentation, not
+a real gap — see the findings note on the Paper review page. Real scope this
+pass:
+- **Category-grouped line items on B2 (fill) and B4 (approval)** — the
+  client's real Kitchen stock sheet groups requisition items by category, two
+  levels deep in Kitchen's case ("Prep Kitchen Items" → "Chicken"/"Beef"/
+  "Pork"/"Fish", plus "Market Items", "Dry Items" as their own groups); every
+  other department's sheet is flat. This is **not a separate "market
+  requisition"** — market-sourced items are just a category on the same
+  section. Required a schema addition: `Category.parentCategoryId` (nullable,
+  one level, additive migration — see `docs/DATA_MODEL.md` §4.48). Full
+  reasoning and source photos: `docs/features/inventory/02-flows.md` Flow 7
+  step 1 / Flow 8 step 1.
+- **Screen 0, "Requisitions" (Department Head, mobile)** — a real gap, newly
+  designed. Not a generic "dashboard": department heads already have a
+  staff-role dashboard (chef/waiter) this must not replace or compete with.
+  Scoped to requisitions only — today's summary, needs-your-section, incoming
+  dispatch to confirm, this morning's opening, quick waste — with a path to
+  full requisition history as its own screen, not inlined.
+- **Terminology fix carried through every screen in this set:** "round" →
+  "requisition" (matches `02-flows.md`'s own language, e.g. "Morning
+  requisition"); count screens say "Opening count" / "Closing count".
+- **Interactivity/button-affordance fixes:** primary actions get the
+  already-defined `bg-wds-gradient-primary` + `shadow-wds-sheen` treatment
+  (under-applied on some existing artboards, which read as cards, not
+  buttons); the missing note-to-manager entry point on B2 gets a real,
+  visible affordance.
+
+**Deferred to a Milestone Four build session (not this design pass):** the
+already-shipped Milestone One "Manage categories" drawer (F1b) needs a new,
+optional "Parent category" picker so Kitchen can set up the nesting above.
+This is an *addition* to a shipped screen, not a redesign — the drawer keeps
+working exactly as today for every category that leaves the field blank.
+Track alongside the Milestone Four Step 5 plan, not before.
+
 **Traces to:** `01-description.md` (the 10 domain Stages this breakdown
 groups), `02-screens-by-role.md` (per-screen DESIGNED/MISSING status),
 `docs/FEATURE_REDO_PLAYBOOK.md` (the per-feature Step 1–7 pipeline each
@@ -67,8 +104,8 @@ share one screen set or one causal chain, so nothing ships half-wired.
 |---|---|---|---|---|
 | 1 | **Catalog, Suppliers & Restock Levels** | Foundational reference data (feeds Stage 1) | DESIGNED | ✅ **Shipped** 2026-09-15 |
 | 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | ✅ **Shipped** 2026-09-18 — Step 5 plan approved 2026-09-16, Step 7 (S0–S9) complete, integration verified in a real browser |
-| 3 | **Prep** | Stage 3 | DESIGNED — all 8 screens exist in Paper, desktop and mobile (4 original + 4 added during 2026-09-19 owner review: Prep run detail, Prep History) | Not started — Step 5 plan approved, ready for Step 7 |
-| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | Mixed — list/approval views DESIGNED-REDO (rebuild, not fresh design); signed-doc view MISSING | Not started |
+| 3 | **Prep** | Stage 3 | DESIGNED — all 8 screens exist in Paper, desktop and mobile (4 original + 4 added during 2026-09-19 owner review: Prep run detail, Prep History) | ✅ **Shipped** 2026-09-21 — S0+S1 as one session, verified in a real browser against approved designs |
+| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | Screen-set review underway (2026-09-21) — see below | Not started |
 | 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | Mostly MISSING (dispatch queue, fulfil & dispatch, delivery note, branch incoming/confirm); mobile dispatch/fulfil DESIGNED | Not started |
 | 6 | **Counting, Closing & Discrepancies** | Stage 8 (consumption — no new build, still count/waste-driven) + Stage 9 | Mixed — Central Store blind-count mobile DESIGNED; verification, branch EOD, discrepancy resolution mostly MISSING | Not started |
 

@@ -105,6 +105,7 @@ const wdsPreset: Partial<Config> = {
 
         'wds-sidebar': {
           top: 'var(--wds-sidebar-top)',
+          'upper-mid': 'var(--wds-sidebar-upper-mid)',
           mid: 'var(--wds-sidebar-mid)',
           bottom: 'var(--wds-sidebar-bottom)',
           fg: 'var(--wds-sidebar-fg)',
@@ -130,6 +131,9 @@ const wdsPreset: Partial<Config> = {
         'wds-gradient-primary': 'var(--wds-gradient-primary)',
         'wds-gradient-primary-hover': 'var(--wds-gradient-primary-hover)',
         'wds-gradient-surface-raise': 'var(--wds-gradient-surface-raise)',
+        'wds-gradient-secondary-btn': 'var(--wds-gradient-secondary-btn)',
+        'wds-gradient-secondary-btn-hover': 'var(--wds-gradient-secondary-btn-hover)',
+        'wds-gradient-secondary-btn-pressed': 'var(--wds-gradient-secondary-btn-pressed)',
         'wds-gradient-topbar': 'var(--wds-gradient-topbar)',
         'wds-gradient-scroll-scrim': 'var(--wds-gradient-scroll-scrim)',
         'wds-gradient-brand': 'var(--wds-gradient-brand)',

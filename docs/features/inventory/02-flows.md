@@ -515,13 +515,36 @@ Service, Housekeeping. Each department has its **own** head (§2).
    catalog** — "Barista never sees chicken, Kitchen never sees coffee beans"
    (§3 Stage 4). Items are **prepped** and **stocked** only; **no raw
    ingredients** — enforced at the data level (§4).
-2. Each line shows: item, current on-hand (derived from that department's
-   ledger), par level, and a **pre-suggested quantity = par − on-hand**,
-   floored at zero (§3 Stage 4). The pre-suggestion mirrors the paper sheet's
-   "Requisition" column, which today is filled from opening stock vs. what's
-   needed.
-3. Department head edits quantities freely, adds items from their slice, removes
-   lines. Target: under 5 minutes (§3 Stage 4).
+   - **Line items render grouped by the item's `Category`** (and its parent
+     category, where one is set — `docs/DATA_MODEL.md` §4.48), matching the
+     department's real paper sheet. Kitchen's sheet groups two levels deep
+     ("Prep Kitchen Items" → "Chicken" / "Beef" / "Pork" / "Fish", plus
+     "Market Items" and "Dry Items" as their own top-level groups); every
+     other department's sheet (Barista, Service, Housekeeping, Pastry) is a
+     flat list with no grouping, so their sections render flat exactly as
+     before. This is **not a separate "market requisition"** — market-sourced
+     items (produce) are requisitioned on the same section, same cadence, as
+     everything else; they are simply their own category. See
+     `docs/inventory/reference-photos/17.jpg`–`18.jpg` for the source sheet.
+2. **The section auto-populates with only the items currently below par**
+   (`par − on-hand > 0`) — not the department's whole catalog slice (owner
+   decision, 2026-09-21). Each auto-added line shows: item, current on-hand
+   (derived from that department's ledger), par level, and a **pre-suggested
+   quantity = par − on-hand**, floored at zero (§3 Stage 4). The pre-suggestion
+   mirrors the paper sheet's "Requisition" column, which today is filled from
+   opening stock vs. what's needed. An item at or above par never appears as a
+   line unless the head deliberately adds it (step 3) — this keeps the section
+   to what actually needs requisitioning, matching how a head would fill the
+   paper sheet by scanning for shortfalls, not re-copying every line.
+3. Department head edits quantities freely, adds items from their slice
+   (**"Add an item"**, for anything not already auto-added), and can zero out
+   an auto-added line they don't want to requisition this round via a
+   **remove control on each line** (owner decision, 2026-09-21: this **sets
+   the line's quantity to 0 and visually mutes the line — it does not delete
+   the row from view**. A zeroed line stays visible, greyed, so the head can
+   still see everything the system flagged as short, matching the "removed
+   from view = might be forgotten" risk the owner specifically wanted to
+   avoid.) Target: under 5 minutes (§3 Stage 4).
 4. Department head taps **Submit section**.
    - System marks that section `Submitted`. **No signature at section level** —
      the branch manager's single signature covers the requisition (§3 Stage 5).
@@ -587,7 +610,9 @@ Store unapproved** (§3 Stage 5).
 1. Branch manager opens the requisition and sees **all five departments'
    sections in one view** (§3 Stage 5), each showing submitted lines, par,
    on-hand, and pre-suggested quantities. Sections not submitted show as **Not
-   submitted**.
+   submitted**. Within a section, lines render grouped by category exactly as
+   the department head saw them (Flow 7 step 1) — same groups, same order —
+   so the manager reviews in the same structure, not a re-flattened list.
 2. Branch manager reviews. Per line, in **any** section, they can:
    - **change a quantity**,
    - **delete a line**,

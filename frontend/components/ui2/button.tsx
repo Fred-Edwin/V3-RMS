@@ -17,7 +17,7 @@ const buttonVariants = cva(
         primary:
           'bg-wds-gradient-primary text-wds-primary-fg shadow-wds-sheen hover:bg-wds-gradient-primary-hover',
         secondary:
-          'border border-wds-border-strong bg-wds-surface text-wds-text hover:bg-wds-neutral-50',
+          'border border-wds-border-strong bg-wds-gradient-secondary-btn text-wds-text hover:bg-wds-gradient-secondary-btn-hover active:bg-wds-gradient-secondary-btn-pressed',
         ghost: 'text-wds-neutral-700 hover:bg-wds-neutral-100',
         destructive: 'bg-wds-error-fg text-wds-primary-fg hover:opacity-90',
         link: 'text-wds-primary underline-offset-4 hover:underline',

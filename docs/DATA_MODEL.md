@@ -1692,14 +1692,27 @@ Item catalog categories (Milestone One, 2026-09-15). Distinct from the
 system-level `MenuCategory` (§4.6) — this is a per-organization grouping for
 inventory items and suppliers, not menu routing.
 
+**One level of self-referencing nesting (added for Milestone Four,
+2026-09-21).** The client's real Kitchen stock sheet groups items two levels
+deep — e.g. "Prep Kitchen Items" (a type-level grouping) containing "Chicken,"
+"Beef," "Pork," "Fish" (a protein-base grouping), each holding several
+distinct prepped items ("Chicken Biryani," "Beef Biryani," etc. are separate
+`InventoryItem` rows, distinguished by which category — Chicken vs. Beef —
+they belong to). Every other department's sheet (Barista, Service,
+Housekeeping, Pastry) is a flat list with no grouping at all. `parentCategoryId`
+is nullable and optional per category — Kitchen sets it where it has a real
+parent/child grouping to express; every other department's categories (or lack
+of categories) are unaffected and keep working exactly as before this change.
+
 ```prisma
 model Category {
-  id             String    @id @default(uuid())
-  organizationId String    @map("organization_id")
-  name           String
-  deletedAt      DateTime? @map("deleted_at")   -- retire; never hard-delete
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id               String    @id @default(uuid())
+  organizationId   String    @map("organization_id")
+  name             String
+  parentCategoryId String?   @map("parent_category_id")   -- NEW, Milestone Four: optional, one level only
+  deletedAt        DateTime? @map("deleted_at")   -- retire; never hard-delete
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   @@index([organizationId])
   @@map("categories")
@@ -1709,6 +1722,9 @@ model Category {
 **Notes:**
 - Case-insensitive uniqueness among *live* categories only, enforced by a partial unique index on `lower(name) WHERE deleted_at IS NULL` (raw SQL — not expressible in the Prisma DSL). A retired "Seasonal" must not block creating a new "Seasonal".
 - Shared by both `InventoryItem` and `Supplier` (a supplier's category and an item's category are the same lookup table).
+- **`parentCategoryId` is one level only** — a category with a parent must not itself be set as another category's parent (enforced at the service layer, not the DB). This matches every real grouping seen in the reference paper sheets; a deeper hierarchy has no known use case yet and would add UI complexity (e.g. recursive category pickers) for nothing.
+- An `InventoryItem` still references exactly **one** category (`categoryId`, unchanged) — e.g. "Chicken Biryani" → category "Chicken." The parent link lets the UI and reports roll up to "Prep Kitchen Items" without needing a second field on the item itself.
+- **Migration is additive only** — every existing category row gets `parentCategoryId: null`. No behavior change to Milestone One's catalog/category screens, Milestone Two's receiving, or Milestone Three's prep, none of which read or filter by parent. See `docs/features/inventory/MILESTONES.md` for the Milestone One "Manage categories" UI addition (parent picker) deferred to a Milestone Four build session.
 
 ---
 
