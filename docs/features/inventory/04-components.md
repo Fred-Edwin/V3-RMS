@@ -2,8 +2,9 @@
 
 **Feature:** Inventory & Procurement (Feature 1 of the redo)
 **Step:** 4 of the per-feature pipeline — extract components into the codebase
-**Status:** Milestone One complete; remaining milestones added as their screens are
-finalized on the Milestone pages.
+**Status:** Milestone One complete, Milestone Two complete. Milestone Three
+(Prep) reuse audit done (2026-09-19) — see its section below; net-new build
+is small, most of the screen is existing composites.
 **Traces to:** `docs/features/inventory/03-design.md` (Paper source of truth),
 `docs/FEATURE_REDO_PLAYBOOK.md` §5 Step 4, §9 (folder structure)
 
@@ -3133,3 +3134,63 @@ verification record (screenshot-vs-Paper for all six artboards, or an
 explicit list of which were not completed if the session ran out of budget
 before finishing all six) — not duplicated here to avoid drift between two
 copies of the same record.
+
+---
+
+## Milestone Three — Prep (reuse audit, 2026-09-19)
+
+**Paper reference:** page `Milestone Three · Prep`, file
+`01M1ZZJ6S3FZGF5C7PPBGTKY89`. 8 screens: Prep runs list (desktop `Z61-0` /
+mobile `ZGY-0`), New prep run (desktop drawer `ZAR-0` / mobile `ZIY-0` +
+confirm sheet `ZKJ-0`), Prep run detail (desktop drawer `ZMU-0` / mobile
+`ZUK-0`), Prep History (desktop `ZZQ-0` / mobile `10AN-0`) — the last 4
+(detail + History, both breakpoints) were designed fresh during owner
+review, not part of the original 4-screen milestone scope.
+
+**This is a reuse audit, not a fresh inventory.** Checked every Prep screen
+against what Milestone One/Two already built in `components/ui2/` and
+`features/inventory/components/` before assuming anything is new — per this
+doc's own "Sourcing" rule, composites aren't rebuilt once verified for an
+earlier milestone. Result: **no new primitives, no new composites.** Every
+shape Prep's screens need already exists, built and verified against a
+different milestone's data. This section records what to reuse and from
+where — a build session should treat this as the actual Step 4 deliverable
+for Prep, not a reason to stop and design new components.
+
+### Primitives — all reused, none new
+
+Table, Input (via `SearchInput`), Sheet/Drawer, Select, Dropdown Menu —
+every primitive Prep's screens touch was already built in Milestone One and
+is untouched by Prep's shape. Nothing in Prep's screens needs a primitive
+that doesn't already exist.
+
+### Composites — reuse map
+
+| Prep screen | Reuses | Notes |
+|---|---|---|
+| Prep runs list (desktop + mobile) | `KpiStrip` (`features/inventory/components/kpi-strip.tsx`) for the "Runs this week / Yield flags / Prep value" row; `Table` primitive + shared row/header pattern (same shape as `item-catalog-table.tsx`'s header/row structure, not that component itself — Prep's columns differ) | `KpiStrip` is fully data-driven (`cells: KpiCellData[]`, `tone`), no changes needed — just pass Prep's 3 cells instead of Catalog's. |
+| New prep run (drawer + mobile) | `Sheet`/`SheetContent`/`SheetHeader`/`SheetFooter` (`ui2/sheet.tsx`); **not** `DrawerShell` as-is — `DrawerShellProps` requires `primaryLabel`/`onPrimaryAction`, which fits (this screen has a real "Confirm run" primary action), so `DrawerShell` **is** reusable here, unlike Prep run detail below | Same drawer chrome Milestone One's 4 drawers already use. |
+| Prep run detail (drawer + mobile) | `Sheet` primitives directly (not `DrawerShell` — this is read-only, no primary action, so `DrawerShellProps`'s required `primaryLabel` doesn't fit); row/table shape closely matches `ReceiptLineListReadonly` (`features/inventory/components/receipt-line-list-readonly.tsx`) — same "grow name column + fixed-width numeric columns, sticky header" skeleton, different fields (inputs consumed vs. receipt lines) | **One net-new small composite is justified:** a plain read-only drawer/screen shell (header + body + close-only footer, no primary action) — `DrawerShell` structurally assumes an edit/create flow. Given `GoodsReceiptDetailScreen` already hand-rolls this exact shape without `DrawerShell` (plain `Topbar` + content, no drawer at all, since it's a full route not a drawer), the closest real precedent is: build Prep run detail's *drawer* variant as a thin wrapper directly over `Sheet` (bypass `DrawerShell`), following `GoodsReceiptDetailScreen`'s content structure (header block, line table, footer stat) for the body. Not a new primitive — a new but small composite, or arguably just a usage pattern, not worth a dedicated file if it's this thin. |
+| Prep History (desktop + mobile) | `HistoryListScreen` (`features/inventory/components/screens/history-list-screen.tsx`) is the direct structural template — same shape: `Topbar` + `SearchInput` + filter row + sticky-header table (desktop) / `MobileHubHeader` + search + card list (mobile), same `LoadMoreRow`-style pagination pattern via `PurchasingHistoryRowView`'s sibling pattern. Prep History is a **new file** (different data shape, different filters — Output/Yield-flag instead of Supplier/Status) but copies this file's structure wholesale, not a redesign. Summary KPI strip reuses `KpiStrip` again. | Confirms the Step 3 owner-review addition (search/filter/History screen) was the right call — this exact screen shape was already a proven pattern from Receiving, not a new UI idea being introduced. |
+
+### The one real "new" thing: the "+N more" truncated-inputs treatment
+
+Not a component — an inline text-truncation convention (first ingredient +
+`+N more` in a muted/faint color) introduced on the Prep runs table and
+History table to fix the unbounded-text overflow risk flagged in owner
+review. No existing Inventory screen needed this (Receiving's `INPUTS`-
+equivalent columns don't exist — GRN lines are their own table, not a
+condensed cell). Worth a one-line convention note if a future screen hits
+the same "many short items in one cell" shape, but not worth extracting as
+a component for a single consumer.
+
+### Step 4 conclusion for Milestone Three
+
+No shadcn primitives to add. No new composite files beyond: (1) Prep run
+detail's thin read-only-drawer wrapper (build inline in the screen file,
+following `GoodsReceiptDetailScreen`'s content pattern — don't create a new
+shared "ReadOnlyDrawerShell" primitive for a single consumer unless a third
+screen needs the same shape later), and (2) Prep History as a new screen
+file structurally copied from `HistoryListScreen`. Step 5 planning can
+proceed treating Prep as almost entirely an assembly task over Milestone
+One/Two's already-verified component set, not a component-building task.

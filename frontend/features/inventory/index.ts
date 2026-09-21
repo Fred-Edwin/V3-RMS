@@ -29,3 +29,7 @@ export { GoodsReceiptDetailScreen } from './components/screens/goods-receipt-det
 // Replaces Milestone One's profile-only SuppliersScreen stub (retired 2026-09-18).
 export { SuppliersApScreen } from './components/screens/suppliers-ap-screen';
 export { SupplierDetailScreen } from './components/screens/supplier-detail-screen';
+
+// Milestone Three — Prep.
+export { PrepRunsListScreen } from './components/screens/prep-runs-list-screen';
+export { PrepHistoryScreen } from './components/screens/prep-history-screen';

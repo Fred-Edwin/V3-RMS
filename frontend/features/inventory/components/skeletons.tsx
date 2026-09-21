@@ -311,3 +311,111 @@ export function ReceivingWorklistSkeletonMobile({ className }: { className?: str
     </div>
   );
 }
+
+/* --------------------------------------------------------------- Prep */
+/**
+ * Milestone Three — no Paper "loading" artboard was drawn for Prep (the 8
+ * approved artboards are all "populated" states), so these follow the same
+ * established pattern as the Item Catalog / Receiving worklist skeletons
+ * above rather than a literal Paper source: real header/title/KPI labels
+ * stay, only the data region becomes skeleton blocks, shaped to each real
+ * screen's own column widths (`prep-runs-list-screen.tsx` /
+ * `prep-history-screen.tsx`).
+ */
+
+/** The 3-cell KPI strip shared by the runs list and History (labels differ per screen but the shape is identical). */
+export function PrepKpiSkeletonDesktop({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex rounded-wds-md border border-wds-border bg-wds-surface', className)}>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className={cn('flex flex-1 flex-col gap-1.5 p-wds-4', i < 2 && 'border-r border-wds-border')}>
+          <Skeleton className="h-2.5 w-[90px]" />
+          <span className="font-wds-mono text-wds-kpi font-medium text-wds-text-faint">—</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Mirrors the runs list's real column widths (`prep-runs-list-screen.tsx`'s desktop table header). */
+export function PrepRunsListSkeletonDesktop({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface', className)}>
+      <div className="flex h-10 shrink-0 items-center border-b border-wds-border px-wds-4">
+        <span className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Recent runs</span>
+      </div>
+      <div className="flex h-[30px] shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+        <span className="w-[100px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">When</span>
+        <span className="w-[150px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Output</span>
+        <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Inputs</span>
+        <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Yield</span>
+        <span className="w-[150px] shrink-0 pl-5 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Vs average</span>
+        <span className="w-[100px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Unit cost</span>
+        <span className="w-[60px] shrink-0 pl-4 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">By</span>
+      </div>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex h-12 items-center gap-4 border-b border-wds-neutral-100 px-wds-4 last:border-b-0">
+          <Skeleton className="h-3 w-[80px] shrink-0" />
+          <Skeleton className="h-3 w-[130px] shrink-0" />
+          <Skeleton className="h-3 grow" />
+          <Skeleton className="h-3 w-[50px] shrink-0" />
+          <Skeleton className="h-3 w-[110px] shrink-0" />
+          <Skeleton className="h-3 w-[70px] shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Mobile — matches the real mobile card list (output name + when, inputs preview, yield + variance). */
+export function PrepRunsListSkeletonMobile({ className }: { className?: string }) {
+  return (
+    <div className="flex flex-col gap-wds-3">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className={cn('flex flex-col gap-wds-1.5 rounded-wds-md border border-wds-border bg-wds-surface p-wds-3', className)}>
+          <div className="flex items-center justify-between gap-wds-2">
+            <Skeleton className="h-3.5 w-[55%]" />
+            <Skeleton className="h-3 w-[60px]" />
+          </div>
+          <Skeleton className="h-3 w-[70%]" />
+          <div className="flex items-center justify-between gap-wds-2">
+            <Skeleton className="h-3 w-[50px]" />
+            <Skeleton className="h-3 w-[80px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Prep History — same column shape as the runs list skeleton, plus the filter row's real controls staying in place (only the KPI/table region becomes skeleton). */
+export function PrepHistorySkeletonDesktop({ className }: { className?: string }) {
+  return (
+    <div className={cn('flex flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface', className)}>
+      <div className="flex h-[30px] shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
+        <span className="w-[100px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">When</span>
+        <span className="w-[150px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Output</span>
+        <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Inputs</span>
+        <span className="w-[80px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Yield</span>
+        <span className="w-[150px] shrink-0 pl-5 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Vs average</span>
+        <span className="w-[100px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Unit cost</span>
+        <span className="w-[60px] shrink-0 pl-4 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">By</span>
+      </div>
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="flex h-12 items-center gap-4 border-b border-wds-neutral-100 px-wds-4 last:border-b-0">
+          <Skeleton className="h-3 w-[80px] shrink-0" />
+          <Skeleton className="h-3 w-[130px] shrink-0" />
+          <Skeleton className="h-3 grow" />
+          <Skeleton className="h-3 w-[50px] shrink-0" />
+          <Skeleton className="h-3 w-[110px] shrink-0" />
+          <Skeleton className="h-3 w-[70px] shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Mobile History — same card shape as the runs-list mobile skeleton. */
+export function PrepHistorySkeletonMobile({ className }: { className?: string }) {
+  return <PrepRunsListSkeletonMobile className={className} />;
+}

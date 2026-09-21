@@ -157,8 +157,13 @@ full breakdown, current status, and rationale). **Milestone One (Catalog,
 Suppliers & Restock Levels) shipped 2026-09-15. Milestone Two (Receiving &
 Supplier AP) shipped 2026-09-18** — full build (S0–S9) done, integration
 verified in a real browser, deployed to production 2026-09-19. **Milestone
-Three (Prep) is next**, but needs a Paper design pass first (desktop
-New-prep-run screen is MISSING) before Step 5 planning can start.
+Three (Prep) shipped 2026-09-21** — S0 (backend+frontend build) and S1
+(integration) ran as one continuous session; 8 screens, 5 endpoints, the
+codebase's first negative-signed ledger writer (`PREP_CONSUME`). Verified
+in a real browser and checked screen-by-screen against the approved Paper
+designs; see `milestone-3-plan.md` §5 for the full outcome log including
+bugs found and fixed. Next: pick the next milestone (see
+`docs/features/inventory/MILESTONES.md`).
 
 Done so far:
 - Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,

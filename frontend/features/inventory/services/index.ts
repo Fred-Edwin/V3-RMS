@@ -10,3 +10,4 @@
  */
 export * from './inventory-api-service';
 export * from './receiving-api-service';
+export * from './prep-api-service';

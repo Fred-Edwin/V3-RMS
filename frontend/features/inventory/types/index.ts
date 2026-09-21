@@ -251,3 +251,6 @@ export interface ItemCatalogListResponse extends Paginated<InventoryItem> {
 // contract, re-exported here so `features/inventory` (this module's public
 // entry) exposes both milestones' types from one place.
 export * from './receiving';
+
+// ─── Milestone Three — Prep ────────────────────────────────────────────────
+export * from './prep';
