@@ -137,10 +137,9 @@ tuned independently.
 
 | Token | Value | Role |
 |---|---|---|
-| `wds-sidebar-top` | `#4A290E` | gradient top (warm-dark coffee) — **revised 2026-09-21** (Milestone Four owner pass), was `#2E1806`; richer/more saturated |
-| `wds-sidebar-upper-mid` | `#381E09` | gradient upper-mid — **new 2026-09-21**, transition stop between top and mid |
-| `wds-sidebar-mid` | `#2C1707` | gradient mid — unchanged |
-| `wds-sidebar-bottom` | `#0F0601` | gradient bottom (near-black) — unchanged |
+| `wds-sidebar-top` | `#2E1806` | gradient top (warm-dark coffee) |
+| `wds-sidebar-mid` | `#2C1707` | gradient mid |
+| `wds-sidebar-bottom` | `#0F0601` | gradient bottom (near-black) |
 | `wds-sidebar-fg` | `#B5AEA5` | nav item text (inactive) |
 | `wds-sidebar-fg-active` | `#F5F3EF` | active item text (brighter) |
 | `wds-sidebar-fg-muted` | `#8A7F76` | group label · inactive icon stroke |
@@ -273,7 +272,7 @@ Table rows, inputs, badges, dropdowns, modals, status dots stay flat.
 
 | Token | Where | Direction | Stops |
 |---|---|---|---|
-| `bg-wds-gradient-sidebar` | nav rail | 169° | sidebar-top @0.2% → upper-mid @35.68% → mid @50.1% → sidebar-bottom @100% — **revised 2026-09-21** (Milestone Four owner pass): added the upper-mid stop and richened the top stop (see §3.6); mid and bottom unchanged. Applies to every sidebar app-wide, not just new screens. |
+| `bg-wds-gradient-sidebar` | nav rail | 165° | sidebar-top @0% → mid @40% → sidebar-bottom @100% — **reverted 2026-09-21**: the Milestone Four owner pass had added an upper-mid stop and richened the top stop; owner reviewed the result in-app and asked to go back to this original. Applies to every sidebar app-wide. |
 | `bg-wds-gradient-primary` | primary button, active nav marker | 180° | `primary-btn-start` (`#B0610F`, bespoke) → `primary-btn-end` (`#4A1D00`, bespoke) (+ `shadow-wds-sheen`) — **revised 2026-09-21** (Milestone Four owner pass): was espresso-700 → primary-btn-end; the richer, more saturated top stop gives more contrast against light surfaces. Applies to every primary button app-wide, not just new screens. |
 | `bg-wds-gradient-primary-hover` | primary button hover | 180° | one step lighter each stop |
 | `bg-wds-gradient-secondary-btn` | secondary (white/outline) button | 180° | neutral-0 → neutral-200 — **new 2026-09-21.** Pair with a `border-strong` outline. More pronounced than `surface-raise` (below) since an interactive button needs to visibly read as raised/pressable; `surface-raise` is for static cards. |
@@ -349,12 +348,12 @@ Sizes: `default` h-32, `sm` h-28, `lg` h-36, `icon` 32×32.
 A proper **sidebar**, not a bottom nav. On mobile it collapses to an icon rail
 (never a "More" menu with a pile of links). The rail:
 
-- background: `bg-wds-gradient-sidebar` — four warm-brown oklab stops, revised
-  2026-09-21 (`oklab(31.9% 0.034 0.053)` @0.2% → `oklab(26.7% 0.028 0.043)`
-  @35.68% → `oklab(22.9% 0.024 0.036)` @50.1% → `oklab(13.6% 0.011 0.022)`
-  @100%). **No bare-percentage colour hints** in the gradient string — every
-  percentage here is attached directly to a stop's `var(...)`, never left bare;
-  Paper (and some engines) turn a bare hint into an implicit grey/black stop.
+- background: `bg-wds-gradient-sidebar` — three warm-brown oklab stops
+  (`wds-sidebar-top` @0% → `wds-sidebar-mid` @40% → `wds-sidebar-bottom`
+  @100%, 165°). **No bare-percentage colour hints** in the gradient string —
+  every percentage here is attached directly to a stop's `var(...)`, never
+  left bare; Paper (and some engines) turn a bare hint into an implicit
+  grey/black stop.
 - nav items grouped; each group has a quiet **ALL-CAPS label**
   (`text-wds-overline`, `wds-sidebar-fg-muted`). **No hairline** (removed
   2026-09-09).
@@ -504,3 +503,12 @@ labels the user relies on to parse a table.
   the real (and already-correct) table primitive — semantic `<table>` markup,
   so the column-alignment issues found in this session's Paper mockups
   (`min-width:0`/fixed-width bookkeeping) don't apply to the real component.
+- **2026-09-21 (later same day)** — Sidebar gradient **reverted** after the
+  owner reviewed the richer top stop + `wds-sidebar-upper-mid` change in the
+  running app and asked to go back to the original. `wds-sidebar-top` is
+  `#2E1806` again, `wds-sidebar-upper-mid` is removed from
+  `tokens.wds.css`/`tailwind.wds.preset.ts`, and `bg-wds-gradient-sidebar` is
+  back to its original 3-stop, 165° definition (§3.6, §11 updated to match).
+  The primary-button gradient change from the same Milestone Four pass
+  (`wds-primary-btn-start` richened to `#B0610F`) was **not** reverted — the
+  owner's request was sidebar-specific only.

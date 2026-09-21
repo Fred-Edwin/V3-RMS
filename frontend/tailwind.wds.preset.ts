@@ -105,7 +105,6 @@ const wdsPreset: Partial<Config> = {
 
         'wds-sidebar': {
           top: 'var(--wds-sidebar-top)',
-          'upper-mid': 'var(--wds-sidebar-upper-mid)',
           mid: 'var(--wds-sidebar-mid)',
           bottom: 'var(--wds-sidebar-bottom)',
           fg: 'var(--wds-sidebar-fg)',
