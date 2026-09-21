@@ -516,14 +516,18 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
 
   const sidebarSections = useMemo(() => {
     const baseSections = role ? (sidebarSectionsByRole[role] ?? []) : [];
-    // A department head keeps their full base-role nav and gains one entry for
-    // the department shift scheduler (marker model, 2026-09-03).
+    // A department head keeps their full base-role nav and gains entries for
+    // the department shift scheduler (marker model, 2026-09-03) and, since
+    // Milestone Four Session A, Requisitions.
     const sections = isDepartmentHead
       ? [
           ...baseSections,
           {
             label: 'Department',
-            items: [{ label: 'Department Shifts', href: '/app/department/shifts', icon: Calendar }],
+            items: [
+              { label: 'Department Shifts', href: '/app/department/shifts', icon: Calendar },
+              { label: 'Requisitions', href: '/app/requisitions', icon: ClipboardList },
+            ],
           },
         ]
       : baseSections;
@@ -546,12 +550,14 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const mobileNavConfig = useMemo(() => {
     if (!role || !(role in mobileRoleTabs)) return null;
     const config = mobileRoleTabs[role as MobileRole];
-    // A department head's base-role tabs plus one "Dept Shifts" overflow entry.
+    // A department head's base-role tabs plus "Dept Shifts" and (since
+    // Milestone Four Session A) "Requisitions" overflow entries.
     const withDeptHead: MobileRoleNavConfig = isDepartmentHead
       ? {
           tabs: config.tabs,
           overflowTabs: [
             { label: 'Dept Shifts', href: '/app/department/shifts', icon: Calendar },
+            { label: 'Requisitions', href: '/app/requisitions', icon: ClipboardList },
             ...config.overflowTabs,
           ],
         }

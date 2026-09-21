@@ -105,7 +105,7 @@ share one screen set or one causal chain, so nothing ships half-wired.
 | 1 | **Catalog, Suppliers & Restock Levels** | Foundational reference data (feeds Stage 1) | DESIGNED | ✅ **Shipped** 2026-09-15 |
 | 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | ✅ **Shipped** 2026-09-18 — Step 5 plan approved 2026-09-16, Step 7 (S0–S9) complete, integration verified in a real browser |
 | 3 | **Prep** | Stage 3 | DESIGNED — all 8 screens exist in Paper, desktop and mobile (4 original + 4 added during 2026-09-19 owner review: Prep run detail, Prep History) | ✅ **Shipped** 2026-09-21 — S0+S1 as one session, verified in a real browser against approved designs |
-| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | Screen-set review underway (2026-09-21) — see below | Not started |
+| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | DESIGNED — screen-set approved 2026-09-21, `milestone-4-plan.md` Step 5 approved same day | Not started — ready for Step 7, Session A |
 | 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | Mostly MISSING (dispatch queue, fulfil & dispatch, delivery note, branch incoming/confirm); mobile dispatch/fulfil DESIGNED | Not started |
 | 6 | **Counting, Closing & Discrepancies** | Stage 8 (consumption — no new build, still count/waste-driven) + Stage 9 | Mixed — Central Store blind-count mobile DESIGNED; verification, branch EOD, discrepancy resolution mostly MISSING | Not started |
 
@@ -144,7 +144,8 @@ before it could build. Milestone Two is the exception: fully designed already.
 | 1 | `milestone-1-plan.md` (shipped) |
 | 2 | `milestone-2-plan.md` (shipped 2026-09-18 — Step 7: S0–S9 all done) |
 | 3 | `milestone-3-plan.md` (Step 5 approved 2026-09-19, all four §6 questions resolved — ready for Step 7) |
-| 4–6 | not yet created |
+| 4 | `milestone-4-plan.md` (Step 5 approved 2026-09-21, all three §7 questions resolved — ready for Step 7, Session A: Dept Head fill, then Session B: Branch Manager approval + History) |
+| 5–6 | not yet created |
 
 Session-level prompts and handoffs for a shipped milestone move to
 `archive/` once the milestone closes (see Milestone One's

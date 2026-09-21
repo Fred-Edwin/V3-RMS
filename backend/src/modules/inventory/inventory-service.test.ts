@@ -78,8 +78,9 @@ const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId
 const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: branchOrgId };
 const departmentHead = {
   id: 'dh1',
-  role: 'DEPARTMENT_HEAD' as const,
+  role: 'CHEF' as const,
   organizationId: branchOrgId,
+  isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
 
@@ -159,6 +160,45 @@ describe('inventoryService — D-15 hub scoping', () => {
     await inventoryService.createCategory(storeManager, { name: 'Dry items' });
 
     expect(categoryRepository.create).toHaveBeenCalledWith(hubOrgId, 'Dry items');
+  });
+});
+
+describe('inventoryService — listItems Department Head catalog-read carve-out (Milestone Four Session A)', () => {
+  it('resolves to the hub org for a branch-org Department Head (does not throw)', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [], total: 0 } as never);
+    vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
+
+    await expect(
+      inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false }),
+    ).resolves.toBeDefined();
+    expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
+  });
+
+  it('still rejects a non-hub, non-department-head actor (e.g. a plain branch Store Manager)', async () => {
+    await expect(
+      inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe('inventoryService — category CRUD unaffected by the additive parentCategoryId column (Milestone Four regression)', () => {
+  it('list/create/rename still work when a category carries a null parentCategoryId', async () => {
+    vi.mocked(categoryRepository.findAllByOrganization).mockResolvedValue([
+      buildCategory({ parentCategoryId: null }),
+    ] as never);
+    const list = await inventoryService.listCategories(storeManager, false);
+    expect(list).toHaveLength(1);
+
+    vi.mocked(categoryRepository.findByLiveName).mockResolvedValue(null);
+    vi.mocked(categoryRepository.create).mockResolvedValue(buildCategory({ parentCategoryId: null }) as never);
+    await expect(inventoryService.createCategory(storeManager, { name: 'Dry items' })).resolves.toBeDefined();
+
+    vi.mocked(categoryRepository.findById).mockResolvedValue(buildCategory({ parentCategoryId: null }) as never);
+    vi.mocked(categoryRepository.rename).mockResolvedValue(buildCategory({ name: 'Renamed', parentCategoryId: null }) as never);
+    await expect(
+      inventoryService.renameCategory(storeManager, categoryId, { name: 'Renamed' }),
+    ).resolves.toBeDefined();
   });
 });
 

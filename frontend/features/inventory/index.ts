@@ -11,6 +11,10 @@
 // Contract types, mirroring the frozen backend contract.
 export * from './types';
 
+// Catalog read — needed by features/requisitions' "+ Add an item" picker
+// (Milestone Four, Session A), department-scoped item search.
+export { listItems } from './services';
+
 // Milestone One screens.
 export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
 export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';

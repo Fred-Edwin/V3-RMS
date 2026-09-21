@@ -22,12 +22,21 @@
 >   `ParLevel`) named in earlier copies of this note — those models no longer
 >   exist; do not reference them. `Location` (unchanged by the redo) is not yet
 >   documented here.
-> - **Inventory Milestones 3–6 (Prep, Requisition/Approval, Dispatch/Branch
->   Receiving, Counting/Closing):** not yet built — see
->   `docs/features/inventory/MILESTONES.md`. The pre-redo Phase 2 scaffolding
->   models (`Requisition(+Line)`, `Dispatch(+Line)`, `MarketPurchase(+Line)`)
->   still exist in the schema but are subject to the redo when those
->   milestones land; not documented here.
+> - **Inventory Milestone Three (Prep), shipped and live in production
+>   (2026-09-21):** `PrepRun(+InputLine)` are net-new models, not yet
+>   documented in this file — see `docs/API_CONTRACT.md` §23 and
+>   `backend/prisma/schema.prisma` in the meantime.
+> - **Inventory Milestone Four (Requisition & Branch Approval), Session A
+>   underway (2026-09-21):** `Category.parentCategoryId` and
+>   `Requisition`/`RequisitionSection`/`RequisitionLine` are documented in
+>   §4.63–4.66 below. **The pre-redo Phase 2 `requisitions`/
+>   `requisition_lines`/`dispatches` tables no longer exist** — they were
+>   dropped by the Milestone One catalog migration
+>   (`20260915065051_inventory_milestone_one_catalog`); this correction
+>   replaces the previous (stale) claim that they still exist. Session B
+>   (branch-manager approve/return/edit) and Milestones 5–6 (Dispatch/Branch
+>   Receiving, Counting/Closing) are not yet built — see
+>   `docs/features/inventory/MILESTONES.md`.
 > - **Order/menu/staff core:** additions from Phases 10–12 (guest split,
 >   cancellation approval, order correction) and the department-head marker are
 >   not reflected in §4.13–4.15 / §4.3.
@@ -2159,6 +2168,134 @@ model SupplierPaymentAllocation {
 
 **Notes:**
 - A reversal payment's allocations mirror the original payment's allocations but negated — this is how a correction "un-pays" an invoice without ever mutating the original payment row.
+
+---
+
+### 4.63 Requisition
+
+Milestone Four (Requisition & Branch Approval), Session A, 2026-09-21. A
+requisition is one document per branch-day-slot with exactly five sections,
+one per `DepartmentTag`, created together in a single transaction when a
+department head opens it. This milestone never writes to
+`InventoryTransaction` — the first requisition-domain milestone since Prep
+that doesn't touch the ledger (Milestone 5, Dispatch, is where stock
+actually moves).
+
+```prisma
+model Requisition {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")   -- branch org, not the hub
+  type           RequisitionType
+  note           String?   -- optional free text, e.g. distinguishing two same-day AD_HOC requisitions
+  status         RequisitionStatus @default(OPEN)
+  openedById     String            @map("opened_by_id")
+  openedAt       DateTime          @default(now()) @map("opened_at")
+  approvedById   String?           @map("approved_by_id")   -- Session B
+  approvedAt     DateTime?         @map("approved_at")   -- Session B
+
+  @@index([organizationId, status])
+  @@map("requisitions")
+}
+```
+
+**Notes:**
+- `type` is a fixed enum (`MORNING`/`AFTERNOON`/`EVENING`/`AD_HOC`), not free
+  text — chosen for reporting consistency; `note` covers the rare "two
+  AD_HOC requisitions same day" disambiguation case.
+- No `locationId` — branch-scoped via `organizationId` directly (the branch
+  org), same pattern as Milestone One/Two/Three's branch-vs-hub scoping.
+  Sections are department-scoped via `RequisitionSection.departmentTag`, not
+  `Location`.
+- One signature covers the whole requisition (`approvedById`/`approvedAt` on
+  this model, not per-section) — Session B's approval flow.
+- `status` transitions `OPEN` → `PENDING_APPROVAL` (on the first section
+  submitted) → `APPROVED` (Session B's PIN signature).
+
+---
+
+### 4.64 RequisitionSection
+
+```prisma
+model RequisitionSection {
+  id            String                   @id @default(uuid())
+  requisitionId String                   @map("requisition_id")
+  departmentTag DepartmentTag            @map("department_tag")
+  status        RequisitionSectionStatus @default(NOT_STARTED)
+  submittedById String?                  @map("submitted_by_id")
+  submittedAt   DateTime?                @map("submitted_at")
+  returnedNote  String?                  @map("returned_note")   -- branch manager's reason, cleared on resubmit
+  managerNote   String?                  @map("manager_note")    -- dept head's free-text note to the manager
+
+  @@unique([requisitionId, departmentTag])
+  @@map("requisition_sections")
+}
+```
+
+**Notes:**
+- Exactly 5 rows are created per `Requisition` at open time (one per
+  `DepartmentTag`), never created individually later.
+- `status` transitions: `NOT_STARTED` → `DRAFT` (first save) → `SUBMITTED`
+  (Session A) → `RETURNED` (Session B's bounce-back, `returnedNote` set) →
+  directly back to `SUBMITTED` on **resubmit** (`returnedNote` cleared
+  server-side in the same write, not just hidden client-side — no
+  intermediate `DRAFT` state on this path). `SUBMITTED` → `DRAFT` happens
+  via **recall** (Session A, before approval) — a separate transition from
+  resubmit, not a prerequisite for it.
+- State-transition writes use the `updateMany` + count-check pattern
+  (`receiving-repository.ts`'s `markSigned` precedent): `where` includes the
+  expected current status; zero rows affected → the service throws
+  `ConflictError`, never a silent partial state.
+
+---
+
+### 4.65 RequisitionLine
+
+```prisma
+model RequisitionLine {
+  id                   String    @id @default(uuid())
+  requisitionSectionId String    @map("requisition_section_id")
+  inventoryItemId      String    @map("inventory_item_id")
+  parAtRequest         Decimal?  @map("par_at_request") @db.Decimal(12, 4)   -- NULLABLE, see deviation note below
+  requestedQty         Decimal?  @map("requested_qty") @db.Decimal(12, 4)    -- null = manager-added, head never asked
+  approvedQty          Decimal?  @map("approved_qty") @db.Decimal(12, 4)     -- null until Session B's manager review
+  addedFromNote        Boolean   @default(false) @map("added_from_note")    -- Session B: manager converted a note line to a real line
+  editedById           String?   @map("edited_by_id")   -- Session B: who last changed approvedQty
+  editReason           String?   @map("edit_reason")    -- Session B: required whenever approvedQty != requestedQty
+  deletedAt            DateTime? @map("deleted_at")      -- Session B: branch-manager delete, soft (audit trail)
+
+  @@index([requisitionSectionId])
+  @@map("requisition_lines")
+}
+```
+
+**Notes:**
+- **`parAtRequest` is nullable — a deliberate deviation from
+  `milestone-4-plan.md` §1.2's literal sketch, which typed it
+  non-nullable.** `null` means no `RestockLevel` row exists yet for
+  `(this branch's department location, item)` — expected to be common until
+  Milestone One's restock-level flow is actually used per-branch (a
+  Department Head could not reach it before this session's dead-role fix in
+  `inventory-routes.ts`/`inventory-service.ts` — see `docs/API_CONTRACT.md`
+  §24.4). No fallback, no zero; the frontend renders `null` as a blank/dash.
+- `parAtRequest` is **snapshotted at line-creation time**, not read live from
+  `RestockLevel` at display time — matches the "signed document is
+  immutable" pattern Milestone Two's `GoodsReceipt` and Milestone Three's
+  `PrepRun` already established.
+- **"Zero-not-delete" is a service rule, not a schema state.** A department
+  head setting a line's quantity to `0` is just `requestedQty: 0` — the
+  row stays. Session A has **no true server-side line deletion**: the fill
+  screen's trash icon is only enabled for a not-yet-saved line removed
+  within the same session (never created server-side, so omitting it from
+  the upsert `PATCH` is a true no-op); an already-persisted line's trash
+  icon is disabled, since omitting it from the payload would silently do
+  nothing rather than delete it — a head zeroes an already-saved line via
+  the stepper instead. True soft-deletion via `deletedAt` is a Session B
+  (branch-manager) capability, paired with a required `editReason`.
+- No `onHandAtRequest` field (owner-resolved 2026-09-21, `milestone-4-plan.md`
+  §0/§7 Q1) — no branch-department stock/ledger exists anywhere in the
+  schema yet. The fill screen drops the on-hand column and the
+  par-minus-on-hand auto pre-fill for this milestone; a head enters
+  `requestedQty` manually against the visible `parAtRequest` reference.
 
 ---
 

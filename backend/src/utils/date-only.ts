@@ -63,3 +63,17 @@ export const getTodayDateOnly = (): Date => {
 export const isSameDateOnly = (left: Date, right: Date): boolean => {
   return formatDateOnly(left) === formatDateOnly(right);
 };
+
+/**
+ * The `[start, end)` UTC instant range covering "today" in Kenya time — for
+ * filtering timestamp columns (e.g. `openedAt gte/lt`) to the current
+ * Nairobi calendar day. Kenya has no DST, so a fixed +3h offset from the
+ * Nairobi-local midnight (itself derived via `getTodayDateOnly`, which is
+ * already DST-safe through `Intl.DateTimeFormat`) is correct year-round.
+ */
+export const getTodayNairobiRangeUtc = (): { start: Date; end: Date } => {
+  const todayDateOnly = getTodayDateOnly();
+  const start = new Date(todayDateOnly.getTime() - 3 * 60 * 60 * 1000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+};

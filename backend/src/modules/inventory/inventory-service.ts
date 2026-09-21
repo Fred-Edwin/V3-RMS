@@ -57,6 +57,23 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
   return hubOrgId;
 };
 
+/**
+ * Read-only carve-out for `listItems` only (added Milestone Four Session A,
+ * 2026-09-21): a branch-org Department Head needs to browse the hub's item
+ * catalog for the requisition "+ Add an item" picker, even though they sit
+ * on a branch org, not the hub — D-15 still applies to every write path and
+ * every other read (categories, suppliers, central-store restock), which
+ * stay on the strict `requireHubActor` above. Always resolves to the hub
+ * org id regardless of the actor's own `organizationId`.
+ */
+const requireHubOrgForCatalogRead = async (actor: Actor): Promise<string> => {
+  const hubOrgId = await requireHubOrganization();
+  if (actor.organizationId === hubOrgId || actor.isDepartmentHead) {
+    return hubOrgId;
+  }
+  throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
+};
+
 const toDecimalString = (value: Prisma.Decimal | null): string | null => (value === null ? null : value.toString());
 
 const serializeCategory = (category: CategoryWithItemCount) => ({
@@ -261,7 +278,7 @@ export const inventoryService = {
   // ── Items ────────────────────────────────────────────────────────────────
 
   listItems: async (actor: Actor, query: ListItemsQuery): Promise<ItemCatalogListResponse> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requireHubOrgForCatalogRead(actor);
     const { items, total } = await inventoryItemRepository.findAllByOrganization(organizationId, {
       search: query.search,
       type: query.type,
@@ -565,7 +582,7 @@ export const inventoryService = {
     // §5.4 rule 5/6: a Department Head may only set levels for items scoped
     // to their own department; every item exists at the Central Store, so a
     // Store Manager setting a level there is unreachable but asserted.
-    if (actor.role === 'DEPARTMENT_HEAD') {
+    if (actor.isDepartmentHead) {
       const outOfScope = liveItems.filter((item) => !item.departmentTags.includes(actor.departmentTag as DepartmentTag));
       if (outOfScope.length > 0) {
         throw new ForbiddenError('You may only set restock levels for items scoped to your own department');
@@ -594,7 +611,7 @@ const resolveRestockScope = async (
   actor: Actor,
   requestedLocationId: string | undefined,
 ): Promise<{ organizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
-  if (actor.role === 'DEPARTMENT_HEAD') {
+  if (actor.isDepartmentHead) {
     if (requestedLocationId) {
       throw new ForbiddenError('Department Heads set restock levels for their own department only');
     }

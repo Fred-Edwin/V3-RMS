@@ -3934,3 +3934,137 @@ Named constants in `prep-service.ts`, not inline magic numbers:
   data points.** Flagged/outlier runs are always included in the average,
   never excluded (plan §6 Q3b) — avoids a circular "what's typical"
   definition.
+
+## 24. Inventory — Milestone Four (Requisition & Branch Approval)
+
+> **STATUS: BUILDING — Session A (Department Head fill)**, started
+> 2026-09-21. Plan: `docs/features/inventory/milestone-4-sessions/
+> session-a-plan.md`. Session B (branch-manager approve/return/edit,
+> dispatch-queue visibility) is not built here — its endpoints are not yet
+> in this section.
+
+Requisition is the **first requisition milestone since Prep that does not
+write to the ledger** — `Requisition`/`RequisitionSection`/`RequisitionLine`
+are net-new models with no `InventoryTransaction` row written anywhere in
+this session's endpoints (plan §0/§8). A requisition is one document per
+branch-day-slot with exactly five sections, one per `DepartmentTag`, created
+together at open time.
+
+**Cross-department authorization is enforced in the service layer, not just
+the route.** `requireDepartmentHead` middleware only confirms *a* department
+head, not *which* department — every section-scoped method in
+`requisitions-service.ts` additionally asserts `departmentTag ===
+actor.departmentTag`, or throws `ForbiddenError`. This is the single
+highest-risk check in this session (a Kitchen head could otherwise read/write
+another department's section by editing the URL param).
+
+### 24.1 Source of truth
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/requisitions/requisitions-validators.ts` |
+| **Types (inferred from schemas)** | `backend/src/modules/requisitions/requisitions.types.ts` |
+| **Frontend mirror** | `frontend/features/requisitions/types/index.ts` — hand-mirrored (no shared package to import from) |
+| **Design** | Paper page `Milestone Four · Requisition & Branch Approval` (`p-E-0`), file `01M1ZZJ6S3FZGF5C7PPBGTKY89` — fill-screen nodes `10PT-0`/`10J9-0`/`10LE-0`/`10NJ-0`/`10RO-0`/`10TV-0`, list `10HO-0`, landing `122U-0` |
+| **Plan** | `docs/features/inventory/milestone-4-plan.md` §1–§3, `milestone-4-sessions/session-a-plan.md` |
+| **Migrations** | `backend/prisma/migrations/20260921122901_add_category_parent_category_id`, `backend/prisma/migrations/20260921122951_inventory_milestone_four_requisition` |
+
+### 24.2 Conventions specific to this contract
+
+Inherits §22.2's conventions: standard envelope unchanged, every decimal
+crosses the wire as a string, all routes under `/api/v1/…`.
+
+**Routes are not namespaced under `/inventory/`** — `/requisitions/…`,
+matching the plan's own route table (§3.2) and the new
+`backend/src/modules/requisitions/` module boundary, distinct from
+`backend/src/modules/inventory/`.
+
+**Every route in this section is gated on the `requireDepartmentHead`
+marker middleware** (`allowDepartmentHead`/`requireDepartmentHead` in
+`backend/src/middleware/rbac.ts`), never `requireRole('DEPARTMENT_HEAD')` —
+that enum value is dead since the 2026-09-03 department-head-marker
+refactor. `POST /requisitions` and `GET /requisitions` are
+department-head-only in Session A; `MANAGER` access to the same paths is
+Session B's addition.
+
+### 24.3 Endpoints (Session A — Department Head)
+
+| Method | Path | Roles |
+|---|---|---|
+| `POST` | `/requisitions` | Department Head |
+| `GET` | `/requisitions` | Department Head |
+| `GET` | `/requisitions/:id/sections/:departmentTag` | Department Head (own department only) |
+| `PATCH` | `/requisitions/:id/sections/:departmentTag/lines` | Department Head (own department only) |
+| `POST` | `/requisitions/:id/sections/:departmentTag/submit` | Department Head (own department only) |
+| `POST` | `/requisitions/:id/sections/:departmentTag/recall` | Department Head (own department only) |
+
+- **`POST /requisitions`** — opens a requisition and creates all 5
+  `RequisitionSection` rows (one per `DepartmentTag`, `NOT_STARTED`) in one
+  transaction. Body: `type` (`MORNING`/`AFTERNOON`/`EVENING`/`AD_HOC`),
+  optional `note`. Response is a `RequisitionListRow` scoped to the caller's
+  own department (`mySectionStatus`).
+- **`GET /requisitions`** — role-scoped list of the caller's branch
+  requisitions. Every row surfaces only the caller's own department's
+  section status (`mySectionStatus`), never other departments' — this is a
+  read-side application of the same cross-department scoping the
+  section-detail endpoints enforce. Query: `limit` (default 25).
+- **`GET /requisitions/:id/sections/:departmentTag`** — fill-screen payload:
+  lines with item name, usage unit, category + parent-category name,
+  `parAtRequest` (nullable), `requestedQty` (nullable).
+- **`PATCH /requisitions/:id/sections/:departmentTag/lines`** — bulk upsert.
+  Body: `lines: {id?, inventoryItemId?, requestedQty}[]` (each entry needs
+  either `id` — an existing-line qty edit, including `"0"` for zero-not-
+  delete — or `inventoryItemId` — a new line, add-item; `requestedQty`
+  rejects negative but allows `"0"` and `null`), optional `managerNote`.
+  Rejected with `ConflictError` when the section is `SUBMITTED`/`RETURNED`.
+  A new line's `parAtRequest` is snapshotted from `RestockLevel` at creation
+  time, not read live later.
+- **`POST /requisitions/:id/sections/:departmentTag/submit`** —
+  `NOT_STARTED`/`DRAFT`/`RETURNED` → `SUBMITTED` (the `RETURNED` source state
+  is the resubmit-after-bounce-back path — clears `returnedNote` server-side
+  in the same write). Flips the parent `Requisition.status` `OPEN` →
+  `PENDING_APPROVAL` only on the first section submitted across the
+  requisition (subsequent submits are a no-op on that flip). Throws
+  `ConflictError` on a zero-count race (already submitted concurrently).
+- **`POST /requisitions/:id/sections/:departmentTag/recall`** — `SUBMITTED`
+  → `DRAFT`. Rejected with `ConflictError` once the parent
+  `Requisition.status` is `APPROVED` (Session B).
+
+### 24.4 `parAtRequest` nullability (deviation from the milestone plan's literal sketch)
+
+`RequisitionLine.parAtRequest` is `Decimal?` (nullable) — session-a-plan.md
+decision #2, a deliberate, owner-flagged deviation from `milestone-4-plan.md`
+§1.2's literal non-nullable sketch. `null` means no `RestockLevel` row
+exists yet for `(this branch's department location, item)` — expected to be
+common until Milestone One's restock-level flow is actually exercised
+per-branch (itself unblocked this session by the `DEPARTMENT_HEAD` dead-role
+fix in `backend/src/modules/inventory/inventory-routes.ts`/
+`inventory-service.ts`). No fallback, no zero — the frontend renders `null`
+as a blank/dash reference.
+
+### 24.5 Deviation from the approved Paper mock: no "on hand" column, no pre-fill
+
+Per `milestone-4-plan.md` §0 (owner-agreed 2026-09-21): the fill screen
+drops the "on hand" column and the par-minus-on-hand auto pre-fill shown in
+the Paper mock. No branch-department stock/ledger exists anywhere in the
+schema yet — Milestone 5 (Dispatch) is the first time stock lands at a
+branch department. The head sees `par` (a real figure) and enters
+`requestedQty` manually; lines start at `requestedQty: null`.
+
+### 24.6 Zero-not-delete vs. true deletion
+
+Setting a line's `requestedQty` to `"0"` via the upsert endpoint is not a
+deletion — the row stays (Flow 7 step 3, an explicit UI/service rule, not a
+schema state). Session A has **no true server-side line deletion at all**:
+omitting an existing, already-persisted line from the `PATCH` payload does
+nothing to it server-side (the endpoint only touches lines it's told about)
+— it is not interpreted as a delete. Because of this, the fill screen's
+trash icon is only enabled for a line added and removed again **within the
+same unsaved session, before it was ever sent to the server** — that case is
+a true client-side no-op, since the line never existed server-side to begin
+with. An already-saved line's trash icon is disabled (owner-flagged UI
+correction, found during this session's browser verification against the
+original draft's more permissive framing); a head who wants to zero out an
+already-saved line uses the stepper (zero-not-delete), not the trash icon.
+True soft-deletion (`RequisitionLine.deletedAt`, branch-manager delete with a
+required reason) is Session B's `PATCH` endpoint, not built here.

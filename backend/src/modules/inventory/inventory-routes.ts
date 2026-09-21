@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate';
 import { requireRole } from '../../middleware/rbac';
+import { allowDepartmentHead } from '../../middleware/allow-department-head';
 import { inventoryController } from './inventory-controller';
 
 const router = Router();
@@ -31,7 +32,11 @@ router.post(
 
 // ── Items ────────────────────────────────────────────────────────────────
 
-router.get('/inventory/items', requireRole('STORE_MANAGER', 'STORE_ATTENDANT'), inventoryController.listItems);
+router.get(
+  '/inventory/items',
+  allowDepartmentHead(requireRole('STORE_MANAGER', 'STORE_ATTENDANT')),
+  inventoryController.listItems,
+);
 router.get(
   '/inventory/items/:id',
   requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
@@ -67,12 +72,12 @@ router.post(
 
 router.get(
   '/inventory/restock-levels',
-  requireRole('STORE_MANAGER', 'DEPARTMENT_HEAD'),
+  allowDepartmentHead(requireRole('STORE_MANAGER')),
   inventoryController.listRestockLevels,
 );
 router.put(
   '/inventory/restock-levels',
-  requireRole('STORE_MANAGER', 'DEPARTMENT_HEAD'),
+  allowDepartmentHead(requireRole('STORE_MANAGER')),
   inventoryController.saveRestockLevels,
 );
 

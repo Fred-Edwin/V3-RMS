@@ -17,15 +17,17 @@ const managerToken = signAccessToken({
 
 const departmentHeadToken = signAccessToken({
   userId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  role: 'DEPARTMENT_HEAD',
+  role: 'CHEF',
   organizationId: branchOrgId,
+  isDepartmentHead: true,
   departmentTag: 'KITCHEN',
 });
 
 const otherDepartmentHeadToken = signAccessToken({
   userId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
-  role: 'DEPARTMENT_HEAD',
+  role: 'BARISTA',
   organizationId: otherBranchOrgId,
+  isDepartmentHead: true,
   departmentTag: 'BARISTA',
 });
 
@@ -95,7 +97,7 @@ describe('Inventory restock-level routes', () => {
         .set('Authorization', `Bearer ${departmentHeadToken}`);
       expect(res.status).toBe(200);
       const [actorArg, queryArg] = spy.mock.calls[0]!;
-      expect(actorArg).toMatchObject({ role: 'DEPARTMENT_HEAD', departmentTag: 'KITCHEN' });
+      expect(actorArg).toMatchObject({ role: 'CHEF', isDepartmentHead: true, departmentTag: 'KITCHEN' });
       expect((queryArg as { locationId?: string }).locationId).toBeUndefined();
     });
 
