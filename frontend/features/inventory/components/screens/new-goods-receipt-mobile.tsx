@@ -126,8 +126,8 @@ export function NewGoodsReceiptMobile({
       <div className="flex shrink-0 flex-col gap-0.5 bg-wds-sidebar-mid px-5 pb-4 pt-2">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => router.push('/app/inventory/receiving')} aria-label="Back">
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="20" height="20" viewBox="0 0 24 24" className="text-wds-primary-fg">
+              <path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           <button type="button" onClick={() => router.push('/app/inventory/receiving')} className="font-wds-sans text-wds-body text-white/75">
@@ -161,6 +161,7 @@ export function NewGoodsReceiptMobile({
               onValueChange={onSupplierChange}
               options={supplierOptions}
               placeholder="Select a supplier"
+              aria-label="Supplier"
             />
           </div>
         ) : null}
@@ -234,6 +235,7 @@ export function NewGoodsReceiptMobile({
               }}
               options={itemOptions}
               placeholder="Search items to add…"
+              aria-label="Item to add"
               className="h-9"
             />
             <button type="button" onClick={() => setAddingItem(false)} className="font-wds-sans text-wds-caption text-wds-text-copy-muted">

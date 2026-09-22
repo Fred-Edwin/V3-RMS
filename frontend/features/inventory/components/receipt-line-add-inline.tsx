@@ -41,6 +41,7 @@ export function ReceiptLineAddInline({ items, onAdd, onCancel }: ReceiptLineAddI
         onValueChange={handleSelect}
         options={options}
         placeholder="Search items to add…"
+        aria-label="Item to add"
         className="h-7 max-w-[320px]"
       />
       <button

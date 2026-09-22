@@ -231,8 +231,8 @@ export function NewPurchaseScreen() {
         <div className="flex shrink-0 flex-col gap-0.5 bg-wds-sidebar-mid px-5 pb-4 pt-2">
           <div className="flex items-center justify-between">
             <button type="button" onClick={goBack} aria-label="Cancel" className="flex shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0">
-                <path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0 text-wds-primary-fg">
+                <path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
             <button type="button" onClick={goBack} className="font-wds-sans text-wds-body text-white/75">

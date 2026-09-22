@@ -177,6 +177,7 @@ export function NewPrepRunDrawer({ open, onOpenChange, onRunRecorded, variant }:
           onValueChange={setOutputItemId}
           options={outputOptions}
           placeholder="Select a prepped item"
+          aria-label="Output item"
         />
       </div>
 
@@ -195,6 +196,7 @@ export function NewPrepRunDrawer({ open, onOpenChange, onRunRecorded, variant }:
             onValueChange={handleAddInput}
             options={inputOptions}
             placeholder="Search items to add…"
+            aria-label="Input item to add"
           />
         ) : (
           <button

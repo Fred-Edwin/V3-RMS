@@ -127,6 +127,7 @@ export function ItemFormFields({
           onValueChange={(v) => onChange({ ...values, category: v, categoryIsNew: false })}
           options={categoryOptions}
           placeholder="Select a category"
+          aria-label="Category"
           onCreate={
             allowCreateCategory
               ? (name) => onChange({ ...values, category: name, categoryIsNew: true })
@@ -144,6 +145,7 @@ export function ItemFormFields({
           onValueChange={(v) => set('preferredSupplierId', v)}
           options={supplierOptions}
           placeholder="Select a supplier"
+          aria-label="Preferred supplier"
         />
         <FieldHelper>A default reference only &mdash; you can still receive this item from any supplier later.</FieldHelper>
       </div>

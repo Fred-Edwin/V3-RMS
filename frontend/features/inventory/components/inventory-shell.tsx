@@ -5,6 +5,7 @@ import * as React from 'react';
 import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/shell/sidebar-nav';
 import { Topbar, type TopbarBreadcrumb } from '@/components/app/shell/topbar';
 import type { SearchInputProps } from '@/components/ui2/search-input';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import {
   CatalogIcon,
   DashboardIcon,
@@ -173,14 +174,20 @@ export interface InventoryMobileNavDrawerProps {
  * `SidebarRail` groups/icons as a full-width slide-in menu — the same
  * content the rail exposes, just reachable on the full-screen mobile routes
  * that don't have room for a persistent 60px rail.
+ *
+ * Built on `Sheet` (Radix Dialog) rather than a hand-rolled overlay so it
+ * gets focus trapping, Escape-to-close and focus restoration for free —
+ * same primitive every other overlay in this build already uses.
  */
 export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
   const user = useSidebarUser();
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-wds-scrim" onClick={() => onOpenChange(false)} />
-      <div className="relative flex h-full w-[280px] max-w-[85vw] flex-col bg-wds-gradient-sidebar">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="left"
+        className="w-[280px] max-w-[85vw] border-none bg-wds-gradient-sidebar p-0 shadow-wds-drawer sm:max-w-[85vw] [&>button]:hidden"
+      >
+        <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SidebarNav
           groups={NAV_GROUPS}
           activeKey={activeKey}
@@ -194,7 +201,7 @@ export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavi
           onSignOut={performLogout}
           className="w-full"
         />
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

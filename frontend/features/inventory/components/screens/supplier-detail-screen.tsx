@@ -176,7 +176,7 @@ export function SupplierDetailScreen({ id }: { id: string }) {
         <div className="flex flex-col gap-4 bg-wds-sidebar-mid px-5 pb-4.5 pt-3.5">
           <div className="flex items-center">
             <button type="button" onClick={() => router.push('/app/inventory/suppliers')} className="rounded-wds-sm p-1 transition-colors hover:bg-white/10 active:bg-white/15" aria-label="Back">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#B5AEA5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-wds-sidebar-fg-item"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
             <button type="button" onClick={() => setEditDrawerOpen(true)} className="ml-auto font-wds-sans text-wds-body-sm font-medium text-wds-caramel-500 transition-opacity hover:opacity-80 active:opacity-70">
               Edit

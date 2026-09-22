@@ -256,6 +256,7 @@ function PanelBody({
             options={supplierOptions}
             placeholder="No supplier — save as shopping list"
             onCreate={onCreateSupplier}
+            aria-label="Supplier"
           />
         </div>
         <PaymentTermsField value={paymentTerms} onChange={onPaymentTermsChange} disabled={!hasSupplier} />
@@ -319,11 +320,11 @@ export function PurchaseSelectionPanelMobile(
       <div className="flex shrink-0 flex-col gap-0.5 bg-wds-sidebar-mid px-5 pb-4 pt-2">
         <div className="flex items-center justify-between">
           <button type="button" onClick={onBack} aria-label="Back" className="flex shrink-0">
-            <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" className="shrink-0 text-wds-primary-fg">
               <path
                 d="M19 12H5M12 19l-7-7 7-7"
                 fill="none"
-                stroke="#FFFFFF"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -367,6 +368,7 @@ export function PurchaseSelectionPanelMobile(
               options={props.supplierOptions}
               placeholder="No supplier — save as shopping list"
               onCreate={props.onCreateSupplier}
+              aria-label="Supplier"
             />
           </div>
           <PaymentTermsField value={props.paymentTerms} onChange={props.onPaymentTermsChange} disabled={!props.hasSupplier} />

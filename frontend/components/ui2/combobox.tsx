@@ -35,6 +35,11 @@ export interface ComboboxProps {
   createLabel?: (query: string) => string;
   className?: string;
   disabled?: boolean;
+  /** Controls the listbox open state. Omit to let the combobox manage it internally (uncontrolled). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Accessible name for the input when there's no visible `<label htmlFor>` pointing at it. */
+  'aria-label'?: string;
 }
 
 export function Combobox({
@@ -46,12 +51,24 @@ export function Combobox({
   createLabel,
   className,
   disabled,
+  open: openProp,
+  onOpenChange,
+  'aria-label': ariaLabel,
 }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      onOpenChange?.(next);
+      if (openProp === undefined) setUncontrolledOpen(next);
+    },
+    [openProp, onOpenChange]
+  );
   const [query, setQuery] = React.useState('');
   const [highlighted, setHighlighted] = React.useState(0);
   const rootRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const listboxId = React.useId();
 
   // The input shows the committed value while closed, and the in-progress
   // query while open — so opening always starts from a clean slate to filter.
@@ -66,7 +83,7 @@ export function Combobox({
     }
     if (open) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+  }, [open, setOpen]);
 
   const filtered = query.trim()
     ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
@@ -93,11 +110,21 @@ export function Combobox({
     setOpen(false);
   };
 
+  const rowId = (i: number) => `${listboxId}-option-${i}`;
+  const activeDescendant = open && rows[highlighted] ? rowId(highlighted) : undefined;
+
   return (
     <div ref={rootRef} className="relative">
       <input
         ref={inputRef}
         type="text"
+        role="combobox"
+        aria-label={ariaLabel}
+        aria-expanded={open}
+        aria-controls={listboxId}
+        aria-autocomplete="list"
+        aria-activedescendant={activeDescendant}
+        autoComplete="off"
         disabled={disabled}
         value={displayValue}
         placeholder={placeholder}
@@ -139,11 +166,18 @@ export function Combobox({
         )}
       />
       {open && rows.length > 0 ? (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-wds-md border border-wds-border bg-wds-surface p-wds-1 shadow-wds-md">
+        <div
+          id={listboxId}
+          role="listbox"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-wds-md border border-wds-border bg-wds-surface p-wds-1 shadow-wds-md"
+        >
           {rows.map((row, i) => (
             <button
               key={row.kind === 'option' ? row.option.value : '__create__'}
+              id={rowId(i)}
               type="button"
+              role="option"
+              aria-selected={i === highlighted}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => (row.kind === 'option' ? commitOption(row.option) : commitCreate())}
               className={cn(

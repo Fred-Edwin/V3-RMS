@@ -313,6 +313,7 @@ export function NewGoodsReceiptScreen() {
               onValueChange={handleSupplierChange}
               options={supplierOptions}
               placeholder="Select a supplier"
+              aria-label="Supplier"
             />
           </div>
           <div className="flex flex-col gap-wds-1.5">
