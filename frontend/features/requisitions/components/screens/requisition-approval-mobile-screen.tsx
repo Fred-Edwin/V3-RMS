@@ -7,23 +7,60 @@ import { Button } from '@/components/ui2/button';
 import { Textarea } from '@/components/ui2/textarea';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { ErrorState } from '@/components/app/shell/shell-states';
-import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
+import { SignSheetDialog, SignedBySignature } from '@/components/app/shell/sign-sheet';
 import { useAuthStore } from '@/store/authStore';
 import { useRequisitionApproval } from '../../hooks/use-requisition-approval';
 import { RequisitionApprovalSkeletonMobile } from '../skeletons';
 import type { ApprovalEdit } from '../../hooks/use-requisition-approval';
 import type { DepartmentTag, RequisitionApprovalLine, RequisitionApprovalSection } from '../../types';
 
+const TYPE_LABEL: Record<string, string> = {
+  MORNING: 'Morning requisition',
+  AFTERNOON: 'Afternoon requisition',
+  EVENING: 'Evening requisition',
+  AD_HOC: 'Ad-hoc requisition',
+};
+
+function requisitionTypeLabel(type: string): string {
+  return TYPE_LABEL[type] ?? `${type.charAt(0)}${type.slice(1).toLowerCase()} requisition`;
+}
+
+/** "13:40" from an ISO timestamp — matches Paper's HH:mm subtitle captions. */
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * First name + last initial, e.g. "Grace Wanjiru" -> "Grace W." — matches
+ * Paper's `17SM-0` copy ("Sends Kitchen back to Grace W...", "NOTE TO GRACE
+ * W."). Dev seed names carry a parenthetical branch suffix; strip it first.
+ */
+function firstNameLastInitial(name: string | null): string {
+  if (!name) return 'the head';
+  const withoutParenthetical = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const parts = (withoutParenthetical || name).trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+}
+
+const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
+  KITCHEN: 'Kitchen',
+  PASTRY: 'Pastry',
+  BARISTA: 'Barista',
+  SERVICE: 'Service',
+  HOUSEKEEPING: 'Housekeeping',
+};
+
 function BackHeader({ title, subtitle, onBack }: { title: string; subtitle: string; onBack: () => void }) {
   return (
-    <div className="flex h-14.5 shrink-0 items-center gap-3 border-b border-wds-border px-4">
+    <div className="flex h-[58px] shrink-0 items-center gap-3 border-b border-wds-border px-4">
       <button type="button" onClick={onBack} aria-label="Back" className="shrink-0">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path d="M12.5 15L7.5 10L12.5 5" stroke="var(--wds-text-ink)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       <div className="flex grow flex-col gap-0.5">
-        <div className="font-wds-sans text-[17px]/4.75 font-semibold text-wds-text-ink">{title}</div>
+        <div className="font-wds-sans text-[17px]/[19px] font-semibold text-wds-text-ink">{title}</div>
         <div className="font-wds-sans text-wds-caption/label text-wds-text-faint">{subtitle}</div>
       </div>
     </div>
@@ -67,7 +104,7 @@ function EditLineSheet({
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[#17151273]" onClick={onClose}>
       <div
-        className="flex flex-col gap-4.5 rounded-t-[12px] bg-wds-surface px-4 pb-9 pt-2.5 [box-shadow:#0000001F_0px_-4px_24px]"
+        className="flex flex-col gap-[18px] rounded-t-[12px] bg-wds-surface px-4 pb-9 pt-2.5 [box-shadow:#0000001F_0px_-4px_24px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center">
@@ -88,7 +125,7 @@ function EditLineSheet({
               <span className="text-[20px]/6 text-wds-text-ink">–</span>
             </button>
             <div className="flex h-11 grow items-center justify-center rounded-wds-sm border border-wds-primary bg-wds-caramel-100">
-              <span className="font-wds-mono text-[17px]/5.5 font-medium text-wds-primary">
+              <span className="font-wds-mono text-[17px]/[22px] font-medium text-wds-primary">
                 {qty} {state.line.usageUnit}
               </span>
             </div>
@@ -123,27 +160,43 @@ function EditLineSheet({
 /** M7 — return section, bottom sheet (Paper `17SM-0`). */
 function ReturnSectionSheet({
   departmentTag,
+  submittedByName,
   onClose,
   onReturn,
 }: {
   departmentTag: DepartmentTag;
+  submittedByName: string | null;
   onClose: () => void;
   onReturn: (departmentTag: DepartmentTag, note: string) => void;
 }) {
   const [note, setNote] = React.useState('');
+  const headShortName = firstNameLastInitial(submittedByName);
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[#17151273]" onClick={onClose}>
       <div className="flex flex-col gap-4 rounded-t-[12px] bg-wds-surface px-4 pb-9 pt-2.5" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-center">
           <div className="h-1 w-9 shrink-0 rounded-full bg-wds-border-strong" />
         </div>
-        <div className="font-wds-sans text-wds-section font-semibold text-wds-error-fg">Return {departmentTag} — note required</div>
-        <Textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder='e.g. "Qty seems high for today — please confirm before resubmitting."'
-          rows={3}
-        />
+        <div className="flex flex-col gap-1">
+          <div className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">Return this section</div>
+          <div className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
+            Sends {DEPARTMENT_LABEL[departmentTag]} back to {headShortName} with your note. They&apos;ll need to resubmit.
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-1.5">
+            <div className="font-wds-sans text-wds-caption font-medium uppercase tracking-wds-label text-wds-text-faint">
+              Note to {headShortName}
+            </div>
+            <div className="font-wds-sans text-wds-caption text-wds-error-fg">required</div>
+          </div>
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder='e.g. "Qty seems high for today — please confirm before resubmitting."'
+            rows={3}
+          />
+        </div>
         <div className="flex gap-2.5">
           <Button variant="secondary" className="grow" onClick={onClose}>
             Cancel
@@ -188,7 +241,7 @@ function MobileSectionBlock({
     return (
       <div className="flex flex-col gap-3 border-t border-wds-border bg-wds-neutral-50 p-4">
         <div className="flex items-baseline gap-2">
-          <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{section.departmentTag}</div>
+          <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{DEPARTMENT_LABEL[section.departmentTag]}</div>
           <div className="font-wds-sans text-wds-caption text-wds-text-faint">
             {section.status === 'RETURNED' ? `returned — ${section.returnedNote}` : 'not submitted'}
           </div>
@@ -215,7 +268,7 @@ function MobileSectionBlock({
       <button type="button" onClick={() => setExpanded(true)} className="flex items-center justify-between border-t border-wds-border px-4 py-3.5 text-left">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-baseline gap-2">
-            <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{section.departmentTag}</div>
+            <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{DEPARTMENT_LABEL[section.departmentTag]}</div>
             <div className="font-wds-sans text-wds-caption text-wds-text-faint">as requested</div>
           </div>
           <div className="font-wds-sans text-wds-caption text-wds-text-faint">
@@ -233,7 +286,7 @@ function MobileSectionBlock({
     <div className="flex flex-col border-t border-wds-border">
       <div className="flex items-center justify-between px-4 pb-2 pt-4">
         <div className="flex items-baseline gap-2">
-          <div className="font-wds-sans text-[17px]/5.5 font-semibold text-wds-text-ink">{section.departmentTag}</div>
+          <div className="font-wds-sans text-[17px]/[22px] font-semibold text-wds-text-ink">{DEPARTMENT_LABEL[section.departmentTag]}</div>
           {section.changedLineCount > 0 ? (
             <div className="font-wds-sans text-wds-caption font-medium text-wds-primary">{section.changedLineCount} line changed</div>
           ) : null}
@@ -329,6 +382,24 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
   const isReadOnly = requisition?.status === 'APPROVED';
   const isAlreadyApprovedRace = Boolean(approveError) && requisition?.status === 'APPROVED';
 
+  // Paper `17OY-0`/`17WI-0`'s "Changes from what was requested" summary —
+  // same client-side derivation as the desktop screen (`requisition-approval-
+  // screen.tsx`), since `isEdited`/`requestedQty`/`approvedQty` are already
+  // on the detail payload.
+  const changeSummaryLines: { departmentTag: DepartmentTag; text: string }[] = [];
+  if (requisition) {
+    for (const section of requisition.sections) {
+      const edited = section.lines.filter((l) => l.isEdited);
+      if (edited.length === 0) continue;
+      const parts = edited.map((l) => {
+        const approved = l.approvedQty === null ? '—' : `${l.approvedQty} ${l.usageUnit}`;
+        if (l.requestedQty === null) return `added ${l.itemName} · ${approved}`;
+        return `${l.itemName} ${l.requestedQty} → ${approved}`;
+      });
+      changeSummaryLines.push({ departmentTag: section.departmentTag, text: parts.join('; ') });
+    }
+  }
+
   const handleSaveEdit = async (departmentTag: DepartmentTag, lineId: string, edit: ApprovalEdit) => {
     setLineEdit(lineId, edit);
     await saveSection(departmentTag, { pendingEdit: { lineId, edit } });
@@ -365,11 +436,13 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
       <MobileStatusBar />
       <BackHeader
-        title={`${requisition.type} requisition`}
+        title={requisitionTypeLabel(requisition.type)}
         subtitle={
           isReadOnly
-            ? `Approved · signed by ${requisition.approvedByName ?? 'another manager'}`
-            : `Opened · ${requisition.sections.filter((s) => s.status === 'SUBMITTED').length} of ${requisition.sections.length} in`
+            ? requisition.approvedByName === user?.name
+              ? `Approved ${requisition.approvedAt ? formatTime(requisition.approvedAt) : ''} · signed by you`
+              : `Approved ${requisition.approvedAt ? formatTime(requisition.approvedAt) : ''} · read-only`
+            : `Opened ${formatTime(requisition.openedAt)} · ${requisition.sections.filter((s) => s.status === 'SUBMITTED').length} of ${requisition.sections.length} in`
         }
         onBack={() => router.push('/app/branch/requisitions')}
       />
@@ -383,28 +456,28 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
       ) : null}
 
       <div className="flex items-center gap-3.5 overflow-x-auto border-b border-wds-border px-4 py-3">
-        <div className="flex shrink-0 items-baseline gap-1.25">
+        <div className="flex shrink-0 items-baseline gap-[5px]">
           <span className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">
             {requisition.sections.filter((s) => s.status === 'SUBMITTED').length}/{requisition.sections.length}
           </span>
           <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">sections</span>
         </div>
         <div className="h-3.5 w-px shrink-0 bg-wds-border" />
-        <div className="flex shrink-0 items-baseline gap-1.25">
+        <div className="flex shrink-0 items-baseline gap-[5px]">
           <span className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">
             {requisition.sections.reduce((sum, s) => sum + s.lines.length, 0)}
           </span>
           <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">lines</span>
         </div>
         <div className="h-3.5 w-px shrink-0 bg-wds-border" />
-        <div className="flex shrink-0 items-baseline gap-1.25">
+        <div className="flex shrink-0 items-baseline gap-[5px]">
           <span className="font-wds-sans text-wds-section font-semibold text-wds-primary">
             {requisition.sections.reduce((sum, s) => sum + s.changedLineCount, 0)}
           </span>
           <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">changed</span>
         </div>
         <div className="h-3.5 w-px shrink-0 bg-wds-border" />
-        <div className="flex shrink-0 items-baseline gap-1.25">
+        <div className="flex shrink-0 items-baseline gap-[5px]">
           <span className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">
             {requisition.sections.reduce((sum, s) => sum + Number(s.totalUnits), 0)}
           </span>
@@ -412,7 +485,7 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-35">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[140px]">
         {requisition.sections.map((section) => (
           <MobileSectionBlock
             key={section.departmentTag}
@@ -425,6 +498,33 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
             onReturnRequest={(tag) => setReturnSheetTag(tag)}
           />
         ))}
+
+        {isReadOnly && changeSummaryLines.length > 0 ? (
+          <div className="mx-4 mt-2 flex flex-col gap-2 rounded-wds-sm bg-wds-neutral-50 p-4">
+            <div className="font-wds-sans text-wds-caption font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
+              Changes from what was requested
+            </div>
+            {changeSummaryLines.map((entry) => (
+              <div key={entry.departmentTag} className="flex flex-col gap-0.5">
+                <div className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{DEPARTMENT_LABEL[entry.departmentTag]} —</div>
+                <div className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{entry.text}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {isReadOnly && requisition.approvedByName ? (
+          <div className="mx-4 mb-6 mt-5 flex flex-col gap-3 border-t border-wds-neutral-800 pt-5">
+            <SignedBySignature
+              name={requisition.approvedByName}
+              roleLine={`${requisition.approvedByName} · Branch Manager · signed ${requisition.approvedAt ? formatTime(requisition.approvedAt) : ''}`}
+            />
+            <div className="flex w-fit items-center gap-1.5 rounded-wds-sm border border-wds-success-border bg-wds-success-bg px-3 py-1.5">
+              <div className="size-1.5 shrink-0 rounded-full bg-wds-success-fg" />
+              <div className="font-wds-sans text-wds-caption font-medium text-wds-success-fg">Sent to Central Store</div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {!isReadOnly ? (
@@ -432,7 +532,7 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
           <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
             One signature covers the whole requisition. Affected heads are notified after signing.
           </div>
-          <Button className="h-11.5" onClick={() => setSignOpen(true)}>
+          <Button className="h-[46px]" onClick={() => setSignOpen(true)}>
             Approve &amp; sign
           </Button>
         </div>
@@ -445,6 +545,7 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
       {returnSheetTag ? (
         <ReturnSectionSheet
           departmentTag={returnSheetTag}
+          submittedByName={requisition?.sections.find((s) => s.departmentTag === returnSheetTag)?.submittedByName ?? null}
           onClose={() => setReturnSheetTag(null)}
           onReturn={(tag, note) => void returnSection(tag, note)}
         />
@@ -454,7 +555,7 @@ export function RequisitionApprovalMobileScreen({ requisitionId }: RequisitionAp
         open={signOpen}
         onOpenChange={setSignOpen}
         title="Sign to approve"
-        subtitle={`Enter your PIN to approve and sign ${requisition.type.toLowerCase()} requisition.`}
+        subtitle={`Enter your PIN to approve and sign ${requisitionTypeLabel(requisition.type)}.`}
         helperText={`Signing as ${user?.name ?? ''}, Branch Manager`}
         confirmLabel="Confirm"
         onSubmit={handleApprove}

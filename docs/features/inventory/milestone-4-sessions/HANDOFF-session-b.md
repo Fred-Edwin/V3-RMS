@@ -387,6 +387,329 @@ needs-approval state to compare against `12HK-0`/`17D7-0`.
 
 ---
 
+## Visual-fidelity pass (2026-09-22) — done, milestone now visually verified
+
+Ran the protocol this file's "Visual verification is mandatory" section
+specifies against all 10 desktop states + History and all 10 mobile
+artboards. `browser_resize` to exactly 1440×900 for desktop, genuine 390×844
+(confirmed via `window.innerWidth`/`devicePixelRatio`, not just a narrow
+window) for mobile. Every number sourced from `get_jsx`/`get_computed_styles`,
+never a screenshot. No pixel-diff tooling used, per the owner's standing ban —
+by-eye plus `get_computed_styles` spot-checks only.
+
+**Root cause worth flagging for future sessions:** most of the desktop column-
+width bugs below trace to one mistake — Tailwind's default spacing scale only
+defines specific steps (`0–12` as integers, then `14,16,20,24,28,32,36,40,44,
+48,52,56,60,64,72,80,96`, plus `0.5/1.5/2.5/3.5`). The build session used
+Paper's own JSX export values verbatim (`w-17.5`, `w-15`, `w-19`, `w-95`,
+`gap-1.25`, `text-[17px]/5.5`, etc.) as if they were valid Tailwind utilities.
+They aren't — Paper's JSX export uses those numbers as *approximations of
+measured pixels*, not real utility classes, and Tailwind silently generates
+**no CSS at all** for an unrecognized class, so the element falls back to
+content-driven sizing. This is invisible in a quick glance (nothing errors,
+nothing looks obviously broken) and only surfaces as subtle misalignment —
+exactly the kind of defect this protocol's "trace a vertical line down
+repeated columns" step exists to catch. Swept and fixed every instance found
+across `requisition-approval-screen.tsx`, `requisition-approval-mobile-
+screen.tsx`, `requisitions-for-approval-mobile-screen.tsx`, and
+`requisition-history-screen.tsx` (verified via a script cross-referencing
+every `w-`/`h-`/`p-`/`gap-`/etc. class against Tailwind's actual default
+scale) — all converted to arbitrary-value syntax (`w-[70px]` etc.) with the
+correct pixel value. Worth a similar sweep on any future screen built the
+same way (reading Paper JSX output and translating class-for-class).
+
+### Desktop — `12HK-0` (needs-approval)
+**Deviations found and fixed:**
+- Requisition title and sidebar rail rendered the raw `RequisitionType` enum
+  (`"AD_HOC requisition"`, `"MORNING"`) instead of a humanized label
+  (`"Ad-hoc requisition"`, `"Morning requisition"`) — added a
+  `requisitionTypeLabel()` helper (matches the existing `TYPE_LABEL` map
+  convention already used in `requisitions-list-screen.tsx`).
+- Department names in every section block rendered the raw `DepartmentTag`
+  enum (`KITCHEN`, `PASTRY`) instead of title case (`Kitchen`, `Pastry`) —
+  added the same `DEPARTMENT_LABEL` map already used in
+  `department-landing-screen.tsx`.
+- On-hand/Par column widths were broken Tailwind classes (`w-17.5`/`w-15`,
+  see root-cause note above) — computed to ~60px/~25px instead of the
+  documented 70px/60px, causing the whole numeric column block to drift left
+  and the header row's "On hand" label to sit flush against "Par" with no
+  gap. Fixed to `w-[70px]`/`w-[60px]`.
+- Approved-qty edit-pill width (`w-17`), its vertical padding (`py-0.75`),
+  category-label column width (`w-19`), sidebar rail width (`w-95`), and
+  several `pt-4.5`/`py-1.75`/`py-30`/`max-w-70`/`max-w-105` spacing values
+  were all the same class of broken Tailwind utility — all fixed to
+  arbitrary-pixel equivalents.
+- PIN-dialog subtitle used `${type.toLowerCase()} requisition` (producing
+  "sign ad_hoc requisition") instead of the humanized label — fixed to use
+  `requisitionTypeLabel()`.
+
+### Desktop — `12UW-0` (empty, nothing selected)
+**Deviations found and fixed:**
+- Real bug, not just cosmetic: the screen's loading-vs-idle branching
+  (`status === 'loading' || status === 'idle'`) meant navigating to
+  `/app/branch/requisitions` with no `?id=` **never left the loading
+  skeleton** — `idle` (no id selected) was being treated identically to
+  `loading` (fetch in progress), so the "Select a requisition" empty state
+  was dead code. Split the condition so `idle` falls through correctly.
+- Missing icon: Paper shows a bordered document-icon badge above "Select a
+  requisition"; the live code had text only. Added the icon (exact SVG path
+  from Paper's `get_jsx`).
+- "Select a requisition" heading weight was `font-semibold`; Paper uses
+  `font-medium`. Fixed.
+
+### Desktop — `131F-0` (mid-signature/PIN) and `138B-0` (approved)
+**Deviations found and fixed:**
+- **Entire "Changes from what was requested" summary block was missing** —
+  Paper shows a bordered `bg-neutral-50` box, once approved, listing each
+  edited department and its line-level diffs (`Kitchen — Beef Patty 120g 40
+  → 24 pcs; added Cling Film 300m · 2 unit`). Built a `changeSummaryLines`
+  derivation (client-side only, from data the detail payload already
+  carries — `isEdited`/`requestedQty`/`approvedQty`/`itemName`/`usageUnit`,
+  no new endpoint) and rendered the block matching Paper's copy/layout
+  exactly.
+- Approved-state subtitle was missing the "Department heads have been
+  notified of the N changes." clause Paper shows when the *current viewer*
+  is the one who signed (`138B-0`, "signed by you") — but Paper's race-case
+  screen (`13F1-0`, someone else's signature) omits that clause entirely.
+  Gated the clause on `approvedByName === user?.name` to match both cases.
+- PIN dialog subtitle same enum-leak bug as `12HK-0` — fixed via the same
+  `requisitionTypeLabel()` helper.
+
+### Desktop — `13F1-0` (already-approved race)
+No additional deviations beyond the shared subtitle/enum-label fixes above —
+the info banner copy and layout already matched Paper. Verified live by
+opening an already-approved requisition as the same signer (full race
+condition with a second concurrent signer not independently reproduced this
+session — see "Not independently verified" below).
+
+### Desktop — `13LQ-0` (permission-denied)
+**Confirmed gap, not fixed this session — flagging as a real, pre-existing
+architecture decision outside a visual-fidelity pass's scope.** Paper designs
+an in-app "Not available for your role" screen with a "Go to my section" CTA.
+The live app never reaches it: `middleware.ts`'s `isAllowedPath()` gates
+`/app/branch/*` on `role === 'MANAGER'` and does a **hard server-side
+redirect** to the visiting user's role home for anyone else — verified live
+by hitting the route as `chef1.kingongo@dev.test` (redirected straight to
+`/app/dashboard`, no flash of the denied screen). Implementing Paper's screen
+would mean removing the middleware gate and moving the check into the page
+component — a real behavior/architecture change, not a spacing or copy fix,
+so left alone per this session's "do not re-litigate architecture decisions"
+mandate. Next functional session should decide whether to keep the silent
+redirect (current, simpler) or build the soft-denial screen Paper specifies.
+
+### Desktop — `13PB-0` (loading)
+**Deviation found and fixed:** the KPI strip and list rail rendered as empty/
+zeroed real content during the initial fetch (no skeleton at all) instead of
+Paper's shimmer-block placeholders for both regions. Added
+`RequisitionsKpiSkeletonDesktop` and `RequisitionsListRailSkeletonDesktop` to
+`skeletons.tsx` (matching the file's existing skeleton-component convention)
+and gated both regions on `list.status === 'loading'`. Too fast on localhost
+to catch in a normal screenshot; confirmed the code path is correctly wired
+and does not regress the loaded state.
+
+### Desktop — `13TI-0` (error)
+**Deviation found and fixed:** `list.status`/`list.error` from
+`useRequisitionsForApproval()` were destructured but never read in the
+render — a failed list fetch silently showed zeroed KPIs and an empty rail
+with no error messaging at all. Added a `list.status === 'error'` branch
+rendering the shared `ErrorState` with Paper's exact copy ("Couldn't load
+requisitions" / "Check your connection and try again. Nothing has been
+changed."). (Note: this is distinct from the already-correct per-ID
+`"Couldn't load this requisition"` error, which fires when a specific
+`?id=` 404s and was already implemented and verified live.)
+
+### Desktop — `13X2-0` (History)
+**Deviations found and fixed:**
+- Column widths (`Date`/`Signed by`/`Units`/`Status`) used the same class of
+  broken Tailwind utilities (`w-30`, `w-35`, `w-22.5`) — fixed to
+  `w-[120px]`/`w-[140px]`/`w-[90px]`.
+- Requisition-type enum leak in the row label (`{row.type} requisition`) —
+  fixed with the same `requisitionTypeLabel()` helper (duplicated locally in
+  this file per the existing per-file `TYPE_LABEL` convention, not imported
+  cross-file).
+
+**Confirmed gap, not fixed — real backend/API-contract gap, out of scope for
+a visual-only pass:** Paper's History table has **6 columns** (Requisition /
+Date / Signed by / **Lines** / Units / Status); the live implementation has
+5 — `RequisitionHistoryRow` has no `totalLines` field, and no
+`/requisitions/history` endpoint is documented in `API_CONTRACT.md` §24 (the
+row shape was decided ad hoc during the build session). Also confirmed still
+missing: the date-range picker Paper shows next to the status tabs — this was
+already flagged during Session B's planning (finding #5: "no DateRangePicker
+primitive exists yet") as a known, accepted gap, not a silent drop. Both
+need a small backend change (or, for the date picker, a new `ui2` primitive)
+and should go to the next functional session, not this visual pass.
+
+### Desktop — `1415-0` (return-section note entry)
+**Real bug found and fixed — this was the biggest functional/visual gap in
+the whole desktop pass.** The desktop "Return this section" action used a
+native `window.prompt('Reason for returning this section:')` — a browser
+dialog with zero relation to the product's design system, completely
+unlike Paper's design (an inline panel that replaces the section's line rows:
+error-tinted box, "Return to Grace W. — note required" header, bordered
+textarea with placeholder copy, Cancel + solid-red "Return section" buttons).
+Built a `ReturnNotePanel` component matching Paper's `1415-0` layout exactly,
+wired local `returning`/`returnNote` state into `SectionBlock` (both the
+collapsed "as requested" branch and the expanded-with-lines branch), and
+changed the `onReturn` callback signature to take the note directly instead
+of the parent doing a `window.prompt`. Verified live end-to-end: opened the
+panel, typed a note, confirmed, watched the section flip to "returned —
+{note}" with the Fill it myself/Nudge head/Send without buttons reappearing
+— full round trip through the real backend, not just a render check.
+
+Also fixed a name-truncation edge case surfaced during this build: the
+`firstNameLastInitial()` helper (needed for "Return to Grace W.") was taking
+the last whitespace-split word's first character, which broke on dev-seed
+names carrying a parenthetical branch suffix ("Dev Chef 1 (King'ong'o)" →
+produced "Dev (." instead of "Dev 1."). Stripped the parenthetical suffix
+before splitting. Will read correctly for real production names (e.g. "Grace
+Wanjiru" → "Grace W."); the residual "Dev 1." odd form left in this session's
+screenshots is dev-seed-data noise (a numbered placeholder name with no real
+surname), not a bug — matches this file's own standing note not to chase
+mock-data artifacts.
+
+### Mobile — M1 `1797-0` (list)
+**Deviation found and fixed:** row status was hardcoded to always show a
+warning-colored dot + "Awaiting approval" text with no timestamp, regardless
+of actual status. Paper shows status-aware copy with the opened time
+("Awaiting approval · opened 06:12", "Approved · opened 05:48") and a
+success-green dot for approved rows. Fixed using the `openedAt`/`status`
+fields already on `RequisitionManagerListRow`. (Paper additionally shows a
+distinct "1 section returned" red-dot variant and an "Earlier today" date
+grouping — both need per-section data or multi-day grouping the current list
+row type doesn't carry; flagging as a smaller known gap, not fixed this
+session since it would need a data-shape change.)
+
+### Mobile — M2 `17B6-0` (list, empty)
+**Deviations found and fixed — this state was previously unreachable in a
+meaningful way:**
+- The KPI strip was completely omitted in the zero-rows branch (Paper shows
+  it with `0`/`0`/`—`/`0 units`); the live code swapped the *entire* content
+  area for the empty-state message, losing the KPI strip Paper keeps visible.
+- Missing icon (circular neutral badge, plus/cross glyph) above "No
+  requisitions yet today".
+- Copy was wrong: lived code said "Department heads haven't opened a
+  requisition yet — check back later."; Paper says "Once a department head
+  opens or submits a section, it will show up here for your approval."
+- "Depts not submitted" KPI showed `0` instead of Paper's `—` em-dash in the
+  zero-state.
+Restructured so the KPI strip always renders, with the icon/copy/empty-body
+swapped in below it. Verified live via a Playwright route-mock that returns
+an empty rows array (couldn't reach zero-state through real data without
+disturbing other test fixtures) — screenshot confirms exact match to Paper.
+
+### Mobile — M3 `17D7-0` (needs-approval)
+No deviations found. Confirmed via live testing (returned Kitchen section,
+expanded Pastry "as requested" row) and cross-referenced against Paper's
+`get_jsx` — row shape (item name + par caption, no On-hand/Par columns, per
+the owner-approved M3-b variant), category group headers, and the
+asked-→-approved stepper box all matched exactly.
+
+### Mobile — M4 `17GW-0` (editing a line, bottom sheet)
+No deviations found. Verified by code inspection cross-referenced against
+Paper's `get_jsx` (live data with an editable line wasn't reachable without
+disturbing other test fixtures this session) — the item-name heading, the
+"{category} · on hand — · par {par} · head asked {requested}" caption line,
+the qty stepper with caramel-100/primary-border treatment, and the
+Cancel/Save button row all matched Paper's spec verbatim already.
+
+### Mobile — M5 `17L2-0` (mid-signature/PIN)
+No deviations found. Verified live end-to-end (opened the sheet via Approve
+& sign, confirmed the humanized requisition-type label now flows through
+correctly post-fix, 4-digit PIN input, Cancel/Confirm buttons) — matches
+Paper's centered-card treatment (shared `SignSheetDialog`, not a bottom
+sheet) exactly.
+
+### Mobile — M6 `17OY-0` (approved/signed) and M8 `17WI-0` (already-approved read-only)
+**Deviations found and fixed — same missing-feature class as the desktop
+`138B-0` fix:**
+- Entire changes-summary block and signature block (script-font name, role/
+  timestamp line, "Sent to Central Store" chip) were completely absent from
+  the mobile approval screen's read-only view — it just stopped after the
+  last section. Ported the same `changeSummaryLines` derivation and added
+  `SignedBySignature` (already a shared `components/app/shell/sign-sheet`
+  component, previously only imported on desktop) plus the chip, matching
+  Paper's layout.
+- Subtitle didn't distinguish "signed by you" (M6) from "read-only" (M8,
+  different signer) — Paper's copy differs (`"Approved 14:22 · signed by
+  you"` vs `"Approved 05:48 · read-only"`); live code always said "signed by
+  {name}" regardless. Fixed by comparing `approvedByName` against the
+  current user.
+- Subtitle was also missing the actual approval time (`Approved ·` with no
+  timestamp) — added `formatTime(requisition.approvedAt)`.
+Verified live end-to-end: edited a line, signed with PIN, confirmed the
+signature block, chip, and changes-summary all render correctly against real
+data post-approval.
+
+### Mobile — M7 `17SM-0` (return-section note entry, bottom sheet)
+**Deviations found and fixed:**
+- Header was error-red text reading "Return {Dept} — note required"; Paper's
+  actual copy is plain black/ink "Return this section" as the heading, with
+  a **separate explanatory subtitle** ("Sends Kitchen back to Grace W. with
+  your note. They'll need to resubmit.") and the recipient-name/required
+  badge moved to the field label ("NOTE TO GRACE W. required") — the
+  error-red heading in the previous build was simply wrong, not a subtle
+  miss.
+- Added the `firstNameLastInitial()` helper (same as the desktop return
+  panel) and threaded `submittedByName` through from the parent screen
+  (previously not passed to `ReturnSectionSheet` at all).
+Verified live end-to-end: expanded a manager-filled "as requested" section,
+opened the sheet, confirmed heading/subtitle/label copy match Paper exactly,
+typed a note, returned the section, confirmed it flips to "returned — {note}"
+in the section list — full round trip through the real backend.
+
+### Mobile — M9 `17ZN-0` (error)
+**Deviation found and fixed.** This is the **list-screen's** error state
+(Paper's artboard title is "Requisitions (today)", not the detail screen) —
+previously reused the generic shared `ErrorState` component (small dot icon,
+"Retry" button, generic description), which doesn't match Paper's bespoke
+mobile layout at all: a circular error-tinted badge with a "!" icon,
+`pt-24`-anchored placement (not vertically centered), specific copy
+("Couldn't load requisitions" / "Check your connection and try again.
+Nothing has been changed."), and a full-width bordered "Try again" button
+(not "Retry"). Built the bespoke layout matching Paper exactly. Verified
+live via a Playwright route abort (`route.abort('failed')` on the
+needs-approval endpoint) — screenshot confirms exact match.
+
+### Mobile — M10 `180H-0` (loading)
+**Deviation found and fixed.** The skeleton (`RequisitionsForApprovalListSkeletonMobile`)
+rendered uniform solid rectangles for both the KPI strip and list rows;
+Paper's skeleton shows a two-line hierarchy per KPI card (a wide label-width
+bar over a narrower number-width bar) and per list row (a wide title-width
+bar over a narrower subtitle-width bar) — meant to mirror the real content's
+shape, not just block out space. Rebuilt both regions with the two-line
+pattern. Verified live via a Playwright route delay (artificial 3s latency
+on the needs-approval endpoint) — screenshot confirms the two-line hierarchy
+now matches Paper. (Note: Paper's `180H-0` artboard also shows a back-arrow
+chevron in the header that M1/M2/M9 don't have; treated this as Paper mock
+inconsistency rather than a real M10-specific design intent, since a root
+list screen has nothing to navigate back to and every sibling artboard on
+this same screen agrees there's no arrow — flagging here rather than
+silently resolving it, per this file's own instruction to say so explicitly
+when a Paper artboard's own internal consistency is in question.)
+
+### Not independently verified this session (documented, not silently skipped)
+- **The true already-approved *race* condition** (two managers opening/
+  signing concurrently) — verified the read-only rendering and copy by
+  opening an already-approved requisition directly (same effect on screen),
+  but did not reproduce the actual concurrent-approve 409 from two
+  simultaneous sessions. The `isAlreadyApprovedRace` code path exists and is
+  visually correct; the exact trigger condition is a functional/concurrency
+  test, not a visual one.
+- **M8's "different signer" subtitle variant** — logically implemented and
+  reads correctly by inspection, but both live approvals this session were
+  signed by the same manager test account, so the `approvedByName !==
+  user?.name` branch was exercised in the desktop `13F1-0` case only,
+  not independently confirmed on the mobile M8 layout with a second real
+  manager identity.
+- **A returned section's "Fill it myself" action returns a 409** ("This
+  section has already been submitted") from the real backend when attempted
+  live — found while setting up test fixtures for the return-panel work.
+  This looks like a functional bug (a RETURNED section should presumably be
+  fillable, that's the whole point of returning it), not a visual one, so
+  left alone and flagged here for the next functional/bug-fix session rather
+  than fixed under this visual-fidelity mandate.
+
 ## Traces to
 
 `/home/fred/.claude/plans/yes-the-goal-was-generic-otter.md` (the Session B

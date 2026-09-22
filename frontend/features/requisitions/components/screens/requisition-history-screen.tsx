@@ -28,6 +28,17 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  MORNING: 'Morning requisition',
+  AFTERNOON: 'Afternoon requisition',
+  EVENING: 'Evening requisition',
+  AD_HOC: 'Ad-hoc requisition',
+};
+
+function requisitionTypeLabel(type: string): string {
+  return TYPE_LABEL[type] ?? `${type.charAt(0)}${type.slice(1).toLowerCase()} requisition`;
+}
+
 /**
  * Requisition History (desk activity only — no mobile screen, per the
  * Session B handoff's explicit descope: a manager on a phone checks today,
@@ -70,7 +81,7 @@ export function RequisitionHistoryScreen() {
                 disabled={tab.key === 'PENDING_APPROVAL'}
                 title={tab.key === 'PENDING_APPROVAL' ? 'Dispatch tracking arrives in Milestone Five' : undefined}
                 className={
-                  'rounded-wds-sm px-3.5 py-1.75 font-wds-sans text-wds-body-sm font-medium ' +
+                  'rounded-wds-sm px-3.5 py-[7px] font-wds-sans text-wds-body-sm font-medium ' +
                   (statusFilter === tab.key
                     ? 'bg-wds-neutral-100 text-wds-text-ink'
                     : tab.key === 'PENDING_APPROVAL'
@@ -101,16 +112,16 @@ export function RequisitionHistoryScreen() {
               <div className="min-w-0 grow basis-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
                 Requisition
               </div>
-              <div className="w-30 shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
+              <div className="w-[120px] shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
                 Date
               </div>
-              <div className="w-35 shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
+              <div className="w-[140px] shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
                 Signed by
               </div>
-              <div className="w-22.5 shrink-0 text-right font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
+              <div className="w-[90px] shrink-0 text-right font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
                 Units
               </div>
-              <div className="w-35 shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
+              <div className="w-[140px] shrink-0 font-wds-sans text-wds-label font-semibold uppercase tracking-wds-label text-wds-text-copy-muted">
                 Status
               </div>
             </div>
@@ -118,11 +129,11 @@ export function RequisitionHistoryScreen() {
               const meta = statusMeta[row.displayStatus];
               return (
                 <div key={row.id} className="flex items-center gap-4 border-b border-b-solid border-b-wds-neutral-200 py-3">
-                  <div className="min-w-0 grow basis-0 font-wds-sans text-wds-body-sm text-wds-text-ink">{row.type} requisition</div>
-                  <div className="w-30 shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{formatDate(row.openedAt)}</div>
-                  <div className="w-35 shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{row.signedByName ?? '—'}</div>
-                  <div className="w-22.5 shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">{row.totalUnits}</div>
-                  <div className="w-35 shrink-0">
+                  <div className="min-w-0 grow basis-0 font-wds-sans text-wds-body-sm text-wds-text-ink">{requisitionTypeLabel(row.type)}</div>
+                  <div className="w-[120px] shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{formatDate(row.openedAt)}</div>
+                  <div className="w-[140px] shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{row.signedByName ?? '—'}</div>
+                  <div className="w-[90px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">{row.totalUnits}</div>
+                  <div className="w-[140px] shrink-0">
                     <StatusDot tone={meta.tone}>{meta.label}</StatusDot>
                   </div>
                 </div>
