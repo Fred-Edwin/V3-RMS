@@ -68,6 +68,8 @@ model Organization {
   supplierPayments             SupplierPayment[]
   prepRuns                     PrepRun[]
   requisitions                 Requisition[]
+  dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
+  dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
 
   @@map("organizations")
 }
@@ -168,6 +170,8 @@ model User {
   prepRunsCreated                     PrepRun[]                     @relation("PrepRunCreatedBy")
   requisitionsOpened                  Requisition[]                 @relation("RequisitionOpenedBy")
   requisitionsApproved                Requisition[]                 @relation("RequisitionApprovedBy")
+  dispatchesDispatched                Dispatch[]                    @relation("DispatchDispatchedBy")
+  dispatchesConfirmed                 Dispatch[]                    @relation("DispatchConfirmedBy")
   requisitionSectionsSubmitted        RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited              RequisitionLine[]             @relation("RequisitionLineEditedBy")
 
@@ -1539,6 +1543,7 @@ model Requisition {
   openedBy     User                 @relation("RequisitionOpenedBy", fields: [openedById], references: [id])
   approvedBy   User?                @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
   sections     RequisitionSection[]
+  dispatches   Dispatch[]
 
   @@index([organizationId, status])
   @@map("requisitions")
@@ -1582,6 +1587,66 @@ model RequisitionLine {
   @@map("requisition_lines")
 }
 
+// ── Milestone Five — Dispatch & Branch Receiving (Session A) ───────────────
+// One Dispatch per department per requisition (Flow 9 step 4), mirroring
+// StaffTransfer's two-org pattern: organizationId = hub (Central Store owns
+// the document), toOrganizationId = branch. sequenceLabel is a daily
+// per-branch display label computed at write time, not a persistent
+// ReferenceCounter id — see milestone-5-sessions/session-a-plan.md decision #1.
+enum DispatchStatus {
+  AWAITING // not yet signed by the store
+  IN_TRANSIT // signed, dispatch_out written, not yet confirmed
+  CONFIRMED // dispatch_in written, no discrepancy
+  DISCREPANCY_OPEN // dispatch_in written but a line mismatched — stays open per Flow 10a
+}
+
+model Dispatch {
+  id                String         @id @default(uuid())
+  organizationId    String         @map("organization_id") // hub org — Central Store owns this document
+  toOrganizationId  String         @map("to_organization_id") // branch org
+  requisitionId     String         @map("requisition_id")
+  departmentTag     DepartmentTag  @map("department_tag") // one Dispatch per department, per Flow 9 step 4
+  sequenceLabel     String         @map("sequence_label") // "Dispatch 4 · Nyeri Town · 17 Sep" — daily per-branch sequence, not a persistent ID
+  status            DispatchStatus @default(AWAITING)
+  dispatchedById    String?        @map("dispatched_by_id")
+  dispatchedAt      DateTime?      @map("dispatched_at")
+  confirmedById     String?        @map("confirmed_by_id") // may differ from the department head if confirmed-on-behalf (Flow 10b)
+  confirmedAt       DateTime?      @map("confirmed_at")
+  confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
+
+  organization   Organization   @relation("DispatchFrom", fields: [organizationId], references: [id])
+  toOrganization Organization   @relation("DispatchTo", fields: [toOrganizationId], references: [id])
+  requisition    Requisition    @relation(fields: [requisitionId], references: [id])
+  dispatchedBy   User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
+  confirmedBy    User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
+  lines          DispatchLine[]
+
+  @@index([organizationId, status])
+  @@index([toOrganizationId, departmentTag, status])
+  @@index([requisitionId])
+  @@map("dispatches")
+}
+
+model DispatchLine {
+  id                String   @id @default(uuid())
+  dispatchId        String   @map("dispatch_id")
+  requisitionLineId String?  @map("requisition_line_id") // null for a substitute line (Flow 9b)
+  inventoryItemId   String   @map("inventory_item_id")
+  requestedQty      Decimal? @map("requested_qty") @db.Decimal(12, 4)
+  dispatchedQty     Decimal  @map("dispatched_qty") @db.Decimal(12, 4)
+  confirmedQty      Decimal? @map("confirmed_qty") @db.Decimal(12, 4)
+  costAtDispatch    Decimal  @map("cost_at_dispatch") @db.Decimal(12, 4) // frozen per line, per Flow 9 step 6
+  isSubstitute      Boolean  @default(false) @map("is_substitute")
+  substituteNote    String?  @map("substitute_note")
+
+  dispatch     Dispatch               @relation(fields: [dispatchId], references: [id])
+  item         InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions InventoryTransaction[]
+
+  @@index([dispatchId])
+  @@map("dispatch_lines")
+}
+
 model InventoryItem {
   id                  String            @id @default(uuid())
   organizationId      String            @map("organization_id")
@@ -1612,6 +1677,7 @@ model InventoryItem {
   prepRunsAsOutput      PrepRun[]              @relation("PrepRunOutput")
   prepRunInputLines     PrepRunInputLine[]     @relation("PrepRunInputItem")
   requisitionLines      RequisitionLine[]
+  dispatchLines         DispatchLine[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1696,15 +1762,17 @@ enum InventoryTransactionType {
   SALE
 }
 
-// wasteLogId/stockCountLineId/dispatchLineId/marketPurchaseLineId are
-// retained as unlinked nullable columns: the models they referenced were
-// dropped by Milestone One (plan §1.3/§4), and those ledger paths are still
-// out of scope. Each is restored as a real FK when the milestone that rebuilds
-// that flow lands. goodsReceiptLineId (formerly purchaseOrderLineId) was the
-// first of these restored — Milestone Two (Receiving & Supplier AP) is the
-// first writer to this ledger; see milestone-2-plan.md §1.6. prepRecordId is
-// the second — Milestone Three (Prep) restores it as a real FK to PrepRun;
-// see milestone-3-plan.md §1.2.
+// wasteLogId/stockCountLineId/marketPurchaseLineId are retained as unlinked
+// nullable columns: the models they referenced were dropped by Milestone One
+// (plan §1.3/§4), and those ledger paths are still out of scope. Each is
+// restored as a real FK when the milestone that rebuilds that flow lands.
+// goodsReceiptLineId (formerly purchaseOrderLineId) was the first of these
+// restored — Milestone Two (Receiving & Supplier AP) is the first writer to
+// this ledger; see milestone-2-plan.md §1.6. prepRecordId is the second —
+// Milestone Three (Prep) restores it as a real FK to PrepRun; see
+// milestone-3-plan.md §1.2. dispatchLineId is the third — Milestone Five
+// (Dispatch & Branch Receiving) restores it as a real FK to DispatchLine,
+// the first writer of DISPATCH_OUT; see milestone-5-plan.md §1.2.
 model InventoryTransaction {
   id                   String                   @id @default(uuid())
   organizationId       String                   @map("organization_id")
@@ -1729,6 +1797,7 @@ model InventoryTransaction {
   user             User              @relation("InventoryTransactionUser", fields: [userId], references: [id])
   goodsReceiptLine GoodsReceiptLine? @relation(fields: [goodsReceiptLineId], references: [id])
   prepRun          PrepRun?          @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
+  dispatchLine     DispatchLine?     @relation(fields: [dispatchLineId], references: [id])
 
   @@index([organizationId])
   @@index([locationId])
@@ -1736,6 +1805,7 @@ model InventoryTransaction {
   @@index([type])
   @@index([goodsReceiptLineId])
   @@index([prepRecordId])
+  @@index([dispatchLineId])
   @@map("inventory_transactions")
 }
 

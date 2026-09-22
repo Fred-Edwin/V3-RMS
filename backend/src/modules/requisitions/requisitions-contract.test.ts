@@ -432,6 +432,7 @@ describe('Requisition approval response contract shapes', () => {
         approvedAt: new Date('2026-09-21T07:00:00Z'),
         approvedBy: { id: 'manager-1', name: 'Branch Manager' },
         sections: [{ status: 'SUBMITTED', returnedNote: null, lines: [{ requestedQty: new Prisma.Decimal(5), approvedQty: new Prisma.Decimal(5) }] }],
+        dispatches: [{ id: '77777777-7777-4777-8777-777777777777', departmentTag: 'KITCHEN', status: 'IN_TRANSIT', sequenceLabel: 'Dispatch 1 · Nyeri Town · 21 Sep' }],
       },
     ] as never);
 

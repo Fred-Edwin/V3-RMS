@@ -430,6 +430,7 @@ const buildRequisitionWithSections = (sections: unknown[], overrides: Record<str
   approvedAt: null,
   approvedBy: null,
   sections,
+  dispatches: [],
   ...overrides,
 });
 

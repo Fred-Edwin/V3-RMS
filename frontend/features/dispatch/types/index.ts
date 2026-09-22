@@ -1,0 +1,107 @@
+/**
+ * Inventory — Milestone Five (Dispatch & Branch Receiving), Session A.
+ * Hand-mirrors `backend/src/modules/dispatch/dispatch-validators.ts`
+ * (the frozen contract source of truth). Keep in sync by hand — no shared
+ * package in this repo.
+ */
+import type { DepartmentTag } from '@/features/inventory';
+
+export type { DepartmentTag };
+
+export type DispatchStatus = 'AWAITING' | 'IN_TRANSIT' | 'CONFIRMED' | 'DISCREPANCY_OPEN';
+
+export type RequisitionType = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'AD_HOC';
+
+// --- Dispatch queue (C1/C2) ----------------------------------------------------
+
+export interface DispatchQueueDepartment {
+  departmentTag: DepartmentTag;
+  status: DispatchStatus | null; // null = approved, not yet dispatched
+  totalUnits: string;
+  dispatchId: string | null;
+}
+
+export interface DispatchQueueRow {
+  requisitionId: string;
+  toOrganizationId: string;
+  branchName: string;
+  requisitionType: RequisitionType;
+  openedAt: string;
+  departments: DispatchQueueDepartment[];
+}
+
+export interface ListDispatchQueueQuery {
+  limit?: number;
+}
+
+// --- Fulfil detail (C2) ---------------------------------------------------------
+
+export interface FulfilLine {
+  requisitionLineId: string | null;
+  inventoryItemId: string;
+  itemName: string;
+  usageUnit: string;
+  requestedQty: string | null;
+  onHandQty: string;
+  dispatchQty: string;
+  isSubstitute: boolean;
+  substituteNote: string | null;
+}
+
+export type RequisitionSectionStatus = 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'RETURNED';
+
+export interface FulfilSection {
+  departmentTag: DepartmentTag;
+  status: RequisitionSectionStatus;
+  dispatchStatus: DispatchStatus | null;
+  dispatchId: string | null;
+  lines: FulfilLine[];
+}
+
+export interface FulfilDetail {
+  requisitionId: string;
+  toOrganizationId: string;
+  branchName: string;
+  requisitionType: RequisitionType;
+  openedAt: string;
+  sections: FulfilSection[];
+}
+
+export interface FulfilLineInput {
+  requisitionLineId?: string | null;
+  inventoryItemId: string;
+  dispatchQty: string;
+  isSubstitute?: boolean;
+  substituteNote?: string;
+}
+
+export interface FulfilDepartmentInput {
+  lines: FulfilLineInput[];
+  pin: string;
+}
+
+// --- Delivery note (C3) ----------------------------------------------------------
+
+export interface DeliveryNoteLine {
+  inventoryItemId: string;
+  itemName: string;
+  usageUnit: string;
+  requestedQty: string | null;
+  dispatchedQty: string;
+  isSubstitute: boolean;
+  substituteNote: string | null;
+}
+
+export interface DeliveryNote {
+  id: string;
+  sequenceLabel: string;
+  status: DispatchStatus;
+  departmentTag: DepartmentTag;
+  branchName: string;
+  dispatchedByName: string | null;
+  dispatchedAt: string | null;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+  confirmedOnBehalf: boolean;
+  lines: DeliveryNoteLine[];
+}

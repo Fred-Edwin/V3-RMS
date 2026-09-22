@@ -29,6 +29,7 @@ function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/inventory/purchasing')) return 'purchasing';
   if (pathname.startsWith('/app/inventory/receiving')) return 'receiving';
   if (pathname.startsWith('/app/inventory/prep')) return 'prep';
+  if (pathname.startsWith('/app/inventory/dispatch')) return 'dispatch';
   return 'catalog';
 }
 

@@ -197,6 +197,20 @@ export const RequisitionManagerListRowSchema = z.object({
  */
 export const requisitionDisplayStatusSchema = z.enum(['PENDING_APPROVAL', 'APPROVED', 'RETURNED']);
 
+/**
+ * Milestone Five addition (session-a-plan.md §1.4, additive only): one entry
+ * per department this requisition has been dispatched for, so Requisition
+ * History cross-links to the Dispatch/Delivery screens. Empty array when
+ * nothing has been dispatched yet — not omitted, so the frontend never has
+ * to special-case "field absent" vs. "no dispatches".
+ */
+export const RequisitionDispatchSummaryEntrySchema = z.object({
+  dispatchId: uuid,
+  departmentTag: departmentTagSchema,
+  status: z.enum(['AWAITING', 'IN_TRANSIT', 'CONFIRMED', 'DISCREPANCY_OPEN']),
+  sequenceLabel: z.string(),
+});
+
 export const RequisitionHistoryRowSchema = z.object({
   id: uuid,
   type: requisitionTypeSchema,
@@ -206,6 +220,7 @@ export const RequisitionHistoryRowSchema = z.object({
   displayStatus: requisitionDisplayStatusSchema,
   signedByName: z.string().nullable(),
   totalUnits: decimalString,
+  dispatchSummary: z.array(RequisitionDispatchSummaryEntrySchema),
 });
 
 // --- Requests ------------------------------------------------------------

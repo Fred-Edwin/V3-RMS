@@ -20,6 +20,7 @@ import type {
   RequisitionApprovalDetailSchema,
   RequisitionApprovalLineSchema,
   RequisitionApprovalSectionSchema,
+  RequisitionDispatchSummaryEntrySchema,
   RequisitionHistoryRowSchema,
   RequisitionListRowSchema,
   RequisitionManagerListRowSchema,
@@ -65,6 +66,7 @@ export type RequisitionApprovalSection = z.infer<typeof RequisitionApprovalSecti
 export type RequisitionApprovalDetail = z.infer<typeof RequisitionApprovalDetailSchema>;
 export type RequisitionManagerListRow = z.infer<typeof RequisitionManagerListRowSchema>;
 export type RequisitionHistoryRow = z.infer<typeof RequisitionHistoryRowSchema>;
+export type RequisitionDispatchSummaryEntry = z.infer<typeof RequisitionDispatchSummaryEntrySchema>;
 export type UpsertApprovalLinesInput = z.infer<typeof UpsertApprovalLinesSchema>;
 export type ApproveRequisitionInput = z.infer<typeof ApproveRequisitionSchema>;
 export type ReturnSectionInput = z.infer<typeof ReturnSectionSchema>;

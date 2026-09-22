@@ -16,6 +16,20 @@ export const branchRepository = {
     return rows.map((row) => row.id);
   },
 
+  /**
+   * Active branch orgs, hub excluded — the explicit enumeration the Central
+   * Store dispatch queue's cross-org read is scoped against (never an
+   * unscoped query across all orgs). See CENTRAL_STORE_SCOPING_DESIGN.md §4.
+   */
+  findActiveBranchIds: async (): Promise<string[]> => {
+    const rows = await prisma.organization.findMany({
+      where: { isActive: true, isHub: false },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => row.id);
+  },
+
   findById: async (id: string) => {
     return prisma.organization.findUnique({
       where: { id },

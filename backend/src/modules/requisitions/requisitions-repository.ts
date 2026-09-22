@@ -60,6 +60,7 @@ export type RequisitionForManagerList = Requisition & {
 export type RequisitionHistoryRowData = Requisition & {
   approvedBy: { id: string; name: string } | null;
   sections: { status: RequisitionSection['status']; returnedNote: string | null; lines: { requestedQty: Prisma.Decimal | null; approvedQty: Prisma.Decimal | null }[] }[];
+  dispatches: { id: string; departmentTag: DepartmentTag; status: string; sequenceLabel: string }[];
 };
 
 export type CreateRequisitionInput = {
@@ -323,6 +324,12 @@ export const requisitionRepository = {
             returnedNote: true,
             lines: { where: { deletedAt: null }, select: { requestedQty: true, approvedQty: true } },
           },
+        },
+        // Milestone Five addition (session-a-plan.md §1.4) — cross-links
+        // History to the Dispatch/Delivery screens. Additive only.
+        dispatches: {
+          select: { id: true, departmentTag: true, status: true, sequenceLabel: true },
+          orderBy: { departmentTag: 'asc' },
         },
       },
       orderBy: { openedAt: 'desc' },

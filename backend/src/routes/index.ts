@@ -33,6 +33,7 @@ import inventoryRoutes from '../modules/inventory/inventory-routes';
 import receivingRoutes from '../modules/inventory/receiving-routes';
 import prepRoutes from '../modules/inventory/prep-routes';
 import requisitionsRoutes from '../modules/requisitions/requisitions-routes';
+import dispatchRoutes from '../modules/dispatch/dispatch-routes';
 
 const apiRouter = Router();
 
@@ -70,5 +71,6 @@ apiRouter.use(inventoryRoutes);
 apiRouter.use(receivingRoutes);
 apiRouter.use(prepRoutes);
 apiRouter.use(requisitionsRoutes);
+apiRouter.use(dispatchRoutes);
 
 export default apiRouter;

@@ -297,6 +297,12 @@ const serializeHistoryRow = (row: RequisitionHistoryRowData): RequisitionHistory
   // Department Head signing in History; that is mock-data drift, not spec.
   signedByName: row.approvedBy?.name ?? null,
   totalUnits: sumUnits(row.sections.flatMap((s) => s.lines)),
+  dispatchSummary: row.dispatches.map((d) => ({
+    dispatchId: d.id,
+    departmentTag: d.departmentTag,
+    status: d.status as RequisitionHistoryRow['dispatchSummary'][number]['status'],
+    sequenceLabel: d.sequenceLabel,
+  })),
 });
 
 const NOT_SUBMITTED_STATUSES: RequisitionSectionStatus[] = ['NOT_STARTED', 'DRAFT'];

@@ -135,6 +135,19 @@ export interface RequisitionManagerListRow {
   sectionsTotal: number;
 }
 
+/**
+ * Milestone Five addition (session-a-plan.md §1.4, additive only): one entry
+ * per department this requisition has been dispatched for, cross-linking
+ * History to the Dispatch/Delivery screens. Empty array when nothing has
+ * been dispatched yet.
+ */
+export interface RequisitionDispatchSummaryEntry {
+  dispatchId: string;
+  departmentTag: DepartmentTag;
+  status: 'AWAITING' | 'IN_TRANSIT' | 'CONFIRMED' | 'DISCREPANCY_OPEN';
+  sequenceLabel: string;
+}
+
 export interface RequisitionHistoryRow {
   id: string;
   type: RequisitionType;
@@ -144,6 +157,7 @@ export interface RequisitionHistoryRow {
   displayStatus: RequisitionDisplayStatus;
   signedByName: string | null;
   totalUnits: string;
+  dispatchSummary: RequisitionDispatchSummaryEntry[];
 }
 
 export interface ApprovalLineEditInput {
