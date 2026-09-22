@@ -470,6 +470,34 @@ describe('requisitionService.getRequisitionForApproval', () => {
     expect(detail.sections[0]!.isAsRequested).toBe(true);
     expect(detail.sections[0]!.changedLineCount).toBe(0);
   });
+
+  it('a never-reviewed line (approvedQty null) is not edited — regression: null was compared to requestedQty as "changed"', async () => {
+    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
+      buildRequisitionWithSections([
+        buildApprovalSection({ lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('2'), approvedQty: null })] }),
+      ]) as never,
+    );
+
+    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
+
+    expect(detail.sections[0]!.lines[0]!.isEdited).toBe(false);
+    expect(detail.sections[0]!.isAsRequested).toBe(true);
+    expect(detail.sections[0]!.changedLineCount).toBe(0);
+  });
+
+  it('a never-reviewed line (approvedQty still null) is NOT edited, even though it differs from requestedQty as a raw value (regression: null was miscounted as "changed")', async () => {
+    vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(
+      buildRequisitionWithSections([
+        buildApprovalSection({ lines: [buildApprovalLine({ requestedQty: new Prisma.Decimal('2'), approvedQty: null })] }),
+      ]) as never,
+    );
+
+    const detail = await requisitionService.getRequisitionForApproval(manager, requisitionId);
+
+    expect(detail.sections[0]!.lines[0]!.isEdited).toBe(false);
+    expect(detail.sections[0]!.isAsRequested).toBe(true);
+    expect(detail.sections[0]!.changedLineCount).toBe(0);
+  });
 });
 
 describe('requisitionService.upsertApprovalLines', () => {

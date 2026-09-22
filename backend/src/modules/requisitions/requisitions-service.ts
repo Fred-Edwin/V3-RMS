@@ -224,7 +224,11 @@ const serializeApprovalLine = (
     requestedQty,
     approvedQty,
     editReason: line.editReason,
-    isEdited: !decimalsEqual(approvedQty, requestedQty),
+    // Before the manager reviews a line, approvedQty is null — that is "not
+    // yet reviewed", not "edited". Only a line the manager has actually set
+    // a differing value on counts as edited; a manager-added line
+    // (requestedQty null, approvedQty set) is also edited by definition.
+    isEdited: approvedQty !== null && !decimalsEqual(approvedQty, requestedQty),
   };
 };
 
