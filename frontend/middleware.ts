@@ -72,10 +72,15 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
     return isDepartmentHead;
   }
 
-  // Milestone Four, Session A — Department Head requisition fill. Session B
-  // extends this to admit MANAGER too, once the branch-approval side ships.
+  // Milestone Four, Session A — Department Head requisition fill.
   if (pathname.startsWith('/app/requisitions')) {
     return isDepartmentHead;
+  }
+
+  // Milestone Four, Session B — Branch Manager approval workspace
+  // (decision #8: lives at /app/branch, not under /app/requisitions).
+  if (pathname.startsWith('/app/branch')) {
+    return role === 'MANAGER';
   }
 
   if (pathname === '/app/admin/menu' || pathname.startsWith('/app/admin/menu/')) {

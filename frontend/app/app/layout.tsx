@@ -609,7 +609,13 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   // this legacy components/ui shell.
   const isNewInventoryRoute = pathname.startsWith('/app/inventory');
 
-  if (!role || (isDisplayRoute && isDisplayOnlyRole) || isNewInventoryRoute) {
+  // Milestone Four Session B's Branch Manager workspace (`app/app/branch/*`)
+  // brings its own persistent sidebar (Branch · Requisitions · Deliveries ·
+  // Day · Waste) — same reasoning as isNewInventoryRoute above, a second
+  // sidebar would fight it for the same space.
+  const isBranchWorkspaceRoute = pathname.startsWith('/app/branch');
+
+  if (!role || (isDisplayRoute && isDisplayOnlyRole) || isNewInventoryRoute || isBranchWorkspaceRoute) {
     return <>{children}</>;
   }
 

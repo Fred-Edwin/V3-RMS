@@ -17,6 +17,7 @@ import {
   SupplierApIcon,
   SuppliersIcon,
 } from '@/components/app/shell/nav-icons';
+import { roleLabel } from '@/components/app/shell/role-label';
 import { useAuthStore } from '@/store/authStore';
 import { performLogout } from '@/lib/logout';
 
@@ -68,7 +69,7 @@ function useSidebarUser() {
   }, [user?.name]);
   return {
     name: user?.name ?? 'Store Manager',
-    role: user?.role === 'STORE_ATTENDANT' ? 'Store Attendant' : 'Store Manager',
+    role: roleLabel(user?.role),
     initials,
   };
 }
