@@ -34,6 +34,48 @@ screenshot-Paper → screenshot-live → eyeball-compare → fix → re-confirm
 cycle **before moving to the next artboard state**. Do not batch all
 screens and run one visual pass at the end.
 
+## Skill usage for this session
+
+`.agents/skills/` has five installed skills. Not all of them fit this
+build — use them as follows, don't run them all reflexively.
+
+- **`run-frontend-browser`** — use for every live verification. This is
+  the project's standing convention for satisfying CLAUDE.md's "verify in
+  a real browser before calling it done" rule, and is what Session A used
+  throughout.
+- **`web-design-guidelines`** — run it against each screen's files right
+  after that screen is built and gated against Paper, before moving to
+  the next artboard state. It fetches Vercel's Web Interface Guidelines
+  fresh from GitHub and checks accessibility/interaction concerns a
+  visual-only Paper comparison won't catch on its own — focus states,
+  keyboard navigation (especially the confirm-quantity steppers and the
+  PIN sign sheet), semantic markup. Requires network access to
+  `raw.githubusercontent.com`; if that's unavailable in the sandbox, note
+  it and continue without this pass rather than blocking the build on it.
+- **`vercel-composition-patterns`** — skim
+  `rules/architecture-avoid-boolean-props.md` and
+  `rules/patterns-explicit-variants.md` specifically before building
+  `discrepancy-resolution-screen.tsx`. That screen branches on role +
+  status + resolution outcome all at once — exactly the shape that
+  tempts a wall of boolean props instead of composing explicit variants,
+  the way Session A's own `SectionBlock` (in the desktop fulfil screen)
+  already branches per-department status inline rather than via flags.
+  Follow that existing precedent over inventing a new pattern. **Skip
+  this skill's `rules/react19-no-forwardref.md`** — this repo is on
+  React 18 (`frontend/package.json`), that rule does not apply here.
+- **`building-components`** — only reach for this if a screen genuinely
+  needs a new `components/ui2/` primitive that doesn't exist yet (e.g.
+  the confirm-quantity stepper or the three-outcome resolution radio).
+  Check the existing primitives first — Session A didn't need to add any
+  for its stepper/tab-bar/sign-sheet UI, reusing what was already there.
+  If one really is missing, pull `references/accessibility.mdx` and
+  `references/state.mdx` specifically rather than the whole reference
+  set.
+- **`agent-browser`** — do not use. It's a general-purpose browser
+  automation CLI that overlaps with `run-frontend-browser` but requires
+  a separate global install not present in this environment. Redundant
+  here; skip it.
+
 ## What Session A actually shipped (read before touching code)
 
 Don't re-derive these — they're the foundation Session B builds directly on top of.
