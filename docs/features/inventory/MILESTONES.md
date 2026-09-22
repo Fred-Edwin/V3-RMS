@@ -85,7 +85,8 @@ working exactly as today for every category that leaves the field blank.
 Track alongside the Milestone Four Step 5 plan, not before.
 
 **Milestone Five (Dispatch & Branch Receiving) — screen-set APPROVED
-2026-09-21.** Same pattern as Milestone Four: most of the screen group
+2026-09-21; Step 5 plan APPROVED 2026-09-22 (`milestone-5-plan.md`),
+ready for Step 7 Session A.** Same pattern as Milestone Four: most of the screen group
 marked MISSING in `02-screens-by-role.md` turned out to already exist,
 built in an earlier pass — this session consolidated the existing
 artboards onto one Paper page (`Milestone Five · Dispatch & Branch
@@ -199,7 +200,7 @@ found and changed).
 | 2 | `milestone-2-plan.md` (shipped 2026-09-18 — Step 7: S0–S9 all done) |
 | 3 | `milestone-3-plan.md` (Step 5 approved 2026-09-19, all four §6 questions resolved — ready for Step 7) |
 | 4 | `milestone-4-plan.md` (Step 5 approved 2026-09-21, all three §7 questions resolved — ready for Step 7, Session A: Dept Head fill, then Session B: Branch Manager approval + History) |
-| 5 | not yet created — screen-set approved 2026-09-21, ready for Step 5 planning |
+| 5 | `milestone-5-plan.md` (Step 5 approved 2026-09-22, ready for Step 7 — Session A: Dispatch, then Session B: Branch Receiving & Discrepancy) |
 | 6 | not yet created |
 
 Session-level prompts and handoffs for a shipped milestone move to
