@@ -144,7 +144,7 @@ export function DispatchQueueScreenMobile() {
 
             <div className="flex items-center gap-2 pt-0.5">
               <div className="font-wds-sans text-wds-body-sm font-semibold text-wds-text-ink">Waiting</div>
-              <div className="rounded-wds-full bg-wds-neutral-100 px-1.75 py-px">
+              <div className="rounded-wds-full bg-wds-neutral-100 px-[7px] py-px">
                 <div className="font-wds-mono text-wds-label text-wds-text-copy-muted">{branchesWaiting}</div>
               </div>
               <div className="grow basis-0 text-right font-wds-sans text-wds-label text-wds-warning-fg">Queue order fixed</div>

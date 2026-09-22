@@ -285,30 +285,48 @@ service, matching the precedent exactly.
 
 ---
 
-## §4. Build discipline — per-artboard visual gate (binding for both sessions)
+## §4. Build discipline — per-artboard visual + behavioral gate (binding for both sessions)
 
-This supersedes Milestone Four's end-of-session-only visual pass. For
-**every artboard state** in §0's table (not just each screen's primary
-state — every populated/empty/loading/error/mid-signature/signed
-variant), the build loop is:
+This supersedes Milestone Four's end-of-session-only visual pass, and
+extends Session A's visual-only gate with a behavioral/accessibility check
+— Session A's own screens shipped with real gaps here (missing focus
+states, unlabeled inputs, no `aria-live` on async errors — see the
+Session A audit) that a pure visual diff cannot catch, because Paper's
+artboards are static and can't represent focus, keyboard nav, or a11y
+semantics at all. For **every artboard state** in §0's table (not just
+each screen's primary state — every populated/empty/loading/error/
+mid-signature/signed variant), the build loop is:
 
-1. Implement the screen/state.
+1. Implement the screen/state — while writing it, consult the
+   `building-components` skill (accessibility/ARIA, composition, state,
+   design-token references) and the `vercel-composition-patterns` skill
+   (avoid boolean-prop sprawl, compound components, lift state) so the
+   component is built right the first time rather than patched after a
+   review flags it.
 2. Screenshot the Paper artboard (`get_screenshot` on its node ID from §0).
-3. Screenshot the live rendered page at the matching viewport
-   (`run-frontend-browser` skill / chrome-devtools MCP), in the same state.
+3. Screenshot the live rendered page at the matching viewport — use the
+   `run-frontend-browser` skill (dev-server setup + project gotchas) with
+   the chrome-devtools MCP to drive the browser — in the same state.
 4. Eyeball side-by-side — spacing, type scale, color tokens, gradient/sheen
    treatment on primary actions, alignment — no automated pixel-diff (per
    standing project rule).
-5. Fix any deviation found.
-6. Re-screenshot to confirm the fix, then mark that artboard state done.
+5. Run the `web-design-guidelines` skill against the file(s) just written
+   for this artboard state (accessibility, focus states, forms, animation,
+   content handling, hover/interactive states — the categories Paper's
+   static artboards can't show).
+6. Fix any visual deviation (step 4) and any guideline finding (step 5)
+   together.
+7. Re-screenshot and re-run the guidelines check to confirm both fixes,
+   then mark that artboard state done.
 
-No artboard state counts as built until its own gate has passed. The
-end-of-session integration pass (browser click-through with real data,
-checking the full flow end-to-end, cross-screen consistency — e.g. a
-dispatch created in Session A's queue must show up correctly in Session
-B's branch-incoming list) still happens after the build, but its job is
-now functional verification only, not visual fidelity — that risk is
-retired per-screen during the build itself.
+No artboard state counts as built until both its visual gate and its
+`web-design-guidelines` gate have passed. The end-of-session integration
+pass (browser click-through with real data, checking the full flow
+end-to-end, cross-screen consistency — e.g. a dispatch created in Session
+A's queue must show up correctly in Session B's branch-incoming list)
+still happens after the build, but its job is now functional verification
+only, not visual or behavioral fidelity — that risk is retired per-screen
+during the build itself.
 
 ---
 

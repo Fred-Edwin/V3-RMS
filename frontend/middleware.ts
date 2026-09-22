@@ -77,6 +77,16 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
     return isDepartmentHead;
   }
 
+  // Milestone Five, Session B — branch-side Deliveries is shared between the
+  // Branch Manager (all departments, confirm-on-behalf) and a Department
+  // Head (own department only, enforced server-side) — both reuse
+  // BranchDesktopShell's sidebar, so this path alone widens past
+  // MANAGER-only. Every other /app/branch/* path (requisitions approval,
+  // etc.) below stays Manager-only.
+  if (pathname.startsWith('/app/branch/deliveries')) {
+    return role === 'MANAGER' || isDepartmentHead;
+  }
+
   // Milestone Four, Session B — Branch Manager approval workspace
   // (decision #8: lives at /app/branch, not under /app/requisitions).
   if (pathname.startsWith('/app/branch')) {

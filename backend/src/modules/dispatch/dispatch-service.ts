@@ -6,6 +6,8 @@ import {
   type DispatchWithLines,
   type RequisitionSectionForFulfil,
 } from './dispatch-repository';
+import { discrepancyRepository } from './discrepancy-repository';
+import { referenceCounterRepository } from '../inventory/receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { restockLevelRepository } from '../inventory/inventory-repository';
@@ -15,10 +17,13 @@ import { fcmService } from '../../services/fcm-service';
 import { comparePin } from '../../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import type {
+  ConfirmDeliveryInput,
   DeliveryNote,
+  DeliveryRow,
   DispatchQueueRow,
   FulfilDepartmentInput,
   FulfilDetail,
+  ListDeliveriesQuery,
   ListDispatchQueueQuery,
 } from './dispatch.types';
 
@@ -41,6 +46,14 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
     throw new ForbiddenError('Only the hub organization may access Central Store dispatch data');
   }
   return hub.id;
+};
+
+/** Branch-side actions require a non-null org — mirrors `requisitions-service.ts`'s `requireBranchOrg`. */
+const requireBranchOrg = (actor: Actor): string => {
+  if (!actor.organizationId) {
+    throw new ValidationError('Branch context missing for this user');
+  }
+  return actor.organizationId;
 };
 
 /** `approvedQty ?? requestedQty` — the frozen quantity a requisition section carries after Milestone Four's approve-time freeze. */
@@ -102,6 +115,146 @@ const buildFulfilLine = (
 const buildSequenceLabel = (ordinal: number, branchName: string, dispatchedAt: Date): string => {
   const day = dispatchedAt.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', timeZone: 'Africa/Nairobi' });
   return `Dispatch ${ordinal} · ${branchName} · ${day}`;
+};
+
+/**
+ * Branch-side actor resolution — mirrors `requisitions-service.ts`'s
+ * `assertOwnDepartment`: a Department Head may only see their own
+ * department, a Branch Manager (bare `requireRole('MANAGER')`, same
+ * distinction requisitions-routes.ts draws) sees every department.
+ * Returns the department filter to pass to the repository — `null` means
+ * "no filter" (Branch Manager, all departments).
+ */
+const resolveBranchDepartmentFilter = (actor: Actor): DepartmentTag | null => {
+  if (actor.role === 'MANAGER') return null;
+  if (!actor.departmentTag) {
+    throw new ValidationError('This user has no department assigned');
+  }
+  return actor.departmentTag as DepartmentTag;
+};
+
+const serializeDeliveryRow = (dispatch: DispatchWithLines): DeliveryRow => ({
+  id: dispatch.id,
+  sequenceLabel: dispatch.sequenceLabel,
+  status: dispatch.status,
+  departmentTag: dispatch.departmentTag,
+  branchName: dispatch.toOrganization.name,
+  dispatchedByName: dispatch.dispatchedBy?.name ?? null,
+  dispatchedAt: dispatch.dispatchedAt ? dispatch.dispatchedAt.toISOString() : null,
+  confirmedByName: dispatch.confirmedBy?.name ?? null,
+  confirmedAt: dispatch.confirmedAt ? dispatch.confirmedAt.toISOString() : null,
+  confirmedOnBehalf: dispatch.confirmedOnBehalf,
+  lines: dispatch.lines.map((line) => ({
+    dispatchLineId: line.id,
+    inventoryItemId: line.inventoryItemId,
+    itemName: line.item.name,
+    usageUnit: line.item.usageUnit,
+    requestedQty: toDecimalString(line.requestedQty),
+    dispatchedQty: line.dispatchedQty.toString(),
+    confirmedQty: toDecimalString(line.confirmedQty),
+    isSubstitute: line.isSubstitute,
+    substituteNote: line.substituteNote,
+  })),
+});
+
+/**
+ * Sign + PIN, writes DISPATCH_IN transactions at the confirmed qty,
+ * transitions status, and — if any line's confirmedQty != dispatchedQty —
+ * creates an OPEN Discrepancy per mismatched line (session-b-plan.md
+ * decision #2). Shared by confirmDelivery and confirmDeliveryOnBehalf; the
+ * only difference between them is who confirmedById/confirmedOnBehalf end
+ * up being.
+ */
+const confirmDispatch = async (
+  actor: Actor,
+  dispatchId: string,
+  input: ConfirmDeliveryInput,
+  confirmedOnBehalf: boolean,
+): Promise<DeliveryNote> => {
+  const organizationId = requireBranchOrg(actor);
+
+  const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
+  if (!actorWithPin || !actorWithPin.pinHash) {
+    throw new UnauthorizedError('No PIN is set for this account');
+  }
+  const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
+  if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
+
+  const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+  if (!dispatch) throw new NotFoundError('Dispatch not found');
+  if (dispatch.status !== 'IN_TRANSIT') {
+    throw new ConflictError('This dispatch has already been confirmed');
+  }
+
+  const confirmedQtyByLineId = new Map(input.lines.map((l) => [l.dispatchLineId, new Prisma.Decimal(l.confirmedQty)]));
+  for (const line of dispatch.lines) {
+    if (!confirmedQtyByLineId.has(line.id)) {
+      throw new ValidationError('Every dispatched line must be confirmed');
+    }
+  }
+
+  const centralStore = await locationRepository.findCentralStore();
+  if (!centralStore) throw new ValidationError('No Central Store is configured');
+  const departmentLocation = await locationRepository.findByOrganizationTypeDepartment(
+    organizationId,
+    'BRANCH_DEPARTMENT',
+    dispatch.departmentTag,
+  );
+  if (!departmentLocation) {
+    throw new ValidationError('No branch department location is configured for this department');
+  }
+
+  const confirmedAt = new Date();
+  let hasMismatch = false;
+
+  await prisma.$transaction(async (tx) => {
+    const count = await dispatchRepository.markConfirmed(dispatchId, organizationId, tx, {
+      status: 'CONFIRMED', // corrected to DISCREPANCY_OPEN below if any line mismatches
+      confirmedById: actor.id,
+      confirmedAt,
+      confirmedOnBehalf,
+    });
+    if (count === 0) {
+      throw new ConflictError('This dispatch has already been confirmed');
+    }
+
+    for (const line of dispatch.lines) {
+      const confirmedQty = confirmedQtyByLineId.get(line.id)!;
+      await tx.dispatchLine.update({ where: { id: line.id }, data: { confirmedQty } });
+
+      if (confirmedQty.greaterThan(0)) {
+        await tx.inventoryTransaction.create({
+          data: {
+            organizationId,
+            locationId: departmentLocation.id,
+            inventoryItemId: line.inventoryItemId,
+            type: 'DISPATCH_IN',
+            quantity: confirmedQty, // arriving at the branch — positive-signed, unlike DISPATCH_OUT
+            unitCost: line.costAtDispatch,
+            dispatchLineId: line.id,
+            userId: actor.id,
+          },
+        });
+      }
+
+      if (!confirmedQty.equals(line.dispatchedQty)) {
+        hasMismatch = true;
+        const gapQty = confirmedQty.minus(line.dispatchedQty);
+        const reference = await referenceCounterRepository.nextReference(tx, centralStore.organizationId, 'DSC');
+        await discrepancyRepository.createForLine({ dispatchLineId: line.id, referenceNumber: reference, gapQty }, tx);
+      }
+    }
+
+    if (hasMismatch) {
+      await tx.dispatch.update({ where: { id: dispatchId }, data: { status: 'DISCREPANCY_OPEN' } });
+    }
+  });
+
+  if (hasMismatch) {
+    void fcmService.sendReceiptVariancePush(dispatch.organizationId, { dispatchId, itemCount: dispatch.lines.length });
+  }
+
+  return dispatchService.getDeliveryNoteForBranch(actor, dispatchId);
 };
 
 const notifyDepartmentHeadsOfDispatch = async (
@@ -305,6 +458,58 @@ export const dispatchService = {
     if (!dispatch) throw new NotFoundError('Dispatch not found');
     return serializeDeliveryNote(dispatch);
   },
+
+  /** Branch-side (toOrganizationId-scoped) delivery-note read — same shared renderer, never hub-scoped. */
+  getDeliveryNoteForBranch: async (actor: Actor, dispatchId: string): Promise<DeliveryNote> => {
+    const organizationId = requireBranchOrg(actor);
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    if (!dispatch) throw new NotFoundError('Dispatch not found');
+    return serializeDeliveryNote(dispatch);
+  },
+
+  // ── Milestone Five, Session B — branch-side receiving ─────────────────────
+
+  /** Branch's own dispatches, all departments (Branch Manager) or own department only (Department Head), per C4's scoping. */
+  listDeliveries: async (actor: Actor, query: ListDeliveriesQuery): Promise<DeliveryRow[]> => {
+    const organizationId = requireBranchOrg(actor);
+    const departmentFilter = resolveBranchDepartmentFilter(actor);
+    const rows = await dispatchRepository.findDispatchesForBranch(organizationId, departmentFilter, query.limit);
+    return rows.map(serializeDeliveryRow);
+  },
+
+  getDeliveryDetail: async (actor: Actor, dispatchId: string): Promise<DeliveryRow> => {
+    const organizationId = requireBranchOrg(actor);
+    const departmentFilter = resolveBranchDepartmentFilter(actor);
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    if (!dispatch) throw new NotFoundError('Dispatch not found');
+    if (departmentFilter && dispatch.departmentTag !== departmentFilter) {
+      throw new ForbiddenError('You may only access your own department');
+    }
+    return serializeDeliveryRow(dispatch);
+  },
+
+  /** Department Head's own confirm — the real signer is the department head themselves. */
+  confirmDelivery: async (actor: Actor, dispatchId: string, input: ConfirmDeliveryInput): Promise<DeliveryNote> => {
+    const organizationId = requireBranchOrg(actor);
+    const departmentFilter = resolveBranchDepartmentFilter(actor);
+    if (!departmentFilter) {
+      throw new ForbiddenError('A Branch Manager must use confirm-on-behalf');
+    }
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    if (!dispatch) throw new NotFoundError('Dispatch not found');
+    if (dispatch.departmentTag !== departmentFilter) {
+      throw new ForbiddenError('You may only access your own department');
+    }
+    return confirmDispatch(actor, dispatchId, input, false);
+  },
+
+  /** Branch Manager confirm-on-behalf (Flow 10b) — separate endpoint, not a flag, per session-b-plan.md decision #5. */
+  confirmDeliveryOnBehalf: async (actor: Actor, dispatchId: string, input: ConfirmDeliveryInput): Promise<DeliveryNote> => {
+    if (actor.role !== 'MANAGER') {
+      throw new ForbiddenError('Only a Branch Manager may confirm on behalf of a department');
+    }
+    return confirmDispatch(actor, dispatchId, input, true);
+  },
 };
 
 const serializeDeliveryNote = (dispatch: DispatchWithLines): DeliveryNote => ({
@@ -324,6 +529,7 @@ const serializeDeliveryNote = (dispatch: DispatchWithLines): DeliveryNote => ({
     usageUnit: line.item.usageUnit,
     requestedQty: toDecimalString(line.requestedQty),
     dispatchedQty: line.dispatchedQty.toString(),
+    confirmedQty: line.confirmedQty ? line.confirmedQty.toString() : null,
     isSubstitute: line.isSubstitute,
     substituteNote: line.substituteNote,
   })),

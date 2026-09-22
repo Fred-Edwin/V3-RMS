@@ -15,10 +15,10 @@ const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
 
 /**
  * Branch Manager workspace nav (decision #8, HANDOFF-session-b.md): Branch ·
- * Requisitions · Deliveries · Day · Waste. Only Requisitions is live this
- * session — the rest are placeholder links (`href: '#'`), matching how
- * `inventory-shell.tsx` handles not-yet-built areas. Deliveries/Day/Waste
- * arrive in Milestone Five.
+ * Requisitions · Deliveries · Day · Waste. Requisitions (Milestone Four) and
+ * Deliveries (Milestone Five, Session B) are live — Day/Waste remain
+ * placeholder links (`href: '#'`), matching how `inventory-shell.tsx`
+ * handles not-yet-built areas.
  */
 const NAV_GROUPS: SidebarNavGroup[] = [
   {
@@ -27,7 +27,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
     items: [
       { key: 'branch', label: 'Branch', href: '#', icon: BranchIcon },
       { key: 'requisitions', label: 'Requisitions', href: '/app/branch/requisitions', icon: RequisitionsIcon },
-      { key: 'deliveries', label: 'Deliveries', href: '#', icon: DeliveriesIcon },
+      { key: 'deliveries', label: 'Deliveries', href: '/app/branch/deliveries', icon: DeliveriesIcon },
       { key: 'day', label: 'Day', href: '#', icon: DayIcon },
       { key: 'waste', label: 'Waste', href: '#', icon: WasteIcon },
     ],

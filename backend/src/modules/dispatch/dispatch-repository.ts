@@ -222,4 +222,76 @@ export const dispatchRepository = {
       select: { id: true, name: true },
     });
   },
+
+  // ── Milestone Five, Session B — branch-side receiving ─────────────────────
+
+  /**
+   * Branch's own dispatches — Branch Manager sees every department,
+   * Department Head sees only `departmentTag` (role-gated by the caller,
+   * mirrors `requisitions-service.ts`'s `assertOwnDepartment` pattern:
+   * this repository method takes an already-resolved department filter,
+   * the service decides whether to pass one).
+   */
+  findDispatchesForBranch: async (
+    toOrganizationId: string,
+    departmentTag: DepartmentTag | null,
+    limit: number,
+  ): Promise<DispatchWithLines[]> => {
+    return prisma.dispatch.findMany({
+      where: {
+        toOrganizationId,
+        ...(departmentTag ? { departmentTag } : {}),
+        status: { in: ['IN_TRANSIT', 'CONFIRMED', 'DISCREPANCY_OPEN'] },
+      },
+      include: {
+        toOrganization: { select: { id: true, name: true } },
+        dispatchedBy: { select: { id: true, name: true } },
+        confirmedBy: { select: { id: true, name: true } },
+        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
+      },
+      orderBy: { dispatchedAt: 'desc' },
+      take: limit,
+    });
+  },
+
+  /** Same shape, but org-scoped to the receiving branch — used by the branch-side detail read (never hub-scoped). */
+  findByIdWithLinesForBranch: async (id: string, toOrganizationId: string): Promise<DispatchWithLines | null> => {
+    return prisma.dispatch.findFirst({
+      where: { id, toOrganizationId },
+      include: {
+        toOrganization: { select: { id: true, name: true } },
+        dispatchedBy: { select: { id: true, name: true } },
+        confirmedBy: { select: { id: true, name: true } },
+        lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
+      },
+    });
+  },
+
+  /**
+   * Guarded status transition, same "no partial-signed state" pattern as
+   * `goodsReceiptRepository.markSigned` and Session A's own dispatch create:
+   * `updateMany` with the current status (IN_TRANSIT) in the `where`, a
+   * `count === 0` means someone else confirmed it first — the caller rolls
+   * back, no partial ledger writes.
+   */
+  markConfirmed: async (
+    id: string,
+    toOrganizationId: string,
+    tx: TxClient,
+    data: { status: DispatchStatus; confirmedById: string; confirmedAt: Date; confirmedOnBehalf: boolean },
+  ): Promise<number> => {
+    const updated = await tx.dispatch.updateMany({
+      where: { id, toOrganizationId, status: 'IN_TRANSIT' },
+      data,
+    });
+    return updated.count;
+  },
+
+  /** Active Branch Managers for the branch org — recipients of variance/resolution pushes. */
+  findBranchManagers: async (organizationId: string): Promise<{ id: string; name: string }[]> => {
+    return prisma.user.findMany({
+      where: { organizationId, role: 'MANAGER', isActive: true },
+      select: { id: true, name: true },
+    });
+  },
 };

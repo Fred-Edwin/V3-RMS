@@ -172,6 +172,7 @@ model User {
   requisitionsApproved                Requisition[]                 @relation("RequisitionApprovedBy")
   dispatchesDispatched                Dispatch[]                    @relation("DispatchDispatchedBy")
   dispatchesConfirmed                 Dispatch[]                    @relation("DispatchConfirmedBy")
+  discrepanciesResolved               Discrepancy[]                 @relation("DiscrepancyResolvedBy")
   requisitionSectionsSubmitted        RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited              RequisitionLine[]             @relation("RequisitionLineEditedBy")
 
@@ -1614,12 +1615,13 @@ model Dispatch {
   confirmedAt       DateTime?      @map("confirmed_at")
   confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
 
-  organization   Organization   @relation("DispatchFrom", fields: [organizationId], references: [id])
-  toOrganization Organization   @relation("DispatchTo", fields: [toOrganizationId], references: [id])
-  requisition    Requisition    @relation(fields: [requisitionId], references: [id])
-  dispatchedBy   User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
-  confirmedBy    User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
-  lines          DispatchLine[]
+  organization             Organization   @relation("DispatchFrom", fields: [organizationId], references: [id])
+  toOrganization           Organization   @relation("DispatchTo", fields: [toOrganizationId], references: [id])
+  requisition              Requisition    @relation(fields: [requisitionId], references: [id])
+  dispatchedBy             User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
+  confirmedBy              User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
+  lines                    DispatchLine[]
+  followUpForDiscrepancies Discrepancy[]  @relation("DiscrepancyFollowUpDispatch")
 
   @@index([organizationId, status])
   @@index([toOrganizationId, departmentTag, status])
@@ -1639,12 +1641,50 @@ model DispatchLine {
   isSubstitute      Boolean  @default(false) @map("is_substitute")
   substituteNote    String?  @map("substitute_note")
 
-  dispatch     Dispatch               @relation(fields: [dispatchId], references: [id])
-  item         InventoryItem          @relation(fields: [inventoryItemId], references: [id])
-  transactions InventoryTransaction[]
+  dispatch      Dispatch               @relation(fields: [dispatchId], references: [id])
+  item          InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+  discrepancies Discrepancy[]
 
   @@index([dispatchId])
   @@map("dispatch_lines")
+}
+
+// ── Milestone Five — Dispatch & Branch Receiving (Session B) ───────────────
+// Automatic on mismatched confirm (Flow 10a), never a separate user action.
+// Numbered via ReferenceCounter ('DSC', hub-scoped) — same mechanism as
+// GRN/ADJ, deliberately not Dispatch.sequenceLabel's daily-label scheme.
+enum DiscrepancyStatus {
+  OPEN
+  RESOLVED
+}
+
+enum DiscrepancyOutcome {
+  FOUND_REDELIVERED
+  TRANSIT_LOSS_WRITEOFF
+  MISCOUNT_CORRECTED
+}
+
+model Discrepancy {
+  id                 String              @id @default(uuid())
+  dispatchLineId     String              @map("dispatch_line_id")
+  referenceNumber    String              @map("reference_number") // DSC-#### via ReferenceCounter
+  gapQty             Decimal             @map("gap_qty") @db.Decimal(12, 4) // confirmed - dispatched, signed
+  status             DiscrepancyStatus   @default(OPEN)
+  outcome            DiscrepancyOutcome?
+  resolutionNote     String?             @map("resolution_note")
+  resolvedById       String?             @map("resolved_by_id")
+  resolvedAt         DateTime?           @map("resolved_at")
+  followUpDispatchId String?             @map("follow_up_dispatch_id")
+  createdAt          DateTime            @default(now()) @map("created_at")
+
+  dispatchLine     DispatchLine @relation(fields: [dispatchLineId], references: [id])
+  resolvedBy       User?        @relation("DiscrepancyResolvedBy", fields: [resolvedById], references: [id])
+  followUpDispatch Dispatch?    @relation("DiscrepancyFollowUpDispatch", fields: [followUpDispatchId], references: [id])
+
+  @@index([status])
+  @@index([dispatchLineId])
+  @@map("discrepancies")
 }
 
 model InventoryItem {

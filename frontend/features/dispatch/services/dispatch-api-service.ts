@@ -8,12 +8,19 @@
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type {
+  ConfirmDeliveryInput,
   DeliveryNote,
+  DeliveryRow,
   DepartmentTag,
+  DiscrepancyDetail,
+  DiscrepancyRow,
   DispatchQueueRow,
   FulfilDepartmentInput,
   FulfilDetail,
+  ListDeliveriesQuery,
+  ListDiscrepanciesQuery,
   ListDispatchQueueQuery,
+  ResolveDiscrepancyInput,
 } from '../types';
 
 function token(): string | undefined {
@@ -47,4 +54,40 @@ export async function fulfilDepartment(
 
 export async function getDeliveryNote(dispatchId: string): Promise<DeliveryNote> {
   return apiClient.get<DeliveryNote>(`/dispatch/${dispatchId}/delivery-note`, token());
+}
+
+// --- Deliveries / confirm (C4/C5, Session B) --------------------------------
+
+export async function listDeliveries(query: ListDeliveriesQuery = {}): Promise<DeliveryRow[]> {
+  return apiClient.get<DeliveryRow[]>(`/deliveries${toQueryString(query)}`, token());
+}
+
+export async function getDeliveryDetail(dispatchId: string): Promise<DeliveryRow> {
+  return apiClient.get<DeliveryRow>(`/deliveries/${dispatchId}`, token());
+}
+
+export async function getDeliveryNoteForBranch(dispatchId: string): Promise<DeliveryNote> {
+  return apiClient.get<DeliveryNote>(`/deliveries/${dispatchId}/delivery-note`, token());
+}
+
+export async function confirmDelivery(dispatchId: string, input: ConfirmDeliveryInput): Promise<DeliveryNote> {
+  return apiClient.post<DeliveryNote>(`/deliveries/${dispatchId}/confirm`, input, token());
+}
+
+export async function confirmDeliveryOnBehalf(dispatchId: string, input: ConfirmDeliveryInput): Promise<DeliveryNote> {
+  return apiClient.post<DeliveryNote>(`/deliveries/${dispatchId}/confirm-on-behalf`, input, token());
+}
+
+// --- Discrepancy (C6/C7, Session B) -----------------------------------------
+
+export async function listDiscrepancies(query: ListDiscrepanciesQuery = {}): Promise<DiscrepancyRow[]> {
+  return apiClient.get<DiscrepancyRow[]>(`/discrepancies${toQueryString(query)}`, token());
+}
+
+export async function getDiscrepancy(id: string): Promise<DiscrepancyDetail> {
+  return apiClient.get<DiscrepancyDetail>(`/discrepancies/${id}`, token());
+}
+
+export async function resolveDiscrepancy(id: string, input: ResolveDiscrepancyInput): Promise<DiscrepancyDetail> {
+  return apiClient.post<DiscrepancyDetail>(`/discrepancies/${id}/resolve`, input, token());
 }

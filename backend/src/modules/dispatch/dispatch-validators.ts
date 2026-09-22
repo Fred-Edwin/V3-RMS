@@ -109,6 +109,7 @@ export const DeliveryNoteLineSchema = z.object({
   usageUnit: z.string(),
   requestedQty: decimalString.nullable(),
   dispatchedQty: decimalString,
+  confirmedQty: decimalString.nullable(),
   isSubstitute: z.boolean(),
   substituteNote: z.string().nullable(),
 });
@@ -129,4 +130,91 @@ export const DeliveryNoteSchema = z.object({
 
 export const DispatchIdParamSchema = z.object({
   id: uuid,
+});
+
+// --- Deliveries / confirm (C4/C5, Session B) --------------------------------
+
+export const ListDeliveriesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+const confirmLineInputSchema = z.object({
+  dispatchLineId: uuid,
+  confirmedQty: nonNegativeDecimalString,
+});
+
+export const ConfirmDeliverySchema = z.object({
+  lines: z.array(confirmLineInputSchema).min(1),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+});
+
+export const DeliveryLineSchema = z.object({
+  dispatchLineId: uuid,
+  inventoryItemId: uuid,
+  itemName: z.string(),
+  usageUnit: z.string(),
+  requestedQty: decimalString.nullable(),
+  dispatchedQty: decimalString,
+  confirmedQty: decimalString.nullable(),
+  isSubstitute: z.boolean(),
+  substituteNote: z.string().nullable(),
+});
+
+export const DeliveryRowSchema = z.object({
+  id: uuid,
+  sequenceLabel: z.string(),
+  status: dispatchStatusSchema,
+  departmentTag: departmentTagSchema,
+  branchName: z.string(),
+  dispatchedByName: z.string().nullable(),
+  dispatchedAt: isoDate.nullable(),
+  confirmedByName: z.string().nullable(),
+  confirmedAt: isoDate.nullable(),
+  confirmedOnBehalf: z.boolean(),
+  lines: z.array(DeliveryLineSchema),
+});
+
+// --- Discrepancy (C6/C7, Session B) -----------------------------------------
+
+export const discrepancyStatusSchema = z.enum(['OPEN', 'RESOLVED']);
+export const discrepancyOutcomeSchema = z.enum(['FOUND_REDELIVERED', 'TRANSIT_LOSS_WRITEOFF', 'MISCOUNT_CORRECTED']);
+
+export const ListDiscrepanciesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+export const DiscrepancyRowSchema = z.object({
+  id: uuid,
+  referenceNumber: z.string(),
+  status: discrepancyStatusSchema,
+  outcome: discrepancyOutcomeSchema.nullable(),
+  gapQty: decimalString,
+  createdAt: isoDate,
+  resolvedAt: isoDate.nullable(),
+  resolvedByName: z.string().nullable(),
+  branchName: z.string(),
+  departmentTag: departmentTagSchema,
+  dispatchSequenceLabel: z.string(),
+  itemName: z.string(),
+  usageUnit: z.string(),
+  dispatchedQty: decimalString,
+  confirmedQty: decimalString.nullable(),
+});
+
+export const DiscrepancyDetailSchema = DiscrepancyRowSchema.extend({
+  resolutionNote: z.string().nullable(),
+  followUpDispatchId: uuid.nullable(),
+  costAtDispatch: decimalString,
+  confirmedByName: z.string().nullable(),
+  confirmedAt: isoDate.nullable(),
+});
+
+export const DiscrepancyIdParamSchema = z.object({
+  id: uuid,
+});
+
+export const ResolveDiscrepancySchema = z.object({
+  outcome: discrepancyOutcomeSchema,
+  resolutionNote: z.string().trim().min(1, 'A resolution note is required'),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
 });

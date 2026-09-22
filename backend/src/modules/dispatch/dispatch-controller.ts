@@ -1,12 +1,18 @@
 import type { Request, Response } from 'express';
 import { UnauthorizedError } from '../../utils/errors';
 import { dispatchService } from './dispatch-service';
+import { discrepancyService } from './discrepancy-service';
 import {
+  ConfirmDeliverySchema,
+  DiscrepancyIdParamSchema,
   DispatchDepartmentParamsSchema,
   DispatchIdParamSchema,
   DispatchRequisitionParamsSchema,
   FulfilDepartmentSchema,
+  ListDeliveriesQuerySchema,
+  ListDiscrepanciesQuerySchema,
   ListDispatchQueueQuerySchema,
+  ResolveDiscrepancySchema,
 } from './dispatch-validators';
 
 const requireActor = (req: Request) => {
@@ -42,5 +48,66 @@ export const dispatchController = {
     const { id } = DispatchIdParamSchema.parse(req.params);
     const data = await dispatchService.getDeliveryNoteForHub(actor, id);
     res.status(200).json({ success: true, data });
+  },
+
+  // ── Milestone Five, Session B — branch-side receiving ─────────────────────
+
+  listDeliveries: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ListDeliveriesQuerySchema.parse(req.query);
+    const data = await dispatchService.listDeliveries(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getDeliveryDetail: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DispatchIdParamSchema.parse(req.params);
+    const data = await dispatchService.getDeliveryDetail(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  getDeliveryNoteForBranch: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DispatchIdParamSchema.parse(req.params);
+    const data = await dispatchService.getDeliveryNoteForBranch(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  confirmDelivery: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DispatchIdParamSchema.parse(req.params);
+    const input = ConfirmDeliverySchema.parse(req.body);
+    const data = await dispatchService.confirmDelivery(actor, id, input);
+    res.status(200).json({ success: true, data, message: 'Delivery confirmed' });
+  },
+
+  confirmDeliveryOnBehalf: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DispatchIdParamSchema.parse(req.params);
+    const input = ConfirmDeliverySchema.parse(req.body);
+    const data = await dispatchService.confirmDeliveryOnBehalf(actor, id, input);
+    res.status(200).json({ success: true, data, message: 'Delivery confirmed on behalf' });
+  },
+
+  listDiscrepancies: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = ListDiscrepanciesQuerySchema.parse(req.query);
+    const data = await discrepancyService.listDiscrepancies(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getDiscrepancy: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DiscrepancyIdParamSchema.parse(req.params);
+    const data = await discrepancyService.getDiscrepancy(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
+  resolveDiscrepancy: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = DiscrepancyIdParamSchema.parse(req.params);
+    const input = ResolveDiscrepancySchema.parse(req.body);
+    const data = await discrepancyService.resolveDiscrepancy(actor, id, input);
+    res.status(200).json({ success: true, data, message: 'Discrepancy resolved' });
   },
 };

@@ -182,11 +182,11 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
                 type="button"
                 onClick={() => setActiveDept(s.departmentTag)}
                 className={
-                  'flex shrink-0 items-center gap-1.25 rounded-wds-sm px-3 py-1.5 ' +
+                  'flex shrink-0 items-center gap-[5px] rounded-wds-sm px-3 py-1.5 ' +
                   (isActive ? 'bg-wds-primary' : 'border border-wds-border')
                 }
               >
-                {isDone && !isActive ? <span className="size-1.25 shrink-0 rounded-full bg-wds-success-fg" /> : null}
+                {isDone && !isActive ? <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-wds-success-fg" /> : null}
                 <span className={'font-wds-sans text-wds-caption ' + (isActive ? 'font-semibold text-white' : 'text-wds-text-copy-muted')}>
                   {DEPARTMENT_LABEL[s.departmentTag]}
                 </span>
@@ -198,7 +198,7 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
 
       {section ? (
         <>
-          <div className="flex flex-col gap-3 px-wds-4 py-4.5">
+          <div className="flex flex-col gap-3 px-wds-4 py-[18px]">
             {dispatchError ? (
               <div className="rounded-wds-sm border border-wds-error-border bg-wds-error-bg px-3.5 py-2.5">
                 <div className="font-wds-sans text-wds-caption text-wds-error-fg">{dispatchError}</div>
@@ -207,12 +207,12 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
             {lines.map((line) => (
               <StepperLineCard key={line.inventoryItemId} line={line} onChange={(v) => setLineEdit(line.inventoryItemId, { dispatchQty: v })} />
             ))}
-            <button type="button" className="px-1 py-2.75 text-left font-wds-sans text-wds-body-sm text-wds-primary">
+            <button type="button" className="px-1 py-[11px] text-left font-wds-sans text-wds-body-sm text-wds-primary">
               + Add substitute line
             </button>
             {shortLines.length > 0 ? (
-              <div className="flex gap-2.25 py-3">
-                <span className="mt-1.25 size-1.5 shrink-0 rounded-full bg-wds-warning-fg" />
+              <div className="flex gap-[9px] py-3">
+                <span className="mt-[5px] size-1.5 shrink-0 rounded-full bg-wds-warning-fg" />
                 <div className="font-wds-sans text-wds-caption leading-[17px] text-wds-warning-fg">
                   {shortLines.length} line{shortLines.length === 1 ? '' : 's'} short —{' '}
                   {shortLines.map((l) => `${l.itemName}: ${l.dispatchQty} of ${l.requestedQty}`).join(', ')}. Not an error; the shortfall carries to{' '}

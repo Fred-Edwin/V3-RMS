@@ -15,3 +15,11 @@ export * from './types';
 // Session A screens.
 export { DispatchQueueFulfilScreen } from './components/screens/dispatch-queue-fulfil-screen';
 export { DeliveryNoteScreen } from './components/screens/delivery-note-screen';
+
+// Session B screens.
+export { BranchIncomingConfirmScreen } from './components/screens/branch-incoming-confirm-screen';
+export { BranchIncomingScreenMobile } from './components/screens/branch-incoming-screen-mobile';
+export { ConfirmReceiptScreenMobile } from './components/screens/confirm-receipt-screen-mobile';
+export { DiscrepancyResolutionScreen } from './components/screens/discrepancy-resolution-screen';
+export { DiscrepancyDetailScreen } from './components/screens/discrepancy-detail-screen';
+export { DiscrepanciesListScreen } from './components/screens/discrepancies-list-screen';

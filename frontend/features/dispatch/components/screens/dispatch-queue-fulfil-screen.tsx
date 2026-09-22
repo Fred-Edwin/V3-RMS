@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
 import { Topbar } from '@/components/app/shell/topbar';
@@ -201,6 +202,7 @@ export interface DispatchQueueFulfilScreenProps {
  * as a collapsed one-line summary inline, not a separate screen.
  */
 export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfilScreenProps) {
+  const router = useRouter();
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const queue = useDispatchQueue();
   const {
@@ -254,7 +256,15 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <Topbar breadcrumb={{ section: 'Central Store', screen: 'Dispatch' }} className="shrink-0" />
+      <Topbar
+        breadcrumb={{ section: 'Central Store', screen: 'Dispatch' }}
+        actions={
+          <Button variant="secondary" onClick={() => router.push('/app/inventory/discrepancies')}>
+            Discrepancies
+          </Button>
+        }
+        className="shrink-0"
+      />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="flex flex-col gap-1 px-8 pb-5 pt-7">
           <h1 className="font-wds-sans text-wds-h1 font-semibold tracking-tight text-wds-text-ink">Dispatch</h1>
@@ -290,27 +300,35 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                 <div className="text-center font-wds-sans text-wds-body-sm text-wds-text-copy-muted">Nothing waiting to dispatch.</div>
               </div>
             ) : (
-              queue.rows.map((row) => (
-                <a
-                  key={row.requisitionId}
-                  href={`/app/inventory/dispatch?id=${row.requisitionId}`}
-                  className={
-                    'flex flex-col gap-1 border-l-2 border-l-solid px-4 py-3 ' +
-                    (row.requisitionId === requisitionId ? 'border-l-wds-primary bg-wds-neutral-100' : 'border-l-transparent')
-                  }
-                >
-                  <div className="flex items-baseline justify-between">
-                    <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{row.branchName}</div>
-                    <div className="font-wds-mono text-wds-caption text-wds-warning-fg">{formatWait(row.openedAt)}</div>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-                      {requisitionTypeLabel(row.requisitionType)} · approved {formatTime(row.openedAt)}
+              queue.rows.map((row) => {
+                const href = `/app/inventory/dispatch?id=${row.requisitionId}`;
+                return (
+                  <a
+                    key={row.requisitionId}
+                    href={href}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                      e.preventDefault();
+                      router.push(href, { scroll: false });
+                    }}
+                    className={
+                      'flex cursor-pointer flex-col gap-1 border-l-2 border-l-solid px-4 py-3 transition-colors hover:bg-wds-neutral-100 ' +
+                      (row.requisitionId === requisitionId ? 'border-l-wds-primary bg-wds-neutral-100' : 'border-l-transparent')
+                    }
+                  >
+                    <div className="flex items-baseline justify-between">
+                      <div className="font-wds-sans text-wds-body font-semibold text-wds-text-ink">{row.branchName}</div>
+                      <div className="font-wds-mono text-wds-caption text-wds-warning-fg">{formatWait(row.openedAt)}</div>
                     </div>
-                    <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{outOfLabel(row)}</div>
-                  </div>
-                </a>
-              ))
+                    <div className="flex items-baseline justify-between">
+                      <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+                        {requisitionTypeLabel(row.requisitionType)} · approved {formatTime(row.openedAt)}
+                      </div>
+                      <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{outOfLabel(row)}</div>
+                    </div>
+                  </a>
+                );
+              })
             )}
           </div>
 

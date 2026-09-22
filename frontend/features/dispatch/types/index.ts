@@ -88,6 +88,7 @@ export interface DeliveryNoteLine {
   usageUnit: string;
   requestedQty: string | null;
   dispatchedQty: string;
+  confirmedQty: string | null;
   isSubstitute: boolean;
   substituteNote: string | null;
 }
@@ -104,4 +105,87 @@ export interface DeliveryNote {
   confirmedAt: string | null;
   confirmedOnBehalf: boolean;
   lines: DeliveryNoteLine[];
+}
+
+// --- Deliveries / confirm (C4/C5, Session B) --------------------------------
+
+export interface ListDeliveriesQuery {
+  limit?: number;
+}
+
+export interface DeliveryLine {
+  dispatchLineId: string;
+  inventoryItemId: string;
+  itemName: string;
+  usageUnit: string;
+  requestedQty: string | null;
+  dispatchedQty: string;
+  confirmedQty: string | null;
+  isSubstitute: boolean;
+  substituteNote: string | null;
+}
+
+export interface DeliveryRow {
+  id: string;
+  sequenceLabel: string;
+  status: DispatchStatus;
+  departmentTag: DepartmentTag;
+  branchName: string;
+  dispatchedByName: string | null;
+  dispatchedAt: string | null;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+  confirmedOnBehalf: boolean;
+  lines: DeliveryLine[];
+}
+
+export interface ConfirmLineInput {
+  dispatchLineId: string;
+  confirmedQty: string;
+}
+
+export interface ConfirmDeliveryInput {
+  lines: ConfirmLineInput[];
+  pin: string;
+}
+
+// --- Discrepancy (C6/C7, Session B) -----------------------------------------
+
+export type DiscrepancyStatus = 'OPEN' | 'RESOLVED';
+export type DiscrepancyOutcome = 'FOUND_REDELIVERED' | 'TRANSIT_LOSS_WRITEOFF' | 'MISCOUNT_CORRECTED';
+
+export interface ListDiscrepanciesQuery {
+  limit?: number;
+}
+
+export interface DiscrepancyRow {
+  id: string;
+  referenceNumber: string;
+  status: DiscrepancyStatus;
+  outcome: DiscrepancyOutcome | null;
+  gapQty: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedByName: string | null;
+  branchName: string;
+  departmentTag: DepartmentTag;
+  dispatchSequenceLabel: string;
+  itemName: string;
+  usageUnit: string;
+  dispatchedQty: string;
+  confirmedQty: string | null;
+}
+
+export interface DiscrepancyDetail extends DiscrepancyRow {
+  resolutionNote: string | null;
+  followUpDispatchId: string | null;
+  costAtDispatch: string;
+  confirmedByName: string | null;
+  confirmedAt: string | null;
+}
+
+export interface ResolveDiscrepancyInput {
+  outcome: DiscrepancyOutcome;
+  resolutionNote: string;
+  pin: string;
 }
