@@ -43,6 +43,10 @@ tracking the Prep route). Full outcome log: `milestone-3-plan.md` §5.
 a discarded prior iteration. Milestones here are workflow-based groups, not
 phases.
 
+**Milestone Five (Dispatch & Branch Receiving) — screen-set approved
+2026-09-21.** See the full entry below (after Milestone Four's Deferred
+note) for what changed this pass. Ready for Step 5 planning.
+
 **Milestone Four (Requisition & Branch Approval) — screen-set review
 underway (2026-09-21).** On inspection, most of the screen group marked
 DESIGNED-REDO/MISSING in `02-screens-by-role.md` was stale documentation, not
@@ -80,6 +84,52 @@ This is an *addition* to a shipped screen, not a redesign — the drawer keeps
 working exactly as today for every category that leaves the field blank.
 Track alongside the Milestone Four Step 5 plan, not before.
 
+**Milestone Five (Dispatch & Branch Receiving) — screen-set APPROVED
+2026-09-21.** Same pattern as Milestone Four: most of the screen group
+marked MISSING in `02-screens-by-role.md` turned out to already exist,
+built in an earlier pass — this session consolidated the existing
+artboards onto one Paper page (`Milestone Five · Dispatch & Branch
+Receiving`, 20 artboards / 7 rows) and did a real redesign pass against the
+Milestone Four master-detail pattern and `docs/DESIGN_SYSTEM.md` §13. Real
+changes this pass:
+- **C1/C2 merged into one master-detail screen** (Dispatch queue + Fulfil),
+  matching Milestone Four's B1 pattern — branch list left, department
+  sections right, replacing the old three-separate-screens flow.
+- **Signature is per-department, not per-branch** — confirmed against
+  `02-flows.md` Flow 9 (each department is its own signed document with its
+  own delivery note); each department section gets its own "Sign & dispatch
+  [department]" action and collapses to a read-only summary once signed.
+- **Status progression made visible on the Dispatch screen**: a signed
+  section now shows Awaiting → In Transit (amber) → Confirmed (green), so
+  the Store Manager can see receipt confirmation without a separate screen.
+  Dropped an earlier invented "Arrived · unconfirmed" state — the flow docs
+  only define In Transit and Confirmed; no physical-arrival event exists in
+  the data model.
+- **Minimal C7 (discrepancy alert entry) pulled forward from its
+  Milestone-Six-scoped slot** — a Discrepancies list (Store Manager: all
+  branches, resolves; Branch Manager: own branch, read-only) with
+  period/branch filters, linked from a KPI-adjacent banner on both the
+  Dispatch and Deliveries screens. The full alert inbox (dashboard-wide
+  notification center, Director scope) stays out of scope for M5.
+  Discrepancy resolution itself (3 signed outcomes: found & re-delivered /
+  transit loss write-off / miscount corrected) already existed on the Store
+  Manager's own page and was pulled into this set, matching Flow 11 exactly.
+- **Delivery Note on-screen view rebuilt** and wired to the Dispatch
+  screen's "View note" link — mistakenly deleted mid-session as
+  "superseded," then restored once flagged; print stylesheet is unchanged
+  (already designed, out of scope for this pass).
+- **Dispatch numbering switched** from an invented persistent ID
+  (`DSP-####`) to a daily per-branch sequence ("Dispatch 4 · Nyeri Town ·
+  17 Sep") across every screen that references it.
+- **Mobile screens explicitly relabeled by ownership** — the Attendant
+  mobile Dispatch/Fulfil screens are shared with the Store Manager (per
+  O-SM1: SM is desktop-primary, reuses Attendant mobile on her phone, no
+  separate SM mobile artboards), and every Department Head mobile screen
+  says so on the artboard name.
+- **Attendant mobile Fulfil screen** gained department tabs (Kitchen /
+  Barista / Service / Housekeeping) so one department's lines show at a
+  time, consistent with the per-department signing decision.
+
 **Traces to:** `01-description.md` (the 10 domain Stages this breakdown
 groups), `02-screens-by-role.md` (per-screen DESIGNED/MISSING status),
 `docs/FEATURE_REDO_PLAYBOOK.md` (the per-feature Step 1–7 pipeline each
@@ -105,14 +155,18 @@ share one screen set or one causal chain, so nothing ships half-wired.
 | 1 | **Catalog, Suppliers & Restock Levels** | Foundational reference data (feeds Stage 1) | DESIGNED | ✅ **Shipped** 2026-09-15 |
 | 2 | **Receiving & Supplier AP** | Stage 1 (Buying/estimate) + Stage 2 (Receiving) + Stage 10 (Supplier payment) | DESIGNED — all 10 screens exist in Paper, desktop **and mobile** (mobile gap closed 2026-09-15: 7 screens got new mobile artboards, 1 got its missing mobile clone; Purchasing hub also got loading/error states) | ✅ **Shipped** 2026-09-18 — Step 5 plan approved 2026-09-16, Step 7 (S0–S9) complete, integration verified in a real browser |
 | 3 | **Prep** | Stage 3 | DESIGNED — all 8 screens exist in Paper, desktop and mobile (4 original + 4 added during 2026-09-19 owner review: Prep run detail, Prep History) | ✅ **Shipped** 2026-09-21 — S0+S1 as one session, verified in a real browser against approved designs |
-| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | DESIGNED — screen-set approved 2026-09-21, `milestone-4-plan.md` Step 5 approved same day | Not started — ready for Step 7, Session A |
-| 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | Mostly MISSING (dispatch queue, fulfil & dispatch, delivery note, branch incoming/confirm); mobile dispatch/fulfil DESIGNED | Not started |
+| 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | DESIGNED — screen-set approved 2026-09-21, `milestone-4-plan.md` Step 5 approved same day; Session B's mobile approval screens (M1–M10) designed and owner-approved 2026-09-21, see `milestone-4-sessions/HANDOFF-session-b.md` | Session A (Dept Head fill) ✅ shipped, commit `f5089cd`. Session B (Branch Manager approval + History) — build complete 2026-09-22 (backend `b4ce0a0`/`7ee1ab6`, frontend `d73f810`), verified end-to-end in a real browser against real data, `pnpm build && pnpm test` clean both sides. **Visual fidelity against Paper not yet done** — see HANDOFF-session-b.md's "Step 2 handoff" section for the follow-up session |
+| 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | DESIGNED — screen-set approved 2026-09-21, Paper page `Milestone Five · Dispatch & Branch Receiving` (20 artboards, 7 rows) | Not started — ready for Step 5 planning |
 | 6 | **Counting, Closing & Discrepancies** | Stage 8 (consumption — no new build, still count/waste-driven) + Stage 9 | Mixed — Central Store blind-count mobile DESIGNED; verification, branch EOD, discrepancy resolution mostly MISSING | Not started |
 
-**Milestones 3–6 have real design gaps** (MISSING / DESIGNED-REDO screens in
-`02-screens-by-role.md`) — each needs its own Paper design pass before Step 5
+**Milestone 6 still has real design gaps** (MISSING / DESIGNED-REDO screens in
+`02-screens-by-role.md`) — it needs its own Paper design pass before Step 5
 planning can start, the same way Milestone One needed Phase 0 (design system)
-before it could build. Milestone Two is the exception: fully designed already.
+before it could build. Milestones 2–5 are the exception: fully designed
+already (3–5 turned out to be mostly-already-designed once actually checked
+in Paper rather than trusting `02-screens-by-role.md`'s stale MISSING labels
+— see each milestone's entry above for what that review pass actually
+found and changed).
 
 ---
 
@@ -145,7 +199,8 @@ before it could build. Milestone Two is the exception: fully designed already.
 | 2 | `milestone-2-plan.md` (shipped 2026-09-18 — Step 7: S0–S9 all done) |
 | 3 | `milestone-3-plan.md` (Step 5 approved 2026-09-19, all four §6 questions resolved — ready for Step 7) |
 | 4 | `milestone-4-plan.md` (Step 5 approved 2026-09-21, all three §7 questions resolved — ready for Step 7, Session A: Dept Head fill, then Session B: Branch Manager approval + History) |
-| 5–6 | not yet created |
+| 5 | not yet created — screen-set approved 2026-09-21, ready for Step 5 planning |
+| 6 | not yet created |
 
 Session-level prompts and handoffs for a shipped milestone move to
 `archive/` once the milestone closes (see Milestone One's
