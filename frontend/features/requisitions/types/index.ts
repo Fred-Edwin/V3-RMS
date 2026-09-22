@@ -79,3 +79,102 @@ export interface UpsertRequisitionLinesInput {
   lines: UpsertRequisitionLineInput[];
   managerNote?: string;
 }
+
+// ─── Approval (Branch Manager) — Session B ─────────────────────────────────
+
+export type RequisitionDisplayStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED';
+
+export interface RequisitionApprovalLine {
+  id: string;
+  inventoryItemId: string;
+  itemName: string;
+  usageUnit: string;
+  categoryName: string | null;
+  parentCategoryName: string | null;
+  /** Always null this milestone — no branch-department ledger exists yet. */
+  onHand: null;
+  parAtRequest: string | null;
+  requestedQty: string | null;
+  approvedQty: string | null;
+  editReason: string | null;
+  isEdited: boolean;
+}
+
+export interface RequisitionApprovalSection {
+  departmentTag: DepartmentTag;
+  status: RequisitionSectionStatus;
+  managerNote: string | null;
+  returnedNote: string | null;
+  submittedAt: string | null;
+  submittedByName: string | null;
+  isAsRequested: boolean;
+  changedLineCount: number;
+  totalUnits: string;
+  lines: RequisitionApprovalLine[];
+}
+
+export interface RequisitionApprovalDetail {
+  id: string;
+  type: RequisitionType;
+  note: string | null;
+  status: RequisitionStatus;
+  openedAt: string;
+  approvedAt: string | null;
+  approvedByName: string | null;
+  sections: RequisitionApprovalSection[];
+}
+
+export interface RequisitionManagerListRow {
+  id: string;
+  type: RequisitionType;
+  note: string | null;
+  status: RequisitionStatus;
+  openedAt: string;
+  totalUnits: string;
+  sectionsSubmitted: number;
+  sectionsTotal: number;
+}
+
+export interface RequisitionHistoryRow {
+  id: string;
+  type: RequisitionType;
+  note: string | null;
+  openedAt: string;
+  approvedAt: string | null;
+  displayStatus: RequisitionDisplayStatus;
+  signedByName: string | null;
+  totalUnits: string;
+}
+
+export interface ApprovalLineEditInput {
+  id?: string;
+  inventoryItemId?: string;
+  approvedQty: string | null;
+  editReason?: string;
+  deleted?: boolean;
+}
+
+export interface UpsertApprovalLinesInput {
+  lines: ApprovalLineEditInput[];
+  fillMyself?: boolean;
+}
+
+export interface ApproveRequisitionInput {
+  pin: string;
+}
+
+export interface ReturnSectionInput {
+  note: string;
+}
+
+export interface ListRequisitionHistoryQuery {
+  from?: string;
+  to?: string;
+  status?: RequisitionDisplayStatus;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ListNeedsApprovalQuery {
+  limit?: number;
+}

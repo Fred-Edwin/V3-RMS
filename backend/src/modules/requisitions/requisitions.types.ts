@@ -11,15 +11,26 @@
 import type { z } from 'zod';
 
 import type {
+  ApproveRequisitionSchema,
   DepartmentTagParamSchema,
+  ListNeedsApprovalQuerySchema,
+  ListRequisitionHistoryQuerySchema,
   ListRequisitionsQuerySchema,
   OpenRequisitionSchema,
+  RequisitionApprovalDetailSchema,
+  RequisitionApprovalLineSchema,
+  RequisitionApprovalSectionSchema,
+  RequisitionHistoryRowSchema,
   RequisitionListRowSchema,
+  RequisitionManagerListRowSchema,
   RequisitionSectionDetailSchema,
   RequisitionSectionLineSchema,
   RequisitionSectionParamsSchema,
+  ReturnSectionSchema,
+  UpsertApprovalLinesSchema,
   UpsertRequisitionLinesSchema,
   departmentTagSchema,
+  requisitionDisplayStatusSchema,
   requisitionSectionStatusSchema,
   requisitionStatusSchema,
   requisitionTypeSchema,
@@ -45,3 +56,17 @@ export type RequisitionSectionParams = z.infer<typeof RequisitionSectionParamsSc
 export type RequisitionSectionLine = z.infer<typeof RequisitionSectionLineSchema>;
 export type RequisitionSectionDetail = z.infer<typeof RequisitionSectionDetailSchema>;
 export type UpsertRequisitionLinesInput = z.infer<typeof UpsertRequisitionLinesSchema>;
+
+// --- Approval (Branch Manager) — Session B --------------------------------
+
+export type RequisitionDisplayStatus = z.infer<typeof requisitionDisplayStatusSchema>;
+export type RequisitionApprovalLine = z.infer<typeof RequisitionApprovalLineSchema>;
+export type RequisitionApprovalSection = z.infer<typeof RequisitionApprovalSectionSchema>;
+export type RequisitionApprovalDetail = z.infer<typeof RequisitionApprovalDetailSchema>;
+export type RequisitionManagerListRow = z.infer<typeof RequisitionManagerListRowSchema>;
+export type RequisitionHistoryRow = z.infer<typeof RequisitionHistoryRowSchema>;
+export type UpsertApprovalLinesInput = z.infer<typeof UpsertApprovalLinesSchema>;
+export type ApproveRequisitionInput = z.infer<typeof ApproveRequisitionSchema>;
+export type ReturnSectionInput = z.infer<typeof ReturnSectionSchema>;
+export type ListRequisitionHistoryQuery = z.infer<typeof ListRequisitionHistoryQuerySchema>;
+export type ListNeedsApprovalQuery = z.infer<typeof ListNeedsApprovalQuerySchema>;

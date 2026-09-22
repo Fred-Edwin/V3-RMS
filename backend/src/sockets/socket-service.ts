@@ -42,6 +42,27 @@ export interface GoodsReceiptSignedPayload {
   signedByName: string;
 }
 
+export interface RequisitionSubmittedPayload {
+  requisitionId: string;
+  departmentTag: string;
+}
+
+export interface RequisitionDecisionPayload {
+  requisitionId: string;
+  decision: 'APPROVED' | 'REJECTED';
+}
+
+export interface RequisitionSectionReturnedPayload {
+  requisitionId: string;
+  departmentTag: string;
+  returnedNote: string;
+}
+
+export interface RequisitionNudgePayload {
+  requisitionId: string;
+  departmentTag: string;
+}
+
 const emitToStations = (
   organizationId: string,
   stations: PrepStation[],
@@ -89,6 +110,30 @@ export const socketService = {
   emitGoodsReceiptSigned: (userId: string, payload: GoodsReceiptSignedPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('goods-receipt:signed', payload);
+  },
+
+  /** A department head submits their section — notifies the branch's Manager(s). */
+  emitRequisitionSubmitted: (userId: string, payload: RequisitionSubmittedPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('requisition:submitted', payload);
+  },
+
+  /** The requisition is approved (or, in future, rejected) — notifies the heads who submitted. */
+  emitRequisitionDecision: (userId: string, payload: RequisitionDecisionPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('requisition:decision', payload);
+  },
+
+  /** A manager bounces a section back to its head. */
+  emitRequisitionSectionReturned: (userId: string, payload: RequisitionSectionReturnedPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('requisition:section-returned', payload);
+  },
+
+  /** A manager nudges a head to fill their not-yet-started section. */
+  emitRequisitionNudge: (userId: string, payload: RequisitionNudgePayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('requisition:nudge', payload);
   },
 
   emitOrderClosed: (organizationId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {

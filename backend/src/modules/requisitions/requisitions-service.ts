@@ -1,21 +1,39 @@
 import type { Request } from 'express';
-import { Prisma, type DepartmentTag } from '@prisma/client';
+import { Prisma, type DepartmentTag, type RequisitionSectionStatus } from '@prisma/client';
 import {
   requisitionRepository,
+  type RequisitionHistoryRowData,
+  type RequisitionForManagerList,
+  type RequisitionSectionForApproval,
   type RequisitionSectionWithLines,
+  type RequisitionWithAllSections,
   type RequisitionWithMySection,
 } from './requisitions-repository';
 import { inventoryItemRepository, restockLevelRepository } from '../inventory/inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
+import { authRepository } from '../../repositories/auth-repository';
 import { prisma } from '../../config/database';
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
+import { socketService } from '../../sockets/socket-service';
+import { fcmService } from '../../services/fcm-service';
+import { comparePin } from '../../utils/password';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import type {
+  ApproveRequisitionInput,
+  ListNeedsApprovalQuery,
+  ListRequisitionHistoryQuery,
   ListRequisitionsQuery,
   OpenRequisitionInput,
+  RequisitionApprovalDetail,
+  RequisitionApprovalLine,
+  RequisitionApprovalSection,
+  RequisitionHistoryRow,
   RequisitionListRow,
+  RequisitionManagerListRow,
   RequisitionSectionDetail,
   RequisitionSectionLine,
+  ReturnSectionInput,
+  UpsertApprovalLinesInput,
   UpsertRequisitionLinesInput,
 } from './requisitions.types';
 
@@ -33,6 +51,19 @@ const toDecimalString = (value: Prisma.Decimal | null): string | null => (value 
 const assertOwnDepartment = (actor: Actor, departmentTag: DepartmentTag): void => {
   if (actor.departmentTag !== departmentTag) {
     throw new ForbiddenError('You may only access your own department');
+  }
+};
+
+/**
+ * Belt-and-braces alongside the route's `requireRole('MANAGER')` guard —
+ * matches how this module already double-checks department ownership in
+ * `assertOwnDepartment`. Bare `requireRole('MANAGER')` at the route layer,
+ * never `allowDepartmentHead(requireRole('MANAGER'))` — the latter would let
+ * a Kitchen head approve the whole branch requisition.
+ */
+const requireManager = (actor: Actor): void => {
+  if (actor.role !== 'MANAGER') {
+    throw new ForbiddenError('Only a Branch Manager may perform this action');
   }
 };
 
@@ -135,6 +166,191 @@ const resolveParAtRequest = async (
   if (!location) return null;
   const levels = await restockLevelRepository.findByItemIdsForLocation(organizationId, location.id, [inventoryItemId]);
   return levels.get(inventoryItemId) ?? null;
+};
+
+// ---------------------------------------------------------------------------
+// Session B — Branch Manager approval.
+// ---------------------------------------------------------------------------
+
+/**
+ * `'14' !== Decimal('14.0000')` compared as strings — the highest-risk bug
+ * in this session. Compared naively, every line looks "edited" and demands a
+ * reason, making the feature unusable. Used by both the edit-reason guard and
+ * the `isAsRequested`/`isEdited` serializers so the two can never disagree.
+ */
+const decimalsEqual = (a: string | null, b: string | null): boolean => {
+  if (a === null || b === null) return a === b;
+  return new Prisma.Decimal(a).equals(new Prisma.Decimal(b));
+};
+
+/** `approvedQty ?? requestedQty` — drives `isAsRequested`, `totalUnits`, and the approve-time freeze. Defined once. */
+const effectiveQty = (line: { approvedQty: Prisma.Decimal | null; requestedQty: Prisma.Decimal | null }): Prisma.Decimal =>
+  line.approvedQty ?? line.requestedQty ?? new Prisma.Decimal(0);
+
+const sumUnits = (lines: { approvedQty: Prisma.Decimal | null; requestedQty: Prisma.Decimal | null }[]): string =>
+  lines.reduce((sum, l) => sum.add(effectiveQty(l)), new Prisma.Decimal(0)).toString();
+
+/**
+ * Widened from Session A's single-section `resolveParentCategoryNames` to
+ * take a flat line array so it works across all 5 sections in one query.
+ */
+const resolveParentCategoryNamesForLines = async (
+  lines: { item: { category: { parentCategoryId: string | null } | null } }[],
+): Promise<Map<string, string>> => {
+  const parentIds = [
+    ...new Set(lines.map((l) => l.item.category?.parentCategoryId).filter((id): id is string => Boolean(id))),
+  ];
+  if (parentIds.length === 0) return new Map();
+  const parents = await prisma.category.findMany({ where: { id: { in: parentIds } }, select: { id: true, name: true } });
+  return new Map(parents.map((p) => [p.id, p.name]));
+};
+
+const serializeApprovalLine = (
+  line: RequisitionSectionForApproval['lines'][number],
+  parentNamesByCategoryId: Map<string, string>,
+): RequisitionApprovalLine => {
+  const parentCategoryId = line.item.category?.parentCategoryId ?? null;
+  const requestedQty = toDecimalString(line.requestedQty);
+  const approvedQty = toDecimalString(line.approvedQty);
+  return {
+    id: line.id,
+    inventoryItemId: line.inventoryItemId,
+    itemName: line.item.name,
+    usageUnit: line.item.usageUnit,
+    categoryName: line.item.category?.name ?? null,
+    parentCategoryName: parentCategoryId ? (parentNamesByCategoryId.get(parentCategoryId) ?? null) : null,
+    onHand: null, // no branch-department ledger exists until Milestone Five — always null this milestone
+    parAtRequest: toDecimalString(line.parAtRequest),
+    requestedQty,
+    approvedQty,
+    editReason: line.editReason,
+    isEdited: !decimalsEqual(approvedQty, requestedQty),
+  };
+};
+
+const serializeApprovalSection = (
+  section: RequisitionSectionForApproval,
+  parentNamesByCategoryId: Map<string, string>,
+): RequisitionApprovalSection => {
+  const lines = section.lines.map((l) => serializeApprovalLine(l, parentNamesByCategoryId));
+  const changedLineCount = lines.filter((l) => l.isEdited).length;
+  return {
+    departmentTag: section.departmentTag,
+    status: section.status,
+    managerNote: section.managerNote,
+    returnedNote: section.returnedNote,
+    submittedAt: section.submittedAt ? section.submittedAt.toISOString() : null,
+    submittedByName: section.submittedBy?.name ?? null,
+    isAsRequested: changedLineCount === 0,
+    changedLineCount,
+    totalUnits: sumUnits(section.lines),
+    lines,
+  };
+};
+
+const serializeApprovalDetail = (
+  requisition: RequisitionWithAllSections,
+  parentNamesByCategoryId: Map<string, string>,
+): RequisitionApprovalDetail => ({
+  id: requisition.id,
+  type: requisition.type,
+  note: requisition.note,
+  status: requisition.status,
+  openedAt: requisition.openedAt.toISOString(),
+  approvedAt: requisition.approvedAt ? requisition.approvedAt.toISOString() : null,
+  approvedByName: requisition.approvedBy?.name ?? null,
+  sections: requisition.sections.map((s) => serializeApprovalSection(s, parentNamesByCategoryId)),
+});
+
+const serializeManagerListRow = (row: RequisitionForManagerList): RequisitionManagerListRow => {
+  const allLines = row.sections.flatMap((s) => s.lines);
+  return {
+    id: row.id,
+    type: row.type,
+    note: row.note,
+    status: row.status,
+    openedAt: row.openedAt.toISOString(),
+    totalUnits: sumUnits(allLines),
+    sectionsSubmitted: row.sections.filter((s) => s.status === 'SUBMITTED').length,
+    sectionsTotal: row.sections.length,
+  };
+};
+
+const deriveDisplayStatus = (row: RequisitionHistoryRowData): 'PENDING_APPROVAL' | 'APPROVED' | 'RETURNED' => {
+  if (row.status === 'APPROVED') return 'APPROVED';
+  if (row.sections.some((s) => s.status === 'RETURNED')) return 'RETURNED';
+  return 'PENDING_APPROVAL';
+};
+
+const serializeHistoryRow = (row: RequisitionHistoryRowData): RequisitionHistoryRow => ({
+  id: row.id,
+  type: row.type,
+  note: row.note,
+  openedAt: row.openedAt.toISOString(),
+  approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
+  displayStatus: deriveDisplayStatus(row),
+  // From `approvedBy` only, never `submittedBy` — a Paper mock shows a
+  // Department Head signing in History; that is mock-data drift, not spec.
+  signedByName: row.approvedBy?.name ?? null,
+  totalUnits: sumUnits(row.sections.flatMap((s) => s.lines)),
+});
+
+const NOT_SUBMITTED_STATUSES: RequisitionSectionStatus[] = ['NOT_STARTED', 'DRAFT'];
+
+/**
+ * Composed inline, fire-and-forget, after commit — the `receiving-service.ts`
+ * `notifyHubStoreManagersOfSignedReceipt` shape. Never awaited by the caller;
+ * a rejected promise here must never fail the write that triggered it.
+ */
+const notifyManagersOfSubmission = async (organizationId: string, requisitionId: string, departmentTag: DepartmentTag, actorId: string): Promise<void> => {
+  const managers = await requisitionRepository.findBranchManagers(organizationId);
+  const recipientIds = managers.map((m) => m.id).filter((id) => id !== actorId);
+  if (recipientIds.length === 0) return;
+  const payload = { requisitionId, departmentTag };
+  recipientIds.forEach((id) => socketService.emitRequisitionSubmitted(id, payload));
+  await fcmService.sendRequisitionSubmittedPush(organizationId, payload);
+};
+
+const notifyHeadsOfApproval = async (
+  organizationId: string,
+  requisition: RequisitionWithAllSections,
+  actorId: string,
+): Promise<void> => {
+  const seen = new Set<string>();
+  for (const section of requisition.sections) {
+    if (section.status !== 'SUBMITTED') continue; // unsubmitted sections were never part of this decision
+    const heads = await requisitionRepository.findSectionHeads(organizationId, section.departmentTag, section.submittedBy?.id ?? null);
+    for (const head of heads) {
+      if (head.id === actorId || seen.has(head.id)) continue;
+      seen.add(head.id);
+      const payload = { requisitionId: requisition.id, decision: 'APPROVED' as const };
+      socketService.emitRequisitionDecision(head.id, payload);
+      await fcmService.sendRequisitionDecisionPush(head.id, payload);
+    }
+  }
+};
+
+const notifyHeadOfReturn = async (
+  headId: string | null,
+  departmentTag: DepartmentTag,
+  requisitionId: string,
+  actorId: string,
+  returnedNote: string,
+): Promise<void> => {
+  if (!headId || headId === actorId) return;
+  const payload = { requisitionId, departmentTag, returnedNote };
+  socketService.emitRequisitionSectionReturned(headId, payload);
+  await fcmService.sendRequisitionSectionReturnedPush(headId, payload);
+};
+
+const notifyHeadOfNudge = async (organizationId: string, departmentTag: DepartmentTag, requisitionId: string, actorId: string): Promise<void> => {
+  const heads = await requisitionRepository.findSectionHeads(organizationId, departmentTag, null);
+  for (const head of heads) {
+    if (head.id === actorId) continue;
+    const payload = { requisitionId, departmentTag };
+    socketService.emitRequisitionNudge(head.id, payload);
+    await fcmService.sendRequisitionNudgePush(head.id, payload);
+  }
 };
 
 export const requisitionService = {
@@ -268,6 +484,11 @@ export const requisitionService = {
       await requisitionRepository.markPendingApprovalIfOpen(requisitionId, tx);
     });
 
+    // Session A shipped this endpoint with no notification at all — the
+    // manager's "Awaiting your approval" badge never lit up. Fire-and-forget,
+    // after commit, actor filtered out.
+    void notifyManagersOfSubmission(organizationId, requisitionId, departmentTag, actor.id);
+
     return requisitionService.getSection(actor, requisitionId, departmentTag);
   },
 
@@ -293,5 +514,237 @@ export const requisitionService = {
     }
 
     return requisitionService.getSection(actor, requisitionId, departmentTag);
+  },
+
+  // -------------------------------------------------------------------------
+  // Session B — Branch Manager approval.
+  // -------------------------------------------------------------------------
+
+  /** Manager's needs-approval list. Deliberately a new literal path (decision #9) — Session A's list contract stays untouched. */
+  listForManagerApproval: async (actor: Actor, query: ListNeedsApprovalQuery): Promise<RequisitionManagerListRow[]> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+    const rows = await requisitionRepository.findAllByOrganizationForManager(organizationId, query.limit);
+    return rows.map(serializeManagerListRow);
+  },
+
+  getRequisitionForApproval: async (actor: Actor, requisitionId: string): Promise<RequisitionApprovalDetail> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    if (!requisition) throw new NotFoundError('Requisition not found');
+
+    const parentNames = await resolveParentCategoryNamesForLines(requisition.sections.flatMap((s) => s.lines));
+    return serializeApprovalDetail(requisition, parentNames);
+  },
+
+  listHistory: async (actor: Actor, query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryRow[]> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const rows = await requisitionRepository.findHistoryRows(organizationId, {
+      from: query.from ? new Date(query.from) : undefined,
+      to: query.to ? new Date(query.to) : undefined,
+      status: query.status,
+      limit: query.limit,
+      cursor: query.cursor,
+    });
+    const serialized = rows.map(serializeHistoryRow);
+    // status is derived, not stored — filter after serializing so a single
+    // derivation function is the only place displayStatus is computed.
+    return query.status ? serialized.filter((r) => r.displayStatus === query.status) : serialized;
+  },
+
+  /**
+   * Bulk line edit for the manager's review screen: qty edits (with the
+   * server-enforced edit-reason rule — Zod can't see `requestedQty`, it's
+   * server state), manager-added lines (`requestedQty` stays null, decision
+   * #5), soft-deletes, and the `fillMyself` section-level transition.
+   * Rejected once the requisition is APPROVED.
+   */
+  upsertApprovalLines: async (
+    actor: Actor,
+    requisitionId: string,
+    departmentTag: DepartmentTag,
+    input: UpsertApprovalLinesInput,
+  ): Promise<RequisitionApprovalDetail> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    if (!requisition) throw new NotFoundError('Requisition not found');
+    if (requisition.status === 'APPROVED') {
+      throw new ConflictError('This requisition has already been approved');
+    }
+
+    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, organizationId);
+    if (!section) throw new NotFoundError('Requisition section not found');
+    const existingById = new Map(section.lines.map((l) => [l.id, l]));
+
+    const newItemIds = input.lines.filter((l) => !l.id && l.inventoryItemId).map((l) => l.inventoryItemId!);
+    if (newItemIds.length > 0) {
+      const hubOrgId = await requireHubOrganization();
+      const liveItems = await inventoryItemRepository.findLiveByIds(newItemIds, hubOrgId);
+      if (liveItems.length !== new Set(newItemIds).size) {
+        throw new NotFoundError('One or more items were not found');
+      }
+    }
+
+    if (input.fillMyself && !NOT_SUBMITTED_STATUSES.includes(section.status)) {
+      throw new ConflictError('This section has already been submitted');
+    }
+
+    for (const line of input.lines) {
+      if (line.deleted || !line.id) continue;
+      const existing = existingById.get(line.id);
+      if (!existing) throw new NotFoundError('Requisition line not found');
+      const existingRequestedQty = toDecimalString(existing.requestedQty);
+      if (!decimalsEqual(line.approvedQty, existingRequestedQty) && !line.editReason) {
+        throw new ValidationError('An edit reason is required when the approved quantity differs from what was requested');
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const line of input.lines) {
+        if (line.id && line.deleted) {
+          await requisitionRepository.softDeleteLine(line.id, tx);
+        } else if (line.id) {
+          const approvedQty = line.approvedQty === null ? null : new Prisma.Decimal(line.approvedQty);
+          await requisitionRepository.updateLineApproval(line.id, { approvedQty, editReason: line.editReason ?? null, editedById: actor.id }, tx);
+        } else if (line.inventoryItemId && line.approvedQty !== null) {
+          await requisitionRepository.createManagerLine(
+            section.id,
+            { inventoryItemId: line.inventoryItemId, approvedQty: new Prisma.Decimal(line.approvedQty), editedById: actor.id, editReason: line.editReason ?? null },
+            tx,
+          );
+        }
+      }
+
+      if (input.fillMyself) {
+        // A manager-filled section counts as settled (decision #6) —
+        // SUBMITTED, attributed to the manager, no new enum value.
+        const count = await requisitionRepository.setSectionStatus(
+          section.id,
+          NOT_SUBMITTED_STATUSES,
+          { status: 'SUBMITTED', submittedById: actor.id, submittedAt: new Date() },
+          tx,
+        );
+        if (count === 0) throw new ConflictError('This section has already been submitted');
+        // Easy to miss: without this the requisition stays at OPEN and
+        // approve then refuses with "nothing to approve".
+        await requisitionRepository.markPendingApprovalIfOpen(requisitionId, tx);
+      }
+    });
+
+    return requisitionService.getRequisitionForApproval(actor, requisitionId);
+  },
+
+  /** SUBMITTED -> RETURNED with the manager's note. Rejected on an already-approved requisition. */
+  returnSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag, input: ReturnSectionInput): Promise<RequisitionApprovalDetail> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    if (!requisition) throw new NotFoundError('Requisition not found');
+    if (requisition.status === 'APPROVED') {
+      throw new ConflictError('This requisition has already been approved');
+    }
+
+    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, organizationId);
+    if (!section) throw new NotFoundError('Requisition section not found');
+
+    const count = await prisma.$transaction((tx) =>
+      requisitionRepository.setSectionStatus(section.id, ['SUBMITTED'], { status: 'RETURNED', returnedNote: input.note }, tx),
+    );
+    if (count === 0) throw new ConflictError('This section is not currently submitted');
+
+    void notifyHeadOfReturn(section.submittedById, departmentTag, requisitionId, actor.id, input.note);
+
+    return requisitionService.getRequisitionForApproval(actor, requisitionId);
+  },
+
+  /** Pure notification — no state change. Section must be NOT_STARTED/DRAFT (a submitted section needs no nudge). */
+  nudgeHead: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<void> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, organizationId);
+    if (!section) throw new NotFoundError('Requisition section not found');
+    if (!NOT_SUBMITTED_STATUSES.includes(section.status)) {
+      throw new ConflictError('This section has already been submitted');
+    }
+
+    void notifyHeadOfNudge(organizationId, departmentTag, requisitionId, actor.id);
+  },
+
+  /**
+   * The hard gate: sign once with a PIN to approve the whole requisition
+   * (decision #7 — one signature, not per-department; per-department signing
+   * is Milestone Five's dispatch pattern).
+   */
+  approveRequisition: async (actor: Actor, requisitionId: string, input: ApproveRequisitionInput): Promise<RequisitionApprovalDetail> => {
+    requireManager(actor);
+    const organizationId = requireBranchOrg(actor);
+
+    const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
+    if (!actorWithPin || !actorWithPin.pinHash) {
+      throw new UnauthorizedError('No PIN is set for this account');
+    }
+    const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
+    if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
+
+    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    if (!requisition) throw new NotFoundError('Requisition not found');
+    if (requisition.status === 'APPROVED') {
+      throw new ConflictError('This requisition has already been approved');
+    }
+    if (!requisition.sections.some((s) => s.status === 'SUBMITTED')) {
+      throw new ConflictError('Nothing in this requisition is ready for approval yet');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Recall race guard: re-assert every currently-SUBMITTED section is
+      // *still* SUBMITTED via the guarded updateMany — it takes row locks, a
+      // count() under READ COMMITTED does not. Writing a value to itself
+      // looks pointless; it is the only way to detect a concurrent recall
+      // between the pre-load above and this transaction. Don't "simplify"
+      // this to a plain count() — the two claims below (§3, §4) tests catch it.
+      const submittedSectionIds = requisition.sections.filter((s) => s.status === 'SUBMITTED').map((s) => s.id);
+      for (const sectionId of submittedSectionIds) {
+        const count = await requisitionRepository.setSectionStatus(sectionId, ['SUBMITTED'], { status: 'SUBMITTED' }, tx);
+        if (count === 0) {
+          throw new ConflictError('A department recalled their section while you were reviewing.');
+        }
+      }
+
+      // Freeze: any line still at approvedQty === null on a submitted
+      // section is written to requestedQty. Without this an approved
+      // requisition has null approvedQty rows and Milestone Five's dispatch
+      // has nothing to pick, with no way to tell "approved as requested"
+      // from "never reviewed". One UPDATE per line — fine at this scale
+      // (a 60-line requisition = 60 writes in one transaction); don't optimise.
+      for (const section of requisition.sections) {
+        if (section.status !== 'SUBMITTED') continue; // unsubmitted sections are silently ignored — decision #3's derived "Send without"
+        for (const line of section.lines) {
+          if (line.approvedQty === null) {
+            await requisitionRepository.updateLineApproval(line.id, { approvedQty: line.requestedQty, editReason: null, editedById: actor.id }, tx);
+          }
+        }
+      }
+
+      const approvedCount = await requisitionRepository.markApprovedIfPendingApproval(requisitionId, actor.id, tx);
+      if (approvedCount === 0) {
+        throw new ConflictError('This requisition was already approved by another manager.');
+      }
+    });
+
+    const approved = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    if (!approved) throw new NotFoundError('Requisition not found');
+
+    void notifyHeadsOfApproval(organizationId, approved, actor.id);
+
+    const parentNames = await resolveParentCategoryNamesForLines(approved.sections.flatMap((s) => s.lines));
+    return serializeApprovalDetail(approved, parentNames);
   },
 };

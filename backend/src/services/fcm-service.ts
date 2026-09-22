@@ -729,7 +729,7 @@ export const fcmService = {
             badge: '/android-chrome-192x192.png',
             tag: `requisition-submitted-${payload.requisitionId}`,
           },
-          fcmOptions: { link: '/app/inventory/requisitions' },
+          fcmOptions: { link: '/app/branch/requisitions' },
         },
         data: { type: 'requisition_submitted', requisitionId: payload.requisitionId },
       });
@@ -763,12 +763,70 @@ export const fcmService = {
             badge: '/android-chrome-192x192.png',
             tag: `requisition-decision-${payload.requisitionId}`,
           },
-          fcmOptions: { link: '/app/inventory/my-requisitions' },
+          fcmOptions: { link: '/app/requisitions' },
         },
         data: { type: 'requisition_decision', requisitionId: payload.requisitionId, decision: payload.decision },
       });
     } catch (error) {
       logger.warn({ error, payload }, 'Failed to send requisition decision FCM push');
+    }
+  },
+
+  /** Notifies a Department Head their section was bounced back by the Branch Manager. Fire-and-forget. */
+  sendRequisitionSectionReturnedPush: async (
+    departmentHeadId: string,
+    payload: { requisitionId: string; departmentTag: string; returnedNote: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(departmentHeadId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Section returned',
+            body: `Your ${payload.departmentTag} section was returned: ${payload.returnedNote}`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `requisition-returned-${payload.requisitionId}`,
+          },
+          fcmOptions: { link: '/app/requisitions' },
+        },
+        data: { type: 'requisition_section_returned', requisitionId: payload.requisitionId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send requisition section returned FCM push');
+    }
+  },
+
+  /** Notifies a Department Head the Branch Manager is waiting on their not-yet-started section. Fire-and-forget. */
+  sendRequisitionNudgePush: async (
+    departmentHeadId: string,
+    payload: { requisitionId: string; departmentTag: string },
+  ): Promise<void> => {
+    try {
+      const token = await authRepository.findFcmToken(departmentHeadId);
+      if (!firebaseMessaging || !env.VAPID_KEY || !token) return;
+
+      await firebaseMessaging.send({
+        token,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Requisition waiting on you',
+            body: `Your ${payload.departmentTag} section still needs to be filled`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `requisition-nudge-${payload.requisitionId}`,
+          },
+          fcmOptions: { link: '/app/requisitions' },
+        },
+        data: { type: 'requisition_nudge', requisitionId: payload.requisitionId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send requisition nudge FCM push');
     }
   },
 

@@ -126,3 +126,123 @@ export const UpsertRequisitionLinesSchema = z.object({
 });
 
 export { positiveDecimalString };
+
+// ---------------------------------------------------------------------------
+// Session B — Branch Manager approval. Appended as siblings; nothing above
+// this line is mutated (Session A's contract is frozen — see file header).
+// ---------------------------------------------------------------------------
+
+/**
+ * Approval-facing line. `onHand` is always null this milestone — no branch-
+ * department ledger exists yet (see milestone-4-plan.md §7 Q1). Encoding it
+ * as `z.null()` rather than omitting the field means Milestone Five can widen
+ * it to `decimalString.nullable()` and the frontend renders real numbers with
+ * zero frontend change.
+ */
+export const RequisitionApprovalLineSchema = z.object({
+  id: uuid,
+  inventoryItemId: uuid,
+  itemName: z.string(),
+  usageUnit: z.string(),
+  categoryName: z.string().nullable(),
+  parentCategoryName: z.string().nullable(),
+  onHand: z.null(),
+  parAtRequest: decimalString.nullable(),
+  requestedQty: decimalString.nullable(),
+  approvedQty: decimalString.nullable(),
+  editReason: z.string().nullable(),
+  isEdited: z.boolean(),
+});
+
+export const RequisitionApprovalSectionSchema = z.object({
+  departmentTag: departmentTagSchema,
+  status: requisitionSectionStatusSchema,
+  managerNote: z.string().nullable(),
+  returnedNote: z.string().nullable(),
+  submittedAt: isoDate.nullable(),
+  submittedByName: z.string().nullable(),
+  isAsRequested: z.boolean(),
+  changedLineCount: z.number().int().min(0),
+  totalUnits: decimalString,
+  lines: z.array(RequisitionApprovalLineSchema),
+});
+
+export const RequisitionApprovalDetailSchema = z.object({
+  id: uuid,
+  type: requisitionTypeSchema,
+  note: z.string().nullable(),
+  status: requisitionStatusSchema,
+  openedAt: isoDate,
+  approvedAt: isoDate.nullable(),
+  approvedByName: z.string().nullable(),
+  sections: z.array(RequisitionApprovalSectionSchema),
+});
+
+export const RequisitionManagerListRowSchema = z.object({
+  id: uuid,
+  type: requisitionTypeSchema,
+  note: z.string().nullable(),
+  status: requisitionStatusSchema,
+  openedAt: isoDate,
+  totalUnits: decimalString,
+  sectionsSubmitted: z.number().int().min(0),
+  sectionsTotal: z.number().int().min(0),
+});
+
+/**
+ * `displayStatus` is derived, never stored: RETURNED = any section returned;
+ * no DISPATCHED variant (not modelled until Milestone Five). `signedByName`
+ * comes from `approvedBy` only, never `submittedBy` — a Paper mock shows a
+ * Department Head signing in History, which is mock-data drift, not spec.
+ */
+export const requisitionDisplayStatusSchema = z.enum(['PENDING_APPROVAL', 'APPROVED', 'RETURNED']);
+
+export const RequisitionHistoryRowSchema = z.object({
+  id: uuid,
+  type: requisitionTypeSchema,
+  note: z.string().nullable(),
+  openedAt: isoDate,
+  approvedAt: isoDate.nullable(),
+  displayStatus: requisitionDisplayStatusSchema,
+  signedByName: z.string().nullable(),
+  totalUnits: decimalString,
+});
+
+// --- Requests ------------------------------------------------------------
+
+const approvalLineEditSchema = z
+  .object({
+    id: uuid.optional(),
+    inventoryItemId: uuid.optional(),
+    approvedQty: nonNegativeDecimalString.nullable(),
+    editReason: z.string().trim().min(1).optional(),
+    deleted: z.boolean().optional(),
+  })
+  .refine((line) => Boolean(line.id) || Boolean(line.inventoryItemId), {
+    message: 'each line must include either id (existing line) or inventoryItemId (new line)',
+  });
+
+export const UpsertApprovalLinesSchema = z.object({
+  lines: z.array(approvalLineEditSchema),
+  fillMyself: z.boolean().optional(),
+});
+
+export const ApproveRequisitionSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+});
+
+export const ReturnSectionSchema = z.object({
+  note: z.string().trim().min(1, 'A reason is required'),
+});
+
+export const ListRequisitionHistoryQuerySchema = z.object({
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  status: requisitionDisplayStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: uuid.optional(),
+});
+
+export const ListNeedsApprovalQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
