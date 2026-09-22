@@ -15,6 +15,17 @@ export * from './types';
 // (Milestone Four, Session A), department-scoped item search.
 export { listItems } from './services';
 
+// SignSheetDialog / SignedBySignature live in components/app/shell/sign-sheet
+// (genuinely shared: receiving signs, requisitions sign, Milestone Five's
+// dispatch will sign too) — re-exported here so existing `@/features/
+// inventory` imports keep working.
+export { SignSheetDialog, SignedBySignature } from '@/components/app/shell/sign-sheet';
+export type {
+  SignSheetDialogProps,
+  SignSheetDocumentSummary,
+  SignedBySignatureProps,
+} from '@/components/app/shell/sign-sheet';
+
 // Milestone One screens.
 export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
 export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';
