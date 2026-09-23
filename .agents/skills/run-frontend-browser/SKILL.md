@@ -1,29 +1,17 @@
 ---
 name: run-frontend-browser
-description: Use when you need to manually verify a Wendo RMS frontend page in a real browser (screenshot, click through a flow, check console errors) — e.g. after building/editing a page under frontend/app, before marking a UI task done. Covers launching the Next.js dev server correctly and driving headless Chromium via the project's own Playwright install, with no global install or path hacks needed.
+description: Use when you need to manually verify a Wendo RMS frontend page in a real browser (screenshot, click through a flow, check console errors) — e.g. after building/editing a page under frontend/app, before marking a UI task done. Covers launching the Next.js dev server correctly and the project-specific gotchas that otherwise waste time, then drives the browser via the chrome-devtools MCP.
 ---
 
 # Running the frontend in a real browser for manual verification
 
-This project's AGENTS.md requires manually exercising UI changes in a browser
-before calling them done. This skill is the fast, correct path — it exists
-because doing this the naive way (global playwright install, scripts run from
-`/tmp`) wastes a lot of time on path-resolution dead ends. Don't rediscover
-that; follow this directly.
-
-## The one fact that matters
-
-**`frontend/package.json` already has `@playwright/test` as a devDependency,
-with Chromium already installed in this environment's cache.** You do not
-need `npm install -g playwright`, `npx playwright install`, or any hashed
-`pnpm global` path. The only real requirement is:
-
-**Your driver script must live somewhere under `frontend/`** (e.g.
-`frontend/.scratch/`, already gitignored), not in `/tmp` or the harness's
-scratchpad directory. Node's ESM resolver walks up from the *script's own
-file location* to find `node_modules`, not from `cwd` — a script outside
-`frontend/` will fail with `ERR_MODULE_NOT_FOUND` even if you `cd` into
-`frontend` first before running it.
+This project's CLAUDE.md requires manually exercising UI changes in a browser
+before calling them done. Use the **chrome-devtools MCP** to drive the
+browser (navigate, click, screenshot, read console) — it's already
+configured for this project and needs no setup of its own. This skill exists
+for the parts chrome-devtools MCP can't tell you: how to get this project's
+dev server into a working state, and the project-specific false positives
+that otherwise waste time.
 
 ## Steps
 
@@ -45,39 +33,15 @@ file location* to find `node_modules`, not from `cwd` — a script outside
    `"redis":"down"` in the health response is a known, pre-existing sandbox
    quirk in this environment — not something you caused, don't chase it.
 
-2. **Write the driver script inside `frontend/.scratch/`** (create the dir if
-   needed — it's gitignored, safe to leave files there):
-   ```js
-   // frontend/.scratch/check-page.mjs
-   import { chromium } from '@playwright/test';
+2. **Drive the browser via chrome-devtools MCP** — navigate to the target
+   page, log in with a seeded account (below), click through the flow,
+   take a screenshot, and read console messages. Wait ~1.5s after
+   navigation before screenshotting so entrance animations settle (see
+   gotchas below) — don't chain actions immediately after `waitForURL`
+   or its MCP equivalent.
 
-   const browser = await chromium.launch({ args: ['--no-sandbox'] });
-   const page = await (await browser.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
-
-   const consoleErrors = [];
-   page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
-   page.on('pageerror', (err) => consoleErrors.push(`pageerror: ${err.message}`));
-
-   await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
-   await page.fill('input[type="email"]', 'manager1.centralstore@dev.test'); // or whichever seeded account fits the role under test
-   await page.fill('input[type="password"]', 'password123');
-   await page.click('button[type="submit"]');
-   await page.waitForURL('**/app/inventory/dashboard', { timeout: 15000 }); // adjust to the target route
-   await page.waitForTimeout(1500); // let entrance animations (animate-fade-up, 300ms) settle before screenshotting
-   await page.screenshot({ path: 'frontend/.scratch/screenshot.png', fullPage: true });
-   console.log('Console errors:', JSON.stringify(consoleErrors, null, 2));
-   await browser.close();
-   ```
-
-3. **Run it from inside `frontend/`:**
-   ```bash
-   cd frontend
-   node .scratch/check-page.mjs
-   ```
-
-4. **Look at the screenshot** (`Read` tool on the PNG path) and check the
-   console-errors output. A page can render its shell while every data fetch
-   fails — always check both.
+3. **Look at the screenshot and check console errors together.** A page can
+   render its shell while every data fetch fails — always check both.
 
 ## Gotchas specific to this project
 
@@ -92,7 +56,7 @@ file location* to find `node_modules`, not from `cwd` — a script outside
 - **Don't mistake a fade-in for a bug.** Pages use `animate-fade-up` (300ms
   entrance animation via Tailwind, opacity 0→1). A screenshot taken
   immediately after navigation can look washed-out — wait ~1.5s after the
-  page settles before screenshotting, not immediately after `waitForURL`.
+  page settles before screenshotting, not immediately after navigation.
 - **Don't mistake React StrictMode's double-invoke for an infinite refetch
   loop.** In dev mode, effects intentionally fire twice on mount. If you see
   a handful of duplicate API calls right after page load and then nothing
