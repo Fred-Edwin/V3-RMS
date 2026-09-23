@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
@@ -128,7 +129,14 @@ export function SignSheetDialog({
               onClick={() => onSubmit(pin)}
               disabled={pin.length !== PIN_LENGTH || submitting}
             >
-              {confirmLabel}
+              {submitting ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Signing…
+                </>
+              ) : (
+                confirmLabel
+              )}
             </Button>
           </div>
         </DialogPrimitive.Content>

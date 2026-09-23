@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui2/button';
 import { Topbar } from '@/components/app/shell/topbar';
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
+import { StatusDot } from '@/components/ui2/status-dot';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useWdsToast } from '@/hooks/useWdsToast';
 import { useDispatchQueue } from '../../hooks/use-dispatch-queue';
 import { useDispatchFulfil } from '../../hooks/use-dispatch-fulfil';
 import { DispatchFulfilSkeletonDesktop, DispatchKpiSkeletonDesktop, DispatchQueueRailSkeletonDesktop } from '../skeletons';
@@ -95,8 +98,8 @@ function DispatchLineRow({ line, onChange, readOnly }: DispatchLineRowProps) {
             value={line.dispatchQty}
             onChange={(e) => onChange(e.target.value)}
             className={
-              'w-16 rounded-wds-sm border py-0.5 px-2 text-right font-wds-mono text-wds-body-sm font-semibold outline-none ' +
-              (short ? 'border-wds-primary text-wds-primary' : 'border-transparent text-wds-text-ink')
+              'w-16 cursor-text rounded-wds-sm border bg-wds-surface py-0.5 px-2 text-right font-wds-mono text-wds-body-sm font-semibold outline-none transition-colors hover:border-wds-border-strong focus-visible:border-wds-primary focus-visible:shadow-wds-ring ' +
+              (short ? 'border-wds-primary text-wds-primary' : 'border-wds-border text-wds-text-ink')
             }
           />
         )}
@@ -111,13 +114,17 @@ interface SectionBlockProps {
   onLineChange: (inventoryItemId: string, value: string) => void;
   onDispatch: (departmentTag: DepartmentTag) => void;
   dispatching: boolean;
+  sectionError: string | null;
 }
 
-function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching }: SectionBlockProps) {
+function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching, sectionError }: SectionBlockProps) {
   const totalUnits = lines.reduce((sum, l) => sum + Number(l.dispatchQty), 0);
   const fullLineCount = lines.filter((l) => l.requestedQty === null || Number(l.dispatchQty) >= Number(l.requestedQty)).length;
 
   // Already dispatched/confirmed — collapsed one-line summary, no editable table.
+  // Transition covers the swap from the editable table above (#42) — a
+  // fade+height change rather than a hard re-render, since this is the
+  // screen's most consequential action and users watch it closely.
   if (section.dispatchStatus) {
     const statusLabel =
       section.dispatchStatus === 'IN_TRANSIT'
@@ -127,12 +134,12 @@ function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching }:
           : 'Discrepancy';
     const tone =
       section.dispatchStatus === 'CONFIRMED'
-        ? 'text-wds-success-fg'
+        ? 'success'
         : section.dispatchStatus === 'DISCREPANCY_OPEN'
-          ? 'text-wds-error-fg'
-          : 'text-wds-warning-fg';
+          ? 'error'
+          : 'warning';
     return (
-      <div className="flex items-baseline justify-between border-t border-t-solid border-t-wds-neutral-800 py-3.5">
+      <div className="flex animate-in items-baseline justify-between border-t border-t-solid border-t-wds-neutral-800 py-3.5 fade-in-0 slide-in-from-top-1 duration-200 ease-out motion-reduce:animate-none">
         <div className="flex items-baseline gap-2">
           <div className="font-wds-sans text-[15px]/[20px] font-semibold text-wds-text-ink">{DEPARTMENT_LABEL[section.departmentTag]}</div>
           <div className="font-wds-sans text-wds-caption text-wds-text-faint">
@@ -140,7 +147,7 @@ function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching }:
           </div>
         </div>
         <div className="flex items-baseline gap-3">
-          <div className={'font-wds-sans text-wds-caption ' + tone}>● {statusLabel}</div>
+          <StatusDot tone={tone} className="text-wds-caption">{statusLabel}</StatusDot>
           {section.dispatchId ? (
             <a
               href={`/app/inventory/dispatch/${section.dispatchId}`}
@@ -178,12 +185,29 @@ function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching }:
       {lines.map((line) => (
         <DispatchLineRow key={line.inventoryItemId} line={line} onChange={(v) => onLineChange(line.inventoryItemId, v)} readOnly={false} />
       ))}
+      {sectionError ? (
+        <div role="alert" className="rounded-wds-sm border border-wds-error-border bg-wds-error-bg px-3.5 py-2.5">
+          <div className="font-wds-sans text-wds-caption text-wds-error-fg">{sectionError}</div>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between border-t border-t-solid border-t-wds-neutral-200 pt-2.5">
         <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
           {fullLineCount} of {lines.length} lines full
         </div>
-        <Button size="sm" disabled={dispatching} onClick={() => onDispatch(section.departmentTag)}>
-          Sign &amp; dispatch {DEPARTMENT_LABEL[section.departmentTag]}
+        <Button
+          size="sm"
+          disabled={dispatching || totalUnits === 0}
+          title={totalUnits === 0 ? 'Enter at least one unit to dispatch before signing' : undefined}
+          onClick={() => onDispatch(section.departmentTag)}
+        >
+          {dispatching ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Dispatching…
+            </>
+          ) : (
+            <>Sign &amp; dispatch {DEPARTMENT_LABEL[section.departmentTag]}</>
+          )}
         </Button>
       </div>
     </div>
@@ -218,6 +242,8 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
   } = useDispatchFulfil(requisitionId ?? '');
 
   const [signTarget, setSignTarget] = React.useState<DepartmentTag | null>(null);
+  const [lastFailedSection, setLastFailedSection] = React.useState<DepartmentTag | null>(null);
+  const { toast } = useWdsToast();
 
   const branchesWaiting = queue.rows.length;
   const departmentsWaiting = queue.rows.reduce((sum, r) => sum + r.departments.filter((d) => d.status === null).length, 0);
@@ -233,8 +259,21 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
 
   const handleSign = async (pin: string) => {
     if (!signTarget) return;
-    const ok = await dispatchSection(signTarget, pin);
-    if (ok) setSignTarget(null);
+    const dept = signTarget;
+    const lines = visibleLinesBySection[dept] ?? [];
+    const shortCount = lines.filter((l) => l.requestedQty !== null && Number(l.dispatchQty) < Number(l.requestedQty)).length;
+    setLastFailedSection(null);
+    const ok = await dispatchSection(dept, pin);
+    if (ok) {
+      setSignTarget(null);
+      toast({
+        variant: 'success',
+        title: `${DEPARTMENT_LABEL[dept]} dispatched`,
+        description: `${lines.length} line${lines.length === 1 ? '' : 's'}${shortCount > 0 ? `, ${shortCount} short` : ''}`,
+      });
+    } else {
+      setLastFailedSection(dept);
+    }
   };
 
   if (!hydrated) return null;
@@ -362,11 +401,6 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                     sign each department as it&apos;s ready.
                   </div>
                 </div>
-                {dispatchError ? (
-                  <div className="mx-8 mb-2 rounded-wds-sm border border-wds-error-border bg-wds-error-bg px-3.5 py-2.5">
-                    <div className="font-wds-sans text-wds-caption text-wds-error-fg">{dispatchError}</div>
-                  </div>
-                ) : null}
                 <div className="mx-8 mb-6 mt-4 flex flex-col gap-0">
                   {detail.sections.map((section) => (
                     <SectionBlock
@@ -376,6 +410,7 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                       onLineChange={(itemId, value) => setLineEdit(itemId, { dispatchQty: value })}
                       onDispatch={(dept) => setSignTarget(dept)}
                       dispatching={dispatchingSection === section.departmentTag}
+                      sectionError={lastFailedSection === section.departmentTag ? dispatchError : null}
                     />
                   ))}
                 </div>

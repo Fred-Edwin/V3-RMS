@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { MobileErrorState } from '@/components/app/shell/mobile-states';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
+import { StatusDot } from '@/components/ui2/status-dot';
 import { useDispatchFulfil } from '../../hooks/use-dispatch-fulfil';
 import { DispatchFulfilSkeletonMobile } from '../skeletons';
 import type { DepartmentTag, FulfilLine } from '../../types';
@@ -186,7 +187,11 @@ export function DispatchFulfilScreenMobile({ requisitionId }: DispatchFulfilScre
                   (isActive ? 'bg-wds-primary' : 'border border-wds-border')
                 }
               >
-                {isDone && !isActive ? <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-wds-success-fg" /> : null}
+                {isDone && !isActive ? (
+                  <StatusDot tone="success" className="gap-0">
+                    <span className="sr-only">Dispatched</span>
+                  </StatusDot>
+                ) : null}
                 <span className={'font-wds-sans text-wds-caption ' + (isActive ? 'font-semibold text-white' : 'text-wds-text-copy-muted')}>
                   {DEPARTMENT_LABEL[s.departmentTag]}
                 </span>

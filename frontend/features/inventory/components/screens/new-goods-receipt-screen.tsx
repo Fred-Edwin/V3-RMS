@@ -12,6 +12,7 @@ import { ReceiptLineAddInline } from '../receipt-line-add-inline';
 import { ReceiptLineGrid, type ReceiptLineRow } from '../receipt-line-grid';
 import { SignSheetDialog } from '../sign-sheet';
 import { useGoodsReceiptForm } from '../../hooks/use-goods-receipt-form';
+import { useWdsToast } from '@/hooks/useWdsToast';
 import { listItems, listSuppliers } from '../../services';
 import { getExpectedDelivery, getLastPrice } from '../../services/receiving-api-service';
 import type { CreateGoodsReceiptInput, GoodsReceiptDetail } from '../../types/receiving';
@@ -87,6 +88,7 @@ export function NewGoodsReceiptScreen() {
   const expectedDeliveryId = searchParams?.get('expectedDeliveryId') ?? undefined;
 
   const { receiptId, saveDraft, savingDraft, draftError, sign, signing, signError } = useGoodsReceiptForm();
+  const { toast } = useWdsToast();
 
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = React.useState('');
@@ -218,7 +220,10 @@ export function NewGoodsReceiptScreen() {
   const handleSaveDraft = async () => {
     if (!supplierId) return;
     const saved = await saveDraft(buildInput());
-    if (saved) setSavedReceipt(saved);
+    if (saved) {
+      setSavedReceipt(saved);
+      toast({ variant: 'success', title: 'Saved' });
+    }
   };
 
   const handleOpenSignSheet = async () => {

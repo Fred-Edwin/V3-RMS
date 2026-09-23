@@ -5,6 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { SessionBootstrap } from '@/components/app/SessionBootstrap';
 import { ToastContainer } from '@/components/ui/ToastContainer';
+import { WdsToastContainer } from '@/components/ui2/toast';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 
 const cormorantGaramond = Cormorant_Garamond({
@@ -83,6 +84,7 @@ export default function RootLayout({
         <OfflineBanner />
         {children}
         <ToastContainer />
+        <WdsToastContainer />
       </body>
     </html>
   );

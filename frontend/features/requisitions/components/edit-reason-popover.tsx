@@ -15,6 +15,7 @@ export interface EditReasonPopoverProps {
   onReasonChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  saving?: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export function EditReasonPopover({
   onReasonChange,
   onSave,
   onCancel,
+  saving = false,
 }: EditReasonPopoverProps) {
   const popoverRef = React.useRef<HTMLDivElement>(null);
   const [position, setPosition] = React.useState<{ top: number; left: number } | null>(null);
@@ -50,11 +52,13 @@ export function EditReasonPopover({
 
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
+      if (saving) return;
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         onCancel();
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (saving) return;
       if (event.key === 'Escape') onCancel();
     };
     document.addEventListener('mousedown', handlePointerDown);
@@ -63,7 +67,7 @@ export function EditReasonPopover({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onCancel]);
+  }, [onCancel, saving]);
 
   const handleSave = () => {
     if (reason.trim().length === 0) {
@@ -88,7 +92,8 @@ export function EditReasonPopover({
           inputMode="decimal"
           value={approvedQty}
           onChange={(e) => onApprovedQtyChange(e.target.value)}
-          className="flex h-8 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
+          disabled={saving}
+          className="flex h-8 w-full rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-3 font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring disabled:opacity-60"
         />
       </div>
       <div className="flex flex-col gap-wds-1.5">
@@ -104,6 +109,7 @@ export function EditReasonPopover({
           onBlur={() => setReasonTouched(true)}
           aria-invalid={reasonInvalid}
           rows={3}
+          disabled={saving}
           className={cn(reasonInvalid && 'border-wds-error-fg')}
         />
         {reasonInvalid ? (
@@ -111,11 +117,11 @@ export function EditReasonPopover({
         ) : null}
       </div>
       <div className="flex gap-wds-2">
-        <Button variant="secondary" className="grow" onClick={onCancel}>
+        <Button variant="secondary" className="grow" onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button variant="primary" className="grow" onClick={handleSave}>
-          Save line
+        <Button variant="primary" className="grow" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save line'}
         </Button>
       </div>
     </div>,
