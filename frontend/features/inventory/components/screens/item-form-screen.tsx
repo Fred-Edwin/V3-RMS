@@ -9,6 +9,7 @@ import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { useItem, useItemFormOptions, useRetireItem, useSaveItem } from '../../hooks/use-item-form';
+import { useCreateSupplierInline } from '../../hooks/use-new-purchase-form';
 import type { CreateItemInput, DepartmentTag, InventoryItemType } from '../../types';
 
 const ITEM_FORM_TYPE_TO_CONTRACT: Record<ItemFormType, InventoryItemType> = {
@@ -62,9 +63,10 @@ export interface ItemFormDrawerProps {
  * `warnings` array, never a validation failure — plan §5.4 rule 3).
  */
 export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }: ItemFormDrawerProps) {
-  const { categories, suppliers } = useItemFormOptions();
+  const { categories, suppliers, addSupplier } = useItemFormOptions();
   const { item } = useItem(open ? itemId : null);
   const { save, saving, error } = useSaveItem();
+  const { create: createSupplierInline } = useCreateSupplierInline();
   const { retire, retiring, error: retireError } = useRetireItem();
   const [values, setValues] = React.useState<ItemFormValues>(EMPTY_VALUES);
   const [warning, setWarning] = React.useState<string | null>(null);
@@ -93,6 +95,13 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
 
   const categoryOptions = categories.filter((c) => !c.retiredAt).map((c) => ({ value: c.id, label: c.name }));
   const supplierOptions = suppliers.map((s) => ({ value: s.id, label: s.name }));
+
+  const handleCreateSupplier = async (name: string) => {
+    const created = await createSupplierInline({ name });
+    if (!created) return;
+    addSupplier(created);
+    setValues((prev) => ({ ...prev, preferredSupplierId: created.id }));
+  };
 
   const handleValuesChange = (next: ItemFormValues) => {
     // Department scope resets to empty (Central Store only) when Type
@@ -165,6 +174,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
             categoryOptions={categoryOptions}
             supplierOptions={supplierOptions}
             departmentOptions={DEPARTMENT_OPTIONS}
+            onCreateSupplier={handleCreateSupplier}
           />
           {warning ? (
             <p className="mt-4 font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p>
@@ -235,6 +245,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
           categoryOptions={categoryOptions}
           supplierOptions={supplierOptions}
           departmentOptions={DEPARTMENT_OPTIONS}
+          onCreateSupplier={handleCreateSupplier}
         />
         {warning ? <p className="font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p> : null}
         {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}

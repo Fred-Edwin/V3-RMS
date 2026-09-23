@@ -109,7 +109,7 @@ export function ReceiptLineGrid({
                 <input
                   value={row.qty}
                   onChange={(e) => onQtyChange(row.id, e.target.value)}
-                  className="w-10 min-w-0 grow bg-transparent px-wds-2 text-right font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none"
+                  className="w-10 min-w-[36px] grow bg-transparent px-wds-2 text-right font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none"
                 />
                 <div
                   className="flex h-full shrink-0 items-center overflow-hidden border-l border-wds-border-strong bg-wds-neutral-50 px-wds-1.5"

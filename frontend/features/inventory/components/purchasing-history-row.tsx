@@ -42,6 +42,9 @@ interface PurchasingRowAction {
   label: string;
   emphasized?: boolean;
   onClick: () => void;
+  /** Self-documented disabled state — pairs with `title` explaining why, matching the "Send without" pattern elsewhere in this codebase, instead of a silent no-op `onClick`. */
+  disabled?: boolean;
+  title?: string;
 }
 
 export type PurchasingHistoryRow =
@@ -107,8 +110,13 @@ export function toReceivingHistoryViewRow(
   return {
     ...row,
     actions: [
-      { ...row.actions[0], onClick: () => undefined },
-      { ...row.actions[1], onClick: () => undefined },
+      {
+        ...row.actions[0],
+        onClick: () => undefined,
+        disabled: true,
+        title: 'Detail view coming soon — Stage-1 estimates have no detail screen yet',
+      },
+      { ...row.actions[1], onClick: () => undefined, disabled: true },
     ],
   };
 }
@@ -146,9 +154,12 @@ export function PurchasingHistoryRowView({ row, className }: { row: PurchasingHi
             key={i}
             type="button"
             onClick={action.onClick}
+            disabled={action.disabled}
+            title={action.title}
             className={cn(
               'flex h-7 items-center rounded-wds-sm border border-wds-border-strong bg-wds-surface font-wds-sans text-wds-caption outline-none transition-colors hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100',
-              action.emphasized ? 'px-wds-3 font-medium text-wds-text-ink' : 'px-wds-2.5 text-wds-text-copy-muted hover:text-wds-text-ink'
+              action.emphasized ? 'px-wds-3 font-medium text-wds-text-ink' : 'px-wds-2.5 text-wds-text-copy-muted hover:text-wds-text-ink',
+              action.disabled && 'pointer-events-none opacity-50 hover:bg-wds-surface'
             )}
           >
             {action.label}

@@ -36,7 +36,12 @@ export function useItemFormOptions() {
     void load();
   }, [load]);
 
-  return { categories, suppliers, status, error, reload: load };
+  /** Appends a just-created supplier locally instead of a full reload, so the picker can select it immediately. */
+  const addSupplier = useCallback((supplier: Supplier) => {
+    setSuppliers((prev) => [...prev, supplier]);
+  }, []);
+
+  return { categories, suppliers, status, error, reload: load, addSupplier };
 }
 
 export function useItem(itemId: string | null) {

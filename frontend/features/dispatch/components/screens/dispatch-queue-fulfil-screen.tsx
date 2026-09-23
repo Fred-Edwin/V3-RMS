@@ -144,7 +144,7 @@ function SectionBlock({ section, lines, onLineChange, onDispatch, dispatching }:
           {section.dispatchId ? (
             <a
               href={`/app/inventory/dispatch/${section.dispatchId}`}
-              className="font-wds-sans text-wds-caption text-wds-primary underline decoration-wds-primary underline-offset-2"
+              className="font-wds-sans text-wds-caption text-wds-primary underline decoration-wds-primary underline-offset-2 outline-none transition-colors hover:text-wds-primary-hover focus-visible:shadow-wds-ring"
             >
               View note
             </a>
@@ -312,7 +312,7 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                       router.push(href, { scroll: false });
                     }}
                     className={
-                      'flex cursor-pointer flex-col gap-1 border-l-2 border-l-solid px-4 py-3 transition-colors hover:bg-wds-neutral-100 ' +
+                      'flex cursor-pointer flex-col gap-1 border-l-2 border-l-solid px-4 py-3 transition-colors hover:bg-wds-neutral-100 active:bg-wds-neutral-200 ' +
                       (row.requisitionId === requisitionId ? 'border-l-wds-primary bg-wds-neutral-100' : 'border-l-transparent')
                     }
                   >

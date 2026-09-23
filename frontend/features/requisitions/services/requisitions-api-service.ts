@@ -45,6 +45,11 @@ export async function listRequisitions(query: ListRequisitionsQuery = {}): Promi
   return apiClient.get<RequisitionListRow[]>(`/requisitions${toQueryString(query)}`, token());
 }
 
+/** Only succeeds while zero sections have ever been SUBMITTED — see requisitions-service.ts's `cancelRequisition`. */
+export async function cancelRequisition(requisitionId: string): Promise<void> {
+  await apiClient.delete(`/requisitions/${requisitionId}`, token());
+}
+
 export async function getRequisitionSection(
   requisitionId: string,
   departmentTag: DepartmentTag,

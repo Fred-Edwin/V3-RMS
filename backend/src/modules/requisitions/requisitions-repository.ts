@@ -116,6 +116,33 @@ export const requisitionRepository = {
   },
 
   /**
+   * Hard delete — the one exception to this module's soft-delete convention
+   * (see `deleteLine` below). Only reachable when the caller has already
+   * confirmed zero sections were ever SUBMITTED (session-1-quick-wins-prompt
+   * #17): nothing of record exists yet on a requisition in that state, so
+   * there is no audit trail to lose. All 5 sections start `NOT_STARTED` on
+   * `create`, so a fresh requisition always has exactly 5 to delete.
+   * FKs are `ON DELETE RESTRICT` throughout (lines -> sections ->
+   * requisition), so deletion order matters here.
+   */
+  cancel: async (id: string, organizationId: string): Promise<boolean> => {
+    return prisma.$transaction(async (tx) => {
+      const requisition = await tx.requisition.findFirst({
+        where: { id, organizationId },
+        include: { sections: { select: { id: true, status: true } } },
+      });
+      if (!requisition) return false;
+      if (requisition.sections.some((s) => s.status === 'SUBMITTED')) return false;
+
+      const sectionIds = requisition.sections.map((s) => s.id);
+      await tx.requisitionLine.deleteMany({ where: { requisitionSectionId: { in: sectionIds } } });
+      await tx.requisitionSection.deleteMany({ where: { requisitionId: id } });
+      await tx.requisition.delete({ where: { id } });
+      return true;
+    });
+  },
+
+  /**
    * Flips OPEN -> PENDING_APPROVAL. Guarded with a where-status check so it
    * only fires (and only counts) on the actual first transition — safe to
    * call unconditionally after a successful submit.

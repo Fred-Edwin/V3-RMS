@@ -7,10 +7,12 @@ import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Button } from '@/components/ui2/button';
+import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { useAuthStore } from '@/store/authStore';
+import { formatApiErrorMessage } from '@/types/api';
 import { useRequisitionsList } from '../../hooks/use-requisitions-list';
-import { openRequisition } from '../../services';
+import { cancelRequisition, openRequisition } from '../../services';
 import type { DepartmentTag, RequisitionListRow } from '../../types';
 
 const REQUISITION_TYPE_OPTIONS: { type: RequisitionListRow['type']; label: string }[] = [
@@ -51,6 +53,9 @@ export function DepartmentLandingScreen() {
   const { rows, status, reload } = useRequisitionsList();
   const [opening, setOpening] = React.useState(false);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
+  const [cancelTarget, setCancelTarget] = React.useState<RequisitionListRow | null>(null);
+  const [cancelling, setCancelling] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
 
   if (!isDepartmentHead || !departmentTag) {
     return (
@@ -83,6 +88,28 @@ export function DepartmentLandingScreen() {
   const rowActionLabel = (row: RequisitionListRow) =>
     row.mySectionStatus === 'SUBMITTED' ? 'View my section' : row.mySectionStatus === 'RETURNED' ? 'Resubmit section' : 'Continue';
 
+  // Cancel is only ever offered before this department's own section is
+  // submitted — the backend's real guard is "zero sections across the whole
+  // requisition have ever been SUBMITTED," which this list doesn't have
+  // visibility into (only `mySectionStatus`), so a 409 here is expected and
+  // surfaced rather than predicted client-side.
+  const canOfferCancel = (row: RequisitionListRow) => row.mySectionStatus !== 'SUBMITTED';
+
+  const handleCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelRequisition(cancelTarget.id);
+      setCancelTarget(null);
+      await reload();
+    } catch (err) {
+      setCancelError(formatApiErrorMessage(err, 'Could not cancel this requisition.'));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-wds-neutral-50">
       <MobileStatusBar />
@@ -108,13 +135,24 @@ export function DepartmentLandingScreen() {
                             {STATUS_LABEL[row.mySectionStatus] ?? 'Not started'}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => openRow(row)}
-                          className="shrink-0 font-wds-sans text-wds-body-sm font-medium text-wds-primary underline underline-offset-2"
-                        >
-                          {rowActionLabel(row)}
-                        </button>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {canOfferCancel(row) ? (
+                            <button
+                              type="button"
+                              onClick={() => setCancelTarget(row)}
+                              className="font-wds-sans text-wds-body-sm text-wds-error-fg underline underline-offset-2"
+                            >
+                              Cancel
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => openRow(row)}
+                            className="font-wds-sans text-wds-body-sm font-medium text-wds-primary underline underline-offset-2"
+                          >
+                            {rowActionLabel(row)}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -194,6 +232,25 @@ export function DepartmentLandingScreen() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelTarget(null);
+            setCancelError(null);
+          }
+        }}
+        title="Cancel this requisition?"
+        description={
+          cancelError ??
+          `This ${cancelTarget ? cancelTarget.type.charAt(0) + cancelTarget.type.slice(1).toLowerCase().replace('_', '-') : ''} requisition will be deleted — this can't be undone.`
+        }
+        confirmLabel="Cancel requisition"
+        cancelLabel="Keep it"
+        confirming={cancelling}
+        onConfirm={handleCancel}
+      />
     </div>
   );
 }

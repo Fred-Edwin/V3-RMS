@@ -108,6 +108,7 @@ export function DiscrepanciesListScreen() {
 
   const visibleRows = openOnly ? rows.filter((r) => r.status === 'OPEN') : rows;
   const breadcrumbSection = isStoreManager ? 'Dispatch' : 'Deliveries';
+  const breadcrumbSectionHref = isStoreManager ? '/app/inventory/dispatch' : '/app/branch/deliveries';
 
   const openRow = (row: DiscrepancyRow) => {
     if (isStoreManager) {
@@ -120,7 +121,10 @@ export function DiscrepanciesListScreen() {
   if (status === 'error') {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Topbar breadcrumb={{ section: breadcrumbSection, screen: 'Discrepancies' }} className="shrink-0" />
+        <Topbar
+          breadcrumb={{ section: breadcrumbSection, screen: 'Discrepancies', sectionHref: breadcrumbSectionHref }}
+          className="shrink-0"
+        />
         <div className="flex flex-1 items-center justify-center">
           <ErrorState title="Couldn't load discrepancies" description={error ?? 'Try again.'} onRetry={reload} />
         </div>
@@ -130,7 +134,10 @@ export function DiscrepanciesListScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <Topbar breadcrumb={{ section: breadcrumbSection, screen: 'Discrepancies' }} className="shrink-0" />
+      <Topbar
+        breadcrumb={{ section: breadcrumbSection, screen: 'Discrepancies', sectionHref: breadcrumbSectionHref }}
+        className="shrink-0"
+      />
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-8 pb-8 pt-6">
         <div className="flex flex-col gap-1">
           <div className="font-wds-sans text-wds-h1 font-semibold tracking-tight text-wds-text-ink">Discrepancies</div>

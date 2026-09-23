@@ -17,6 +17,23 @@ import { useCreateSupplierInline, useNewPurchaseOptions, useSaveExpectedDelivery
 import type { SupplierPaymentTerms } from '../../types';
 
 const PRINT_HANDOFF_KEY = 'inventory:new-purchase:print-draft';
+const DRAFT_STORAGE_KEY = 'inventory:new-purchase:draft';
+
+interface NewPurchaseDraft {
+  quantities: Record<string, number>;
+  supplierId: string;
+  paymentTerms: SupplierPaymentTerms;
+}
+
+function loadDraft(): NewPurchaseDraft | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as NewPurchaseDraft) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * New purchase — checkbox-driven catalog picker + live selection panel
@@ -43,11 +60,29 @@ export function NewPurchaseScreen() {
   const [search, setSearch] = React.useState('');
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [stockFilter, setStockFilter] = React.useState<StockLevelFilter>('any');
-  const [quantities, setQuantities] = React.useState<Record<string, number>>({});
-  const [supplierId, setSupplierId] = React.useState<string>('');
-  const [paymentTerms, setPaymentTerms] = React.useState<SupplierPaymentTerms>('INVOICE_TO_FOLLOW');
+  const [quantities, setQuantities] = React.useState<Record<string, number>>(() => loadDraft()?.quantities ?? {});
+  const [supplierId, setSupplierId] = React.useState<string>(() => loadDraft()?.supplierId ?? '');
+  const [paymentTerms, setPaymentTerms] = React.useState<SupplierPaymentTerms>(
+    () => loadDraft()?.paymentTerms ?? 'INVOICE_TO_FOLLOW'
+  );
   const [mobileReviewOpen, setMobileReviewOpen] = React.useState(false);
   const [saved, setSaved] = React.useState<{ itemCount: number; estTotal: number } | null>(null);
+
+  // Autosave the in-progress selection so navigating away doesn't lose it —
+  // no server-side draft for New Purchase (unlike Goods Receipt), so
+  // localStorage is the persistence layer here.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (Object.keys(quantities).length === 0) {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ quantities, supplierId, paymentTerms }));
+      }
+    } catch {
+      // localStorage can throw in a private window — draft persistence is best-effort.
+    }
+  }, [quantities, supplierId, paymentTerms]);
 
   const categoryName = React.useMemo(
     () => categories.find((c) => c.id === categoryId)?.name ?? null,
@@ -167,6 +202,11 @@ export function NewPurchaseScreen() {
     });
     if (result) {
       setSaved({ itemCount: selectedLines.length, estTotal });
+      try {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {
+        // localStorage can throw in a private window — draft persistence is best-effort.
+      }
     }
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { X } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
 
@@ -112,6 +113,14 @@ export function Combobox({
 
   const rowId = (i: number) => `${listboxId}-option-${i}`;
   const activeDescendant = open && rows[highlighted] ? rowId(highlighted) : undefined;
+  const showClear = Boolean(value) && !disabled;
+
+  const clearValue = () => {
+    onValueChange('');
+    setQuery('');
+    setOpen(false);
+    inputRef.current?.focus();
+  };
 
   return (
     <div ref={rootRef} className="relative">
@@ -162,9 +171,21 @@ export function Combobox({
           'placeholder:text-wds-text-muted',
           'focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
           'disabled:cursor-not-allowed disabled:opacity-60',
+          showClear && 'pr-7',
           className
         )}
       />
+      {showClear ? (
+        <button
+          type="button"
+          aria-label="Clear"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={clearValue}
+          className="absolute right-wds-2 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-wds-sm text-wds-text-muted outline-none transition-colors hover:text-wds-text-ink focus-visible:shadow-wds-ring"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
       {open && rows.length > 0 ? (
         <div
           id={listboxId}

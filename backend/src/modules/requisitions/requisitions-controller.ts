@@ -29,6 +29,13 @@ export const requisitionsController = {
     res.status(201).json({ success: true, data, message: 'Requisition opened' });
   },
 
+  cancelRequisition: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = RequisitionIdParamSchema.parse(req.params);
+    await requisitionService.cancelRequisition(actor, id);
+    res.status(200).json({ success: true, message: 'Requisition cancelled' });
+  },
+
   listRequisitions: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const query = ListRequisitionsQuerySchema.parse(req.query);

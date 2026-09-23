@@ -55,6 +55,8 @@ export interface ItemFormFieldsProps {
   departmentOptions: DepartmentOption[];
   /** Whether typing an unmatched category name offers a "+ Create" row — false while the category list is still loading. */
   allowCreateCategory?: boolean;
+  /** Enables the Supplier field's "+ Create" row. Omit to disable inline supplier creation (e.g. while saving). */
+  onCreateSupplier?: (name: string) => void;
   className?: string;
 }
 
@@ -74,6 +76,7 @@ export function ItemFormFields({
   supplierOptions,
   departmentOptions,
   allowCreateCategory = true,
+  onCreateSupplier,
   className,
 }: ItemFormFieldsProps) {
   const isMobile = variant === 'mobile';
@@ -146,6 +149,7 @@ export function ItemFormFields({
           options={supplierOptions}
           placeholder="Select a supplier"
           aria-label="Preferred supplier"
+          onCreate={onCreateSupplier}
         />
         <FieldHelper>A default reference only &mdash; you can still receive this item from any supplier later.</FieldHelper>
       </div>

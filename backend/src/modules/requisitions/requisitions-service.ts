@@ -383,6 +383,32 @@ export const requisitionService = {
     return serializeListRow(row, actor.departmentTag as DepartmentTag);
   },
 
+  /**
+   * Cancel a started requisition — no way to back out and start fresh
+   * existed before this (session-1-quick-wins-prompt #17). Only the
+   * requisition's own department head, only while zero sections have ever
+   * been SUBMITTED — once a section is submitted there is a real record to
+   * preserve (the branch manager may already be reviewing it), so recall +
+   * resubmit is the only path from there, not cancel.
+   */
+  cancelRequisition: async (actor: Actor, requisitionId: string): Promise<void> => {
+    const organizationId = requireBranchOrg(actor);
+    if (!actor.departmentTag) {
+      throw new ValidationError('This user has no department assigned');
+    }
+
+    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    if (!requisition) throw new NotFoundError('Requisition not found');
+    if (requisition.openedById !== actor.id) {
+      throw new ForbiddenError('You may only cancel a requisition you opened');
+    }
+
+    const cancelled = await requisitionRepository.cancel(requisitionId, organizationId);
+    if (!cancelled) {
+      throw new ConflictError('This requisition can no longer be cancelled — a section has already been submitted');
+    }
+  },
+
   listRequisitions: async (actor: Actor, query: ListRequisitionsQuery): Promise<RequisitionListRow[]> => {
     const organizationId = requireBranchOrg(actor);
     if (!actor.departmentTag) {

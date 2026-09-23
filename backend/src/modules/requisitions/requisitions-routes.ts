@@ -28,6 +28,7 @@ router.get('/requisitions/needs-approval', requireRole('MANAGER'), requisitionsC
 
 router.post('/requisitions', requireDepartmentHead, requisitionsController.openRequisition);
 router.get('/requisitions', requireDepartmentHead, requisitionsController.listRequisitions);
+router.delete('/requisitions/:id', requireDepartmentHead, requisitionsController.cancelRequisition);
 
 // ── Session B — Branch Manager approval ─────────────────────────────────────
 

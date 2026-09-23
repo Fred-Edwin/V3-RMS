@@ -58,6 +58,24 @@ const NAV_GROUPS: SidebarNavGroup[] = [
   },
 ];
 
+/**
+ * STORE_ATTENDANT is 403'd outright (not just filtered server-side) on
+ * Purchasing, Suppliers, and Supplier AP — see `receiving-routes.ts` /
+ * `inventory-routes.ts` comments ("STORE_ATTENDANT has zero access — not
+ * even read"). The sidebar must hide these links for that role so it never
+ * offers a route that always fails.
+ */
+function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
+  if (role !== 'STORE_ATTENDANT') return NAV_GROUPS;
+  return NAV_GROUPS.map((group) => {
+    if (group.key !== 'central-store' && group.key !== 'procurement') return group;
+    return {
+      ...group,
+      items: group.items.filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers'),
+    };
+  });
+}
+
 function useSidebarUser() {
   const user = useAuthStore((s) => s.user);
   const initials = React.useMemo(() => {
@@ -105,11 +123,12 @@ export function InventoryDesktopShell({
   children,
 }: InventoryDesktopShellProps) {
   const user = useSidebarUser();
+  const authRole = useAuthStore((s) => s.user?.role);
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-wds-canvas">
       <SidebarNav
-        groups={NAV_GROUPS}
+        groups={navGroupsForRole(authRole)}
         activeKey={activeKey}
         user={user}
         orgLabel="HUB"
@@ -128,9 +147,10 @@ export function InventoryDesktopShell({
 /** Just the 236px sidebar rail, no Topbar/content column — what `(shell)/layout.tsx` mounts once so it survives Catalog ⇄ Suppliers navigation. */
 export function InventorySidebar({ activeKey }: { activeKey: string }) {
   const user = useSidebarUser();
+  const authRole = useAuthStore((s) => s.user?.role);
   return (
     <SidebarNav
-      groups={NAV_GROUPS}
+      groups={navGroupsForRole(authRole)}
       activeKey={activeKey}
       user={user}
       orgLabel="HUB"
@@ -148,9 +168,10 @@ export interface InventoryMobileRailProps {
 /** Icon-only mobile rail — used only where a screen needs the persistent nav, not the full-screen tasks. */
 export function InventoryMobileRail({ activeKey, onNavigate }: InventoryMobileRailProps) {
   const user = useSidebarUser();
+  const authRole = useAuthStore((s) => s.user?.role);
   return (
     <SidebarRail
-      groups={NAV_GROUPS}
+      groups={navGroupsForRole(authRole)}
       activeKey={activeKey}
       user={user}
       logoSrc={WENDO_LOGO_SRC}
@@ -181,6 +202,7 @@ export interface InventoryMobileNavDrawerProps {
  */
 export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
   const user = useSidebarUser();
+  const authRole = useAuthStore((s) => s.user?.role);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -189,7 +211,7 @@ export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavi
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SidebarNav
-          groups={NAV_GROUPS}
+          groups={navGroupsForRole(authRole)}
           activeKey={activeKey}
           user={user}
           orgLabel="HUB"

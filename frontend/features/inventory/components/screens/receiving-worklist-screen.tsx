@@ -266,8 +266,8 @@ function ReceivingHistoryBand({
         <div className="max-h-[440px] overflow-auto">
           <div className="min-w-[780px]">
             <div className="sticky top-0 z-10 flex h-[30px] w-full shrink-0 items-center border-b border-wds-text-ink bg-wds-table-header-bg px-wds-4">
-              <span className="w-[200px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Ref</span>
-              <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Supplier</span>
+              <span className="w-[200px] shrink-0 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Receipt</span>
+              <span className="grow font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Detail</span>
               <span className="w-[90px] shrink-0 text-right font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Age</span>
               <span className="w-[150px] shrink-0 pl-6 font-wds-mono text-wds-label font-semibold uppercase text-wds-text-ink">Status</span>
               <span className="w-[150px] shrink-0" />

@@ -531,7 +531,7 @@ export function RequisitionApprovalScreen({ requisitionId }: RequisitionApproval
         )}
 
         <div className="flex min-h-0 flex-1 border-t border-t-solid border-t-wds-neutral-800">
-          <div className="flex w-[380px] shrink-0 flex-col overflow-visible border-r border-r-solid border-r-black">
+          <div className="flex w-[380px] shrink-0 flex-col overflow-y-auto border-r border-r-solid border-r-black">
             <div className="flex items-center justify-between border-b border-b-solid border-b-wds-border px-5 pb-3 pt-4">
               <div className="font-wds-sans text-wds-label font-medium uppercase tracking-wds-label text-wds-text-copy-muted">Today</div>
               <button
@@ -568,7 +568,7 @@ export function RequisitionApprovalScreen({ requisitionId }: RequisitionApproval
             )}
           </div>
 
-          <div className="flex min-w-0 grow basis-0 flex-col overflow-visible">
+          <div className="flex min-w-0 grow basis-0 flex-col overflow-y-auto">
             {status === 'loading' ? (
               <RequisitionApprovalSkeletonDesktop />
             ) : status === 'error' ? (

@@ -36,7 +36,7 @@ import 'dotenv/config';
 import { UserRole } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
-import { hashPassword } from '../utils/password';
+import { hashPassword, hashPin } from '../utils/password';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-dev must not run in production. Exiting.');
@@ -44,6 +44,7 @@ if (env.NODE_ENV === 'production') {
 }
 
 const DEV_PASSWORD = 'password123';
+const DEV_PIN = '1234';
 
 /** Convert org name to a safe email slug: "Nyeri Town" → "nyeritown" */
 const toSlug = (name: string): string =>
@@ -70,6 +71,7 @@ const upsertUser = async (
   role: UserRole,
   organizationId: string,
   passwordHash: string,
+  pinHash?: string,
 ): Promise<boolean> => {
   const existing = await prisma.user.findUnique({
     where: { email },
@@ -81,7 +83,7 @@ const upsertUser = async (
   }
 
   await prisma.user.create({
-    data: { name, email, role, organizationId, passwordHash, isActive: true },
+    data: { name, email, role, organizationId, passwordHash, pinHash, isActive: true },
   });
 
   return true; // created
@@ -103,6 +105,7 @@ const run = async (): Promise<void> => {
   console.log(`Found ${orgs.length} active organization(s).\n`);
 
   const passwordHash = await hashPassword(DEV_PASSWORD);
+  const pinHash = await hashPin(DEV_PIN);
   let totalCreated = 0;
   let totalSkipped = 0;
 
@@ -158,6 +161,7 @@ const run = async (): Promise<void> => {
     UserRole.STORE_MANAGER,
     hubOrg.id,
     passwordHash,
+    pinHash,
   );
   if (smCreated) {
     console.log(`  OK    ${storeManagerEmail} — STORE_MANAGER`);
@@ -173,6 +177,7 @@ const run = async (): Promise<void> => {
     UserRole.STORE_ATTENDANT,
     hubOrg.id,
     passwordHash,
+    pinHash,
   );
   if (saCreated) {
     console.log(`  OK    ${storeAttendantEmail} — STORE_ATTENDANT`);
