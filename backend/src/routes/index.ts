@@ -32,6 +32,8 @@ import departmentRoutes from './department-routes';
 import inventoryRoutes from '../modules/inventory/inventory-routes';
 import receivingRoutes from '../modules/inventory/receiving-routes';
 import prepRoutes from '../modules/inventory/prep-routes';
+import stockRoutes from '../modules/inventory/stock-routes';
+import wasteRoutes from '../modules/inventory/waste-routes';
 import requisitionsRoutes from '../modules/requisitions/requisitions-routes';
 import dispatchRoutes from '../modules/dispatch/dispatch-routes';
 
@@ -70,6 +72,8 @@ apiRouter.use(departmentRoutes);
 apiRouter.use(inventoryRoutes);
 apiRouter.use(receivingRoutes);
 apiRouter.use(prepRoutes);
+apiRouter.use(stockRoutes);
+apiRouter.use(wasteRoutes);
 apiRouter.use(requisitionsRoutes);
 apiRouter.use(dispatchRoutes);
 

@@ -29,7 +29,7 @@
 > - **Inventory Milestone Four (Requisition & Branch Approval), Session A
 >   underway (2026-09-21):** `Category.parentCategoryId` and
 >   `Requisition`/`RequisitionSection`/`RequisitionLine` are documented in
->   §4.63–4.66 below. **The pre-redo Phase 2 `requisitions`/
+>   §4.63–4.65 below. **The pre-redo Phase 2 `requisitions`/
 >   `requisition_lines`/`dispatches` tables no longer exist** — they were
 >   dropped by the Milestone One catalog migration
 >   (`20260915065051_inventory_milestone_one_catalog`); this correction
@@ -37,6 +37,14 @@
 >   (branch-manager approve/return/edit) and Milestones 5–6 (Dispatch/Branch
 >   Receiving, Counting/Closing) are not yet built — see
 >   `docs/features/inventory/MILESTONES.md`.
+> - **Inventory Milestone Five (Dispatch & Branch Receiving), shipped
+>   2026-09-22:** `Dispatch`, `DispatchLine`, `Discrepancy` are documented in
+>   §4.66–4.68 (backfilled 2026-09-25).
+> - **Inventory Milestone Six (Counting, Closing & Discrepancies), Session 1
+>   (2026-09-25):** `WasteLog` is §4.69; `InventoryTransaction` gained
+>   `reference` / `reversesTransactionId` and a real `wasteLogId` FK (§4.52).
+>   Sessions 2–4 add `StockCount*`, `CountingThresholds`, `BranchDay*`,
+>   `DepartmentOpening*` from §4.70 on.
 > - **Order/menu/staff core:** additions from Phases 10–12 (guest split,
 >   cancellation approval, order correction) and the department-head marker are
 >   not reflected in §4.13–4.15 / §4.3.
@@ -1862,11 +1870,13 @@ model InventoryTransaction {
   unitCost             Decimal                  @map("unit_cost") @db.Decimal(12, 4)
   reason               String?
   goodsReceiptLineId   String?                  @map("goods_receipt_line_id")
-  prepRecordId         String?                  @map("prep_record_id")          -- unlinked; Prep not yet redone
-  wasteLogId           String?                  @map("waste_log_id")            -- unlinked; Waste not yet redone
-  stockCountLineId     String?                  @map("stock_count_line_id")     -- unlinked; Counting not yet redone
-  dispatchLineId       String?                  @map("dispatch_line_id")        -- unlinked; Dispatch not yet redone
+  prepRecordId         String?                  @map("prep_record_id")          -- FK → PrepRun (Milestone Three)
+  wasteLogId           String?                  @map("waste_log_id")            -- FK → WasteLog (Milestone Six S1, §4.69)
+  stockCountLineId     String?                  @map("stock_count_line_id")     -- unlinked; restored by Milestone Six S2
+  dispatchLineId       String?                  @map("dispatch_line_id")        -- FK → DispatchLine (Milestone Five, §4.67)
   marketPurchaseLineId String?                  @map("market_purchase_line_id") -- unlinked; not yet redone
+  reference            String?                  -- ADJ-#### on ADJUSTMENT rows (Milestone Six; first written in S2)
+  reversesTransactionId String?                 @unique @map("reverses_transaction_id") -- self-FK; equal-and-opposite reversal (Flow 12b; first written in S3)
   userId               String                   @map("user_id")
   createdAt            DateTime                 @default(now()) @map("created_at")
 
@@ -1875,15 +1885,21 @@ model InventoryTransaction {
   @@index([inventoryItemId])
   @@index([type])
   @@index([goodsReceiptLineId])
+  @@index([prepRecordId])
+  @@index([dispatchLineId])
+  @@index([wasteLogId])
+  @@index([locationId, inventoryItemId, createdAt])   -- the stock ledger drill
   @@map("inventory_transactions")
 }
 ```
 
 **Notes:**
 - **Costing is latest-price, not weighted average** [OWNER decision]. A movement is costed at whatever `InventoryItem.currentCost` was in force *when it happened* — a dispatch that left Tuesday keeps Tuesday's cost forever, even after a Thursday price rise. This is a deliberate trade-off: latest-price costing revalues stock already on hand (holding 40 units bought at 250 and receiving 10 more at 280 values all 50 at 280), which weighted-average costing would prevent, but Wendo's stock turns over in days so the distortion is accepted as small and short-lived, and is explicitly the Accountant's reporting problem, not the store's.
-- Five of the six line-reference columns (`prepRecordId`, `wasteLogId`, `stockCountLineId`, `dispatchLineId`, `marketPurchaseLineId`) are retained as **unlinked nullable columns** — the models they referenced were dropped when Milestone One redid this table, and those ledger paths (Prep, Waste, Counting, Dispatch) are still out of scope for the redo. Each is restored as a real FK when the milestone that rebuilds that flow lands; do not restructure this column set when that happens.
+- The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` is restored in Milestone Six Session 2; `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
+- **Sign convention:** inbound rows are positive (`RECEIVE`, `PREP_PRODUCE`, `DISPATCH_IN`), outbound rows negative (`PREP_CONSUME`, `DISPATCH_OUT`, `WASTE`); `ADJUSTMENT` carries its own sign. On-hand at a location is a plain `SUM(quantity)`.
+- The Milestone Six ledger view's running balance is a SQL window (`SUM(quantity) OVER (ORDER BY created_at, id)`) over the item's whole ledger at that location; its "counterparty" text is derived from whichever FK is set — there is no free-text counterparty column.
 - `goodsReceiptLineId` (formerly `purchaseOrderLineId`) was the first of these restored — Milestone Two's `GoodsReceipt` signing is the first writer to this ledger since the redo began.
-- `InventoryTransactionType` ships its full enum now (§5) even though only `RECEIVE`, `PREP_CONSUME`, `PREP_PRODUCE`, `WASTE`, `ADJUSTMENT` are currently written; `DISPATCH_OUT`, `DISPATCH_IN`, `MARKET_RECEIVE`, `SALE` are reserved for later milestones.
+- `InventoryTransactionType` ships its full enum now (§5) even though `MARKET_RECEIVE` and `SALE` are not yet written by anything.
 
 ---
 
@@ -2296,6 +2312,176 @@ model RequisitionLine {
   schema yet. The fill screen drops the on-hand column and the
   par-minus-on-hand auto pre-fill for this milestone; a head enters
   `requestedQty` manually against the visible `parAtRequest` reference.
+
+---
+
+### 4.66 Dispatch
+
+Milestone Five (Dispatch & Branch Receiving), shipped 2026-09-22 (Session A
+migration `20260922071002_milestone5_dispatch_dispatch_line`). *Backfilled
+2026-09-25 by Milestone Six Session 1 from the shipped schema — Milestone
+Five's plan named this entry but it was never written.* One `Dispatch` per
+(requisition, department): the Central Store signs it out (`DISPATCH_OUT`
+at the Central Store) and the department signs it in (`DISPATCH_IN` at the
+department location). Two-org document, `StaffTransfer`'s pattern
+(`CENTRAL_STORE_SCOPING_DESIGN.md` §4).
+
+```prisma
+model Dispatch {
+  id                String         @id @default(uuid())
+  organizationId    String         @map("organization_id")      -- hub org — the Central Store owns this document
+  toOrganizationId  String         @map("to_organization_id")   -- branch org
+  requisitionId     String         @map("requisition_id")
+  departmentTag     DepartmentTag  @map("department_tag")       -- one Dispatch per department (Flow 9 step 4)
+  sequenceLabel     String         @map("sequence_label")       -- "Dispatch 4 · Nyeri Town · 17 Sep" — daily per-branch label, not a persistent ID
+  status            DispatchStatus @default(AWAITING)
+  dispatchedById    String?        @map("dispatched_by_id")
+  dispatchedAt      DateTime?      @map("dispatched_at")
+  confirmedById     String?        @map("confirmed_by_id")      -- the real signer, even when confirmed on behalf (Flow 10b)
+  confirmedAt       DateTime?      @map("confirmed_at")
+  confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
+
+  @@index([organizationId, status])
+  @@index([toOrganizationId, departmentTag, status])
+  @@index([requisitionId])
+  @@map("dispatches")
+}
+
+enum DispatchStatus {
+  AWAITING          -- not yet signed by the store
+  IN_TRANSIT        -- signed, DISPATCH_OUT written, not yet confirmed
+  CONFIRMED         -- DISPATCH_IN written, no mismatch
+  DISCREPANCY_OPEN  -- DISPATCH_IN written but a line mismatched (Flow 10a)
+}
+```
+
+**Notes:**
+- `status` only moves forward: `AWAITING` → `IN_TRANSIT` (store PIN-signs;
+  one negative `DISPATCH_OUT` row per non-zero line at the Central Store) →
+  `CONFIRMED` or `DISCREPANCY_OPEN` (department head — or the Branch
+  Manager on behalf — PIN-signs; one positive `DISPATCH_IN` row per line
+  with `confirmedQty > 0` at the department location). The confirm write
+  uses the `updateMany` + count-check pattern; zero rows → `ConflictError`.
+- A zero-quantity line (short-dispatched to nothing) writes no ledger row.
+- Resolving a discrepancy as `FOUND_REDELIVERED` spawns a fresh follow-up
+  `Dispatch` for the gap quantity (no requisition-line link).
+
+---
+
+### 4.67 DispatchLine
+
+```prisma
+model DispatchLine {
+  id                String   @id @default(uuid())
+  dispatchId        String   @map("dispatch_id")
+  requisitionLineId String?  @map("requisition_line_id")   -- null for a substitute line (Flow 9b) or a follow-up dispatch
+  inventoryItemId   String   @map("inventory_item_id")
+  requestedQty      Decimal? @map("requested_qty") @db.Decimal(12, 4)
+  dispatchedQty     Decimal  @map("dispatched_qty") @db.Decimal(12, 4)
+  confirmedQty      Decimal? @map("confirmed_qty") @db.Decimal(12, 4)   -- null until the department confirms
+  costAtDispatch    Decimal  @map("cost_at_dispatch") @db.Decimal(12, 4) -- frozen per line (Flow 9 step 6); both ledger rows carry it
+  isSubstitute      Boolean  @default(false) @map("is_substitute")
+  substituteNote    String?  @map("substitute_note")          -- required when isSubstitute (Zod refinement)
+
+  @@index([dispatchId])
+  @@map("dispatch_lines")
+}
+```
+
+**Notes:**
+- `InventoryTransaction.dispatchLineId` is a real FK to this table
+  (restored by Milestone Five — the third of the unlinked ledger columns to
+  be restored, after `goodsReceiptLineId` and `prepRecordId`).
+- `costAtDispatch` is the item's `currentCost` at signing and never
+  changes; it is also the "cost carried into the department" that
+  Milestone Six values department waste at (§4.69).
+
+---
+
+### 4.68 Discrepancy
+
+Milestone Five Session B (migration `20260922111827_milestone5_session_b_discrepancy`).
+Created automatically on a mismatched confirm (Flow 10a) — never a separate
+user action.
+
+```prisma
+model Discrepancy {
+  id                 String              @id @default(uuid())
+  dispatchLineId     String              @map("dispatch_line_id")
+  referenceNumber    String              @map("reference_number")   -- DSC-#### via ReferenceCounter, hub-scoped
+  gapQty             Decimal             @map("gap_qty") @db.Decimal(12, 4)   -- confirmed − dispatched, signed
+  status             DiscrepancyStatus   @default(OPEN)
+  outcome            DiscrepancyOutcome?
+  resolutionNote     String?             @map("resolution_note")
+  resolvedById       String?             @map("resolved_by_id")
+  resolvedAt         DateTime?           @map("resolved_at")
+  followUpDispatchId String?             @map("follow_up_dispatch_id")   -- set when outcome = FOUND_REDELIVERED
+  createdAt          DateTime            @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([dispatchLineId])
+  @@map("discrepancies")
+}
+
+enum DiscrepancyStatus  { OPEN RESOLVED }
+enum DiscrepancyOutcome { FOUND_REDELIVERED TRANSIT_LOSS_WRITEOFF MISCOUNT_CORRECTED }
+```
+
+**Notes:**
+- Resolution is Store Manager only, PIN-signed, and writes the ledger
+  effect of the chosen outcome in the same transaction:
+  `TRANSIT_LOSS_WRITEOFF` → a negative `ADJUSTMENT` at the Central Store;
+  `MISCOUNT_CORRECTED` → an `ADJUSTMENT` of `gapQty` at the department
+  location; `FOUND_REDELIVERED` → a follow-up `Dispatch` (+ its
+  `DISPATCH_OUT`). Each `ADJUSTMENT` carries `dispatchLineId`, which is how
+  the Milestone Six ledger labels it "Transit discrepancy · DSC-####".
+- The Branch Manager reads their own branch's discrepancies read-only.
+
+---
+
+### 4.69 WasteLog
+
+Milestone Six (Counting, Closing & Discrepancies) Session 1, 2026-09-25
+(migration `20260925090000_milestone6_session1_waste_log`). One row per
+logged waste entry — the design logs one item at a time. Not signed
+(Appendix B).
+
+```prisma
+model WasteLog {
+  id              String      @id @default(uuid())
+  organizationId  String      @map("organization_id")   -- the location's org: hub for the Central Store, branch org for a department
+  locationId      String      @map("location_id")
+  inventoryItemId String      @map("inventory_item_id")
+  quantity        Decimal     @db.Decimal(12, 4)        -- positive as entered; the ledger row carries the negative sign
+  reason          WasteReason
+  note            String?
+  unitCost        Decimal     @map("unit_cost") @db.Decimal(12, 4)
+  loggedById      String      @map("logged_by_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([locationId, createdAt])
+  @@map("waste_logs")
+}
+
+enum WasteReason { SPOILAGE EXPIRY DAMAGE_IN_STORE PREP_ERROR }
+```
+
+**Notes:**
+- **Location is resolved server-side from the actor**, never taken from
+  the request: Store Manager / Store Attendant → the Central Store;
+  department head → their own department location. The create body is a
+  strict schema, so a client-sent `locationId` is a 400.
+- Written together with exactly one negative `WASTE` `InventoryTransaction`
+  (`wasteLogId` → this row) in one `prisma.$transaction`.
+- `unitCost`: Central Store — the item's `currentCost` now; department —
+  the cost carried into the department (the latest `DISPATCH_IN` row's
+  `unitCost` for that item at that location), falling back to `currentCost`
+  if the item was never dispatched in.
+- Negative resulting stock is allowed and flagged (Flow 21) — it shows
+  negative on the stock views; there is no notification.
+- `organizationId` is not in the plan's §1.3 sketch; it was added so every
+  query stays org-scoped (Non-Negotiable #3).
 
 ---
 
