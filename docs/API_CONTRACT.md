@@ -4068,3 +4068,195 @@ original draft's more permissive framing); a head who wants to zero out an
 already-saved line uses the stepper (zero-not-delete), not the trash icon.
 True soft-deletion (`RequisitionLine.deletedAt`, branch-manager delete with a
 required reason) is Session B's `PATCH` endpoint, not built here.
+
+---
+
+## 25. Inventory — Milestone Five (Dispatch & Branch Receiving)
+
+> **STATUS: SHIPPED** — Session A (dispatch) and Session B (branch
+> receiving & discrepancy), 2026-09-22. *Backfilled 2026-09-25 by Milestone
+> Six Session 1 from the shipped code — Milestone Five's plan named this
+> section but it was never written.* Source of truth is the validators
+> file below; this section summarizes it.
+
+Milestone Five is where stock first moves between organizations: the
+Central Store signs a department's share of an approved requisition out
+(`DISPATCH_OUT`, negative, at the Central Store) and the department signs it
+in (`DISPATCH_IN`, positive, at the department location). A mismatched
+confirm never blocks — it opens a `Discrepancy` (Flow 10a) that the Store
+Manager later resolves.
+
+### 25.1 Source of truth
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/dispatch/dispatch-validators.ts` |
+| **Types** | `backend/src/modules/dispatch/dispatch.types.ts` |
+| **Frontend mirror** | `frontend/features/dispatch/types/` — hand-mirrored |
+| **Plan** | `docs/features/inventory/milestone-5-plan.md` §1–§2, `milestone-5-sessions/session-a-plan.md`, `session-b-plan.md` |
+| **Migrations** | `20260922071002_milestone5_dispatch_dispatch_line`, `20260922111827_milestone5_session_b_discrepancy` |
+| **Data model** | `DATA_MODEL.md` §4.66–4.68 |
+
+### 25.2 Conventions specific to this contract
+
+Inherits §22.2: standard envelope, every decimal a string, all routes under
+`/api/v1/…`. Routes are **not** under `/inventory/` — `/dispatch/…`,
+`/deliveries/…`, `/discrepancies/…`, one module (`modules/dispatch/`).
+Every signing endpoint takes a 4-digit `pin` checked with `comparePin`
+against the actor's `pinHash` (401 on mismatch). The hub's cross-org reads
+enumerate active branch orgs explicitly (`findActiveBranchIds`), never an
+unscoped query (`CENTRAL_STORE_SCOPING_DESIGN.md` §4).
+
+### 25.3 Endpoints
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/dispatch/queue` | STORE_MANAGER, STORE_ATTENDANT (hub) |
+| `GET` | `/dispatch/:requisitionId/fulfil` | STORE_MANAGER, STORE_ATTENDANT |
+| `POST` | `/dispatch/:requisitionId/fulfil/:departmentTag` | STORE_MANAGER, STORE_ATTENDANT |
+| `GET` | `/dispatch/:id/delivery-note` | STORE_MANAGER, STORE_ATTENDANT |
+| `GET` | `/deliveries` | MANAGER, Department Head |
+| `GET` | `/deliveries/:id` | MANAGER, Department Head (own department) |
+| `POST` | `/deliveries/:id/confirm` | Department Head (own department) |
+| `POST` | `/deliveries/:id/confirm-on-behalf` | MANAGER |
+| `GET` | `/deliveries/:id/delivery-note` | MANAGER, Department Head |
+| `GET` | `/discrepancies` | STORE_MANAGER, STORE_ATTENDANT, MANAGER |
+| `GET` | `/discrepancies/:id` | STORE_MANAGER, STORE_ATTENDANT, MANAGER |
+| `POST` | `/discrepancies/:id/resolve` | STORE_MANAGER |
+
+- **`GET /dispatch/queue`** — approved requisitions across branch orgs:
+  `DispatchQueueRow[]` (`requisitionId`, `branchName`, `requisitionType`,
+  `openedAt`, `departments[{departmentTag, status (null = approved, not yet
+  dispatched), totalUnits, dispatchId}]`). Query `limit` (default 50).
+- **`GET /dispatch/:requisitionId/fulfil`** — `FulfilDetail`: per-department
+  sections with lines (`requestedQty`, live Central Store `onHandQty`,
+  pre-filled `dispatchQty = min(requested, onHand)`).
+- **`POST /dispatch/:requisitionId/fulfil/:departmentTag`** — body
+  `{lines[{requisitionLineId?, inventoryItemId, dispatchQty ≥ 0,
+  isSubstitute?, substituteNote?}], pin}`; a substitute line requires a note.
+  Creates the `Dispatch` + lines (status `IN_TRANSIT`) and one negative
+  `DISPATCH_OUT` per non-zero line, `costAtDispatch` frozen from
+  `currentCost`. 409 if the requisition isn't approved or the department
+  was already dispatched. Pushes the department heads after commit.
+- **`GET /dispatch/:id/delivery-note`**, **`GET /deliveries/:id/delivery-note`**
+  — one `DeliveryNote` record for both print and on-screen views.
+- **`GET /deliveries`** — the branch's dispatches: every department for the
+  Branch Manager, own department only for a department head.
+  `DeliveryRow[]`.
+- **`POST /deliveries/:id/confirm`** — body `{lines[{dispatchLineId,
+  confirmedQty ≥ 0}] (every dispatched line), pin}`. Writes `confirmedQty`
+  and one positive `DISPATCH_IN` per line with `confirmedQty > 0` at the
+  department location. Any line where confirmed ≠ dispatched creates an
+  `OPEN` `Discrepancy` (`DSC-####`, `gapQty = confirmed − dispatched`) and
+  sets the dispatch `DISCREPANCY_OPEN`; otherwise `CONFIRMED`. A Branch
+  Manager calling this path gets 403 (they use confirm-on-behalf).
+- **`POST /deliveries/:id/confirm-on-behalf`** — same write,
+  `confirmedOnBehalf: true`, `confirmedById` = the real signer (Flow 10b).
+- **`GET /discrepancies`** — one endpoint, role-scoped rows: the hub sees
+  every branch, a Branch Manager their own branch (read-only).
+  `DiscrepancyRow[]`; `GET /discrepancies/:id` → `DiscrepancyDetail`.
+- **`POST /discrepancies/:id/resolve`** — Store Manager, body `{outcome,
+  resolutionNote (required), pin}`. Ledger effect in the same transaction:
+  `TRANSIT_LOSS_WRITEOFF` → negative `ADJUSTMENT` at the Central Store;
+  `MISCOUNT_CORRECTED` → `ADJUSTMENT` of `gapQty` at the department;
+  `FOUND_REDELIVERED` → a follow-up `Dispatch` for |gap| (+ its
+  `DISPATCH_OUT`). Both adjustments carry `dispatchLineId`. 400 if already
+  resolved.
+
+### 25.4 Additive change elsewhere
+
+`RequisitionHistoryRow` (§24) gained `dispatchSummary[{dispatchId,
+departmentTag, status, sequenceLabel}]` — always an array, empty when
+nothing is dispatched.
+
+---
+
+## 26. Inventory — Milestone Six (Counting, Closing & Discrepancies)
+
+> **STATUS: BUILDING.** Session 1 (stock position & waste) — 2026-09-25.
+> Sessions 2–4 add §26.2 (Central Store counting + thresholds) and §26.3
+> (branch day). Plan: `docs/features/inventory/milestone-6-plan.md` §2.
+
+### 26.1 Stock position, ledger, waste (Session 1)
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/stock-validators.ts`, `waste-validators.ts` |
+| **Types** | `stock.types.ts`, `waste.types.ts` (inferred) |
+| **Frontend mirror** | `frontend/features/inventory/types/stock.ts`, `waste.ts` |
+| **Contract tests** | `stock-contract.test.ts`, `waste-contract.test.ts` (incl. the blindness test), `stock-scope.test.ts` |
+| **Migration** | `20260925090000_milestone6_session1_waste_log` |
+| **Data model** | `DATA_MODEL.md` §4.52 (ledger additions), §4.69 `WasteLog` |
+
+Inherits §22.2 (envelope, decimals as strings). **Blind count (plan §7
+Q-A):** the Store Attendant sees no on-hand quantity anywhere. Their
+responses are **separate schemas** without on-hand fields (not a filtered
+shared shape), the service parses them through those schemas before
+returning, and a contract test asserts on the serialized JSON that no
+attendant-facing response has an on-hand / expected / variance key.
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/inventory/stock` | STORE_MANAGER |
+| `GET` | `/inventory/stock/summary` | STORE_MANAGER, STORE_ATTENDANT |
+| `GET` | `/inventory/stock/items/:itemId/ledger` | STORE_MANAGER (Central Store), MANAGER (own branch departments), Department Head (own department). **STORE_ATTENDANT → 403** |
+| `POST` | `/inventory/waste` | STORE_MANAGER, STORE_ATTENDANT (Central Store); Department Head (own department) |
+| `GET` | `/inventory/waste` | STORE_MANAGER, STORE_ATTENDANT, Department Head |
+| `GET` | `/inventory/waste/items` | STORE_MANAGER, STORE_ATTENDANT, Department Head |
+| `GET`/`PUT` | `/inventory/restock-levels` | unchanged (§21) — the SM drawer passes the Central Store `locationId` |
+
+- **`GET /inventory/stock`** — Central Store position, page-based. Query:
+  `search`, `type`, `categoryId` (a top-level id also matches its
+  sub-categories), `belowRestock`, `negative`, `attention` (all
+  `"true"`/`"false"`), `page` (1), `pageSize` (8, max 100). Response
+  `{rows[{itemId, name, type, category|null, onHand, usageUnit,
+  restockLevel|null, currentCost, value, isLow, isNegative}], total, page,
+  pageSize, pageCount}`. `value = onHand × currentCost` (negative when
+  on-hand is). `isLow = restockLevel set and onHand < restockLevel`.
+  `attention=true` = the hub table: items that are negative or have a
+  restock level, ordered negative first, then by on-hand ÷ restock level
+  ascending, then name.
+- **`GET /inventory/stock/summary`** — Store Manager: `{onHandValue,
+  itemCount (live catalog items), lowCount (below restock, not negative),
+  negativeCount, todaysCount}`. Store Attendant: `{todaysCount}` only.
+  `todaysCount = {status: NOT_STARTED|DRAFT|SUBMITTED|RETURNED|VERIFIED,
+  countId, submittedAt, submittedByName}` — always `NOT_STARTED` + nulls
+  until Session 2 builds counting.
+- **`GET /inventory/stock/items/:itemId/ledger`** — query `locationId`
+  (SM: omitted = Central Store, any other → 403; MANAGER: required, must be
+  a department of their own branch, else 403; department head: omitted =
+  own department, any other → 403), `from`, `to` (ISO), `type`, `page`,
+  `pageSize` (25). Response `{summary{itemId, itemName, usageUnit,
+  categoryName, onHand, currentCost, currentCostSince, value, restockLevel,
+  isLow, location{id, name, departmentTag, branchName}, lastMovementAt},
+  rows[{id, at, type, counterparty, qty (signed), runningOnHand,
+  reference}], total, page, pageSize, pageCount}`. Rows are oldest first.
+  `runningOnHand` is a SQL window over the item's **whole** ledger at that
+  location, computed before the range/type filter. `counterparty` is
+  derived from whichever FK the row carries (supplier; "Nyeri Town ·
+  Barista"; "Central Store"; the waste reason; "Prep · {output}";
+  "Transit discrepancy · DSC-####"). `reference` = the row's own
+  `reference` (ADJ-, from S2) else the GRN / DSC number.
+- **`POST /inventory/waste`** — body (strict) `{inventoryItemId, quantity >
+  0, reason: SPOILAGE|EXPIRY|DAMAGE_IN_STORE|PREP_ERROR, note? (≤500)}`. No
+  location field: resolved from the actor. A department head may only log
+  items tagged to their department (403). Writes one `WasteLog` + one
+  negative `WASTE` row (`wasteLogId`, `reason`) in one transaction.
+  Negative stock is allowed. `201` → SM / department head `{entry,
+  onHandAfter, wentNegative}`; Store Attendant `{entry}`. `entry =
+  {id, at, itemId, itemName, quantity, usageUnit, reason, note, unitCost,
+  value, loggedByName}`.
+- **`GET /inventory/waste`** — `days` (7, 1–90) → `{days, entries (newest
+  first), totalValue}` for the actor's location.
+- **`GET /inventory/waste/items`** — the Log waste item picker: `search`,
+  `limit` (20). SM / department head: `{items[{itemId, name, usageUnit,
+  unitCost, onHand}]}`; Store Attendant: the same **without `onHand`**.
+  Department heads see only their department's tagged items; `unitCost` is
+  the value the entry would get (department: latest `DISPATCH_IN` cost,
+  else current cost).
+
+**Deviations from plan §2.1** (recorded in `session-1-plan.md` outcome log):
+`GET /inventory/waste/items` is new — the plan asked to verify the picker's
+data source, and `/inventory/items` has no department carried-in cost and
+no role-split projection. The ledger adds `currentCostSince`,
+`lastMovementAt` (empty-state copy) and paging fields to the planned shape.

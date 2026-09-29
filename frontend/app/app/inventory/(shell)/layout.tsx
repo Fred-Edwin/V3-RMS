@@ -30,27 +30,44 @@ function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/inventory/receiving')) return 'receiving';
   if (pathname.startsWith('/app/inventory/prep')) return 'prep';
   if (pathname.startsWith('/app/inventory/dispatch')) return 'dispatch';
+  if (pathname.startsWith('/app/inventory/stock')) return 'stock-counts';
   return 'catalog';
 }
 
-function InventoryShellDrawer({ activeKey }: { activeKey: string }) {
+/** Stock & counts sub-link for the rail (`1BI5-0`); undefined outside that area. */
+function activeSubKeyFromPathname(pathname: string): string | undefined {
+  if (!pathname.startsWith('/app/inventory/stock')) return undefined;
+  if (pathname.startsWith('/app/inventory/stock/items')) return 'items';
+  if (pathname.startsWith('/app/inventory/stock/ledger')) return 'ledger';
+  return 'overview';
+}
+
+function InventoryShellDrawer({ activeKey, activeSubKey }: { activeKey: string; activeSubKey?: string }) {
   const { isOpen, close } = useMobileNavDrawer();
-  return <InventoryMobileNavDrawer activeKey={activeKey} open={isOpen} onOpenChange={(open) => (open ? undefined : close())} />;
+  return (
+    <InventoryMobileNavDrawer
+      activeKey={activeKey}
+      activeSubKey={activeSubKey}
+      open={isOpen}
+      onOpenChange={(open) => (open ? undefined : close())}
+    />
+  );
 }
 
 export default function InventoryShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const activeKey = activeKeyFromPathname(pathname);
+  const activeSubKey = activeSubKeyFromPathname(pathname);
 
   return (
     <MobileNavDrawerProvider>
       <div className="flex h-screen min-h-0 w-full bg-wds-canvas">
         <div className="hidden lg:flex">
-          <InventorySidebar activeKey={activeKey} />
+          <InventorySidebar activeKey={activeKey} activeSubKey={activeSubKey} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>
-      <InventoryShellDrawer activeKey={activeKey} />
+      <InventoryShellDrawer activeKey={activeKey} activeSubKey={activeSubKey} />
     </MobileNavDrawerProvider>
   );
 }

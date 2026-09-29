@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
@@ -44,6 +45,9 @@ const STATUS_LABEL: Record<string, string> = {
  * layout but disabled — their milestones haven't shipped yet
  * (session-a-plan.md's resolved finding on `122U-0`).
  */
+const QUICK_ACTION_CLASS =
+  'flex h-11 touch-manipulation items-center justify-center rounded-wds-sm border border-wds-border-strong bg-wds-surface outline-none transition-[background-color,transform] duration-150 ease-out hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98]';
+
 export function DepartmentLandingScreen() {
   const router = useRouter();
   const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
@@ -200,13 +204,18 @@ export function DepartmentLandingScreen() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2.5 opacity-60">
+        <div className="flex flex-col gap-2.5">
           <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">QUICK ACTIONS</span>
-          <div className="flex gap-2.5">
-            <div className="flex h-11 grow cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong">
-              <span className="font-wds-sans text-wds-body text-wds-neutral-500">Log waste</span>
-            </div>
-            <div className="flex h-11 grow cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong">
+          {/* Milestone Six Session 1 — Log waste (`1ACM-0`) and the department's
+              Stock ledger (`1FDY-0`) are live; View history's milestone hasn't shipped. */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link href="/app/branch/waste/new" className={QUICK_ACTION_CLASS}>
+              <span className="font-wds-sans text-wds-body text-wds-text-ink">Log waste</span>
+            </Link>
+            <Link href="/app/branch/ledger" className={QUICK_ACTION_CLASS}>
+              <span className="font-wds-sans text-wds-body text-wds-text-ink">Stock ledger</span>
+            </Link>
+            <div className="flex h-11 cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong opacity-60">
               <span className="font-wds-sans text-wds-body text-wds-neutral-500">View history</span>
             </div>
           </div>

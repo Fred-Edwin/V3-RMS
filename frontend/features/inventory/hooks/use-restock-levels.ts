@@ -12,7 +12,7 @@ export type RestockLevelsActor = { role: 'STORE_MANAGER' | 'DEPARTMENT_HEAD' };
  * every dirty row in a single `PUT`. This hook owns that dirty-row map so
  * the screen component only renders rows and calls `setLevel` / `save`.
  */
-export function useRestockLevels(locationId: string | undefined, actor: RestockLevelsActor) {
+export function useRestockLevels(locationId: string | undefined, actor: RestockLevelsActor, enabled = true) {
   const [rows, setRows] = useState<RestockLevelRow[]>([]);
   const [edits, setEdits] = useState<Record<string, string | null>>({});
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -35,9 +35,11 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locationId, actor.role]);
 
+  // `enabled` lets a drawer mount closed without fetching — and wait for the
+  // Central Store id — instead of firing a `locationId`-less request (400).
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (enabled) void load();
+  }, [load, enabled]);
 
   const setLevel = useCallback((inventoryItemId: string, value: string | null) => {
     setEdits((prev) => ({ ...prev, [inventoryItemId]: value }));
@@ -51,7 +53,8 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
     [rows, edits]
   );
 
-  const isDirty = Object.keys(edits).length > 0;
+  const changedIds = useMemo(() => Object.keys(edits), [edits]);
+  const isDirty = changedIds.length > 0;
 
   const save = useCallback(async () => {
     if (!isDirty) return true;
@@ -74,5 +77,5 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
 
   const discard = useCallback(() => setEdits({}), []);
 
-  return { rows: displayRows, isDirty, setLevel, save, saving, saveError, discard, status, error, reload: load };
+  return { rows: displayRows, changedIds, isDirty, setLevel, save, saving, saveError, discard, status, error, reload: load };
 }

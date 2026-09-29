@@ -254,3 +254,5 @@ export * from './receiving';
 
 // ─── Milestone Three — Prep ────────────────────────────────────────────────
 export * from './prep';
+export * from './stock';
+export * from './waste';

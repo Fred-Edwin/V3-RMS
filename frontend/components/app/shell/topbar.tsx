@@ -19,6 +19,8 @@ import { SearchInput, type SearchInputProps } from '@/components/ui2/search-inpu
  * `borderBottomWidth`/`borderBottomColor` are set).
  */
 export interface TopbarBreadcrumb {
+  /** Optional static first segment for a three-level trail ("Central Store / Stock & counts / Coffee beans · ledger"). */
+  root?: string;
   section: string;
   screen: string;
   /** Optional — when set, the section segment becomes a link back to it (e.g. a sub-screen returning to its list). Omit for the default static breadcrumb every other screen uses. */
@@ -28,11 +30,13 @@ export interface TopbarBreadcrumb {
 export interface TopbarProps {
   breadcrumb: TopbarBreadcrumb;
   searchProps?: SearchInputProps;
+  /** Ref to the search `<input>` — e.g. for a ⌘K focus shortcut. */
+  searchRef?: React.Ref<HTMLInputElement>;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarProps) {
+export function Topbar({ breadcrumb, searchProps, searchRef, actions, className }: TopbarProps) {
   return (
     <header
       className={cn(
@@ -41,6 +45,12 @@ export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarPr
       )}
     >
       <div className="flex items-center gap-wds-2">
+        {breadcrumb.root ? (
+          <>
+            <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{breadcrumb.root}</span>
+            <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
+          </>
+        ) : null}
         {breadcrumb.sectionHref ? (
           <Link
             href={breadcrumb.sectionHref}
@@ -56,6 +66,7 @@ export function Topbar({ breadcrumb, searchProps, actions, className }: TopbarPr
       </div>
 
       <SearchInput
+        ref={searchRef}
         {...searchProps}
         className={cn('ml-wds-4 w-[300px] shrink-0', searchProps?.className)}
       />

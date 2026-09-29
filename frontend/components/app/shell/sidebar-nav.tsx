@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { Avatar, AvatarFallback } from '@/components/ui2/avatar';
+import { HintTooltip } from './hint-tooltip';
 import { SignOutIcon } from './nav-icons';
 import type { NavIcon } from './nav-icons';
 
@@ -26,12 +27,22 @@ import type { NavIcon } from './nav-icons';
  *   `--wds-sidebar-fg-active`.
  */
 
+export interface SidebarNavSubItem {
+  key: string;
+  label: string;
+  href: string;
+  /** Drawn but not usable yet — rendered as-is with `aria-disabled` and this hint as a tooltip. */
+  disabledHint?: string;
+}
+
 export interface SidebarNavItem {
   key: string;
   label: string;
   href: string;
   icon: NavIcon;
   count?: number;
+  /** Sub-pages, shown as the curved connector rail under the item while it is active (`1BI5-0`). */
+  subItems?: SidebarNavSubItem[];
 }
 
 export interface SidebarNavGroup {
@@ -49,6 +60,8 @@ export interface SidebarNavUser {
 export interface SidebarNavProps {
   groups: SidebarNavGroup[];
   activeKey: string;
+  /** Active sub-link key under the active item, when it has `subItems`. */
+  activeSubKey?: string;
   user: SidebarNavUser;
   orgLabel?: string;
   logoSrc?: string;
@@ -108,9 +121,100 @@ function DesktopNavItem({
   );
 }
 
+const SUB_ROW_HEIGHT = 26;
+
+/**
+ * Sub-link rail — Paper `1BI5-0` inside `1AYX-0` (memory: sidebar sub-link
+ * pattern). One SVG draws the connector down the left edge and curves
+ * (radius ~8px) into the last row; every other row gets a short 32%-opacity
+ * tick. Active sub-link: white, medium. Inactive: caramel-300 at 85%.
+ * No motion on the rail itself — it's navigation seen dozens of times a day.
+ */
+function SubLinkRail({
+  items,
+  activeSubKey,
+  onNavigate,
+}: {
+  items: SidebarNavSubItem[];
+  activeSubKey?: string;
+  onNavigate?: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
+}) {
+  const height = items.length * SUB_ROW_HEIGHT;
+  const curveY = height - 13;
+  return (
+    <div className="relative -mt-[5px] mb-2 ml-[27px] flex flex-col">
+      <svg
+        width="20"
+        height={height}
+        viewBox={`0 0 20 ${height}`}
+        className="pointer-events-none absolute left-[11px] top-0"
+        aria-hidden
+      >
+        <path
+          d={`M 1 0 L 1 ${curveY - 8} Q 1 ${curveY} 9 ${curveY} L 20 ${curveY}`}
+          fill="none"
+          stroke="var(--wds-caramel-500)"
+        />
+      </svg>
+      {items.map((item, i) => {
+        const active = item.key === activeSubKey;
+        const isLast = i === items.length - 1;
+        const label = (
+          <span
+            className={cn(
+              'ml-[34px] font-wds-sans text-wds-body-sm leading-4',
+              active ? 'font-medium text-wds-surface' : 'text-wds-caramel-300 opacity-85',
+            )}
+          >
+            {item.label}
+          </span>
+        );
+        const tick = isLast ? null : (
+          <span className="pointer-events-none absolute left-3 top-[13px] h-px w-3.5 bg-wds-caramel-500 opacity-[0.32]" aria-hidden />
+        );
+        const rowClass = 'relative flex h-[26px] shrink-0 items-center rounded-wds-sm outline-none';
+        if (item.disabledHint) {
+          return (
+            <HintTooltip key={item.key} hint={item.disabledHint} side="top" className="flex">
+              {(describedBy) => (
+                <span
+                  role="link"
+                  tabIndex={0}
+                  aria-disabled="true"
+                  aria-describedby={describedBy}
+                  className={cn(rowClass, 'w-full cursor-not-allowed focus-visible:shadow-wds-ring')}
+                >
+                  {tick}
+                  {label}
+                </span>
+              )}
+            </HintTooltip>
+          );
+        }
+        return (
+          <Link
+            key={item.key}
+            href={item.href}
+            aria-current={active ? 'page' : undefined}
+            onClick={onNavigate ? (e) => onNavigate(item.href, e) : undefined}
+            className={cn(
+              rowClass,
+              'transition-[background-color] duration-150 hover:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring [&:hover>span:last-child]:opacity-100',
+            )}
+          >
+            {tick}
+            {label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SidebarNav({
   groups,
   activeKey,
+  activeSubKey,
   user,
   orgLabel = 'HUB',
   logoSrc,
@@ -138,7 +242,7 @@ export function SidebarNav({
         </span>
       </div>
 
-      <div className="flex flex-col gap-px overflow-y-auto px-wds-2.5 py-wds-3.5">
+      <div className="flex flex-col gap-px overflow-y-auto overflow-x-hidden px-wds-2.5 py-wds-3.5">
         {groups.map((group, i) => (
           <React.Fragment key={group.key}>
             <div className={cn('px-wds-2.5 pb-1.5', i === 0 ? 'pt-2' : 'pt-4')}>
@@ -147,12 +251,16 @@ export function SidebarNav({
               </span>
             </div>
             {group.items.map((item) => (
-              <DesktopNavItem
-                key={item.key}
-                item={item}
-                active={item.key === activeKey}
-                onNavigate={onNavigate}
-              />
+              <React.Fragment key={item.key}>
+                <DesktopNavItem item={item} active={item.key === activeKey} onNavigate={onNavigate} />
+                {item.key === activeKey && item.subItems?.length ? (
+                  <SubLinkRail
+                    items={item.subItems}
+                    activeSubKey={activeSubKey}
+                    onNavigate={onNavigate ? (href, e) => onNavigate({ ...item, href }, e) : undefined}
+                  />
+                ) : null}
+              </React.Fragment>
             ))}
           </React.Fragment>
         ))}

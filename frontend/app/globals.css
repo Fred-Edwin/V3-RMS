@@ -24,6 +24,17 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Milestone Six ledger — a `?highlight=` row fades once from caramel into its
+   resting espresso-50 tint (session-1-plan §4.3). Used via motion-safe:animate-[…]. */
+@keyframes ledger-highlight {
+  from {
+    background-color: var(--wds-caramel-100);
+  }
+  to {
+    background-color: var(--wds-espresso-50);
+  }
+}
+
 @keyframes cart-nudge {
   0% {
     transform: translateY(0);

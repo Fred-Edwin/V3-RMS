@@ -48,3 +48,9 @@ export { SupplierDetailScreen } from './components/screens/supplier-detail-scree
 // Milestone Three — Prep.
 export { PrepRunsListScreen } from './components/screens/prep-runs-list-screen';
 export { PrepHistoryScreen } from './components/screens/prep-history-screen';
+
+// Milestone Six, Session 1 — Stock position & waste.
+export { StockHubScreen } from './components/screens/stock-hub-screen';
+export { StockItemsScreen } from './components/screens/stock-items-screen';
+export { StockLedgerScreen, StockLedgerPickerScreen } from './components/screens/stock-ledger-screen';
+export { DepartmentLogWasteScreen } from './components/screens/department-log-waste-screen';

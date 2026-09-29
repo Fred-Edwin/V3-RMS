@@ -8,7 +8,8 @@ import { getCentralStoreLocation } from '../services';
  * restock-levels endpoints. Post-freeze addition (2026-09-15) — see
  * `inventory-api-service.ts`'s `getCentralStoreLocation` for why this exists.
  */
-export function useCentralStoreLocation() {
+/** `enabled: false` skips the request — the Store Attendant has no access to this SM-only lookup. */
+export function useCentralStoreLocation(enabled = true) {
   const [locationId, setLocationId] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +28,8 @@ export function useCentralStoreLocation() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (enabled) void load();
+  }, [load, enabled]);
 
   return { locationId, status, error, reload: load };
 }

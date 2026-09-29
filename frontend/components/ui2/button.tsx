@@ -8,9 +8,13 @@ import { cn } from '@/lib/cn';
  * WDS Button — matches the Paper "Primitives" artboard.
  * Height 32 (sm 28, lg 36), radius 2. Espresso is the only filled color;
  * the primary carries a top-light sheen (--wds-sheen-inset).
+ *
+ * Press feedback: `scale(0.98)` on `:active`, 150ms ease-out (Milestone Six
+ * §4.2 interaction baseline — applies to every button), skipped under
+ * prefers-reduced-motion.
  */
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-wds-sm font-wds-sans text-wds-body-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-wds-sm font-wds-sans text-wds-body-sm font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out motion-safe:active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

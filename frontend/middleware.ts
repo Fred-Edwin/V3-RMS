@@ -87,6 +87,13 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
     return role === 'MANAGER' || isDepartmentHead;
   }
 
+  // Milestone Six, Session 1 — a Department Head's own-department stock
+  // ledger and Log waste (`1BPY-0`/`1FDY-0`, `1ACM-0`). Department-scoped
+  // server-side (location resolved from the actor); no Manager screen yet.
+  if (pathname.startsWith('/app/branch/ledger') || pathname.startsWith('/app/branch/waste')) {
+    return isDepartmentHead;
+  }
+
   // Milestone Four, Session B — Branch Manager approval workspace
   // (decision #8: lives at /app/branch, not under /app/requisitions).
   if (pathname.startsWith('/app/branch')) {
