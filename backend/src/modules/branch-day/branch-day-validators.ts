@@ -74,7 +74,7 @@ export const BranchDayTodaySchema = z.object({
   reopenCount: z.number().int(),
   departments: z.array(DepartmentDaySummarySchema),
   yesterday: z
-    .object({ date: dateOnly, status: branchDayStatusSchema, closedAt: isoDate.nullable(), closedBy: userRef.nullable() })
+    .object({ id: uuid, date: dateOnly, status: branchDayStatusSchema, closedAt: isoDate.nullable(), closedBy: userRef.nullable() })
     .nullable(),
   reasonRequiredKes: z.number().int(),
   canClose: z.boolean(),

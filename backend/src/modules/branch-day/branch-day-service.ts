@@ -272,6 +272,7 @@ export const branchDayService = {
       departments: views.map((v) => v.summary),
       yesterday: yesterdayRow
         ? {
+            id: yesterdayRow.id,
             date: formatDateOnly(yesterdayRow.businessDate),
             status: yesterdayRow.status,
             closedAt: yesterdayRow.closedAt?.toISOString() ?? null,

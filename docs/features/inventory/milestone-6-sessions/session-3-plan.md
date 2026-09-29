@@ -243,4 +243,42 @@ first screen.**
 
 ## Outcome log
 
-_(appended as the session proceeds)_
+### Backend (2026-09-29, branch `feat/m6-s3-day-close`, commit `bd5e838`)
+
+**Shipped.** Migration `20260930090000_milestone6_session3_branch_day` (additive: `BranchDay`, `BranchDayDepartment`, `BranchDayLine`, `BranchDayReopen`, `BranchDayStatus`/`BranchDayDepartmentStatus`/`GapReason`, `InventoryTransaction.branchDayLineId` → real FK + index). New `backend/src/modules/branch-day/` (`-validators/-types/-repository/-service/-controller/-routes/-calc`). `PUT /inventory/thresholds` now accepts a Branch Manager (`{reasonRequiredKes, overnightAlertKes}`, own org only, `.strict()`). `fcmService.sendBranchDayDirectorAlertPush` (after commit). Ledger counterparty reads "End-of-day count" / "End-of-day count · reversed". Docs: `API_CONTRACT.md` §26.3, `DATA_MODEL.md` §4.73–4.76 + §4.52. `pnpm build` + `pnpm test` green (91 files, 1,155 tests; 36 new across `branch-day-service`, `branch-day-contract`, `thresholds-service`).
+
+**Verified live** (real API + local Postgres): today get-or-create with derived BLOCKED; partial saves with server snapshot; close blockers → 409 `DAY_NOT_READY`; wrong PIN 401; close → `ADJ-` rows with `branch_day_line_id`; save on a closed day → 409 `DAY_CLOSED`; reopen; **re-close reversed both standing adjustments with linked equal-and-opposite rows and wrote the fresh one — Σ ledger per (department, item) equals the counted figure (coffee beans 12, croissants 4) and every reversal points at its original.**
+
+**Deviations from the plan (and why):**
+1. **Item set per department = tagged items ∪ items currently holding stock there.** A dispatch can land an untagged item (dev data has Baking Flour at Kitchen); leaving it uncounted would let it drift forever.
+2. **`BranchDayLine` rows are created at the first save of an item's count** (uncounted items have no row; the read model shows the live expected figure). A cleared count keeps its last snapshot.
+3. **`expectedQty` excludes this day's own close adjustments *and their reversals*** (all rows carrying a line of this day), so a re-count after reopen judges against the pre-close position.
+4. **Departments show `COUNTING` (derived) between `NOT_STARTED` and `COUNTED`** — the design's rail draws it; only the first and last are stored.
+5. **`yesterday.id` added** to `GET /branch-day/today` so the KPI card can link to the signed document.
+6. **A reason is only kept on a `reasonRequired` line** — anything else is dropped on save so stale reasons never linger.
+7. `prisma migrate dev` not used (non-interactive) — `migrate diff --script` + `migrate deploy`, as in S1/S2.
+
+**Seed** — `npx tsx src/scripts/seed-branch-day-dev-fixtures.ts [--state=none|open|counting|ready|closed] [--block=BARISTA|none]` (dev-only, idempotent; drives the real service functions; sets the Nyeri Town manager's PIN to 1234; **rewrites the branch's dev dispatch fixtures** — confirms in-transit ones and re-points one at the blocked department).
+
+### Frontend gates (2026-09-29)
+
+New `frontend/features/branch-day/` + routes `/app/branch/day`, `/app/branch/day/document/[id]`, `/app/branch/day-print/[id]`; sidebar "Day" wired. Shared pieces reused from `features/inventory` through its `index.ts` (`PinSheet`, `CountReasonControl` — generalised over the reason set with a `flagEmpty` prop —, `Reveal`, `StatCell`, `StatusDot`, `HighlightOnChange`, states kit, `StockMobileHeader`, drawer motion, formatters, `useResource`). Every state below was compared against Paper in a real browser (desktop 1440×981 via 960×654 emulation, mobile 390×844) and its interactions exercised.
+
+- **Today's day · overview + count entry (`19C8-0` / `1E13-0`; `1CDC-0` / `1E8C-0`) — passed.** Live gap and reason reveal (height transition), autosave with "Saved HH:MM", Enter → next field, department rail with derived status dots, blocker footer with `aria-disabled` + tooltip. Mobile KPI cells, faint sub-lines and 52px footer button aligned to Paper's values after a `get_jsx` pass.
+- **Ready (`1EE4-0` / `1EPU-0`) — passed.** 5 / 5 in success green, success footer line, primary button. PIN sheet: wrong PIN inline "Incorrect PIN", correct PIN → toast "Day closed".
+- **Closed (`1EJY-0` / `1ERZ-0`) — passed.** Read-only rows, "Closed" pill, View signed document + Reopen day.
+- **Reopen (`19PY-0` / `1BYP-0`) — passed.** Button disabled until a reason; destructive tone; "Reopening…" in flight; day returns to Open + toast.
+- **Thresholds · Branch Manager (`1IR9-0` / `1J2L-0`) — passed.** Live worked example, thousands separators, Director amount read-only, saves to the branch's own row (Postgres-checked), toast, dirty guard.
+- **Signed document (`19S2-0`) + print — passed.** Signature in the bundled signature font; print route renders and calls `window.print`.
+- **States kit** — loading skeletons mirror the layout with chrome intact (desktop verified); error card with Retry recovers (verified after clearing an API 429 caused by repeated test logins); blocked-department view shows inputs disabled with the explanation.
+
+**Deviations from Paper (owner to confirm):**
+1. **"Counted" status text reads success-green**; Paper draws it in the error red on `19C8-0`/`1EE4-0`, which reads as a fault (Closed is green on `1EJY-0`).
+2. **Counted figures stay editable while the day is open** (Paper draws a fully-counted department as read-only text). A mistake found before signing shouldn't need a reopen.
+3. **The mobile "History" link is drawn but disabled** (`aria-disabled` + tooltip) — Day close history is Session 4.
+4. **Rail second line shows who counted (the Branch Manager)** — the design names the department head; counts are entered by the Branch Manager (§7 Q-1).
+5. The shared PIN sheet's desktop dialog doesn't clear the boxes after a wrong PIN and Enter doesn't submit — that is Session 2's component; noted, not changed here.
+
+**Checks:** `backend pnpm build && pnpm test` (91 files, 1,155 tests) and `frontend pnpm build` (+ `check-wds-tokens`) green; `vitest features/branch-day` 6 tests; eslint clean on all new code (15 pre-existing errors in `features/inventory`, unchanged).
+
+**For the owner:** (1) the five deviations above; (2) `use-stock.ts` gained `'use client'` because the inventory barrel now re-exports `useResource` and server-component pages import that barrel; (3) the dev fixture seed rewrites Nyeri Town's dispatch fixtures; (4) Session 4 is next — history list/detail, next-morning opening, integration pass.

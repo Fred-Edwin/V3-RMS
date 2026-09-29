@@ -60,3 +60,42 @@ export { SpotCountScreen } from './components/screens/spot-count-screen';
 
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
 export { SettingsScreen } from './components/screens/settings-screen';
+
+// Milestone Six, Session 3 — pieces the branch day close (features/branch-day)
+// shares with the Central Store's counting screens, so it reuses rather than
+// forks them: PIN sheet, the one reason control, states kit, mobile header,
+// drawer motion, number/date formatting, the loader hook.
+export { PinSheet } from './components/stock/pin-sheet';
+export type { PinSheetProps } from './components/stock/pin-sheet';
+export { CountReasonControl } from './components/stock/count-reason';
+export type { CountReasonControlProps, ReasonOption } from './components/stock/count-reason';
+export { Reveal, StatCell, StatusDot } from './components/stock/count-verify-parts';
+export { HighlightOnChange } from './components/stock/highlight-on-change';
+export { StockMobileHeader } from './components/stock/stock-mobile-header';
+export { STOCK_DRAWER_MOTION, useReturnFocus } from './components/stock/log-waste-drawer';
+export {
+  FormErrorBanner,
+  KpiValueSkeleton,
+  ListRowSkeleton,
+  MobileListRowSkeleton,
+  SkeletonRows,
+  StockEmptyCard,
+  StockErrorCard,
+  TableRowSkeleton,
+} from './components/stock/stock-states';
+export {
+  DEPARTMENT_LABEL,
+  formatClock,
+  formatCountDateFull,
+  formatCountDateLong,
+  formatCountDateShort,
+  formatDayMonth,
+  formatDayMonthClock,
+  formatKes,
+  formatNairobiDayMonth,
+  formatQty,
+  formatSignedKes,
+  formatVariance,
+  shortName,
+} from './components/stock/stock-format';
+export { useResource } from './hooks/use-stock';

@@ -28,7 +28,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'branch', label: 'Branch', href: '#', icon: BranchIcon },
       { key: 'requisitions', label: 'Requisitions', href: '/app/branch/requisitions', icon: RequisitionsIcon },
       { key: 'deliveries', label: 'Deliveries', href: '/app/branch/deliveries', icon: DeliveriesIcon },
-      { key: 'day', label: 'Day', href: '#', icon: DayIcon },
+      { key: 'day', label: 'Day', href: '/app/branch/day', icon: DayIcon },
       { key: 'waste', label: 'Waste', href: '#', icon: WasteIcon },
     ],
   },

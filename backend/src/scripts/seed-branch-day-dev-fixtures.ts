@@ -147,15 +147,17 @@ async function main(): Promise<void> {
     });
   });
 
-  // 3b. Dispatches: confirm the branch's in-transit ones, keep one blocking `block`.
-  const inTransit = await prisma.dispatch.findMany({ where: { toOrganizationId: org.id, status: 'IN_TRANSIT' }, orderBy: { dispatchedAt: 'asc' } });
+  // 3b. Dispatches: confirm the branch's in-transit ones, then (unless --block=none) re-point one
+  // dispatch at the blocked department and put it back in transit. Picks from all of the branch's
+  // dispatches, so the seed stays repeatable after an earlier run confirmed everything.
+  const dispatches = await prisma.dispatch.findMany({ where: { toOrganizationId: org.id }, orderBy: { dispatchedAt: 'asc' } });
   await prisma.dispatch.updateMany({
-    where: { id: { in: inTransit.map((d) => d.id) } },
+    where: { toOrganizationId: org.id, status: 'IN_TRANSIT' },
     data: { status: 'CONFIRMED', confirmedById: manager.id, confirmedAt: new Date() },
   });
-  if (block !== 'NONE' && inTransit[0]) {
+  if (block !== 'NONE' && dispatches[0]) {
     await prisma.dispatch.update({
-      where: { id: inTransit[0].id },
+      where: { id: dispatches[0].id },
       data: { status: 'IN_TRANSIT', confirmedById: null, confirmedAt: null, departmentTag: block as DepartmentTag },
     });
   }
