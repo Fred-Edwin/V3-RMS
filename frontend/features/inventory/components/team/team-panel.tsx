@@ -35,7 +35,7 @@ type PendingAction =
   | { kind: 'reactivate'; member: TeamMember };
 
 const ROW_ACTION =
-  'font-wds-sans text-wds-body-sm text-wds-primary underline-offset-4 outline-none transition-colors hover:underline focus-visible:rounded-wds-sm focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-50';
+  'whitespace-nowrap font-wds-sans text-wds-body-sm text-wds-primary underline-offset-4 outline-none transition-colors hover:underline focus-visible:rounded-wds-sm focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-50';
 
 export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
   const { toast } = useWdsToast();
@@ -125,15 +125,13 @@ export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
           <TableBody>
             <OwnRow onOpenMyPin={onOpenMyPin} />
             {status === 'loading' ? (
-              <SkeletonRows count={3} label="Loading your team">
-                {(i) => (
-                  <tr key={i}>
-                    <td colSpan={5} className="p-0">
-                      <TableRowSkeleton widths={[110, 70, 60, 150]} nameWidth={200} />
-                    </td>
-                  </tr>
-                )}
-              </SkeletonRows>
+              <tr>
+                <td colSpan={5} className="p-0">
+                  <SkeletonRows count={3} label="Loading your team">
+                    {(i) => <TableRowSkeleton key={i} widths={[110, 70, 60, 150]} nameWidth={200} />}
+                  </SkeletonRows>
+                </td>
+              </tr>
             ) : (
               members.map((member) => (
                 <MemberRow key={member.id} member={member} busy={busy} onAction={open} />

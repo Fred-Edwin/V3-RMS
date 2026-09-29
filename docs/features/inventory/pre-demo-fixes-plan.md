@@ -111,3 +111,25 @@ Report, in chat: (1) what shipped per fix with commit SHAs + PR link; (2) every 
 - **Deviation (small):** the Store Manager's own row in the Team table is *not* returned by `GET /staff` (plan says attendants only). The frontend builds that row from the auth user + `pin-status`.
 - **Deviation (small):** `reset-pin` is `SYSTEM_ADMIN` + `STORE_MANAGER` only (branch Managers not added — no demo need).
 
+
+**Frontend (Fix 1 UI, Fix 2 UI, Fix 3) — built; `pnpm build` clean; frontend tests 65 → 88 (+23, item-form validation).**
+- **Settings page** (`/app/inventory/settings`, STORE_MANAGER only — sidebar item, middleware gate, backend routes all enforce): Team table (PIN status, Add attendant drawer, Reset password / Reset PIN / Deactivate / Reactivate each behind a confirm + toast) and My PIN tab.
+- **Shared PIN layer:** `usePinStatus`, `SetPinForm`, `SigningPinCard` (Profile + My PIN). Both signing surfaces — `SignSheetDialog` (used by Requisitions, Dispatch, Goods Receipt, Discrepancy) and the mobile `PinSheet` (Daily/Spot count) — swap to a "Set your signing PIN" step when `pin-status` says no PIN, then sign with the PIN just set.
+- **Fix 3:** numeric `conversion` / `packSize` inputs, computed non-editable labels, `validateOptionalPositiveDecimal` mirrors the backend's `positiveDecimalSchema`; invalid input blocks save with an inline message (no silent null). API values are normalised for display (`25.0000` → `25`) and round-trip unchanged.
+
+**Corrections to the approved Paper (recorded, not worked around):**
+1. *Pack size is not "whole number only".* Paper artboard 7 drew "Pack size must be a whole number" — wrong: `packSize` is a decimal quantity of the **usage unit** per pack (the catalog table already renders it as "12 kg"). Validation is positive decimal (≤ 4 dp), same as the conversion factor.
+2. *Pack-size computed label reads `1 pack = 12 kg`* (Paper's "1 Case = 6 tins" mixed up buy unit and pack).
+3. Invalid-format copy is "Enter a number like 25 or 12.5 (up to 4 decimal places)." for non-numeric input; "Enter a number greater than 0." for zero/negative (Paper showed only the latter).
+4. The Profile "Signing PIN" card follows the approved Paper (2px radius, flat) and so sits slightly differently from the legacy rounded cards around it on that page.
+
+**Real bugs found and fixed during browser verification:**
+- Skeleton rows rendered `<div>`/`<span>` directly inside `<tbody>` (React invalid-nesting/hydration warning) → wrapped in a single `<tr><td>`.
+- Row action labels wrapped onto two lines at narrower widths → `whitespace-nowrap`.
+- (Environment) the long-running local `tsx watch` backend was serving pre-change code (`/users/me/pin-status` 404 and an unscoped `/staff` list); restarting it fixed that. Not a code defect, but worth knowing if the owner sees the same locally.
+
+**Browser verification (chrome-devtools, local DB, real backend):** Store Manager: Settings scoped to 2 people; Add attendant (validation errors + success + toast); Reset PIN (DB `pin_hash` → null, table flips to "Not set"); Reset password (short-password validation, in-flight state, then the attendant logged in with the new password); Set-PIN step on the desktop dialog (mismatch error, then set + sign a spot count in one go, 201) and on the mobile sheet at 390px (same flow, "Spot count saved"); My PIN change (wrong password → "That password isn't right.", correct → "PIN updated"); Profile card renders. Attendant: no Settings nav link, direct `/app/inventory/settings` bounces to the catalog, `GET /staff` and `PATCH …/reset-pin` return 403. Branch Manager without a PIN: "Approve & sign" on a requisition opens the Set-PIN step (cancelled, not completed). Catalog: an existing item (24 / 12) hydrates, the old sentence format is rejected with an error, saving with unchanged numbers leaves DB `24.0000` / `12.0000`; a new item saved `25` / `25`.
+
+**Not verified:** System Admin creating a Store Manager (existing admin page, untouched); Dispatch / Goods Receipt / Discrepancy sign sites individually (same `SignSheetDialog` I exercised via Requisitions and Spot count); an attendant hitting a signing action with no PIN on a phone (today's daily count was already submitted in local data, so the Store Manager used the same mobile `PinSheet`); Deactivate / Reactivate through the UI (same confirm path as Reset PIN, not clicked); the Team table's loading and error states (Skeleton nesting fix is untested visually).
+
+**Local data touched:** two spot counts dated 29 Sep were created by the verification; the Store Manager / Nyeri Town manager / store attendant PINs were reset to the seed value `1234` and the attendant password to `password123`; the test attendant and test catalog item were deleted.
