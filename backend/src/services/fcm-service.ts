@@ -920,4 +920,70 @@ export const fcmService = {
       logger.warn({ error, payload }, 'Failed to send discrepancy resolved FCM push');
     }
   },
+
+  /** Notifies the Central Store's Store Manager(s) a daily count awaits verification. Fire-and-forget. */
+  sendCountSubmittedPush: async (
+    hubOrganizationId: string,
+    payload: { countId: string; reference: string; counterName: string; countedLines: number },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findFcmTokensByRole(hubOrganizationId, ['STORE_MANAGER']);
+      if (tokens.length === 0) return;
+
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: 'Daily count awaiting verification',
+            body: `${payload.counterName} submitted ${payload.reference} · ${payload.countedLines} items counted`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `count-submitted-${payload.countId}`,
+          },
+          fcmOptions: { link: '/app/inventory/stock/counts' },
+        },
+        data: { type: 'count_submitted', countId: payload.countId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send count submitted FCM push');
+    }
+  },
+
+  /** Notifies Directors a verified count has lines at or above the Director alert amount. Fire-and-forget. */
+  sendCountDirectorAlertPush: async (payload: {
+    countId: string;
+    reference: string;
+    alertLineCount: number;
+    largestValueKes: string;
+  }): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findDirectorFcmTokens();
+      if (tokens.length === 0) return;
+
+      await Promise.allSettled(
+        tokens.map((token) =>
+          firebaseMessaging!.send({
+            token,
+            webpush: {
+              headers: { Urgency: 'high' },
+              notification: {
+                title: 'Large stock variance',
+                body: `${payload.reference} · ${payload.alertLineCount} line(s) at or above the alert amount · largest KES ${payload.largestValueKes}`,
+                icon: '/android-chrome-192x192.png',
+                badge: '/android-chrome-192x192.png',
+                tag: `count-director-alert-${payload.countId}`,
+              },
+              fcmOptions: { link: '/app/director' },
+            },
+            data: { type: 'count_director_alert', countId: payload.countId },
+          }),
+        ),
+      );
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send count director alert FCM push');
+    }
+  },
 };

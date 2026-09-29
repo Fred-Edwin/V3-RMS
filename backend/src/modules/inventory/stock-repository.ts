@@ -69,6 +69,9 @@ export type LedgerRawRow = {
   dispatchToOrgName: string | null;
   dispatchDepartmentTag: DepartmentTag | null;
   discrepancyReference: string | null;
+  /** DAILY | SPOT for an ADJUSTMENT written by a count; null otherwise. */
+  countKind: string | null;
+  countVerifierName: string | null;
 };
 
 type Scope = { locationOrgId: string; locationId: string; itemOrgId: string };
@@ -232,7 +235,7 @@ export const stockRepository = {
       WITH l AS (
         SELECT
           t.id, t.created_at, t.type, t.quantity, t.reference, t.reason,
-          t.goods_receipt_line_id, t.prep_record_id, t.waste_log_id, t.dispatch_line_id,
+          t.goods_receipt_line_id, t.prep_record_id, t.waste_log_id, t.dispatch_line_id, t.stock_count_line_id,
           SUM(t.quantity) OVER (ORDER BY t.created_at, t.id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running
         FROM inventory_transactions t
         WHERE t.organization_id = ${locationOrgId}
@@ -247,6 +250,7 @@ export const stockRepository = {
         po.name AS "prepOutputName",
         torg.name AS "dispatchToOrgName", d.department_tag AS "dispatchDepartmentTag",
         disc.reference_number AS "discrepancyReference",
+        sc.kind::text AS "countKind", cvu.name AS "countVerifierName",
         COUNT(*) OVER () AS total
       FROM l
       LEFT JOIN goods_receipt_lines grl ON grl.id = l.goods_receipt_line_id
@@ -258,6 +262,9 @@ export const stockRepository = {
       LEFT JOIN dispatch_lines dl ON dl.id = l.dispatch_line_id
       LEFT JOIN dispatches d ON d.id = dl.dispatch_id
       LEFT JOIN organizations torg ON torg.id = d.to_organization_id
+      LEFT JOIN stock_count_lines scl ON scl.id = l.stock_count_line_id
+      LEFT JOIN stock_counts sc ON sc.id = scl.stock_count_id
+      LEFT JOIN users cvu ON cvu.id = sc.verifier_id
       LEFT JOIN LATERAL (
         SELECT x.reference_number FROM discrepancies x
         WHERE l.type = 'ADJUSTMENT' AND x.dispatch_line_id = l.dispatch_line_id

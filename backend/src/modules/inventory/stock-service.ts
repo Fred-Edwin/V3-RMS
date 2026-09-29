@@ -3,6 +3,8 @@ import { Prisma, type DepartmentTag } from '@prisma/client';
 import { stockRepository, type LedgerRawRow, type StockListRow } from './stock-repository';
 import { resolveCentralStoreScope, resolveLedgerScope } from './stock-scope';
 import { inventoryItemRepository } from './inventory-repository';
+import { countService } from './count-service';
+import { shortName } from './count-calc';
 import { NotFoundError } from '../../utils/errors';
 import { AttendantStockSummarySchema } from './stock-validators';
 import type {
@@ -14,7 +16,6 @@ import type {
   StockList,
   StockRow,
   StockSummary,
-  TodaysCount,
 } from './stock.types';
 
 type Actor = NonNullable<Request['user']>;
@@ -30,12 +31,6 @@ const WASTE_REASON_LABEL: Record<string, string> = {
   DAMAGE_IN_STORE: 'Damage in store',
   PREP_ERROR: 'Prep error',
 };
-
-/**
- * Session 1 has no counting: today's count is always "no count yet". Session
- * 2 replaces this with a read of today's DAILY StockCount.
- */
-const noCountYet = (): TodaysCount => ({ status: 'NOT_STARTED', countId: null, submittedAt: null, submittedByName: null });
 
 const serializeStockRow = (row: StockListRow): StockRow => {
   return {
@@ -55,8 +50,8 @@ const serializeStockRow = (row: StockListRow): StockRow => {
 
 /**
  * The ledger's "counterparty" column, derived from whichever FK the row
- * carries (plan §1.7) — no stored free text. Session 2/3 add the count
- * sources (stockCountLineId, branch day) here.
+ * carries (plan §1.7) — no stored free text. Session 2 added the count
+ * source (stockCountLineId); Session 3 adds branch day.
  */
 export const formatCounterparty = (row: LedgerRawRow): string => {
   switch (row.type) {
@@ -76,6 +71,10 @@ export const formatCounterparty = (row: LedgerRawRow): string => {
     case 'PREP_PRODUCE':
       return 'Prep run';
     case 'ADJUSTMENT':
+      if (row.countKind) {
+        const source = row.countKind === 'SPOT' ? 'Spot count' : 'Daily count';
+        return row.countVerifierName ? `${source} · verified by ${shortName(row.countVerifierName)}` : source;
+      }
       if (row.discrepancyReference) return `Transit discrepancy · ${row.discrepancyReference}`;
       return row.reason ?? 'Adjustment';
     default:
@@ -124,7 +123,7 @@ export const stockService = {
    */
   getSummary: async (actor: Actor): Promise<StockSummary | AttendantStockSummary> => {
     const scope = await resolveCentralStoreScope(actor);
-    const todaysCount = noCountYet();
+    const todaysCount = await countService.todaysCount(scope);
     if (actor.role === 'STORE_ATTENDANT') {
       return AttendantStockSummarySchema.parse({ todaysCount });
     }

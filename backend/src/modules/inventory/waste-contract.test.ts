@@ -23,6 +23,10 @@ import {
   WasteListSchema,
 } from './waste-validators';
 
+vi.mock('./count-repository', () => ({
+  countRepository: { todaysDaily: vi.fn().mockResolvedValue(null) },
+}));
+
 vi.mock('./waste-repository', () => ({
   wasteRepository: {
     create: vi.fn(),

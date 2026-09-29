@@ -254,3 +254,79 @@ outcome log.
 
 _(filled in by the build session — backend checkpoint first, then one line
 per screen/state gate, then the end-of-session summary)_
+
+### Checkpoint handoff — backend (2026-09-29, branch `feat/m6-s2-counting`)
+
+**Shipped.** Migration `20260929090000_milestone6_session2_counting` (additive:
+`StockCount`, `StockCountLine`, `CountingThresholds`, four enums,
+`InventoryTransaction.stockCountLineId` → real FK + index; the DAILY-uniqueness
+partial index is appended to the generated SQL). Module files in
+`backend/src/modules/inventory/`: `count-{validators,types,repository,service,controller,routes,calc}`,
+`thresholds-{validators,types,repository,service,controller}`,
+`counting-thresholds.ts` (defaults). `fcmService` gained
+`sendCountSubmittedPush` / `sendCountDirectorAlertPush` (called after commit,
+never awaited inside a transaction). Docs: `API_CONTRACT.md` §26.2,
+`DATA_MODEL.md` §4.70–4.72 + §4.52 update. `backend pnpm build` + `pnpm test`
+green (86 files, 1,078 tests; 46 new incl. the blindness test on the serialized
+JSON of every attendant-facing response).
+
+**Verified live** (real API + local Postgres, before the fixture seed): attendant
+`GET /counts/today` → 142-line blind sheet (7 category tabs, no expected/variance
+keys), partial save, wrong PIN 401, submit; SM list/view/decide/return; the
+attendant's RETURNED view shows only the queried line with the SM's note;
+non-queried recount → 409 `COUNT_LOCKED`; resubmit before recount → 409
+`RECOUNT_INCOMPLETE`; approve → `ADJ-0001…0003` rows in Postgres, each with
+`stock_count_line_id`; ledger counterparty reads "Daily count · verified by
+J. Mwangi"; spot count → `SPT-0001` VERIFIED + 1 adjustment; SM threshold save;
+branch fields → 400; SM Director write → 403; attendant → 403 on SM routes.
+
+**Endpoints** — see `API_CONTRACT.md` §26.2 for shapes. Example (fixture seed):
+`GET /inventory/counts` → `[{reference:"CNT-2026-0929", status:"SUBMITTED", itemCount:142, varianceLines:6, netVarianceValue:"-3120"}, {reference:"CNT-2026-0928", status:"VERIFIED", itemCount:36, adjustmentCount:6, netVarianceValue:"-1240"}, {reference:"SPT-0001", directorNotified:true, netVarianceValue:"-6500"}, {reference:"SPT-0002", netVarianceValue:"-180"}]`;
+`GET /inventory/counts/:id` (SM, today) → `totals {lines:142, matchedLines:136, varianceLines:6, aboveThreshold:2, netVarianceValue:"-3120"}`;
+`GET /inventory/stock/summary` → `todaysCount {status:"SUBMITTED", submittedAt:"…T04:10:00Z" (07:10 Nairobi), submittedByName:"Sarah Achieng", countedLines:142, totalLines:142}`.
+
+**Deviations from the plan (and why):**
+1. **`StockCountLine.firstCountedQty` and `queryNote` added.** Send-back clears
+   the queried line's `countedQty` (so the recount is genuinely blind, and
+   "recounted?" is just `countedQty !== null`) — the first figure is kept in
+   `firstCountedQty` for the audit trail. `1F4N-0` draws a per-line note ("Recount
+   the back shelf…") in addition to the count-level note, hence `queryNote`.
+2. **`CountingThresholds.directorUpdatedById/At` added** so the SM drawer's "last
+   changed by" is never the Director's edit of the company-wide amount.
+3. **`unitCost` frozen at submit** with the snapshot (plan §1.2 said "at verify")
+   — otherwise `reasonRequired` (stored at submit) and the KES figure the SM sees
+   could disagree if a receipt moved the current cost between the two.
+4. **Approve also blocks `LINES_UNDECIDED`** (a counted variance line still
+   PENDING) — the plan lists only `REASON_REQUIRED` / queried lines, but silently
+   skipping an undecided variance would drop it from the ledger with no trace.
+   Zero-variance counted lines are auto-`ACCEPTED` at submit, so the SM only
+   decides real variances.
+5. **`GET /inventory/counts` has no waste roll-up row** — the hub already has
+   `GET /inventory/waste`; the frontend composes the roll-up row from it.
+6. **`TodaysCount` gained `countedLines` / `totalLines`** (progress, never
+   quantity; safe for the attendant) so the attendant hub can say "8 of 142
+   counted" and SM/attendant cards have real states.
+7. **`MANAGER` may `GET /inventory/thresholds`** (their branch row, defaults
+   1,000 / 500) as the contract lists, but `PUT` stays SM-only until Session 3.
+8. `prisma migrate dev` was not used (non-interactive) — `migrate diff --script`
+   into a timestamped folder + `migrate deploy`, as in Session 1.
+
+**Seed state** — `npx tsx src/scripts/seed-counting-dev-fixtures.ts
+[--state=submitted|draft|returned|none]` (dev-only, idempotent, dates
+recomputed from "now" every run; run after `seed-stock-waste-dev-fixtures.ts`).
+It removes all previous count-derived rows, reshapes the catalog to the count
+tabs (Dairy 24 · Dry goods 45 · Produce 18; the 142 live-item total is
+unchanged — surplus filler items are renamed, not added; "Whole chicken 1.2kg" and
+"Fresh cream 250ml" exist), then writes: yesterday's VERIFIED daily count
+(`18GE-0`: 36 lines / 30 matched / 6 variance / net −KES 1,240, `ADJ-3402…3407`),
+two VERIFIED spot counts (3 days ago — Director-flagged, Saffron −KES 6,500 — and
+8 days ago, 1 adjustment −KES 180), and today's daily count in the chosen state:
+`submitted` = `181V-0` (142 lines, 6 variance, 2 above threshold, net −KES 3,120,
+submitted 07:10 by Sarah Achieng); `draft` = `18KU-0` (8 Dairy items counted);
+`returned` = `1F4N-0` (chicken queried and sent back). Paper items other
+sessions gate on are untouched (Milk 128, Coffee beans 12, Cooking oil 46, Rice
+209 — Milk's yesterday variance is compensated by an earlier fixture receipt).
+Thresholds row removed → defaults (500 / 5,000). Paper's Milk "124" reads 128
+live (kept so Session 1's hub figures still hold).
+
+**Context at checkpoint:** plenty remaining — continuing to the frontend in this session.

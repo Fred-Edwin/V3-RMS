@@ -61,6 +61,9 @@ export const TodaysCountSchema = z.object({
   countId: uuid.nullable(),
   submittedAt: isoDate.nullable(),
   submittedByName: z.string().nullable(),
+  /** Lines counted / on the sheet — progress only, never a quantity (safe for the attendant). Null before a count exists. */
+  countedLines: z.number().int().nullable(),
+  totalLines: z.number().int().nullable(),
 });
 
 // --- GET /inventory/stock ---------------------------------------------------
