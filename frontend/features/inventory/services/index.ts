@@ -12,3 +12,4 @@ export * from './inventory-api-service';
 export * from './receiving-api-service';
 export * from './prep-api-service';
 export * from './stock-api-service';
+export * from './count-api-service';

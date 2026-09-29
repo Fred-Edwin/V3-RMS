@@ -309,6 +309,19 @@ describe('returnCount (send back)', () => {
     expect(vi.mocked(countRepository.reopenQueriedLine).mock.calls[0]![1]!.toString()).toBe('18');
   });
 
+  it('the note is optional', async () => {
+    vi.mocked(countRepository.findById).mockResolvedValue(
+      count([line(2, { countedQty: D(18), expectedQty: D(27), unitCost: D(90), decision: 'QUERIED' })], { status: 'SUBMITTED' }),
+    );
+    await countService.returnCount(storeManager, countId, undefined);
+    expect(countRepository.markReturned).toHaveBeenCalledWith(
+      countId,
+      hubOrgId,
+      expect.objectContaining({ returnNote: null }),
+      tx,
+    );
+  });
+
   it('needs at least one queried line', async () => {
     vi.mocked(countRepository.findById).mockResolvedValue(
       count([line(1, { countedQty: D(1), decision: 'ACCEPTED' })], { status: 'SUBMITTED' }),

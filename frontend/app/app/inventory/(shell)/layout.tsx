@@ -39,6 +39,8 @@ function activeSubKeyFromPathname(pathname: string): string | undefined {
   if (!pathname.startsWith('/app/inventory/stock')) return undefined;
   if (pathname.startsWith('/app/inventory/stock/items')) return 'items';
   if (pathname.startsWith('/app/inventory/stock/ledger')) return 'ledger';
+  if (pathname.startsWith('/app/inventory/stock/daily-count') || pathname.startsWith('/app/inventory/stock/counts')) return 'daily-count';
+  if (pathname.startsWith('/app/inventory/stock/spot-count')) return 'spot-count';
   return 'overview';
 }
 

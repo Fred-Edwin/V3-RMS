@@ -39,17 +39,15 @@ const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
  * milestone's two screens.
  */
 /**
- * Stock & counts sub-pages (Milestone Six, `1BI5-0`). Daily count and Spot
- * count arrive with Session 2 — drawn now, disabled with a hint (owner
- * decision 1, 2026-09-25).
+ * Stock & counts sub-pages (Milestone Six, `1BI5-0`). "Daily count" is the
+ * Store Manager's verify screen; the Store Attendant's own link goes to the
+ * blind count sheet (see `navGroupsForRole`).
  */
-export const COMING_WITH_COUNTING = 'Coming with counting';
-
 const STOCK_SUB_ITEMS: SidebarNavSubItem[] = [
   { key: 'overview', label: 'Overview', href: '/app/inventory/stock' },
   { key: 'items', label: 'All items', href: '/app/inventory/stock/items' },
-  { key: 'daily-count', label: 'Daily count', href: '#', disabledHint: COMING_WITH_COUNTING },
-  { key: 'spot-count', label: 'Spot count', href: '#', disabledHint: COMING_WITH_COUNTING },
+  { key: 'daily-count', label: 'Daily count', href: '/app/inventory/stock/counts' },
+  { key: 'spot-count', label: 'Spot count', href: '/app/inventory/stock/spot-count' },
   { key: 'ledger', label: 'Stock ledger', href: '/app/inventory/stock/ledger' },
 ];
 
@@ -104,7 +102,12 @@ function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
         .filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers')
         .map((item) =>
           item.subItems
-            ? { ...item, subItems: item.subItems.filter((sub) => ATTENDANT_STOCK_SUB_KEYS.has(sub.key)) }
+            ? {
+                ...item,
+                subItems: item.subItems
+                  .filter((sub) => ATTENDANT_STOCK_SUB_KEYS.has(sub.key))
+                  .map((sub) => (sub.key === 'daily-count' ? { ...sub, href: '/app/inventory/stock/daily-count' } : sub)),
+              }
             : item,
         ),
     };

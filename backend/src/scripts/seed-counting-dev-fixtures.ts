@@ -398,7 +398,9 @@ const run = async (): Promise<void> => {
 
   const signedAt = clampToNow(nairobiAt(0, 7, 10));
   const dairyItems = all.filter((i) => i.categoryId === dairy.id).sort((x, y) => x.name.localeCompare(y.name));
-  const draftCounted = new Set(dairyItems.slice(0, 8).map((i) => i.id));
+  // Milk and Fresh cream first (the two counted rows `18KU-0` draws), then the next six by name.
+  const firstTwo = dairyItems.filter((i) => i.id === milk.id || i.id === cream.id);
+  const draftCounted = new Set([...firstTwo, ...dairyItems.filter((i) => !firstTwo.includes(i))].slice(0, 8).map((i) => i.id));
 
   const submitted = stateArg !== 'draft';
   const returned = stateArg === 'returned';

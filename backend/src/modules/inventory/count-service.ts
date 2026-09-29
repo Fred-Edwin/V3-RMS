@@ -540,7 +540,7 @@ export const countService = {
   },
 
   /** Send back: only the queried lines reopen to the attendant, blind. */
-  returnCount: async (actor: Actor, id: string, note: string): Promise<ReturnCountResult> => {
+  returnCount: async (actor: Actor, id: string, note: string | undefined): Promise<ReturnCountResult> => {
     requireRole(actor, 'STORE_MANAGER');
     const scope = await resolveCentralStoreScope(actor);
     const count = await loadCount(scope, id);
@@ -554,7 +554,7 @@ export const countService = {
       const moved = await countRepository.markReturned(
         count.id,
         scope.locationOrgId,
-        { returnNote: note, returnedAt: new Date(), returnedById: actor.id },
+        { returnNote: note && note.length > 0 ? note : null, returnedAt: new Date(), returnedById: actor.id },
         tx,
       );
       if (moved === 0) throw new ConflictError('This count is not awaiting verification', 'COUNT_LOCKED');

@@ -227,7 +227,8 @@ export const DecideLineSchema = z
   .strict()
   .refine(reasonPairRefinement, { message: REASON_OTHER_MESSAGE, path: ['reasonNote'] });
 
-export const ReturnCountSchema = z.object({ note: z.string().trim().min(1).max(500) }).strict();
+/** The count-level note is optional (`1EUG-0`: "NOTE FOR SARAH — optional"). */
+export const ReturnCountSchema = z.object({ note: z.string().trim().max(500).optional() }).strict();
 
 export const ApproveCountSchema = z.object({ pin }).strict();
 

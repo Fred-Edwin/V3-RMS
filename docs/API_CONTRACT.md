@@ -4347,7 +4347,7 @@ on the serialized JSON for every attendant-facing response.
   (409 `COUNT_LOCKED` / `LINE_NOT_COUNTED`). A reason is kept only with
   ACCEPTED, a query note only with QUERIED. Returns the refreshed
   `VerifierCountView`.
-- **`POST /inventory/counts/:id/return`** — `{note}`. SUBMITTED with ≥1
+- **`POST /inventory/counts/:id/return`** — `{note?}` (optional, ≤500). SUBMITTED with ≥1
   QUERIED line (409 `NO_QUERIED_LINES`) → RETURNED. Each queried line's
   figure moves to `firstCountedQty` and `countedQty` is cleared so the
   attendant recounts it blind; other lines stay as they are. `{count}`.

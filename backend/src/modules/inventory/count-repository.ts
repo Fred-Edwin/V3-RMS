@@ -216,7 +216,7 @@ export const countRepository = {
   markReturned: async (
     id: string,
     organizationId: string,
-    data: { returnNote: string; returnedAt: Date; returnedById: string },
+    data: { returnNote: string | null; returnedAt: Date; returnedById: string },
     tx: TxClient,
   ): Promise<number> => {
     const result = await tx.stockCount.updateMany({

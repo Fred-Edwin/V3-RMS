@@ -132,3 +132,83 @@ export function formatShortDate(iso: string): string {
   const d = new Date(iso);
   return `${DAY_NUMERIC.format(d)} ${MONTH.format(d)}`;
 }
+
+const NAIROBI = 'Africa/Nairobi';
+const CLOCK = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: NAIROBI });
+const MONTH_LONG = new Intl.DateTimeFormat('en-US', { month: 'long', timeZone: 'UTC' });
+const MONTH_SHORT_UTC = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+const DAY_UTC = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' });
+const DAY_NAIROBI = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: NAIROBI });
+const MONTH_NAIROBI = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: NAIROBI });
+
+const dateOnlyToUtc = (dateOnly: string): Date => new Date(`${dateOnly}T00:00:00Z`);
+
+/** "07:10" — Nairobi wall clock, always 24h. */
+export function formatClock(iso: string): string {
+  return CLOCK.format(new Date(iso));
+}
+
+/** "12 Sep" — an instant's Nairobi calendar day. */
+export function formatNairobiDayMonth(iso: string): string {
+  const d = new Date(iso);
+  return `${DAY_NAIROBI.format(d)} ${MONTH_NAIROBI.format(d)}`;
+}
+
+/** "12 Sep · 07:10" — a signing moment. */
+export function formatDayMonthClock(iso: string): string {
+  const d = new Date(iso);
+  return `${DAY_NAIROBI.format(d)} ${MONTH_NAIROBI.format(d)} · ${CLOCK.format(d)}`;
+}
+
+/** "Tue 8 Sep" — a business date (YYYY-MM-DD). */
+export function formatWeekdayDate(dateOnly: string): string {
+  const d = dateOnlyToUtc(dateOnly);
+  return `${new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(d)} ${DAY_UTC.format(d)} ${MONTH_SHORT_UTC.format(d)}`;
+}
+
+/** "12 September" — a business date. */
+export function formatCountDateLong(dateOnly: string): string {
+  const d = dateOnlyToUtc(dateOnly);
+  return `${DAY_UTC.format(d)} ${MONTH_LONG.format(d)}`;
+}
+
+/** "12 Sep" — a business date, short. */
+export function formatCountDateShort(dateOnly: string): string {
+  const d = dateOnlyToUtc(dateOnly);
+  return `${DAY_UTC.format(d)} ${MONTH_SHORT_UTC.format(d)}`;
+}
+
+/** "12 September 2026" — a business date with year (print). */
+export function formatCountDateFull(dateOnly: string): string {
+  return `${formatCountDateLong(dateOnly)} ${dateOnlyToUtc(dateOnly).getUTCFullYear()}`;
+}
+
+/** Signed variance in the item's unit: "−9 kg" / "+2 kg". */
+export function formatVariance(value: string, unit: string): string {
+  const n = Number.parseFloat(value);
+  if (!Number.isFinite(n) || n === 0) return '—';
+  const abs = Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return `${n < 0 ? MINUS : '+'}${abs}${unit ? ` ${unit}` : ''}`;
+}
+
+/** Signed KES: "−KES 810" / "+KES 220". */
+export function formatSignedKes(value: string | number): string {
+  const n = Math.round(typeof value === 'number' ? value : Number.parseFloat(value));
+  if (!Number.isFinite(n) || n === 0) return 'KES 0';
+  const abs = Math.abs(n).toLocaleString('en-US');
+  return n < 0 ? `${MINUS}KES ${abs}` : `+KES ${abs}`;
+}
+
+export const COUNT_REASON_LABEL: Record<import('../../types/count').CountReasonValue, string> = {
+  SUSPECTED_MISCOUNT: 'Suspected miscount',
+  UNLOGGED_SPOILAGE: 'Unlogged spoilage',
+  SUSPECTED_LOSS: 'Suspected loss',
+  WITHIN_NORMAL_RANGE: 'Within normal range',
+  OTHER: 'Other (describe)',
+};
+
+/** "Joseph Mwangi" → "J. Mwangi" (ledger / list style). */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts.length < 2 ? name.trim() : `${parts[0]!.charAt(0)}. ${parts[parts.length - 1]}`;
+}
