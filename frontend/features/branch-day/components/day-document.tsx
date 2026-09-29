@@ -17,72 +17,80 @@ import type { DayDocument } from '../types/branch-day';
 const yearOf = (dateOnly: string): string => dateOnly.slice(0, 4);
 const shortWithYear = (dateOnly: string): string => `${formatCountDateShort(dateOnly)} ${yearOf(dateOnly)}`;
 
-/** The signed day-close document (`19S2-0`): one summary per department, one signature covering the branch. */
+/** The signed day-close document (`19S2-0`): one summary per department, one signature covering the branch. Sizes are Paper's (`get_computed_styles`). */
 function DocumentCard({ doc }: { doc: DayDocument }) {
+  const monoLabel = 'font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted';
   return (
-    <div className="flex w-full max-w-[720px] shrink-0 flex-col overflow-hidden rounded-wds-sm border border-wds-border bg-wds-surface">
+    <div className="flex w-full max-w-[720px] shrink-0 flex-col overflow-hidden rounded-[4px] border border-wds-border bg-wds-surface">
       <div className="flex items-start justify-between gap-4 border-b-2 border-wds-text-ink px-8 pb-5 pt-7">
-        <div className="flex min-w-0 flex-col gap-[3px]">
-          <span className="font-wds-sans text-[17px]/[22px] font-semibold text-wds-text-ink">Wendo Coffee Bistro — {doc.branchName} Branch</span>
-          <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+        <div className="flex min-w-0 flex-col">
+          <span className="font-wds-sans text-[16px]/5 font-semibold text-wds-text-ink">Wendo Coffee Bistro — {doc.branchName} Branch</span>
+          <span className="font-wds-sans text-[12px]/4 text-wds-text-copy-muted">
             {doc.branchAddress}
             {doc.branchPhone ? ` · ${doc.branchPhone}` : ''}
           </span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-[3px]">
-          <span className="font-wds-mono text-[14px]/[18px] font-bold tracking-[0.08em] text-wds-text-ink">DAY CLOSE</span>
-          <span className="font-wds-mono text-wds-mono-sm text-wds-text-copy-muted">
+        <div className="flex shrink-0 flex-col items-end">
+          <span className="font-wds-mono text-[13px]/4 font-semibold tracking-[0.06em] text-wds-text-ink">DAY CLOSE</span>
+          <span className="font-wds-mono text-[12px]/4 text-wds-text-copy-muted">
             {doc.branchName} · {shortWithYear(doc.date)}
           </span>
         </div>
       </div>
-      <div className="flex items-start justify-between gap-4 px-8 pb-4 pt-5">
+      <div className="flex items-start justify-between gap-10 border-b border-wds-border px-8 py-5">
         <div className="flex flex-col gap-1">
-          <span className="font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">BRANCH</span>
-          <span className="font-wds-sans text-wds-body text-wds-text-ink">{doc.branchName} — all {doc.departments.length} departments</span>
-          <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+          <span className={monoLabel}>BRANCH</span>
+          <span className="font-wds-sans text-[13px]/4 font-medium text-wds-text-ink">
+            {doc.branchName} — all {doc.departments.length} departments
+          </span>
+          <span className="font-wds-sans text-[12px]/4 text-wds-text-copy-muted">
             Day opened {formatClock(doc.openedAt)}, closed {formatClock(doc.closedAt)}
             {doc.reopenCount > 0 ? ` · reopened ${doc.reopenCount} ${doc.reopenCount === 1 ? 'time' : 'times'}` : ''}
           </span>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className="font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">CLOSED</span>
-          <span className="font-wds-mono text-wds-body text-wds-text-ink">
+          <span className={monoLabel}>CLOSED</span>
+          <span className="font-wds-mono text-[13px]/4 text-wds-text-ink">
             {shortWithYear(doc.date)} · {formatClock(doc.closedAt)}
           </span>
         </div>
       </div>
-      <div className="px-8">
-        <div className="flex items-center gap-4 border-b border-wds-neutral-800 pb-2 pt-2.5">
-          <span className="grow-[2] basis-0 font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">DEPARTMENT</span>
-          <span className="w-20 shrink-0 text-right font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">ITEMS</span>
-          <span className="w-20 shrink-0 text-right font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">GAPS</span>
-          <span className="w-24 shrink-0 text-right font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">STATUS</span>
+      <div className="flex flex-col px-8 pt-1">
+        <div className="flex items-center gap-4 border-b border-wds-text-ink pb-2">
+          {[
+            ['DEPARTMENT', 'grow-[2] basis-0'],
+            ['ITEMS', 'grow basis-0 text-right'],
+            ['GAPS', 'grow basis-0 text-right'],
+            ['STATUS', 'grow-[1.4] basis-0 text-right'],
+          ].map(([label, cls]) => (
+            <span key={label} className={`font-wds-mono text-[10px]/3 font-semibold tracking-[0.06em] text-wds-text-ink ${cls}`}>
+              {label}
+            </span>
+          ))}
         </div>
         {doc.departments.map((d) => (
-          <div key={d.tag} className="flex items-center gap-4 border-b border-wds-neutral-200 py-2.5">
-            <span className="grow-[2] basis-0 font-wds-sans text-wds-body-sm text-wds-text-ink">{d.name}</span>
-            <span className="w-20 shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">{d.items}</span>
-            <span className="w-20 shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-copy-muted">{d.gaps}</span>
-            <span className="w-24 shrink-0 text-right font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{d.status}</span>
+          <div key={d.tag} className="flex items-center gap-4 border-b border-wds-neutral-100 py-2.5">
+            <span className="grow-[2] basis-0 font-wds-sans text-[13px]/4 text-wds-text-ink">{d.name}</span>
+            <span className="grow basis-0 text-right font-wds-mono text-[13px]/4 text-wds-text-copy-muted">{d.items}</span>
+            <span className="grow basis-0 text-right font-wds-mono text-[13px]/4 text-wds-text-copy-muted">{d.gaps}</span>
+            <span className="grow-[1.4] basis-0 text-right font-wds-sans text-[13px]/4 text-wds-text-copy-muted">{d.status}</span>
           </div>
         ))}
       </div>
-      <div className="mt-2 flex flex-col gap-1.5 bg-wds-neutral-50 px-8 py-4">
-        <span className="font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">NOTES</span>
-        <p className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-          Per-department gaps above threshold carry a reason, recorded in-app. Net adjustment posted at close: {formatNetKes(doc.totals.netAdjustmentValue)}. This copy is a summary; drill into the branch&apos;s Day screen for the full per-item breakdown.
+      <div className="flex flex-col gap-1.5 border-b border-wds-border bg-wds-neutral-50 px-8 py-3.5">
+        <span className={monoLabel}>NOTES</span>
+        <p className="font-wds-sans text-[12px]/[17px] text-wds-text-copy-muted">
+          Per-department gaps above threshold carry a reason, recorded in-app. Net adjustment posted at close: {formatNetKes(doc.totals.netAdjustmentValue)}.
+          This copy is a summary; drill into the branch&apos;s Day screen for the full per-item breakdown.
         </p>
       </div>
-      <div className="flex items-start justify-between gap-8 px-8 pb-6 pt-5">
-        <div className="flex flex-col gap-1.5">
-          <SignedBySignature label="CLOSED BY" name={doc.closedBy.name} roleLine={`Branch Manager · PIN verified ${formatDayMonthClock(doc.closedAt)}`} />
-        </div>
+      <div className="flex gap-12 px-8 pb-7 pt-6">
+        <SignedBySignature label="CLOSED BY" name={doc.closedBy.name} roleLine={`Branch Manager · PIN verified ${formatDayMonthClock(doc.closedAt)}`} />
         <div className="flex min-w-0 grow basis-0 flex-col gap-1.5">
-          <span className="font-wds-mono text-[10px]/3 tracking-[0.06em] text-wds-text-copy-muted">COVERAGE</span>
-          <span className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">One signature — {doc.departments.map((d) => d.name).join(', ')}</span>
-          <div className="mt-1 h-px bg-wds-border-strong" />
-          <span className="font-wds-sans text-wds-field-label text-wds-text-copy-muted">
+          <span className={monoLabel}>COVERAGE</span>
+          <span className="h-8 shrink-0 font-wds-sans text-[13px]/4 text-wds-text-faint">One signature — {doc.departments.map((d) => d.name).join(', ')}</span>
+          <div className="h-px bg-wds-border-strong" />
+          <span className="font-wds-sans text-[11px]/[14px] text-wds-text-copy-muted">
             All {doc.departments.length} departments · {doc.branchName}
           </span>
         </div>
@@ -114,7 +122,11 @@ export function DayDocumentScreen({ dayId }: { dayId: string }) {
   const printHref = `/app/branch/day-print/${dayId}`;
   const body =
     status === 'error' && !doc ? (
-      <StockErrorCard title="Couldn't load the signed document" description="Check your connection and try again. The day itself is unchanged." onRetry={reload} />
+      <StockErrorCard
+        title="Couldn't load the signed document"
+        description="Check your connection and try again. The day itself is unchanged."
+        onRetry={reload}
+      />
     ) : doc ? (
       <DocumentCard doc={doc} />
     ) : (
@@ -140,7 +152,11 @@ export function DayDocumentScreen({ dayId }: { dayId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar
-        breadcrumb={{ root: 'Day', section: doc?.branchName ?? 'Branch', screen: `Day close · ${dateLong}` }}
+        breadcrumb={{
+          root: 'Day',
+          section: doc?.branchName ?? 'Branch',
+          screen: `Day close · ${dateLong}`,
+        }}
         actions={
           <div className="flex items-center gap-2.5">
             <Button variant="secondary" onClick={() => router.push('/app/branch/day')}>
@@ -217,7 +233,8 @@ export function PrintableDayDocument({ doc }: { doc: DayDocument }) {
           </tbody>
         </table>
         <div className="bg-[#f4f4f4] px-4 py-3 text-[12px] leading-[17px] text-[#555555]">
-          Per-department gaps above threshold carry a reason, recorded in-app. Net adjustment posted at close: {formatNetKes(doc.totals.netAdjustmentValue)}. This copy is a summary; the full per-item breakdown is in the branch&apos;s Day screen.
+          Per-department gaps above threshold carry a reason, recorded in-app. Net adjustment posted at close: {formatNetKes(doc.totals.netAdjustmentValue)}.
+          This copy is a summary; the full per-item breakdown is in the branch&apos;s Day screen.
         </div>
         <div className="mt-6 flex justify-between gap-10">
           <div className="flex flex-col gap-1">

@@ -53,7 +53,7 @@ function YesterdayCell({ today, mobile = false }: { today: BranchDayToday; mobil
   if (!y) {
     return (
       <>
-        <span className={cn('font-wds-mono font-medium text-wds-text-faint', mobile ? 'text-[18px]/[22px]' : 'text-wds-kpi')}>—</span>
+        <span className={cn('font-wds-mono font-medium text-wds-text-faint', mobile ? 'text-[18px]/[22px]' : 'text-[28px]/[34px]')}>—</span>
         <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">no day recorded</span>
       </>
     );
@@ -61,7 +61,7 @@ function YesterdayCell({ today, mobile = false }: { today: BranchDayToday; mobil
   if (y.status === 'CLOSED') {
     return (
       <>
-        <span className={cn('font-wds-mono font-medium text-wds-success-fg', mobile ? 'text-[18px]/[22px]' : 'text-wds-kpi')}>Closed</span>
+        <span className={cn('font-wds-mono font-medium text-wds-success-fg', mobile ? 'text-[18px]/[22px]' : 'text-[28px]/[34px]')}>Closed</span>
         <Link
           href={`/app/branch/day/document/${y.id}`}
           className="w-max font-wds-sans text-wds-caption text-wds-primary underline decoration-1 underline-offset-[3px] outline-none transition-colors hover:text-wds-primary-hover focus-visible:shadow-wds-ring"
@@ -73,7 +73,7 @@ function YesterdayCell({ today, mobile = false }: { today: BranchDayToday; mobil
   }
   return (
     <>
-      <span className={cn('font-wds-mono font-medium text-wds-warning-fg', mobile ? 'text-[18px]/[22px]' : 'text-wds-kpi')}>Not closed</span>
+      <span className={cn('font-wds-mono font-medium text-wds-warning-fg', mobile ? 'text-[18px]/[22px]' : 'text-[28px]/[34px]')}>Not closed</span>
       <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">left open</span>
     </>
   );
@@ -85,17 +85,29 @@ export function DayKpiStrip({ today }: { today: BranchDayToday }) {
     <div className="mx-6 mb-5 flex shrink-0 overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
       <div className={cn(kpiCell, 'border-r border-wds-neutral-800')}>
         <span className={kpiLabel}>{k.readyLabel}</span>
-        <HighlightOnChange value={k.readyValue} className={cn('font-wds-mono text-wds-kpi font-medium', k.readyTone === 'success' ? 'text-wds-success-fg' : k.readyTone === 'ink' ? 'text-wds-text-ink' : 'text-wds-text-faint')} />
+        <HighlightOnChange
+          value={k.readyValue}
+          className={cn(
+            'font-wds-mono text-[28px]/[34px] font-medium',
+            k.readyTone === 'success' ? 'text-wds-success-fg' : k.readyTone === 'ink' ? 'text-wds-text-ink' : 'text-wds-text-faint',
+          )}
+        />
         <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{k.readyDetail}</span>
       </div>
       <div className={cn(kpiCell, 'border-r border-wds-neutral-800')}>
         <span className={kpiLabel}>BLOCKED</span>
-        <HighlightOnChange value={k.blocked} className={cn('font-wds-mono text-wds-kpi font-medium', k.blocked > 0 ? 'text-wds-error-fg' : 'text-wds-text-ink')} />
+        <HighlightOnChange
+          value={k.blocked}
+          className={cn('font-wds-mono text-[28px]/[34px] font-medium', k.blocked > 0 ? 'text-wds-error-fg' : 'text-wds-text-ink')}
+        />
         <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{k.blocked > 0 ? 'unconfirmed dispatch' : 'no unconfirmed dispatch'}</span>
       </div>
       <div className={cn(kpiCell, 'border-r border-wds-neutral-800')}>
         <span className={kpiLabel}>NOT STARTED</span>
-        <HighlightOnChange value={k.notStarted} className={cn('font-wds-mono text-wds-kpi font-medium', k.notStarted > 0 ? 'text-wds-warning-fg' : 'text-wds-text-ink')} />
+        <HighlightOnChange
+          value={k.notStarted}
+          className={cn('font-wds-mono text-[28px]/[34px] font-medium', k.notStarted > 0 ? 'text-wds-warning-fg' : 'text-wds-text-ink')}
+        />
         <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{k.notStartedDetail}</span>
       </div>
       <div className={kpiCell}>
@@ -141,7 +153,10 @@ export function DayKpiGrid({ today }: { today: BranchDayToday }) {
         ) : y.status === 'CLOSED' ? (
           <>
             <span className="font-wds-sans text-[16px]/5 font-semibold text-wds-text-ink">Closed</span>
-            <Link href={`/app/branch/day/document/${y.id}`} className="w-max font-wds-sans text-wds-mono-sm text-wds-primary underline decoration-1 underline-offset-[3px] outline-none focus-visible:shadow-wds-ring">
+            <Link
+              href={`/app/branch/day/document/${y.id}`}
+              className="w-max font-wds-sans text-wds-mono-sm text-wds-primary underline decoration-1 underline-offset-[3px] outline-none focus-visible:shadow-wds-ring"
+            >
               signed {y.closedAt ? formatClock(y.closedAt) : ''} by {y.closedBy ? shortName(y.closedBy.name) : ''}
             </Link>
           </>
@@ -188,17 +203,34 @@ export function DepartmentRailRow({
       className={cn(
         'group/row flex w-full flex-col gap-1 border-b border-wds-border text-left outline-none transition-colors duration-150 focus-visible:shadow-[inset_2px_0_0_var(--wds-primary)]',
         mobile ? 'px-4 py-3.5' : 'border-l-[3px] px-[17px] py-3.5',
-        selected ? (mobile ? 'border-l-[3px] border-l-wds-error-fg bg-wds-neutral-100 pl-[13px]' : 'border-l-wds-espresso-700 bg-wds-neutral-100') : cn(!mobile && 'border-l-transparent', 'hover:bg-wds-neutral-100'),
+        selected
+          ? mobile
+            ? 'border-l-[3px] border-l-wds-error-fg bg-wds-neutral-100 pl-[13px]'
+            : 'border-l-wds-espresso-700 bg-wds-neutral-100'
+          : cn(!mobile && 'border-l-transparent', 'hover:bg-wds-neutral-100'),
         selected && mobile && !blocked && 'border-l-wds-espresso-700',
       )}
     >
       <span className="flex items-center justify-between gap-2">
-        <span className={cn('font-wds-sans text-wds-text-ink', mobile ? 'text-wds-section font-semibold' : 'text-wds-body', !mobile && (selected || blocked ? 'font-semibold' : 'font-medium'))}>{department.name}</span>
+        <span
+          className={cn(
+            'font-wds-sans text-wds-text-ink',
+            mobile ? 'text-wds-section font-semibold' : cn('text-[14px]/[18px]', blocked ? 'font-semibold' : 'font-medium'),
+          )}
+        >
+          {department.name}
+        </span>
         <StatusLabel status={department.status} />
       </span>
       <span className="flex items-center justify-between gap-2">
         <span className="truncate font-wds-sans text-wds-caption text-wds-text-copy-muted">{railDetail(department, formatClock, shortName)}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden className="shrink-0 -translate-x-0.5 opacity-0 transition-[opacity,transform] duration-150 group-hover/row:translate-x-0 group-hover/row:opacity-100 motion-reduce:transition-none">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          aria-hidden
+          className="shrink-0 -translate-x-0.5 opacity-0 transition-[opacity,transform] duration-150 group-hover/row:translate-x-0 group-hover/row:opacity-100 motion-reduce:transition-none"
+        >
           <path d="M9 6l6 6-6 6" fill="none" stroke="var(--wds-text-faint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
@@ -219,7 +251,7 @@ export interface DayFooterProps {
 export function DayFooter({ today, onSign, onReopen, mobile = false }: DayFooterProps) {
   const closed = today.status === 'CLOSED';
   const wrap = cn('flex shrink-0 flex-col gap-2 border-t border-wds-border', mobile ? 'bg-wds-surface px-4 pb-6 pt-3' : 'bg-wds-neutral-50 px-5 py-4');
-  const btn = mobile ? 'h-[52px] w-full rounded-[4px] text-wds-section' : 'h-10 w-full text-wds-body';
+  const btn = mobile ? 'h-[46px] w-full !rounded-[4px] text-[15px]/5' : 'h-[38px] w-full text-[14px]/[18px]';
 
   if (closed) {
     return (
@@ -238,7 +270,9 @@ export function DayFooter({ today, onSign, onReopen, mobile = false }: DayFooter
   }
 
   const blockedText = blockerSummary(today.closeBlockers, today.departments);
-  const summary = today.canClose ? `All ${today.departments.length} counted · every gap over KES ${today.reasonRequiredKes.toLocaleString('en-US')} has a reason.` : blockedText;
+  const summary = today.canClose
+    ? `All ${today.departments.length} counted · every gap over KES ${today.reasonRequiredKes.toLocaleString('en-US')} has a reason.`
+    : blockedText;
   return (
     <div className={wrap}>
       <p className={cn('font-wds-sans text-wds-caption', today.canClose ? 'text-wds-success-fg' : 'text-wds-warning-fg')} aria-live="polite">
@@ -256,7 +290,11 @@ export function DayFooter({ today, onSign, onReopen, mobile = false }: DayFooter
               aria-disabled="true"
               aria-describedby={describedBy}
               onClick={(e) => e.preventDefault()}
-              className={cn(btn, 'cursor-not-allowed bg-wds-neutral-300 font-wds-sans font-medium text-wds-text-faint outline-none focus-visible:shadow-wds-ring', mobile ? 'bg-wds-neutral-200' : 'rounded-wds-sm')}
+              className={cn(
+                btn,
+                'cursor-not-allowed bg-wds-neutral-300 font-wds-sans font-medium text-wds-text-faint outline-none focus-visible:shadow-wds-ring',
+                mobile ? 'bg-wds-neutral-200' : 'rounded-wds-sm',
+              )}
             >
               Sign &amp; close day
             </button>

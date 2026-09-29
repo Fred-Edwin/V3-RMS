@@ -273,7 +273,7 @@ New `frontend/features/branch-day/` + routes `/app/branch/day`, `/app/branch/day
 - **States kit** — loading skeletons mirror the layout with chrome intact (desktop verified); error card with Retry recovers (verified after clearing an API 429 caused by repeated test logins); blocked-department view shows inputs disabled with the explanation.
 
 **Deviations from Paper (owner to confirm):**
-1. **"Counted" status text reads success-green**; Paper draws it in the error red on `19C8-0`/`1EE4-0`, which reads as a fault (Closed is green on `1EJY-0`).
+1. **"Counted" status text reads amber (`warning-fg`) while the day is open, green once closed.** Paper is inconsistent: desktop `1EE4-0` draws it error-red, mobile `1CFK-0` draws it warning-amber. Amber matches mobile exactly and reads as "counted, awaiting signature".
 2. **Counted figures stay editable while the day is open** (Paper draws a fully-counted department as read-only text). A mistake found before signing shouldn't need a reopen.
 3. **The mobile "History" link is drawn but disabled** (`aria-disabled` + tooltip) — Day close history is Session 4.
 4. **Rail second line shows who counted (the Branch Manager)** — the design names the department head; counts are entered by the Branch Manager (§7 Q-1).
@@ -282,3 +282,16 @@ New `frontend/features/branch-day/` + routes `/app/branch/day`, `/app/branch/day
 **Checks:** `backend pnpm build && pnpm test` (91 files, 1,155 tests) and `frontend pnpm build` (+ `check-wds-tokens`) green; `vitest features/branch-day` 6 tests; eslint clean on all new code (15 pre-existing errors in `features/inventory`, unchanged).
 
 **For the owner:** (1) the five deviations above; (2) `use-stock.ts` gained `'use client'` because the inventory barrel now re-exports `useResource` and server-component pages import that barrel; (3) the dev fixture seed rewrites Nyeri Town's dispatch fixtures; (4) Session 4 is next — history list/detail, next-morning opening, integration pass.
+
+
+### Parity pass (2026-09-29, after the walkthrough request)
+
+Method: for each artboard, Paper `get_computed_styles` (and `get_tree_summary` for node ids) against `getComputedStyle` on the live page at a true 1440 px desktop / 390 px mobile. Compared: desktop count entry `1E13-0`, ready `1EE4-0`, closed `1EJY-0`; signed document `19S2-0`; mobile overview `1CDC-0`, ready `1EPU-0`, count entry `1E8C-0`, review `1CFK-0` (screenshot + values), Reopen `1BYP-0`, Thresholds `1J2L-0`. Not compared: loading/error states (no per-screen artboard — States kit only), print layout, the two shared dialogs (PIN sheet, sidebar — Session 2's), hover/focus/motion.
+
+Fixed (all measurable differences):
+- **Line-heights:** Paper's body tokens are 14/18, 13/16, 20/24; the app's `wds-body` / `wds-body-sm` / `wds-h2` are 14/20, 13/19, 20/26 (−0.015em). Session 3 screens now use explicit Paper values (subtitle, rail row names, table rows, gap cells, title, footer button 38 px). **Design-system finding, not fixed globally:** every other screen using those tokens carries the same 1–3 px drift from Paper.
+- KPI value letter-spacing (Paper has none); rail row name weight (bold only when blocked, not when selected); reason select 32 px on desktop (`compact`), 4 px radius on mobile.
+- Closed state: counted figure in an 80 px box with 8 px inset (as Paper), read-only "Reason" label 11/14 without overline tracking.
+- Signed document rewritten to Paper's values: 16/20 title, mono 13/16 "DAY CLOSE", meta divider, 10/12 ink table header with 2:1:1:1.4 columns, 12/17 notes band, 4 px card radius.
+- Mobile: fully rounded status pill, sans 14/18 semibold "Status" value, inset row borders, 14/18 names, 36 px count input, mono all-caps "REASON — REQUIRED", 12/16 info note (second sentence only once counted), 46 px "Done" / footer buttons with 4 px radius, counted-state header subtitle ("Grace Wanjiru · counted 08:20"), reopen/threshold sheets (4 px radii, mono label, 15 px buttons, 14/24 sticky padding, sans worked example).
+- **Confirmed still deviating (owner decisions):** editable counted figures (Paper: read-only text), Branch Manager named as counter, mobile History disabled; Paper's mobile item order (gap rows last) is design sample data, not a rule.

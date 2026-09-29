@@ -140,7 +140,7 @@ function WorkedExample({ threshold, mobile }: { threshold: number | null; mobile
   return (
     <div className={cn('flex gap-2 rounded-[4px] bg-wds-neutral-50', mobile ? 'p-3' : 'px-3 py-2.5')}>
       <span className={cn('shrink-0 rounded-full bg-wds-neutral-400', mobile ? 'mt-[7px] size-[5px]' : 'mt-[5px] size-1.5')} aria-hidden />
-      <p className={cn('font-wds-mono text-wds-text-copy-muted', mobile ? 'text-[13px]/[18px]' : 'text-[12px]/4')} aria-live="polite">
+      <p className={cn('font-wds-sans text-wds-text-copy-muted', mobile ? 'text-[13px]/[18px]' : 'text-[12px]/4')} aria-live="polite">
         A −{EXAMPLE.qty} {EXAMPLE.unit} {EXAMPLE.item} gap at KES {EXAMPLE.unitCost}/pc = {formatKes(value)} → {threshold === null ? 'reason required from the amount above.' : required ? 'reason required.' : 'no reason needed.'}
       </p>
     </div>
@@ -245,8 +245,8 @@ export function BranchThresholdsDrawer({ open, onOpenChange, variant, branchName
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-5">
             <Body form={form} mobile />
           </div>
-          <div className="border-t border-wds-border p-4">
-            <Button className="h-11 w-full" onClick={() => void form.save()} disabled={!canSave} aria-busy={form.saving}>
+          <div className="border-t border-wds-border px-4 pb-6 pt-3.5">
+            <Button className="h-11 w-full !rounded-[4px] text-[15px]/[18px]" onClick={() => void form.save()} disabled={!canSave} aria-busy={form.saving}>
               {saveLabel}
             </Button>
           </div>

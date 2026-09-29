@@ -37,6 +37,10 @@ export interface CountReasonControlProps<T extends string = CountReasonValue> {
   invalid?: boolean;
   /** Mark an empty select itself invalid (red border). The branch day draws the label red but keeps the field neutral until closing. Default true. */
   flagEmpty?: boolean;
+  /** Desktop trigger at 32px instead of 34 — the branch day artboards (`1E13-0`) draw the select tighter than the Central Store's. */
+  compact?: boolean;
+  /** `mono` = the branch day's mobile label (`1E8C-0`: Geist Mono 400, all caps). Default sans 600. */
+  labelFont?: 'sans' | 'mono';
   /** Mobile draws a 38px trigger at full width; desktop 34px at 320px. */
   mobile?: boolean;
   label: string;
@@ -45,7 +49,7 @@ export interface CountReasonControlProps<T extends string = CountReasonValue> {
   ariaLabel: string;
 }
 
-export function CountReasonControl<T extends string = CountReasonValue>({ reason, note, onChange, options, disabled, invalid, flagEmpty = true, mobile = false, label, labelTone = 'info', ariaLabel }: CountReasonControlProps<T>) {
+export function CountReasonControl<T extends string = CountReasonValue>({ reason, note, onChange, options, disabled, invalid, flagEmpty = true, compact = false, labelFont = 'sans', mobile = false, label, labelTone = 'info', ariaLabel }: CountReasonControlProps<T>) {
   const choices = (options ?? COUNT_REASONS.map((r) => ({ value: r, label: COUNT_REASON_LABEL[r] }))) as ReasonOption<T>[];
   const [draftNote, setDraftNote] = React.useState(note ?? '');
   React.useEffect(() => setDraftNote(note ?? ''), [note]);
@@ -57,7 +61,7 @@ export function CountReasonControl<T extends string = CountReasonValue>({ reason
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className={cn('font-wds-sans font-semibold', labelTone === 'warning' ? 'text-[12px]/4 tracking-[0.02em]' : 'text-[11px]/[14px]', invalid ? 'text-wds-error-fg' : labelTone === 'warning' ? 'text-wds-warning-fg' : 'text-wds-info-fg')}>{label}</span>
+      <span className={cn(labelFont === 'mono' ? 'font-wds-mono tracking-[0.04em]' : 'font-wds-sans font-semibold', labelTone === 'warning' ? 'text-[12px]/4 tracking-[0.02em]' : 'text-[11px]/[14px]', invalid ? 'text-wds-error-fg' : labelTone === 'warning' ? 'text-wds-warning-fg' : 'text-wds-info-fg')}>{label}</span>
       <Select
         value={shown ?? undefined}
         onValueChange={(v) => {
@@ -75,7 +79,7 @@ export function CountReasonControl<T extends string = CountReasonValue>({ reason
           aria-invalid={invalid && flagEmpty && !shown ? true : undefined}
           className={cn(
             'justify-between border-wds-border-strong bg-wds-surface font-wds-sans text-[13px]/4',
-            mobile ? 'h-[38px] rounded-[4px] px-3' : 'h-[34px] w-[320px] rounded-wds-sm px-2.5',
+            mobile ? 'h-[38px] !rounded-[4px] px-3' : cn(compact ? 'h-8' : 'h-[34px]', 'w-[320px] rounded-wds-sm px-2.5'),
             !shown && 'text-wds-text-faint',
           )}
         >

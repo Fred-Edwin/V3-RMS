@@ -35,15 +35,15 @@ function ReopenBody({ reason, setReason, busy, error, actor, mobile }: { reason:
   return (
     <div className="flex flex-col gap-4">
       {error ? <FormErrorBanner title="Couldn't reopen the day" description="The day is still closed. Your reason is kept — try again." /> : null}
-      <div className={cn('flex gap-2 rounded-wds-sm border border-wds-warning-border bg-wds-warning-bg', mobile ? 'p-3.5' : 'px-4 py-3.5')}>
+      <div className={cn('flex gap-2 border border-wds-warning-border bg-wds-warning-bg', mobile ? 'rounded-[4px] p-3.5' : 'rounded-wds-sm px-4 py-3.5')}>
         <span className="mt-[7px] size-[5px] shrink-0 rounded-full bg-wds-warning-fg" aria-hidden />
         <p className="font-wds-sans text-[13px]/[18px] text-wds-warning-fg">
           This will recompute today&apos;s adjustments. Superseded entries are reversed with linked ledger rows — the ledger stays append-only, nothing is deleted. Tomorrow&apos;s opening figures will also be recomputed if already populated.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={id} className="font-wds-sans text-[11px]/[14px] font-semibold uppercase text-wds-error-fg">
-          Reason — required
+        <label htmlFor={id} className={cn('text-[11px]/[14px] text-wds-error-fg', mobile ? 'font-wds-mono tracking-[0.04em]' : 'font-wds-sans font-semibold uppercase')}>
+          {mobile ? 'REASON — REQUIRED' : 'Reason — required'}
         </label>
         <textarea
           id={id}
@@ -54,10 +54,10 @@ function ReopenBody({ reason, setReason, busy, error, actor, mobile }: { reason:
           disabled={busy}
           placeholder="e.g. Kitchen's count was entered against the wrong department by mistake — needs correcting before month-end."
           onChange={(e) => setReason(e.target.value)}
-          className="resize-none rounded-wds-sm border border-wds-border-strong bg-wds-surface px-3 py-2.5 font-wds-sans text-[13px]/[18px] text-wds-text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-wds-text-faint focus:border-wds-primary focus:shadow-wds-ring disabled:opacity-60"
+          className={cn('resize-none border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-[13px]/[18px] text-wds-text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-wds-text-faint focus:border-wds-primary focus:shadow-wds-ring disabled:opacity-60', mobile ? 'rounded-[4px] py-3' : 'rounded-wds-sm py-2.5')}
         />
       </div>
-      <p className="rounded-wds-sm bg-wds-neutral-50 px-3 py-3 font-wds-sans text-[12px]/[17px] text-wds-text-copy-muted">
+      <p className={cn('bg-wds-neutral-50 px-3 py-3 font-wds-sans text-wds-text-copy-muted', mobile ? 'rounded-[4px] text-[12px]/4' : 'rounded-wds-sm text-[12px]/[17px]')}>
         Reopening as {actor.name}, {actor.roleLabel}. Every reopen is recorded — who, when, why — and visible on the Director&apos;s report.
       </p>
     </div>
@@ -124,8 +124,8 @@ export function ReopenDay({ open, onOpenChange, variant, today, actor, busy, err
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
             <ReopenBody reason={reason} setReason={setReason} busy={busy} error={error} actor={actor} mobile />
           </div>
-          <div className="border-t border-wds-border p-4">
-            <Button variant="destructive" className="h-11 w-full text-wds-body" disabled={!dirty || busy} aria-busy={busy} onClick={() => void submit()}>
+          <div className="border-t border-wds-border px-4 pb-6 pt-3.5">
+            <Button variant="destructive" className="h-11 w-full !rounded-[4px] text-[15px]/[18px] font-semibold" disabled={!dirty || busy} aria-busy={busy} onClick={() => void submit()}>
               {label}
             </Button>
           </div>

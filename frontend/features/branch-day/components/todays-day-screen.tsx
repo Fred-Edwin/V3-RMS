@@ -13,13 +13,7 @@ import { roleLabel } from '@/components/app/shell/role-label';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import {
-  ListRowSkeleton,
-  PinSheet,
-  SkeletonRows,
-  StockErrorCard,
-  formatCountDateLong,
-} from '@/features/inventory';
+import { ListRowSkeleton, PinSheet, SkeletonRows, StockErrorCard, formatClock, formatCountDateLong } from '@/features/inventory';
 import { useBranchDayToday, useDayActions, useDepartmentCount } from '../hooks/use-branch-day';
 import { BranchThresholdsDrawer } from './branch-thresholds-drawer';
 import { DayFooter, DayKpiGrid, DayKpiStrip, DepartmentRailRow } from './day-parts';
@@ -63,16 +57,28 @@ function OverviewHeader({ subtitle, onBack, onThresholds }: { subtitle: string; 
         <h1 className="truncate font-wds-sans text-[17px]/[22px] font-semibold text-wds-sidebar-fg-active">Today&apos;s day</h1>
         <p className="truncate font-wds-sans text-wds-caption text-wds-sidebar-fg-item">{subtitle}</p>
       </div>
-      <button type="button" onClick={onThresholds} className="shrink-0 rounded-wds-sm p-1 font-wds-sans text-wds-body-sm text-wds-sidebar-fg-item outline-none transition-colors hover:text-wds-sidebar-fg-active focus-visible:shadow-wds-ring">
-        Thresholds
-      </button>
-      <HintTooltip hint="Day close history arrives with the next release" side="bottom" align="end">
-        {(describedBy) => (
-          <button type="button" aria-disabled="true" aria-describedby={describedBy} onClick={(e) => e.preventDefault()} className="shrink-0 cursor-not-allowed rounded-wds-sm p-1 font-wds-sans text-wds-body-sm text-wds-sidebar-fg-item opacity-60 outline-none focus-visible:shadow-wds-ring">
-            History
-          </button>
-        )}
-      </HintTooltip>
+      <div className="flex shrink-0 items-center gap-4">
+        <button
+          type="button"
+          onClick={onThresholds}
+          className="shrink-0 rounded-wds-sm py-1 font-wds-sans text-[13px]/4 text-wds-sidebar-fg-item outline-none transition-colors hover:text-wds-sidebar-fg-active focus-visible:shadow-wds-ring"
+        >
+          Thresholds
+        </button>
+        <HintTooltip hint="Day close history arrives with the next release" side="bottom" align="end">
+          {(describedBy) => (
+            <button
+              type="button"
+              aria-disabled="true"
+              aria-describedby={describedBy}
+              onClick={(e) => e.preventDefault()}
+              className="shrink-0 cursor-not-allowed rounded-wds-sm py-1 font-wds-sans text-[13px]/4 text-wds-sidebar-fg-item opacity-60 outline-none focus-visible:shadow-wds-ring"
+            >
+              History
+            </button>
+          )}
+        </HintTooltip>
+      </div>
     </header>
   );
 }
@@ -117,7 +123,11 @@ export function TodaysDayScreen() {
       const ok = await actions.close(pin);
       if (ok) {
         setSignOpen(false);
-        addToast({ variant: 'success', title: 'Day closed', description: 'The count is signed and the adjustments are posted to each department’s ledger.' });
+        addToast({
+          variant: 'success',
+          title: 'Day closed',
+          description: 'The count is signed and the adjustments are posted to each department’s ledger.',
+        });
       }
     },
     [actions, addToast],
@@ -126,7 +136,12 @@ export function TodaysDayScreen() {
   const onReopen = React.useCallback(
     async (reason: string) => {
       const ok = await actions.reopen(reason);
-      if (ok) addToast({ variant: 'success', title: 'Day reopened', description: 'Counts are editable again. Re-signing recomputes the adjustments.' });
+      if (ok)
+        addToast({
+          variant: 'success',
+          title: 'Day reopened',
+          description: 'Counts are editable again. Re-signing recomputes the adjustments.',
+        });
       return ok;
     },
     [actions, addToast],
@@ -135,7 +150,10 @@ export function TodaysDayScreen() {
   if (!hydrated) return null;
 
   const branchName = today?.branchName ?? user?.organizationName ?? 'Branch';
-  const actor = { name: user?.name ?? 'Branch Manager', roleLabel: roleLabel(user?.role) };
+  const actor = {
+    name: user?.name ?? 'Branch Manager',
+    roleLabel: roleLabel(user?.role),
+  };
   const dateLong = today ? formatCountDateLong(today.date) : '';
 
   const overlays = today ? (
@@ -169,7 +187,15 @@ export function TodaysDayScreen() {
       />
     </>
   ) : null;
-  const thresholds = <BranchThresholdsDrawer open={thresholdsOpen} onOpenChange={setThresholdsOpen} variant={isDesktop ? 'desktop' : 'mobile'} branchName={branchName} onSaved={refreshToday} />;
+  const thresholds = (
+    <BranchThresholdsDrawer
+      open={thresholdsOpen}
+      onOpenChange={setThresholdsOpen}
+      variant={isDesktop ? 'desktop' : 'mobile'}
+      branchName={branchName}
+      onSaved={refreshToday}
+    />
+  );
 
   /* --------------------------------------------------------------- mobile */
   if (!isDesktop) {
@@ -191,15 +217,19 @@ export function TodaysDayScreen() {
             <div className="flex min-w-0 grow basis-0 flex-col gap-0.5">
               <h1 className="truncate font-wds-sans text-[17px]/[22px] font-semibold text-wds-sidebar-fg-active">{selectedSummary.name} · end-of-day count</h1>
               <p className="truncate font-wds-sans text-wds-caption text-wds-sidebar-fg-item">
-                {today.status === 'CLOSED' ? 'Read-only — the day is closed' : `Enter what's on the shelf · ${count.progress.counted} of ${count.progress.total} counted`}
+                {today.status === 'CLOSED'
+                  ? 'Read-only — the day is closed'
+                  : selectedSummary.status === 'COUNTED' && selectedSummary.countedBy
+                    ? `${selectedSummary.countedBy.name} · counted ${selectedSummary.countedAt ? formatClock(selectedSummary.countedAt) : ''}`
+                    : `Enter what's on the shelf · ${count.progress.counted} of ${count.progress.total} counted`}
               </p>
             </div>
           </header>
           <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <DepartmentListMobile today={today} summary={selectedSummary} count={count} />
           </main>
-          <div className="shrink-0 border-t border-wds-border bg-wds-surface p-4">
-            <Button variant="secondary" className="h-11 w-full text-wds-body" onClick={backToOverview}>
+          <div className="shrink-0 border-t border-wds-border bg-wds-surface px-4 pb-6 pt-3.5">
+            <Button variant="secondary" className="h-[46px] w-full !rounded-[4px] text-[15px]/[18px]" onClick={backToOverview}>
               Done — back to Today&apos;s day
             </Button>
           </div>
@@ -215,7 +245,11 @@ export function TodaysDayScreen() {
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {status === 'error' && !today ? (
             <div className="py-10">
-              <StockErrorCard title="Couldn't load today's day" description="Check your connection and try again. Counts already entered are saved." onRetry={reload} />
+              <StockErrorCard
+                title="Couldn't load today's day"
+                description="Check your connection and try again. Counts already entered are saved."
+                onRetry={reload}
+              />
             </div>
           ) : !today ? (
             <>
@@ -265,12 +299,18 @@ export function TodaysDayScreen() {
       />
       <div className="flex shrink-0 flex-col gap-1 px-6 pb-5 pt-6">
         <h1 className="font-wds-sans text-wds-mobile-title text-wds-text-ink">Today&apos;s day</h1>
-        <p className="font-wds-sans text-wds-body text-wds-text-copy-muted">All five departments — count and close status, at a glance. Any department blocked by an unconfirmed dispatch is flagged.</p>
+        <p className="font-wds-sans text-[14px]/[18px] text-wds-text-copy-muted">
+          All five departments — count and close status, at a glance. Any department blocked by an unconfirmed dispatch is flagged.
+        </p>
       </div>
 
       {status === 'error' && !today ? (
         <div className="flex min-h-0 flex-1 items-center justify-center border-t border-wds-neutral-800">
-          <StockErrorCard title="Couldn't load today's day" description="Check your connection and try again. Counts already entered are saved." onRetry={reload} />
+          <StockErrorCard
+            title="Couldn't load today's day"
+            description="Check your connection and try again. Counts already entered are saved."
+            onRetry={reload}
+          />
         </div>
       ) : (
         <>
