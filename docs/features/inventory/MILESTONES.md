@@ -158,7 +158,7 @@ share one screen set or one causal chain, so nothing ships half-wired.
 | 3 | **Prep** | Stage 3 | DESIGNED — all 8 screens exist in Paper, desktop and mobile (4 original + 4 added during 2026-09-19 owner review: Prep run detail, Prep History) | ✅ **Shipped** 2026-09-21 — S0+S1 as one session, verified in a real browser against approved designs |
 | 4 | **Requisition & Branch Approval** | Stage 4 + Stage 5 | DESIGNED — screen-set approved 2026-09-21, `milestone-4-plan.md` Step 5 approved same day; Session B's mobile approval screens (M1–M10) designed and owner-approved 2026-09-21, see `milestone-4-sessions/HANDOFF-session-b.md` | ✅ **Shipped** 2026-09-22 — Session A (Dept Head fill) shipped, commit `f5089cd`. Session B (Branch Manager approval + History): build complete (backend `b4ce0a0`/`7ee1ab6`, frontend `d73f810`), verified end-to-end in a real browser; visual-fidelity pass against all 10 desktop + 10 mobile Paper artboards complete, real deviations found and fixed (see HANDOFF-session-b.md's visual-fidelity section for the full per-screen log), `pnpm build && pnpm test` clean both sides |
 | 5 | **Dispatch & Branch Receiving** | Stage 6 + Stage 7 | DESIGNED — screen-set approved 2026-09-21, Paper page `Milestone Five · Dispatch & Branch Receiving` (20 artboards, 7 rows) | Not started — ready for Step 5 planning |
-| 6 | **Counting, Closing & Discrepancies** | Stage 8 (consumption — no new build, still count/waste-driven) + Stage 9 | Mixed — Central Store blind-count mobile DESIGNED; verification, branch EOD, discrepancy resolution mostly MISSING | Not started |
+| 6 | **Counting, Closing & Discrepancies** | Stage 8 (consumption — no new build, still count/waste-driven) + Stage 9 | DESIGNED — screen set approved 2026-09-24 (Paper `p-G-0`); pre-build design-fix pass pending (`milestone-6-sessions/design-pass-prompt.md`) | **In progress** — design pass done 2026-09-25. **Session 1 (Stock position & waste) built 2026-09-29** on `feat/m6-s1-stock-waste` (backend `ea82101`, DH restock fix `14fea4e`, frontend `0472690`; not pushed): every screen/state gated against Paper in a real browser — log in `milestone-6-sessions/session-1-plan.md`. Next: Session 2 (Central Store counting) |
 
 **Milestone 6 still has real design gaps** (MISSING / DESIGNED-REDO screens in
 `02-screens-by-role.md`) — it needs its own Paper design pass before Step 5
@@ -201,7 +201,7 @@ found and changed).
 | 3 | `milestone-3-plan.md` (Step 5 approved 2026-09-19, all four §6 questions resolved — ready for Step 7) |
 | 4 | `milestone-4-plan.md` (Step 5 approved 2026-09-21, all three §7 questions resolved — ready for Step 7, Session A: Dept Head fill, then Session B: Branch Manager approval + History) |
 | 5 | `milestone-5-plan.md` (Step 5 approved 2026-09-22, ready for Step 7 — Session A: Dispatch, then Session B: Branch Receiving & Discrepancy) |
-| 6 | not yet created |
+| 6 | `milestone-6-plan.md` (Step 5 approved; Session 1 built 2026-09-29 — next Session 2, Central Store counting) |
 
 Session-level prompts and handoffs for a shipped milestone move to
 `archive/` once the milestone closes (see Milestone One's
