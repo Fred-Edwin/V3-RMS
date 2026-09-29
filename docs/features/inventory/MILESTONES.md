@@ -20,6 +20,8 @@ over-allocation bug, a stale Pay-now status label, and a dead "Receive"
 button left disabled since before S6 shipped (see `milestone-2-plan.md` §5
 S9 row for full detail). **Milestone Two is functionally complete.**
 
+**Milestone Six (Counting, Closing & Discrepancies) — Sessions 1–4 built.** S1–S3 merged (#38, #39, #45); S4 (day close history + detail, next-morning opening, re-close → opening recompute, overnight push, shared PIN sheet fix) built 2026-09-29 on `feat/m6-s4-history-opening`. Remaining: the cross-role integration pass and owner walkthrough. Outcome log: `milestone-6-plan.md` §8.
+
 **Milestone Three (Prep) — SHIPPED 2026-09-21.** 8 screens (Prep runs list,
 New prep run, Prep run detail, Prep History — desktop + mobile each), all
 approved in Paper, built Step 7 (S0) and integration-tested Step 8 (S1) in

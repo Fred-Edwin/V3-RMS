@@ -589,6 +589,15 @@ On branch `feat/m6-s3-day-close` (backend `bd5e838` + frontend commit; not pushe
 - **Branch Manager thresholds** live on the branch's own `CountingThresholds` row; the role picks the write schema (each `.strict()`), the org always comes from the actor.
 - **Deviations to confirm:** "Counted" status in green (Paper draws it red), counted figures stay editable while the day is open, mobile History link disabled until Session 4.
 
+### Session 4 — History, opening, integration (built 2026-09-29)
+
+On branch `feat/m6-s4-history-opening` (backend `ed63ac2` + follow-up commits). Plan, owner decisions and per-screen notes: `milestone-6-sessions/session-4-plan.md`. Headlines:
+- **History reads what was signed:** list and detail aggregate from saved lines only; a past day's expected figures are cut off at the end of that business day, so a reopened old day is never judged against today's ledger. Detail reuses the S3 read-only panes through a saved-count adapter (one layout, as Paper `1CMM-0` matches `19C8-0`).
+- **Opening + recompute:** accept posts linked `ADJ-` overnight rows in one transaction; a re-close reverses and re-derives them. Verified in Postgres on real data: reversal = exact opposite of its original, on-hand equals the accepted figure, every adjustment has a reference and exactly one source link.
+- **Additions beyond the plan table:** `GET /branch-day/:id/overview` (recount a reopened past day; `?day=<id>` on the day screen), reopened-but-open days labelled "Reopened · open" instead of "Never closed", shared PIN sheet fixed (clears after a wrong PIN, refocuses, Enter submits).
+- **Owner decisions at session start:** S3 deviations accepted; DH "Stock ledger" quick action already existed (Paper variant `1L02-0` added); SM mobile Thresholds already drawn/wired.
+- Checks: backend build + 1,176 tests, frontend build + token check green. Dev seed `seed-branch-day-history-dev-fixtures.ts` (run after the S3 seed).
+
 ---
 
 ## Verification

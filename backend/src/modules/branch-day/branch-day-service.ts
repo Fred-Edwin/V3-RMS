@@ -64,6 +64,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const dayBefore = (date: Date): Date => new Date(date.getTime() - DAY_MS);
 const dayAfter = (date: Date): Date => new Date(date.getTime() + DAY_MS);
 
+/** Nairobi is UTC+3 with no DST: a date-only value stored as UTC midnight ends at `+21h`. Undefined for today and later. */
+const endOfBusinessDay = (businessDate: Date): Date | undefined => {
+  const end = new Date(businessDate.getTime() + 21 * 60 * 60 * 1000);
+  return end.getTime() <= Date.now() ? end : undefined;
+};
+
 const requireDepartmentHead = (actor: Actor): { branchOrgId: string; tag: DepartmentTag } => {
   if (!actor.isDepartmentHead || !actor.departmentTag) throw new ForbiddenError('Only a department head opens their department');
   if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
@@ -77,6 +83,8 @@ type Context = {
   reasonRequiredKes: number;
   blocking: Map<DepartmentTag, { id: string; sequenceLabel: string }[]>;
   dayLineIds: string[];
+  /** End of the business day (Nairobi midnight) for a past day; undefined for today, whose position is the live ledger. */
+  asOf: Date | undefined;
 };
 
 const buildContext = async (day: BranchDayFull): Promise<Context> => {
@@ -97,6 +105,7 @@ const buildContext = async (day: BranchDayFull): Promise<Context> => {
     reasonRequiredKes: thresholds.reasonRequiredKes,
     blocking,
     dayLineIds: day.departments.flatMap((d) => d.lines.map((l) => l.id)),
+    asOf: endOfBusinessDay(day.businessDate),
   };
 };
 
@@ -132,7 +141,7 @@ const buildDepartmentView = async (
   const [live, costs] = closed
     ? [new Map<string, Prisma.Decimal>(), new Map<string, Prisma.Decimal>()]
     : await Promise.all([
-        branchDayRepository.onHandExcludingDay(ctx.branchOrgId, dept.locationId, unsaved, ctx.dayLineIds),
+        branchDayRepository.onHandExcludingDay(ctx.branchOrgId, dept.locationId, unsaved, ctx.dayLineIds, ctx.asOf),
         branchDayRepository.latestInboundCosts(ctx.branchOrgId, dept.locationId, unsaved),
       ]);
 
@@ -273,6 +282,37 @@ const orderedDepartments = (day: BranchDayFull): BranchDayDepartmentFull[] => {
   return [...day.departments].sort((a, b) => order.indexOf(a.departmentTag) - order.indexOf(b.departmentTag));
 };
 
+const buildOverview = async (day: BranchDayFull, branchOrgId: string): Promise<BranchDayToday> => {
+  const ctx = await buildContext(day);
+  const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d)));
+  const blockers = day.status === 'OPEN' ? closeBlockersFor(views) : [];
+
+  const yesterdayRow = await branchDayRepository.findByDate(branchOrgId, dayBefore(day.businessDate));
+  return {
+    id: day.id,
+    reference: day.reference,
+    date: formatDateOnly(day.businessDate),
+    status: day.status,
+    branchName: day.organization.name,
+    closedAt: day.closedAt?.toISOString() ?? null,
+    closedBy: day.closedBy,
+    reopenCount: day.reopenCount,
+    departments: views.map((v) => v.summary),
+    yesterday: yesterdayRow
+      ? {
+          id: yesterdayRow.id,
+          date: formatDateOnly(yesterdayRow.businessDate),
+          status: yesterdayRow.status,
+          closedAt: yesterdayRow.closedAt?.toISOString() ?? null,
+          closedBy: yesterdayRow.closedBy,
+        }
+      : null,
+    reasonRequiredKes: ctx.reasonRequiredKes,
+    canClose: day.status === 'OPEN' && blockers.length === 0,
+    closeBlockers: blockers,
+  };
+};
+
 /** The department head's opening: live pre-fill until accepted, the signed figures after. */
 const loadOpeningView = async (branchOrgId: string, tag: DepartmentTag): Promise<OpeningView> => {
   const day = await getOrCreateToday(branchOrgId);
@@ -397,35 +437,13 @@ const recomputeNextMorningOpenings = async (
 export const branchDayService = {
   getToday: async (actor: Actor): Promise<BranchDayToday> => {
     const branchOrgId = requireBranchManager(actor);
-    const day = await getOrCreateToday(branchOrgId);
-    const ctx = await buildContext(day);
-    const views = await Promise.all(orderedDepartments(day).map((d) => buildDepartmentView(ctx, day, d)));
-    const blockers = day.status === 'OPEN' ? closeBlockersFor(views) : [];
+    return buildOverview(await getOrCreateToday(branchOrgId), branchOrgId);
+  },
 
-    const yesterdayRow = await branchDayRepository.findByDate(branchOrgId, dayBefore(day.businessDate));
-    return {
-      id: day.id,
-      reference: day.reference,
-      date: formatDateOnly(day.businessDate),
-      status: day.status,
-      branchName: day.organization.name,
-      closedAt: day.closedAt?.toISOString() ?? null,
-      closedBy: day.closedBy,
-      reopenCount: day.reopenCount,
-      departments: views.map((v) => v.summary),
-      yesterday: yesterdayRow
-        ? {
-            id: yesterdayRow.id,
-            date: formatDateOnly(yesterdayRow.businessDate),
-            status: yesterdayRow.status,
-            closedAt: yesterdayRow.closedAt?.toISOString() ?? null,
-            closedBy: yesterdayRow.closedBy,
-          }
-        : null,
-      reasonRequiredKes: ctx.reasonRequiredKes,
-      canClose: day.status === 'OPEN' && blockers.length === 0,
-      closeBlockers: blockers,
-    };
+  /** The same overview for any of the branch's own days — a reopened past day is recounted and re-closed here. */
+  getOverview: async (actor: Actor, id: string): Promise<BranchDayToday> => {
+    const branchOrgId = requireBranchManager(actor);
+    return buildOverview(await loadDay(id, branchOrgId), branchOrgId);
   },
 
   getDepartment: async (actor: Actor, id: string, tag: DepartmentTag): Promise<DepartmentDayDetail> => {
@@ -453,7 +471,7 @@ export const branchDayService = {
     const existing = new Map(dept.lines.map((l) => [l.inventoryItemId, l]));
     const ids = input.lines.map((l) => l.inventoryItemId);
     const [live, costs] = await Promise.all([
-      branchDayRepository.onHandExcludingDay(branchOrgId, dept.locationId, ids, ctx.dayLineIds),
+      branchDayRepository.onHandExcludingDay(branchOrgId, dept.locationId, ids, ctx.dayLineIds, ctx.asOf),
       branchDayRepository.latestInboundCosts(branchOrgId, dept.locationId, ids),
     ]);
     const catalog = new Map(items.map((i) => [i.id, i]));

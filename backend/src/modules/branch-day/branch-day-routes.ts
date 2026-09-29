@@ -17,6 +17,7 @@ router.get('/branch-day/history', requireRole('MANAGER'), branchDayController.ge
 router.get('/branch-day/opening', requireDepartmentHead, branchDayController.getOpening);
 router.post('/branch-day/opening/accept', requireDepartmentHead, branchDayController.acceptOpening);
 router.get('/branch-day/:id', requireRole('MANAGER'), branchDayController.getDetail);
+router.get('/branch-day/:id/overview', requireRole('MANAGER'), branchDayController.getOverview);
 router.get('/branch-day/:id/departments/:tag', requireRole('MANAGER'), branchDayController.getDepartment);
 router.put('/branch-day/:id/departments/:tag/lines', requireRole('MANAGER'), branchDayController.saveLines);
 router.post('/branch-day/:id/close', requireRole('MANAGER'), branchDayController.close);

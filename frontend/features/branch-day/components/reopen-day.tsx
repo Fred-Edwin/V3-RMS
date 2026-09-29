@@ -23,7 +23,7 @@ export interface ReopenDayProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   variant: 'desktop' | 'mobile';
-  today: BranchDayToday;
+  today: Pick<BranchDayToday, 'date' | 'closedAt' | 'closedBy'>;
   actor: { name: string; roleLabel: string };
   busy: boolean;
   error: string | null;

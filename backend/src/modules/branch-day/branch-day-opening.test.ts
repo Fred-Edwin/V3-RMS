@@ -130,6 +130,7 @@ beforeEach(() => {
   vi.mocked(branchDayRepository.latestInboundCosts).mockResolvedValue(new Map());
   vi.mocked(branchDayRepository.onHandAt).mockResolvedValue(new Map([[uid(1), D(18)], [uid(2), D(9)]]));
   vi.mocked(branchDayRepository.findOpening).mockResolvedValue(null);
+  vi.mocked(branchDayRepository.onHandExcludingDay).mockResolvedValue(new Map());
   vi.mocked(branchDayRepository.activeAdjustments).mockResolvedValue([]);
   vi.mocked(branchDayRepository.openingsForDate).mockResolvedValue([]);
   vi.mocked(branchDayRepository.activeOpeningAdjustments).mockResolvedValue([]);
@@ -185,6 +186,30 @@ describe('history', () => {
     expect(HistoryQuerySchema.safeParse({ from: '2026-01-01', to: '2026-09-30' }).success).toBe(false);
     expect(HistoryQuerySchema.safeParse({ from: '2026-09-30', to: '2026-09-01' }).success).toBe(false);
     expect(HistoryQuerySchema.safeParse(range).success).toBe(true);
+  });
+});
+
+describe('getOverview (a reopened past day)', () => {
+  it('builds the same overview for the branch\'s own day by id, and cannot reach another branch', async () => {
+    vi.mocked(branchDayRepository.findById).mockResolvedValue(day({ businessDate: new Date('2026-09-28T00:00:00Z') }) as never);
+    const overview = await branchDayService.getOverview(manager as never, dayId);
+    expect(overview).toMatchObject({ id: dayId, date: '2026-09-28', status: 'OPEN', departments: expect.any(Array) });
+    expect(branchDayRepository.findById).toHaveBeenCalledWith(dayId, branchOrgId);
+    vi.mocked(branchDayRepository.findById).mockResolvedValue(null);
+    await expect(branchDayService.getOverview(manager as never, dayId)).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('judges a past day against the position at the end of that business day (Nairobi midnight), never today\'s ledger', async () => {
+    vi.mocked(branchDayRepository.findById).mockResolvedValue(day({ businessDate: new Date('2026-09-28T00:00:00Z') }) as never);
+    await branchDayService.getOverview(manager as never, dayId);
+    const asOf = vi.mocked(branchDayRepository.onHandExcludingDay).mock.calls[0]![4];
+    expect(asOf?.toISOString()).toBe('2026-09-28T21:00:00.000Z'); // 29 Sep 00:00 in Nairobi
+  });
+
+  it('gives today (or a later date) no cutoff — its position is the live ledger', async () => {
+    vi.mocked(branchDayRepository.findById).mockResolvedValue(day({ businessDate: new Date('2999-01-01T00:00:00Z') }) as never);
+    await branchDayService.getOverview(manager as never, dayId);
+    expect(vi.mocked(branchDayRepository.onHandExcludingDay).mock.calls[0]![4]).toBeUndefined();
   });
 });
 

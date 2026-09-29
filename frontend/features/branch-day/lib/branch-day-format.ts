@@ -136,3 +136,51 @@ export function blockerSummary(blockers: CloseBlocker[], departments: Department
   if (reasons.length) parts.push(`${list(reasons)} ${reasons.length === 1 ? 'has a gap' : 'have gaps'} without a reason`);
   return parts.length ? `${parts.join(' · ')}.` : '';
 }
+
+/* ------------------------------------------------------------ history (S4) */
+
+export type HistoryRangeKey = 'day' | 'week' | 'month' | 'custom';
+
+export const HISTORY_RANGE_LABEL: Record<HistoryRangeKey, string> = { day: 'Day', week: 'Week', month: 'Month', custom: 'Custom' };
+
+const NAIROBI_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' });
+
+/** Today's business date (YYYY-MM-DD) on the Nairobi calendar. */
+export function todayNairobi(now: Date = new Date()): string {
+  return NAIROBI_DATE.format(now);
+}
+
+/** `days` back from a date-only string, inclusive-of-today arithmetic done in UTC so DST never shifts it. */
+export function shiftDateOnly(dateOnly: string, days: number): string {
+  const d = new Date(`${dateOnly}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Day = the last 3 days · Week = 7 · Month = 30 (the server allows up to 92 for a custom range). */
+export function historyRange(key: Exclude<HistoryRangeKey, 'custom'>, today: string = todayNairobi()): { from: string; to: string } {
+  const span = key === 'day' ? 2 : key === 'week' ? 6 : 29;
+  return { from: shiftDateOnly(today, -span), to: today };
+}
+
+const DAY_UTC = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' });
+const MONTH_UTC = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
+const YEAR_UTC = new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: 'UTC' });
+
+/** "12 Sep 2026" — a business date (built from parts: `en-GB` prints "Sept"). */
+export function formatHistoryDate(dateOnly: string): string {
+  const d = new Date(`${dateOnly}T00:00:00Z`);
+  return `${DAY_UTC.format(d)} ${MONTH_UTC.format(d)} ${YEAR_UTC.format(d)}`;
+}
+
+/** The list's status label + tone: a reopened day reads "Reopened once / N times", a day nobody closed reads "Open". */
+export function historyStatus(row: { status: 'OPEN' | 'CLOSED'; reopenCount: number }): { label: string; tone: StatusTone } {
+  if (row.status === 'OPEN') return { label: row.reopenCount > 0 ? 'Reopened · open' : 'Open', tone: 'warning' };
+  if (row.reopenCount === 0) return { label: 'Closed', tone: 'success' };
+  return { label: row.reopenCount === 1 ? 'Reopened once' : `Reopened ${row.reopenCount} times`, tone: 'warning' };
+}
+
+/** What a not-closed day's row says where a closed one names who closed it and how many departments. */
+export function openDayNote(row: { reopenCount: number }): string {
+  return row.reopenCount > 0 ? 'Reopened — not closed again yet' : 'Never closed';
+}

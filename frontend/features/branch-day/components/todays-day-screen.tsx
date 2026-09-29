@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
@@ -8,13 +9,13 @@ import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { HintTooltip } from '@/components/app/shell/hint-tooltip';
 import { roleLabel } from '@/components/app/shell/role-label';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { ListRowSkeleton, PinSheet, SkeletonRows, StockErrorCard, formatClock, formatCountDateLong } from '@/features/inventory';
 import { useBranchDayToday, useDayActions, useDepartmentCount } from '../hooks/use-branch-day';
+import { todayNairobi } from '../lib/branch-day-format';
 import { BranchThresholdsDrawer } from './branch-thresholds-drawer';
 import { DayFooter, DayKpiGrid, DayKpiStrip, DepartmentRailRow } from './day-parts';
 import { DepartmentListMobile, DepartmentPane, DetailSkeleton } from './department-count';
@@ -39,8 +40,8 @@ function KpiSkeleton() {
   );
 }
 
-/** Mobile overview header (`1CDC-0`): back · title + subtitle · Thresholds · History (History arrives with Day close history). */
-function OverviewHeader({ subtitle, onBack, onThresholds }: { subtitle: string; onBack: () => void; onThresholds: () => void }) {
+/** Mobile overview header (`1CDC-0`): back · title + subtitle · Thresholds · History. */
+function OverviewHeader({ title, subtitle, onBack, onThresholds }: { title: string; subtitle: string; onBack: () => void; onThresholds: () => void }) {
   return (
     <header className="flex items-center gap-3 bg-wds-sidebar-top px-4 pb-4 pt-3">
       <button
@@ -54,7 +55,7 @@ function OverviewHeader({ subtitle, onBack, onThresholds }: { subtitle: string; 
         </svg>
       </button>
       <div className="flex min-w-0 grow basis-0 flex-col gap-0.5">
-        <h1 className="truncate font-wds-sans text-[17px]/[22px] font-semibold text-wds-sidebar-fg-active">Today&apos;s day</h1>
+        <h1 className="truncate font-wds-sans text-[17px]/[22px] font-semibold text-wds-sidebar-fg-active">{title}</h1>
         <p className="truncate font-wds-sans text-wds-caption text-wds-sidebar-fg-item">{subtitle}</p>
       </div>
       <div className="flex shrink-0 items-center gap-4">
@@ -65,19 +66,12 @@ function OverviewHeader({ subtitle, onBack, onThresholds }: { subtitle: string; 
         >
           Thresholds
         </button>
-        <HintTooltip hint="Day close history arrives with the next release" side="bottom" align="end">
-          {(describedBy) => (
-            <button
-              type="button"
-              aria-disabled="true"
-              aria-describedby={describedBy}
-              onClick={(e) => e.preventDefault()}
-              className="shrink-0 cursor-not-allowed rounded-wds-sm py-1 font-wds-sans text-[13px]/4 text-wds-sidebar-fg-item opacity-60 outline-none focus-visible:shadow-wds-ring"
-            >
-              History
-            </button>
-          )}
-        </HintTooltip>
+        <Link
+          href="/app/branch/day/history"
+          className="shrink-0 rounded-wds-sm py-1 font-wds-sans text-[13px]/4 text-wds-sidebar-fg-item outline-none transition-colors hover:text-wds-sidebar-fg-active focus-visible:shadow-wds-ring"
+        >
+          History
+        </Link>
       </div>
     </header>
   );
@@ -91,7 +85,9 @@ export function TodaysDayScreen() {
   const user = useAuthStore((s) => s.user);
   const addToast = useWdsToastStore((s) => s.addToast);
 
-  const { today, status, reload } = useBranchDayToday();
+  // `?day=<id>` points the screen at one of the branch's own past days — how a reopened day is recounted and re-closed.
+  const dayParam = params.get('day');
+  const { today, status, reload } = useBranchDayToday(dayParam);
   const deptParam = params.get('dept');
   const selectedTag: DepartmentTag | null = isTag(deptParam) ? deptParam : isDesktop ? (today?.departments[0]?.tag ?? null) : null;
   const selectedSummary = today?.departments.find((d) => d.tag === selectedTag) ?? null;
@@ -108,8 +104,9 @@ export function TodaysDayScreen() {
   }, [reload, count]);
   const actions = useDayActions(today?.id ?? null, afterAction);
 
-  const select = React.useCallback((tag: DepartmentTag) => router.replace(`${pathname}?dept=${tag}`, { scroll: false }), [router, pathname]);
-  const backToOverview = React.useCallback(() => router.replace(pathname, { scroll: false }), [router, pathname]);
+  const dayQuery = dayParam ? `day=${dayParam}&` : '';
+  const select = React.useCallback((tag: DepartmentTag) => router.replace(`${pathname}?${dayQuery}dept=${tag}`, { scroll: false }), [router, pathname, dayQuery]);
+  const backToOverview = React.useCallback(() => router.replace(dayParam ? `${pathname}?day=${dayParam}` : pathname, { scroll: false }), [router, pathname, dayParam]);
 
   // Any typing not yet sent is saved before the day can be signed — the button reads server state.
   const openSign = React.useCallback(async () => {
@@ -155,6 +152,9 @@ export function TodaysDayScreen() {
     roleLabel: roleLabel(user?.role),
   };
   const dateLong = today ? formatCountDateLong(today.date) : '';
+  // Today's own day keeps its name; any other day is named by its date so a reopened past day is never mistaken for today.
+  const isOtherDay = Boolean(dayParam && today && today.date !== todayNairobi());
+  const dayTitle = isOtherDay ? dateLong : "Today's day";
 
   const overlays = today ? (
     <>
@@ -241,7 +241,7 @@ export function TodaysDayScreen() {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
         <MobileStatusBar className="bg-wds-sidebar-top" />
-        <OverviewHeader subtitle={`${branchName} · count and close`} onBack={() => router.back()} onThresholds={() => setThresholdsOpen(true)} />
+        <OverviewHeader title={dayTitle} subtitle={`${branchName} · count and close`} onBack={() => router.back()} onThresholds={() => setThresholdsOpen(true)} />
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
           {status === 'error' && !today ? (
             <div className="py-10">
@@ -291,14 +291,19 @@ export function TodaysDayScreen() {
       <Topbar
         breadcrumb={{ section: branchName, screen: 'Day' }}
         actions={
-          <Button variant="secondary" onClick={() => setThresholdsOpen(true)}>
-            Thresholds
-          </Button>
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/app/branch/day/history">History</Link>
+            </Button>
+            <Button variant="secondary" onClick={() => setThresholdsOpen(true)}>
+              Thresholds
+            </Button>
+          </>
         }
         className="shrink-0"
       />
       <div className="flex shrink-0 flex-col gap-1 px-6 pb-5 pt-6">
-        <h1 className="font-wds-sans text-wds-mobile-title text-wds-text-ink">Today&apos;s day</h1>
+        <h1 className="font-wds-sans text-wds-mobile-title text-wds-text-ink">{dayTitle}</h1>
         <p className="font-wds-sans text-[14px]/[18px] text-wds-text-copy-muted">
           All five departments — count and close status, at a glance. Any department blocked by an unconfirmed dispatch is flagged.
         </p>

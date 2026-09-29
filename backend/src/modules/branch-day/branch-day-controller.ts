@@ -9,6 +9,12 @@ const requireActor = (req: Request) => {
 };
 
 export const branchDayController = {
+  getOverview: async (req: Request, res: Response): Promise<void> => {
+    const { id } = BranchDayParamsSchema.parse(req.params);
+    const data = await branchDayService.getOverview(requireActor(req), id);
+    res.status(200).json({ success: true, data });
+  },
+
   getHistory: async (req: Request, res: Response): Promise<void> => {
     const data = await branchDayService.getHistory(requireActor(req), HistoryQuerySchema.parse(req.query));
     res.status(200).json({ success: true, data });

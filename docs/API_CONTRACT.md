@@ -4450,5 +4450,16 @@ another branch's day — 404); only `DIRECTOR` reopen is unscoped.
 | `POST` | `/branch-day/:id/reopen` | MANAGER, DIRECTOR | `{reason}` (required) → day `OPEN`, `BranchDayReopen` row; never touches the ledger. 409 `DAY_NOT_CLOSED` |
 | `GET` | `/branch-day/:id/document` | MANAGER | signed day-close document (409 `DAY_NOT_CLOSED` until closed) |
 
-History (`/branch-day/history`, `/branch-day/:id`) and opening
-(`/branch-day/opening…`) arrive in Session 4.
+### 26.4 Day close history & next-morning opening (Session 4)
+
+Schemas: `backend/src/modules/branch-day/branch-day-validators.ts` (frozen by contract tests). Decimals are strings; business dates `YYYY-MM-DD`.
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| `GET` | `/branch-day/history?from&to` | MANAGER | Closed days in range plus any earlier day still open; never today's open day. Range ≤ 92 days (`from ≤ to`). Row: `{id, reference, date, status, reopenCount, closedAt, closedBy, departmentsClosed, departmentsTotal, gapLines, netAdjustmentValue}` — aggregated from saved lines, never recomputed from the live ledger. No "never closed → Director" flag (decision Q-5). |
+| `GET` | `/branch-day/:id` | MANAGER | History detail: `kpis`, every department's `summary` + saved `lines` (read-only), `reopens[]` audit trail (oldest first). Own branch only (404 otherwise). |
+| `GET` | `/branch-day/:id/overview` | MANAGER | Same shape as `/branch-day/today` for any of the branch's own days — how a reopened past day is recounted and re-closed. A past day's expected figures are taken at the end of that business day (Nairobi midnight), not from today's ledger. |
+| `GET` | `/branch-day/opening` | Department Head | Own department only (tag comes from the token). `status` `PENDING` → live pre-fill (department on-hand); `ACCEPTED` → the signed figures. `lastCloseAt` null when yesterday was never closed. |
+| `POST` | `/branch-day/opening/accept` | Department Head | `{lines:[{inventoryItemId, acceptedQty}]}` — only recounted items need listing; the rest are accepted at pre-fill. One transaction: `DepartmentOpening` + a line per item + one linked `ADJUSTMENT` ("Overnight variance", `ADJ-####`, `openingLineId`) per differing line. 409 `OPENING_ALREADY_ACCEPTED` on a second accept the same day. After commit: Branch Manager push if any line ≥ `overnightAlertKes`. |
+
+**Recompute hook.** `POST /branch-day/:id/close` (re-close) also reverses the standing overnight adjustments of any opening already accepted for the *next* day (linked, equal and opposite), re-derives each line's pre-fill from the ledger without the opening's own rows, and writes a fresh overnight adjustment for whatever still differs. The department head's accepted figure stays authoritative.

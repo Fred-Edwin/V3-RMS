@@ -117,12 +117,13 @@ export const branchDayRepository = {
       select: { id: true, name: true, usageUnit: true, currentCost: true },
     }),
 
-  /** On-hand per item at a location, leaving out this day's own close adjustments (and their reversals). */
+  /** On-hand per item at a location, leaving out this day's own close adjustments (and their reversals); `asOf` cuts off later movements. */
   onHandExcludingDay: async (
     branchOrgId: string,
     locationId: string,
     itemIds: string[],
     dayLineIds: string[],
+    asOf?: Date,
   ): Promise<Map<string, Prisma.Decimal>> => {
     if (itemIds.length === 0) return new Map();
     const rows = await prisma.inventoryTransaction.groupBy({
@@ -132,6 +133,8 @@ export const branchDayRepository = {
         locationId,
         inventoryItemId: { in: itemIds },
         OR: [{ branchDayLineId: null }, { branchDayLineId: { notIn: dayLineIds } }],
+        // A past day is judged against the position at the end of that business day, not against today's ledger.
+        ...(asOf ? { createdAt: { lt: asOf } } : {}),
       },
       _sum: { quantity: true },
     });

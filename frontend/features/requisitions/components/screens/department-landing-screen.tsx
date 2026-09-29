@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { useAuthStore } from '@/store/authStore';
 import { formatApiErrorMessage } from '@/types/api';
+import { OpeningCard } from '@/features/branch-day';
 import { useRequisitionsList } from '../../hooks/use-requisitions-list';
 import { DISPLAY_STATUS_LABEL, getDisplayStatus, isLockedByApproval } from '../../lib/requisition-display-status';
 import { cancelRequisition, openRequisition } from '../../services';
@@ -185,19 +186,8 @@ export function DepartmentLandingScreen() {
           </div>
         </div>
 
-        {/* Static, disabled placeholder — the opening-count screen hasn't shipped. */}
-        <div className="flex flex-col gap-2.5 opacity-60">
-          <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">THIS MORNING</span>
-          <div className="flex flex-col gap-3 rounded-wds-sm border border-wds-border bg-wds-surface p-4">
-            <div className="flex flex-col gap-0.75">
-              <span className="font-wds-sans text-[16px] font-semibold text-wds-text-ink">Opening count</span>
-              <span className="font-wds-mono text-wds-label text-wds-neutral-500">Coming soon</span>
-            </div>
-            <div className="flex h-9 shrink-0 cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong">
-              <span className="font-wds-sans text-wds-body-sm text-wds-neutral-500">Review opening</span>
-            </div>
-          </div>
-        </div>
+        {/* Milestone Six Session 4 — next-morning opening (`122U-0` pending · `1BIS-0` accepted). */}
+        <OpeningCard />
 
         <div className="flex flex-col gap-2.5">
           <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">QUICK ACTIONS</span>
