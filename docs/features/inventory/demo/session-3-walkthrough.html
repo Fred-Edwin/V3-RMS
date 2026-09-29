@@ -69,6 +69,7 @@ git switch feat/m6-s3-day-close
 docker compose up -d postgres redis
 
 # terminal 1 — API (port 4000)
+# if it says EADDRINUSE, an API is already running on 4000 — skip this step
 cd backend && pnpm dev
 
 # terminal 2 — web (port 3001, matches FRONTEND_ORIGIN)
