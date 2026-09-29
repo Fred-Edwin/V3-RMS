@@ -319,7 +319,7 @@ function WorklistRow({ row, onReceive }: { row: ExpectedDeliverySummary; onRecei
         {detailText}
       </span>
       <span className={`w-[100px] shrink-0 text-right font-wds-mono text-wds-caption ${isOverdue ? 'text-wds-error-fg' : 'text-wds-text-faint'}`}>
-        {row.ageLabel} ago
+        {row.ageLabel}
       </span>
       <div className="flex w-[150px] shrink-0 items-center gap-1.5">
         <span className={`size-1.5 shrink-0 rounded-wds-full ${toneDot[status.tone]}`} aria-hidden />
@@ -366,7 +366,7 @@ function MobileWorklistCard({ row, onReceive }: { row: ExpectedDeliverySummary; 
       </div>
       <div className="flex items-center justify-between">
         <span className={`font-wds-mono text-wds-label ${isOverdue ? 'text-wds-error-fg' : 'text-wds-text-faint'}`}>
-          expected {row.ageLabel} ago
+          listed {row.ageLabel.toLowerCase()}
         </span>
         <Button size="sm" onClick={onReceive}>
           Receive →

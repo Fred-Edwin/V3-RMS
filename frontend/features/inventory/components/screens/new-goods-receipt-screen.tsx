@@ -13,6 +13,7 @@ import { ReceiptLineGrid, type ReceiptLineRow } from '../receipt-line-grid';
 import { SignSheetDialog } from '../sign-sheet';
 import { useGoodsReceiptForm } from '../../hooks/use-goods-receipt-form';
 import { useWdsToast } from '@/hooks/useWdsToast';
+import { useAuthStore } from '@/store/authStore';
 import { listItems, listSuppliers } from '../../services';
 import { getExpectedDelivery, getLastPrice } from '../../services/receiving-api-service';
 import type { CreateGoodsReceiptInput, GoodsReceiptDetail } from '../../types/receiving';
@@ -89,6 +90,8 @@ export function NewGoodsReceiptScreen() {
 
   const { receiptId, saveDraft, savingDraft, draftError, sign, signing, signError } = useGoodsReceiptForm();
   const { toast } = useWdsToast();
+  const role = useAuthStore((s) => s.role);
+  const canListSuppliers = role === 'STORE_MANAGER';
 
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = React.useState('');
@@ -103,11 +106,17 @@ export function NewGoodsReceiptScreen() {
   const [signedReceiptId, setSignedReceiptId] = React.useState<string | null>(null);
   const [savedReceipt, setSavedReceipt] = React.useState<GoodsReceiptDetail | null>(null);
   const [prefillNotice, setPrefillNotice] = React.useState(false);
+  const [deliverySupplierName, setDeliverySupplierName] = React.useState('');
 
   React.useEffect(() => {
-    void listSuppliers({ includeRetired: false, perPage: 100 }).then((res) => setSuppliers(res.data));
+    // The supplier list is Store-Manager-only (the Attendant gets 403); an
+    // Attendant's receipt is always prefilled from the expected delivery,
+    // which carries the supplier name.
+    if (canListSuppliers) {
+      void listSuppliers({ includeRetired: false, perPage: 100 }).then((res) => setSuppliers(res.data));
+    }
     void listItems({ includeRetired: false, perPage: 100 }).then((res) => setItems(res.data));
-  }, []);
+  }, [canListSuppliers]);
 
   // Prefill from the linked expected delivery, once, on mount.
   React.useEffect(() => {
@@ -117,6 +126,7 @@ export function NewGoodsReceiptScreen() {
       const delivery = await getExpectedDelivery(expectedDeliveryId);
       if (cancelled) return;
       if (delivery.supplierId) setSupplierId(delivery.supplierId);
+      if (delivery.supplierName) setDeliverySupplierName(delivery.supplierName);
       if (delivery.paymentTerms) setPaymentTerms(delivery.paymentTerms);
       const prefilled = await Promise.all(
         delivery.lines.map(async (line) => {
@@ -255,7 +265,7 @@ export function NewGoodsReceiptScreen() {
     }
   };
 
-  const supplierName = suppliers.find((s) => s.id === supplierId)?.name ?? '';
+  const supplierName = suppliers.find((s) => s.id === supplierId)?.name ?? (supplierId ? deliverySupplierName : '');
 
   if (!hydrated) return null;
   if (!isDesktop) {

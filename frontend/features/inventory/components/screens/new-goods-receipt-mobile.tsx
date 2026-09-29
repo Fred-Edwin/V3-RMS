@@ -57,13 +57,14 @@ export interface NewGoodsReceiptMobileProps {
   onViewSignedReceipt: () => void;
 }
 
-function Stepper({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function Stepper({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
   const num = Number(value) || 0;
   return (
     <div className="flex h-8 shrink-0 items-center rounded-wds-md border border-wds-border-strong">
       <button
         type="button"
         onClick={() => onChange(String(Math.max(0, num - 1)))}
+        aria-label={`Decrease quantity for ${label}`}
         className="flex h-full w-7 shrink-0 items-center justify-center font-wds-sans text-wds-body text-wds-text-copy-muted outline-none focus-visible:shadow-wds-ring"
       >
         &ndash;
@@ -74,6 +75,7 @@ function Stepper({ value, onChange }: { value: string; onChange: (value: string)
       <button
         type="button"
         onClick={() => onChange(String(num + 1))}
+        aria-label={`Increase quantity for ${label}`}
         className="flex h-full w-7 shrink-0 items-center justify-center font-wds-sans text-wds-body text-wds-text-ink outline-none focus-visible:shadow-wds-ring"
       >
         +
@@ -190,7 +192,7 @@ export function NewGoodsReceiptMobile({
                 ) : null}
               </div>
               <div className="flex items-center justify-between gap-wds-2">
-                <Stepper value={row.qty} onChange={(v) => onQtyChange(row.id, v)} />
+                <Stepper value={row.qty} label={row.itemName} onChange={(v) => onQtyChange(row.id, v)} />
                 <div className="flex shrink-0 items-center gap-wds-1.5">
                   <span className="font-wds-mono text-[11px] text-wds-text-faint">KES</span>
                   <div

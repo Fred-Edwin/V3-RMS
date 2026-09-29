@@ -253,7 +253,7 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
   const kpis = [
     { label: 'Branches waiting', value: String(branchesWaiting), detail: branchesWaiting > 0 ? `${branchesWaiting} branch${branchesWaiting === 1 ? '' : 'es'} raised a requisition` : 'nothing waiting' },
     { label: 'Departments waiting', value: String(departmentsWaiting), detail: `across the ${branchesWaiting} waiting branches` },
-    { label: 'Oldest wait', value: oldest ? formatWait(oldest.openedAt) : '—', detail: oldest ? `${oldest.branchName} · approved ${formatTime(oldest.openedAt)}` : 'nothing waiting', accent: true },
+    { label: 'Oldest wait', value: oldest ? formatWait(oldest.openedAt) : '—', detail: oldest ? `${oldest.branchName} · opened ${formatTime(oldest.openedAt)}` : 'nothing waiting', accent: true },
     { label: 'Dispatched today', value: String(dispatchedToday), detail: `${queue.rows.filter((r) => r.departments.every((d) => d.status !== null)).length} branches fully out` },
   ];
 
@@ -361,7 +361,7 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                     </div>
                     <div className="flex items-baseline justify-between">
                       <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-                        {requisitionTypeLabel(row.requisitionType)} · approved {formatTime(row.openedAt)}
+                        {requisitionTypeLabel(row.requisitionType)} · opened {formatTime(row.openedAt)}
                       </div>
                       <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{outOfLabel(row)}</div>
                     </div>
@@ -397,7 +397,7 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
                 <div className="flex flex-col gap-1 px-8 pb-4 pt-5">
                   <div className="font-wds-sans text-[20px]/6 font-semibold tracking-tight text-wds-text-ink">{detail.branchName}</div>
                   <div className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
-                    {requisitionTypeLabel(detail.requisitionType)} · approved {formatTime(detail.openedAt)}. Enter what&apos;s actually going out, then
+                    {requisitionTypeLabel(detail.requisitionType)} · opened {formatTime(detail.openedAt)}. Enter what&apos;s actually going out, then
                     sign each department as it&apos;s ready.
                   </div>
                 </div>

@@ -58,6 +58,7 @@ function StepperLineCard({ line, onChange }: StepperLineCardProps) {
             type="button"
             onClick={() => step(-1)}
             disabled={!canDecrement}
+            aria-label={`Decrease dispatch quantity for ${line.itemName}`}
             className={'px-wds-3.25 py-2 font-wds-mono text-section disabled:opacity-40 ' + (canDecrement ? 'text-wds-primary' : 'text-wds-text-copy-muted')}
           >
             −
@@ -67,6 +68,7 @@ function StepperLineCard({ line, onChange }: StepperLineCardProps) {
             type="button"
             onClick={() => step(1)}
             disabled={!canIncrement}
+            aria-label={`Increase dispatch quantity for ${line.itemName}`}
             className={'px-wds-3.25 py-2 font-wds-mono text-section disabled:opacity-40 ' + (canIncrement ? 'text-wds-primary' : 'text-wds-text-copy-muted')}
           >
             +

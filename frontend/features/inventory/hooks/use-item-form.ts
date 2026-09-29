@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useAuthStore } from '@/store/authStore';
 import { formatApiErrorMessage } from '@/types/api';
 import { createItem, getItem, listCategories, listSuppliers, retireItem, updateItem } from '../services';
 import type { Category, CreateItemInput, InventoryItem, Supplier, UpdateItemInput } from '../types';
@@ -9,7 +10,9 @@ import type { Category, CreateItemInput, InventoryItem, Supplier, UpdateItemInpu
  * plus the existing item when editing. Used by both the desktop drawer and
  * the mobile full-screen route — same hook, different shell.
  */
-export function useItemFormOptions() {
+export function useItemFormOptions(enabled = true) {
+  // The supplier list is Store-Manager-only — the Attendant gets a 403.
+  const canListSuppliers = useAuthStore((s) => s.role) === 'STORE_MANAGER';
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
@@ -21,7 +24,7 @@ export function useItemFormOptions() {
     try {
       const [categoryList, supplierList] = await Promise.all([
         listCategories({ includeRetired: false }),
-        listSuppliers({ includeRetired: false, perPage: 100 }),
+        canListSuppliers ? listSuppliers({ includeRetired: false, perPage: 100 }) : Promise.resolve({ data: [] as Supplier[] }),
       ]);
       setCategories(categoryList);
       setSuppliers(supplierList.data);
@@ -30,11 +33,11 @@ export function useItemFormOptions() {
       setError(formatApiErrorMessage(err, 'Could not load categories or suppliers.'));
       setStatus('error');
     }
-  }, []);
+  }, [canListSuppliers]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (enabled) void load();
+  }, [load, enabled]);
 
   /** Appends a just-created supplier locally instead of a full reload, so the picker can select it immediately. */
   const addSupplier = useCallback((supplier: Supplier) => {

@@ -180,4 +180,22 @@ Report, in chat: (1) what shipped per PR with commit SHAs and PR links; (2) ever
 
 ## Outcome log
 
-_(build agent fills this in)_
+### PR A — quick fixes (branch `fix/pre-demo-2a-quick-fixes`)
+
+Owner decision on costing (PR B): recommendation stated in the first message (per usage unit); proceeding unless the owner objects.
+
+- **A1** — new `features/requisitions/lib/requisition-display-status.ts` (+ tests): once `requisition.status === 'APPROVED'` the head sees "Approved"; Recall and Cancel are hidden; approved rows group under "Earlier today". The list endpoint already returned the requisition-level status, so no backend change. Verified in browser as Kitchen head: "Opened 02:52 PM · Approved", only "View my section".
+- **A2** — the receipt screen no longer calls `listSuppliers` unless the role is STORE_MANAGER; the supplier name comes from the expected delivery. The catalog only resolves the Central Store location for the Store Manager. The item form options load only when the drawer opens and skip suppliers for non-managers. Verified as attendant at 390px: supplier name shown, no 4xx on catalog or receipt.
+- **A3** — signature font bundled with `next/font/local` (`app/fonts/alex-brush/`, latin subset woff2 + OFL.txt), same `--font-signature` variable; the literal `font-['Alex_Brush']` classes replaced with `font-wds-signature`. Verified `document.fonts` loads the real `__alexBrush_*` face from the local file. **Not verified:** the print preview / saved PDF (the print routes redirected to the dashboard for the role I used). **Follow-up:** Inter, Cormorant Garamond and Playfair Display still come from Google at build; a first `pnpm build` in this session failed once with a `next/font` fetch error and passed on retry (flaky network fetch — the same fragility).
+- **A4** — deviations and notes:
+  - "expected Today ago": `ageLabel` already contains "ago" (backend `formatAgeLabel`), and it is the delivery's age, not its expected date. Now "listed today" / "listed 2 days ago" (four screens).
+  - "approved HH:MM" reworded to "opened HH:MM" (no `approvedAt` on the dispatch contract; avoids a backend change).
+  - Department Head header now shows the branch (`orgLabel` from `user.organizationName`).
+  - Letterhead: placeholder phone/address lines removed from the delivery note (print + screen) and from the count-verification print (which also carried a fake PIN). Real organization address/phone/KRA PIN exist on the Organization model but are not in the note responses — plumbing them through is a follow-up.
+  - Department landing: INCOMING DISPATCH now links "Confirm receipt" to `/app/branch/deliveries`; opening-count card kept, labelled "Coming soon".
+  - Sidebar: `/app/inventory/discrepancies` highlights Dispatch.
+  - **Plan correction:** `confirm-receipt-screen-mobile.tsx` steppers already had `aria-label`s. The unlabelled steppers were in `dispatch-fulfil-screen-mobile.tsx` and `new-goods-receipt-mobile.tsx`; both are now labelled.
+  - Admin "prompted to change this on first login" sentence removed.
+  - `DesktopOnlyNotice` takes a `hint` prop; Settings says to open it on a laptop.
+- **Tests:** frontend 91 passed (was 88; +3 new). Backend 1119 passed (unchanged, no backend change). Both `pnpm build` clean.
+

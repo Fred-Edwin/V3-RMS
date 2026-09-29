@@ -925,7 +925,6 @@ export default function Page(): JSX.Element {
                 {showTempPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p className="mt-1.5 text-caption text-stone-400">The user will be prompted to change this on first login.</p>
           </FormField>
         </form>
       </Modal>
