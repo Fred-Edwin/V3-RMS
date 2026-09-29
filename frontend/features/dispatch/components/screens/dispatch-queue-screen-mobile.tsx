@@ -58,7 +58,7 @@ function QueueCard({ row, isOldest, onOpen }: QueueCardProps) {
         <div className="flex flex-col gap-0.5">
           <div className="font-wds-sans text-[15px]/[20px] font-semibold text-wds-text-ink">{row.branchName}</div>
           <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-            {requisitionLabel(row.requisitionType)} · approved {formatTime(row.openedAt)}
+            {requisitionLabel(row.requisitionType)} · opened {formatTime(row.openedAt)}
           </div>
         </div>
         <div className={'shrink-0 font-wds-mono text-wds-caption ' + (isOldest ? 'text-wds-warning-fg' : 'text-wds-text-copy-muted')}>

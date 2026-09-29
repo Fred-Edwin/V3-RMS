@@ -59,7 +59,6 @@ function DesktopNote({ note }: { note: DeliveryNote }) {
           <div className="flex items-start justify-between border-b-2 border-wds-text-ink px-8 pb-5 pt-7">
             <div className="flex flex-col gap-[3px]">
               <div className="font-wds-sans text-[16px]/5 font-semibold text-wds-text-ink">Wendo Coffee Bistro — Central Store</div>
-              <div className="font-wds-sans text-wds-caption text-wds-text-copy-muted">Kimathi Way, Nyeri · +254 712 000 000</div>
             </div>
             <div className="flex flex-col items-end gap-[3px]">
               <div className="font-wds-mono text-wds-body-sm font-semibold tracking-[0.06em] text-wds-text-ink">DELIVERY NOTE</div>

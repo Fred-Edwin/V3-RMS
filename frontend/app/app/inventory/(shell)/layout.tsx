@@ -29,7 +29,8 @@ function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/inventory/purchasing')) return 'purchasing';
   if (pathname.startsWith('/app/inventory/receiving')) return 'receiving';
   if (pathname.startsWith('/app/inventory/prep')) return 'prep';
-  if (pathname.startsWith('/app/inventory/dispatch')) return 'dispatch';
+  // Discrepancies live under Dispatch (resolved from the dispatch queue).
+  if (pathname.startsWith('/app/inventory/dispatch') || pathname.startsWith('/app/inventory/discrepancies')) return 'dispatch';
   if (pathname.startsWith('/app/inventory/stock')) return 'stock-counts';
   if (pathname.startsWith('/app/inventory/settings')) return 'settings';
   return 'catalog';

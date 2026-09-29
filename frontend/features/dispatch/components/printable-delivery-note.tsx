@@ -49,9 +49,7 @@ export function PrintableDeliveryNote({ note, requisitionLabel }: PrintableDeliv
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-0.5">
             <div className="text-[30px] leading-9 font-bold tracking-tight">Wendo Coffee Bistro</div>
-            <div className="text-caption tracking-[0.02em] text-[#555555]">
-              Kimathi Way, Nyeri, Kenya · +254 700 000 000
-            </div>
+            <div className="text-caption tracking-[0.02em] text-[#555555]">Central Store</div>
           </div>
           <div className="flex flex-col items-end gap-[3px]">
             <div className="text-[20px] leading-6 font-bold tracking-tight">DELIVERY NOTE</div>
@@ -123,7 +121,7 @@ export function PrintableDeliveryNote({ note, requisitionLabel }: PrintableDeliv
         <div className="flex grow basis-0 flex-col gap-1">
           <div className="text-label font-bold uppercase tracking-[0.06em] text-[#777777]">Dispatched by</div>
           <div className="flex h-[34px] shrink-0 items-end pb-0.5">
-            <div className="font-['Alex_Brush',cursive] text-[26px] leading-8">{note.dispatchedByName ?? '—'}</div>
+            <div className="font-wds-signature text-[26px] leading-8">{note.dispatchedByName ?? '—'}</div>
           </div>
           <div className="flex flex-col gap-0.5 border-t border-[#111111] pt-[5px]">
             <div className="text-caption font-bold">{note.dispatchedByName ?? '—'}, Store Manager</div>
@@ -134,7 +132,7 @@ export function PrintableDeliveryNote({ note, requisitionLabel }: PrintableDeliv
           <div className="text-label font-bold uppercase tracking-[0.06em] text-[#777777]">Received by</div>
           <div className="flex h-[34px] shrink-0 items-end pb-0.5">
             {isConfirmed ? (
-              <div className="font-['Alex_Brush',cursive] text-[26px] leading-8">{note.confirmedByName ?? '—'}</div>
+              <div className="font-wds-signature text-[26px] leading-8">{note.confirmedByName ?? '—'}</div>
             ) : (
               <div className="text-body-sm text-[#999999]">— not yet received —</div>
             )}

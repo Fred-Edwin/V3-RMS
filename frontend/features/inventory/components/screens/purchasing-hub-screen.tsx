@@ -454,7 +454,7 @@ function MobileInboundCard({
         {estimate ? ` · ${estimate}` : ''}
       </span>
       <div className="flex items-center justify-between">
-        <span className="font-wds-mono text-wds-caption text-wds-text-faint">expected {row.ageLabel} ago</span>
+        <span className="font-wds-mono text-wds-caption text-wds-text-faint">listed {row.ageLabel.toLowerCase()}</span>
         <div className="flex items-center gap-wds-3">
           <button
             type="button"

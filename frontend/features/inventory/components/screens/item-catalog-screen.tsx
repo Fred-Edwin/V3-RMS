@@ -100,10 +100,10 @@ export function ItemCatalogScreen() {
   );
 
   const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
-  const { locationId: centralStoreLocationId } = useCentralStoreLocation();
-
   const canRead = role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   const canWrite = role === 'STORE_MANAGER';
+  // The restock-level lookup is Store-Manager-only; the Attendant gets a 403.
+  const { locationId: centralStoreLocationId } = useCentralStoreLocation(canWrite);
 
   if (!hydrated) {
     return (

@@ -82,7 +82,7 @@ export function PrintableRequisition({
 
       <div className="mt-10 flex items-end justify-between border-t border-wds-border pt-5">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[26px] leading-[100%] font-['Alex_Brush',cursive] text-wds-text-ink">{signedByName ?? ''}</span>
+          <span className="text-[26px] leading-[100%] font-wds-signature text-wds-text-ink">{signedByName ?? ''}</span>
           <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
             {signedByName ? `${signedByName} · Branch Manager · signed ${signedAtLabel}` : 'Not yet signed'}
           </span>

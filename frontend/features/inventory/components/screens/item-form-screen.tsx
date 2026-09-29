@@ -64,7 +64,7 @@ export interface ItemFormDrawerProps {
  * `warnings` array, never a validation failure — plan §5.4 rule 3).
  */
 export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }: ItemFormDrawerProps) {
-  const { categories, suppliers, addSupplier } = useItemFormOptions();
+  const { categories, suppliers, addSupplier } = useItemFormOptions(open);
   const { item } = useItem(open ? itemId : null);
   const { save, saving, error } = useSaveItem();
   const { create: createSupplierInline } = useCreateSupplierInline();

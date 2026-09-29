@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui2/s
 import { useAuthStore } from '@/store/authStore';
 import { formatApiErrorMessage } from '@/types/api';
 import { useRequisitionsList } from '../../hooks/use-requisitions-list';
+import { DISPLAY_STATUS_LABEL, getDisplayStatus, isLockedByApproval } from '../../lib/requisition-display-status';
 import { cancelRequisition, openRequisition } from '../../services';
 import type { DepartmentTag, RequisitionListRow } from '../../types';
 
@@ -31,13 +32,6 @@ const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
   HOUSEKEEPING: 'Housekeeping',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  NOT_STARTED: 'Not started',
-  DRAFT: 'Draft',
-  SUBMITTED: 'Awaiting approval',
-  RETURNED: 'Returned',
-};
-
 /**
  * Screen 0 — "Requisitions" landing (`122U-0`), a cross-milestone hub. Only
  * the REQUISITION card is real this session; the other three (INCOMING
@@ -54,6 +48,7 @@ export function DepartmentLandingScreen() {
   const departmentTag = useAuthStore((s) => s.departmentTag) as DepartmentTag | undefined;
   const user = useAuthStore((s) => s.user);
   const userInitials = user?.name ? user.name.slice(0, 2).toUpperCase() : 'GW';
+  const orgLabel = (user?.organizationName ?? 'Branch').toUpperCase();
   const { rows, status, reload } = useRequisitionsList();
   const [opening, setOpening] = React.useState(false);
   const [typePickerOpen, setTypePickerOpen] = React.useState(false);
@@ -65,7 +60,7 @@ export function DepartmentLandingScreen() {
     return (
       <div className="flex min-h-screen flex-col bg-wds-neutral-50">
         <MobileStatusBar />
-        <MobileHubHeader title="Requisitions" subtitle="" userInitials={userInitials} />
+        <MobileHubHeader title="Requisitions" subtitle="" userInitials={userInitials} orgLabel={orgLabel} />
         <div className="flex flex-1 items-center justify-center p-4">
           <PermissionDeniedState description="Requisitions are for department heads only." />
         </div>
@@ -90,14 +85,14 @@ export function DepartmentLandingScreen() {
   const openRow = (row: RequisitionListRow) => router.push(`/app/requisitions/${row.id}/${departmentTag}`);
 
   const rowActionLabel = (row: RequisitionListRow) =>
-    row.mySectionStatus === 'SUBMITTED' ? 'View my section' : row.mySectionStatus === 'RETURNED' ? 'Resubmit section' : 'Continue';
+    isLockedByApproval(row) || row.mySectionStatus === 'SUBMITTED' ? 'View my section' : row.mySectionStatus === 'RETURNED' ? 'Resubmit section' : 'Continue';
 
   // Cancel is only ever offered before this department's own section is
   // submitted — the backend's real guard is "zero sections across the whole
   // requisition have ever been SUBMITTED," which this list doesn't have
   // visibility into (only `mySectionStatus`), so a 409 here is expected and
   // surfaced rather than predicted client-side.
-  const canOfferCancel = (row: RequisitionListRow) => row.mySectionStatus !== 'SUBMITTED';
+  const canOfferCancel = (row: RequisitionListRow) => !isLockedByApproval(row) && row.mySectionStatus !== 'SUBMITTED';
 
   const handleCancel = async () => {
     if (!cancelTarget) return;
@@ -117,7 +112,7 @@ export function DepartmentLandingScreen() {
   return (
     <div className="flex min-h-screen flex-col bg-wds-neutral-50">
       <MobileStatusBar />
-      <MobileHubHeader title="Requisitions" subtitle={`${departmentLabel} · your branch`} userInitials={userInitials} />
+      <MobileHubHeader title="Requisitions" subtitle={`${departmentLabel} · your branch`} userInitials={userInitials} orgLabel={orgLabel} />
       <div className="flex flex-col gap-5 px-4 pb-8 pt-5">
         <div className="flex flex-col gap-2.5">
           <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">REQUISITION</span>
@@ -136,7 +131,7 @@ export function DepartmentLandingScreen() {
                           </span>
                           <span className="font-wds-mono text-wds-label text-wds-neutral-500">
                             Opened {new Date(row.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ·{' '}
-                            {STATUS_LABEL[row.mySectionStatus] ?? 'Not started'}
+                            {DISPLAY_STATUS_LABEL[getDisplayStatus(row)]}
                           </span>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
@@ -177,26 +172,26 @@ export function DepartmentLandingScreen() {
           </div>
         </div>
 
-        {/* Static, disabled placeholders — their milestones haven't shipped. */}
-        <div className="flex flex-col gap-2.5 opacity-60">
+        <div className="flex flex-col gap-2.5">
           <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">INCOMING DISPATCH</span>
           <div className="flex flex-col gap-3 rounded-wds-sm border border-wds-border bg-wds-surface p-4">
             <div className="flex flex-col gap-0.75">
-              <span className="font-wds-sans text-[16px] font-semibold text-wds-text-ink">Opening dispatch</span>
-              <span className="font-wds-mono text-wds-label text-wds-neutral-500">Coming in a later milestone</span>
+              <span className="font-wds-sans text-[16px] font-semibold text-wds-text-ink">Deliveries from the Central Store</span>
+              <span className="font-wds-mono text-wds-label text-wds-neutral-500">Check what arrived and confirm receipt</span>
             </div>
-            <div className="flex h-10 shrink-0 cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong">
-              <span className="font-wds-sans text-wds-body-sm text-wds-neutral-500">Confirm receipt</span>
-            </div>
+            <Link href="/app/branch/deliveries" className={`${QUICK_ACTION_CLASS} h-10`}>
+              <span className="font-wds-sans text-wds-body-sm text-wds-text-ink">Confirm receipt</span>
+            </Link>
           </div>
         </div>
 
+        {/* Static, disabled placeholder — the opening-count screen hasn't shipped. */}
         <div className="flex flex-col gap-2.5 opacity-60">
           <span className="font-wds-mono text-wds-label font-semibold tracking-[0.06em] text-wds-neutral-500">THIS MORNING</span>
           <div className="flex flex-col gap-3 rounded-wds-sm border border-wds-border bg-wds-surface p-4">
             <div className="flex flex-col gap-0.75">
               <span className="font-wds-sans text-[16px] font-semibold text-wds-text-ink">Opening count</span>
-              <span className="font-wds-mono text-wds-label text-wds-neutral-500">Coming in a later milestone</span>
+              <span className="font-wds-mono text-wds-label text-wds-neutral-500">Coming soon</span>
             </div>
             <div className="flex h-9 shrink-0 cursor-not-allowed items-center justify-center rounded-wds-sm border border-wds-border-strong">
               <span className="font-wds-sans text-wds-body-sm text-wds-neutral-500">Review opening</span>

@@ -40,7 +40,7 @@ export function GoodsReceiptDetailScreen({ id }: { id: string }) {
   };
 
   if (!hydrated) return null;
-  if (!isDesktop) return <DesktopOnlyNotice screen="Goods Receipt detail" />;
+  if (!isDesktop) return <DesktopOnlyNotice screen="Goods Receipt detail" hint="On mobile, use the Receiving worklist to start a receipt." />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden print:overflow-visible">

@@ -45,7 +45,7 @@ export function PrintableCountVerification({ doc }: { doc: CountPrint }) {
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-0.5">
             <div className="text-[30px] font-bold leading-9 tracking-[0.01em]">Wendo Coffee Bistro</div>
-            <div className="text-[12px] leading-4 tracking-[0.02em] text-[#555555]">Kimathi Way, Nyeri, Kenya · +254 700 000 000 · PIN P000000000A</div>
+            <div className="text-[12px] leading-4 tracking-[0.02em] text-[#555555]">Central Store</div>
           </div>
           <div className="flex flex-col items-end gap-[3px]">
             <div className="text-[20px] font-bold leading-6 tracking-[0.01em]">{title}</div>

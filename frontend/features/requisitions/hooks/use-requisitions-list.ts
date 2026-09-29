@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { formatApiErrorMessage } from '@/types/api';
 import { listRequisitions } from '../services';
+import { isLockedByApproval } from '../lib/requisition-display-status';
 import type { RequisitionListRow } from '../types';
 
 /**
@@ -46,11 +47,11 @@ export function useRequisitionsList() {
   // else (SUBMITTED/RETURNED — RETURNED also needs attention but the fill
   // screen surfaces that, not this grouping) -> "earlier today".
   const needsSection = useMemo(
-    () => rows.filter((r) => r.mySectionStatus === 'NOT_STARTED' || r.mySectionStatus === 'DRAFT' || r.mySectionStatus === 'RETURNED'),
+    () => rows.filter((r) => !isLockedByApproval(r) && (r.mySectionStatus === 'NOT_STARTED' || r.mySectionStatus === 'DRAFT' || r.mySectionStatus === 'RETURNED')),
     [rows],
   );
   const earlierToday = useMemo(
-    () => rows.filter((r) => r.mySectionStatus === 'SUBMITTED'),
+    () => rows.filter((r) => isLockedByApproval(r) || r.mySectionStatus === 'SUBMITTED'),
     [rows],
   );
   const mostRecent = rows[0] ?? null;

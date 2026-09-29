@@ -31,7 +31,7 @@ export function SettingsScreen() {
   const openMyPin = React.useCallback(() => setTab('my-pin'), []);
 
   if (!hydrated) return null;
-  if (!isDesktop) return <DesktopOnlyNotice screen="Settings" />;
+  if (!isDesktop) return <DesktopOnlyNotice screen="Settings" hint="Open Settings on a laptop to manage your team and signing PIN." />;
 
   if (role !== 'STORE_MANAGER') {
     return (

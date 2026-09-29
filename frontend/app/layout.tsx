@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Alex_Brush, Cormorant_Garamond, Inter, Playfair_Display } from 'next/font/google';
+import { Cormorant_Garamond, Inter, Playfair_Display } from 'next/font/google';
+import localFont from 'next/font/local';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -36,10 +37,14 @@ const playfairDisplay = Playfair_Display({
 
 // Signature rendering only (Goods Receipt sign sheet + signed detail) — the
 // Paper token `--font-signature` maps to this. Scoped narrowly like
-// playfairDisplay above since it has exactly one visual purpose.
-const alexBrush = Alex_Brush({
-  subsets: ['latin'],
-  weight: ['400'],
+// playfairDisplay above since it has exactly one visual purpose. Bundled
+// locally (SIL OFL, see app/fonts/alex-brush/OFL.txt) rather than fetched
+// from Google at build/dev time, so signatures never fall back to a system
+// font when the network fetch times out.
+const alexBrush = localFont({
+  src: './fonts/alex-brush/alex-brush-latin-400-normal.woff2',
+  weight: '400',
+  style: 'normal',
   variable: '--font-signature',
 });
 
