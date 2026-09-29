@@ -9,10 +9,25 @@
 > in it are settled — don't re-open them. Session 1's outcome log
 > (`session-1-plan.md` → "Outcome log") holds the lessons and the patterns to
 > reuse; read its "Frontend gates" and "End-of-session summary" sections.
-> Branch from `feat/m6-s1-stock-waste` as `feat/m6-s2-counting` (or from
-> `main` if Session 1 has merged). If something here turns out wrong in the
+> Session 1 is merged to `main` (PR #38). Pull `main` and branch from it
+> as `feat/m6-s2-counting`. If something here turns out wrong in the
 > code or in Paper, fix it and record the correction in this file's outcome
 > log — never silently work around it.
+
+---
+
+## Starting state
+
+Session 1 shipped to production on 2026-09-29: PR #38 (`6559bba`) on top of
+the Department Head restock hotfix, PR #37 (`365a2ee`). Start from an
+up-to-date `main`:
+
+```bash
+git switch main && git pull --ff-only
+git switch -c feat/m6-s2-counting
+```
+
+`feat/m6-s1-stock-waste` is merged — don't build on it.
 
 ---
 

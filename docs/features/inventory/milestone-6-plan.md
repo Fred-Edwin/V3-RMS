@@ -562,11 +562,11 @@ dispatch, receiving at branch) to confirm on-hand still reconciles.
 
 _(appended per session)_
 
-### Session 1 — Stock position & waste (built 2026-09-25 → 2026-09-29, branch `feat/m6-s1-stock-waste`)
+### Session 1 — Stock position & waste (built 2026-09-25 → 2026-09-29, shipped 2026-09-29)
 
-Commits: backend `ea82101`, DH restock fix `14fea4e`, frontend `0472690` (not pushed). All eleven screen rows of the session table plus their loading / empty / error states passed the §4.4 gate in a real browser; per-gate lines and every deviation are in `milestone-6-sessions/session-1-plan.md` → Outcome log. Headlines:
+Merged to `main` as PR #38 (`6559bba`); the Department Head restock fix shipped first as PR #37 (`365a2ee`). All eleven screen rows of the session table plus their loading / empty / error states passed the §4.4 gate in a real browser; per-gate lines and every deviation are in `milestone-6-sessions/session-1-plan.md` → Outcome log. Headlines:
 - **Blind count holds on the wire**: the attendant's summary is `{todaysCount}` only and the waste picker carries no `onHand`; contract test green.
-- **Milestone One bug found and fixed**: a Department Head's restock screen was always empty and every save 404'd (items looked up on the branch org, which has no catalog) — affects production today; fixed in `14fea4e` with regression tests. Ships with this branch.
+- **Milestone One bug found and fixed**: a Department Head's restock screen was always empty and every save 404'd (items looked up on the branch org, which has no catalog) — affects production today; fixed with regression tests and shipped as hotfix PR #37.
 - Restock levels now list only items with a level plus "Add an item", as Paper and §0.1 draw them; the M1 560px-with-search drawer returns to Paper's 440px.
 - DH routes needed a middleware change (`/app/branch/ledger`, `/app/branch/waste` admit department heads); the DH ledger uses Paper's light branch header.
 - Open for the owner: no DH entry point to their stock ledger yet (the route exists; the landing has no link).
