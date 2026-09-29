@@ -66,4 +66,25 @@ department head physically counted); Σ ledger equals it afterwards.
 
 ## Outcome log
 
+### Visual parity pass (2026-09-29)
+
+Method: Paper `get_computed_styles` / `get_jsx` per artboard against `getBoundingClientRect` / `getComputedStyle` on the live page (desktop 1440, mobile 390), then fixed every measurable difference. No pixel-diff.
+
+- **History list** `1BN0-0` / `1CB2-0` — matched: header 68, chips row 48, row 113, selected chip 30 (mobile) / 26 (desktop), title tracking, ▾ on Custom range, "Sep" spelling. Empty state re-centred; loading and error states viewed in the browser (kit copy + Retry).
+- **History detail** `1CMM-0` / `1CSZ-0` — matched: pill row 38, KPI 123 (cells 61/61/60/60), departments section 430 (16px inset, 8px row gaps), signed block 164, Reopen button 44, audit trail 135, total scroll height 958 = Paper. Rail name 15/18 and 5px dot on mobile.
+- **Department drill-in** `1D2G-0` — matched: KPI strip 82, plain rows 85, note 56, sticky footer 85, button 46; closed-day note added; reason label in mono. Gap rows 134 vs Paper 135.
+- **Opening sheet** `1A5R-0` (measured from the artboard's markup; Paper Desktop was closed for the last pass) — matched: text at x=36, × at 346–374, rows 358×63 at an 81px pitch, buttons 36→354 (46 / 48 tall), 64px below the buttons.
+- **Accepted card** `1BIS-0` — card 358×90, 12/16 tracked label, 15/18 name.
+
+**Deviations left (owner to confirm):**
+1. The success toast is the shared light top toast; Paper `1BIS-0` draws a dark bottom toast. Every M6 toast is the shared one — a design-system decision, not changed here.
+2. The pending opening card says "awaiting review"; Paper `122U-0` says "1 overnight variance". That number can't be known before the head recounts, so it isn't invented.
+3. The recount stepper sits inline under the tapped row (Paper draws one stepper block after the list).
+4. Paper's detail header uses `#241C16`, its list header the sidebar token; the app uses the token on both.
+5. Rail names read "D. Town)" only because dev users are named "Dev Manager 1 (Nyeri Town)".
+6. Month chip is 2px narrower than Paper (text metrics).
+7. The detail/drill-in loading and error states and hover/motion were spot-checked, not measured.
+
+## Outcome log
+
 _(appended as built)_

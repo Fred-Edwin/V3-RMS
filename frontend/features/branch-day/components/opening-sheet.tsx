@@ -128,7 +128,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
           }}
           style={{ transform: dragY ? `translateY(${Math.max(dragY, -12)}px)` : undefined, transition: drag.current ? 'none' : undefined }}
           className={cn(
-            'fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] max-w-[480px] flex-col rounded-t-[12px] bg-wds-surface shadow-[0_-8px_24px_rgb(0_0_0/0.12)] outline-none',
+            'fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] max-w-[480px] flex-col gap-[18px] rounded-t-[12px] px-4 pb-9 bg-wds-surface shadow-[0_-8px_24px_rgb(0_0_0/0.12)] outline-none',
             'data-[state=open]:duration-[250ms] data-[state=closed]:duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom motion-reduce:data-[state=closed]:slide-out-to-bottom-0 motion-reduce:data-[state=open]:slide-in-from-bottom-0',
           )}
         >
@@ -143,7 +143,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
             <div className="h-1 w-9 rounded-[2px] bg-wds-border-strong" />
           </div>
 
-          <div className="relative flex shrink-0 flex-col gap-1 px-5 pb-3.5 pt-2">
+          <div className="relative flex shrink-0 flex-col gap-1 px-5 pb-3.5">
             <DialogPrimitive.Title className="font-wds-sans text-[18px]/[22px] font-semibold text-wds-text-ink">Review opening</DialogPrimitive.Title>
             <DialogPrimitive.Description id="opening-sheet-subtitle" className="pr-8 font-wds-sans text-[13px]/4 text-wds-text-copy-muted">
               {subtitle}
@@ -151,7 +151,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
             <DialogPrimitive.Close
               aria-label="Close"
               disabled={submitting}
-              className="absolute right-3 top-0 flex size-7 items-center justify-center rounded-wds-sm font-wds-sans text-[18px]/[22px] text-wds-text-copy-muted outline-none transition-colors hover:bg-wds-neutral-100 focus-visible:shadow-wds-ring"
+              className="absolute right-0 top-0 flex size-7 items-center justify-center rounded-wds-sm font-wds-sans text-[18px]/[22px] text-wds-text-copy-muted outline-none transition-colors hover:bg-wds-neutral-100 focus-visible:shadow-wds-ring"
             >
               ×
             </DialogPrimitive.Close>
@@ -192,7 +192,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
                     Tap the item you want to recount.
                   </p>
                 ) : null}
-                <ul>
+                <ul className="flex flex-col gap-[18px]">
                   {lines.map((line, i) => {
                     const shown = figure(line);
                     const isChanged = changed.some((c) => c.inventoryItemId === line.inventoryItemId);
@@ -257,7 +257,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
               onClick={() => onAccept(changed.map((l) => ({ inventoryItemId: l.inventoryItemId, acceptedQty: figure(l) })))}
               disabled={submitting || !opening || lines.length === 0}
               className={cn(
-                'flex touch-manipulation items-center justify-center rounded-[2px] p-3.5 font-wds-sans text-[15px]/5 font-semibold outline-none transition-[transform,filter] duration-150 ease-out focus-visible:shadow-wds-ring',
+                'flex touch-manipulation items-center justify-center rounded-[2px] p-3.5 font-wds-sans text-[15px]/[18px] font-semibold outline-none transition-[transform,filter] duration-150 ease-out focus-visible:shadow-wds-ring',
                 submitting || !opening || lines.length === 0
                   ? 'cursor-not-allowed bg-wds-neutral-300 text-wds-neutral-600'
                   : 'bg-wds-gradient-primary text-wds-primary-fg shadow-wds-sheen hover:brightness-110 motion-safe:active:scale-[0.98]',
@@ -272,7 +272,7 @@ export function OpeningSheet({ open, onOpenChange, opening, loadStatus, onRetryL
                 firstRowRef.current?.focus();
               }}
               disabled={submitting || !opening || lines.length === 0}
-              className="flex touch-manipulation items-center justify-center rounded-[2px] border border-wds-border-strong p-3.5 font-wds-sans text-[15px]/5 font-medium text-wds-text-ink outline-none transition-[transform,background-color] duration-150 ease-out hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex touch-manipulation items-center justify-center rounded-[2px] border border-wds-border-strong p-3.5 font-wds-sans text-[15px]/[18px] font-medium text-wds-text-ink outline-none transition-[transform,background-color] duration-150 ease-out hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Recount an item
             </button>

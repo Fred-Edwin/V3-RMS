@@ -91,6 +91,8 @@ function RangeToggle({ value, onChange, mobile = false }: { value: HistoryRangeK
             'flex shrink-0 items-center gap-1.5 border font-wds-sans outline-none transition-[background-color,border-color,color] duration-200 ease-out focus-visible:shadow-wds-ring motion-safe:active:scale-[0.98]',
             mobile ? 'touch-manipulation rounded-[14px] px-3.5 py-[7px] text-[12px]/4' : 'h-7 rounded-wds-sm px-3 py-[5px] text-[13px]/4',
             'data-[state=on]:border-wds-espresso-700 data-[state=on]:bg-wds-espresso-700 data-[state=on]:font-medium data-[state=on]:text-white',
+            // Paper draws the selected chip borderless: 30px (mobile) / 26px (desktop) against 32 / 28 for the outlined ones.
+            mobile ? 'data-[state=on]:h-[30px]' : 'data-[state=on]:h-[26px]',
             'data-[state=off]:bg-transparent data-[state=off]:text-wds-text-ink data-[state=off]:hover:bg-wds-neutral-100',
             mobile ? 'data-[state=off]:border-wds-border-strong' : 'data-[state=off]:border-wds-border',
           )}
@@ -206,7 +208,7 @@ function MobileRow({ row, detailHref }: { row: HistoryRow; detailHref: string })
       href={detailHref}
       className="flex flex-col gap-2 border-b border-wds-neutral-200 py-3.5 outline-none transition-colors duration-150 active:bg-wds-neutral-100 focus-visible:shadow-[inset_2px_0_0_var(--wds-primary)]"
     >
-      <span className="flex items-baseline justify-between gap-3">
+      <span className="flex min-h-[22px] items-baseline justify-between gap-3">
         <span className="font-wds-sans text-[15px]/[18px] font-semibold text-wds-text-ink">{formatHistoryDate(row.date)}</span>
         <span
           className={cn(
@@ -282,7 +284,7 @@ export function DayHistoryScreen() {
     }
     if (days.length === 0) {
       return (
-        <div className="py-12">
+        <div className="flex justify-center py-12">
           <StockEmptyCard
             title="No closed days in this range"
             description="Days appear here once they're signed and closed."

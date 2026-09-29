@@ -107,11 +107,19 @@ function ReasonBlock({ row, onChange, mobile }: { row: Row; onChange: Count['set
   );
 }
 
-function ReasonReadOnly({ row }: { row: Row }) {
+function ReasonReadOnly({ row, mobile = false }: { row: Row; mobile?: boolean }) {
   const text = row.reason ? (row.reason === 'OTHER' && row.note ? row.note : GAP_REASON_LABEL[row.reason]) : '—';
   return (
-    <div className="flex flex-col gap-1.5 pb-3">
-      <span className="font-wds-sans text-[11px]/[14px] font-semibold uppercase text-wds-text-copy-muted">Reason</span>
+    <div className={cn('flex flex-col gap-1.5', !mobile && 'pb-3')}>
+      {/* Paper `1D36-0` (mobile) sets the label in regular mono at label tracking; the desktop pane keeps its sans label. */}
+      <span
+        className={cn(
+          'text-[11px]/[14px] uppercase text-wds-text-copy-muted',
+          mobile ? 'font-wds-mono tracking-[0.04em]' : 'font-wds-sans font-semibold',
+        )}
+      >
+        Reason
+      </span>
       <span className="font-wds-sans text-[13px]/4 text-wds-text-ink">{text}</span>
     </div>
   );
@@ -356,7 +364,7 @@ function MobileCard({ row, editable, onCount, onReason }: { row: Row; editable: 
             {trimQty(line.expectedQty)} {line.usageUnit}
           </span>
         </div>
-        <div className="flex w-[104px] shrink-0 flex-col gap-1">
+        <div className={cn('flex w-[104px] shrink-0 flex-col', editable ? 'gap-1' : 'gap-0.5')}>
           <span className={label}>Counted</span>
           {editable ? (
             <CountInput row={row} mobile disabled={false} onChange={(raw) => onCount(line.inventoryItemId, raw)} />
@@ -365,7 +373,7 @@ function MobileCard({ row, editable, onCount, onReason }: { row: Row; editable: 
           )}
         </div>
       </div>
-      {row.live.reasonRequired ? editable ? <ReasonBlock row={row} onChange={onReason} mobile /> : <ReasonReadOnly row={row} /> : null}
+      {row.live.reasonRequired ? editable ? <ReasonBlock row={row} onChange={onReason} mobile /> : <ReasonReadOnly row={row} mobile /> : null}
     </div>
   );
 }
@@ -467,7 +475,11 @@ export function DepartmentListMobile({ today, summary, count }: { today: DayRef;
           No items to count — this department is done for the day.
         </p>
       ) : null}
-      {editable ? (
+      {today.status === 'CLOSED' ? (
+        <p className="mx-4 mb-4 mt-3.5 rounded-[4px] bg-wds-neutral-50 p-3 font-wds-sans text-[12px]/4 text-wds-text-copy-muted">
+          Gaps posted as an adjustment at {summary.name}&apos;s location — the branch day was signed and closed {today.closedAt ? formatClock(today.closedAt) : ''}.
+        </p>
+      ) : editable ? (
         <p className="mx-4 mb-4 mt-3.5 rounded-[4px] bg-wds-neutral-50 p-3 font-wds-sans text-[12px]/4 text-wds-text-copy-muted">
           {full ? '' : 'Counts save as you type. '}Gaps post as an adjustment at {summary.name}&apos;s location once the whole branch day is signed and closed.
         </p>

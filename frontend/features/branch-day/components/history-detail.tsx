@@ -40,8 +40,8 @@ function DayStatusPill({ day, mobile = false }: { day: BranchDayDetail; mobile?:
   return (
     <span
       className={cn(
-        'flex w-max shrink-0 items-center gap-[5px] font-wds-sans',
-        mobile ? 'rounded-[12px] border px-2.5 py-1 text-[12px]/4' : 'rounded-wds-sm px-2 py-[3px] text-[12px]/4',
+        'flex w-max shrink-0 items-center font-wds-sans',
+        mobile ? 'gap-1.5 rounded-[12px] border px-2.5 py-1 text-[12px]/4' : 'gap-[5px] rounded-wds-sm px-2 py-[3px] text-[12px]/4',
         closed ? 'border-wds-success-border bg-wds-success-bg text-wds-success-fg' : 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
       )}
     >
@@ -88,10 +88,10 @@ function KpiGrid({ day }: { day: BranchDayDetail }) {
     { label: 'REOPENS', value: String(k.reopens), tone: 'text-wds-text-ink' },
   ];
   return (
-    <div className="grid grid-cols-2 border-b border-wds-border bg-wds-surface">
+    <div className="mt-3 grid grid-cols-2 border-y border-wds-border bg-wds-surface">
       {cells.map((c, i) => (
         <div key={c.label} className={cn('flex flex-col gap-1 px-4 py-3', i % 2 === 0 && 'border-r border-wds-border', i < 2 && 'border-b border-wds-border')}>
-          <span className="font-wds-mono text-[10px]/3 tracking-[0.04em] text-wds-text-copy-muted">{c.label}</span>
+          <span className="font-wds-mono text-[10px]/3 uppercase tracking-[0.06em] text-wds-text-copy-muted">{c.label}</span>
           <span className={cn('font-wds-mono text-[16px]/5 font-medium', c.tone)}>{c.value}</span>
         </div>
       ))}
@@ -109,14 +109,14 @@ function SignedBand({ day, onReopen, mobile = false }: { day: BranchDayDetail; o
   const link = 'font-wds-sans text-[13px]/4 font-medium text-wds-primary outline-none transition-colors hover:text-wds-primary-hover focus-visible:shadow-wds-ring';
   if (mobile) {
     return (
-      <div className="mx-4 flex flex-col gap-2.5 rounded-wds-sm border border-wds-border bg-wds-neutral-50 p-4">
-        <div className="flex flex-col gap-1">
+      <div className="mx-4 mt-4 flex flex-col gap-2 border border-wds-border bg-wds-neutral-50 p-3.5">
+        <div className="flex flex-col gap-2">
           <span className="font-wds-sans text-[14px]/[18px] font-medium text-wds-text-ink">{closed ? 'Signed day-close document' : day.reopenCount > 0 ? 'Reopened' : 'Not closed'}</span>
           <span className="font-wds-sans text-[12px]/4 text-wds-text-copy-muted">{signedLine}</span>
         </div>
         {closed ? (
-          <Link href={`/app/branch/day/document/${day.id}`} className={cn(link, 'w-max')}>
-            View signed document →
+          <Link href={`/app/branch/day/document/${day.id}`} className={cn(link, 'flex w-max items-center gap-1.5')}>
+            View signed document <span aria-hidden>→</span>
           </Link>
         ) : (
           <Link href={`/app/branch/day?day=${day.id}`} className={cn(link, 'w-max')}>
@@ -124,7 +124,7 @@ function SignedBand({ day, onReopen, mobile = false }: { day: BranchDayDetail; o
           </Link>
         )}
         {closed ? (
-          <Button variant="secondary" className="h-[42px] w-full !rounded-[4px] text-[14px]/[18px]" onClick={onReopen}>
+          <Button variant="secondary" className="h-11 w-full shrink-0 !rounded-[4px] text-[15px]/[18px] font-medium" onClick={onReopen}>
             Reopen day
           </Button>
         ) : null}
@@ -158,14 +158,14 @@ function SignedBand({ day, onReopen, mobile = false }: { day: BranchDayDetail; o
 /** Reopen audit trail (`1CST-0`): who, when, why — append-only, oldest first. */
 function AuditTrail({ day, mobile = false }: { day: BranchDayDetail; mobile?: boolean }) {
   return (
-    <section className={cn('flex flex-col gap-2', mobile && 'mx-4')} aria-label="Reopen audit trail">
-      <h2 className="font-wds-mono text-[11px]/[14px] uppercase tracking-[0.06em] text-wds-text-copy-muted">Reopen audit trail</h2>
+    <section className={cn('flex flex-col gap-2', mobile && 'mx-4 mt-4')} aria-label="Reopen audit trail">
+      <h2 className={cn('font-wds-mono uppercase tracking-[0.06em] text-wds-text-copy-muted', mobile ? 'text-[10px]/[14px]' : 'text-[11px]/[14px]')}>Reopen audit trail</h2>
       {day.reopens.length === 0 ? (
         <div className={cn('flex flex-col gap-1 border border-wds-border', mobile ? 'p-3.5' : 'px-5 py-4')}>
-          <p className="font-wds-sans text-[13px]/[18px] text-wds-text-copy-muted">
+          <p className={cn('font-wds-sans text-wds-text-copy-muted', mobile ? 'text-[12px]/[17px]' : 'text-[13px]/[18px]')}>
             {day.status === 'CLOSED' ? 'This day was closed once and has not been reopened — nothing to show here.' : 'This day has not been reopened — nothing to show here.'}
           </p>
-          <p className="font-wds-sans text-[12px]/4 text-wds-text-faint">
+          <p className={cn('font-wds-sans text-wds-text-faint', mobile ? 'text-[11px]/[15px]' : 'text-[12px]/4')}>
             If reopened, each entry records who, when, and why — re-closing recomputes adjustments and reverses superseded ones with linked ledger entries.
           </p>
         </div>
@@ -325,7 +325,7 @@ export function DayHistoryDetailScreen({ dayId }: { dayId: string }) {
           onBack={() => router.push(listHref)}
           label="Back to Day close history"
         />
-        <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pb-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-6">
           {status === 'error' && !detail ? (
             <div className="py-10">{errorCard}</div>
           ) : !detail ? (
@@ -347,9 +347,9 @@ export function DayHistoryDetailScreen({ dayId }: { dayId: string }) {
                 <DayStatusPill day={detail} mobile />
               </div>
               <KpiGrid day={detail} />
-              <div className="flex flex-col">
-                <div className="border-b border-wds-border px-4 pb-3 pt-1">
-                  <span className="font-wds-mono text-[11px]/[14px] tracking-[0.04em] text-wds-text-copy-muted">DEPARTMENTS</span>
+              <div className="flex flex-col gap-2 px-4 pt-4">
+                <div className="border-b border-wds-border px-4 py-3">
+                  <span className="block font-wds-mono text-[11px]/[14px] tracking-[0.04em] text-wds-text-copy-muted">DEPARTMENTS</span>
                 </div>
                 {detail.departments.map((d) => (
                   <DepartmentRailRow key={d.summary.tag} department={d.summary} mobile selected={false} onSelect={() => select(d.summary.tag)} />

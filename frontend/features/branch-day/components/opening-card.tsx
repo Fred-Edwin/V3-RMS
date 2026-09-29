@@ -70,7 +70,7 @@ export function OpeningCard({ className }: { className?: string }) {
           <span className="font-wds-sans text-[12px]/4 font-semibold uppercase tracking-[0.04em] text-wds-text-copy-muted">This morning</span>
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col gap-0.5">
-              <span className="font-wds-sans text-[15px]/5 font-medium text-wds-text-ink">Opening count</span>
+              <span className="font-wds-sans text-[15px]/[18px] font-medium text-wds-text-ink">Opening count</span>
               <span className="font-wds-sans text-[12px]/4 text-wds-text-copy-muted">Accepted at {opening.acceptedAt ? formatClock(opening.acceptedAt) : '—'}</span>
             </div>
             <span className="flex shrink-0 items-center gap-[5px] rounded-[2px] bg-wds-success-bg px-2 py-1 font-wds-sans text-[12px]/4 font-medium text-wds-success-fg">
