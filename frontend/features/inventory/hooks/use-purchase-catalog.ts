@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { formatApiErrorMessage } from '@/types/api';
+import { buyUnitPriceFromCost } from '../lib/buy-unit-price';
 import { getCentralStoreLocation, listCategories, listItems, listRestockLevels } from '../services';
 import type { Category } from '../types';
 
@@ -11,7 +12,10 @@ export interface PurchaseCatalogRow {
   buyUnit: string;
   /** e.g. "12 units" — packSize + usageUnit, matching Paper's "carton · 12 units" sub-line. Null when the item has no pack conversion. */
   packLabel: string | null;
+  /** Per USAGE unit — see `buyUnitPriceFromCost`. */
   currentCost: string;
+  /** `currentCost` converted to the buy unit, for pre-filling a purchase price. */
+  buyUnitPrice: string;
   onHandQty: string | null;
   parLevel: string | null;
   isBelowLevel: boolean;
@@ -52,6 +56,7 @@ export function usePurchaseCatalog() {
           buyUnit: item.buyUnit,
           packLabel: item.packSize ? `${item.packSize} ${item.usageUnit}` : null,
           currentCost: item.currentCost,
+          buyUnitPrice: buyUnitPriceFromCost(item.currentCost, item.conversionFactor),
           onHandQty: restock?.onHandQty ?? null,
           parLevel: restock?.level ?? item.centralStoreRestockLevel ?? null,
           isBelowLevel: restock?.isBelowLevel ?? false,

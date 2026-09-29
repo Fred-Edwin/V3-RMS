@@ -1780,7 +1780,7 @@ model InventoryItem {
 ```
 
 **Notes:**
-- **`currentCost` is written only by receiving, never edited directly.** Signing a `GoodsReceipt` sets `currentCost` to that line's `unitPrice` — this is **latest-price costing**, an owner-confirmed design (not weighted average): buy at 250, cost is 250; buy again at 280, cost is 280 from that moment on. There is deliberately no separate "set buying price" field on this model or its form.
+- **`currentCost` is written only by receiving, never edited directly.** **`currentCost` is always per USAGE unit** (KES 480 / kg), never per buy unit: signing a `GoodsReceipt` sets it to that line's `unitPrice` (entered per *buy* unit) divided by the conversion factor (`unitPrice ÷ conversionFactor`, 4dp; factor 1 when the item has none). The RECEIVE ledger row's `unitCost` is the same per-usage-unit figure, so `quantity × unitCost` is always the value of the stock received. This is **latest-price costing**, an owner-confirmed design (not weighted average): buy at 250, cost is 250; buy again at 280, cost is 280 from that moment on. There is deliberately no separate "set buying price" field on this model or its form.
 - `buyUnit`/`usageUnit`/`conversionFactor` is the unit-conversion model: purchase in `buyUnit` (e.g. a `ctn (12x2kg)`), stock and consume in `usageUnit` (e.g. `kg`), converted by `conversionFactor`.
 - `departmentTags` — which departments (besides the Central Store) also stock this item; a check constraint enforces it stays empty for `RAW_INGREDIENT` (raw ingredients live at the Central Store only).
 - Soft-deleted items ("retired") keep their history; a retired item cannot be selected on a new purchase or receipt but still appears in past records.
@@ -1983,7 +1983,7 @@ model ExpectedDeliveryLine {
 
 **Notes:**
 - Cascade-deletes with its parent `ExpectedDelivery`.
-- `estimatedUnitPrice` pre-fills from the item's `currentCost` as a reference, but is editable — it's an estimate, not what was actually paid (that's recorded separately on the `GoodsReceiptLine`).
+- `estimatedUnitPrice` is a per-*buy*-unit price; it pre-fills from the item's `currentCost` × `conversionFactor` (since `currentCost` is per usage unit) as a reference, but is editable — it's an estimate, not what was actually paid (that's recorded separately on the `GoodsReceiptLine`).
 
 ---
 
@@ -2053,7 +2053,7 @@ model GoodsReceiptLine {
 **Notes:**
 - `priceAlertPct`/`priceAlertPrevPrice` are a **persisted snapshot, never recomputed** — by the time a signed receipt is read back, latest-price costing has already overwritten `InventoryItem.currentCost`, so the price this line was compared against at entry time would otherwise be lost.
 - A price-change alert does not block signing — it only requires the receiving user to acknowledge it (`priceAlertAcceptedById`) before "Sign & save" enables. On save, the entered price becomes the item's current cost regardless (latest-price costing).
-- `unitPrice` on save becomes `InventoryItem.currentCost` for that item — the only path by which the catalog's cost figure changes.
+- `unitPrice` is per **buy** unit. On sign, `unitPrice ÷ conversionFactor` (per **usage** unit) becomes `InventoryItem.currentCost` for that item — the only path by which the catalog's cost figure changes.
 
 ---
 
