@@ -8,7 +8,9 @@ import { useAuthStore } from '@/store/authStore';
 import { PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { SigningPinCard } from '@/components/app/shell/signing-pin-card';
 import { Topbar } from '@/components/app/shell/topbar';
-import { DesktopOnlyNotice } from '../desktop-only-notice';
+import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
+import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
+import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import { TeamPanel } from '../team/team-panel';
 
 /**
@@ -28,10 +30,62 @@ export function SettingsScreen() {
   const role = useAuthStore((s) => s.user?.role);
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const [tab, setTab] = React.useState<SettingsTab>('team');
+  const user = useAuthStore((s) => s.user);
+  const { open: openMobileNav } = useMobileNavDrawer();
   const openMyPin = React.useCallback(() => setTab('my-pin'), []);
 
   if (!hydrated) return null;
-  if (!isDesktop) return <DesktopOnlyNotice screen="Settings" hint="Open Settings on a laptop to manage your team and signing PIN." />;
+
+  const tabs = (
+    <div role="tablist" aria-label="Settings sections" className={cn('flex gap-6 border-b border-wds-border', !isDesktop && 'px-4')}>
+      {TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          id={`settings-tab-${key}`}
+          aria-selected={tab === key}
+          aria-controls={`settings-panel-${key}`}
+          onClick={() => setTab(key)}
+          className={cn(
+            '-mb-px border-b-2 font-wds-sans text-wds-body-sm outline-none transition-colors focus-visible:shadow-wds-ring',
+            isDesktop ? 'pb-2.5' : 'min-h-11 touch-manipulation',
+            tab === key
+              ? 'border-wds-primary font-medium text-wds-text-ink'
+              : 'border-transparent text-wds-text-copy-muted hover:text-wds-text-ink',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!isDesktop) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
+        <MobileStatusBar />
+        <MobileHubHeader
+          title="Settings"
+          subtitle="Your team and your signing PIN"
+          userInitials={user?.name ? user.name.slice(0, 2).toUpperCase() : 'SM'}
+          onMenuClick={openMobileNav}
+        />
+        {role !== 'STORE_MANAGER' ? (
+          <div className="flex flex-1 items-center justify-center p-4">
+            <PermissionDeniedState description="Settings is for the Store Manager." />
+          </div>
+        ) : (
+          <>
+            {tabs}
+            <div role="tabpanel" id={`settings-panel-${tab}`} aria-labelledby={`settings-tab-${tab}`} className="min-h-0 flex-1 overflow-y-auto p-4 pb-8">
+              {tab === 'team' ? <TeamPanel onOpenMyPin={openMyPin} /> : <SigningPinCard variant="settings" stacked />}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   if (role !== 'STORE_MANAGER') {
     return (
@@ -55,27 +109,7 @@ export function SettingsScreen() {
           </p>
         </div>
 
-        <div role="tablist" aria-label="Settings sections" className="flex gap-6 border-b border-wds-border">
-          {TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              id={`settings-tab-${key}`}
-              aria-selected={tab === key}
-              aria-controls={`settings-panel-${key}`}
-              onClick={() => setTab(key)}
-              className={cn(
-                '-mb-px border-b-2 pb-2.5 font-wds-sans text-wds-body-sm outline-none transition-colors focus-visible:shadow-wds-ring',
-                tab === key
-                  ? 'border-wds-primary font-medium text-wds-text-ink'
-                  : 'border-transparent text-wds-text-copy-muted hover:text-wds-text-ink',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {tabs}
 
         <div role="tabpanel" id={`settings-panel-${tab}`} aria-labelledby={`settings-tab-${tab}`}>
           {tab === 'team' ? <TeamPanel onOpenMyPin={openMyPin} /> : <SigningPinCard variant="settings" className="max-w-[560px]" />}

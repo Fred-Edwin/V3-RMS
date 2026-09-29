@@ -20,6 +20,8 @@ export interface AddAttendantDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: (member: TeamMember) => void;
+  /** Phone: render as a bottom sheet. */
+  mobile?: boolean;
 }
 
 interface FieldErrors {
@@ -30,7 +32,7 @@ interface FieldErrors {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function AddAttendantDrawer({ open, onOpenChange, onAdded }: AddAttendantDrawerProps) {
+export function AddAttendantDrawer({ open, onOpenChange, onAdded, mobile = false }: AddAttendantDrawerProps) {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -82,6 +84,7 @@ export function AddAttendantDrawer({ open, onOpenChange, onAdded }: AddAttendant
       primaryLabel={submitting ? 'Creating…' : 'Create account'}
       onPrimaryAction={() => void submit()}
       primaryDisabled={submitting}
+      side={mobile ? 'bottom' : 'right'}
     >
       {bannerError ? <FormErrorBanner title={bannerError} description="Nothing was created. Your entries are kept — try again." /> : null}
 
@@ -95,7 +98,7 @@ export function AddAttendantDrawer({ open, onOpenChange, onAdded }: AddAttendant
           disabled={submitting}
           aria-invalid={errors.name ? true : undefined}
           onChange={(e) => setName(e.target.value)}
-          className="h-9"
+          className={mobile ? 'h-11' : 'h-9'}
         />
         {errors.name ? <FieldError>{errors.name}</FieldError> : null}
       </div>
@@ -110,7 +113,7 @@ export function AddAttendantDrawer({ open, onOpenChange, onAdded }: AddAttendant
           disabled={submitting}
           aria-invalid={errors.email ? true : undefined}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-9"
+          className={mobile ? 'h-11' : 'h-9'}
         />
         {errors.email ? <FieldError>{errors.email}</FieldError> : null}
       </div>
@@ -125,13 +128,13 @@ export function AddAttendantDrawer({ open, onOpenChange, onAdded }: AddAttendant
           disabled={submitting}
           aria-invalid={errors.password ? true : undefined}
           onChange={(e) => setPassword(e.target.value)}
-          className="h-9 font-wds-mono"
+          className={mobile ? 'h-11 font-wds-mono' : 'h-9 font-wds-mono'}
         />
         {errors.password ? (
           <FieldError>{errors.password}</FieldError>
         ) : (
           <p className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-            At least 8 characters. Share it with them in person; they should change it after first login.
+            At least 8 characters. Share it with them in person.
           </p>
         )}
       </div>

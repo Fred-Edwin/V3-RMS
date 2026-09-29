@@ -22,10 +22,12 @@ import { SetPinForm } from './set-pin-form';
  */
 export interface SigningPinCardProps {
   variant: 'profile' | 'settings';
+  /** Phone layout: PIN boxes fill the row (Paper "Pre-Demo · Phone screens" 5–6). */
+  stacked?: boolean;
   className?: string;
 }
 
-export function SigningPinCard({ variant, className }: SigningPinCardProps) {
+export function SigningPinCard({ variant, stacked, className }: SigningPinCardProps) {
   const { toast } = useWdsToast();
   const pinStatus = usePinStatus(true);
   const [editing, setEditing] = React.useState(false);
@@ -35,7 +37,7 @@ export function SigningPinCard({ variant, className }: SigningPinCardProps) {
   return (
     <section
       aria-labelledby="signing-pin-heading"
-      className={cn('flex flex-col gap-3 rounded-wds-sm border border-wds-border bg-wds-surface p-6', className)}
+      className={cn('flex flex-col gap-3 rounded-wds-sm border border-wds-border bg-wds-surface', stacked ? 'p-4' : 'p-6', className)}
     >
       <div className="flex items-center justify-between gap-4">
         <h2 id="signing-pin-heading" className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">
@@ -69,6 +71,7 @@ export function SigningPinCard({ variant, className }: SigningPinCardProps) {
         <SetPinForm
           requireCurrentPassword={hasPin}
           submitLabel={hasPin ? 'Change PIN' : 'Set PIN'}
+          layout={stacked ? 'stacked' : 'inline'}
           onCancel={variant === 'profile' ? () => setEditing(false) : undefined}
           onDone={() => {
             toast({ variant: 'success', title: hasPin ? 'PIN updated' : 'PIN set' });

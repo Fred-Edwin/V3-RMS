@@ -39,6 +39,8 @@ export interface DrawerShellProps {
   onCancel?: () => void;
   /** Extra content rendered in the body, below `children` — used for a "Retire" link on the edit variant, since Paper never drew a delete affordance for this shell to reserve room for. */
   footerExtra?: React.ReactNode;
+  /** `bottom` = phone sheet (Paper "Pre-Demo · Phone screens" 4). */
+  side?: 'right' | 'bottom';
   children: React.ReactNode;
 }
 
@@ -53,20 +55,22 @@ export function DrawerShell({
   cancelLabel = 'Cancel',
   onCancel,
   footerExtra,
+  side = 'right',
   children,
 }: DrawerShellProps) {
+  const bottom = side === 'bottom';
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
+      <SheetContent side={side} className={bottom ? 'max-h-[92vh] rounded-t-wds-md' : undefined}>
+        <SheetHeader className={bottom ? '!px-4' : undefined}>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
-        <div className="flex flex-1 flex-col gap-wds-4 overflow-y-auto px-wds-6 py-wds-5">
+        <div className={bottom ? 'flex flex-1 flex-col gap-wds-4 overflow-y-auto px-4 py-4' : 'flex flex-1 flex-col gap-wds-4 overflow-y-auto px-wds-6 py-wds-5'}>
           {children}
           {footerExtra}
         </div>
-        <SheetFooter>
+        <SheetFooter className={bottom ? '!px-4 !pb-5 [&>*]:h-11 [&>*]:flex-1' : undefined}>
           <Button variant="secondary" onClick={onCancel ?? (() => onOpenChange(false))}>
             {cancelLabel}
           </Button>

@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui2/button';
 import { Topbar } from '@/components/app/shell/topbar';
 import { ErrorState } from '@/components/app/shell/shell-states';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { DesktopOnlyNotice } from '../desktop-only-notice';
+import { GoodsReceiptDetailMobile } from './goods-receipt-detail-mobile';
 import { ReceiptLineListReadonly } from '../receipt-line-list-readonly';
 import { SignedBySignature } from '../sign-sheet';
 import { useGoodsReceiptDetail } from '../../hooks/use-goods-receipt-detail';
@@ -26,13 +27,14 @@ const statusLabels: Record<string, string> = {
 };
 
 /**
- * Goods Receipt detail (signed) + print — screen 5 (`UVN-0`), desktop-only.
+ * Goods Receipt detail (signed) + print — screen 5 (`UVN-0`) on desktop; phone layout in `goods-receipt-detail-mobile.tsx`.
  * Read-only, immutable record. Deliberately omits any damaged-goods/
  * supplier-claim UI — that flow was retired 2026-09-15 (milestone-2-plan.md
  * §7 Q2); the artboard this screen is built from is stale on that point.
  */
 export function GoodsReceiptDetailScreen({ id }: { id: string }) {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
+  const router = useRouter();
   const { receipt, status, error, reload } = useGoodsReceiptDetail(id);
 
   const handlePrint = () => {
@@ -40,7 +42,18 @@ export function GoodsReceiptDetailScreen({ id }: { id: string }) {
   };
 
   if (!hydrated) return null;
-  if (!isDesktop) return <DesktopOnlyNotice screen="Goods Receipt detail" hint="On mobile, use the Receiving worklist to start a receipt." />;
+  if (!isDesktop) {
+    return (
+      <GoodsReceiptDetailMobile
+        status={status}
+        error={error}
+        receipt={receipt}
+        statusLabel={receipt ? (statusLabels[receipt.status] ?? receipt.status) : ''}
+        onRetry={reload}
+        onBack={() => router.push('/app/inventory/receiving')}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden print:overflow-visible">
