@@ -72,6 +72,10 @@ export type LedgerRawRow = {
   /** DAILY | SPOT for an ADJUSTMENT written by a count; null otherwise. */
   countKind: string | null;
   countVerifierName: string | null;
+  /** True for an ADJUSTMENT written by a branch day close (or its reversal). */
+  endOfDay: boolean;
+  /** True when this row reverses an earlier adjustment. */
+  isReversal: boolean;
 };
 
 type Scope = { locationOrgId: string; locationId: string; itemOrgId: string };
@@ -236,6 +240,7 @@ export const stockRepository = {
         SELECT
           t.id, t.created_at, t.type, t.quantity, t.reference, t.reason,
           t.goods_receipt_line_id, t.prep_record_id, t.waste_log_id, t.dispatch_line_id, t.stock_count_line_id,
+          t.branch_day_line_id, t.reverses_transaction_id,
           SUM(t.quantity) OVER (ORDER BY t.created_at, t.id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running
         FROM inventory_transactions t
         WHERE t.organization_id = ${locationOrgId}
@@ -251,6 +256,7 @@ export const stockRepository = {
         torg.name AS "dispatchToOrgName", d.department_tag AS "dispatchDepartmentTag",
         disc.reference_number AS "discrepancyReference",
         sc.kind::text AS "countKind", cvu.name AS "countVerifierName",
+        (l.branch_day_line_id IS NOT NULL) AS "endOfDay", (l.reverses_transaction_id IS NOT NULL) AS "isReversal",
         COUNT(*) OVER () AS total
       FROM l
       LEFT JOIN goods_receipt_lines grl ON grl.id = l.goods_receipt_line_id

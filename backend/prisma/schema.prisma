@@ -73,6 +73,7 @@ model Organization {
   wasteLogs                    WasteLog[]
   stockCounts                  StockCount[]
   countingThresholds           CountingThresholds?
+  branchDays                   BranchDay[]
 
   @@map("organizations")
 }
@@ -168,6 +169,9 @@ model User {
   stockCountsVerified                 StockCount[]                  @relation("StockCountVerifier")
   stockCountsReturned                 StockCount[]                  @relation("StockCountReturnedBy")
   countingThresholdsUpdated           CountingThresholds[]          @relation("CountingThresholdsUpdatedBy")
+  branchDaysClosed                    BranchDay[]                   @relation("BranchDayClosedBy")
+  branchDayDepartmentsCounted         BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")
+  branchDayReopens                    BranchDayReopen[]             @relation("BranchDayReopenedBy")
   countingThresholdsDirectorUpdated   CountingThresholds[]          @relation("CountingThresholdsDirectorUpdatedBy")
   expectedDeliveriesCreated           ExpectedDelivery[]            @relation("ExpectedDeliveryCreatedBy")
   goodsReceiptsSigned                 GoodsReceipt[]                @relation("GoodsReceiptSignedBy")
@@ -1461,13 +1465,14 @@ model Location {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  organization  Organization           @relation(fields: [organizationId], references: [id])
-  transactions  InventoryTransaction[]
-  restockLevels RestockLevel[]
-  goodsReceipts GoodsReceipt[]
-  prepRuns      PrepRun[]
-  wasteLogs     WasteLog[]
-  stockCounts   StockCount[]
+  organization         Organization           @relation(fields: [organizationId], references: [id])
+  transactions         InventoryTransaction[]
+  restockLevels        RestockLevel[]
+  goodsReceipts        GoodsReceipt[]
+  prepRuns             PrepRun[]
+  wasteLogs            WasteLog[]
+  stockCounts          StockCount[]
+  branchDayDepartments BranchDayDepartment[]
 
   // Phase 1 creates exactly one CENTRAL_STORE row per organization (feature
   // plan D-1) — this constraint enforces that invariant at the DB level.
@@ -1731,6 +1736,7 @@ model InventoryItem {
   dispatchLines         DispatchLine[]
   wasteLogs             WasteLog[]
   stockCountLines       StockCountLine[]
+  branchDayLines        BranchDayLine[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1844,6 +1850,7 @@ model InventoryTransaction {
   prepRecordId          String?                  @map("prep_record_id")
   wasteLogId            String?                  @map("waste_log_id")
   stockCountLineId      String?                  @map("stock_count_line_id")
+  branchDayLineId       String?                  @map("branch_day_line_id")
   dispatchLineId        String?                  @map("dispatch_line_id")
   marketPurchaseLineId  String?                  @map("market_purchase_line_id")
   reference             String? // ADJ-#### on ADJUSTMENT rows (ReferenceCounter), null elsewhere
@@ -1860,6 +1867,7 @@ model InventoryTransaction {
   dispatchLine     DispatchLine?         @relation(fields: [dispatchLineId], references: [id])
   wasteLog         WasteLog?             @relation(fields: [wasteLogId], references: [id])
   stockCountLine   StockCountLine?       @relation(fields: [stockCountLineId], references: [id])
+  branchDayLine    BranchDayLine?        @relation(fields: [branchDayLineId], references: [id])
   reverses         InventoryTransaction? @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
   reversedBy       InventoryTransaction? @relation("InventoryTransactionReversal")
 
@@ -1872,6 +1880,7 @@ model InventoryTransaction {
   @@index([dispatchLineId])
   @@index([wasteLogId])
   @@index([stockCountLineId])
+  @@index([branchDayLineId])
   @@index([locationId, inventoryItemId, createdAt]) // ledger drill: one item at one location, by time
   @@map("inventory_transactions")
 }
@@ -2022,6 +2031,109 @@ model CountingThresholds {
   directorUpdatedBy User?        @relation("CountingThresholdsDirectorUpdatedBy", fields: [directorUpdatedById], references: [id])
 
   @@map("counting_thresholds")
+}
+
+// ── Milestone Six, Session 3 — Branch day close (plan §1.4–1.5) ─────────────
+// One BranchDay per (branch org, business date). The Branch Manager counts
+// each department's stock, gives a reason for any gap at/above the branch
+// threshold, and signs; the close posts one ADJUSTMENT per non-zero gap.
+// BLOCKED is never stored — it is derived at read time from IN_TRANSIT
+// dispatches to the department.
+enum BranchDayStatus {
+  OPEN
+  CLOSED
+}
+
+enum BranchDayDepartmentStatus {
+  NOT_STARTED
+  COUNTED
+}
+
+enum GapReason {
+  CONSUMPTION
+  UNLOGGED_WASTE
+  WALK_IN_COMP
+  SUSPECTED_LOSS
+  OTHER
+}
+
+model BranchDay {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id") // branch org
+  businessDate   DateTime        @map("business_date") @db.Date // Africa/Nairobi
+  status         BranchDayStatus @default(OPEN)
+  reference      String // DAY-#### (ReferenceCounter)
+  closedById     String?         @map("closed_by_id")
+  closedAt       DateTime?       @map("closed_at")
+  reopenCount    Int             @default(0) @map("reopen_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  closedBy     User?                 @relation("BranchDayClosedBy", fields: [closedById], references: [id])
+  departments  BranchDayDepartment[]
+  reopens      BranchDayReopen[]
+
+  @@unique([organizationId, businessDate])
+  @@index([organizationId, status])
+  @@map("branch_days")
+}
+
+model BranchDayDepartment {
+  id            String                    @id @default(uuid())
+  branchDayId   String                    @map("branch_day_id")
+  departmentTag DepartmentTag             @map("department_tag")
+  locationId    String                    @map("location_id")
+  status        BranchDayDepartmentStatus @default(NOT_STARTED)
+  countedById   String?                   @map("counted_by_id")
+  countedAt     DateTime?                 @map("counted_at")
+  createdAt     DateTime                  @default(now()) @map("created_at")
+  updatedAt     DateTime                  @updatedAt @map("updated_at")
+
+  branchDay BranchDay       @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  location  Location        @relation(fields: [locationId], references: [id])
+  countedBy User?           @relation("BranchDayDepartmentCountedBy", fields: [countedById], references: [id])
+  lines     BranchDayLine[]
+
+  @@unique([branchDayId, departmentTag])
+  @@map("branch_day_departments")
+}
+
+model BranchDayLine {
+  id                    String     @id @default(uuid())
+  branchDayDepartmentId String     @map("branch_day_department_id")
+  inventoryItemId       String     @map("inventory_item_id")
+  countedQty            Decimal?   @map("counted_qty") @db.Decimal(12, 4) // null = not counted; uncounted lines are never adjusted
+  expectedQty           Decimal    @map("expected_qty") @db.Decimal(12, 4) // department on-hand when this count was saved, excluding this day's own close adjustments
+  unitCost              Decimal    @map("unit_cost") @db.Decimal(12, 4) // cost carried into the department, frozen with the snapshot
+  reason                GapReason?
+  reasonNote            String?    @map("reason_note")
+  reasonRequired        Boolean    @default(false) @map("reason_required") // judged against the threshold in force when saved
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+
+  department    BranchDayDepartment    @relation(fields: [branchDayDepartmentId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@unique([branchDayDepartmentId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("branch_day_lines")
+}
+
+/// Immutable, append-only audit of every reopen (plan §1.5).
+model BranchDayReopen {
+  id           String   @id @default(uuid())
+  branchDayId  String   @map("branch_day_id")
+  reopenedById String   @map("reopened_by_id")
+  reopenedAt   DateTime @default(now()) @map("reopened_at")
+  reason       String
+
+  branchDay  BranchDay @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  reopenedBy User      @relation("BranchDayReopenedBy", fields: [reopenedById], references: [id])
+
+  @@index([branchDayId])
+  @@map("branch_day_reopens")
 }
 
 // ============================================================================

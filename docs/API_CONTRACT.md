@@ -4328,7 +4328,7 @@ on the serialized JSON for every attendant-facing response.
 | `GET` | `/inventory/counts/:id/print` | STORE_MANAGER |
 | `POST` | `/inventory/spot-counts` | STORE_MANAGER |
 | `GET` | `/inventory/thresholds` | STORE_MANAGER, MANAGER |
-| `PUT` | `/inventory/thresholds` | STORE_MANAGER (Central Store reason threshold; Branch Manager write arrives in Session 3) |
+| `PUT` | `/inventory/thresholds` | STORE_MANAGER (Central Store reason threshold), MANAGER (own branch's reason + overnight thresholds, Session 3) — schema chosen by role, each `.strict()` |
 | `PUT` | `/inventory/thresholds/director` | DIRECTOR |
 
 - **`GET /inventory/counts`** — query `kind` (DAILY|SPOT), `limit` (30).
@@ -4409,7 +4409,10 @@ on the serialized JSON for every attendant-facing response.
   `directorAlertKes` always comes from the hub row and is read-only here.
 - **`PUT /inventory/thresholds`** — Store Manager `{reasonRequiredKes}`
   (strict; whole KES 0…1,000,000; 0 = always). Branch fields → 400. The row is
-  created lazily. Returns the same shape as GET.
+  created lazily. Returns the same shape as GET. **Session 3:** a Branch Manager
+  sends `{reasonRequiredKes, overnightAlertKes}` (strict) and writes only their
+  own branch's row — the organization always comes from the actor, never the
+  request; sending `directorAlertKes` or a Store Manager field → 400.
 - **`PUT /inventory/thresholds/director`** — `{directorAlertKes}`, DIRECTOR
   only, hub row. API-only this milestone.
 
@@ -4420,3 +4423,32 @@ changed by" is the Store Manager's, not the Director's); `unitCost` is frozen
 at submit with the snapshot (not at verify) so `reasonRequired` and the KES
 figure the Store Manager sees cannot drift; approve also blocks
 `LINES_UNDECIDED`; `GET /inventory/counts` has no waste roll-up row.
+
+
+### 26.3 Branch day close (Session 3)
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/branch-day/branch-day-validators.ts` |
+| **Types** | `branch-day.types.ts` (inferred) |
+| **Frontend mirror** | `frontend/features/branch-day/types/branch-day.ts` |
+| **Contract tests** | `branch-day-contract.test.ts`, `branch-day-service.test.ts`, `thresholds-service.test.ts` |
+| **Migration** | `20260930090000_milestone6_session3_branch_day` |
+| **Data model** | `DATA_MODEL.md` §4.73 `BranchDay`, §4.74 `BranchDayDepartment`, §4.75 `BranchDayLine`, §4.76 `BranchDayReopen`, §4.52 (ledger FK) |
+
+Inherits §22.2. Business dates `YYYY-MM-DD` (Africa/Nairobi); decimals as
+strings. Every route: `authenticate` + `requireRole`, Zod input. The day is
+always found through the **actor's own branch org** (a manager cannot reach
+another branch's day — 404); only `DIRECTOR` reopen is unscoped.
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| `GET` | `/branch-day/today` | MANAGER | get-or-create today → `BranchDayToday`: departments (derived status `NOT_STARTED\|COUNTING\|COUNTED\|BLOCKED\|CLOSED`, `blockingDispatches`, `countedLines/itemCount`, `gapsAboveThreshold`, `netAdjustmentValue`), `yesterday`, `reasonRequiredKes`, `canClose`, `closeBlockers[]` (`NOT_COUNTED\|BLOCKED\|REASON_REQUIRED`) |
+| `GET` | `/branch-day/:id/departments/:tag` | MANAGER | `DepartmentDayDetail` — lines `{expectedQty, countedQty, gap, gapValue, unitCost, reasonRequired, reason, reasonNote}` |
+| `PUT` | `/branch-day/:id/departments/:tag/lines` | MANAGER | `{lines:[{inventoryItemId, countedQty\|null, reason?, reasonNote?}]}` — partial saves; snapshots expected/cost/`reasonRequired` per saved line; → `{savedAt, detail}`. 409 `DAY_CLOSED`, 409 `DEPARTMENT_BLOCKED`, 400 `ITEM_NOT_IN_DEPARTMENT` |
+| `POST` | `/branch-day/:id/close` | MANAGER | `{pin}` → 409 `DAY_NOT_READY` (`details.blockers`) before the PIN is checked, 401 wrong PIN. One transaction: reverses every standing adjustment of the day (re-close), then one `ADJUSTMENT` per non-zero gap. → `{adjustmentCount, reversalCount, netAdjustmentValue, directorNotified}`. Director push (lines ≥ `directorAlertKes`) after commit |
+| `POST` | `/branch-day/:id/reopen` | MANAGER, DIRECTOR | `{reason}` (required) → day `OPEN`, `BranchDayReopen` row; never touches the ledger. 409 `DAY_NOT_CLOSED` |
+| `GET` | `/branch-day/:id/document` | MANAGER | signed day-close document (409 `DAY_NOT_CLOSED` until closed) |
+
+History (`/branch-day/history`, `/branch-day/:id`) and opening
+(`/branch-day/opening…`) arrive in Session 4.

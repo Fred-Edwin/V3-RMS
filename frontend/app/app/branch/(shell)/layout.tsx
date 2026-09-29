@@ -18,6 +18,7 @@ import {
 function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/branch/requisitions')) return 'requisitions';
   if (pathname.startsWith('/app/branch/deliveries')) return 'deliveries';
+  if (pathname.startsWith('/app/branch/day')) return 'day';
   return 'branch';
 }
 

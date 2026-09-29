@@ -581,6 +581,14 @@ On branch `feat/m6-s2-counting` (backend `43844ef` + frontend commit; not pushed
 - **Plan corrections recorded:** `firstCountedQty` + `queryNote` on lines, Director "last changed" pair on thresholds, `unitCost` frozen at submit, approve also blocks undecided variance lines, the send-back note is optional (`1EUG-0`), `todaysCount` gains progress counts.
 - Dev fixture seed (`seed-counting-dev-fixtures.ts`, states `submitted|draft|returned|none`) writes every date relative to "now".
 
+### Session 3 — Branch day close (built 2026-09-29)
+
+On branch `feat/m6-s3-day-close` (backend `bd5e838` + frontend commit; not pushed). Every screen in the Session 3 table plus their loading / error states passed the §4.4 gate in a real browser; per-gate lines, the backend checkpoint and every deviation are in `milestone-6-sessions/session-3-plan.md` → Outcome log. Headlines:
+- **Close and re-close are append-only and reconcile:** one `ADJUSTMENT` per non-zero gap (`ADJ-####`, `branchDayLineId`) in one transaction; a re-close first reverses every standing adjustment with a linked equal-and-opposite row, then writes fresh ones — Postgres confirms each reversal points at its original and Σ ledger equals the counted figure.
+- **BLOCKED is derived, never stored** (any `IN_TRANSIT` dispatch to the department) and the expected quantity is snapshotted per saved line, excluding the day's own close adjustments.
+- **Branch Manager thresholds** live on the branch's own `CountingThresholds` row; the role picks the write schema (each `.strict()`), the org always comes from the actor.
+- **Deviations to confirm:** "Counted" status in green (Paper draws it red), counted figures stay editable while the day is open, mobile History link disabled until Session 4.
+
 ---
 
 ## Verification

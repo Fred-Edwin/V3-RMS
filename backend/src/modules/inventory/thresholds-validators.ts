@@ -29,5 +29,8 @@ export const ThresholdsSchema = z.object({
 /** Store Manager — the Central Store's reason threshold only. */
 export const UpdateStoreThresholdsSchema = z.object({ reasonRequiredKes: kes }).strict();
 
+/** Branch Manager — their own branch's reason and overnight thresholds. */
+export const UpdateBranchThresholdsSchema = z.object({ reasonRequiredKes: kes, overnightAlertKes: kes }).strict();
+
 /** Director — the company-wide alert amount (API only this milestone). */
 export const UpdateDirectorThresholdSchema = z.object({ directorAlertKes: kes }).strict();

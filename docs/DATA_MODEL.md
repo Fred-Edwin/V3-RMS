@@ -43,8 +43,11 @@
 > - **Inventory Milestone Six (Counting, Closing & Discrepancies), Session 1
 >   (2026-09-25):** `WasteLog` is §4.69; `InventoryTransaction` gained
 >   `reference` / `reversesTransactionId` and a real `wasteLogId` FK (§4.52).
->   Sessions 2–4 add `StockCount*`, `CountingThresholds`, `BranchDay*`,
->   `DepartmentOpening*` from §4.70 on.
+>   Session 2 added `StockCount*` and `CountingThresholds` (§4.70–4.72);
+>   Session 3 (2026-09-30) added `BranchDay`, `BranchDayDepartment`,
+>   `BranchDayLine`, `BranchDayReopen` (§4.73–4.76) and
+>   `InventoryTransaction.branchDayLineId` (§4.52). Session 4 adds
+>   `DepartmentOpening*`.
 > - **Order/menu/staff core:** additions from Phases 10–12 (guest split,
 >   cancellation approval, order correction) and the department-head marker are
 >   not reflected in §4.13–4.15 / §4.3.
@@ -1873,6 +1876,7 @@ model InventoryTransaction {
   prepRecordId         String?                  @map("prep_record_id")          -- FK → PrepRun (Milestone Three)
   wasteLogId           String?                  @map("waste_log_id")            -- FK → WasteLog (Milestone Six S1, §4.69)
   stockCountLineId     String?                  @map("stock_count_line_id")     -- real FK (Milestone Six S2)
+  branchDayLineId      String?                  @map("branch_day_line_id")      -- real FK (Milestone Six S3): a branch day close adjustment or its reversal
   dispatchLineId       String?                  @map("dispatch_line_id")        -- FK → DispatchLine (Milestone Five, §4.67)
   marketPurchaseLineId String?                  @map("market_purchase_line_id") -- unlinked; not yet redone
   reference            String?                  -- ADJ-#### on ADJUSTMENT rows (Milestone Six; first written in S2)
@@ -1895,7 +1899,7 @@ model InventoryTransaction {
 
 **Notes:**
 - **Costing is latest-price, not weighted average** [OWNER decision]. A movement is costed at whatever `InventoryItem.currentCost` was in force *when it happened* — a dispatch that left Tuesday keeps Tuesday's cost forever, even after a Thursday price rise. This is a deliberate trade-off: latest-price costing revalues stock already on hand (holding 40 units bought at 250 and receiving 10 more at 280 values all 50 at 280), which weighted-average costing would prevent, but Wendo's stock turns over in days so the distortion is accepted as small and short-lived, and is explicitly the Accountant's reporting problem, not the store's.
-- The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` (Six, Session 2); `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
+- The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` (Six, Session 2); `branchDayLineId` (Six, Session 3); `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
 - **Sign convention:** inbound rows are positive (`RECEIVE`, `PREP_PRODUCE`, `DISPATCH_IN`), outbound rows negative (`PREP_CONSUME`, `DISPATCH_OUT`, `WASTE`); `ADJUSTMENT` carries its own sign. On-hand at a location is a plain `SUM(quantity)`.
 - The Milestone Six ledger view's running balance is a SQL window (`SUM(quantity) OVER (ORDER BY created_at, id)`) over the item's whole ledger at that location; its "counterparty" text is derived from whichever FK is set — there is no free-text counterparty column.
 - `goodsReceiptLineId` (formerly `purchaseOrderLineId`) was the first of these restored — Milestone Two's `GoodsReceipt` signing is the first writer to this ledger since the redo began.
@@ -2575,6 +2579,110 @@ model CountingThresholds {
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
   @@map("counting_thresholds")
+}
+```
+
+### 4.73 BranchDay
+
+One per (branch org, business date) — `@@unique([organizationId, businessDate])`,
+business date in Africa/Nairobi. Created lazily the first time the Branch
+Manager opens Today's day. `reference` is `DAY-####` (`ReferenceCounter`,
+prefix `DAY`, per branch org). A reopen returns it to `OPEN` and clears
+`closedById` / `closedAt` (the history lives in `BranchDayReopen`).
+
+```prisma
+model BranchDay {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")   -- branch org
+  businessDate   DateTime        @map("business_date") @db.Date
+  status         BranchDayStatus @default(OPEN)            -- OPEN | CLOSED
+  reference      String                                    -- DAY-####
+  closedById     String?         @map("closed_by_id")
+  closedAt       DateTime?       @map("closed_at")
+  reopenCount    Int             @default(0) @map("reopen_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@unique([organizationId, businessDate])
+  @@index([organizationId, status])
+  @@map("branch_days")
+}
+```
+
+### 4.74 BranchDayDepartment
+
+One per (day, department) — created with the day for every
+`BRANCH_DEPARTMENT` location of the branch. Stored `status` is only
+`NOT_STARTED | COUNTED`; **`COUNTING`, `BLOCKED` and `CLOSED` are derived at
+read time** (BLOCKED from `Dispatch.status = IN_TRANSIT` to that department, so
+confirming a dispatch unblocks it instantly). A department with no items to
+count is treated as counted (plan Q-D).
+
+```prisma
+model BranchDayDepartment {
+  id            String                    @id @default(uuid())
+  branchDayId   String                    @map("branch_day_id")   -- ON DELETE CASCADE
+  departmentTag DepartmentTag             @map("department_tag")
+  locationId    String                    @map("location_id")
+  status        BranchDayDepartmentStatus @default(NOT_STARTED)
+  countedById   String?                   @map("counted_by_id")
+  countedAt     DateTime?                 @map("counted_at")
+
+  @@unique([branchDayId, departmentTag])
+  @@map("branch_day_departments")
+}
+```
+
+### 4.75 BranchDayLine
+
+One per counted item. Created at the first save of that item's count (an
+uncounted item has no row — the read model shows the live expected figure).
+`expectedQty` / `unitCost` / `reasonRequired` are **snapshotted each time the
+line's count is saved**: expected = department on-hand at that moment
+excluding this day's own close adjustments and reversals; unit cost = the
+latest `DISPATCH_IN` cost at the department, else the catalog cost;
+`reasonRequired` is judged against the branch threshold then in force, so
+moving a threshold never changes a saved or signed line. `reason` is kept only
+on a `reasonRequired` line. `OTHER` needs `reasonNote`.
+
+```prisma
+model BranchDayLine {
+  id                    String     @id @default(uuid())
+  branchDayDepartmentId String     @map("branch_day_department_id")   -- ON DELETE CASCADE
+  inventoryItemId       String     @map("inventory_item_id")          -- hub catalog item
+  countedQty            Decimal?   @map("counted_qty") @db.Decimal(12, 4)  -- null = cleared / not counted; never adjusted
+  expectedQty           Decimal    @map("expected_qty") @db.Decimal(12, 4)
+  unitCost              Decimal    @map("unit_cost") @db.Decimal(12, 4)
+  reason                GapReason?                                    -- CONSUMPTION | UNLOGGED_WASTE | WALK_IN_COMP | SUSPECTED_LOSS | OTHER
+  reasonNote            String?    @map("reason_note")
+  reasonRequired        Boolean    @default(false) @map("reason_required")
+
+  @@unique([branchDayDepartmentId, inventoryItemId])
+  @@map("branch_day_lines")
+}
+```
+
+Close writes one `ADJUSTMENT` (`quantity = countedQty − expectedQty`,
+`branchDayLineId`, `ADJ-####`) per non-zero gap. A re-close first reverses every
+standing adjustment of the day with a linked equal-and-opposite row
+(`reversesTransactionId` → the original; a row can be reversed once), then
+writes fresh ones. Ledger counterparty reads "End-of-day count" (or
+"End-of-day count · reversed").
+
+### 4.76 BranchDayReopen
+
+Immutable, append-only audit — never updated or deleted.
+
+```prisma
+model BranchDayReopen {
+  id           String   @id @default(uuid())
+  branchDayId  String   @map("branch_day_id")   -- ON DELETE CASCADE
+  reopenedById String   @map("reopened_by_id")
+  reopenedAt   DateTime @default(now()) @map("reopened_at")
+  reason       String                            -- required, free text
+
+  @@index([branchDayId])
+  @@map("branch_day_reopens")
 }
 ```
 

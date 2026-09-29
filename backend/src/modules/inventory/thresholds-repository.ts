@@ -34,6 +34,28 @@ export const thresholdsRepository = {
     });
   },
 
+  /** Branch Manager: their own branch's row — reason threshold + overnight alert. Lazily created. */
+  upsertBranch: async (
+    organizationId: string,
+    input: { reasonRequiredKes: number; overnightAlertKes: number; updatedById: string },
+  ): Promise<ThresholdsRow> => {
+    return prisma.countingThresholds.upsert({
+      where: { organizationId },
+      create: {
+        organizationId,
+        reasonRequiredKes: input.reasonRequiredKes,
+        overnightAlertKes: input.overnightAlertKes,
+        updatedById: input.updatedById,
+      },
+      update: {
+        reasonRequiredKes: input.reasonRequiredKes,
+        overnightAlertKes: input.overnightAlertKes,
+        updatedById: input.updatedById,
+      },
+      include,
+    });
+  },
+
   /** Director: only the company-wide alert amount, on the hub row. */
   upsertDirectorAlert: async (
     organizationId: string,

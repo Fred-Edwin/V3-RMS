@@ -7,11 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { thresholdsService } from './thresholds-service';
 import { thresholdsRepository } from './thresholds-repository';
 import { branchRepository } from '../../repositories/branch-repository';
-import { UpdateDirectorThresholdSchema, UpdateStoreThresholdsSchema } from './thresholds-validators';
+import { UpdateBranchThresholdsSchema, UpdateDirectorThresholdSchema, UpdateStoreThresholdsSchema } from './thresholds-validators';
 import { hubOrgId, storeManager } from './count-test-fixtures';
 
 vi.mock('./thresholds-repository', () => ({
-  thresholdsRepository: { findByOrganization: vi.fn(), upsertStoreReason: vi.fn(), upsertDirectorAlert: vi.fn() },
+  thresholdsRepository: { findByOrganization: vi.fn(), upsertStoreReason: vi.fn(), upsertBranch: vi.fn(), upsertDirectorAlert: vi.fn() },
 }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 
@@ -103,8 +103,38 @@ describe('thresholds', () => {
     });
   });
 
-  it('a Store Manager write is refused for anyone else, and a branch manager cannot write at all yet', async () => {
+  it('a Store Manager write is refused for anyone else', async () => {
     await expect(thresholdsService.updateStore(branchManager as never, { reasonRequiredKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
     await expect(thresholdsService.updateStore({ ...storeManager, organizationId: 'x' }, { reasonRequiredKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
+
+describe('branch thresholds (Session 3)', () => {
+  it('a Branch Manager writes their own branch row only — the org always comes from the actor', async () => {
+    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+    vi.mocked(thresholdsRepository.upsertBranch).mockResolvedValue(
+      row({ organizationId: 'branch-1', reasonRequiredKes: 1500, overnightAlertKes: 300, directorAlertKes: null, updatedById: 'bm1' }) as never,
+    );
+    const result = await thresholdsService.updateBranch(branchManager as never, { reasonRequiredKes: 1500, overnightAlertKes: 300 });
+    expect(thresholdsRepository.upsertBranch).toHaveBeenCalledWith('branch-1', { reasonRequiredKes: 1500, overnightAlertKes: 300, updatedById: 'bm1' });
+    expect(result).toMatchObject({ reasonRequiredKes: 1500, overnightAlertKes: 300, directorAlertKes: 5000 });
+  });
+
+  it('nobody else can write branch thresholds', async () => {
+    const input = { reasonRequiredKes: 1, overnightAlertKes: 1 };
+    await expect(thresholdsService.updateBranch(storeManager as never, input)).rejects.toMatchObject({ statusCode: 403 });
+    await expect(thresholdsService.updateBranch(director as never, input)).rejects.toMatchObject({ statusCode: 403 });
+    await expect(thresholdsService.updateBranch({ ...branchManager, isDepartmentHead: true } as never, input)).rejects.toMatchObject({ statusCode: 403 });
+    expect(thresholdsRepository.upsertBranch).not.toHaveBeenCalled();
+  });
+
+  it('a Branch Manager cannot send the Director amount or another org; values are bounded', () => {
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1, directorAlertKes: 9 }).success).toBe(false);
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1, organizationId: 'x' }).success).toBe(false);
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1 }).success).toBe(false);
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: -1, overnightAlertKes: 1 }).success).toBe(false);
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 0, overnightAlertKes: 1_000_000 }).success).toBe(true);
+    // A Store Manager cannot send branch-only fields either.
+    expect(UpdateStoreThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1 }).success).toBe(false);
   });
 });

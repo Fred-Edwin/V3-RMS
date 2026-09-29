@@ -51,7 +51,7 @@ const serializeStockRow = (row: StockListRow): StockRow => {
 /**
  * The ledger's "counterparty" column, derived from whichever FK the row
  * carries (plan §1.7) — no stored free text. Session 2 added the count
- * source (stockCountLineId); Session 3 adds branch day.
+ * source (stockCountLineId); Session 3 adds the branch day close.
  */
 export const formatCounterparty = (row: LedgerRawRow): string => {
   switch (row.type) {
@@ -71,6 +71,7 @@ export const formatCounterparty = (row: LedgerRawRow): string => {
     case 'PREP_PRODUCE':
       return 'Prep run';
     case 'ADJUSTMENT':
+      if (row.endOfDay) return row.isReversal ? 'End-of-day count · reversed' : 'End-of-day count';
       if (row.countKind) {
         const source = row.countKind === 'SPOT' ? 'Spot count' : 'Daily count';
         return row.countVerifierName ? `${source} · verified by ${shortName(row.countVerifierName)}` : source;

@@ -15,14 +15,32 @@ import { COUNT_REASON_LABEL } from './stock-format';
  */
 /** `1DAK-0`: the note counts to 120 characters. */
 const NOTE_MAX = 120;
-const REASONS: CountReasonValue[] = ['SUSPECTED_MISCOUNT', 'UNLOGGED_SPOILAGE', 'SUSPECTED_LOSS', 'WITHIN_NORMAL_RANGE', 'OTHER'];
+const COUNT_REASONS: CountReasonValue[] = ['SUSPECTED_MISCOUNT', 'UNLOGGED_SPOILAGE', 'SUSPECTED_LOSS', 'WITHIN_NORMAL_RANGE', 'OTHER'];
 
-export interface CountReasonControlProps {
-  reason: CountReasonValue | null;
+export interface ReasonOption<T extends string> {
+  value: T;
+  label: string;
+}
+
+/**
+ * Generic over the reason set: the Central Store uses `CountReason` (default),
+ * the branch day passes its own `GapReason` options (Session 3) — same control,
+ * same "Other needs a note" rule (plan §7 Q-3).
+ */
+export interface CountReasonControlProps<T extends string = CountReasonValue> {
+  reason: T | null;
   note: string | null;
-  onChange: (reason: CountReasonValue, note: string | null) => void;
+  onChange: (reason: T, note: string | null) => void;
+  /** Defaults to the Central Store count reasons. The set must include an `OTHER` value. */
+  options?: ReasonOption<T>[];
   disabled?: boolean;
   invalid?: boolean;
+  /** Mark an empty select itself invalid (red border). The branch day draws the label red but keeps the field neutral until closing. Default true. */
+  flagEmpty?: boolean;
+  /** Desktop trigger at 32px instead of 34 — the branch day artboards (`1E13-0`) draw the select tighter than the Central Store's. */
+  compact?: boolean;
+  /** `mono` = the branch day's mobile label (`1E8C-0`: Geist Mono 400, all caps). Default sans 600. */
+  labelFont?: 'sans' | 'mono';
   /** Mobile draws a 38px trigger at full width; desktop 34px at 320px. */
   mobile?: boolean;
   label: string;
@@ -31,18 +49,19 @@ export interface CountReasonControlProps {
   ariaLabel: string;
 }
 
-export function CountReasonControl({ reason, note, onChange, disabled, invalid, mobile = false, label, labelTone = 'info', ariaLabel }: CountReasonControlProps) {
+export function CountReasonControl<T extends string = CountReasonValue>({ reason, note, onChange, options, disabled, invalid, flagEmpty = true, compact = false, labelFont = 'sans', mobile = false, label, labelTone = 'info', ariaLabel }: CountReasonControlProps<T>) {
+  const choices = (options ?? COUNT_REASONS.map((r) => ({ value: r, label: COUNT_REASON_LABEL[r] }))) as ReasonOption<T>[];
   const [draftNote, setDraftNote] = React.useState(note ?? '');
   React.useEffect(() => setDraftNote(note ?? ''), [note]);
   // "Other" is held locally until it has a note — the server refuses it without one.
   const [pendingOther, setPendingOther] = React.useState(false);
   React.useEffect(() => setPendingOther(false), [reason]);
-  const shown: CountReasonValue | null = pendingOther ? 'OTHER' : reason;
+  const shown: T | null = pendingOther ? ('OTHER' as T) : reason;
   const noteMissing = shown === 'OTHER' && draftNote.trim().length === 0;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className={cn('font-wds-sans font-semibold', labelTone === 'warning' ? 'text-[12px]/4 tracking-[0.02em]' : 'text-[11px]/[14px]', invalid ? 'text-wds-error-fg' : labelTone === 'warning' ? 'text-wds-warning-fg' : 'text-wds-info-fg')}>{label}</span>
+      <span className={cn(labelFont === 'mono' ? 'font-wds-mono tracking-[0.04em]' : 'font-wds-sans font-semibold', labelTone === 'warning' ? 'text-[12px]/4 tracking-[0.02em]' : 'text-[11px]/[14px]', invalid ? 'text-wds-error-fg' : labelTone === 'warning' ? 'text-wds-warning-fg' : 'text-wds-info-fg')}>{label}</span>
       <Select
         value={shown ?? undefined}
         onValueChange={(v) => {
@@ -51,25 +70,25 @@ export function CountReasonControl({ reason, note, onChange, disabled, invalid, 
             return;
           }
           setPendingOther(false);
-          onChange(v as CountReasonValue, v === 'OTHER' ? draftNote.trim() : null);
+          onChange(v as T, v === 'OTHER' ? draftNote.trim() : null);
         }}
         disabled={disabled}
       >
         <SelectTrigger
           aria-label={ariaLabel}
-          aria-invalid={invalid && !shown ? true : undefined}
+          aria-invalid={invalid && flagEmpty && !shown ? true : undefined}
           className={cn(
             'justify-between border-wds-border-strong bg-wds-surface font-wds-sans text-[13px]/4',
-            mobile ? 'h-[38px] rounded-[4px] px-3' : 'h-[34px] w-[320px] rounded-wds-sm px-2.5',
+            mobile ? 'h-[38px] !rounded-[4px] px-3' : cn(compact ? 'h-8' : 'h-[34px]', 'w-[320px] rounded-wds-sm px-2.5'),
             !shown && 'text-wds-text-faint',
           )}
         >
           <SelectValue placeholder="Select a reason…" />
         </SelectTrigger>
         <SelectContent className="motion-safe:duration-150">
-          {REASONS.map((r) => (
-            <SelectItem key={r} value={r} className="text-[13px]">
-              {COUNT_REASON_LABEL[r]}
+          {choices.map((r) => (
+            <SelectItem key={r.value} value={r.value} className="text-[13px]">
+              {r.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -86,7 +105,7 @@ export function CountReasonControl({ reason, note, onChange, disabled, invalid, 
           onChange={(e) => setDraftNote(e.target.value)}
           onBlur={() => {
             const next = draftNote.trim();
-            if (next && next !== (note ?? '').trim()) onChange('OTHER', next);
+            if (next && next !== (note ?? '').trim()) onChange('OTHER' as T, next);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur();

@@ -65,6 +65,8 @@ const rawLedgerRow = (overrides: Partial<LedgerRawRow> = {}): LedgerRawRow => ({
   discrepancyReference: null,
   countKind: null,
   countVerifierName: null,
+  endOfDay: false,
+  isReversal: false,
   ...overrides,
 });
 
