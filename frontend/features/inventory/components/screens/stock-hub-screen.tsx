@@ -6,22 +6,27 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
+import { Button } from '@/components/ui2/button';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { HintTooltip } from '@/components/app/shell/hint-tooltip';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
 import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
+import { useCountList } from '../../hooks/use-counts';
 import { useStockList, useStockSummary, useWasteList } from '../../hooks/use-stock';
+import type { CountListItem } from '../../types/count';
 import type { InventoryItemTypeValue, StockSummary, TodaysCount } from '../../types/stock';
 import type { WasteEntry } from '../../types/waste';
-import { COMING_WITH_COUNTING } from '../inventory-shell';
 import { RestockLevelsDrawer } from './restock-levels-screen';
-import { StockTopbar, ComingSoonButton } from '../stock/stock-topbar';
+import { StockTopbar } from '../stock/stock-topbar';
+import { HubKpiStrip } from '../stock/hub-kpi-strip';
+import { ThresholdsDrawer } from '../stock/thresholds-drawer';
 import { LogWasteDrawer, LogWasteMobile } from '../stock/log-waste-drawer';
 import { HighlightOnChange } from '../stock/highlight-on-change';
 import { FilterChip, LEDGER_HREF, StockTableHeader, StockTableRow, TypeFilter } from '../stock/stock-table';
 import {
   KpiValueSkeleton,
+  ListRowSkeleton,
   MobileListRowSkeleton,
   ShortRowSkeleton,
   SkeletonRows,
@@ -32,10 +37,13 @@ import {
 } from '../stock/stock-states';
 import {
   formatKes,
+  formatClock,
+  formatCountDateShort,
   formatKesCompact,
   formatNumber,
   formatQty,
   ITEM_TYPE_LABEL,
+  shortName,
   wasteReasonShort,
 } from '../stock/stock-format';
 
@@ -55,106 +63,6 @@ const ATTENTION_PAGE_SIZE = 7;
 
 function isFullSummary(s: unknown): s is StockSummary {
   return typeof s === 'object' && s !== null && 'onHandValue' in s;
-}
-
-function todaysCountCopy(count: TodaysCount | undefined): { value: string; detail: string; tone: 'neutral' | 'warning' } {
-  // Session 1 always sees NOT_STARTED; the other states arrive with Session 2.
-  if (!count || count.status === 'NOT_STARTED' || count.status === 'DRAFT') {
-    return { value: 'No count yet', detail: 'none submitted today', tone: 'neutral' };
-  }
-  if (count.status === 'SUBMITTED') return { value: 'Awaiting', detail: 'submitted · verify now', tone: 'warning' };
-  if (count.status === 'RETURNED') return { value: 'Returned', detail: 'sent back for a recount', tone: 'warning' };
-  return { value: 'Verified', detail: 'today’s count is signed', tone: 'neutral' };
-}
-
-/* ================================================================ desktop */
-
-const kpiCellClass =
-  'flex grow basis-0 flex-col gap-1.5 bg-wds-gradient-surface-raise p-4 text-left outline-none';
-
-function KpiLabel({ children }: { children: React.ReactNode }) {
-  return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">{children}</span>;
-}
-
-function HubKpiStrip({ summary, loading, errored = false }: { summary: StockSummary | null; loading: boolean; errored?: boolean }) {
-  const count = todaysCountCopy(summary?.todaysCount);
-  const linkCell = (href: string, label: string, children: React.ReactNode, border = true) => (
-    <Link
-      href={href}
-      aria-label={label}
-      className={cn(
-        kpiCellClass,
-        'group/kpi transition-[background-color] duration-150 hover:bg-none hover:bg-wds-neutral-50 focus-visible:z-10 focus-visible:shadow-wds-ring',
-        border && 'border-r border-wds-border',
-      )}
-    >
-      {children}
-    </Link>
-  );
-  return (
-    <div className="flex w-full shrink-0 overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
-      {linkCell(
-        '/app/inventory/stock/items',
-        'On-hand value — view all items',
-        <>
-          <KpiLabel>On-hand value</KpiLabel>
-          {loading || !summary ? (
-            <KpiValueSkeleton static={errored} />
-          ) : (
-            <>
-              <HighlightOnChange value={summary.onHandValue} className="font-wds-mono text-wds-kpi font-medium text-wds-text-ink">
-                {formatKesCompact(summary.onHandValue)}
-              </HighlightOnChange>
-              <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{formatNumber(summary.itemCount)} items tracked</span>
-            </>
-          )}
-        </>,
-      )}
-      {linkCell(
-        '/app/inventory/stock/items?belowRestock=true',
-        'Low stock — view items below restock level',
-        <>
-          <KpiLabel>Low stock</KpiLabel>
-          {loading || !summary ? (
-            <KpiValueSkeleton static={errored} />
-          ) : (
-            <>
-              <HighlightOnChange value={summary.lowCount} className="font-wds-mono text-wds-kpi font-medium text-wds-warning-fg" />
-              <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">below restock level — consider buying</span>
-            </>
-          )}
-        </>,
-      )}
-      {linkCell(
-        '/app/inventory/stock/items?negative=true',
-        'Negative — view items with negative on-hand',
-        <>
-          <KpiLabel>Negative</KpiLabel>
-          {loading || !summary ? (
-            <KpiValueSkeleton static={errored} />
-          ) : (
-            <>
-              <HighlightOnChange value={summary.negativeCount} className="font-wds-mono text-wds-kpi font-medium text-wds-error-fg" />
-              <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">need a spot count</span>
-            </>
-          )}
-        </>,
-      )}
-      <div className={kpiCellClass}>
-        <KpiLabel>Today’s count</KpiLabel>
-        {loading || !summary ? (
-          <KpiValueSkeleton static={errored} />
-        ) : (
-          <>
-            <span className={cn('font-wds-mono text-wds-kpi font-medium', count.tone === 'warning' ? 'text-wds-text-ink' : 'text-wds-text-faint')}>
-              {count.value}
-            </span>
-            <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{count.detail}</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function OnHandBand({
@@ -252,7 +160,37 @@ function OnHandBand({
   );
 }
 
+function CountRowDot({ tone }: { tone: 'warning' | 'neutral' }) {
+  return <span className={cn('size-1.5 shrink-0 rounded-full', tone === 'warning' ? 'bg-wds-warning-fg' : 'bg-wds-neutral-400')} aria-hidden />;
+}
+
+function countRowCopy(c: CountListItem): { title: string; detail: string; pending: boolean } {
+  const date = formatCountDateShort(c.countDate);
+  if (c.kind === 'SPOT') {
+    return {
+      title: `Spot count · ${date}`,
+      detail: `${c.itemCount} ${c.itemCount === 1 ? 'item' : 'items'} · signed ${shortName(c.verifierName ?? c.counterName)}`,
+      pending: false,
+    };
+  }
+  if (c.status === 'SUBMITTED') {
+    return {
+      title: `Daily count · ${date}`,
+      detail: `submitted ${c.counterSignedAt ? formatClock(c.counterSignedAt) : ''} by ${shortName(c.counterName)} · blind`,
+      pending: true,
+    };
+  }
+  if (c.status === 'RETURNED') return { title: `Daily count · ${date}`, detail: 'sent back for a recount', pending: true };
+  return {
+    title: `Daily count · ${date}`,
+    detail: `counter ${shortName(c.counterName)} · verifier ${shortName(c.verifierName ?? '')}`,
+    pending: false,
+  };
+}
+
 function CountsBand() {
+  const { list, status, reload } = useCountList(undefined, 3);
+  const rows = list?.counts.slice(0, 2) ?? [];
   return (
     <section aria-labelledby="counts-heading" className="flex grow basis-0 flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-wds-border px-4">
@@ -260,24 +198,57 @@ function CountsBand() {
           Counts
         </h2>
         <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">the daily rhythm</span>
-        <HintTooltip hint={COMING_WITH_COUNTING} className="ml-auto">
-          {(describedBy) => (
-            <span
-              role="link"
-              tabIndex={0}
-              aria-disabled="true"
-              aria-describedby={describedBy}
-              className="cursor-not-allowed rounded-wds-sm font-wds-sans text-wds-body-sm font-medium text-wds-primary outline-none focus-visible:shadow-wds-ring"
+        <Link
+          href="/app/inventory/stock/counts"
+          className="group/link ml-auto rounded-wds-sm font-wds-sans text-wds-body-sm font-medium text-wds-primary outline-none hover:underline focus-visible:shadow-wds-ring"
+        >
+          View all counts <span className="inline-block transition-transform duration-150 group-hover/link:translate-x-0.5">→</span>
+        </Link>
+      </div>
+      {status === 'loading' ? (
+        <SkeletonRows count={2} label="Loading counts">
+          {(i) => <ListRowSkeleton key={i} />}
+        </SkeletonRows>
+      ) : status === 'error' ? (
+        <div className="flex flex-col items-center gap-2 px-6 py-6 text-center" role="alert">
+          <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">Couldn&apos;t load counts</span>
+          <button type="button" onClick={() => void reload()} className="font-wds-sans text-wds-caption font-medium text-wds-primary hover:underline">
+            Retry
+          </button>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-8 text-center">
+          <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">No count yet today</span>
+          <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">The attendant&apos;s daily count will appear here once submitted.</span>
+        </div>
+      ) : (
+        rows.map((c, i) => {
+          const copy = countRowCopy(c);
+          return (
+            <Link
+              key={c.id}
+              href={`/app/inventory/stock/counts?id=${c.id}`}
+              className={cn(
+                'group/row flex h-[52px] shrink-0 items-center gap-3 px-4 outline-none transition-colors duration-150 hover:bg-wds-neutral-100 focus-visible:shadow-[inset_2px_0_0_var(--wds-primary)]',
+                i < rows.length - 1 && 'border-b border-wds-neutral-100',
+              )}
             >
-              View all counts →
-            </span>
-          )}
-        </HintTooltip>
-      </div>
-      <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-8 text-center">
-        <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">No count yet today</span>
-        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">The attendant&apos;s daily count will appear here once submitted.</span>
-      </div>
+              <CountRowDot tone={copy.pending ? 'warning' : 'neutral'} />
+              <span className="flex min-w-0 grow flex-col gap-px">
+                <span className="truncate font-wds-sans text-wds-body-sm font-medium leading-4 text-wds-text-ink">{copy.title}</span>
+                <span className="truncate font-wds-sans text-wds-caption text-wds-text-copy-muted">{copy.detail}</span>
+              </span>
+              {copy.pending && c.status === 'SUBMITTED' ? (
+                <span className="flex h-7 items-center rounded-wds-sm bg-wds-gradient-primary px-3 font-wds-sans text-wds-caption font-medium text-wds-primary-fg shadow-wds-sheen transition-[filter] duration-150 group-hover/row:brightness-110">
+                  Verify
+                </span>
+              ) : (
+                <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">View</span>
+              )}
+            </Link>
+          );
+        })
+      )}
     </section>
   );
 }
@@ -356,6 +327,7 @@ function MobileActionButton({
   children,
   primary = false,
   onClick,
+  href,
   disabledHint,
   columns = 2,
   hintAlign = 'center',
@@ -363,6 +335,7 @@ function MobileActionButton({
   children: React.ReactNode;
   primary?: boolean;
   onClick?: () => void;
+  href?: string;
   disabledHint?: string;
   /** Attendant `188X-0` = one row of three (basis 0); SM `1J43-0` = 2×2. */
   columns?: 2 | 3;
@@ -387,24 +360,68 @@ function MobileActionButton({
       </HintTooltip>
     );
   }
+  const live = cn(cls, 'min-w-0 grow active:bg-wds-neutral-100 motion-safe:active:scale-[0.98]', basis);
+  if (href) {
+    return (
+      <Link href={href} className={live}>
+        {children}
+      </Link>
+    );
+  }
   return (
-    <button type="button" onClick={onClick} className={cn(cls, 'min-w-0 grow active:bg-wds-neutral-100 motion-safe:active:scale-[0.98]', basis)}>
+    <button type="button" onClick={onClick} className={live}>
       {children}
     </button>
   );
 }
 
-function MobileTodaysCountCard({ count }: { count: TodaysCount | undefined }) {
-  const c = todaysCountCopy(count);
-  const warning = c.tone === 'warning';
-  return (
-    <div className={cn('flex flex-col gap-2 rounded-wds-md border p-3.5', warning ? 'border-wds-warning-border bg-wds-warning-bg' : 'border-wds-border bg-wds-surface')}>
-      <span className={cn('font-wds-sans text-wds-body-sm font-semibold', warning ? 'text-wds-warning-fg' : 'text-wds-text-ink')}>Today&apos;s count</span>
-      <span className={cn('font-wds-sans text-wds-caption', warning ? 'text-wds-warning-fg' : 'text-wds-text-copy-muted')}>
-        {warning ? c.detail : 'No count yet today — daily counting arrives with the next update.'}
-      </span>
-    </div>
+/** Mobile "Today's count" card (`1J5Y-0` SM, `18AG-0` attendant, `1G39-0` empty). */
+function mobileCountCopy(count: TodaysCount | undefined, attendant: boolean): { text: string; warning: boolean } {
+  if (!count || count.status === 'NOT_STARTED') {
+    return { text: attendant ? 'No count yet today — tap Daily count to start.' : "No count yet today — the attendant hasn't started.", warning: false };
+  }
+  if (count.status === 'DRAFT') {
+    const progress = `${count.countedLines ?? 0} of ${count.totalLines ?? 0} counted`;
+    return { text: attendant ? `In progress — ${progress}. Tap Daily count to continue.` : `In progress — ${progress} so far.`, warning: false };
+  }
+  if (count.status === 'SUBMITTED') {
+    const at = count.submittedAt ? formatClock(count.submittedAt) : '';
+    return {
+      text: attendant
+        ? `Submitted ${at} · blind · awaiting Store Manager verification`
+        : `Submitted ${at}${count.submittedByName ? ` by ${shortName(count.submittedByName)}` : ''} · blind · waiting for your verification`,
+      warning: true,
+    };
+  }
+  if (count.status === 'RETURNED') {
+    return {
+      text: attendant
+        ? 'Sent back for a recount — tap Daily count to recount the queried lines.'
+        : `Sent back for a recount — waiting on ${count.submittedByName ? shortName(count.submittedByName) : 'the attendant'}.`,
+      warning: true,
+    };
+  }
+  return { text: 'Verified — today’s count is signed.', warning: false };
+}
+
+function MobileTodaysCountCard({ count, attendant }: { count: TodaysCount | undefined; attendant: boolean }) {
+  const c = mobileCountCopy(count, attendant);
+  const cls = cn('flex flex-col gap-2 rounded-wds-md border p-3.5', c.warning ? 'border-wds-warning-border bg-wds-warning-bg' : 'border-wds-border bg-wds-surface');
+  const body = (
+    <>
+      <span className={cn('font-wds-sans text-wds-body-sm font-semibold', c.warning ? 'text-wds-warning-fg' : 'text-wds-text-ink')}>Today&apos;s count</span>
+      <span className={cn('font-wds-sans text-wds-caption', c.warning ? 'text-wds-warning-fg' : 'text-wds-text-copy-muted')}>{c.text}</span>
+    </>
   );
+  // The Store Manager's warning card is the way in to verify.
+  if (!attendant && count?.countId && count.status !== 'DRAFT' && count.status !== 'NOT_STARTED') {
+    return (
+      <Link href={`/app/inventory/stock/counts?id=${count.countId}`} className={cn(cls, 'outline-none transition-[filter] duration-150 focus-visible:shadow-wds-ring active:brightness-95')}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={cls}>{body}</div>;
 }
 
 function MobileWasteCard({ waste, status, onRetry }: { waste: { entries: WasteEntry[]; totalValue: string } | null; status: 'loading' | 'error' | 'ready'; onRetry: () => void }) {
@@ -517,6 +534,7 @@ export function StockHubScreen() {
   const { locationId: centralStoreId } = useCentralStoreLocation(!isAttendant);
   const [wasteOpen, setWasteOpen] = React.useState(false);
   const [restockOpen, setRestockOpen] = React.useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = React.useState(false);
   const refreshTableRef = React.useRef<(() => void) | null>(null);
   const [refreshSignal, setRefreshSignal] = React.useState(0);
 
@@ -551,7 +569,7 @@ export function StockHubScreen() {
           <div className={cn('flex gap-2', !isAttendant && 'flex-wrap')}>
             {isAttendant ? (
               <>
-                <MobileActionButton primary columns={3} hintAlign="start" disabledHint={COMING_WITH_COUNTING}>
+                <MobileActionButton primary columns={3} href="/app/inventory/stock/daily-count">
                   Daily count
                 </MobileActionButton>
                 <MobileActionButton columns={3} onClick={() => setWasteOpen(true)}>
@@ -563,12 +581,12 @@ export function StockHubScreen() {
               </>
             ) : (
               <>
-                <MobileActionButton primary hintAlign="start" disabledHint={COMING_WITH_COUNTING}>
+                <MobileActionButton primary href="/app/inventory/stock/spot-count">
                   Spot count
                 </MobileActionButton>
                 <MobileActionButton onClick={() => setWasteOpen(true)}>Log waste</MobileActionButton>
                 <MobileActionButton onClick={() => setRestockOpen(true)}>Restock levels</MobileActionButton>
-                <MobileActionButton hintAlign="end" disabledHint={COMING_WITH_COUNTING}>
+                <MobileActionButton onClick={() => setThresholdsOpen(true)}>
                   Thresholds
                 </MobileActionButton>
               </>
@@ -588,7 +606,7 @@ export function StockHubScreen() {
               onRetry={reloadSummary}
             />
           ) : (
-            <MobileTodaysCountCard count={todaysCount} />
+            <MobileTodaysCountCard count={todaysCount} attendant={isAttendant} />
           )}
 
           {!isAttendant && summary ? (
@@ -630,6 +648,7 @@ export function StockHubScreen() {
             actor={{ role: 'STORE_MANAGER' }}
           />
         ) : null}
+        {!isAttendant ? <ThresholdsDrawer open={thresholdsOpen} onOpenChange={setThresholdsOpen} variant="mobile" /> : null}
       </div>
     );
   }
@@ -644,12 +663,14 @@ export function StockHubScreen() {
           <span className="font-wds-sans text-wds-caption text-wds-text-faint">/</span>
           <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">Stock &amp; counts</span>
           <div className="ml-auto flex gap-2">
-            <ComingSoonButton variant="primary">Daily count</ComingSoonButton>
+            <Button asChild>
+              <Link href="/app/inventory/stock/daily-count">Daily count</Link>
+            </Button>
           </div>
         </div>
         <main className="mx-auto flex w-full max-w-[640px] flex-col gap-4 overflow-y-auto px-8 py-7 [&>*]:shrink-0">
           <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Stock &amp; counts</h1>
-          <MobileTodaysCountCard count={todaysCount} />
+          <MobileTodaysCountCard count={todaysCount} attendant />
           <MobileWasteCard waste={waste} status={wasteStatus} onRetry={reloadWaste} />
           <button type="button" onClick={() => setWasteOpen(true)} className="self-start font-wds-sans text-wds-body-sm font-medium text-wds-primary hover:underline">
             Log waste

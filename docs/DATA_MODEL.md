@@ -1872,7 +1872,7 @@ model InventoryTransaction {
   goodsReceiptLineId   String?                  @map("goods_receipt_line_id")
   prepRecordId         String?                  @map("prep_record_id")          -- FK → PrepRun (Milestone Three)
   wasteLogId           String?                  @map("waste_log_id")            -- FK → WasteLog (Milestone Six S1, §4.69)
-  stockCountLineId     String?                  @map("stock_count_line_id")     -- unlinked; restored by Milestone Six S2
+  stockCountLineId     String?                  @map("stock_count_line_id")     -- real FK (Milestone Six S2)
   dispatchLineId       String?                  @map("dispatch_line_id")        -- FK → DispatchLine (Milestone Five, §4.67)
   marketPurchaseLineId String?                  @map("market_purchase_line_id") -- unlinked; not yet redone
   reference            String?                  -- ADJ-#### on ADJUSTMENT rows (Milestone Six; first written in S2)
@@ -1895,7 +1895,7 @@ model InventoryTransaction {
 
 **Notes:**
 - **Costing is latest-price, not weighted average** [OWNER decision]. A movement is costed at whatever `InventoryItem.currentCost` was in force *when it happened* — a dispatch that left Tuesday keeps Tuesday's cost forever, even after a Thursday price rise. This is a deliberate trade-off: latest-price costing revalues stock already on hand (holding 40 units bought at 250 and receiving 10 more at 280 values all 50 at 280), which weighted-average costing would prevent, but Wendo's stock turns over in days so the distortion is accepted as small and short-lived, and is explicitly the Accountant's reporting problem, not the store's.
-- The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` is restored in Milestone Six Session 2; `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
+- The line-reference columns were retained as unlinked nullable columns when Milestone One redid this table, and each is restored as a real FK when the milestone that rebuilds that flow lands: `goodsReceiptLineId` (Milestone Two), `prepRecordId` (Three), `dispatchLineId` (Five), `wasteLogId` (Six, Session 1). `stockCountLineId` (Six, Session 2); `marketPurchaseLineId` is still unlinked. Do not restructure this column set.
 - **Sign convention:** inbound rows are positive (`RECEIVE`, `PREP_PRODUCE`, `DISPATCH_IN`), outbound rows negative (`PREP_CONSUME`, `DISPATCH_OUT`, `WASTE`); `ADJUSTMENT` carries its own sign. On-hand at a location is a plain `SUM(quantity)`.
 - The Milestone Six ledger view's running balance is a SQL window (`SUM(quantity) OVER (ORDER BY created_at, id)`) over the item's whole ledger at that location; its "counterparty" text is derived from whichever FK is set — there is no free-text counterparty column.
 - `goodsReceiptLineId` (formerly `purchaseOrderLineId`) was the first of these restored — Milestone Two's `GoodsReceipt` signing is the first writer to this ledger since the redo began.
@@ -2482,6 +2482,101 @@ enum WasteReason { SPOILAGE EXPIRY DAMAGE_IN_STORE PREP_ERROR }
   negative on the stock views; there is no notification.
 - `organizationId` is not in the plan's §1.3 sketch; it was added so every
   query stays org-scoped (Non-Negotiable #3).
+
+### 4.70 StockCount
+
+Milestone Six Session 2, 2026-09-29 (migration
+`20260929090000_milestone6_session2_counting`). One row per Central Store
+count (hub org, D-15). `DAILY`: one per business day, enforced by a **partial
+unique index** `(location_id, count_date) WHERE kind = 'DAILY'` in the
+migration SQL (not expressible in the Prisma DSL). `SPOT`: unconstrained,
+created `VERIFIED` in one step (counter = verifier = the Store Manager).
+
+```prisma
+model StockCount {
+  id               String           @id @default(uuid())
+  organizationId   String           @map("organization_id")  -- hub org
+  locationId       String           @map("location_id")      -- Central Store
+  kind             StockCountKind                            -- DAILY | SPOT
+  countDate        DateTime         @map("count_date") @db.Date  -- Africa/Nairobi business date
+  status           StockCountStatus @default(DRAFT)          -- DRAFT | SUBMITTED | RETURNED | VERIFIED
+  reference        String                                    -- CNT-YYYY-MMDD | SPT-#### (ReferenceCounter)
+  counterId        String           @map("counter_id")       -- attendant (daily) / Store Manager (spot); set to the signer at submit
+  counterSignedAt  DateTime?        @map("counter_signed_at")
+  verifierId       String?          @map("verifier_id")
+  verifiedAt       DateTime?        @map("verified_at")
+  returnNote       String?          @map("return_note")
+  returnedAt       DateTime?        @map("returned_at")
+  returnedById     String?          @map("returned_by_id")
+  directorNotified Boolean          @default(false) @map("director_notified")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")  -- doubles as the "Saved 07:08" indicator while DRAFT
+
+  @@index([organizationId, kind, status])
+  @@index([locationId, countDate])
+  @@map("stock_counts")
+}
+```
+
+### 4.71 StockCountLine
+
+```prisma
+model StockCountLine {
+  id              String            @id @default(uuid())
+  stockCountId    String            @map("stock_count_id")      -- onDelete: Cascade
+  inventoryItemId String            @map("inventory_item_id")
+  countedQty      Decimal?          @db.Decimal(12, 4)          -- null = not counted; uncounted lines are never adjusted
+  firstCountedQty Decimal?          @db.Decimal(12, 4)          -- the figure before a send-back cleared the line for a blind recount
+  expectedQty     Decimal?          @db.Decimal(12, 4)          -- ledger on-hand at counterSignedAt; NEVER serialized to STORE_ATTENDANT
+  unitCost        Decimal?          @db.Decimal(12, 4)          -- frozen with the snapshot
+  decision        CountLineDecision @default(PENDING)           -- PENDING | ACCEPTED | QUERIED
+  reason          CountReason?                                  -- SUSPECTED_MISCOUNT | UNLOGGED_SPOILAGE | SUSPECTED_LOSS | WITHIN_NORMAL_RANGE | OTHER
+  reasonNote      String?                                       -- required when reason = OTHER (Zod refinement + service check)
+  reasonRequired  Boolean           @default(false)             -- judged against the threshold in force at submit; moving a threshold never changes it
+  queryNote       String?                                       -- per-line note to the attendant; never states the expected figure
+
+  @@unique([stockCountId, inventoryItemId])
+  @@map("stock_count_lines")
+}
+```
+
+**Notes:**
+- `expectedQty` / `unitCost` / `reasonRequired` are written **server-side at
+  the attendant's sign** (a re-submit after send-back re-snapshots only the
+  queried lines). Movements between counting and verifying therefore create
+  no phantom variance. A zero-variance counted line is auto-`ACCEPTED`.
+- **Send-back:** `firstCountedQty ← countedQty; countedQty ← null` on queried
+  lines only; the attendant recounts them blind.
+- **Approve:** one `ADJUSTMENT` `InventoryTransaction` per accepted non-zero
+  variance (`quantity = countedQty − expectedQty`, `stockCountLineId`,
+  `reference ADJ-####`), written in the same transaction as the status
+  change.
+- `InventoryTransaction.stockCountLineId` is now a real FK (`ON DELETE SET
+  NULL`) with an index; the ledger's counterparty ("Daily count · verified
+  by J. Mwangi") is derived from it.
+
+### 4.72 CountingThresholds
+
+One row per organization (`@@unique([organizationId])`), created lazily on
+first save; code defaults apply until then (`counting-thresholds.ts`).
+Values are whole KES of |variance| × unit cost, `0…1,000,000`, `0` = always.
+
+```prisma
+model CountingThresholds {
+  id                  String    @id @default(uuid())
+  organizationId      String    @unique @map("organization_id")
+  reasonRequiredKes   Int       @map("reason_required_kes")   -- hub: Store Manager (default 500); branch: Branch Manager (default 1,000, Session 3)
+  overnightAlertKes   Int?      @map("overnight_alert_kes")   -- branch rows only (default 500, Session 3)
+  directorAlertKes    Int?      @map("director_alert_kes")    -- hub row only, company-wide (default 5,000); set by the Director
+  updatedById         String?   @map("updated_by_id")         -- last change to reasonRequiredKes / overnightAlertKes
+  directorUpdatedById String?   @map("director_updated_by_id")-- added in S2: "last changed by" must not be the Director's edit
+  directorUpdatedAt   DateTime? @map("director_updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("counting_thresholds")
+}
+```
 
 ---
 

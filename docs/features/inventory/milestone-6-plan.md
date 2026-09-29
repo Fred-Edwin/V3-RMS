@@ -572,6 +572,15 @@ Merged to `main` as PR #38 (`6559bba`); the Department Head restock fix shipped 
 - Open for the owner: no DH entry point to their stock ledger yet (the route exists; the landing has no link).
 - Checks: `backend pnpm build && pnpm test` (82 files, 1,033 tests) and `frontend pnpm build` (+ `check-wds-tokens`) green; Postgres — Σ ledger matches every screen checked, 0 `WASTE` rows without a `WasteLog`, 0 `WasteLog`s without exactly one equal-and-opposite row.
 
+### Session 2 — Central Store counting (built 2026-09-29)
+
+On branch `feat/m6-s2-counting` (backend `43844ef` + frontend commit; not pushed). All screens in the Session 2 table plus their loading / empty / error states passed the §4.4 gate in a real browser; per-gate lines, the backend checkpoint and every deviation are in `milestone-6-sessions/session-2-plan.md` → Outcome log. Headlines:
+- **Blind count enforced structurally:** `AttendantCountView` is its own Zod schema (undeclared keys are stripped); a contract test scans the serialized JSON of every attendant-facing count response for expected / variance / on-hand / cost keys, with a control proving the scan can fail.
+- **Snapshot at sign:** `expectedQty`, `unitCost` and `reasonRequired` are written server-side when the attendant signs (a resubmit re-snapshots only the queried lines); moving a threshold never changes a signed record.
+- **One transaction on approve:** one `ADJUSTMENT` per accepted non-zero variance with `ADJ-####` and `stockCountLineId`; Directors notified after commit. Postgres: 0 exceptions on reference / link / quantity / Σ-ledger checks.
+- **Plan corrections recorded:** `firstCountedQty` + `queryNote` on lines, Director "last changed" pair on thresholds, `unitCost` frozen at submit, approve also blocks undecided variance lines, the send-back note is optional (`1EUG-0`), `todaysCount` gains progress counts.
+- Dev fixture seed (`seed-counting-dev-fixtures.ts`, states `submitted|draft|returned|none`) writes every date relative to "now".
+
 ---
 
 ## Verification

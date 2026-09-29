@@ -21,7 +21,7 @@ export type ResourceStatus = 'loading' | 'error' | 'ready';
  * `key` is the serialized request; a new key triggers a fetch, and a stale
  * response for an old key is dropped.
  */
-function useResource<T>(key: string | null, fetcher: () => Promise<T>, fallbackError: string) {
+export function useResource<T>(key: string | null, fetcher: () => Promise<T>, fallbackError: string) {
   const [data, setData] = useState<T | null>(null);
   const [status, setStatus] = useState<ResourceStatus>('loading');
   const [refreshing, setRefreshing] = useState(false);

@@ -54,3 +54,6 @@ export { StockHubScreen } from './components/screens/stock-hub-screen';
 export { StockItemsScreen } from './components/screens/stock-items-screen';
 export { StockLedgerScreen, StockLedgerPickerScreen } from './components/screens/stock-ledger-screen';
 export { DepartmentLogWasteScreen } from './components/screens/department-log-waste-screen';
+export { DailyCountScreen } from './components/screens/daily-count-screen';
+export { StockCountsScreen } from './components/screens/stock-counts-screen';
+export { SpotCountScreen } from './components/screens/spot-count-screen';

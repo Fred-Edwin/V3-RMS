@@ -256,3 +256,4 @@ export * from './receiving';
 export * from './prep';
 export * from './stock';
 export * from './waste';
+export * from './count';

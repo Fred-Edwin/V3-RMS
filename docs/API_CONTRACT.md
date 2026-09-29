@@ -4174,8 +4174,8 @@ nothing is dispatched.
 ## 26. Inventory — Milestone Six (Counting, Closing & Discrepancies)
 
 > **STATUS: BUILDING.** Session 1 (stock position & waste) — 2026-09-25.
-> Sessions 2–4 add §26.2 (Central Store counting + thresholds) and §26.3
-> (branch day). Plan: `docs/features/inventory/milestone-6-plan.md` §2.
+> Session 2 (Central Store counting + thresholds, §26.2) — 2026-09-29.
+> Sessions 3–4 add §26.3 (branch day). Plan: `docs/features/inventory/milestone-6-plan.md` §2.
 
 ### 26.1 Stock position, ledger, waste (Session 1)
 
@@ -4220,8 +4220,10 @@ attendant-facing response has an on-hand / expected / variance key.
   itemCount (live catalog items), lowCount (below restock, not negative),
   negativeCount, todaysCount}`. Store Attendant: `{todaysCount}` only.
   `todaysCount = {status: NOT_STARTED|DRAFT|SUBMITTED|RETURNED|VERIFIED,
-  countId, submittedAt, submittedByName}` — always `NOT_STARTED` + nulls
-  until Session 2 builds counting.
+  countId, submittedAt, submittedByName, countedLines, totalLines}` — read
+  from today's DAILY count (§26.2); `NOT_STARTED` + nulls before one exists.
+  `countedLines`/`totalLines` are progress only — never a quantity, so they
+  are safe for the attendant.
 - **`GET /inventory/stock/items/:itemId/ledger`** — query `locationId`
   (SM: omitted = Central Store, any other → 403; MANAGER: required, must be
   a department of their own branch, else 403; department head: omitted =
@@ -4235,8 +4237,10 @@ attendant-facing response has an on-hand / expected / variance key.
   location, computed before the range/type filter. `counterparty` is
   derived from whichever FK the row carries (supplier; "Nyeri Town ·
   Barista"; "Central Store"; the waste reason; "Prep · {output}";
-  "Transit discrepancy · DSC-####"). `reference` = the row's own
-  `reference` (ADJ-, from S2) else the GRN / DSC number.
+  "Transit discrepancy · DSC-####"; a count adjustment reads "Daily count ·
+  verified by J. Mwangi" / "Spot count · …", derived from
+  `stockCountLineId`). `reference` = the row's own `reference` (`ADJ-####`)
+  else the GRN / DSC number.
 - **`POST /inventory/waste`** — body (strict) `{inventoryItemId, quantity >
   0, reason: SPOILAGE|EXPIRY|DAMAGE_IN_STORE|PREP_ERROR, note? (≤500)}`. No
   location field: resolved from the actor. A department head may only log
@@ -4260,3 +4264,129 @@ attendant-facing response has an on-hand / expected / variance key.
 data source, and `/inventory/items` has no department carried-in cost and
 no role-split projection. The ledger adds `currentCostSince`,
 `lastMovementAt` (empty-state copy) and paging fields to the planned shape.
+
+### 26.2 Central Store counting & thresholds (Session 2)
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/count-validators.ts`, `thresholds-validators.ts` |
+| **Types** | `count.types.ts`, `thresholds.types.ts` (inferred) |
+| **Frontend mirror** | `frontend/features/inventory/types/count.ts`, `thresholds.ts` |
+| **Contract tests** | `count-contract.test.ts` (incl. the blindness test), `count-service.test.ts`, `thresholds-service.test.ts` |
+| **Migration** | `20260929090000_milestone6_session2_counting` |
+| **Data model** | `DATA_MODEL.md` §4.70 `StockCount`, §4.71 `StockCountLine`, §4.72 `CountingThresholds`, §4.52 (ledger FK) |
+
+Inherits §22.2 (envelope, decimals as strings). Business dates are
+`YYYY-MM-DD` in Africa/Nairobi. Every route: `authenticate` + `requireRole`,
+Zod input, hub-org scoped; the actor's organization must be the hub (403).
+**Blind count:** the attendant's responses are the separate
+`AttendantCountView` / `AttendantSaveResult` / `AttendantSubmitResult`
+schemas — Zod strips undeclared keys, so `expectedQty`, variance, on-hand
+and unit cost cannot reach the attendant; `count-contract.test.ts` asserts
+on the serialized JSON for every attendant-facing response.
+
+| Method | Path | Roles |
+|---|---|---|
+| `GET` | `/inventory/counts` | STORE_MANAGER |
+| `GET` | `/inventory/counts/today` | STORE_ATTENDANT |
+| `GET` | `/inventory/counts/:id` | STORE_MANAGER (full view), STORE_ATTENDANT (blind view, DAILY only) |
+| `PUT` | `/inventory/counts/:id/lines` | STORE_ATTENDANT |
+| `POST` | `/inventory/counts/:id/submit` | STORE_ATTENDANT |
+| `PATCH` | `/inventory/counts/:id/lines/:lineId` | STORE_MANAGER |
+| `POST` | `/inventory/counts/:id/return` | STORE_MANAGER |
+| `POST` | `/inventory/counts/:id/approve` | STORE_MANAGER |
+| `GET` | `/inventory/counts/:id/print` | STORE_MANAGER |
+| `POST` | `/inventory/spot-counts` | STORE_MANAGER |
+| `GET` | `/inventory/thresholds` | STORE_MANAGER, MANAGER |
+| `PUT` | `/inventory/thresholds` | STORE_MANAGER (Central Store reason threshold; Branch Manager write arrives in Session 3) |
+| `PUT` | `/inventory/thresholds/director` | DIRECTOR |
+
+- **`GET /inventory/counts`** — query `kind` (DAILY|SPOT), `limit` (30).
+  `{counts[{id, reference, kind, countDate, status, counterName,
+  counterSignedAt, verifierName, verifiedAt, itemCount (counted lines),
+  totalLines, varianceLines, adjustmentCount, netVarianceValue,
+  directorNotified}]}`. Drafts are excluded. Awaiting the Store Manager
+  (SUBMITTED, RETURNED) first, oldest first; then VERIFIED, newest first.
+  The hub's "Waste log · last 7 days" roll-up row is composed by the
+  frontend from `GET /inventory/waste`.
+- **`GET /inventory/counts/today`** — get-or-create today's DAILY draft
+  (a line for every live hub catalog item; items added later are appended
+  while it is DRAFT). Response `AttendantCountView = {id, reference,
+  countDate, status, counterName, totals{counted, total}, categories[{id|null,
+  name, total, counted}] (top-level categories — the tabs, plan §7 Q-C),
+  lines[{inventoryItemId, name, usageUnit, categoryId, categoryName,
+  countedQty|null, editable, queryNote}], savedAt, submittedAt, returnNote,
+  returnedAt, returnedByName}`. `lines`: DRAFT → all; RETURNED → the queried
+  lines only; SUBMITTED / VERIFIED → none.
+- **`PUT /inventory/counts/:id/lines`** — `{lines:[{inventoryItemId,
+  countedQty (≥0 decimal string | null to clear)}]}` (strict, ≤1000). DRAFT:
+  any line. RETURNED: queried lines only, else 409 `COUNT_LOCKED`. Returns
+  `{savedAt, counted, total}`.
+- **`POST /inventory/counts/:id/submit`** — `{pin}`. DRAFT needs ≥1 counted
+  line (409 `NOTHING_COUNTED`); RETURNED needs every queried line recounted
+  (409 `RECOUNT_INCOMPLETE`). Snapshots `expectedQty` (ledger on-hand *now*),
+  `unitCost` and `reasonRequired` on the counted lines (only the queried lines
+  on a resubmit); matching lines are auto-`ACCEPTED`, variance lines wait as
+  `PENDING`; uncounted lines are untouched. Status → SUBMITTED. Wrong PIN →
+  401, nothing written. After commit: push to the Store Manager. Returns
+  `{id, reference, status, submittedAt, counted, total}`.
+- **`GET /inventory/counts/:id` (Store Manager)** — `VerifierCountView =
+  {id, reference, kind, countDate, status, counter{id,name}, counterSignedAt,
+  verifier{id,name}|null, verifiedAt, returnNote, returnedAt,
+  directorNotified, totals{lines, uncountedLines, matchedLines, varianceLines,
+  aboveThreshold, queriedLines, netVarianceValue}, thresholds{reasonRequiredKes,
+  directorAlertKes}, lines[{lineId, inventoryItemId, name, usageUnit,
+  categoryName, countedQty|null, expectedQty|null, variance|null,
+  varianceValue|null (signed KES), unitCost, decision, reason, reasonNote,
+  reasonRequired, directorAlert, queryNote, firstCountedQty,
+  adjustmentReference, adjustmentTransactionId}]}`. A DRAFT is 409
+  `COUNT_NOT_SUBMITTED`.
+- **`PATCH /inventory/counts/:id/lines/:lineId`** — `{decision: PENDING|
+  ACCEPTED|QUERIED, reason?, reasonNote?, queryNote?}` (strict; `reason:
+  OTHER` requires `reasonNote`). Only while SUBMITTED, only on a counted line
+  (409 `COUNT_LOCKED` / `LINE_NOT_COUNTED`). A reason is kept only with
+  ACCEPTED, a query note only with QUERIED. Returns the refreshed
+  `VerifierCountView`.
+- **`POST /inventory/counts/:id/return`** — `{note?}` (optional, ≤500). SUBMITTED with ≥1
+  QUERIED line (409 `NO_QUERIED_LINES`) → RETURNED. Each queried line's
+  figure moves to `firstCountedQty` and `countedQty` is cleared so the
+  attendant recounts it blind; other lines stay as they are. `{count}`.
+- **`POST /inventory/counts/:id/approve`** — `{pin}`. 409s, in order:
+  `QUERIED_LINES`, `LINES_UNDECIDED` (a variance line still PENDING),
+  `REASON_REQUIRED` (an accepted line whose stored `reasonRequired` is true
+  has no reason, or `OTHER` with no note) — each with `details.lineIds`. One
+  transaction: status VERIFIED + one `ADJUSTMENT` per accepted non-zero
+  variance (signed `countedQty − expectedQty`, frozen `unitCost`,
+  `stockCountLineId`, `reference ADJ-####` from `ReferenceCounter`, `userId`
+  = the verifier). Uncounted, zero-variance and queried lines write nothing.
+  After commit: Director push when any line's |value| ≥ `directorAlertKes`
+  (`directorNotified` stored on the count). Returns `{count,
+  adjustmentsWritten, netAdjustmentValue, directorNotified}`.
+- **`POST /inventory/spot-counts`** — `{lines:[{inventoryItemId, countedQty,
+  reason?, reasonNote?}] (1–50, unique items), pin}` (strict). Created
+  VERIFIED in one step: `expectedQty` = ledger on-hand now; a reason is
+  required above the threshold (409 `REASON_REQUIRED`, `details.itemIds`);
+  `reference SPT-####`; adjustments as above. `201` → same shape as approve.
+- **`GET /inventory/counts/:id/print`** — non-DRAFT only. `{reference, kind,
+  countDate, status, locationName, totals, adjustments[{itemName, usageUnit,
+  variance, reference, value, reason}] (largest |value| first),
+  directorAlertItems[{itemName, variance, usageUnit}], directorNotified,
+  counter{name, roleLabel, signedAt}, verifier{…}|null, generatedAt}`.
+- **`GET /inventory/thresholds`** — `{reasonRequiredKes, overnightAlertKes|null,
+  directorAlertKes, isDefault, updatedBy{id,name}|null, updatedAt|null,
+  directorUpdatedBy, directorUpdatedAt}`. Defaults when no row: hub 500,
+  branch 1,000 / overnight 500, Director 5,000 (`counting-thresholds.ts`).
+  `directorAlertKes` always comes from the hub row and is read-only here.
+- **`PUT /inventory/thresholds`** — Store Manager `{reasonRequiredKes}`
+  (strict; whole KES 0…1,000,000; 0 = always). Branch fields → 400. The row is
+  created lazily. Returns the same shape as GET.
+- **`PUT /inventory/thresholds/director`** — `{directorAlertKes}`, DIRECTOR
+  only, hub row. API-only this milestone.
+
+**Deviations from plan §2.2** (recorded in `session-2-plan.md` outcome log):
+`StockCountLine` gains `firstCountedQty` and `queryNote`;
+`CountingThresholds` gains `directorUpdatedById/At` (so the drawer's "last
+changed by" is the Store Manager's, not the Director's); `unitCost` is frozen
+at submit with the snapshot (not at verify) so `reasonRequired` and the KES
+figure the Store Manager sees cannot drift; approve also blocks
+`LINES_UNDECIDED`; `GET /inventory/counts` has no waste roll-up row.

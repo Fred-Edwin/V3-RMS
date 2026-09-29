@@ -24,6 +24,9 @@ export interface TodaysCount {
   countId: string | null;
   submittedAt: string | null;
   submittedByName: string | null;
+  /** Progress only — never a quantity (safe for the attendant). Null before a count exists. */
+  countedLines: number | null;
+  totalLines: number | null;
 }
 
 export interface ListStockQuery {
