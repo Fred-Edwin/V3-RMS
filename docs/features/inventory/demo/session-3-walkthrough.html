@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branch Day Close — Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --panel: #f5f2ee; --ink: #2a1a0f; --text: #4a3f37; --muted: #7a6d63; --rule: #ddd5cc;
+  --accent: #693c1b; --good: #2f6b3c; --warn: #8a5a10; --bad: #8b2e1f;
+  --serif: 'Source Serif 4', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.6 var(--sans); }
+h1, h2, h3 { font-family: var(--serif); color: var(--ink); font-weight: 600; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+main { max-width: 860px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 40px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.head { display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; border-bottom: 2px solid var(--ink); }
+h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.2; letter-spacing: -.01em; }
+.lede { font-size: 16px; max-width: 68ch; }
+h2 { font-size: 22px; line-height: 1.3; margin-bottom: 4px; }
+.sec { display: flex; flex-direction: column; gap: 12px; }
+.sub { font-size: 14px; color: var(--muted); }
+.id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+pre { margin: 0; padding: 12px 14px; background: var(--panel); border-left: 3px solid var(--accent); font: 400 13px/1.55 var(--mono); color: var(--ink); overflow-x: auto; }
+code { font: 400 13px var(--mono); color: var(--ink); background: var(--panel); padding: 1px 5px; }
+.steps { display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+.step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: start; }
+.step.done .t, .step.done .w { color: var(--muted); }
+.t { color: var(--ink); font-weight: 600; }
+.w { display: block; margin-top: 2px; font-size: 14px; }
+.look { display: block; margin-top: 4px; font-size: 13px; color: var(--accent); font-weight: 500; }
+.cb { appearance: none; width: 22px; height: 22px; margin: 1px 0 0; border: 1.5px solid var(--ink); background: var(--bg); cursor: pointer; display: grid; place-items: center; }
+.cb:checked { background: var(--ink); }
+.cb:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.cb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--ink); }
+.row { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.row b { color: var(--ink); font-weight: 600; }
+.note { padding: 14px 16px; background: var(--panel); font-size: 14px; }
+.note b { color: var(--ink); }
+.warn { border-left: 3px solid var(--warn); }
+.kbd { display: flex; gap: 8px; flex-wrap: wrap; }
+.progress { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--rule); padding: 10px 24px; margin: 0 -24px; display: flex; justify-content: space-between; font-size: 13px; }
+.progress b { color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { main { padding: 32px 16px 72px; } .row { grid-template-columns: 1fr; gap: 2px; } .progress { margin: 0 -16px; padding: 10px 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="progress" aria-live="polite"><span>Branch day close · walkthrough</span><span><b id="done">0</b> of <b id="total">0</b> checked</span></div>
+
+  <header class="head">
+    <span class="eyebrow">Milestone Six · Session 3</span>
+    <h1>Branch day close — walk it through on localhost</h1>
+    <p class="lede">You'll count a branch's five departments, sign the day, reopen it, fix a count and sign again. Each step says what to do and what to look at. Paper artboard ids are beside each screen so you can hold the design next to the page. Tick steps as you go — your ticks are kept in this browser.</p>
+  </header>
+
+  <section class="sec">
+    <h2>0 · Set up</h2>
+    <p class="sub">Docker (Postgres + Redis) is already up if you've been working today. Backend and frontend:</p>
+<pre>cd ~/Projects/V3-RMS
+git switch feat/m6-s3-day-close
+docker compose up -d postgres redis
+
+# terminal 1 — API (port 4000)
+cd backend && pnpm dev
+
+# terminal 2 — web (port 3001, matches FRONTEND_ORIGIN)
+cd frontend && pnpm dev -- -p 3001</pre>
+    <div class="rows">
+      <div class="row"><b>Login</b><span><code>manager1.nyeritown@dev.test</code> / <code>password123</code> — the Nyeri Town Branch Manager. Signing PIN is <code>1234</code>.</span></div>
+      <div class="row"><b>Open</b><span><code>http://localhost:3001/app/branch/day</code> (or the <b>Day</b> link in the sidebar).</span></div>
+      <div class="row"><b>Screen size</b><span>Desktop: a normal window at 100% zoom. Phone: Chrome DevTools → device toolbar → 390 × 844.</span></div>
+    </div>
+    <div class="note warn"><b>Two things that will trip you.</b> The API rate-limits repeated logins (you'll see "429" toasts) — wait a minute and reload. And the seed below <b>rewrites Nyeri Town's dev dispatch data</b> (it confirms in-transit deliveries, and re-points one at Barista to make it "blocked") — dev database only.</div>
+    <p class="sub">Put the day into a known state with the seed (from <code>backend/</code>), then reload the page:</p>
+<pre>npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=counting   # Kitchen partly counted, Barista blocked
+npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=ready      # all five counted, ready to sign
+npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=closed     # signed and closed
+npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=open       # nothing counted yet</pre>
+  </section>
+
+  <section class="sec">
+    <h2>1 · Counting the day <span class="id">seed --state=counting · Paper 19C8-0, 1E13-0</span></h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Read the overview</span><span class="w">Four cards across the top, five departments in the left list, and a bar at the bottom of that list with the Sign &amp; close button.</span><span class="look">Look for: Departments ready 0 / 5, Blocked 1, Not started 3, Yesterday "Closed" (a link). Barista says "blocked · dispatch 1 unconfirmed".</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Hover the disabled Sign &amp; close button</span><span class="w">It can't be pressed yet. Hover or Tab onto it.</span><span class="look">Look for: a small tooltip listing what's stopping the close, the same text shown above the button.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open Kitchen and type a count</span><span class="w">Kitchen is selected by default. Change <b>Grilled chicken portion</b> from 21 to <b>12</b>.</span><span class="look">Look for: the Gap column filling in as you type (−9 pcs, red), the "Gaps above threshold" and "Net adj. so far" cards updating, and a <b>Reason — required</b> select sliding in under the row. After about a second: "Saved HH:MM" appears near the "Day open" pill.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Pick a reason</span><span class="w">Open the select. Try <b>Other (describe)</b> — a note field appears and is required — then choose <b>Unlogged waste</b> instead.</span><span class="look">Look for: the footer message changing from "Kitchen has a gap without a reason" as you choose.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Keyboard flow</span><span class="w">Click a count box, type a number, press <b>Enter</b>.</span><span class="look">Look for: focus jumping to the next count box. Reload the page — your counts and reason are still there (they saved on the server).</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open the blocked department</span><span class="w">Click <b>Barista</b> in the list.</span><span class="look">Look for: no count boxes, the status "Blocked", and the line explaining that stock still in the van can't be counted. The URL now ends <code>?dept=BARISTA</code>.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>2 · Ready, sign and close <span class="id">seed --state=ready · Paper 1EE4-0, 1EJY-0</span></h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Ready state</span><span class="w">Reload after seeding <code>ready</code>.</span><span class="look">Look for: 5 / 5 in green, "All 5 counted · every gap over KES 1,000 has a reason." and a brown Sign &amp; close day button.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Wrong PIN</span><span class="w">Press Sign &amp; close day, type <code>0000</code>, press the Sign &amp; close button in the dialog.</span><span class="look">Look for: "Incorrect PIN" under the boxes; the day stays open. (Known: the boxes don't clear and Enter doesn't submit — that dialog is Session 2's.)</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Right PIN</span><span class="w">Select the old digits and type <code>1234</code>, then Sign &amp; close.</span><span class="look">Look for: a "Day closed" toast, the cards changing to "Departments closed", every department "closed", "Closed HH:MM · signed by …" with View signed document and Reopen day buttons.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Closed is read-only</span><span class="w">Click through the departments.</span><span class="look">Look for: counts as plain text (no boxes), reasons shown as text.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Signed document</span><span class="w">Press <b>View signed document</b>, then <b>Print</b>. <span class="id">Paper 19S2-0</span></span><span class="look">Look for: the summary table of five departments, the notes band, your name in the signature font. Print opens a new tab with the A4 version and the print dialog.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>3 · Reopen, fix a count, sign again <span class="id">Paper 19PY-0</span></h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open the Reopen drawer</span><span class="w">On the closed day press <b>Reopen day</b>.</span><span class="look">Look for: an amber warning about append-only reversals, a required reason box, and a disabled red Reopen day button until you type something. Try closing it with text typed — you get a "Discard?" confirmation.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Reopen with a reason</span><span class="w">Type "Recount after late waste entry" and press Reopen day.</span><span class="look">Look for: a "Day reopened" toast, the "Day open" pill back, count boxes editable again.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Change a count and sign again</span><span class="w">Open <b>Pastry</b>, change <b>Croissants</b> to a different number, then Sign &amp; close with PIN 1234.</span><span class="look">Look for: closing succeeds, as before.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Check the ledger reversed cleanly</span><span class="w">In a DB client (or the Postgres MCP) run the query below.</span><span class="look">Look for: the first close's adjustments each followed by a matching opposite row that says "Reversal of ADJ-…", and only one fresh adjustment per item after them. On-hand for the item equals the figure you counted.</span></span></label>
+    </div>
+<pre>select i.name, t.reference, t.quantity, t.reason, r.reference as reverses
+from inventory_transactions t
+join inventory_items i on i.id = t.inventory_item_id
+left join inventory_transactions r on r.id = t.reverses_transaction_id
+where t.branch_day_line_id is not null
+order by t.created_at, t.reference;</pre>
+  </section>
+
+  <section class="sec">
+    <h2>4 · Thresholds <span class="id">Paper 1IR9-0</span></h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open Thresholds</span><span class="w">Top-right button on the Day screen.</span><span class="look">Look for: "Reason required from" (KES 1,000), the worked example, "Overnight variance alerts me from" (KES 500), and Director alerts shown read-only.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Change and save</span><span class="w">Set the first value to 900, press Save thresholds.</span><span class="look">Look for: the example re-evaluating as you type, a "Thresholds saved" toast, and "Last changed by …" when you reopen the drawer. Set it back to 1,000 afterwards.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>5 · On a phone <span class="id">Paper 1CDC-0, 1E8C-0, 1ERZ-0, 1BYP-0, 1J2L-0</span></h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Overview</span><span class="w">Device toolbar at 390 × 844, reload <code>/app/branch/day</code> (seed <code>counting</code>).</span><span class="look">Look for: four cards in a 2 × 2 grid, the department list, the disabled Sign &amp; close bar pinned at the bottom. The header shows Thresholds and a greyed History (history arrives in Session 4).</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Count a department</span><span class="w">Tap Kitchen, enter a count with a big gap.</span><span class="look">Look for: one card per item with Expected and Counted side by side, the gap top-right, the reason select appearing, and "Done — back to Today's day" at the bottom.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Closed, Reopen, Thresholds</span><span class="w">Seed <code>closed</code>. Try Reopen day and Thresholds.</span><span class="look">Look for: full-screen sheets with the Cancel / Done links in the brown header.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>6 · Loading and error states</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Loading</span><span class="w">DevTools → Network → throttle to Slow 3G, reload the Day page.</span><span class="look">Look for: grey placeholder shapes shaped like the real cards, rows and table — the title and Thresholds button stay real.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Error and Retry</span><span class="w">Stop the API (Ctrl-C in terminal 1), reload the Day page, then restart the API and press Retry.</span><span class="look">Look for: "Couldn't load today's day" with a Retry button, and the page recovering without a reload.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>7 · Where I departed from Paper — your call</h2>
+    <p class="sub">Tell me which of these you want changed back to Paper's version.</p>
+    <div class="rows">
+      <div class="row"><b>"Counted" status colour</b><span>Green. Paper draws it in the error red on 19C8-0 / 1EE4-0, which reads as a fault (its "Closed" is green).</span></div>
+      <div class="row"><b>Counts editable when counted</b><span>A fully counted department keeps its count boxes while the day is open. Paper shows plain text there.</span></div>
+      <div class="row"><b>Mobile "History"</b><span>Drawn but disabled until Session 4.</span></div>
+      <div class="row"><b>Who counted</b><span>The department list names the Branch Manager (who enters counts), not a department head as Paper shows.</span></div>
+      <div class="row"><b>Not compared pixel by pixel</b><span>I compared main states by eye against Paper and matched values on two artboards. Not compared: the mobile department review and mobile ready states, the mobile document, and mobile loading/error. Anything that looks off to you while walking through — note the screen and I'll run a proper parity pass.</span></div>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.cb'));
+  var KEY = 'wendo-s3-walkthrough';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { saved = {}; }
+  function count() {
+    document.getElementById('total').textContent = boxes.length;
+    document.getElementById('done').textContent = boxes.filter(function (b) { return b.checked; }).length;
+  }
+  boxes.forEach(function (b, i) {
+    b.checked = !!saved[i];
+    b.closest('.step').classList.toggle('done', b.checked);
+    b.addEventListener('change', function () {
+      saved[i] = b.checked;
+      b.closest('.step').classList.toggle('done', b.checked);
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* ticks just won't persist */ }
+      count();
+    });
+  });
+  count();
+})();
+</script>
+</body>
+</html>
