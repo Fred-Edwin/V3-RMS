@@ -19,6 +19,7 @@ import {
   PurchasingIcon,
   ReceivingIcon,
   ReportsIcon,
+  SettingsIcon,
   StockCountsIcon,
   SupplierApIcon,
   SuppliersIcon,
@@ -81,9 +82,16 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'supplier-ap', label: 'Supplier AP', href: '#', icon: SupplierApIcon },
       { key: 'catalog', label: 'Catalog', href: '/app/inventory/catalog', icon: CatalogIcon },
       { key: 'reports', label: 'Reports', href: '#', icon: ReportsIcon },
+      // STORE_MANAGER only — `navGroupsForRole` drops it for every other role.
+      { key: 'settings', label: 'Settings', href: '/app/inventory/settings', icon: SettingsIcon },
     ],
   },
 ];
+
+/** Settings (Team + My PIN) is the Store Manager's alone — hidden from every other role that reaches this shell. */
+function withoutSettings(groups: SidebarNavGroup[]): SidebarNavGroup[] {
+  return groups.map((group) => ({ ...group, items: group.items.filter((item) => item.key !== 'settings') }));
+}
 
 /**
  * STORE_ATTENDANT is 403'd outright (not just filtered server-side) on
@@ -93,13 +101,14 @@ const NAV_GROUPS: SidebarNavGroup[] = [
  * offers a route that always fails.
  */
 function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
-  if (role !== 'STORE_ATTENDANT') return NAV_GROUPS;
+  if (role !== 'STORE_MANAGER' && role !== 'STORE_ATTENDANT') return withoutSettings(NAV_GROUPS);
+  if (role === 'STORE_MANAGER') return NAV_GROUPS;
   return NAV_GROUPS.map((group) => {
     if (group.key !== 'central-store' && group.key !== 'procurement') return group;
     return {
       ...group,
       items: group.items
-        .filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers')
+        .filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers' && item.key !== 'settings')
         .map((item) =>
           item.subItems
             ? {

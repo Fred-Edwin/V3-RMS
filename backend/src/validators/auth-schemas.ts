@@ -21,4 +21,6 @@ export const verifyPasswordSchema = z.object({
 /** 4-digit numeric PIN, matching the Sign Sheet's OTP input (frontend/features/inventory/components/sign-sheet.tsx). */
 export const setPinSchema = z.object({
   pin: z.string().regex(/^\d{4}$/, 'must be a 4-digit code'),
+  /** Required only when a PIN is already set — proves it is the account owner changing it. */
+  currentPassword: z.string().min(1).optional(),
 });

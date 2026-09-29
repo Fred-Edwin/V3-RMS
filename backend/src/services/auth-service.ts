@@ -189,11 +189,37 @@ export const authService = {
     await authRepository.saveFcmToken(input.userId, input.fcmToken);
   },
 
-  // Sets the caller's own in-app PIN (Inventory Milestone Two's Sign Sheet
-  // and future re-authentication surfaces). No current-PIN check on first
-  // set (pinHash starts null); overwrites unconditionally otherwise — there
-  // is no "forgot PIN" flow yet, so this doubles as the reset path.
-  setPin: async (input: { userId: string; pin: string }): Promise<void> => {
+  // Whether the caller has set a signing PIN (drives the Sign Sheet's
+  // "Set your PIN" step and the Team/Profile PIN status). Boolean only.
+  getPinStatus: async (userId: string): Promise<{ hasPin: boolean }> => {
+    const hasPin = await authRepository.hasPin(userId);
+    if (hasPin === null) {
+      throw new UnauthorizedError('Invalid user');
+    }
+    return { hasPin };
+  },
+
+  // Sets the caller's own in-app PIN. First set (no pinHash yet) needs nothing
+  // beyond authentication. CHANGING an existing PIN requires the current
+  // account password, so a stolen session token cannot silently take over
+  // signing. A Store Manager clearing an attendant's PIN goes through
+  // staffService.resetPin, after which the attendant's next set is a "first set".
+  setPin: async (input: { userId: string; pin: string; currentPassword?: string }): Promise<void> => {
+    const user = await authRepository.findUserByIdWithPassword(input.userId);
+    if (!user) {
+      throw new UnauthorizedError('Invalid user');
+    }
+
+    if (user.pinHash !== null) {
+      if (!input.currentPassword) {
+        throw new ValidationError('Current password is required to change your PIN');
+      }
+      const isValidPassword = await comparePassword(input.currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        throw new ValidationError('Current password is incorrect');
+      }
+    }
+
     const pinHash = await hashPin(input.pin);
     await authRepository.updatePinHash(input.userId, pinHash);
   },

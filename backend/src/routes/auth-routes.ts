@@ -70,6 +70,7 @@ authRoutes.post('/auth/register-device', authenticate, branchScope, requireRole(
 ), authController.registerDevice);
 // Every authenticated role may set their own PIN — no role restriction beyond
 // authentication (the route always acts on req.user.id, never a target id).
+authRoutes.get('/users/me/pin-status', authenticate, branchScope, authController.pinStatus);
 authRoutes.post('/users/me/pin', authenticate, branchScope, authController.setPin);
 
 export default authRoutes;

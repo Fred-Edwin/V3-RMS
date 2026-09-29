@@ -31,7 +31,7 @@ staffRoutes.get(
   '/staff/:id',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
   staffController.getById,
 );
 staffRoutes.patch(
@@ -45,22 +45,29 @@ staffRoutes.patch(
   '/staff/:id/deactivate',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
   staffController.deactivate,
 );
 staffRoutes.patch(
   '/staff/:id/reactivate',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
   staffController.reactivate,
 );
 staffRoutes.patch(
   '/staff/:id/reset-password',
   authenticate,
   branchScope,
-  requireRole('MANAGER', 'SYSTEM_ADMIN'),
+  requireRole('MANAGER', 'SYSTEM_ADMIN', 'STORE_MANAGER'),
   staffController.resetPassword,
+);
+staffRoutes.patch(
+  '/staff/:id/reset-pin',
+  authenticate,
+  branchScope,
+  requireRole('SYSTEM_ADMIN', 'STORE_MANAGER'),
+  staffController.resetPin,
 );
 staffRoutes.delete(
   '/staff/:id',

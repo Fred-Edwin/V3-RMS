@@ -17,6 +17,10 @@ const staffSelect = {
   },
 } as const;
 
+// Team views need to show whether a person has set a signing PIN. The hash is
+// selected only to derive a boolean and is stripped before anything is returned.
+const staffWithPinSelect = { ...staffSelect, pinHash: true } as const;
+
 interface StaffFilters {
   organizationId?: string;
   role?: UserRole;
@@ -77,6 +81,24 @@ export const staffRepository = {
       },
       select: staffSelect,
       orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  /** Team list for a scoped org: accounts of the given roles, each with a `hasPin` boolean (never the hash). */
+  findTeamWithPinStatus: async (organizationId: string, roles: UserRole[], isActive?: boolean) => {
+    const users = await prisma.user.findMany({
+      where: { organizationId, role: { in: roles }, isActive },
+      select: staffWithPinSelect,
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    });
+    return users.map(({ pinHash, ...rest }) => ({ ...rest, hasPin: pinHash !== null }));
+  },
+
+  /** Clears the signing PIN so the user sets a new one at next signing. */
+  clearPin: async (id: string, organizationId: string, allowedRoles: UserRole[]) => {
+    return prisma.user.updateMany({
+      where: { id, organizationId, role: { in: allowedRoles } },
+      data: { pinHash: null },
     });
   },
 
@@ -157,11 +179,17 @@ export const staffRepository = {
     });
   },
 
-  updatePassword: async (id: string, passwordHash: string, organizationId?: string) => {
+  updatePassword: async (
+    id: string,
+    passwordHash: string,
+    organizationId?: string,
+    allowedRoles?: UserRole[],
+  ) => {
     return prisma.user.updateMany({
       where: {
         id,
         organizationId,
+        role: allowedRoles ? { in: allowedRoles } : undefined,
       },
       data: { passwordHash },
     });
@@ -186,11 +214,17 @@ export const staffRepository = {
     });
   },
 
-  setActive: async (id: string, isActive: boolean, organizationId?: string) => {
+  setActive: async (
+    id: string,
+    isActive: boolean,
+    organizationId?: string,
+    allowedRoles?: UserRole[],
+  ) => {
     return prisma.user.updateMany({
       where: {
         id,
         organizationId,
+        role: allowedRoles ? { in: allowedRoles } : undefined,
       },
       data: {
         isActive,

@@ -172,6 +172,12 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
     if (pathname.startsWith('/app/inventory/restock-levels')) {
       return role === 'STORE_MANAGER' || isDepartmentHead;
     }
+    // Pre-Demo Fixes: Settings (Team + My PIN) is the Store Manager's alone —
+    // the attendant is bounced to their home (the API routes it calls are
+    // role-gated too).
+    if (pathname.startsWith('/app/inventory/settings')) {
+      return role === 'STORE_MANAGER';
+    }
     if (pathname.startsWith('/app/inventory/suppliers')) {
       // AMENDMENT 2026-09-18 (Milestone Two S8): STORE_ATTENDANT now admitted
       // to this route rather than bounced here — the Suppliers screen ("what

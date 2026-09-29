@@ -162,6 +162,16 @@ export const authController = {
     });
   },
 
+  pinStatus: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const status = await authService.getPinStatus(req.user.id);
+
+    res.status(200).json({ success: true, data: status });
+  },
+
   setPin: async (req: Request, res: Response): Promise<void> => {
     const data = setPinSchema.parse(req.body);
     if (!req.user) {
@@ -171,6 +181,7 @@ export const authController = {
     await authService.setPin({
       userId: req.user.id,
       pin: data.pin,
+      currentPassword: data.currentPassword,
     });
 
     res.status(200).json({

@@ -96,6 +96,15 @@ export const authRepository = {
     });
   },
 
+  /** Whether the user has a signing PIN. Returns a boolean — the hash never leaves the repository. */
+  hasPin: async (userId: string): Promise<boolean | null> => {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { pinHash: true },
+    });
+    return user ? user.pinHash !== null : null;
+  },
+
   saveFcmToken: async (userId: string, fcmToken: string) => {
     return prisma.user.update({
       where: { id: userId },

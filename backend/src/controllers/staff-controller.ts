@@ -112,6 +112,17 @@ export const staffController = {
     });
   },
 
+  resetPin: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id: staffId } = staffIdParamSchema.parse(req.params);
+    await staffService.resetPin(staffId, actor);
+
+    res.status(200).json({
+      success: true,
+      message: 'PIN cleared. The staff member will set a new one at their next signing.',
+    });
+  },
+
   hardDelete: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id: staffId } = staffIdParamSchema.parse(req.params);

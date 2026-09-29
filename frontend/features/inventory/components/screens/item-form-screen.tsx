@@ -4,6 +4,7 @@ import * as React from 'react';
 
 import { DrawerShell } from '../drawer-shell';
 import { ItemFormFields, type ItemFormType, type ItemFormValues } from '../item-form';
+import { getItemFormErrors, normalizeDecimalInput, type ItemFormErrors } from '../item-form-validation';
 import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { Button } from '@/components/ui2/button';
@@ -70,6 +71,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
   const { retire, retiring, error: retireError } = useRetireItem();
   const [values, setValues] = React.useState<ItemFormValues>(EMPTY_VALUES);
   const [warning, setWarning] = React.useState<string | null>(null);
+  const [errors, setErrors] = React.useState<ItemFormErrors>({});
   const [confirmRetireOpen, setConfirmRetireOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -82,8 +84,10 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
         preferredSupplierId: item.preferredSupplier?.id,
         buyUnit: item.buyUnit,
         usageUnit: item.usageUnit,
-        conversion: item.conversionFactor ? `1 ${item.buyUnit} = ${item.conversionFactor} ${item.usageUnit}` : '',
-        packSize: item.packSize ? `${item.packSize} ${item.usageUnit}` : '',
+        // Numeric text, trailing zeros trimmed ("25.0000" → "25") — same number, so editing an
+        // existing item and saving without touching these fields changes nothing.
+        conversion: normalizeDecimalInput(item.conversionFactor),
+        packSize: normalizeDecimalInput(item.packSize),
         departmentTags: item.departmentTags,
         restockLevel: item.centralStoreRestockLevel ?? '',
       });
@@ -91,6 +95,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
       setValues(EMPTY_VALUES);
     }
     setWarning(null);
+    setErrors({});
   }, [open, item]);
 
   const categoryOptions = categories.filter((c) => !c.retiredAt).map((c) => ({ value: c.id, label: c.name }));
@@ -111,11 +116,16 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
       next = { ...next, departmentTags: [] };
     }
     setValues(next);
+    // Errors follow the numbers as they're fixed, instead of lingering until the next Save.
+    if (errors.conversion || errors.packSize) setErrors(getItemFormErrors(next));
   };
 
   const handleSave = async () => {
-    const conversionMatch = values.conversion.match(/=\s*([\d.]+)/);
-    const packSizeMatch = values.packSize.match(/^([\d.]+)/);
+    // Real validation, never a silent null: an invalid number blocks the save
+    // and shows its message under the field (WALKTHROUGH §3.1).
+    const formErrors = getItemFormErrors(values);
+    setErrors(formErrors);
+    if (formErrors.conversion || formErrors.packSize) return;
 
     const input: CreateItemInput = {
       name: values.name,
@@ -125,8 +135,8 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
       preferredSupplierId: values.preferredSupplierId ?? null,
       buyUnit: values.buyUnit,
       usageUnit: values.usageUnit,
-      conversionFactor: conversionMatch ? conversionMatch[1] : null,
-      packSize: packSizeMatch ? packSizeMatch[1] : null,
+      conversionFactor: values.conversion.trim() || null,
+      packSize: values.packSize.trim() || null,
       departmentTags: values.type === 'raw' ? [] : (values.departmentTags as DepartmentTag[]),
       centralStoreRestockLevel: values.restockLevel || null,
     };
@@ -175,6 +185,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
             supplierOptions={supplierOptions}
             departmentOptions={DEPARTMENT_OPTIONS}
             onCreateSupplier={handleCreateSupplier}
+            errors={errors}
           />
           {warning ? (
             <p className="mt-4 font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p>
@@ -246,6 +257,7 @@ export function ItemFormDrawer({ itemId, open, onOpenChange, onSaved, variant }:
           supplierOptions={supplierOptions}
           departmentOptions={DEPARTMENT_OPTIONS}
           onCreateSupplier={handleCreateSupplier}
+          errors={errors}
         />
         {warning ? <p className="font-wds-sans text-wds-caption text-wds-warning-fg">{warning}</p> : null}
         {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}

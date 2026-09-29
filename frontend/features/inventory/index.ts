@@ -57,3 +57,6 @@ export { DepartmentLogWasteScreen } from './components/screens/department-log-wa
 export { DailyCountScreen } from './components/screens/daily-count-screen';
 export { StockCountsScreen } from './components/screens/stock-counts-screen';
 export { SpotCountScreen } from './components/screens/spot-count-screen';
+
+// Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
+export { SettingsScreen } from './components/screens/settings-screen';

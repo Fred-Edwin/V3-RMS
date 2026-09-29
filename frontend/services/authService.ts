@@ -37,4 +37,14 @@ export const authService = {
   verifyPassword: async (password: string, accessToken: string): Promise<void> => {
     await apiClient.post('/auth/verify-password', { password }, accessToken);
   },
+
+  /** Whether the caller has set a signing PIN. Boolean only — the hash never leaves the server. */
+  getPinStatus: (accessToken: string): Promise<{ hasPin: boolean }> => {
+    return apiClient.get('/users/me/pin-status', accessToken);
+  },
+
+  /** Sets (first time) or changes the caller's signing PIN. `currentPassword` is required only when a PIN already exists. */
+  setPin: async (input: { pin: string; currentPassword?: string }, accessToken: string): Promise<void> => {
+    await apiClient.post('/users/me/pin', input, accessToken);
+  },
 };
