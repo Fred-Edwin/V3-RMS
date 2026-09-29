@@ -100,6 +100,14 @@ export const ReportsIcon: NavIcon = (props) => (
   </svg>
 );
 
+/** Settings — lucide-style gear-less "sun" glyph matching Paper artboard 1 (Pre-Demo · Team & PIN): a centre ring with eight spokes. */
+export const SettingsIcon: NavIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
+  </svg>
+);
+
 /**
  * Sign-out glyph — Paper never draws a sign-out control anywhere in the
  * sidebar footer, so there's no node to source this from. Same deviation

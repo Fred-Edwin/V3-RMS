@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, Bell, BellOff, ShieldCheck, User, Building2, ContactRound, FileText, Upload } from 'lucide-react';
 import { Avatar, Button, ConfirmDialog, Input, PageLayout, Select, SupportContact } from '@/components/ui';
 import { useFcmToken } from '@/hooks/useFcmToken';
+import { SigningPinCard } from '@/components/app/shell/signing-pin-card';
 import { performLogout } from '@/lib/logout';
 import { authService } from '@/services/authService';
 import { staffService, type StaffDto } from '@/services/staffService';
@@ -656,6 +657,9 @@ export default function Page(): JSX.Element {
               </div>
             </form>
           </SectionCard>
+
+          {/* ── Signing PIN (Pre-Demo Fixes) ── */}
+          <SigningPinCard variant="profile" />
 
           {/* ── Support ── */}
           <SupportContact />

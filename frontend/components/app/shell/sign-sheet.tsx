@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui2/input-otp';
+import { usePinStatus } from '@/hooks/usePinStatus';
+import { SetPinForm } from './set-pin-form';
 
 /**
  * Sign Sheet — PIN re-authentication for signing a Goods Receipt, plus the
@@ -54,6 +56,12 @@ export function SignSheetDialog({
   error,
 }: SignSheetDialogProps) {
   const [pin, setPin] = React.useState('');
+  // Everyone who signs needs a PIN. If this signer has none yet, the sheet
+  // becomes a "Set your PIN" step first, then signs with the PIN just set
+  // (Pre-Demo Fixes — one shared fix, every signing site inherits it).
+  const pinStatus = usePinStatus(open);
+  const needsPin = pinStatus.hasPin === false;
+  const checkingPin = pinStatus.hasPin === null && pinStatus.loading;
 
   React.useEffect(() => {
     if (open) setPin('');
@@ -65,80 +73,97 @@ export function SignSheetDialog({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-wds-scrim data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-[380px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2',
+            'fixed left-1/2 top-1/2 z-50 max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2',
+            needsPin ? 'w-[464px]' : 'w-[380px]',
             'flex flex-col overflow-hidden rounded-wds-lg border border-wds-border bg-wds-surface shadow-wds-md',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95'
           )}
         >
           <div className="flex flex-col gap-wds-1 px-wds-5 pt-wds-5">
             <DialogPrimitive.Title className="font-wds-sans text-wds-section font-semibold text-wds-text-ink">
-              {title}
+              {needsPin ? 'Set your signing PIN' : title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-              {subtitle}
+              {needsPin ? "You haven't set a PIN yet. Choose 4 digits, then we'll continue to sign." : subtitle}
             </DialogPrimitive.Description>
           </div>
 
-          {documentSummary ? (
+          {needsPin ? (
+            <SetPinForm
+              className="p-wds-5"
+              submitLabel="Set PIN & continue"
+              onCancel={() => onOpenChange(false)}
+              onDone={(newPin) => {
+                pinStatus.markSet();
+                onSubmit(newPin);
+              }}
+            />
+          ) : null}
+
+          {!needsPin && documentSummary ? (
             <div className="mx-wds-5 mt-wds-4 flex flex-col gap-wds-0.5 rounded-wds-sm border border-wds-border bg-wds-surface-sunken px-wds-3.5 py-wds-2.5">
               <span className="font-wds-sans text-wds-body-sm font-medium text-wds-text-ink">{documentSummary.title}</span>
               <span className="font-wds-mono text-wds-caption text-wds-text-copy-muted">{documentSummary.detail}</span>
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-wds-2 p-wds-5">
-            <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">
-              Enter your PIN
-            </label>
-            <InputOTP
-              maxLength={PIN_LENGTH}
-              value={pin}
-              onChange={setPin}
-              autoFocus
-              disabled={submitting}
-            >
-              <InputOTPGroup>
-                {Array.from({ length: PIN_LENGTH }).map((_, i) => (
-                  <InputOTPSlot key={i} index={i} />
-                ))}
-              </InputOTPGroup>
-            </InputOTP>
-            {error ? (
-              <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p>
-            ) : (
-              // 11px/15px — one px taller than wds-helper (11px/14px); Paper
-              // (DC8-0) draws this specific helper line 1px looser. Not worth
-              // a new token for a single 1px variant; kept as an arbitrary
-              // value matched via get_computed_styles.
-              <p className="font-wds-sans text-[11px] leading-[15px] text-wds-text-faint">{helperText}</p>
-            )}
-          </div>
+          {!needsPin ? (
+            <>
+              <div className="flex flex-col gap-wds-2 p-wds-5">
+                <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">
+                  Enter your PIN
+                </label>
+                <InputOTP
+                  maxLength={PIN_LENGTH}
+                  value={pin}
+                  onChange={setPin}
+                  autoFocus
+                  disabled={submitting}
+                >
+                  <InputOTPGroup>
+                    {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+                      <InputOTPSlot key={i} index={i} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+                {error ? (
+                  <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p>
+                ) : (
+                  // 11px/15px — one px taller than wds-helper (11px/14px); Paper
+                  // (DC8-0) draws this specific helper line 1px looser. Not worth
+                  // a new token for a single 1px variant; kept as an arbitrary
+                  // value matched via get_computed_styles.
+                  <p className="font-wds-sans text-[11px] leading-[15px] text-wds-text-faint">{helperText}</p>
+                )}
+              </div>
 
-          <div className="flex gap-wds-2 px-wds-5 pb-wds-5 pt-wds-4">
-            <Button
-              variant="secondary"
-              className="grow"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
-              {cancelLabel}
-            </Button>
-            <Button
-              variant="primary"
-              className="grow"
-              onClick={() => onSubmit(pin)}
-              disabled={pin.length !== PIN_LENGTH || submitting}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Signing…
-                </>
-              ) : (
-                confirmLabel
-              )}
-            </Button>
-          </div>
+              <div className="flex gap-wds-2 px-wds-5 pb-wds-5 pt-wds-4">
+                <Button
+                  variant="secondary"
+                  className="grow"
+                  onClick={() => onOpenChange(false)}
+                  disabled={submitting}
+                >
+                  {cancelLabel}
+                </Button>
+                <Button
+                  variant="primary"
+                  className="grow"
+                  onClick={() => onSubmit(pin)}
+                  disabled={pin.length !== PIN_LENGTH || submitting || checkingPin}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Signing…
+                    </>
+                  ) : (
+                    confirmLabel
+                  )}
+                </Button>
+              </div>
+            </>
+          ) : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

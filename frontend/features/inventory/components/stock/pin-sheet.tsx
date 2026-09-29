@@ -7,6 +7,8 @@ import { OTPInput, type SlotProps } from 'input-otp';
 import { cn } from '@/lib/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { SignSheetDialog } from '@/components/app/shell/sign-sheet';
+import { SetPinForm } from '@/components/app/shell/set-pin-form';
+import { usePinStatus } from '@/hooks/usePinStatus';
 import { FormErrorBanner } from './stock-states';
 
 /**
@@ -55,6 +57,11 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
   const [dragY, setDragY] = React.useState(0);
   const drag = React.useRef<{ startY: number; startT: number; id: number } | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // No PIN yet → this same sheet becomes the "Set your PIN" step, then signs
+  // with the PIN just set (Pre-Demo Fixes, Paper artboard 5a).
+  const pinStatus = usePinStatus(open);
+  const needsPin = pinStatus.hasPin === false;
+  const checkingPin = pinStatus.hasPin === null && pinStatus.loading;
 
   React.useEffect(() => {
     if (open) {
@@ -114,67 +121,88 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
             <div className="h-1 w-9 rounded-[2px] bg-wds-border-strong" />
           </div>
           <div className="-mt-4 flex flex-col gap-1">
-            <DialogPrimitive.Title className="font-wds-sans text-[18px]/[22px] font-semibold text-wds-text-ink">{title}</DialogPrimitive.Title>
-            <DialogPrimitive.Description className="font-wds-sans text-[13px]/4 text-wds-text-copy-muted">{subtitle}</DialogPrimitive.Description>
+            <DialogPrimitive.Title className="font-wds-sans text-[18px]/[22px] font-semibold text-wds-text-ink">
+              {needsPin ? 'Set your signing PIN' : title}
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="font-wds-sans text-[13px]/[18px] text-wds-text-copy-muted">
+              {needsPin
+                ? "You haven't set a PIN yet. Choose 4 digits — you'll use them to sign this and everything else. Only you should know it."
+                : subtitle}
+            </DialogPrimitive.Description>
           </div>
 
-          {error?.kind === 'other' ? <FormErrorBanner title={error.message} description="Nothing was signed. Your counts are kept — try again." /> : null}
-
-          <div className="flex flex-col items-center gap-2">
-            <OTPInput
-              ref={inputRef}
-              maxLength={PIN_LENGTH}
-              value={pin}
-              onChange={setPin}
-              autoFocus
-              disabled={submitting}
-              inputMode="numeric"
-              aria-label="PIN"
-              aria-invalid={error?.kind === 'pin' || undefined}
-              containerClassName="flex justify-center gap-3 py-2 has-[:disabled]:opacity-60"
-              render={({ slots }) => (
-                <>
-                  {slots.map((slot, i) => (
-                    <PinBox key={i} slot={slot} />
-                  ))}
-                </>
-              )}
+          {needsPin ? (
+            <SetPinForm
+              layout="stacked"
+              submitLabel="Set PIN & continue"
+              onCancel={() => onOpenChange(false)}
+              onDone={(newPin) => {
+                pinStatus.markSet();
+                onSubmit(newPin);
+              }}
             />
-            {error?.kind === 'pin' ? (
-              <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
-                {error.message}
-              </p>
-            ) : null}
-          </div>
+          ) : (
+            <>
 
-          <div className="flex items-start gap-[9px] rounded-[4px] border border-wds-info-border bg-wds-info-bg px-3.5 py-[11px]">
-            <span className="mt-[5px] size-1.5 shrink-0 rounded-full bg-wds-info-fg" aria-hidden />
-            <p className="min-w-0 grow basis-0 font-wds-sans text-[12px]/[17px] text-wds-info-fg">{note}</p>
-          </div>
+              {error?.kind === 'other' ? <FormErrorBanner title={error.message} description="Nothing was signed. Your counts are kept — try again." /> : null}
 
-          <div className="flex gap-2.5">
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-              className="flex grow basis-0 touch-manipulation items-center justify-center rounded-[4px] border border-wds-border-strong p-3.5 font-wds-sans text-[14px]/[18px] text-wds-text-copy-muted outline-none transition-[transform,background-color] duration-150 ease-out hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98] disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => onSubmit(pin)}
-              disabled={pin.length !== PIN_LENGTH || submitting}
-              className={cn(
-                'flex grow-[2] basis-0 touch-manipulation items-center justify-center rounded-[4px] p-3.5 font-wds-sans text-[14px]/[18px] font-medium outline-none transition-[transform,background-color,filter] duration-150 ease-out focus-visible:shadow-wds-ring',
-                pin.length !== PIN_LENGTH || submitting
-                  ? 'cursor-not-allowed bg-wds-neutral-300 text-wds-neutral-600'
-                  : 'bg-wds-gradient-primary text-wds-primary-fg shadow-wds-sheen hover:brightness-110 motion-safe:active:scale-[0.98]',
-              )}
-            >
-              {submitting ? 'Signing…' : confirmLabel}
-            </button>
-          </div>
+              <div className="flex flex-col items-center gap-2">
+                <OTPInput
+                  ref={inputRef}
+                  maxLength={PIN_LENGTH}
+                  value={pin}
+                  onChange={setPin}
+                  autoFocus
+                  disabled={submitting}
+                  inputMode="numeric"
+                  aria-label="PIN"
+                  aria-invalid={error?.kind === 'pin' || undefined}
+                  containerClassName="flex justify-center gap-3 py-2 has-[:disabled]:opacity-60"
+                  render={({ slots }) => (
+                    <>
+                      {slots.map((slot, i) => (
+                        <PinBox key={i} slot={slot} />
+                      ))}
+                    </>
+                  )}
+                />
+                {error?.kind === 'pin' ? (
+                  <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">
+                    {error.message}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex items-start gap-[9px] rounded-[4px] border border-wds-info-border bg-wds-info-bg px-3.5 py-[11px]">
+                <span className="mt-[5px] size-1.5 shrink-0 rounded-full bg-wds-info-fg" aria-hidden />
+                <p className="min-w-0 grow basis-0 font-wds-sans text-[12px]/[17px] text-wds-info-fg">{note}</p>
+              </div>
+
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  disabled={submitting}
+                  className="flex grow basis-0 touch-manipulation items-center justify-center rounded-[4px] border border-wds-border-strong p-3.5 font-wds-sans text-[14px]/[18px] text-wds-text-copy-muted outline-none transition-[transform,background-color] duration-150 ease-out hover:bg-wds-neutral-50 focus-visible:shadow-wds-ring active:bg-wds-neutral-100 motion-safe:active:scale-[0.98] disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSubmit(pin)}
+                  disabled={pin.length !== PIN_LENGTH || submitting || checkingPin}
+                  className={cn(
+                    'flex grow-[2] basis-0 touch-manipulation items-center justify-center rounded-[4px] p-3.5 font-wds-sans text-[14px]/[18px] font-medium outline-none transition-[transform,background-color,filter] duration-150 ease-out focus-visible:shadow-wds-ring',
+                    pin.length !== PIN_LENGTH || submitting || checkingPin
+                      ? 'cursor-not-allowed bg-wds-neutral-300 text-wds-neutral-600'
+                      : 'bg-wds-gradient-primary text-wds-primary-fg shadow-wds-sheen hover:brightness-110 motion-safe:active:scale-[0.98]',
+                  )}
+                >
+                  {submitting ? 'Signing…' : confirmLabel}
+                </button>
+              </div>
+            </>
+          )}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

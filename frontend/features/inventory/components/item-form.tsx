@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn';
 import { Input } from '@/components/ui2/input';
 import { Combobox, type ComboboxOption } from '@/components/ui2/combobox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui2/toggle-group';
+import type { ItemFormErrors } from './item-form-validation';
 
 /**
  * Item Form — the field set shared by New/edit item, desktop drawer body
@@ -34,7 +35,9 @@ export interface ItemFormValues {
   preferredSupplierId?: string;
   buyUnit: string;
   usageUnit: string;
+  /** Numeric text: how many `usageUnit`s in one `buyUnit` (the conversion factor). Empty = none. */
   conversion: string;
+  /** Numeric text: how many `usageUnit`s in one pack. Empty = none. */
   packSize: string;
   /** Department tag values (e.g. `KITCHEN`) this item may be stocked in. Empty = Central Store only. */
   departmentTags: string[];
@@ -57,6 +60,8 @@ export interface ItemFormFieldsProps {
   allowCreateCategory?: boolean;
   /** Enables the Supplier field's "+ Create" row. Omit to disable inline supplier creation (e.g. while saving). */
   onCreateSupplier?: (name: string) => void;
+  /** Inline errors for the numeric conversion / pack-size fields (`getItemFormErrors`). */
+  errors?: ItemFormErrors;
   className?: string;
 }
 
@@ -64,8 +69,26 @@ function FieldLabel({ children }: { variant: ItemFormVariant; children: React.Re
   return <span className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">{children}</span>;
 }
 
+function FieldError({ children }: { children: React.ReactNode }) {
+  return (
+    <span role="alert" className="font-wds-sans text-wds-helper text-wds-error-fg">
+      {children}
+    </span>
+  );
+}
+
 function FieldHelper({ children }: { children: React.ReactNode }) {
   return <span className="font-wds-sans text-wds-helper text-wds-text-copy-faint">{children}</span>;
+}
+
+/** The non-editable "1 bag = 25 kg" line under a numeric field — a blank shows `___` until a number is typed. */
+function ComputedLabel({ prefix, value, unit }: { prefix: string; value: string; unit: string }) {
+  const filled = value.trim() !== '';
+  return (
+    <span className={cn('font-wds-sans text-wds-helper', filled ? 'font-medium text-wds-text-ink' : 'text-wds-text-copy-muted')} aria-live="polite">
+      {prefix} {filled ? value.trim() : '___'} {unit}
+    </span>
+  );
 }
 
 export function ItemFormFields({
@@ -77,6 +100,7 @@ export function ItemFormFields({
   departmentOptions,
   allowCreateCategory = true,
   onCreateSupplier,
+  errors,
   className,
 }: ItemFormFieldsProps) {
   const isMobile = variant === 'mobile';
@@ -177,22 +201,46 @@ export function ItemFormFields({
 
       <div className="flex gap-wds-3">
         <div className="flex flex-1 flex-col gap-wds-1.5">
-          <FieldLabel variant={variant}>Conversion</FieldLabel>
-          <Input
-            className={fieldInputClass}
-            value={values.conversion}
-            onChange={(e) => set('conversion', e.target.value)}
-            placeholder="1 bag = 25 kg"
-          />
+          <FieldLabel variant={variant}>Conversion factor</FieldLabel>
+          <div className="flex items-center gap-wds-2">
+            <Input
+              className={fieldInputClass}
+              value={values.conversion}
+              onChange={(e) => set('conversion', e.target.value)}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="e.g. 25"
+              aria-label="Conversion factor"
+              aria-invalid={errors?.conversion ? true : undefined}
+            />
+            <span className="shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{values.usageUnit.trim()}</span>
+          </div>
+          {errors?.conversion ? (
+            <FieldError>{errors.conversion}</FieldError>
+          ) : (
+            <ComputedLabel prefix={`1 ${values.buyUnit.trim() || 'buy unit'} =`} value={values.conversion} unit={values.usageUnit.trim() || 'usage unit'} />
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-wds-1.5">
           <FieldLabel variant={variant}>Pack size</FieldLabel>
-          <Input
-            className={fieldInputClass}
-            value={values.packSize}
-            onChange={(e) => set('packSize', e.target.value)}
-            placeholder="25 kg"
-          />
+          <div className="flex items-center gap-wds-2">
+            <Input
+              className={fieldInputClass}
+              value={values.packSize}
+              onChange={(e) => set('packSize', e.target.value)}
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="e.g. 25"
+              aria-label="Pack size"
+              aria-invalid={errors?.packSize ? true : undefined}
+            />
+            <span className="shrink-0 font-wds-sans text-wds-body-sm text-wds-text-copy-muted">{values.usageUnit.trim()}</span>
+          </div>
+          {errors?.packSize ? (
+            <FieldError>{errors.packSize}</FieldError>
+          ) : (
+            <ComputedLabel prefix="1 pack =" value={values.packSize} unit={values.usageUnit.trim() || 'usage unit'} />
+          )}
         </div>
       </div>
 
