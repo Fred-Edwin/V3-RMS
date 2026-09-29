@@ -26,6 +26,8 @@ export interface RestockLevelGridProps {
   variant: 'desktop' | 'mobile';
   rows: RestockLevelRow[];
   onRestockLevelChange: (id: string, value: string) => void;
+  /** Milestone Six: rows edited since load — their input gets the primary 1.5px border (`18ZV-0`). */
+  changedIds?: ReadonlySet<string>;
   className?: string;
 }
 
@@ -38,6 +40,7 @@ export function RestockLevelGrid({
   variant,
   rows,
   onRestockLevelChange,
+  changedIds,
   className,
 }: RestockLevelGridProps) {
   const isMobile = variant === 'mobile';
@@ -76,7 +79,13 @@ export function RestockLevelGrid({
                 <input
                   value={row.restockLevel}
                   onChange={(e) => onRestockLevelChange(row.id, e.target.value)}
-                  className="h-8 w-14 shrink-0 rounded-wds-md border border-wds-border-strong text-center font-wds-mono text-wds-body text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
+                  inputMode="decimal"
+                  aria-label={`Restock level for ${row.name}`}
+                  data-restock-input={row.id}
+                  className={cn(
+                    'h-8 w-14 shrink-0 rounded-wds-md border border-wds-border-strong text-center font-wds-mono text-wds-body text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
+                    changedIds?.has(row.id) && 'border-[1.5px] border-wds-primary',
+                  )}
                 />
               </div>
             </div>
@@ -122,7 +131,13 @@ export function RestockLevelGrid({
               <input
                 value={row.restockLevel}
                 onChange={(e) => onRestockLevelChange(row.id, e.target.value)}
-                className="h-[30px] w-[72px] shrink-0 rounded-wds-sm border border-wds-border-strong text-center font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
+                inputMode="decimal"
+                aria-label={`Restock level for ${row.name}`}
+                data-restock-input={row.id}
+                className={cn(
+                  'h-[30px] w-[72px] shrink-0 rounded-wds-sm border border-wds-border-strong text-center font-wds-mono text-wds-body-sm text-wds-text-ink focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
+                  changedIds?.has(row.id) && 'border-[1.5px] border-wds-primary',
+                )}
               />
             </div>
           </div>

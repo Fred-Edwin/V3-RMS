@@ -2,7 +2,12 @@
 
 import * as React from 'react';
 
-import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/shell/sidebar-nav';
+import {
+  SidebarNav,
+  SidebarRail,
+  type SidebarNavGroup,
+  type SidebarNavSubItem,
+} from '@/components/app/shell/sidebar-nav';
 import { Topbar, type TopbarBreadcrumb } from '@/components/app/shell/topbar';
 import type { SearchInputProps } from '@/components/ui2/search-input';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
@@ -33,6 +38,24 @@ const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
  * areas so the nav reads complete rather than emptied out around this
  * milestone's two screens.
  */
+/**
+ * Stock & counts sub-pages (Milestone Six, `1BI5-0`). Daily count and Spot
+ * count arrive with Session 2 — drawn now, disabled with a hint (owner
+ * decision 1, 2026-09-25).
+ */
+export const COMING_WITH_COUNTING = 'Coming with counting';
+
+const STOCK_SUB_ITEMS: SidebarNavSubItem[] = [
+  { key: 'overview', label: 'Overview', href: '/app/inventory/stock' },
+  { key: 'items', label: 'All items', href: '/app/inventory/stock/items' },
+  { key: 'daily-count', label: 'Daily count', href: '#', disabledHint: COMING_WITH_COUNTING },
+  { key: 'spot-count', label: 'Spot count', href: '#', disabledHint: COMING_WITH_COUNTING },
+  { key: 'ledger', label: 'Stock ledger', href: '/app/inventory/stock/ledger' },
+];
+
+/** Blind count: the attendant has no All items / Stock ledger (both 403), and no spot count. */
+const ATTENDANT_STOCK_SUB_KEYS = new Set(['overview', 'daily-count']);
+
 const NAV_GROUPS: SidebarNavGroup[] = [
   {
     key: 'central-store',
@@ -43,7 +66,13 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'purchasing', label: 'Purchasing', href: '/app/inventory/purchasing', icon: PurchasingIcon },
       { key: 'prep', label: 'Prep', href: '/app/inventory/prep', icon: PrepIcon },
       { key: 'dispatch', label: 'Dispatch', href: '/app/inventory/dispatch', icon: DispatchIcon },
-      { key: 'stock-counts', label: 'Stock & counts', href: '#', icon: StockCountsIcon },
+      {
+        key: 'stock-counts',
+        label: 'Stock & counts',
+        href: '/app/inventory/stock',
+        icon: StockCountsIcon,
+        subItems: STOCK_SUB_ITEMS,
+      },
     ],
   },
   {
@@ -71,7 +100,13 @@ function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
     if (group.key !== 'central-store' && group.key !== 'procurement') return group;
     return {
       ...group,
-      items: group.items.filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers'),
+      items: group.items
+        .filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers')
+        .map((item) =>
+          item.subItems
+            ? { ...item, subItems: item.subItems.filter((sub) => ATTENDANT_STOCK_SUB_KEYS.has(sub.key)) }
+            : item,
+        ),
     };
   });
 }
@@ -145,13 +180,14 @@ export function InventoryDesktopShell({
 }
 
 /** Just the 236px sidebar rail, no Topbar/content column — what `(shell)/layout.tsx` mounts once so it survives Catalog ⇄ Suppliers navigation. */
-export function InventorySidebar({ activeKey }: { activeKey: string }) {
+export function InventorySidebar({ activeKey, activeSubKey }: { activeKey: string; activeSubKey?: string }) {
   const user = useSidebarUser();
   const authRole = useAuthStore((s) => s.user?.role);
   return (
     <SidebarNav
       groups={navGroupsForRole(authRole)}
       activeKey={activeKey}
+      activeSubKey={activeSubKey}
       user={user}
       orgLabel="HUB"
       logoSrc={WENDO_LOGO_SRC}
@@ -183,6 +219,7 @@ export function InventoryMobileRail({ activeKey, onNavigate }: InventoryMobileRa
 
 export interface InventoryMobileNavDrawerProps {
   activeKey: string;
+  activeSubKey?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate?: (href: string) => void;
@@ -200,7 +237,7 @@ export interface InventoryMobileNavDrawerProps {
  * gets focus trapping, Escape-to-close and focus restoration for free —
  * same primitive every other overlay in this build already uses.
  */
-export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
+export function InventoryMobileNavDrawer({ activeKey, activeSubKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
   const user = useSidebarUser();
   const authRole = useAuthStore((s) => s.user?.role);
   return (
@@ -213,6 +250,7 @@ export function InventoryMobileNavDrawer({ activeKey, open, onOpenChange, onNavi
         <SidebarNav
           groups={navGroupsForRole(authRole)}
           activeKey={activeKey}
+          activeSubKey={activeSubKey}
           user={user}
           orgLabel="HUB"
           logoSrc={WENDO_LOGO_SRC}
