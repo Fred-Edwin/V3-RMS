@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authRepository } from '../repositories/auth-repository';
-import { UnauthorizedError } from '../utils/errors';
+import { UnauthorizedError, ValidationError } from '../utils/errors';
+import { comparePassword } from '../utils/password';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { authService } from './auth-service';
 
@@ -12,7 +13,15 @@ vi.mock('../repositories/auth-repository', () => ({
     findUserById: vi.fn(),
     saveRefreshToken: vi.fn(),
     updatePinHash: vi.fn(),
+    findUserByIdWithPassword: vi.fn(),
+    hasPin: vi.fn(),
   },
+}));
+
+vi.mock('../utils/password', () => ({
+  comparePassword: vi.fn(),
+  hashPassword: vi.fn(),
+  hashPin: vi.fn().mockResolvedValue('hashed-pin'),
 }));
 
 vi.mock('../utils/jwt', () => ({
@@ -91,16 +100,82 @@ describe('authService.refresh', () => {
 describe('authService.setPin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(authRepository.updatePinHash).mockResolvedValue({} as never);
   });
 
-  it('hashes the PIN and stores it against the caller', async () => {
-    vi.mocked(authRepository.updatePinHash).mockResolvedValue({} as never);
+  it('first set (no PIN yet): hashes the PIN and stores it, no password needed', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({
+      id: 'user-1',
+      pinHash: null,
+      passwordHash: 'pw-hash',
+    } as never);
 
     await authService.setPin({ userId: 'user-1', pin: '4821' });
 
-    expect(authRepository.updatePinHash).toHaveBeenCalledTimes(1);
-    const [userId, pinHash] = vi.mocked(authRepository.updatePinHash).mock.calls[0]!;
-    expect(userId).toBe('user-1');
-    expect(pinHash).not.toBe('4821'); // stored hashed, never plaintext
+    expect(comparePassword).not.toHaveBeenCalled();
+    expect(authRepository.updatePinHash).toHaveBeenCalledWith('user-1', 'hashed-pin');
+  });
+
+  it('change (PIN exists): rejects when the current password is missing', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({
+      id: 'user-1',
+      pinHash: 'old-hash',
+      passwordHash: 'pw-hash',
+    } as never);
+
+    await expect(authService.setPin({ userId: 'user-1', pin: '4821' })).rejects.toBeInstanceOf(ValidationError);
+    expect(authRepository.updatePinHash).not.toHaveBeenCalled();
+  });
+
+  it('change (PIN exists): rejects a wrong current password', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({
+      id: 'user-1',
+      pinHash: 'old-hash',
+      passwordHash: 'pw-hash',
+    } as never);
+    vi.mocked(comparePassword).mockResolvedValue(false);
+
+    await expect(
+      authService.setPin({ userId: 'user-1', pin: '4821', currentPassword: 'wrong' }),
+    ).rejects.toThrow('Current password is incorrect');
+    expect(authRepository.updatePinHash).not.toHaveBeenCalled();
+  });
+
+  it('change (PIN exists): accepts the correct current password', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({
+      id: 'user-1',
+      pinHash: 'old-hash',
+      passwordHash: 'pw-hash',
+    } as never);
+    vi.mocked(comparePassword).mockResolvedValue(true);
+
+    await authService.setPin({ userId: 'user-1', pin: '4821', currentPassword: 'right-password' });
+
+    expect(authRepository.updatePinHash).toHaveBeenCalledWith('user-1', 'hashed-pin');
+  });
+
+  it('rejects an unknown user', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(null);
+
+    await expect(authService.setPin({ userId: 'ghost', pin: '4821' })).rejects.toBeInstanceOf(UnauthorizedError);
+  });
+});
+
+describe('authService.getPinStatus', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns only a boolean, never the hash', async () => {
+    vi.mocked(authRepository.hasPin).mockResolvedValue(true);
+    await expect(authService.getPinStatus('user-1')).resolves.toEqual({ hasPin: true });
+
+    vi.mocked(authRepository.hasPin).mockResolvedValue(false);
+    await expect(authService.getPinStatus('user-1')).resolves.toEqual({ hasPin: false });
+  });
+
+  it('rejects an unknown user', async () => {
+    vi.mocked(authRepository.hasPin).mockResolvedValue(null);
+    await expect(authService.getPinStatus('ghost')).rejects.toBeInstanceOf(UnauthorizedError);
   });
 });

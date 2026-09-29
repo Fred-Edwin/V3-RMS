@@ -1404,6 +1404,30 @@ Reactivates a previously deactivated staff account.
 
 ---
 
+### Store Manager team management & signing PIN (Pre-Demo Fixes)
+
+A `STORE_MANAGER` may call the staff routes below, **scoped in the service to `STORE_ATTENDANT` accounts on their own (hub) organization** — never branch staff or other store managers. Out-of-scope targets return `404`.
+
+| Route | Access | Notes |
+|---|---|---|
+| `GET /staff` | MGR, DIR, HR, SA, STORE_MANAGER … | For `STORE_MANAGER`: hub-org attendants only, active **and** inactive, each row includes `hasPin: boolean` (never the hash). |
+| `GET /staff/:id` | MGR, DIR, HR, SA, STORE_MANAGER | STORE_MANAGER: attendants only. |
+| `PATCH /staff/:id/reset-password` | MGR, SA, STORE_MANAGER | Body `{ "temporaryPassword": string (min 8) }`. Revokes the target's sessions. |
+| `PATCH /staff/:id/deactivate` · `/reactivate` | MGR, SA, STORE_MANAGER | Unchanged shape. |
+| `PATCH /staff/:id/reset-pin` | SA, STORE_MANAGER | No body. Clears the target's signing PIN (`pin_hash = NULL`); they set a new one at next signing. The caller never sees or chooses a PIN. |
+
+**Response `200` (`reset-pin`):** `{ "success": true, "message": "PIN cleared. The staff member will set a new one at their next signing." }`
+
+### GET `/users/me/pin-status`
+**Access:** 🔑 any authenticated role  
+**Response `200`:** `{ "success": true, "data": { "hasPin": true } }` — a boolean only; the hash is never returned. The Sign Sheet reads this to decide whether to show the "Set your PIN" step.
+
+### POST `/users/me/pin`
+**Access:** 🔑 any authenticated role (always acts on the caller)  
+**Request Body:** `{ "pin": "4821", "currentPassword": "…" }` — `pin` is exactly 4 digits. `currentPassword` is **required only when a PIN is already set** (changing); a first-time set needs no password. Wrong/missing password on a change → `400 VALIDATION_ERROR`.
+
+---
+
 ## 7. Shifts & Scheduling
 
 ### GET `/shifts`

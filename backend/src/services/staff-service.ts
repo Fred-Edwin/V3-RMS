@@ -39,6 +39,29 @@ const managerCreatableRoles: UserRole[] = [
 // hub-org enforcement in createStaff.
 const storeRoles: UserRole[] = ['STORE_MANAGER', 'STORE_ATTENDANT'];
 
+// A Store Manager manages only Store Attendants, and only on their own (hub)
+// org — never branch staff or other store managers. Every staff read/write
+// resolves its scope through this so no path can forget the restriction.
+const storeManagerManageableRoles: UserRole[] = ['STORE_ATTENDANT'];
+
+interface ActorScope {
+  organizationId?: string;
+  allowedRoles?: UserRole[];
+}
+
+const resolveScope = (actor: Actor): ActorScope => {
+  if (actor.role === 'STORE_MANAGER') {
+    if (!actor.organizationId) {
+      throw new ForbiddenError('Store Manager organization is required');
+    }
+    return { organizationId: actor.organizationId, allowedRoles: storeManagerManageableRoles };
+  }
+  if (actor.role === 'MANAGER') {
+    return { organizationId: actor.organizationId ?? undefined, allowedRoles: branchStaffRoles };
+  }
+  return {};
+};
+
 interface StaffFiltersInput {
   organizationId?: string;
   role?: UserRole;
@@ -48,6 +71,18 @@ interface StaffFiltersInput {
 
 export const staffService = {
   listStaff: async (actor: Actor, filters: StaffFiltersInput = {}) => {
+    if (actor.role === 'STORE_MANAGER') {
+      // Team view: this Store Manager's attendants (active and inactive) with
+      // PIN status. Other filters are ignored — the scope is fixed.
+      const scope = resolveScope(actor);
+      const team = await staffRepository.findTeamWithPinStatus(
+        scope.organizationId as string,
+        scope.allowedRoles as UserRole[],
+        filters.isActive,
+      );
+      return team.map((item) => ({ ...item, organizationName: item.organization?.name ?? null }));
+    }
+
     const shouldUseActorOrganization =
       actor.role === 'MANAGER' || branchStaffRoles.includes(actor.role);
     const organizationId = shouldUseActorOrganization
@@ -92,11 +127,8 @@ export const staffService = {
   },
 
   getStaff: async (id: string, actor: Actor) => {
-    const staff = await staffRepository.findById(
-      id,
-      actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined,
-      actor.role === 'MANAGER' ? branchStaffRoles : undefined,
-    );
+    const scope = resolveScope(actor);
+    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
@@ -235,19 +267,32 @@ export const staffService = {
   },
 
   resetPassword: async (id: string, temporaryPassword: string, actor: Actor) => {
-    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
-    const staff = await staffRepository.findById(
-      id,
-      orgScope,
-      actor.role === 'MANAGER' ? branchStaffRoles : undefined,
-    );
+    const scope = resolveScope(actor);
+    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
 
     const passwordHash = await hashPassword(temporaryPassword);
-    await staffRepository.updatePassword(id, passwordHash, orgScope);
+    await staffRepository.updatePassword(id, passwordHash, scope.organizationId, scope.allowedRoles);
     await authRepository.deleteAllRefreshTokensByUserId(id);
+  },
+
+  // Clears the target's signing PIN; they set a new one at next signing. The
+  // caller never sees or chooses a PIN. Hub-org Store Attendants only for a
+  // Store Manager; System Admin is unscoped.
+  resetPin: async (id: string, actor: Actor) => {
+    const scope = resolveScope(actor);
+    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
+    if (!staff) {
+      throw new NotFoundError('Staff account not found');
+    }
+
+    const organizationId = scope.organizationId ?? staff.organizationId;
+    if (!organizationId) {
+      throw new ValidationError('Staff account has no organization to reset a PIN in');
+    }
+    await staffRepository.clearPin(id, organizationId, scope.allowedRoles ?? [staff.role]);
   },
 
   hardDeleteStaff: async (id: string, actor: Actor) => {
@@ -277,10 +322,12 @@ export const staffService = {
   },
 
   deactivateStaff: async (id: string, actor: Actor) => {
+    const scope = resolveScope(actor);
     const result = await staffRepository.setActive(
       id,
       false,
-      actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined,
+      scope.organizationId,
+      scope.allowedRoles,
     );
     if (result.count === 0) {
       throw new NotFoundError('Staff account not found');
@@ -290,10 +337,12 @@ export const staffService = {
   },
 
   reactivateStaff: async (id: string, actor: Actor) => {
+    const scope = resolveScope(actor);
     const result = await staffRepository.setActive(
       id,
       true,
-      actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined,
+      scope.organizationId,
+      scope.allowedRoles,
     );
     if (result.count === 0) {
       throw new NotFoundError('Staff account not found');

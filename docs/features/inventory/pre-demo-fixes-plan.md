@@ -101,4 +101,13 @@ Report, in chat: (1) what shipped per fix with commit SHAs + PR link; (2) every 
 
 ## Outcome log
 
-_(build agent fills this in)_
+**2026-09-29 — Paper design pass approved by the owner** (page "Pre-Demo · Team & PIN", file `01M1ZZJ6S3FZGF5C7PPBGTKY89`).
+
+**Backend (Fix 1 + Fix 2) — built, `pnpm build` clean, tests 1079 → 1119 (+40).**
+- **Temporary-password question resolved:** `POST /staff` already takes `temporaryPassword` (min 8) and `createStaff` hashes it; `PATCH /staff/:id/reset-password` takes the same field. The Team UI follows that — no second mechanism.
+- **PIN-change security decision:** changing an *existing* PIN requires the caller's **current account password** (`POST /users/me/pin` `currentPassword`, checked with bcrypt compare, wrong/missing → 400). First-time set needs no password. Chosen over current-PIN because a user who forgot their PIN can still recover; the endpoint previously overwrote unconditionally, so a stolen session token could take over signing.
+- **`hasPin` exposure:** new `GET /users/me/pin-status` → `{ hasPin }` (fresher than caching a flag on the login payload — a Store Manager reset takes effect without re-login). Team rows carry `hasPin` via `staffRepository.findTeamWithPinStatus`, which maps `pinHash` to a boolean inside the repository so the hash never leaves it.
+- **Scoping:** one `resolveScope(actor)` helper in `staff-service.ts` drives list/get/reset-password/deactivate/reactivate/reset-pin; `STORE_MANAGER` → own org + `['STORE_ATTENDANT']`, enforced in repository `where` clauses (`organizationId` + `role in`). `setActive`/`updatePassword` gained an optional `allowedRoles`.
+- **Deviation (small):** the Store Manager's own row in the Team table is *not* returned by `GET /staff` (plan says attendants only). The frontend builds that row from the auth user + `pin-status`.
+- **Deviation (small):** `reset-pin` is `SYSTEM_ADMIN` + `STORE_MANAGER` only (branch Managers not added — no demo need).
+
