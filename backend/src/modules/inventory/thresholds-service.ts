@@ -3,7 +3,12 @@ import { thresholdsRepository, type ThresholdsRow } from './thresholds-repositor
 import { COUNTING_THRESHOLD_DEFAULTS } from './counting-thresholds';
 import { requireHubOrgId } from './stock-scope';
 import { ForbiddenError, ValidationError } from '../../utils/errors';
-import type { Thresholds, UpdateDirectorThresholdInput, UpdateStoreThresholdsInput } from './thresholds.types';
+import type {
+  Thresholds,
+  UpdateBranchThresholdsInput,
+  UpdateDirectorThresholdInput,
+  UpdateStoreThresholdsInput,
+} from './thresholds.types';
 
 type Actor = NonNullable<Request['user']>;
 
@@ -15,6 +20,17 @@ export const getHubThresholdsInForce = async (
   return {
     reasonRequiredKes: row?.reasonRequiredKes ?? COUNTING_THRESHOLD_DEFAULTS.hubReasonRequiredKes,
     directorAlertKes: row?.directorAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.directorAlertKes,
+  };
+};
+
+/** What a branch's day close is judged against — its own row, or the branch defaults. */
+export const getBranchThresholdsInForce = async (
+  branchOrgId: string,
+): Promise<{ reasonRequiredKes: number; overnightAlertKes: number }> => {
+  const row = await thresholdsRepository.findByOrganization(branchOrgId);
+  return {
+    reasonRequiredKes: row?.reasonRequiredKes ?? COUNTING_THRESHOLD_DEFAULTS.branchReasonRequiredKes,
+    overnightAlertKes: row?.overnightAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.branchOvernightAlertKes,
   };
 };
 
@@ -84,6 +100,25 @@ export const thresholdsService = {
       ...serialize(row, { reasonRequiredKes: 0, overnightAlertKes: null }, row.directorAlertKes ?? current.directorAlertKes),
       directorUpdatedBy: row.directorUpdatedBy,
       directorUpdatedAt: row.directorUpdatedAt?.toISOString() ?? null,
+    };
+  },
+
+  /** Branch Manager: their own branch's thresholds. The row is always the actor's own organization — never a client-supplied id. */
+  updateBranch: async (actor: Actor, input: UpdateBranchThresholdsInput): Promise<Thresholds> => {
+    if (actor.role !== 'MANAGER' || actor.isDepartmentHead || !actor.organizationId) {
+      throw new ForbiddenError('Only the Branch Manager sets the branch thresholds');
+    }
+    const hubOrgId = await requireHubOrgId();
+    const row = await thresholdsRepository.upsertBranch(actor.organizationId, {
+      reasonRequiredKes: input.reasonRequiredKes,
+      overnightAlertKes: input.overnightAlertKes,
+      updatedById: actor.id,
+    });
+    const hubRow = await thresholdsRepository.findByOrganization(hubOrgId);
+    return {
+      ...serialize(row, { reasonRequiredKes: 0, overnightAlertKes: null }, hubRow?.directorAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.directorAlertKes),
+      directorUpdatedBy: hubRow?.directorUpdatedBy ?? null,
+      directorUpdatedAt: hubRow?.directorUpdatedAt?.toISOString() ?? null,
     };
   },
 

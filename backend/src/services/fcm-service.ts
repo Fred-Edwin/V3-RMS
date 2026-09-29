@@ -986,4 +986,42 @@ export const fcmService = {
       logger.warn({ error, payload }, 'Failed to send count director alert FCM push');
     }
   },
+
+  /** Branch day close — a signed line at or above the company-wide alert amount (plan §3). */
+  sendBranchDayDirectorAlertPush: async (payload: {
+    dayId: string;
+    reference: string;
+    branchName: string;
+    alertLineCount: number;
+    largestValueKes: string;
+  }): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findDirectorFcmTokens();
+      if (tokens.length === 0) return;
+
+      await Promise.allSettled(
+        tokens.map((token) =>
+          firebaseMessaging!.send({
+            token,
+            webpush: {
+              headers: { Urgency: 'high' },
+              notification: {
+                title: 'Large branch stock gap',
+                body: `${payload.branchName} · ${payload.reference} · ${payload.alertLineCount} line(s) at or above the alert amount · largest KES ${payload.largestValueKes}`,
+                icon: '/android-chrome-192x192.png',
+                badge: '/android-chrome-192x192.png',
+                tag: `branch-day-director-alert-${payload.dayId}`,
+              },
+              fcmOptions: { link: '/app/director' },
+            },
+            data: { type: 'branch_day_director_alert', dayId: payload.dayId },
+          }),
+        ),
+      );
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send branch day director alert FCM push');
+    }
+  },
+
 };

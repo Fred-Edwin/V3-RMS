@@ -24,10 +24,10 @@ router.get('/inventory/counts/:id/print', requireRole('STORE_MANAGER'), countCon
 router.post('/inventory/spot-counts', requireRole('STORE_MANAGER'), countController.createSpotCount);
 
 // ── Counting thresholds (plan §1.9) ─────────────────────────────────────────
-// SM writes the Central Store reason threshold; the Branch Manager's write
-// arrives in Session 3. The Director amount is API-only this milestone.
+// SM writes the Central Store reason threshold; the Branch Manager writes their
+// own branch's (Session 3). The Director amount is API-only this milestone.
 router.get('/inventory/thresholds', requireRole('STORE_MANAGER', 'MANAGER'), thresholdsController.get);
-router.put('/inventory/thresholds', requireRole('STORE_MANAGER'), thresholdsController.update);
+router.put('/inventory/thresholds', requireRole('STORE_MANAGER', 'MANAGER'), thresholdsController.update);
 router.put('/inventory/thresholds/director', requireRole('DIRECTOR'), thresholdsController.updateDirector);
 
 export default router;
