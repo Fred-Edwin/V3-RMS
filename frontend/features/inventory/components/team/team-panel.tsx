@@ -2,11 +2,14 @@
 
 import * as React from 'react';
 
+import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { ConfirmDialog } from '@/components/ui2/confirm-dialog';
 import { Input } from '@/components/ui2/input';
 import { StatusDot } from '@/components/ui2/status-dot';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui2/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui2/table';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useWdsToast } from '@/hooks/useWdsToast';
 import { usePinStatus } from '@/hooks/usePinStatus';
 import { useAuthStore } from '@/store/authStore';
@@ -39,6 +42,8 @@ const ROW_ACTION =
 
 export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
   const { toast } = useWdsToast();
+  const { matches: isDesktop } = useMediaQuery('(min-width: 1024px)');
+  const [actionsFor, setActionsFor] = React.useState<TeamMember | null>(null);
   const { members, status, error, reload } = useTeam();
   const [addOpen, setAddOpen] = React.useState(false);
   const [pending, setPending] = React.useState<PendingAction | null>(null);
@@ -57,6 +62,7 @@ export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
   const open = (action: PendingAction) => {
     setPassword('');
     setPasswordError(null);
+    setActionsFor(null);
     setPending(action);
   };
 
@@ -111,6 +117,8 @@ export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
           description={error ?? 'Check your connection and try again.'}
           onRetry={() => void reload()}
         />
+      ) : !isDesktop ? (
+        <MobileTeamList members={members} loading={status === 'loading'} busy={busy} onOpenMyPin={onOpenMyPin} onActions={setActionsFor} onAction={open} />
       ) : (
         <Table>
           <TableHeader>
@@ -158,12 +166,48 @@ export function TeamPanel({ onOpenMyPin }: { onOpenMyPin: () => void }) {
       <AddAttendantDrawer
         open={addOpen}
         onOpenChange={setAddOpen}
+        mobile={!isDesktop}
         onAdded={(member) => {
           setAddOpen(false);
           toast({ variant: 'success', title: `${member.name} added` });
           void reload({ silent: true });
         }}
       />
+
+      <Sheet open={actionsFor !== null} onOpenChange={(next) => (next ? undefined : setActionsFor(null))}>
+        <SheetContent side="bottom" className="rounded-t-wds-md pb-5">
+          <SheetHeader className="px-4">
+            <SheetTitle>{actionsFor?.name}</SheetTitle>
+            <SheetDescription>Store Attendant · {actionsFor?.email}</SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-col">
+            {actionsFor
+              ? (
+                  [
+                    { kind: 'password', label: 'Reset password', hint: 'Set a new temporary password; they are signed out everywhere', danger: false },
+                    { kind: 'pin', label: 'Reset PIN', hint: 'They set a new one the next time they sign', danger: false },
+                    { kind: 'deactivate', label: 'Deactivate', hint: "They can't log in; their signed records stay", danger: true },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.kind}
+                    type="button"
+                    onClick={() => open({ kind: item.kind, member: actionsFor })}
+                    className="flex min-h-11 touch-manipulation flex-col items-start gap-px border-b border-wds-neutral-100 px-4 py-3 text-left outline-none transition-colors last:border-b-0 focus-visible:shadow-wds-ring active:bg-wds-neutral-100"
+                  >
+                    <span className={`font-wds-sans text-wds-body ${item.danger ? 'font-medium text-wds-error-fg' : 'text-wds-text-ink'}`}>{item.label}</span>
+                    <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">{item.hint}</span>
+                  </button>
+                ))
+              : null}
+          </div>
+          <div className="px-4 pt-2">
+            <Button variant="secondary" className="h-11 w-full" onClick={() => setActionsFor(null)}>
+              Cancel
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={pending?.kind === 'password'}
@@ -325,5 +369,119 @@ function MemberRow({ member, busy, onAction }: { member: TeamMember; busy: boole
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function MobileTeamList({
+  members,
+  loading,
+  busy,
+  onOpenMyPin,
+  onActions,
+  onAction,
+}: {
+  members: TeamMember[];
+  loading: boolean;
+  busy: boolean;
+  onOpenMyPin: () => void;
+  onActions: (member: TeamMember) => void;
+  onAction: (a: PendingAction) => void;
+}) {
+  const user = useAuthStore((s) => s.user);
+  const pinStatus = usePinStatus(true);
+  return (
+    <ul className="flex flex-col border-t border-wds-text-ink" aria-label="Central Store team">
+      {user ? (
+        <MobileRow
+          name={user.name}
+          email={user.email}
+          you
+          role="Store Manager"
+          pin={pinStatus.hasPin === null ? null : pinStatus.hasPin ? 'set' : 'unset'}
+          active
+          action={
+            <button type="button" onClick={onOpenMyPin} className={cn(MOBILE_ACTION, 'text-wds-text-faint')}>
+              See My PIN
+            </button>
+          }
+        />
+      ) : null}
+      {loading ? (
+        <li className="py-4">
+          <SkeletonRows count={3} label="Loading your team">
+            {(i) => <TableRowSkeleton key={i} widths={[110, 70]} nameWidth={160} />}
+          </SkeletonRows>
+        </li>
+      ) : (
+        members.map((member) => (
+          <MobileRow
+            key={member.id}
+            name={member.name}
+            email={member.email}
+            role="Store Attendant"
+            pin={member.isActive ? (member.hasPin ? 'set' : 'unset') : null}
+            active={member.isActive}
+            action={
+              member.isActive ? (
+                <button type="button" disabled={busy} onClick={() => onActions(member)} className={cn(MOBILE_ACTION, 'text-wds-primary')}>
+                  Actions
+                  <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden>
+                    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : (
+                <button type="button" disabled={busy} onClick={() => onAction({ kind: 'reactivate', member })} className={cn(MOBILE_ACTION, 'text-wds-primary')}>
+                  Reactivate
+                </button>
+              )
+            }
+          />
+        ))
+      )}
+    </ul>
+  );
+}
+
+const MOBILE_ACTION =
+  'inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-end gap-1 font-wds-sans text-wds-body-sm font-medium outline-none focus-visible:rounded-wds-sm focus-visible:shadow-wds-ring disabled:pointer-events-none disabled:opacity-50';
+
+function MobileRow({
+  name,
+  email,
+  you,
+  role,
+  pin,
+  active,
+  action,
+}: {
+  name: string;
+  email: string;
+  you?: boolean;
+  role: string;
+  pin: 'set' | 'unset' | null;
+  active: boolean;
+  action: React.ReactNode;
+}) {
+  const muted = !active;
+  return (
+    <li className="flex flex-col gap-1 border-b border-wds-border py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-px pt-1.5">
+          <span className={cn('font-wds-sans text-wds-body', muted ? 'text-wds-text-faint' : 'text-wds-text-ink')}>
+            {name}
+            {you ? ' · you' : ''}
+          </span>
+          <span className={cn('break-all font-wds-sans text-wds-caption', muted ? 'text-wds-text-faint' : 'text-wds-text-copy-muted')}>{email}</span>
+        </div>
+        <div className="flex shrink-0 justify-end">{action}</div>
+      </div>
+      <div className={cn('flex flex-wrap items-center gap-x-3.5 gap-y-1 font-wds-sans text-wds-caption', muted ? 'text-wds-text-faint' : 'text-wds-neutral-700')}>
+        <span>{role}</span>
+        {pin ? <StatusDot tone={pin === 'set' ? 'success' : 'warning'} className="text-wds-caption text-wds-neutral-700">{pin === 'set' ? 'PIN set' : 'PIN not set'}</StatusDot> : null}
+        <StatusDot tone={active ? 'success' : 'neutral'} className={cn('text-wds-caption', muted ? 'text-wds-text-faint' : 'text-wds-neutral-700')}>
+          {active ? 'Active' : 'Inactive'}
+        </StatusDot>
+      </div>
+    </li>
   );
 }
