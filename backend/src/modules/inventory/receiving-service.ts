@@ -28,6 +28,7 @@ import { fcmService } from '../../services/fcm-service';
 import { comparePin } from '../../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
+import { costPerUsageUnit } from './receiving-cost';
 import type {
   AgingBuckets,
   ApSummary,
@@ -988,7 +989,7 @@ export const receivingService = {
             inventoryItemId: line.inventoryItemId,
             type: 'RECEIVE',
             quantity: line.quantityUsageUnit,
-            unitCost: line.unitPrice,
+            unitCost: costPerUsageUnit(line.unitPrice, line.quantityBuyUnit, line.quantityUsageUnit),
             goodsReceiptLineId: line.id,
             userId: actor.id,
           },
@@ -996,10 +997,11 @@ export const receivingService = {
         // Latest-price costing (01-description.md §4): the new price wins
         // outright, no averaging. The prior value survives only in this
         // line's own priceAlertPrevPrice snapshot, taken at create/update
-        // time — never recomputed from here.
+        // time — never recomputed from here. Stored PER USAGE UNIT (the
+        // receipt line's price is per buy unit) — see receiving-cost.ts.
         await tx.inventoryItem.update({
           where: { id: line.inventoryItemId },
-          data: { currentCost: line.unitPrice },
+          data: { currentCost: costPerUsageUnit(line.unitPrice, line.quantityBuyUnit, line.quantityUsageUnit) },
         });
       }
 

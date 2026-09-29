@@ -14,6 +14,7 @@ import { SignSheetDialog } from '../sign-sheet';
 import { useGoodsReceiptForm } from '../../hooks/use-goods-receipt-form';
 import { useWdsToast } from '@/hooks/useWdsToast';
 import { useAuthStore } from '@/store/authStore';
+import { buyUnitPriceFromCost } from '../../lib/buy-unit-price';
 import { listItems, listSuppliers } from '../../services';
 import { getExpectedDelivery, getLastPrice } from '../../services/receiving-api-service';
 import type { CreateGoodsReceiptInput, GoodsReceiptDetail } from '../../types/receiving';
@@ -166,6 +167,8 @@ export function NewGoodsReceiptScreen() {
 
   const handleAddItem = async (item: InventoryItem) => {
     const last = await getLastPrice(item.id);
+    // currentCost is per usage unit; the receipt price is per buy unit.
+    const costPerBuyUnit = buyUnitPriceFromCost(item.currentCost, item.conversionFactor);
     setLines((prev) => [
       ...prev,
       {
@@ -175,8 +178,8 @@ export function NewGoodsReceiptScreen() {
         buyUnit: item.buyUnit,
         unitConversionLabel: `buy: ${item.buyUnit} → usage: ${item.usageUnit}`,
         qty: '1',
-        unitPrice: last?.unitPrice ?? item.currentCost,
-        lastPrice: last?.unitPrice ?? item.currentCost,
+        unitPrice: last?.unitPrice ?? costPerBuyUnit,
+        lastPrice: last?.unitPrice ?? costPerBuyUnit,
         expectedQty: null,
       },
     ]);

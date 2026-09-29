@@ -108,7 +108,7 @@ export function NewPurchaseScreen() {
             inventoryItemId: id,
             itemName: row.itemName,
             buyUnit: row.buyUnit,
-            unitPrice: row.currentCost,
+            unitPrice: row.buyUnitPrice,
             quantity,
           };
         })

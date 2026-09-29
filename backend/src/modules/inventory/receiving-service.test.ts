@@ -808,11 +808,20 @@ describe('receivingService.signGoodsReceipt', () => {
     expect(goodsReceiptRepository.markPriceAlertsAccepted).not.toHaveBeenCalled();
   });
 
-  it('latest-price costing sets InventoryItem.currentCost to the signed price, no averaging', async () => {
+  it('latest-price costing sets InventoryItem.currentCost to the signed price PER USAGE UNIT, no averaging', async () => {
     vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
     vi.mocked(comparePin).mockResolvedValue(true);
+    // 4 bags x 25 kg = 100 kg at KES 12,000 per bag -> KES 480 per kg.
     vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
-      buildGoodsReceipt({ lines: [buildGoodsReceiptLine({ unitPrice: new Prisma.Decimal('2200') })] }) as never,
+      buildGoodsReceipt({
+        lines: [
+          buildGoodsReceiptLine({
+            unitPrice: new Prisma.Decimal('12000'),
+            quantityBuyUnit: new Prisma.Decimal('4'),
+            quantityUsageUnit: new Prisma.Decimal('100'),
+          }),
+        ],
+      }) as never,
     );
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
     vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
@@ -825,7 +834,34 @@ describe('receivingService.signGoodsReceipt', () => {
       data: { currentCost: expect.objectContaining({ toString: expect.any(Function) }) },
     });
     const call = txInventoryItemUpdate.mock.calls[0]![0];
-    expect(call.data.currentCost.toString()).toBe('2200');
+    expect(call.data.currentCost.toString()).toBe('480');
+    const ledger = txInventoryTransactionCreate.mock.calls[0]![0].data;
+    expect(ledger.quantity.toString()).toBe('100');
+    expect(ledger.unitCost.toString()).toBe('480');
+  });
+
+  it('an item with no conversion (buy qty == usage qty) keeps the entered price as its cost', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({
+        lines: [
+          buildGoodsReceiptLine({
+            unitPrice: new Prisma.Decimal('85'),
+            quantityBuyUnit: new Prisma.Decimal('6'),
+            quantityUsageUnit: new Prisma.Decimal('6'),
+          }),
+        ],
+      }) as never,
+    );
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(txInventoryItemUpdate.mock.calls[0]![0].data.currentCost.toString()).toBe('85');
+    expect(txInventoryTransactionCreate.mock.calls[0]![0].data.unitCost.toString()).toBe('85');
   });
 
   it('the price-alert snapshot on a signed line is never recomputed on read (survives a later price change)', async () => {

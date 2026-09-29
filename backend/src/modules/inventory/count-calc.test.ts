@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { isReasonRequired, lineVariance, shortName } from './count-calc';
+import { isDirectorAlert, lineVarianceValue, isReasonRequired, lineVariance, shortName } from './count-calc';
 
 const D = (v: number) => new Prisma.Decimal(v);
 
@@ -17,6 +17,12 @@ describe('count calc', () => {
     expect(isReasonRequired(D(3), D(200), 500)).toBe(true); // overage counts too (600)
     expect(isReasonRequired(D(0), D(200), 0)).toBe(false);
     expect(isReasonRequired(D(-1), D(1), 0)).toBe(true);
+  });
+
+  it('a 1 kg gap at the per-usage-unit cost (KES 480/kg) is valued at 480 and does not alert the Director', () => {
+    // Receiving used to store the per-bag price (12,000) here, valuing the same gap at 12,000.
+    expect(lineVarianceValue(D(-1), D(480))!.toString()).toBe('-480');
+    expect(isDirectorAlert(D(-1), D(480), 5000)).toBe(false);
   });
 
   it('shortName', () => {

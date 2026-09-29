@@ -3694,6 +3694,12 @@ until S4); the `goodsReceipt` variant is declared now so S4 only adds to it.
    `InventoryItem.currentCost` has already moved on to a later price (plan
    §1.2). Don't "simplify" this into a join against `InventoryItem` later;
    it will silently change what a signed, printed document says.
+   **Cost units:** on signing, `InventoryItem.currentCost` and the RECEIVE
+   ledger row's `unitCost` are written **per usage unit**
+   (`unitPrice ÷ conversionFactor`); the receipt line's `unitPrice`, its
+   `lineTotal` and the price-alert comparison stay **per buy unit**. Every
+   `currentCost` / `unitCost` field elsewhere in this contract is per usage
+   unit.
 3. **Receipt↔invoice is many-to-many.** One invoice may bundle several
    receipts (`SupplierInvoiceReceipt`); `CreateSupplierInvoiceInput.
    goodsReceiptIds` takes an array, not a single id.

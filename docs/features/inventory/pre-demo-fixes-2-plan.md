@@ -199,3 +199,14 @@ Owner decision on costing (PR B): recommendation stated in the first message (pe
   - `DesktopOnlyNotice` takes a `hint` prop; Settings says to open it on a laptop.
 - **Tests:** frontend 91 passed (was 88; +3 new). Backend 1119 passed (unchanged, no backend change). Both `pnpm build` clean.
 
+
+### PR B — unit costing (branch `fix/pre-demo-2b-unit-costing`, stacked on PR A's branch)
+
+- **Decision:** per usage unit, as recommended (owner had not objected when the build started).
+- New `backend/src/modules/inventory/receiving-cost.ts` (`costPerUsageUnit`, `Prisma.Decimal`, 4dp). `signGoodsReceipt` writes both `InventoryItem.currentCost` and the RECEIVE ledger `unitCost` through it. The factor comes from the line's own saved quantities (`quantityUsageUnit ÷ quantityBuyUnit`), i.e. the factor that produced the ledger quantity, rather than a second item lookup — conversion null → equal quantities → factor 1.
+- **Price alerts unchanged:** the alert compares against the previous signed receipt line's buy-unit `unitPrice` (`lastPriceRepository`), not `currentCost`, so no conversion was needed there. Receipt `lineTotal` and supplier AP are untouched (buy quantity × buy price).
+- **Frontend pre-fills:** `currentCost` is per usage unit, so New Goods Receipt (add-item) and New Purchase now pre-fill `buyUnitPriceFromCost(currentCost, conversionFactor)` (`features/inventory/lib/buy-unit-price.ts`). The expected-delivery prefill on the receipt uses the delivery's own `estimatedUnitPrice` (already per buy unit) and is unchanged. Stock ledger/table already label cost per usage unit; prep, waste, dispatch, counts and stock value were already usage-unit consumers and needed no change.
+- Docs: `DATA_MODEL.md` (currentCost, estimatedUnitPrice, goods-receipt `unitPrice`) and `API_CONTRACT.md` (Goods Receipt behaviour note) now state "per usage unit".
+- **No migration** (empty production). The scratch dry-run DB still holds the old GRN-0001 (ledger `100 kg @ 12,000`); it was not converted.
+- Tests: new `receiving-cost.test.ts` (4); receiving-service sign tests now assert 12,000/bag × 4 bags of 25 kg → currentCost and ledger `unitCost` 480, and the no-conversion case; `count-calc.test.ts` asserts a 1 kg gap at 480 is valued −480 and does not trigger the Director alert. Backend 1119 → 1125 passed; frontend 91 → 95 passed.
+- **Verified against the scratch API/DB:** fresh receipt of 4 bags at 12,000 → line total 48,000, item cost 480, ledger `RECEIVE 100 kg @ 480`. **Not re-run in the browser:** the full prep → dispatch → count flow with a fresh receipt (the count variance value is covered by unit tests only).
