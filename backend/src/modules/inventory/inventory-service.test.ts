@@ -501,6 +501,53 @@ describe('inventoryService — department head scope rejection', () => {
   });
 });
 
+describe('inventoryService — Department Head restock scope (Milestone Six S1 fix)', () => {
+  it('reads items from the hub catalog but levels and on-hand from the branch department', async () => {
+    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+      id: departmentLocationId,
+      organizationId: branchOrgId,
+      type: 'BRANCH_DEPARTMENT',
+      departmentTag: 'KITCHEN',
+    } as never);
+    vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([
+      buildItem({ id: itemId, departmentTags: ['KITCHEN'] }) as never,
+    ]);
+    vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([]);
+    vi.mocked(restockLevelRepository.sumOnHandByItemForLocation).mockResolvedValue(
+      new Map([[itemId, new Prisma.Decimal('9')]]),
+    );
+
+    const rows = await inventoryService.listRestockLevels(departmentHead, {});
+
+    // Items are catalog rows on the hub (D-15) — the branch org has none.
+    expect(restockLevelRepository.findLiveItemsForRestock).toHaveBeenCalledWith(hubOrgId, { departmentTag: 'KITCHEN', search: undefined });
+    expect(restockLevelRepository.findAllByLocation).toHaveBeenCalledWith(branchOrgId, departmentLocationId);
+    expect(restockLevelRepository.sumOnHandByItemForLocation).toHaveBeenCalledWith(branchOrgId, departmentLocationId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.onHandQty).toBe('9');
+  });
+
+  it('validates a Department Head save against the hub catalog', async () => {
+    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+      id: departmentLocationId,
+      organizationId: branchOrgId,
+      type: 'BRANCH_DEPARTMENT',
+      departmentTag: 'KITCHEN',
+    } as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([
+      buildItem({ id: itemId, departmentTags: ['KITCHEN'] }) as never,
+    ]);
+    vi.mocked(restockLevelRepository.bulkUpsert).mockResolvedValue(undefined);
+    vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([]);
+    vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([]);
+    vi.mocked(restockLevelRepository.sumOnHandByItemForLocation).mockResolvedValue(new Map());
+
+    await inventoryService.saveRestockLevels(departmentHead, { levels: [{ inventoryItemId: itemId, level: '10' }] });
+
+    expect(inventoryItemRepository.findLiveByIds).toHaveBeenCalledWith([itemId], hubOrgId);
+  });
+});
+
 describe('inventoryService — onHandQty and isBelowLevel derivation', () => {
   it('derives isBelowLevel from live ledger sum vs the stored level', async () => {
     vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([buildItem() as never]);

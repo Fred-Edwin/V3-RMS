@@ -541,9 +541,11 @@ export const inventoryService = {
    * D-15 + per-department scoping (plan §5.2, §5.4 rules 5-6).
    */
   listRestockLevels: async (actor: Actor, query: ListRestockLevelsQuery): Promise<RestockLevelRow[]> => {
-    const { organizationId, locationId, departmentTag } = await resolveRestockScope(actor, query.locationId);
+    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query.locationId);
 
-    const items = await restockLevelRepository.findLiveItemsForRestock(organizationId, {
+    // Items are catalog rows on the hub (D-15); levels + on-hand live on the
+    // actor's own org and location (a DH's branch department).
+    const items = await restockLevelRepository.findLiveItemsForRestock(catalogOrganizationId, {
       departmentTag,
       search: query.search,
     });
@@ -570,10 +572,10 @@ export const inventoryService = {
   },
 
   saveRestockLevels: async (actor: Actor, input: SaveRestockLevelsInput): Promise<RestockLevelRow[]> => {
-    const { organizationId, locationId } = await resolveRestockScope(actor, input.locationId);
+    const { organizationId, catalogOrganizationId, locationId } = await resolveRestockScope(actor, input.locationId);
 
     const itemIds = input.levels.map((l) => l.inventoryItemId);
-    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, catalogOrganizationId);
     const liveItemIds = new Set(liveItems.map((i) => i.id));
     if (liveItemIds.size !== itemIds.length) {
       throw new NotFoundError('One or more items were not found');
@@ -606,11 +608,16 @@ export const inventoryService = {
  * Central Store explicitly and be on the hub org (D-15); a Department Head
  * may not pass a locationId at all — their own department is implicit and
  * any other location is rejected.
+ *
+ * `catalogOrganizationId` is where the items themselves live — always the
+ * hub (D-15). Milestone Six S1 fix: the Department Head path used to look
+ * items up on their branch org, which has none, so their restock screen
+ * was always empty and every save 404'd.
  */
 const resolveRestockScope = async (
   actor: Actor,
   requestedLocationId: string | undefined,
-): Promise<{ organizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
+): Promise<{ organizationId: string; catalogOrganizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
   if (actor.isDepartmentHead) {
     if (requestedLocationId) {
       throw new ForbiddenError('Department Heads set restock levels for their own department only');
@@ -629,7 +636,8 @@ const resolveRestockScope = async (
     if (!location) {
       throw new NotFoundError('No location found for your department');
     }
-    return { organizationId: actor.organizationId, locationId: location.id, departmentTag: actor.departmentTag };
+    const catalogOrganizationId = await requireHubOrgForCatalogRead(actor);
+    return { organizationId: actor.organizationId, catalogOrganizationId, locationId: location.id, departmentTag: actor.departmentTag };
   }
 
   // STORE_MANAGER
@@ -641,5 +649,5 @@ const resolveRestockScope = async (
   if (!centralStore || centralStore.id !== requestedLocationId || centralStore.organizationId !== organizationId) {
     throw new ValidationError('locationId must be the Central Store');
   }
-  return { organizationId, locationId: centralStore.id };
+  return { organizationId, catalogOrganizationId: organizationId, locationId: centralStore.id };
 };
