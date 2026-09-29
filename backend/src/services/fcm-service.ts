@@ -1024,4 +1024,34 @@ export const fcmService = {
     }
   },
 
+  /** Next-morning opening — an overnight variance at or above the branch's alert amount (plan §3). */
+  sendOvernightVarianceAlertPush: async (
+    organizationId: string,
+    payload: { dayId: string; departmentName: string; alertLineCount: number; largestValueKes: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY) return;
+      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      if (tokens.length === 0) return;
+
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'high' },
+          notification: {
+            title: 'Overnight stock variance',
+            body: `${payload.departmentName} · ${payload.alertLineCount} line(s) differ from last night's close · largest KES ${payload.largestValueKes}`,
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: `overnight-variance-${payload.dayId}-${payload.departmentName}`,
+          },
+          fcmOptions: { link: '/app/branch/day' },
+        },
+        data: { type: 'overnight_variance_alert', dayId: payload.dayId },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send overnight variance FCM push');
+    }
+  },
+
 };

@@ -39,6 +39,7 @@ vi.mock('./branch-day-repository', () => ({
     writeAdjustment: vi.fn(),
     closeDay: vi.fn(),
     reopenDay: vi.fn(),
+    openingsForDate: vi.fn(),
   },
 }));
 vi.mock('../inventory/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
@@ -140,6 +141,7 @@ beforeEach(() => {
   vi.mocked(branchDayRepository.onHandExcludingDay).mockResolvedValue(new Map([[uid(1), D(18)], [uid(2), D(14)]]));
   vi.mocked(branchDayRepository.latestInboundCosts).mockResolvedValue(new Map());
   vi.mocked(branchDayRepository.activeAdjustments).mockResolvedValue([]);
+  vi.mocked(branchDayRepository.openingsForDate).mockResolvedValue([]); // no accepted opening the next morning
   tx.branchDayLine.count.mockResolvedValue(0);
   let ref = 3400;
   vi.mocked(referenceCounterRepository.nextReference).mockImplementation(async (_tx, _org, prefix) => `${prefix}-${++ref}`);

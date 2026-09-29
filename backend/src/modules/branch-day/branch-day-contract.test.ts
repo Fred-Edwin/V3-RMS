@@ -39,6 +39,7 @@ vi.mock('./branch-day-repository', () => ({
     upsertLines: vi.fn(),
     setDepartmentStatus: vi.fn(),
     activeAdjustments: vi.fn(),
+    openingsForDate: vi.fn(),
     writeAdjustment: vi.fn(),
     closeDay: vi.fn(),
   },
@@ -113,6 +114,7 @@ beforeEach(() => {
   vi.mocked(branchDayRepository.onHandExcludingDay).mockResolvedValue(new Map([[itemId, D(14)]]));
   vi.mocked(branchDayRepository.latestInboundCosts).mockResolvedValue(new Map());
   vi.mocked(branchDayRepository.activeAdjustments).mockResolvedValue([]);
+  vi.mocked(branchDayRepository.openingsForDate).mockResolvedValue([]);
   tx.branchDayLine.count.mockResolvedValue(1);
   vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('ADJ-0001');
 });
