@@ -87,4 +87,4 @@ Method: Paper `get_computed_styles` / `get_jsx` per artboard against `getBoundin
 
 ## Outcome log
 
-_(appended as built)_
+Built 2026-09-29: backend `ed63ac2`, frontend + docs `cf9d11e`, parity pass `15924e0`. Headlines, additions beyond this plan (`GET /branch-day/:id/overview`, past-day end-of-day cutoff, "Reopened · open" label, PIN dialog fix) and the ledger checks are in `milestone-6-plan.md` §8 → Session 4. Owner walkthrough: `demo/session-4-walkthrough.html`. **Still to do:** the cross-role integration pass (plan §6), owner review, push and PR.

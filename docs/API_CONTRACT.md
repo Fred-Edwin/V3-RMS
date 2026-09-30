@@ -4269,7 +4269,9 @@ attendant-facing response has an on-hand / expected / variance key.
   Barista"; "Central Store"; the waste reason; "Prep · {output}";
   "Transit discrepancy · DSC-####"; a count adjustment reads "Daily count ·
   verified by J. Mwangi" / "Spot count · …", derived from
-  `stockCountLineId`). `reference` = the row's own `reference` (`ADJ-####`)
+  `stockCountLineId`; a branch close reads "End-of-day count", a next-morning
+  opening "Overnight variance", each with "· reversed" on its linked reversal
+  row — derived from `branchDayLineId` / `openingLineId`). `reference` = the row's own `reference` (`ADJ-####`)
   else the GRN / DSC number.
 - **`POST /inventory/waste`** — body (strict) `{inventoryItemId, quantity >
   0, reason: SPOILAGE|EXPIRY|DAMAGE_IN_STORE|PREP_ERROR, note? (≤500)}`. No

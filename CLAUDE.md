@@ -162,8 +162,13 @@ Three (Prep) shipped 2026-09-21** — S0 (backend+frontend build) and S1
 codebase's first negative-signed ledger writer (`PREP_CONSUME`). Verified
 in a real browser and checked screen-by-screen against the approved Paper
 designs; see `milestone-3-plan.md` §5 for the full outcome log including
-bugs found and fixed. Next: pick the next milestone (see
-`docs/features/inventory/MILESTONES.md`).
+bugs found and fixed. **Milestones Four and Five shipped** (Requisition &
+Branch Approval; Dispatch & Branch Receiving). **Milestone Six (Counting,
+Closing & Discrepancies): Sessions 1–3 merged; Session 4 (day close history,
+next-morning opening) built on `feat/m6-s4-history-opening`** — remaining: the
+cross-role integration pass, owner review, PR. See
+`docs/features/inventory/milestone-6-plan.md` §8 and
+`docs/features/inventory/MILESTONES.md`.
 
 Done so far:
 - Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,
