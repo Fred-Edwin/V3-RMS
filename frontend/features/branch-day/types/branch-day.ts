@@ -131,3 +131,79 @@ export interface BranchThresholds {
   directorUpdatedBy: UserRef | null;
   directorUpdatedAt: string | null;
 }
+
+/* ---------------------------------------------------------------------------
+ * Session 4 — history, detail, next-morning opening (`API_CONTRACT.md` §26.4)
+ * ------------------------------------------------------------------------- */
+
+export interface HistoryRow {
+  id: string;
+  reference: string;
+  date: string;
+  status: BranchDayStatus;
+  reopenCount: number;
+  closedAt: string | null;
+  closedBy: UserRef | null;
+  departmentsClosed: number;
+  departmentsTotal: number;
+  gapLines: number;
+  netAdjustmentValue: string;
+}
+
+export interface HistoryList {
+  from: string;
+  to: string;
+  days: HistoryRow[];
+}
+
+export interface ReopenEntry {
+  id: string;
+  reopenedBy: UserRef;
+  reopenedAt: string;
+  reason: string;
+}
+
+export interface BranchDayDetail {
+  id: string;
+  reference: string;
+  date: string;
+  status: BranchDayStatus;
+  branchName: string;
+  closedAt: string | null;
+  closedBy: UserRef | null;
+  reopenCount: number;
+  kpis: { departmentsClosed: number; departmentsTotal: number; totalGaps: number; netAdjustmentValue: string; reopens: number };
+  departments: { summary: DepartmentDaySummary; lines: DepartmentLine[] }[];
+  reopens: ReopenEntry[];
+}
+
+export interface OpeningLine {
+  inventoryItemId: string;
+  name: string;
+  usageUnit: string;
+  prefilledQty: string;
+  acceptedQty: string | null;
+  overnightVariance: string | null;
+  unitCost: string;
+}
+
+export interface OpeningView {
+  branchDayId: string;
+  date: string;
+  departmentTag: DepartmentTag;
+  departmentName: string;
+  status: 'PENDING' | 'ACCEPTED';
+  lastCloseAt: string | null;
+  acceptedAt: string | null;
+  acceptedBy: UserRef | null;
+  varianceLineCount: number;
+  lines: OpeningLine[];
+}
+
+export interface AcceptOpeningResult {
+  openingId: string;
+  acceptedAt: string;
+  varianceLineCount: number;
+  adjustmentCount: number;
+  managerNotified: boolean;
+}

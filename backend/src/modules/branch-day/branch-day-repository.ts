@@ -19,6 +19,21 @@ export type BranchDayFull = Prisma.BranchDayGetPayload<{ include: typeof dayIncl
 export type BranchDayDepartmentFull = BranchDayFull['departments'][number];
 export type BranchDayLineRow = BranchDayDepartmentFull['lines'][number];
 
+const openingInclude = {
+  acceptedBy: { select: { id: true, name: true } },
+  lines: true,
+} satisfies Prisma.DepartmentOpeningInclude;
+
+export type OpeningFull = Prisma.DepartmentOpeningGetPayload<{ include: typeof openingInclude }>;
+
+export type OpeningLineWrite = {
+  inventoryItemId: string;
+  prefilledQty: Prisma.Decimal;
+  acceptedQty: Prisma.Decimal;
+  overnightVariance: Prisma.Decimal;
+  unitCost: Prisma.Decimal;
+};
+
 export type DepartmentItem = {
   id: string;
   name: string;
@@ -102,12 +117,13 @@ export const branchDayRepository = {
       select: { id: true, name: true, usageUnit: true, currentCost: true },
     }),
 
-  /** On-hand per item at a location, leaving out this day's own close adjustments (and their reversals). */
+  /** On-hand per item at a location, leaving out this day's own close adjustments (and their reversals); `asOf` cuts off later movements. */
   onHandExcludingDay: async (
     branchOrgId: string,
     locationId: string,
     itemIds: string[],
     dayLineIds: string[],
+    asOf?: Date,
   ): Promise<Map<string, Prisma.Decimal>> => {
     if (itemIds.length === 0) return new Map();
     const rows = await prisma.inventoryTransaction.groupBy({
@@ -117,6 +133,8 @@ export const branchDayRepository = {
         locationId,
         inventoryItemId: { in: itemIds },
         OR: [{ branchDayLineId: null }, { branchDayLineId: { notIn: dayLineIds } }],
+        // A past day is judged against the position at the end of that business day, not against today's ledger.
+        ...(asOf ? { createdAt: { lt: asOf } } : {}),
       },
       _sum: { quantity: true },
     });
@@ -197,7 +215,8 @@ export const branchDayRepository = {
       quantity: Prisma.Decimal;
       unitCost: Prisma.Decimal;
       reason: string | null;
-      branchDayLineId: string;
+      branchDayLineId?: string;
+      openingLineId?: string;
       reference: string;
       userId: string;
       reversesTransactionId?: string;
@@ -205,6 +224,99 @@ export const branchDayRepository = {
   ): Promise<void> => {
     await tx.inventoryTransaction.create({ data: { type: 'ADJUSTMENT', ...input } });
   },
+
+  // ── History (Session 4) ───────────────────────────────────────────────────
+
+  /** Closed days in range, plus any earlier day still open (a day nobody closed). Never today's open day. */
+  historyDays: async (organizationId: string, from: Date, to: Date, today: Date): Promise<BranchDayFull[]> =>
+    prisma.branchDay.findMany({
+      where: {
+        organizationId,
+        businessDate: { gte: from, lte: to },
+        OR: [{ status: 'CLOSED' }, { businessDate: { lt: today } }],
+      },
+      include: dayInclude,
+      orderBy: { businessDate: 'desc' },
+    }),
+
+  reopenAudit: async (branchDayId: string) =>
+    prisma.branchDayReopen.findMany({
+      where: { branchDayId },
+      include: { reopenedBy: { select: { id: true, name: true } } },
+      orderBy: { reopenedAt: 'asc' },
+    }),
+
+  // ── Next-morning opening (Session 4) ──────────────────────────────────────
+
+  /** On-hand per item at a location; `excludeOpeningLineIds` leaves out an opening's own overnight rows. */
+  onHandAt: async (
+    tx: Tx | null,
+    branchOrgId: string,
+    locationId: string,
+    itemIds: string[],
+    excludeOpeningLineIds: string[] = [],
+  ): Promise<Map<string, Prisma.Decimal>> => {
+    if (itemIds.length === 0) return new Map();
+    const client = tx ?? prisma;
+    const rows = await client.inventoryTransaction.groupBy({
+      by: ['inventoryItemId'],
+      where: {
+        organizationId: branchOrgId,
+        locationId,
+        inventoryItemId: { in: itemIds },
+        ...(excludeOpeningLineIds.length > 0
+          ? { OR: [{ openingLineId: null }, { openingLineId: { notIn: excludeOpeningLineIds } }] }
+          : {}),
+      },
+      _sum: { quantity: true },
+    });
+    return new Map(rows.map((r) => [r.inventoryItemId, r._sum.quantity ?? new Prisma.Decimal(0)]));
+  },
+
+  findOpening: async (branchDayId: string, departmentTag: DepartmentTag): Promise<OpeningFull | null> =>
+    prisma.departmentOpening.findFirst({ where: { branchDayId, departmentTag }, include: openingInclude }),
+
+  createOpening: async (
+    tx: Tx,
+    input: { branchDayId: string; departmentTag: DepartmentTag; locationId: string; acceptedById: string; acceptedAt: Date; lines: OpeningLineWrite[] },
+  ) =>
+    tx.departmentOpening.create({
+      data: {
+        branchDayId: input.branchDayId,
+        departmentTag: input.departmentTag,
+        locationId: input.locationId,
+        acceptedById: input.acceptedById,
+        acceptedAt: input.acceptedAt,
+        lines: { create: input.lines },
+      },
+      include: { lines: true },
+    }),
+
+  /** Openings already accepted for the given day (the recompute hook's input). */
+  openingsForDate: async (tx: Tx, organizationId: string, businessDate: Date) =>
+    tx.departmentOpening.findMany({
+      where: { branchDay: { organizationId, businessDate } },
+      include: { lines: true },
+    }),
+
+  updateOpeningLine: async (tx: Tx, id: string, prefilledQty: Prisma.Decimal, overnightVariance: Prisma.Decimal): Promise<void> => {
+    await tx.departmentOpeningLine.update({ where: { id }, data: { prefilledQty, overnightVariance } });
+  },
+
+  /** Overnight adjustments an opening has left standing (not reversed, not themselves reversals). */
+  activeOpeningAdjustments: async (tx: Tx, branchOrgId: string, openingLineIds: string[]) =>
+    openingLineIds.length === 0
+      ? []
+      : tx.inventoryTransaction.findMany({
+          where: {
+            organizationId: branchOrgId,
+            openingLineId: { in: openingLineIds },
+            type: 'ADJUSTMENT',
+            reversesTransactionId: null,
+            reversedBy: null,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
 
   closeDay: async (tx: Tx, id: string, closedById: string, closedAt: Date): Promise<void> => {
     await tx.branchDay.update({ where: { id }, data: { status: 'CLOSED', closedById, closedAt } });

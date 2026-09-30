@@ -6,7 +6,16 @@
 import type { z } from 'zod';
 
 import type {
+  AcceptOpeningResultSchema,
+  AcceptOpeningSchema,
+  BranchDayDetailSchema,
   BranchDayTodaySchema,
+  HistoryListSchema,
+  HistoryQuerySchema,
+  HistoryRowSchema,
+  OpeningLineSchema,
+  OpeningViewSchema,
+  ReopenEntrySchema,
   CloseBlockerSchema,
   CloseDaySchema,
   CloseResultSchema,
@@ -36,3 +45,14 @@ export type CloseResult = z.infer<typeof CloseResultSchema>;
 export type ReopenDayInput = z.infer<typeof ReopenDaySchema>;
 export type ReopenResult = z.infer<typeof ReopenResultSchema>;
 export type DayDocument = z.infer<typeof DayDocumentSchema>;
+
+// Session 4 — history, detail, opening
+export type HistoryRow = z.infer<typeof HistoryRowSchema>;
+export type HistoryList = z.infer<typeof HistoryListSchema>;
+export type HistoryQuery = z.infer<typeof HistoryQuerySchema>;
+export type ReopenEntry = z.infer<typeof ReopenEntrySchema>;
+export type BranchDayDetail = z.infer<typeof BranchDayDetailSchema>;
+export type OpeningLine = z.infer<typeof OpeningLineSchema>;
+export type OpeningView = z.infer<typeof OpeningViewSchema>;
+export type AcceptOpeningInput = z.infer<typeof AcceptOpeningSchema>;
+export type AcceptOpeningResult = z.infer<typeof AcceptOpeningResultSchema>;

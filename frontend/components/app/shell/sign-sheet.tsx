@@ -63,9 +63,24 @@ export function SignSheetDialog({
   const needsPin = pinStatus.hasPin === false;
   const checkingPin = pinStatus.hasPin === null && pinStatus.loading;
 
+  const pinFieldRef = React.useRef<HTMLDivElement>(null);
+  const wasSubmitting = React.useRef(false);
+
   React.useEffect(() => {
     if (open) setPin('');
   }, [open]);
+
+  // A rejected PIN clears the boxes and hands focus back, so the retry can be typed straight away.
+  // Keyed on the end of a submit (not on `error`): a second wrong PIN produces the same message.
+  React.useEffect(() => {
+    if (wasSubmitting.current && !submitting && error) {
+      setPin('');
+      pinFieldRef.current?.querySelector('input')?.focus();
+    }
+    wasSubmitting.current = submitting;
+  }, [submitting, error]);
+
+  const canSubmit = pin.length === PIN_LENGTH && !submitting && !checkingPin;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -113,19 +128,27 @@ export function SignSheetDialog({
                 <label className="font-wds-mono text-wds-field-label uppercase text-wds-text-copy-muted">
                   Enter your PIN
                 </label>
-                <InputOTP
-                  maxLength={PIN_LENGTH}
-                  value={pin}
-                  onChange={setPin}
-                  autoFocus
-                  disabled={submitting}
-                >
-                  <InputOTPGroup>
-                    {Array.from({ length: PIN_LENGTH }).map((_, i) => (
-                      <InputOTPSlot key={i} index={i} />
-                    ))}
-                  </InputOTPGroup>
-                </InputOTP>
+                <div ref={pinFieldRef}>
+                  <InputOTP
+                    maxLength={PIN_LENGTH}
+                    value={pin}
+                    onChange={setPin}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && canSubmit) {
+                        e.preventDefault();
+                        onSubmit(pin);
+                      }
+                    }}
+                    autoFocus
+                    disabled={submitting}
+                  >
+                    <InputOTPGroup>
+                      {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+                        <InputOTPSlot key={i} index={i} />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
                 {error ? (
                   <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p>
                 ) : (
@@ -150,7 +173,7 @@ export function SignSheetDialog({
                   variant="primary"
                   className="grow"
                   onClick={() => onSubmit(pin)}
-                  disabled={pin.length !== PIN_LENGTH || submitting || checkingPin}
+                  disabled={!canSubmit}
                 >
                   {submitting ? (
                     <>

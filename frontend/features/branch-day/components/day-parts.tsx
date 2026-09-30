@@ -173,11 +173,11 @@ export function DayKpiGrid({ today }: { today: BranchDayToday }) {
 
 /* ------------------------------------------------------------------ rail */
 
-export function StatusLabel({ status }: { status: DepartmentDaySummary['status'] }) {
+export function StatusLabel({ status, mobile = false }: { status: DepartmentDaySummary['status']; mobile?: boolean }) {
   const copy = DEPARTMENT_STATUS_COPY[status];
   return (
     <span className="flex shrink-0 items-center gap-[5px]">
-      <span className={cn('size-1.5 shrink-0 rounded-full', TONE_DOT[copy.tone])} aria-hidden />
+      <span className={cn('shrink-0 rounded-full', mobile ? 'size-[5px]' : 'size-1.5', TONE_DOT[copy.tone])} aria-hidden />
       <span className={cn('font-wds-mono text-wds-mono-sm', TONE_TEXT[copy.tone])}>{copy.label}</span>
     </span>
   );
@@ -215,12 +215,12 @@ export function DepartmentRailRow({
         <span
           className={cn(
             'font-wds-sans text-wds-text-ink',
-            mobile ? 'text-wds-section font-semibold' : cn('text-[14px]/[18px]', blocked ? 'font-semibold' : 'font-medium'),
+            mobile ? 'text-[15px]/[18px] font-semibold' : cn('text-[14px]/[18px]', blocked ? 'font-semibold' : 'font-medium'),
           )}
         >
           {department.name}
         </span>
-        <StatusLabel status={department.status} />
+        <StatusLabel status={department.status} mobile={mobile} />
       </span>
       <span className="flex items-center justify-between gap-2">
         <span className="truncate font-wds-sans text-wds-caption text-wds-text-copy-muted">{railDetail(department, formatClock, shortName)}</span>

@@ -154,6 +154,12 @@ function MobilePinSheet({ open, onOpenChange, title, subtitle, note, confirmLabe
                   onChange={setPin}
                   autoFocus
                   disabled={submitting}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && pin.length === PIN_LENGTH && !submitting && !checkingPin) {
+                      e.preventDefault();
+                      onSubmit(pin);
+                    }
+                  }}
                   inputMode="numeric"
                   aria-label="PIN"
                   aria-invalid={error?.kind === 'pin' || undefined}

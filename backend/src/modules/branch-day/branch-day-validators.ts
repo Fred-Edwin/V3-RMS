@@ -1,5 +1,5 @@
 /**
- * Branch day close — Milestone Six, Session 3
+ * Branch day close, history & opening — Milestone Six, Sessions 3–4
  * FROZEN API CONTRACT — request/response schemas.
  *
  * Source of truth for `API_CONTRACT.md` §26.3. Frontend mirror:
@@ -146,6 +146,90 @@ export const DayDocumentSchema = z.object({
   totals: z.object({ items: z.number().int(), gapLines: z.number().int(), netAdjustmentValue: decimalString }),
 });
 
+// --- Session 4 responses: history, detail, opening ----------------------------------
+
+export const HistoryRowSchema = z.object({
+  id: uuid,
+  reference: z.string(),
+  date: dateOnly,
+  status: branchDayStatusSchema,
+  reopenCount: z.number().int(),
+  closedAt: isoDate.nullable(),
+  closedBy: userRef.nullable(),
+  departmentsClosed: z.number().int(),
+  departmentsTotal: z.number().int(),
+  gapLines: z.number().int(),
+  netAdjustmentValue: decimalString,
+});
+
+export const HistoryListSchema = z.object({
+  from: dateOnly,
+  to: dateOnly,
+  days: z.array(HistoryRowSchema),
+});
+
+export const ReopenEntrySchema = z.object({
+  id: uuid,
+  reopenedBy: userRef,
+  reopenedAt: isoDate,
+  reason: z.string(),
+});
+
+export const BranchDayDetailSchema = z.object({
+  id: uuid,
+  reference: z.string(),
+  date: dateOnly,
+  status: branchDayStatusSchema,
+  branchName: z.string(),
+  closedAt: isoDate.nullable(),
+  closedBy: userRef.nullable(),
+  reopenCount: z.number().int(),
+  kpis: z.object({
+    departmentsClosed: z.number().int(),
+    departmentsTotal: z.number().int(),
+    totalGaps: z.number().int(),
+    netAdjustmentValue: decimalString,
+    reopens: z.number().int(),
+  }),
+  departments: z.array(z.object({ summary: DepartmentDaySummarySchema, lines: z.array(DepartmentLineSchema) })),
+  reopens: z.array(ReopenEntrySchema),
+});
+
+export const OpeningLineSchema = z.object({
+  inventoryItemId: uuid,
+  name: z.string(),
+  usageUnit: z.string(),
+  /** Department on-hand the ledger shows now (or, once accepted, when it was accepted). */
+  prefilledQty: decimalString,
+  /** Null until accepted. */
+  acceptedQty: decimalString.nullable(),
+  /** accepted − prefilled; null until accepted. */
+  overnightVariance: decimalString.nullable(),
+  unitCost: decimalString,
+});
+
+export const OpeningViewSchema = z.object({
+  branchDayId: uuid,
+  date: dateOnly,
+  departmentTag: departmentTagSchema,
+  departmentName: z.string(),
+  status: z.enum(['PENDING', 'ACCEPTED']),
+  /** When last night's close was signed; null when yesterday was never closed. */
+  lastCloseAt: isoDate.nullable(),
+  acceptedAt: isoDate.nullable(),
+  acceptedBy: userRef.nullable(),
+  varianceLineCount: z.number().int(),
+  lines: z.array(OpeningLineSchema),
+});
+
+export const AcceptOpeningResultSchema = z.object({
+  openingId: uuid,
+  acceptedAt: isoDate,
+  varianceLineCount: z.number().int(),
+  adjustmentCount: z.number().int(),
+  managerNotified: z.boolean(),
+});
+
 // --- Requests --------------------------------------------------------------------
 
 export const BranchDayParamsSchema = z.object({ id: uuid });
@@ -173,3 +257,21 @@ export const SaveDepartmentLinesSchema = z
 
 export const CloseDaySchema = z.object({ pin }).strict();
 export const ReopenDaySchema = z.object({ reason: z.string().trim().min(1, 'A reason is required').max(500) }).strict();
+
+const MAX_RANGE_DAYS = 92;
+
+export const HistoryQuerySchema = z
+  .object({ from: dateOnly, to: dateOnly })
+  .strict()
+  .refine((v) => v.from <= v.to, { message: '`from` must not be after `to`', path: ['from'] })
+  .refine((v) => (Date.parse(v.to) - Date.parse(v.from)) / 86_400_000 <= MAX_RANGE_DAYS, {
+    message: `The range can span at most ${MAX_RANGE_DAYS} days`,
+    path: ['to'],
+  });
+
+/** Every item the department head is shown; omitted items are accepted at their pre-filled figure. */
+export const AcceptOpeningSchema = z
+  .object({
+    lines: z.array(z.object({ inventoryItemId: uuid, acceptedQty: countQtyString }).strict()).max(500),
+  })
+  .strict();

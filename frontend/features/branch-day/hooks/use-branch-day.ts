@@ -2,10 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useResource } from '@/features/inventory';
 import { formatApiErrorMessage } from '@/types/api';
-import { closeDay, getBranchThresholds, getDayDocument, getDepartment, getToday, reopenDay, saveBranchThresholds, saveDepartmentLines } from '../services/branch-day-api-service';
+import {
+  acceptOpening,
+  closeDay,
+  getBranchThresholds,
+  getDayDetail,
+  getDayDocument,
+  getDepartment,
+  getHistory,
+  getOpening,
+  getOverview,
+  getToday,
+  reopenDay,
+  saveBranchThresholds,
+  saveDepartmentLines,
+} from '../services/branch-day-api-service';
 import { liveGap, normalizeCount, sanitizeCountInput } from '../lib/branch-day-format';
 import type {
+  BranchDayDetail,
   BranchDayToday,
+  HistoryList,
+  OpeningView,
   BranchThresholds,
   DayDocument,
   DepartmentDayDetail,
@@ -17,11 +34,38 @@ import type {
 
 const AUTOSAVE_DELAY_MS = 700;
 
-/** Today's day — overview, rail, KPIs. `reload` keeps the previous data on screen (`refreshing`), never flashing skeletons. */
-export function useBranchDayToday() {
-  const r = useResource<BranchDayToday>('branch-day:today', getToday, "Couldn't load today's day.");
+/**
+ * Today's day — overview, rail, KPIs. `reload` keeps the previous data on screen (`refreshing`), never flashing skeletons.
+ * With a `dayId` it loads that one of the branch's own days instead (a reopened past day), same shape.
+ */
+export function useBranchDayToday(dayId: string | null = null) {
+  const r = useResource<BranchDayToday>(
+    dayId ? `branch-day:overview:${dayId}` : 'branch-day:today',
+    () => (dayId ? getOverview(dayId) : getToday()),
+    "Couldn't load today's day.",
+  );
   return { today: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
 }
+
+/** Closed / reopened / open past days in a date range (Day close history list). */
+export function useDayHistory(from: string, to: string) {
+  const r = useResource<HistoryList>(`branch-day:history:${from}:${to}`, () => getHistory(from, to), "Couldn't load day close history.");
+  return { history: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
+}
+
+/** One day, read-only: KPIs, every department's saved lines, and the reopen audit trail. */
+export function useDayDetail(dayId: string | null) {
+  const r = useResource<BranchDayDetail>(dayId ? `branch-day:detail:${dayId}` : null, () => getDayDetail(dayId as string), "Couldn't load this day.");
+  return { detail: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
+}
+
+/** The department head's next-morning opening: live pre-fill until accepted, the signed figures after. */
+export function useOpening(enabled = true) {
+  const r = useResource<OpeningView>(enabled ? 'branch-day:opening' : null, getOpening, "Couldn't load the opening figures.");
+  return { opening: r.data, status: r.status, refreshing: r.refreshing, error: r.error, reload: r.reload };
+}
+
+export { acceptOpening };
 
 export function useDayDocument(dayId: string | null) {
   const r = useResource<DayDocument>(dayId ? `branch-day:document:${dayId}` : null, () => getDayDocument(dayId as string), "Couldn't load the signed document.");
@@ -213,6 +257,57 @@ export function useDepartmentCount(dayId: string | null, tag: DepartmentTag | nu
     retrySave: flush,
     flush,
   };
+}
+
+export type DepartmentCountView = ReturnType<typeof useDepartmentCount>;
+
+/**
+ * The live count's shape over a day's *saved* lines. History reads what was signed — nothing is typed,
+ * autosaved or recomputed — so the same read-only panes render it unchanged (Paper `1CMM-0` matches `19C8-0`).
+ */
+export function useSavedDepartmentCount(
+  day: BranchDayDetail | null,
+  tag: DepartmentTag | null,
+  status: 'loading' | 'error' | 'ready',
+  reload: () => Promise<void>,
+): DepartmentCountView {
+  return useMemo(() => {
+    const entry = day && tag ? day.departments.find((d) => d.summary.tag === tag) : undefined;
+    const detail: DepartmentDayDetail | null =
+      day && entry
+        ? { branchDayId: day.id, date: day.date, dayStatus: day.status, closedAt: day.closedAt, reasonRequiredKes: 0, summary: entry.summary, lines: entry.lines }
+        : null;
+    const rows = (detail?.lines ?? []).map((line) => {
+      const gap = line.gap === null ? null : Number.parseFloat(line.gap);
+      return {
+        line,
+        counted: line.countedQty,
+        live: { gap, value: line.gapValue === null ? null : Number.parseFloat(line.gapValue), reasonRequired: line.reasonRequired && gap !== null && gap !== 0 } as ReturnType<typeof liveGap>,
+        reason: line.reason,
+        note: line.reasonNote,
+      };
+    });
+    const counted = rows.filter((r) => r.counted !== null).length;
+    return {
+      detail,
+      status,
+      error: null,
+      reload,
+      rows,
+      progress: {
+        counted,
+        total: rows.length,
+        gaps: rows.filter((r) => r.live.reasonRequired).length,
+        net: rows.reduce((sum, r) => sum + (r.live.value ?? 0), 0),
+        unreasoned: 0,
+      },
+      setCount: () => undefined,
+      setReason: () => undefined,
+      saveState: { kind: 'idle' },
+      retrySave: async () => true,
+      flush: async () => true,
+    };
+  }, [day, tag, status, reload]);
 }
 
 /** Close (PIN-signed) and reopen (reason) — one place for the in-flight + error state both flows share. */

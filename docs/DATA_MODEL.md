@@ -2890,6 +2890,14 @@ enum HrDocumentType {
 
 ## 6. Key Design Decisions
 
+### 4.77 DepartmentOpening
+
+Next-morning opening (Flow 12c, Milestone Six Session 4). One row per (`branchDayId` = the day being opened, `departmentTag`), **created only when the Department Head accepts** — "not accepted yet" is the absence of a row. `locationId`, `acceptedById`, `acceptedAt`. `@@unique([branchDayId, departmentTag])`.
+
+### 4.78 DepartmentOpeningLine
+
+`openingId`, `inventoryItemId`, `prefilledQty` (department on-hand the ledger showed), `acceptedQty` (what was counted — authoritative), `overnightVariance` (= accepted − prefilled), `unitCost`. `@@unique([openingId, inventoryItemId])`. `InventoryTransaction.openingLineId` is a real nullable FK to this table: each overnight `ADJUSTMENT` (and its reversal on a re-close) carries it.
+
 ### Why a separate PrepTicket table instead of status flags on Order?
 
 An order can involve two independent workflows simultaneously — the kitchen preparing food while the barista makes drinks. Each workflow has its own claim, its own In-Progress, its own Ready. `PrepTicket` gives each workflow its own clean lifecycle, its own claimant, and its own timestamps, while the `Order` still presents a unified view to the waiter.

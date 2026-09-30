@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History &amp; Opening — Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --panel: #f5f2ee; --ink: #2a1a0f; --text: #4a3f37; --muted: #7a6d63; --rule: #ddd5cc;
+  --accent: #693c1b; --good: #2f6b3c; --warn: #8a5a10; --bad: #8b2e1f;
+  --serif: 'Source Serif 4', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.6 var(--sans); }
+h1, h2, h3 { font-family: var(--serif); color: var(--ink); font-weight: 600; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+main { max-width: 860px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-direction: column; gap: 40px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.head { display: flex; flex-direction: column; gap: 14px; padding-bottom: 24px; border-bottom: 2px solid var(--ink); }
+h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.2; letter-spacing: -.01em; }
+.lede { font-size: 16px; max-width: 68ch; }
+h2 { font-size: 22px; line-height: 1.3; margin-bottom: 4px; }
+.sec { display: flex; flex-direction: column; gap: 12px; }
+.sub { font-size: 14px; color: var(--muted); }
+.id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+pre { margin: 0; padding: 12px 14px; background: var(--panel); border-left: 3px solid var(--accent); font: 400 13px/1.55 var(--mono); color: var(--ink); overflow-x: auto; }
+code { font: 400 13px var(--mono); color: var(--ink); background: var(--panel); padding: 1px 5px; }
+.steps { display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+.step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--rule); align-items: start; }
+.step.done .t, .step.done .w { color: var(--muted); }
+.t { color: var(--ink); font-weight: 600; }
+.w { display: block; margin-top: 2px; font-size: 14px; }
+.look { display: block; margin-top: 4px; font-size: 13px; color: var(--accent); font-weight: 500; }
+.cb { appearance: none; width: 22px; height: 22px; margin: 1px 0 0; border: 1.5px solid var(--ink); background: var(--bg); cursor: pointer; display: grid; place-items: center; }
+.cb:checked { background: var(--ink); }
+.cb:checked::after { content: ""; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.cb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--ink); }
+.row { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.row b { color: var(--ink); font-weight: 600; }
+.note { padding: 14px 16px; background: var(--panel); font-size: 14px; }
+.note b { color: var(--ink); }
+.warn { border-left: 3px solid var(--warn); }
+.kbd { display: flex; gap: 8px; flex-wrap: wrap; }
+.progress { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--rule); padding: 10px 24px; margin: 0 -24px; display: flex; justify-content: space-between; font-size: 13px; }
+.progress b { color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { main { padding: 32px 16px 72px; } .row { grid-template-columns: 1fr; gap: 2px; } .progress { margin: 0 -16px; padding: 10px 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="progress" aria-live="polite"><span>History &amp; opening · walkthrough</span><span><b id="done">0</b> of <b id="total">0</b> checked</span></div>
+
+  <header class="head">
+    <span class="eyebrow">Milestone Six · Session 4</span>
+    <h1>Day close history and the morning opening — walk it through on localhost</h1>
+    <p class="lede">You'll browse past closed days as the Branch Manager, reopen one, then switch to the Kitchen Department Head and accept this morning's opening figures. Each step says what to do and what to look at. Paper artboard ids: history <code>1BN0-0</code> / <code>1CB2-0</code>, detail <code>1CMM-0</code> / <code>1CSZ-0</code> / <code>1D2G-0</code>, opening <code>1A5R-0</code> / <code>1BIS-0</code>.</p>
+  </header>
+
+  <section class="sec">
+    <h2>0 · Set up</h2>
+    <p class="sub">Docker (Postgres + Redis) up, then the API and the web app:</p>
+<pre>cd ~/Projects/V3-RMS
+git switch feat/m6-s4-history-opening
+docker compose up -d postgres redis
+
+# terminal 1 — API (port 4000). Restart it if it was already running: the new routes need a fresh process.
+cd backend && pnpm dev
+
+# terminal 2 — web (port 3000)
+cd frontend && pnpm dev</pre>
+    <p class="sub">Seed the data (from <code>backend/</code>). The first script stocks the departments and writes yesterday; the second adds three older closed days (one reopened once) and today's pending Kitchen opening:</p>
+<pre>npx tsx src/scripts/seed-branch-day-dev-fixtures.ts --state=open --block=none
+npx tsx src/scripts/seed-branch-day-history-dev-fixtures.ts --opening=pending
+# to redo the opening walkthrough later, run the second line again</pre>
+    <div class="rows">
+      <div class="row"><b>Branch Manager</b><span><code>manager1.nyeritown@dev.test</code> / <code>password123</code>, signing PIN <code>1234</code>.</span></div>
+      <div class="row"><b>Kitchen Department Head</b><span><code>chef1.nyeritown@dev.test</code> / <code>password123</code>. Their home is <code>/app/requisitions</code>, phone-sized.</span></div>
+      <div class="row"><b>Screen size</b><span>Desktop at 100% zoom. Phone: Chrome DevTools device toolbar, 390 × 844.</span></div>
+    </div>
+    <div class="note warn"><b>Dev database only.</b> The seed rewrites Nyeri Town's dev dispatches and fixture days. Repeated logins can trip the API's rate limit ("429") — wait a minute.</div>
+  </section>
+
+  <section class="sec">
+    <h2>1 · Day close history — list (Branch Manager)</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open the list</span><span class="w">Sidebar <b>Day</b>, then <b>History</b> in the top bar, or go to <code>/app/branch/day/history</code>.</span><span class="look">A table of past days: date, closed by, departments, gaps, net adjustment, status. Today is not listed.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Switch ranges</span><span class="w">Click <b>Day</b>, <b>Week</b>, <b>Month</b>.</span><span class="look">The selected chip turns espresso and the URL changes (<code>?range=week</code>); a reload keeps it.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Custom range</span><span class="w">Click <b>Custom range</b>, pick two dates, <b>Apply</b>.</span><span class="look">A range over 92 days is refused with a message. A range with no days shows "No closed days in this range" and a <b>Show month</b> button.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Reopened day</span><span class="w">Find the day marked <b>Reopened once</b>.</span><span class="look">A day that was reopened and not closed again reads <b>Reopened · open</b>, never "Never closed".</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Phone list</span><span class="w">Same page at 390 px.</span><span class="look">Cards with a status pill, gaps and net adjustment; the chips scroll sideways.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>2 · Day detail — read-only</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open a closed day</span><span class="w">Click a row.</span><span class="look">Title with a status pill, four KPI cells, the department rail and the signed-document band.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Look at a department</span><span class="w">Click Kitchen in the rail (on a phone, tap it).</span><span class="look">Read-only expected, counted and gap per item. A reason shows under any gap over the threshold. No inputs anywhere.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Signed document</span><span class="w">Click <b>View signed document</b>.</span><span class="look">The signed day-close page from Session 3 opens.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Audit trail</span><span class="w">Open the day that was reopened.</span><span class="look">"Reopen audit trail" lists who, when and why, oldest first.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>3 · Reopen from history</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Reopen a closed day</span><span class="w">On a closed day click <b>Reopen day</b>. The button stays disabled until you type a reason.</span><span class="look">Confirm: toast "Day reopened", and you land on the Day screen titled with that date, not "Today's day".</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Recount and close again</span><span class="w">Change a count, give a reason if asked, then <b>Sign &amp; close day</b> with PIN 1234.</span><span class="look">The re-close reverses the old adjustments with linked rows and posts fresh ones. The ledger shows "End-of-day count · reversed".</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>4 · This morning's opening (Kitchen Department Head, phone-sized)</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Sign in and open the landing</span><span class="w">Sign out, sign in as the Kitchen head, go to <code>/app/requisitions</code>.</span><span class="look">Under <b>This morning</b>: "Opening count · awaiting review" and a <b>Review opening</b> button. Stock ledger sits beside Log waste.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Open the sheet</span><span class="w">Tap <b>Review opening</b>.</span><span class="look">A bottom sheet "Review opening", one row per item, and Accept and Recount buttons. Swipe down or tap × to close.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Recount one item</span><span class="w">Tap <b>Recount an item</b>, tap a row, use − and + or type a number.</span><span class="look">A row that differs shows an amber "Overnight variance — recount (X) differs from last night's close (Y)".</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Accept</span><span class="w">Tap <b>Accept opening figures</b>.</span><span class="look">Toast "Opening figures accepted — Kitchen is ready for the day". The card becomes <b>Confirmed · Accepted at HH:MM</b>. Reload: it stays confirmed and cannot be accepted twice.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">See it in the ledger</span><span class="w">Open <b>Stock ledger</b>, then the item you recounted.</span><span class="look">A row "Overnight variance" with an ADJ- reference for the difference.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>5 · The tricky case — re-close after the opening was accepted</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Reopen yesterday and change a count</span><span class="w">As the Branch Manager: History, yesterday, <b>Reopen day</b>, change a Kitchen count, <b>Sign &amp; close day</b>.</span><span class="look">No error. Yesterday is judged against its own end-of-day position, not today's ledger.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Check the opening followed</span><span class="w">Kitchen ledger for the item recounted this morning.</span><span class="look">The old "Overnight variance" row is marked reversed and a fresh one is posted. The item still ends at the figure the head counted.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>6 · States and errors</h2>
+    <div class="steps">
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Loading</span><span class="w">Throttle the network in DevTools (Slow 4G) and open History.</span><span class="look">Skeleton rows in the table; the header and chips stay put.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Error and Retry</span><span class="w">Stop the API and reload History.</span><span class="look">"Couldn't load day close history" with Retry. Restart the API and Retry recovers.</span></span></label>
+      <label class="step"><input class="cb" type="checkbox"><span><span class="t">Wrong PIN</span><span class="w">Close a day with a wrong PIN.</span><span class="look">"Incorrect PIN"; the boxes clear and focus returns so you can retype. Enter submits a full PIN.</span></span></label>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>7 · Where I departed from Paper — your call</h2>
+    <p class="sub">Tell me which of these you want changed back to Paper's version.</p>
+    <div class="rows">
+      <div class="row"><b>Toast</b><span>The success toast is the shared light one at the top; Paper draws a dark bottom toast. This applies to every Milestone Six toast.</span></div>
+      <div class="row"><b>Pending opening card</b><span>Says "awaiting review"; Paper says "1 overnight variance", a number that can't be known before the head recounts.</span></div>
+      <div class="row"><b>Recount stepper</b><span>Sits inline under the tapped row; Paper draws one stepper block after the list.</span></div>
+      <div class="row"><b>Parity pass</b><span>Every Session 4 screen was measured against Paper and corrected (details in session-4-plan.md, Visual parity pass). Detail-page loading and error states, hover and motion were spot-checked, not measured.</span></div>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.cb'));
+  var KEY = 'wendo-s4-walkthrough';
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { saved = {}; }
+  function count() {
+    document.getElementById('total').textContent = boxes.length;
+    document.getElementById('done').textContent = boxes.filter(function (b) { return b.checked; }).length;
+  }
+  boxes.forEach(function (b, i) {
+    b.checked = !!saved[i];
+    b.closest('.step').classList.toggle('done', b.checked);
+    b.addEventListener('change', function () {
+      saved[i] = b.checked;
+      b.closest('.step').classList.toggle('done', b.checked);
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* ticks just won't persist */ }
+      count();
+    });
+  });
+  count();
+})();
+</script>
+</body>
+</html>

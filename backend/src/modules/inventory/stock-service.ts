@@ -71,6 +71,7 @@ export const formatCounterparty = (row: LedgerRawRow): string => {
     case 'PREP_PRODUCE':
       return 'Prep run';
     case 'ADJUSTMENT':
+      if (row.overnight) return row.isReversal ? 'Overnight variance · reversed' : 'Overnight variance';
       if (row.endOfDay) return row.isReversal ? 'End-of-day count · reversed' : 'End-of-day count';
       if (row.countKind) {
         const source = row.countKind === 'SPOT' ? 'Spot count' : 'Daily count';

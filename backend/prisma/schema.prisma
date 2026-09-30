@@ -172,6 +172,7 @@ model User {
   branchDaysClosed                    BranchDay[]                   @relation("BranchDayClosedBy")
   branchDayDepartmentsCounted         BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")
   branchDayReopens                    BranchDayReopen[]             @relation("BranchDayReopenedBy")
+  departmentOpeningsAccepted          DepartmentOpening[]           @relation("DepartmentOpeningAcceptedBy")
   countingThresholdsDirectorUpdated   CountingThresholds[]          @relation("CountingThresholdsDirectorUpdatedBy")
   expectedDeliveriesCreated           ExpectedDelivery[]            @relation("ExpectedDeliveryCreatedBy")
   goodsReceiptsSigned                 GoodsReceipt[]                @relation("GoodsReceiptSignedBy")
@@ -1473,6 +1474,7 @@ model Location {
   wasteLogs            WasteLog[]
   stockCounts          StockCount[]
   branchDayDepartments BranchDayDepartment[]
+  departmentOpenings   DepartmentOpening[]
 
   // Phase 1 creates exactly one CENTRAL_STORE row per organization (feature
   // plan D-1) — this constraint enforces that invariant at the DB level.
@@ -1723,20 +1725,21 @@ model InventoryItem {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization          Organization           @relation(fields: [organizationId], references: [id])
-  category              Category?              @relation(fields: [categoryId], references: [id])
-  preferredSupplier     Supplier?              @relation(fields: [preferredSupplierId], references: [id])
-  restockLevels         RestockLevel[]
-  transactions          InventoryTransaction[]
-  expectedDeliveryLines ExpectedDeliveryLine[]
-  goodsReceiptLines     GoodsReceiptLine[]
-  prepRunsAsOutput      PrepRun[]              @relation("PrepRunOutput")
-  prepRunInputLines     PrepRunInputLine[]     @relation("PrepRunInputItem")
-  requisitionLines      RequisitionLine[]
-  dispatchLines         DispatchLine[]
-  wasteLogs             WasteLog[]
-  stockCountLines       StockCountLine[]
-  branchDayLines        BranchDayLine[]
+  organization           Organization            @relation(fields: [organizationId], references: [id])
+  category               Category?               @relation(fields: [categoryId], references: [id])
+  preferredSupplier      Supplier?               @relation(fields: [preferredSupplierId], references: [id])
+  restockLevels          RestockLevel[]
+  transactions           InventoryTransaction[]
+  expectedDeliveryLines  ExpectedDeliveryLine[]
+  goodsReceiptLines      GoodsReceiptLine[]
+  prepRunsAsOutput       PrepRun[]               @relation("PrepRunOutput")
+  prepRunInputLines      PrepRunInputLine[]      @relation("PrepRunInputItem")
+  requisitionLines       RequisitionLine[]
+  dispatchLines          DispatchLine[]
+  wasteLogs              WasteLog[]
+  stockCountLines        StockCountLine[]
+  branchDayLines         BranchDayLine[]
+  departmentOpeningLines DepartmentOpeningLine[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1851,6 +1854,7 @@ model InventoryTransaction {
   wasteLogId            String?                  @map("waste_log_id")
   stockCountLineId      String?                  @map("stock_count_line_id")
   branchDayLineId       String?                  @map("branch_day_line_id")
+  openingLineId         String?                  @map("opening_line_id")
   dispatchLineId        String?                  @map("dispatch_line_id")
   marketPurchaseLineId  String?                  @map("market_purchase_line_id")
   reference             String? // ADJ-#### on ADJUSTMENT rows (ReferenceCounter), null elsewhere
@@ -1858,18 +1862,19 @@ model InventoryTransaction {
   userId                String                   @map("user_id")
   createdAt             DateTime                 @default(now()) @map("created_at")
 
-  organization     Organization          @relation(fields: [organizationId], references: [id])
-  location         Location              @relation(fields: [locationId], references: [id])
-  inventoryItem    InventoryItem         @relation(fields: [inventoryItemId], references: [id])
-  user             User                  @relation("InventoryTransactionUser", fields: [userId], references: [id])
-  goodsReceiptLine GoodsReceiptLine?     @relation(fields: [goodsReceiptLineId], references: [id])
-  prepRun          PrepRun?              @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
-  dispatchLine     DispatchLine?         @relation(fields: [dispatchLineId], references: [id])
-  wasteLog         WasteLog?             @relation(fields: [wasteLogId], references: [id])
-  stockCountLine   StockCountLine?       @relation(fields: [stockCountLineId], references: [id])
-  branchDayLine    BranchDayLine?        @relation(fields: [branchDayLineId], references: [id])
-  reverses         InventoryTransaction? @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
-  reversedBy       InventoryTransaction? @relation("InventoryTransactionReversal")
+  organization     Organization           @relation(fields: [organizationId], references: [id])
+  location         Location               @relation(fields: [locationId], references: [id])
+  inventoryItem    InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  user             User                   @relation("InventoryTransactionUser", fields: [userId], references: [id])
+  goodsReceiptLine GoodsReceiptLine?      @relation(fields: [goodsReceiptLineId], references: [id])
+  prepRun          PrepRun?               @relation("PrepRunTransactions", fields: [prepRecordId], references: [id])
+  dispatchLine     DispatchLine?          @relation(fields: [dispatchLineId], references: [id])
+  wasteLog         WasteLog?              @relation(fields: [wasteLogId], references: [id])
+  stockCountLine   StockCountLine?        @relation(fields: [stockCountLineId], references: [id])
+  branchDayLine    BranchDayLine?         @relation(fields: [branchDayLineId], references: [id])
+  openingLine      DepartmentOpeningLine? @relation(fields: [openingLineId], references: [id])
+  reverses         InventoryTransaction?  @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
+  reversedBy       InventoryTransaction?  @relation("InventoryTransactionReversal")
 
   @@index([organizationId])
   @@index([locationId])
@@ -1881,6 +1886,7 @@ model InventoryTransaction {
   @@index([wasteLogId])
   @@index([stockCountLineId])
   @@index([branchDayLineId])
+  @@index([openingLineId])
   @@index([locationId, inventoryItemId, createdAt]) // ledger drill: one item at one location, by time
   @@map("inventory_transactions")
 }
@@ -2073,6 +2079,7 @@ model BranchDay {
   closedBy     User?                 @relation("BranchDayClosedBy", fields: [closedById], references: [id])
   departments  BranchDayDepartment[]
   reopens      BranchDayReopen[]
+  openings     DepartmentOpening[]
 
   @@unique([organizationId, businessDate])
   @@index([organizationId, status])
@@ -2134,6 +2141,46 @@ model BranchDayReopen {
 
   @@index([branchDayId])
   @@map("branch_day_reopens")
+}
+
+/// Next-morning opening (Flow 12c, plan §1.6): the department head accepts the
+/// morning figures. Created only on accept — "not accepted yet" is no row.
+model DepartmentOpening {
+  id            String        @id @default(uuid())
+  branchDayId   String        @map("branch_day_id") // the day being opened
+  departmentTag DepartmentTag @map("department_tag")
+  locationId    String        @map("location_id")
+  acceptedById  String        @map("accepted_by_id")
+  acceptedAt    DateTime      @map("accepted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  branchDay  BranchDay               @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  location   Location                @relation(fields: [locationId], references: [id])
+  acceptedBy User                    @relation("DepartmentOpeningAcceptedBy", fields: [acceptedById], references: [id])
+  lines      DepartmentOpeningLine[]
+
+  @@unique([branchDayId, departmentTag])
+  @@map("department_openings")
+}
+
+model DepartmentOpeningLine {
+  id                String   @id @default(uuid())
+  openingId         String   @map("opening_id")
+  inventoryItemId   String   @map("inventory_item_id")
+  prefilledQty      Decimal  @map("prefilled_qty") @db.Decimal(12, 4) // department on-hand the ledger showed (last night's close)
+  acceptedQty       Decimal  @map("accepted_qty") @db.Decimal(12, 4) // what the department head counted; authoritative
+  overnightVariance Decimal  @map("overnight_variance") @db.Decimal(12, 4) // accepted − prefilled
+  unitCost          Decimal  @map("unit_cost") @db.Decimal(12, 4)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  opening       DepartmentOpening      @relation(fields: [openingId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@unique([openingId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("department_opening_lines")
 }
 
 // ============================================================================
