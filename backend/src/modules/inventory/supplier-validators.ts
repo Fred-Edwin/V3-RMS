@@ -35,6 +35,7 @@ export const supplierPayMethodTypeSchema = z.enum([
   'MPESA_TILL',
   'MPESA_SEND_MONEY',
   'CASH',
+  'CHEQUE',
 ]);
 export const supplierDocumentTypeSchema = z.enum([
   'INVOICE',
@@ -133,7 +134,10 @@ const maskedPayMethodShape = {
   accountReference: z.string().nullable(),
   tillNumber: z.string().nullable(),
   phone: z.string().nullable(),
+  /** Cheque: "payable to". Send-money: the registered name. */
   registeredName: z.string().nullable(),
+  /** Cheque only. */
+  note: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 };
@@ -158,6 +162,8 @@ export const SupplierDetailSchema = SupplierSchema.extend({
 });
 
 export const SupplierItemSchema = z.object({
+  /** The pack line's id; a supplier may have several lines for one item. */
+  id: uuidSchema,
   inventoryItemId: uuidSchema,
   itemName: z.string(),
   itemBuyUnit: z.string(),
@@ -168,6 +174,37 @@ export const SupplierItemSchema = z.object({
   lastPrice: z.string().nullable(),
   lastPriceAt: z.string().datetime().nullable(),
   isPreferred: z.boolean(),
+  /** Seeded as "Preferred · confirm"; cleared by setting or confirming it. */
+  preferredNeedsConfirm: z.boolean(),
+});
+
+/** One supplier line on the item page. */
+export const ItemSupplierLineSchema = z.object({
+  lineId: uuidSchema,
+  supplierId: uuidSchema,
+  supplierCode: z.string(),
+  supplierName: z.string(),
+  supplierItemName: z.string().nullable(),
+  supplierItemCode: z.string().nullable(),
+  buyUnit: z.string().nullable(),
+  packSize: z.string().nullable(),
+  lastPrice: z.string().nullable(),
+  lastPriceAt: z.string().datetime().nullable(),
+  isPreferred: z.boolean(),
+  preferredNeedsConfirm: z.boolean(),
+});
+
+/** A signed receipt line whose pack matched no catalog line ("Pack not on file"). */
+export const PackMismatchSchema = z.object({
+  receiptLineId: uuidSchema,
+  goodsReceiptId: uuidSchema,
+  reference: z.string(),
+  signedAt: z.string().datetime().nullable(),
+  inventoryItemId: uuidSchema,
+  itemName: z.string(),
+  packBuyUnit: z.string().nullable(),
+  packSize: z.string().nullable(),
+  unitPrice: z.string(),
 });
 
 export const SupplierDocumentSchema = z.object({
@@ -361,9 +398,28 @@ export const PayMethodFieldsSchema = z.discriminatedUnion('type', [
     registeredName: required('Registered name'),
   }),
   z.object({ type: z.literal('CASH') }),
+  z.object({
+    type: z.literal('CHEQUE'),
+    /** Payable to. */
+    registeredName: required('Payable to'),
+    bankName: required('Bank'),
+    note: optionalText(300),
+  }),
 ]);
 
-export const CreatePayMethodSchema = z.intersection(PayMethodFieldsSchema, z.object({ isDefault: z.boolean().optional() }));
+/**
+ * `reason` is only read for CHEQUE (required there): it goes to the audit row and the Accountant's
+ * notice, never onto the method. Other types ignore it, so the current screens keep working.
+ */
+export const CreatePayMethodSchema = z
+  .intersection(
+    PayMethodFieldsSchema,
+    z.object({ isDefault: z.boolean().optional(), reason: z.string().trim().max(300).optional() }),
+  )
+  .refine((d) => d.type !== 'CHEQUE' || (d.reason !== undefined && d.reason.length > 0), {
+    message: 'A reason is required to add a cheque method',
+    path: ['reason'],
+  });
 
 /** `type` cannot change; the merged record is re-validated against its type in the service. */
 export const UpdatePayMethodSchema = z
@@ -377,6 +433,7 @@ export const UpdatePayMethodSchema = z
     tillNumber: z.string().trim().max(20).nullish(),
     phone: z.string().trim().max(40).nullish(),
     registeredName: z.string().trim().max(100).nullish(),
+    note: z.string().trim().max(300).nullish(),
     isDefault: z.boolean().optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), { message: 'At least one field must be provided' });
@@ -385,13 +442,21 @@ export const UpdatePayMethodSchema = z
 // Catalog + documents — requests
 // ---------------------------------------------------------------------------
 
-export const PutSupplierItemSchema = z.object({
+const supplierItemFields = {
   supplierItemName: optionalText(200),
   supplierItemCode: optionalText(100),
   buyUnit: optionalText(50),
   packSize: positiveDecimalSchema.nullish(),
   isPreferred: z.boolean().optional(),
-});
+};
+
+/** `lineId` edits one pack line; without it the line key (or, with no pack given, the oldest line) decides. */
+export const PutSupplierItemSchema = z.object({ ...supplierItemFields, lineId: uuidSchema.optional() });
+
+/** Add one pack line — a clash on the line key is a 409. */
+export const CreateSupplierItemSchema = z.object({ inventoryItemId: uuidSchema, ...supplierItemFields });
+
+export const DeleteSupplierItemQuerySchema = z.object({ lineId: uuidSchema.optional() });
 
 /** Multipart text fields alongside the `file` part. */
 export const UploadSupplierDocumentSchema = z.object({

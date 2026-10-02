@@ -7,7 +7,12 @@ import {
   type CategoryWithItemCount,
   type InventoryItemWithRelations,
 } from './inventory-repository';
-import { supplierItemRepository, supplierRepository } from './supplier-repository';
+import {
+  supplierAuditRepository,
+  supplierItemRepository,
+  supplierRepository,
+} from './supplier-repository';
+import { serializeItemSupplierLine } from './supplier-serializers';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
@@ -80,6 +85,47 @@ const serializeCategory = (category: CategoryWithItemCount) => ({
   createdAt: category.createdAt.toISOString(),
   updatedAt: category.updatedAt.toISOString(),
 });
+
+/** Writes PREFERRED_SET / PREFERRED_CONFIRMED when an item-level preferred-supplier change moved a line. */
+const logPreferredChange = async (
+  organizationId: string,
+  actorId: string,
+  supplierId: string,
+  inventoryItemId: string,
+  result: { lineId: string | null; wasPreferred: boolean; wasNeedsConfirm: boolean },
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  if (!result.lineId || (result.wasPreferred && !result.wasNeedsConfirm)) return;
+  await supplierAuditRepository.create(
+    organizationId,
+    supplierId,
+    actorId,
+    result.wasNeedsConfirm ? 'PREFERRED_CONFIRMED' : 'PREFERRED_SET',
+    result.lineId,
+    { inventoryItemId, lineId: result.lineId, isPreferred: result.wasPreferred, preferredNeedsConfirm: result.wasNeedsConfirm },
+    { inventoryItemId, lineId: result.lineId, isPreferred: true, preferredNeedsConfirm: false },
+    tx,
+  );
+};
+
+/** A search hit on the supplier's code or name rather than ours: say which supplier and what matched. */
+const buildMatchedOn = (
+  itemName: string,
+  search: string,
+  lines: { supplierItemName: string | null; supplierItemCode: string | null; supplier: { id: string; name: string } }[],
+) => {
+  if (itemName.toLowerCase().includes(search.toLowerCase())) return null;
+  const needle = search.toLowerCase();
+  const byCode = lines.find((l) => l.supplierItemCode !== null && l.supplierItemCode.toLowerCase() === needle);
+  if (byCode?.supplierItemCode) {
+    return { supplier: byCode.supplier, field: 'supplierItemCode' as const, value: byCode.supplierItemCode };
+  }
+  const byName = lines.find((l) => l.supplierItemName !== null && l.supplierItemName.toLowerCase().includes(needle));
+  if (byName?.supplierItemName) {
+    return { supplier: byName.supplier, field: 'supplierItemName' as const, value: byName.supplierItemName };
+  }
+  return null;
+};
 
 const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLevel: Prisma.Decimal | null = null) => ({
   id: item.id,
@@ -274,9 +320,19 @@ export const inventoryService = {
       organizationId,
       items.map((item) => item.id),
     );
+    const search = query.search?.trim();
+    const matches =
+      search && items.length > 0
+        ? await inventoryItemRepository.findSearchMatches(organizationId, items.map((i) => i.id), search)
+        : [];
 
     return {
-      data: items.map((item) => serializeItem(item, restockLevelsByItemId.get(item.id) ?? null)),
+      data: items.map((item) => ({
+        ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
+        matchedOn: search
+          ? buildMatchedOn(item.name, search, matches.filter((m) => m.inventoryItemId === item.id))
+          : null,
+      })),
       pagination: {
         total,
         page: query.page,
@@ -292,7 +348,8 @@ export const inventoryService = {
     const item = await inventoryItemRepository.findById(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
     const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
-    return serializeItem(item, restockLevelsByItemId.get(item.id) ?? null);
+    const suppliers = await supplierItemRepository.listForItem(item.id, organizationId);
+    return { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), suppliers: suppliers.map(serializeItemSupplierLine) };
   },
 
   createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse> => {
@@ -327,7 +384,8 @@ export const inventoryService = {
       );
       // Keep SupplierItem.isPreferred in step with the legacy pointer.
       if (input.preferredSupplierId) {
-        await supplierItemRepository.applyPreferred(organizationId, created.id, input.preferredSupplierId, tx);
+        const preferred = await supplierItemRepository.applyPreferred(organizationId, created.id, input.preferredSupplierId, tx);
+        await logPreferredChange(organizationId, actor.id, input.preferredSupplierId, created.id, preferred, tx);
       }
       return created;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));
@@ -392,7 +450,10 @@ export const inventoryService = {
         tx,
       );
       if (updated && input.preferredSupplierId !== undefined) {
-        await supplierItemRepository.applyPreferred(organizationId, id, input.preferredSupplierId ?? null, tx);
+        const preferred = await supplierItemRepository.applyPreferred(organizationId, id, input.preferredSupplierId ?? null, tx);
+        if (input.preferredSupplierId) {
+          await logPreferredChange(organizationId, actor.id, input.preferredSupplierId, id, preferred, tx);
+        }
       }
       return updated;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));

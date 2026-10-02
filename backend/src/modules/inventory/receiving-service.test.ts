@@ -39,6 +39,8 @@ vi.mock('./receiving-repository', () => ({
     update: vi.fn(),
     markSigned: vi.fn(),
     markPriceAlertsAccepted: vi.fn(),
+    markPackNotOnFile: vi.fn(),
+    findPackNotOnFileLines: vi.fn(),
     findHubStoreManagers: vi.fn(),
     findHistoryRows: vi.fn(),
   },
@@ -66,6 +68,7 @@ vi.mock('./receiving-repository', () => ({
     create: vi.fn(),
     createReversal: vi.fn(),
     findAllBySupplier: vi.fn(),
+    countChequeNumber: vi.fn(),
   },
   supplierApRepository: {
     findSuppliersWithInvoices: vi.fn(),
@@ -78,8 +81,10 @@ vi.mock('./supplier-repository', () => ({
     findById: vi.fn(),
   },
   supplierItemRepository: {
-    findLastPrices: vi.fn(),
-    recordReceiptPrice: vi.fn(),
+    listBySupplierItems: vi.fn(),
+    findLinesWithPrices: vi.fn(),
+    setLinePrice: vi.fn(),
+    createLine: vi.fn(),
   },
 }));
 
@@ -189,6 +194,9 @@ const buildGoodsReceiptLine = (overrides: Record<string, unknown> = {}) => ({
   priceAlertPrevPrice: null,
   priceAlertAcceptedById: null,
   priceAlertAcceptedBy: null,
+  packBuyUnit: null,
+  packSize: null,
+  packNotOnFile: false,
   ...overrides,
 });
 
@@ -258,7 +266,8 @@ const buildDelivery = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
+  vi.mocked(supplierItemRepository.findLinesWithPrices).mockResolvedValue([]);
+  vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([]);
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
 });
 
@@ -1527,33 +1536,104 @@ describe('receivingService — RBAC (S7)', () => {
   });
 });
 
-describe('supplier prices (suppliers expansion)', () => {
+describe('supplier prices follow the pack (B4)', () => {
   const validSignInput = { pin: '1234', acceptedPriceAlerts: [] };
 
-  it('upserts the supplier catalog price for every line inside the sign transaction', async () => {
+  const supplierLine = (overrides: Record<string, unknown> = {}) => ({
+    id: 'sl1',
+    organizationId: hubOrgId,
+    supplierId,
+    inventoryItemId: itemId,
+    supplierItemName: null,
+    supplierItemCode: null,
+    buyUnit: 'crate',
+    packSize: null,
+    lastPrice: null,
+    lastPriceAt: null,
+    isPreferred: false,
+    preferredNeedsConfirm: false,
+    createdAt: new Date(),
+    ...overrides,
+  });
+  const bag50 = supplierLine({ id: 'bag', buyUnit: 'bag', packSize: new Prisma.Decimal('50'), lastPrice: new Prisma.Decimal('5000') });
+  const packet2 = supplierLine({ id: 'packet', buyUnit: 'packet', packSize: new Prisma.Decimal('2'), lastPrice: new Prisma.Decimal('120') });
+
+  const arrangeSign = (lineOverrides: Record<string, unknown> = {}) => {
     vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
     vi.mocked(comparePin).mockResolvedValue(true);
+    const lines = [buildGoodsReceiptLine(lineOverrides)];
     vi.mocked(goodsReceiptRepository.findById)
-      .mockResolvedValueOnce(buildGoodsReceipt() as never)
-      .mockResolvedValueOnce(buildGoodsReceipt({ status: 'RECEIVED_INVOICE_PENDING', signedAt: new Date() }) as never);
+      .mockResolvedValueOnce(buildGoodsReceipt({ lines }) as never)
+      .mockResolvedValueOnce(buildGoodsReceipt({ status: 'RECEIVED_INVOICE_PENDING', signedAt: new Date(), lines }) as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
     vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
     vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+  };
 
+  it('creates the supplier line when the supplier had none (unchanged first-purchase behaviour)', async () => {
+    arrangeSign();
     await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
 
-    expect(supplierItemRepository.recordReceiptPrice).toHaveBeenCalledTimes(1);
-    expect(supplierItemRepository.recordReceiptPrice).toHaveBeenCalledWith(
+    expect(supplierItemRepository.createLine).toHaveBeenCalledTimes(1);
+    expect(supplierItemRepository.createLine).toHaveBeenCalledWith(
       hubOrgId,
       supplierId,
       itemId,
-      expect.anything(),
-      expect.any(Date),
-      'crate',
+      expect.objectContaining({ buyUnit: 'crate', packSize: null, lastPriceAt: expect.any(Date) }),
       expect.anything(),
     );
-    const price = vi.mocked(supplierItemRepository.recordReceiptPrice).mock.calls[0]![3];
-    expect(String(price)).toBe('2025');
+    const data = vi.mocked(supplierItemRepository.createLine).mock.calls[0]![3];
+    expect(String(data.lastPrice)).toBe('2025');
+    expect(goodsReceiptRepository.markPackNotOnFile).not.toHaveBeenCalled();
+  });
+
+  it('keys the first line by the pack the receipt line names', async () => {
+    arrangeSign({ packBuyUnit: 'bag', packSize: new Prisma.Decimal('50') });
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(vi.mocked(supplierItemRepository.createLine).mock.calls[0]![3]).toMatchObject({ buyUnit: 'bag', packSize: '50' });
+  });
+
+  it('updates the single existing line when the receipt names no pack', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([supplierLine()] as never);
+    arrangeSign();
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(supplierItemRepository.setLinePrice).toHaveBeenCalledWith('sl1', hubOrgId, expect.anything(), expect.any(Date), expect.anything());
+    expect(String(vi.mocked(supplierItemRepository.setLinePrice).mock.calls[0]![2])).toBe('2025');
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+  });
+
+  it('Samrat sugar: a 2 kg packet receipt prices the packet line, not the 50 kg bag', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag50, packet2] as never);
+    arrangeSign({ packBuyUnit: 'packet', packSize: new Prisma.Decimal('2') });
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(supplierItemRepository.setLinePrice).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(supplierItemRepository.setLinePrice).mock.calls[0]![0]).toBe('packet');
+    expect(goodsReceiptRepository.markPackNotOnFile).not.toHaveBeenCalled();
+  });
+
+  it('Samrat sugar: a pack matching no line writes NO price and flags the receipt line', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag50] as never);
+    arrangeSign({ packBuyUnit: 'packet', packSize: new Prisma.Decimal('2') });
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(supplierItemRepository.setLinePrice).not.toHaveBeenCalled();
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+    expect(goodsReceiptRepository.markPackNotOnFile).toHaveBeenCalledWith('grline1', expect.anything());
+    // Stock still posts and cost still moves: only the supplier's catalog price is withheld.
+    expect(txInventoryTransactionCreate).toHaveBeenCalledTimes(1);
+    expect(txInventoryItemUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('never guesses between several lines when the receipt names no pack', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag50, packet2] as never);
+    arrangeSign();
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(supplierItemRepository.setLinePrice).not.toHaveBeenCalled();
+    expect(goodsReceiptRepository.markPackNotOnFile).toHaveBeenCalledWith('grline1', expect.anything());
   });
 
   it('does not write the supplier price when the sign transaction fails before the ledger', async () => {
@@ -1566,53 +1646,126 @@ describe('supplier prices (suppliers expansion)', () => {
     await expect(receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput)).rejects.toThrow(
       ConflictError,
     );
-    expect(supplierItemRepository.recordReceiptPrice).not.toHaveBeenCalled();
+    expect(supplierItemRepository.setLinePrice).not.toHaveBeenCalled();
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
   });
 
-  it("compares the price alert against the supplier's own last price, ahead of other suppliers' receipts", async () => {
+  const createReceipt = (line: { packBuyUnit?: string; packSize?: string }) =>
+    receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650', ...line }],
+    });
+
+  const arrangeCreate = (capture: (input: { packBuyUnit: string | null; packSize: unknown; priceAlertPrevPrice: unknown }) => void) => {
     vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
-    vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map([[itemId, new Prisma.Decimal('1000')]]));
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      capture(input.lines[0]!);
+      return buildGoodsReceipt() as never;
+    });
+  };
+
+  it("compares the price alert against the supplier's own last price, ahead of other suppliers' receipts", async () => {
+    vi.mocked(supplierItemRepository.findLinesWithPrices).mockResolvedValue([
+      supplierLine({ lastPrice: new Prisma.Decimal('1000') }),
+    ] as never);
     vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
       unitPrice: new Prisma.Decimal('2000'), // another supplier's receipt; would not alert
       signedAt: new Date(),
     });
-    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
-    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
-      expect(input.lines[0]!.priceAlertPrevPrice!.toString()).toBe('1000');
-      expect(input.lines[0]!.priceAlertPct).not.toBeNull();
-      return buildGoodsReceipt() as never;
+    let prev: unknown;
+    arrangeCreate((line) => {
+      prev = line.priceAlertPrevPrice;
     });
 
-    await receivingService.createGoodsReceipt(storeManager, {
-      supplierId,
-      paymentTerms: 'INVOICE_TO_FOLLOW',
-      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650' }],
-    });
-    expect(supplierItemRepository.findLastPrices).toHaveBeenCalledWith(hubOrgId, supplierId, [itemId]);
+    await createReceipt({});
+    expect(String(prev)).toBe('1000');
+    expect(supplierItemRepository.findLinesWithPrices).toHaveBeenCalledWith(hubOrgId, supplierId, [itemId]);
   });
 
-  it('falls back to the item last receipt price when the supplier has none (unchanged behaviour)', async () => {
-    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
-    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
-    vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
+  it('compares against the same pack: a packet price is not judged against the bag price', async () => {
+    vi.mocked(supplierItemRepository.findLinesWithPrices).mockResolvedValue([bag50, packet2] as never);
+    let prev: unknown;
+    arrangeCreate((line) => {
+      prev = line.priceAlertPrevPrice;
+    });
+
+    await createReceipt({ packBuyUnit: 'packet', packSize: '2' }); // 1650 vs packet 120 -> alert vs 120, never vs 5000
+    expect(String(prev)).toBe('120');
+  });
+
+  it('has no comparison when the supplier has pack lines but none match, and does not borrow another supplier\'s price', async () => {
+    vi.mocked(supplierItemRepository.findLinesWithPrices).mockResolvedValue([bag50] as never);
+    let prev: unknown = 'unset';
+    arrangeCreate((line) => {
+      prev = line.priceAlertPrevPrice;
+    });
+
+    await createReceipt({ packBuyUnit: 'packet', packSize: '2' });
+    expect(prev).toBeNull();
+    expect(lastPriceRepository.findLastReceiptLine).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the item last receipt price when the supplier has no line (unchanged behaviour)', async () => {
     vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
       unitPrice: new Prisma.Decimal('1049'),
       signedAt: new Date(),
     });
-    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
-    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
-      expect(input.lines[0]!.priceAlertPrevPrice!.toString()).toBe('1049');
-      return buildGoodsReceipt() as never;
+    let prev: unknown;
+    arrangeCreate((line) => {
+      prev = line.priceAlertPrevPrice;
     });
 
-    await receivingService.createGoodsReceipt(storeManager, {
-      supplierId,
-      paymentTerms: 'INVOICE_TO_FOLLOW',
-      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650' }],
+    await createReceipt({});
+    expect(String(prev)).toBe('1049');
+  });
+
+  it('stores the pack the receipt line was bought in', async () => {
+    let stored: { packBuyUnit: string | null; packSize: unknown } | undefined;
+    arrangeCreate((line) => {
+      stored = line;
     });
+
+    await createReceipt({ packBuyUnit: 'bag', packSize: '50' });
+    expect(stored).toMatchObject({ packBuyUnit: 'bag', packSize: '50' });
+  });
+
+  it('returns packNotOnFile and their name and code from the matching pack line (B5)', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
+      { ...bag50, supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035' },
+      packet2,
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({
+        lines: [buildGoodsReceiptLine({ packBuyUnit: 'bag', packSize: new Prisma.Decimal('50'), packNotOnFile: false })],
+      }) as never,
+    );
+
+    const result = await receivingService.getGoodsReceipt(storeManager, goodsReceiptId);
+    expect(result.lines[0]).toMatchObject({
+      supplierItemName: 'Kabras sugar 50kg',
+      supplierItemCode: '190035',
+      packBuyUnit: 'bag',
+      packSize: '50',
+      packNotOnFile: false,
+      itemName: 'Milk 500ml',
+    });
+  });
+
+  it('gives no supplier name when the pack is ambiguous or unmatched (ours stays)', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
+      { ...bag50, supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035' },
+      packet2,
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValue(
+      buildGoodsReceipt({ lines: [buildGoodsReceiptLine({ packNotOnFile: true })] }) as never,
+    );
+
+    const result = await receivingService.getGoodsReceipt(storeManager, goodsReceiptId);
+    expect(result.lines[0]).toMatchObject({ supplierItemName: null, supplierItemCode: null, packNotOnFile: true });
   });
 
   it.each(['ON_HOLD', 'ARCHIVED'] as const)('refuses a new receipt against a %s supplier', async (status) => {
@@ -1626,5 +1779,149 @@ describe('supplier prices (suppliers expansion)', () => {
         lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
       }),
     ).rejects.toThrow(ConflictError);
+  });
+});
+
+describe('cheque payments (B2)', () => {
+  const chequeInput = (reference?: string) => ({
+    supplierId,
+    amount: '5000',
+    paidAt: new Date().toISOString(),
+    method: 'CHEQUE' as const,
+    ...(reference !== undefined ? { reference } : {}),
+    allocations: [{ supplierInvoiceId: invoiceId, amount: '5000' }],
+  });
+
+  const arrangePayment = (duplicates: number) => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(supplierInvoiceRepository.findById).mockResolvedValue(buildInvoice({ amountBilled: new Prisma.Decimal('10000') }) as never);
+    vi.mocked(supplierPaymentRepository.countChequeNumber).mockResolvedValue(duplicates);
+    vi.mocked(supplierPaymentRepository.create).mockResolvedValue(
+      buildPayment({ method: 'CHEQUE', reference: '000123' }) as never,
+    );
+  };
+
+  it('records a cheque payment with its number and no warning when the number is new', async () => {
+    arrangePayment(0);
+    const payment = await receivingService.createSupplierPayment(storeManager, chequeInput('000123'));
+
+    expect(supplierPaymentRepository.create).toHaveBeenCalledWith(
+      hubOrgId,
+      expect.objectContaining({ method: 'CHEQUE', reference: '000123' }),
+      expect.anything(),
+    );
+    expect(supplierPaymentRepository.countChequeNumber).toHaveBeenCalledWith(supplierId, hubOrgId, '000123');
+    expect(payment).toMatchObject({ method: 'CHEQUE', reference: '000123', duplicateChequeNumber: false });
+  });
+
+  it('a repeated cheque number for the same supplier is a warning flag, not an error — the payment is still recorded', async () => {
+    arrangePayment(1);
+    const payment = await receivingService.createSupplierPayment(storeManager, chequeInput('000123'));
+
+    expect(supplierPaymentRepository.create).toHaveBeenCalledTimes(1);
+    expect(payment.duplicateChequeNumber).toBe(true);
+  });
+
+  it('never looks for duplicates on non-cheque payments', async () => {
+    arrangePayment(0);
+    vi.mocked(supplierPaymentRepository.create).mockResolvedValue(buildPayment() as never);
+    const payment = await receivingService.createSupplierPayment(storeManager, {
+      ...chequeInput(),
+      method: 'BANK',
+      reference: 'EFT-1',
+    });
+
+    expect(supplierPaymentRepository.countChequeNumber).not.toHaveBeenCalled();
+    expect(payment.duplicateChequeNumber).toBe(false);
+  });
+
+  it('requires the cheque number at the schema (400 before the service)', async () => {
+    const { CreateSupplierPaymentSchema } = await import('./receiving-validators');
+    const missing = CreateSupplierPaymentSchema.safeParse(chequeInput());
+    expect(missing.success).toBe(false);
+    expect(missing.success ? [] : missing.error.issues.map((i) => i.path.join('.'))).toContain('reference');
+    expect(CreateSupplierPaymentSchema.safeParse(chequeInput('000123')).success).toBe(true);
+    // Other methods still need no reference.
+    expect(CreateSupplierPaymentSchema.safeParse({ ...chequeInput(), method: 'CASH' }).success).toBe(true);
+  });
+});
+
+describe('supplier-facing documents and names (B5, B7)', () => {
+  const line = (id: string, supplierItemName: string | null, supplierItemCode: string | null) => ({
+    id,
+    organizationId: hubOrgId,
+    supplierId,
+    inventoryItemId: itemId,
+    supplierItemName,
+    supplierItemCode,
+    buyUnit: 'crate',
+    packSize: null,
+    createdAt: new Date(),
+  });
+
+  const delivery = () =>
+    buildDelivery({
+      expectedDate: new Date('2026-10-05T00:00:00.000Z'),
+      lines: [
+        {
+          id: 'line1',
+          expectedDeliveryId: deliveryId,
+          inventoryItemId: itemId,
+          inventoryItem: { id: itemId, name: 'Milk 500ml', buyUnit: 'crate', usageUnit: 'unit', conversionFactor: null },
+          quantity: new Prisma.Decimal('4'),
+          estimatedUnitPrice: new Prisma.Decimal('2025'),
+          lineOrder: 0,
+        },
+      ],
+    });
+
+  it('LPO and WhatsApp lead with their name and code, ours second', async () => {
+    vi.mocked(expectedDeliveryRepository.findById).mockResolvedValue(delivery() as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([line('l1', 'Brookside milk 500ml', 'BK-77')] as never);
+
+    const doc = await receivingService.getSupplierDocument(storeManager, deliveryId);
+
+    expect(doc.lpo.supplier).toMatchObject({ code: 'SUPPLIER-0001', name: 'Samrat Supermarket Ltd' });
+    expect(doc.lpo.lines[0]).toMatchObject({
+      displayName: 'Brookside milk 500ml',
+      displayCode: 'BK-77',
+      ourItemLabel: 'Our item: Milk 500ml',
+      quantity: '4',
+      buyUnit: 'crate',
+    });
+    expect(doc.whatsapp.body).toContain('1. Brookside milk 500ml (BK-77) — 4 crate\n   Our item: Milk 500ml');
+  });
+
+  it('falls back to our name when the supplier has no name for the item', async () => {
+    vi.mocked(expectedDeliveryRepository.findById).mockResolvedValue(delivery() as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([line('l1', null, null)] as never);
+
+    const doc = await receivingService.getSupplierDocument(storeManager, deliveryId);
+
+    expect(doc.lpo.lines[0]).toMatchObject({ displayName: 'Milk 500ml', ourItemLabel: null });
+    expect(doc.whatsapp.body).toContain('1. Milk 500ml — 4 crate');
+    expect(doc.whatsapp.body).not.toContain('Our item');
+  });
+
+  it('refuses an estimate with no supplier (409) and an unknown one (404)', async () => {
+    vi.mocked(expectedDeliveryRepository.findById).mockResolvedValue(buildDelivery({ supplierId: null, supplier: null }) as never);
+    await expect(receivingService.getSupplierDocument(storeManager, deliveryId)).rejects.toThrow(ConflictError);
+
+    vi.mocked(expectedDeliveryRepository.findById).mockResolvedValue(null);
+    await expect(receivingService.getSupplierDocument(storeManager, deliveryId)).rejects.toThrow(NotFoundError);
+  });
+
+  it('scopes to the hub: a non-hub actor is refused', async () => {
+    await expect(receivingService.getSupplierDocument(nonHubStoreManager, deliveryId)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('internal expected-delivery detail returns both names, ours primary', async () => {
+    vi.mocked(expectedDeliveryRepository.findById).mockResolvedValue(delivery() as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([line('l1', 'Brookside milk 500ml', 'BK-77')] as never);
+
+    const detail = await receivingService.getExpectedDelivery(storeManager, deliveryId);
+    expect(detail.lines[0]).toMatchObject({ itemName: 'Milk 500ml', supplierItemName: 'Brookside milk 500ml', supplierItemCode: 'BK-77' });
   });
 });

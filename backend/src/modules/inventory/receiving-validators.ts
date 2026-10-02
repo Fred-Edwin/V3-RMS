@@ -224,14 +224,8 @@ export const supplierInvoiceStatusSchema = z.enum([
  */
 export const disputeStatusSchema = z.enum(['OPEN', 'RESOLVED']);
 
-export const supplierPaymentMethodSchema = z.enum(['BANK', 'CASH', 'MPESA']);
-
-/**
- * Read side only. The DB enum gained CHEQUE (migration catalog_cheque_and_pack_lines) so a stored
- * payment can carry it, but recording one is not accepted until the cheque flow is built, so
- * the input schemas keep `supplierPaymentMethodSchema`.
- */
-export const supplierPaymentMethodReadSchema = z.enum([...supplierPaymentMethodSchema.options, 'CHEQUE']);
+/** CHEQUE: `reference` is the cheque number (required). API_CONTRACT §28.2. */
+export const supplierPaymentMethodSchema = z.enum(['BANK', 'CASH', 'MPESA', 'CHEQUE']);
 
 // --- Expected deliveries (Stage 1 — estimates, never a PO) ------------------
 
@@ -250,6 +244,9 @@ export const ExpectedDeliveryLineSchema = z.object({
    */
   usageUnit: z.string(),
   estimatedUnitPrice: decimalString,
+  /** The supplier's own name and code for this item (matched pack line), else null. Ours stays primary. */
+  supplierItemName: z.string().nullable(),
+  supplierItemCode: z.string().nullable(),
 });
 
 export const ExpectedDeliverySummarySchema = z.object({
@@ -406,6 +403,13 @@ export const GoodsReceiptLineSchema = z.object({
   usageUnit: z.string(),
   unitPrice: decimalString,
   lineTotal: decimalString,
+  /** What the goods were bought in; null = not stated. Catalog price matches on this (§28.4). */
+  packBuyUnit: z.string().nullable(),
+  packSize: decimalString.nullable(),
+  /** Stamped at signing: the supplier had lines for the item but none matched, so no catalog price was written. */
+  packNotOnFile: z.boolean(),
+  supplierItemName: z.string().nullable(),
+  supplierItemCode: z.string().nullable(),
   /**
    * Price-alert snapshot. Persisted, never recomputed: by the time the signed
    * receipt is read back, latest-price costing has already overwritten
@@ -447,6 +451,15 @@ export const GoodsReceiptDetailSchema = z.object({
   createdAt: isoDate,
 });
 
+/** `packBuyUnit` / `packSize` are optional: omitted means "not stated" (API_CONTRACT §28.4). */
+const receiptLineInput = z.object({
+  inventoryItemId: uuid,
+  quantityBuyUnit: positiveDecimalString,
+  unitPrice: decimalString,
+  packBuyUnit: z.string().trim().min(1).max(50).optional(),
+  packSize: positiveDecimalString.optional(),
+});
+
 export const CreateGoodsReceiptSchema = z.object({
   supplierId: uuid,
   expectedDeliveryId: uuid.optional(),
@@ -456,11 +469,7 @@ export const CreateGoodsReceiptSchema = z.object({
   supplierDocDate: isoDate.optional(),
   lines: z
     .array(
-      z.object({
-        inventoryItemId: uuid,
-        quantityBuyUnit: positiveDecimalString,
-        unitPrice: decimalString,
-      }),
+      receiptLineInput,
     )
     .min(1, 'at least one line is required'),
 });
@@ -492,11 +501,7 @@ export const UpdateGoodsReceiptSchema = z.object({
   supplierDocDate: isoDate.optional(),
   lines: z
     .array(
-      z.object({
-        inventoryItemId: uuid,
-        quantityBuyUnit: positiveDecimalString,
-        unitPrice: decimalString,
-      }),
+      receiptLineInput,
     )
     .min(1, 'at least one line is required')
     .optional(),
@@ -589,7 +594,7 @@ export const SupplierPaymentSchema = z.object({
   supplierId: uuid,
   amount: decimalString,
   paidAt: isoDate,
-  method: supplierPaymentMethodReadSchema,
+  method: supplierPaymentMethodSchema,
   reference: z.string().nullable(),
   allocations: z.array(
     z.object({
@@ -608,21 +613,33 @@ export const SupplierPaymentSchema = z.object({
  * Overpayment (Σ allocations < amount) is ALLOWED, not an error — the excess
  * becomes a derived supplier credit (Flow 15, plan §1.4).
  */
-export const CreateSupplierPaymentSchema = z.object({
-  supplierId: uuid,
-  amount: positiveDecimalString,
-  paidAt: isoDate,
-  method: supplierPaymentMethodSchema,
-  reference: z.string().trim().min(1).optional(),
-  allocations: z
-    .array(
-      z.object({
-        supplierInvoiceId: uuid,
-        amount: positiveDecimalString,
-      }),
-    )
-    .min(1),
+/** The create response: the payment plus the cheque-number warning (§28.2). */
+export const SupplierPaymentCreatedSchema = SupplierPaymentSchema.extend({
+  /** True when the same supplier already has a CHEQUE payment with this number. A warning, not an error. */
+  duplicateChequeNumber: z.boolean(),
 });
+
+export const CreateSupplierPaymentSchema = z
+  .object({
+    supplierId: uuid,
+    amount: positiveDecimalString,
+    paidAt: isoDate,
+    method: supplierPaymentMethodSchema,
+    /** The cheque number when `method` is CHEQUE (then required). */
+    reference: z.string().trim().min(1).optional(),
+    allocations: z
+      .array(
+        z.object({
+          supplierInvoiceId: uuid,
+          amount: positiveDecimalString,
+        }),
+      )
+      .min(1),
+  })
+  .refine((d) => d.method !== 'CHEQUE' || d.reference !== undefined, {
+    message: 'The cheque number is required when paying by cheque',
+    path: ['reference'],
+  });
 
 export const ReverseSupplierPaymentSchema = z.object({
   reason: z.string().trim().min(1, 'a reason is required'),

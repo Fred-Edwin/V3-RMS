@@ -19,7 +19,13 @@ import {
 } from './supplier-test-fixtures';
 
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
-vi.mock('./receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('./receiving-repository', () => ({
+  referenceCounterRepository: { nextReference: vi.fn() },
+  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+}));
+vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
+vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
+vi.mock('../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('./supplier-storage', async () => ({
   ...(await vi.importActual<typeof import('./supplier-storage')>('./supplier-storage')),

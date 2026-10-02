@@ -42,6 +42,13 @@ export interface GoodsReceiptSignedPayload {
   signedByName: string;
 }
 
+export interface ChequeMethodAddedPayload {
+  supplierId: string;
+  supplierName: string;
+  addedByName: string;
+  reason: string;
+}
+
 export interface RequisitionSubmittedPayload {
   requisitionId: string;
   departmentTag: string;
@@ -110,6 +117,12 @@ export const socketService = {
   emitGoodsReceiptSigned: (userId: string, payload: GoodsReceiptSignedPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('goods-receipt:signed', payload);
+  },
+
+  /** A cheque payment method was added to a supplier — notifies the hub's Accountant(s). */
+  emitChequeMethodAdded: (userId: string, payload: ChequeMethodAddedPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('supplier:cheque-method-added', payload);
   },
 
   /** A department head submits their section — notifies the branch's Manager(s). */

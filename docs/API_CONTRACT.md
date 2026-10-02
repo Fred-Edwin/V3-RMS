@@ -4508,7 +4508,9 @@ re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
 | `GET` | `/inventory/suppliers/:id/payment-methods/:pid` | SM, ACC, DIR | **Only response carrying the full `accountNumber`** (the "Show" action). |
 | `POST` `PATCH` `DELETE` | `/inventory/suppliers/:id/payment-methods[/:pid]` | SM, ACC | Responses use the masked shape. |
 | `GET` | `/inventory/suppliers/:id/items` | SM, ACC, DIR | Catalog rows. |
-| `PUT` `DELETE` | `/inventory/suppliers/:id/items/:itemId` | SM | `PUT` upserts by inventory item id. |
+| `POST` | `/inventory/suppliers/:id/items` | SM | **Add one pack line** (§28.3). `409 PACK_LINE_EXISTS` when the line key already exists. |
+| `PUT` `DELETE` | `/inventory/suppliers/:id/items/:itemId` | SM | `PUT` upserts on the **line key** `(supplier, item, buyUnit, packSize)`; optional `lineId` edits one line (§28.3). `DELETE` takes optional `?lineId=`. |
+| `GET` | `/inventory/suppliers/:id/pack-mismatches` | SM, ACC, DIR | Receipt lines whose pack matched no catalog line (§28.4). |
 | `GET` | `/inventory/suppliers/:id/documents` | SM, ACC, DIR | Timeline + uploads, §27.6. Query `limit` (default 100, max 200). |
 | `POST` | `/inventory/suppliers/:id/documents` | SM, ACC | `multipart/form-data`: file part `file` + text fields `docType`, `docDate?` (`YYYY-MM-DD`), `note?`, `goodsReceiptId?`, `supplierInvoiceId?`. |
 | `GET` | `/inventory/suppliers/:id/documents/:docId/download` | SM, ACC, DIR | `{url, expiresAt, fileName}` — signed URL, valid 5 minutes. |
@@ -4536,8 +4538,9 @@ Contact: `{id, name, role, phone, whatsapp, email, isPrimary, createdAt, updated
 Payment method: `{id, type, isDefault, bankName, bankBranch, accountName,
 accountNumberMasked, paybillNumber, accountReference, tillNumber, phone,
 registeredName, createdAt, updatedAt}`; the single-method GET adds `accountNumber`.
-Catalog row: `{inventoryItemId, itemName, itemBuyUnit, supplierItemName, supplierItemCode,
-buyUnit, packSize, lastPrice, lastPriceAt, isPreferred}` (`lastPrice` is per **buy** unit).
+Catalog row: `{id, inventoryItemId, itemName, itemBuyUnit, supplierItemName, supplierItemCode,
+buyUnit, packSize, lastPrice, lastPriceAt, isPreferred, preferredNeedsConfirm}` (`lastPrice` is per **buy** unit;
+`id` is the pack line's id — a supplier may have several lines for one item, §28.3).
 
 ### 27.3 Create / update bodies
 
@@ -4556,7 +4559,7 @@ without a location stores address `—`.
 
 Enums — status `ACTIVE | ON_HOLD | ARCHIVED`; type `REGULAR | OCCASIONAL | ONE_OFF | MARKET`;
 contact role `SALES_REP | ACCOUNTS | DELIVERY | OWNER | OTHER`; payment method type
-`BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH`; document type
+`BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH | CHEQUE` (§28.1); document type
 `INVOICE | DELIVERY_NOTE | RECEIPT | PRICE_LIST | CONTRACT | TAX_DOCUMENT | OTHER`.
 
 Payment-method bodies are a union on `type`: bank transfer needs `bankName`,
@@ -4601,3 +4604,109 @@ Spend / count / last date come from signed (non-cancelled) receipts; `averageDay
 date to the last (non-reversal) payment over fully paid invoices; `priceAlerts` counts receipt lines that fired an alert;
 `shortDeliveries` counts signed receipts (raised against an estimate) where an item arrived under its estimated quantity.
 
+## 28. Inventory — Central Store catalog, suppliers and restock levels (Part B services)
+
+Plan: `docs/features/inventory/central-store/catalog-suppliers-restock-plan.md` §3 (B1–B8).
+Migration: `catalog_cheque_and_pack_lines` (Session 1) and `receipt_line_pack_and_preferred_audit`
+(Session 2). All changes are additive; existing request shapes keep working.
+
+### 28.1 Cheque payment method (B1)
+
+`POST /inventory/suppliers/:id/payment-methods` accepts `type: "CHEQUE"`:
+`registeredName` (**payable to**, required), `bankName` (required), `note?`, `reason` (**required for
+CHEQUE**, ≤ 300 chars; never stored on the method, written to the audit row and the notification),
+`isDefault?`. `reason` is ignored for other types (so the current UI keeps working).
+`PATCH …/payment-methods/:pid` may change `registeredName`, `bankName`, `note` on a cheque method.
+
+Payment-method read shape gains `note: string | null`. Creating a cheque method writes the usual
+`PAY_METHOD_CREATED` audit row whose `after` carries `summary: "cheque method added"` and the `reason`,
+and notifies every active **Accountant** of the hub (socket event `supplier:cheque-method-added` +
+FCM push, fire-and-forget, never fails the request).
+
+### 28.2 Cheque payments (B2)
+
+`POST /inventory/supplier-payments`: `method` is now `BANK | CASH | MPESA | CHEQUE`. For `CHEQUE`,
+`reference` is the **cheque number** and is required (`400` otherwise). The response gains
+`duplicateChequeNumber: boolean` — true when another non-reversal CHEQUE payment to the **same
+supplier** already carries the same number (trimmed, case-insensitive). It is a warning flag only; the
+payment is still recorded (`201`). Every other payment read returns `method` + `reference` unchanged,
+so the payment advice and the closed purchase file print "Cheque" and the number from those two
+fields (print is front-end work, Session 3). `SupplierPayment.method` in responses is the same
+four-value enum (the separate read-only enum is gone).
+
+### 28.3 Pack lines (B3, B5, B8)
+
+A supplier may sell one item in several packs. The **line key** is
+`(supplier, item, buyUnit, packSize)`; a missing `buyUnit` and `''` are the same, a missing `packSize`
+and `0` are the same (as the database index `supplier_items_line_key`). Matching is exact otherwise.
+
+- `POST …/items` body `{inventoryItemId, supplierItemName?, supplierItemCode?, buyUnit?, packSize?, isPreferred?}`
+  → `201` catalog row. `buyUnit` defaults to the item's buy unit. If the key already exists:
+  `409 PACK_LINE_EXISTS`, message e.g. `"Samrat already has this pack: Sugar white · bag · 50 (their code 190035)"`,
+  `details.existingLine` = the catalog row.
+- `PUT …/items/:itemId` body adds optional `lineId`.
+  - With `lineId`: edits that line (`404` if it is not this supplier's line for this item). Changing
+    `buyUnit`/`packSize` to another existing line's key → `409 PACK_LINE_EXISTS` naming that line.
+  - Without `lineId`, with `buyUnit` and/or `packSize`: matches on the full key; found → updates it,
+    not found → creates a new line (this is what Add several uses; re-adding never duplicates).
+  - Without `lineId`, `buyUnit` or `packSize` (the legacy shape, e.g. `{isPreferred:true}`): targets the
+    supplier's oldest line for the item, or creates one when none exists (unchanged behaviour).
+  - Only fields present in the body are changed (an omitted name/code is no longer wiped).
+- `DELETE …/items/:itemId[?lineId=]`: with several lines for the item and no `lineId` → `409 MULTIPLE_PACK_LINES`.
+- `supplierItemName` / `supplierItemCode` (B5) are optional on POST and PUT, and are returned on: the
+  supplier catalog rows, `GET /inventory/items/:id` (`suppliers[]`, below), goods-receipt lines and
+  expected-delivery lines (`supplierItemName`, `supplierItemCode`: the matched pack line's, else null).
+  Internal screens show **our** name as primary and theirs as secondary.
+- `GET /inventory/items/:id` gains `suppliers: [{lineId, supplierId, supplierCode, supplierName,
+  supplierItemName, supplierItemCode, buyUnit, packSize, lastPrice, lastPriceAt, isPreferred,
+  preferredNeedsConfirm}]` (SM only endpoint, as today).
+- **Preferred (B8).** `preferredNeedsConfirm` is true on a line seeded as "Preferred · confirm". Setting
+  a line preferred (`PUT {isPreferred:true[, lineId]}`) or confirming one that is already preferred (the
+  same call) clears it. Clearing preferred, or another line becoming preferred, also clears it. Each
+  set or confirm writes a supplier audit row `PREFERRED_SET` / `PREFERRED_CONFIRMED` (`entityId` = line id,
+  `before`/`after` = `{inventoryItemId, lineId, preferredNeedsConfirm}`). Only one line per item is ever
+  preferred (database index), including two lines of the same supplier.
+
+### 28.4 Receipt price follows the pack (B4)
+
+Goods-receipt lines (`POST`/`PATCH /goods-receipts`) accept optional `packBuyUnit` and `packSize`
+(what the goods were bought in); both are stored and returned, with `packNotOnFile: boolean`.
+Signing a receipt always posts stock and updates `InventoryItem.currentCost` as before. The
+**supplier's catalog price** is written like this, per line:
+
+1. The supplier has **no** line for the item → a line is created (as before), keyed by the receipt line's pack (else the item's buy unit).
+2. The receipt line names a pack → the line with the same full key gets `lastPrice`/`lastPriceAt`. No match → **no price is written** and the receipt line is stamped `packNotOnFile = true`.
+3. The receipt line names no pack → the supplier's single line for the item is used; with two or more lines it is ambiguous, so no price is written and the line is flagged (never guessed).
+
+The receipt price alert compares against the same matched line's `lastPrice` (not another pack's).
+`GET /inventory/suppliers/:id/pack-mismatches` (SM, ACC, DIR) lists flagged receipt lines of that
+supplier that **still** match no catalog line:
+`[{receiptLineId, goodsReceiptId, reference, signedAt, inventoryItemId, itemName, packBuyUnit, packSize, unitPrice}]`,
+newest first; adding the missing pack line removes the row.
+
+### 28.5 Catalog search (B6)
+
+`GET /inventory/items?search=` (the parameter keeps its name `search`) matches, case-insensitively: the
+item name (partial), a supplier's **item code** (exact) and a supplier's **item name** (partial).
+Each list row gains `matchedOn: {supplier: {id, name}, field: "supplierItemCode" | "supplierItemName", value} | null`
+— null when the item's own name matched or no search was given; otherwise the first supplier line that matched.
+
+### 28.6 Supplier-facing documents (B7)
+
+`GET /inventory/expected-deliveries/:id/supplier-document` (SM) → `{lpo, whatsapp}`; `409` when the
+estimate has no supplier. Each line shows **the supplier's name and code first**, our item second, and
+falls back to ours when the supplier has no name on file.
+
+```
+lpo: { reference, createdAt, expectedDate|null,
+       supplier: {id, code, name, address, contactName|null, phone|null},
+       lines: [{lineNo, itemName (ours), supplierItemName|null, supplierItemCode|null,
+                displayName, displayCode|null, ourItemLabel|null,
+                quantity, buyUnit, estimatedUnitPrice, lineTotal}],
+       estimatedTotal }
+whatsapp: { to: phone|null, body }
+```
+`displayName` = supplier name ?? ours; `ourItemLabel` = `"Our item: <ours>"` only when `displayName` is
+the supplier's. Body: one line per item `"1. <displayName> (<code>) — <qty> <unit>"` followed by
+`"   Our item: <ours>"`. No prices in the message. The phone "Check the goods" screen is unchanged
+(our name only). Internal endpoints return both names, ours primary.

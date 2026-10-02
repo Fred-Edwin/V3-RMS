@@ -1801,6 +1801,8 @@ enum SupplierAuditAction {
   PAY_METHOD_DELETED
   PAY_METHOD_DEFAULT_CHANGED
   STATUS_CHANGED
+  PREFERRED_SET
+  PREFERRED_CONFIRMED
 }
 
 model Supplier {
@@ -1926,9 +1928,10 @@ model SupplierItem {
   // Line key (raw SQL, see migration catalog_cheque_and_pack_lines): unique index
   // supplier_items_line_key on (supplier_id, inventory_item_id, COALESCE(buy_unit,''),
   // COALESCE(pack_size,0)). Prisma cannot express it, so there is no compound unique here.
-  // Search indexes (also raw SQL): (organization_id, supplier_item_code) and
-  // (organization_id, lower(supplier_item_name)).
+  // Search indexes: (organization_id, supplier_item_code) is declared below; the expression index
+  // (organization_id, lower(supplier_item_name)) is raw SQL only.
   @@index([organizationId, inventoryItemId])
+  @@index([organizationId, supplierItemCode], map: "supplier_items_org_code_idx")
   @@map("supplier_items")
 }
 
@@ -2527,6 +2530,12 @@ model GoodsReceiptLine {
   priceAlertPct          Decimal? @map("price_alert_pct") @db.Decimal(6, 2) // null = no alert fired
   priceAlertPrevPrice    Decimal? @map("price_alert_prev_price") @db.Decimal(12, 4)
   priceAlertAcceptedById String?  @map("price_alert_accepted_by_id")
+  // The pack the goods were bought in (what the supplier catalog line key matches on).
+  // Null = not stated. `packNotOnFile` is stamped at signing when the supplier had lines
+  // for the item but none matched, so no catalog price was written.
+  packBuyUnit            String?  @map("pack_buy_unit")
+  packSize               Decimal? @map("pack_size") @db.Decimal(12, 4)
+  packNotOnFile          Boolean  @default(false) @map("pack_not_on_file")
 
   goodsReceipt         GoodsReceipt           @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   inventoryItem        InventoryItem          @relation(fields: [inventoryItemId], references: [id])

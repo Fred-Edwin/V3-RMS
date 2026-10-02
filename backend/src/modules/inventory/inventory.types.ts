@@ -16,6 +16,7 @@ import type {
   CentralStoreLocationSchema,
   CreateCategorySchema,
   CreateItemSchema,
+  InventoryItemListRowSchema,
   InventoryItemSchema,
   ItemCatalogMetaSchema,
   ItemMutationResponseSchema,
@@ -51,6 +52,7 @@ export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;
 // --- Items -----------------------------------------------------------------
 
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
+export type InventoryItemListRow = z.infer<typeof InventoryItemListRowSchema>;
 export type ItemCatalogMeta = z.infer<typeof ItemCatalogMetaSchema>;
 export type ListItemsQuery = z.infer<typeof ListItemsQuerySchema>;
 export type CreateItemInput = z.infer<typeof CreateItemSchema>;
@@ -77,6 +79,6 @@ export interface Paginated<T> {
 }
 
 /** The item catalog list additionally carries the KPI strip's counts. */
-export interface ItemCatalogListResponse extends Paginated<InventoryItem> {
+export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow> {
   meta: ItemCatalogMeta;
 }
