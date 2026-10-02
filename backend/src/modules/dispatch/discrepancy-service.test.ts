@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { discrepancyService } from './discrepancy-service';
 import { discrepancyRepository } from './discrepancy-repository';
 import { dispatchRepository } from './dispatch-repository';
+import { referenceCounterRepository } from '../inventory/receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { authRepository } from '../../repositories/auth-repository';
@@ -17,7 +18,12 @@ vi.mock('./discrepancy-repository', () => ({
     findByIdForHub: vi.fn(),
     findByIdForBranch: vi.fn(),
     markResolved: vi.fn(),
+    closeDispatchIfResolved: vi.fn().mockResolvedValue(undefined),
   },
+}));
+
+vi.mock('../inventory/receiving-repository', () => ({
+  referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('ADJ-0001') },
 }));
 
 vi.mock('./dispatch-repository', () => ({
@@ -195,6 +201,19 @@ describe('discrepancyService.resolveDiscrepancy — TRANSIT_LOSS_WRITEOFF', () =
     );
   });
 
+  it('numbers the adjustment ADJ-#### on the hub org and records the reason', async () => {
+    await discrepancyService.resolveDiscrepancy(storeManager, discrepancyId, {
+      outcome: 'TRANSIT_LOSS_WRITEOFF',
+      resolutionNote: 'Lost in transit',
+      pin: '1234',
+    });
+
+    const call = txInventoryTransactionCreate.mock.calls[0]![0].data;
+    expect(call.reference).toBe('ADJ-0001');
+    expect(call.reason).toBe('Transit loss');
+    expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(expect.anything(), hubOrgId, 'ADJ');
+  });
+
   it('normalizes an already-negative gapQty to stay negative (never double-negates)', async () => {
     vi.mocked(discrepancyRepository.findByIdForHub).mockResolvedValue(
       buildDiscrepancy({ gapQty: new Prisma.Decimal(-3) }) as never,
@@ -224,6 +243,29 @@ describe('discrepancyService.resolveDiscrepancy — MISCOUNT_CORRECTED', () => {
     );
     const call = txInventoryTransactionCreate.mock.calls[0]![0].data;
     expect(call.quantity.toString()).toBe('-3'); // gapQty as-is, sign follows the correction direction
+  });
+
+  it('numbers the adjustment ADJ-#### on the branch org and records the reason', async () => {
+    await discrepancyService.resolveDiscrepancy(storeManager, discrepancyId, {
+      outcome: 'MISCOUNT_CORRECTED',
+      resolutionNote: 'Recounted',
+      pin: '1234',
+    });
+
+    const call = txInventoryTransactionCreate.mock.calls[0]![0].data;
+    expect(call.reference).toBe('ADJ-0001');
+    expect(call.reason).toBe('Receiving miscount');
+    expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(expect.anything(), branchOrgId, 'ADJ');
+  });
+
+  it('closes the dispatch once the discrepancy is resolved', async () => {
+    await discrepancyService.resolveDiscrepancy(storeManager, discrepancyId, {
+      outcome: 'MISCOUNT_CORRECTED',
+      resolutionNote: 'Recounted',
+      pin: '1234',
+    });
+
+    expect(discrepancyRepository.closeDispatchIfResolved).toHaveBeenCalledWith(expect.anything(), dispatchId);
   });
 
   it('no branch department location configured throws ValidationError', async () => {

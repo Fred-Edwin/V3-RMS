@@ -164,9 +164,9 @@ in a real browser and checked screen-by-screen against the approved Paper
 designs; see `milestone-3-plan.md` §5 for the full outcome log including
 bugs found and fixed. **Milestones Four and Five shipped** (Requisition &
 Branch Approval; Dispatch & Branch Receiving). **Milestone Six (Counting,
-Closing & Discrepancies): Sessions 1–3 merged; Session 4 (day close history,
-next-morning opening) built on `feat/m6-s4-history-opening`** — remaining: the
-cross-role integration pass, owner review, PR. See
+Closing & Discrepancies): Sessions 1–4 merged (S4 = PR #46, deployed 2026-09-30)**; cross-role integration pass run
+locally 2026-09-30 — remaining: two owner decisions (miscount-correction
+ledger effect, attendant on-hand in dispatch fulfil) and the production demo. See
 `docs/features/inventory/milestone-6-plan.md` §8 and
 `docs/features/inventory/MILESTONES.md`.
 

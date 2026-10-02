@@ -250,11 +250,13 @@ export function DispatchQueueFulfilScreen({ requisitionId }: DispatchQueueFulfil
   const oldest = queue.rows[0] ?? null;
   const dispatchedToday = queue.rows.reduce((sum, r) => sum + r.departments.filter((d) => d.status !== null).length, 0);
 
+  const branchesFullyOut = queue.rows.filter((r) => r.departments.every((d) => d.status !== null)).length;
+
   const kpis = [
     { label: 'Branches waiting', value: String(branchesWaiting), detail: branchesWaiting > 0 ? `${branchesWaiting} branch${branchesWaiting === 1 ? '' : 'es'} raised a requisition` : 'nothing waiting' },
     { label: 'Departments waiting', value: String(departmentsWaiting), detail: `across the ${branchesWaiting} waiting branches` },
     { label: 'Oldest wait', value: oldest ? formatWait(oldest.openedAt) : '—', detail: oldest ? `${oldest.branchName} · opened ${formatTime(oldest.openedAt)}` : 'nothing waiting', accent: true },
-    { label: 'Dispatched today', value: String(dispatchedToday), detail: `${queue.rows.filter((r) => r.departments.every((d) => d.status !== null)).length} branches fully out` },
+    { label: 'Dispatched today', value: String(dispatchedToday), detail: `${branchesFullyOut} branch${branchesFullyOut === 1 ? '' : 'es'} fully out` },
   ];
 
   const handleSign = async (pin: string) => {

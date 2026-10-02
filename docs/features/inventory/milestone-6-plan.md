@@ -589,14 +589,56 @@ On branch `feat/m6-s3-day-close` (backend `bd5e838` + frontend commit; not pushe
 - **Branch Manager thresholds** live on the branch's own `CountingThresholds` row; the role picks the write schema (each `.strict()`), the org always comes from the actor.
 - **Deviations to confirm:** "Counted" status in green (Paper draws it red), counted figures stay editable while the day is open, mobile History link disabled until Session 4.
 
-### Session 4 — History, opening, integration (built 2026-09-29)
+### Session 4 — History, opening, integration (built 2026-09-29, merged 2026-09-30)
 
-On branch `feat/m6-s4-history-opening` (backend `ed63ac2` + follow-up commits). Plan, owner decisions and per-screen notes: `milestone-6-sessions/session-4-plan.md`. Headlines:
+Merged to `main` as PR #46 (`aed016a`) and deployed; migration `20260930100000_milestone6_session4_opening` applied by the pipeline. Plan, owner decisions and per-screen notes: `milestone-6-sessions/session-4-plan.md`. Headlines:
 - **History reads what was signed:** list and detail aggregate from saved lines only; a past day's expected figures are cut off at the end of that business day, so a reopened old day is never judged against today's ledger. Detail reuses the S3 read-only panes through a saved-count adapter (one layout, as Paper `1CMM-0` matches `19C8-0`).
 - **Opening + recompute:** accept posts linked `ADJ-` overnight rows in one transaction; a re-close reverses and re-derives them. Verified in Postgres on real data: reversal = exact opposite of its original, on-hand equals the accepted figure, every adjustment has a reference and exactly one source link.
 - **Additions beyond the plan table:** `GET /branch-day/:id/overview` (recount a reopened past day; `?day=<id>` on the day screen), reopened-but-open days labelled "Reopened · open" instead of "Never closed", shared PIN sheet fixed (clears after a wrong PIN, refocuses, Enter submits).
 - **Owner decisions at session start:** S3 deviations accepted; DH "Stock ledger" quick action already existed (Paper variant `1L02-0` added); SM mobile Thresholds already drawn/wired.
 - Checks: backend build + 1,176 tests, frontend build + token check green. Dev seed `seed-branch-day-history-dev-fixtures.ts` (run after the S3 seed).
+
+### Integration pass — local rehearsal (2026-09-30)
+
+Ran on a wiped local DB seeded by `backend/src/scripts/seed-rehearsal-reference.ts`
+(reference data only: 3 orgs, 9 people with PIN `1234`, 54 items, 7 suppliers, restock
+levels, thresholds, store opening stock, Nyeri Town Kitchen opening balance). Rerun:
+`cd backend && REHEARSAL_SEED_CONFIRM=YES npx tsx src/scripts/seed-rehearsal-reference.ts`
+(local database only; refuses production). The day was then driven end to end against the
+real API/services (receiving → prep → count → requisition → dispatch → receive → discrepancy
+→ branch close → reopen/re-close → opening → negative stock), with Postgres checks after each
+role and browser spot-checks of the Store Manager stock hub, Prep, Dispatch, Discrepancies
+and the Branch Manager Day and History screens. Production run sheet:
+`production-run-sheet.md`.
+
+**Confirmed working:** price-change alert with a confirm gate (Flow 2d, "38% above last");
+pack-unit conversion on receipt; both payment terms; invoice dispute + part payment (AP);
+prep yield strip / "Yield flags" KPI / low-yield notify flag (Flow 3a); blind count on the
+wire (no expected/on-hand/variance/cost key in any attendant count response); query →
+recount returns only the queried line and rejects edits elsewhere (409); reason required
+above the threshold (at approve, and on spot counts); Director alert flag; ADJ-#### with
+exactly one source link on every count/close/opening adjustment; reversals exact and linked;
+dispatch_out at hub / dispatch_in at branch org only for confirmed quantities; unconfirmed
+dispatch blocks the department count server-side; close refused without a reason and with a
+wrong PIN; negative stock allowed and flagged (Flow 21); no cross-org rows.
+
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| F2 | must-fix | Dispatch-discrepancy write-off ADJUSTMENTs had no `ADJ-####` reference and no reason | **Fixed** — both outcomes now number via the org's ADJ counter and record "Transit loss" / "Receiving miscount"; unit tests added. Rows written before the fix (none in production expected) stay unnumbered |
+| F3 | must-fix | Dispatch stayed `DISCREPANCY_OPEN` after every discrepancy was RESOLVED (Flow 11 step 4) | **Fixed** — `closeDispatchIfResolved` runs in the resolve transaction; verified live (→ CONFIRMED) |
+| F5 | can-wait | "1 branches fully out" | **Fixed** (plural). Not changed: a fully dispatched branch still appears under "Waiting" |
+| F1 | must-fix (owner decision) | `MISCOUNT_CORRECTED` writes the *gap* at the branch (−40) although the note says all 400 arrived, and the request carries no corrected quantity — Barista lids went 360 → 320 | **Open.** Recommend adding a required `correctedQty` and writing `correctedQty − confirmedQty`. Do not demo this outcome until decided |
+| F4 | decision | `GET /dispatch/:id/fulfil` returns `onHandQty` to the Store Attendant (and the prefill `min(requested, onHand)` reveals it); plan Q-A says the attendant sees no on-hand anywhere | **Open.** The M5-approved fulfil screen needs it to show shortages; either accept as a documented exception or send only an "insufficient stock" flag to the Attendant |
+| F6 | note | The handoff said the attendant gets no cost on waste; plan Q-A explicitly allows unit cost there | Not a bug — handoff wording corrected here |
+
+**Not verified in this pass:** the Attendant/Department Head mobile layouts; the M2–M5 ledger
+screens clicked through one by one in the browser (their effects were confirmed in Postgres
+and the Store Manager/Branch Manager desktop screens were spot-checked); the department head's
+opening card UI; print documents; push notifications; Director/Accountant screens (not built).
+The next-morning opening was exercised by moving the closed day back one calendar day in the
+local DB (dates only). Data entry for receiving, prep, counts, requisitions, dispatch and the
+branch close went through the real API endpoints (same services and ledger writes as the UI),
+not form-by-form — apart from one goods receipt signed through the UI.
 
 ---
 

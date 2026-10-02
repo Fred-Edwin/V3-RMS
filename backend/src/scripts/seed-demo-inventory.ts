@@ -22,6 +22,7 @@ import 'dotenv/config';
 import { DepartmentTag, InventoryItemType, Prisma, SupplierPaymentTerms } from '@prisma/client';
 import { prisma } from '../config/database';
 import { hashPassword } from '../utils/password';
+import { createSeedSupplier } from './seed-supplier-helper';
 
 const DEV_PASSWORD = 'DryRun#2026!';
 const STORE_MANAGER_EMAIL = process.env.DEMO_STORE_MANAGER_EMAIL ?? 'demo.storemanager@wendo.co.ke';
@@ -130,17 +131,14 @@ const run = async (): Promise<void> => {
     const found = await prisma.supplier.findFirst({ where: { organizationId: hub.id, name: s.name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
-      (await prisma.supplier.create({
-        data: {
-          organizationId: hub.id,
-          name: s.name,
-          contactName: s.contactName,
-          phone: s.phone,
-          location: s.location,
-          defaultPaymentTerms: s.terms,
-          paymentDays: s.paymentDays,
-        },
-        select: { id: true },
+      (await createSeedSupplier(prisma, {
+        organizationId: hub.id,
+        name: s.name,
+        contactName: s.contactName,
+        phone: s.phone,
+        location: s.location,
+        defaultPaymentTerms: s.terms,
+        paymentDays: s.paymentDays,
       }));
     supplierId.set(s.name, row.id);
   }

@@ -105,6 +105,21 @@ export const discrepancyRepository = {
     });
     return updated.count;
   },
+
+  /**
+   * Flow 11 step 4: a DISCREPANCY_OPEN dispatch becomes CONFIRMED once none of
+   * its lines has an OPEN discrepancy left. Runs inside the resolve transaction.
+   */
+  closeDispatchIfResolved: async (tx: TxClient, dispatchId: string): Promise<void> => {
+    const stillOpen = await tx.discrepancy.count({
+      where: { status: 'OPEN', dispatchLine: { dispatchId } },
+    });
+    if (stillOpen > 0) return;
+    await tx.dispatch.updateMany({
+      where: { id: dispatchId, status: 'DISCREPANCY_OPEN' },
+      data: { status: 'CONFIRMED' },
+    });
+  },
 };
 
 const discrepancyDetailInclude = {

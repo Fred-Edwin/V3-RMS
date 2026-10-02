@@ -4,16 +4,13 @@ import { inventoryService } from './inventory-service';
 import {
   CreateCategorySchema,
   CreateItemSchema,
-  CreateSupplierSchema,
   IdParamSchema,
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
   ListRestockLevelsQuerySchema,
-  ListSuppliersQuerySchema,
   SaveRestockLevelsSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
-  UpdateSupplierSchema,
 } from './inventory-validators';
 
 const requireActor = (req: Request) => {
@@ -109,51 +106,6 @@ export const inventoryController = {
     const { id } = IdParamSchema.parse(req.params);
     const data = await inventoryService.restoreItem(actor, id);
     res.status(200).json({ success: true, data, message: 'Item restored successfully' });
-  },
-
-  // ── Suppliers ────────────────────────────────────────────────────────────
-
-  listSuppliers: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const query = ListSuppliersQuerySchema.parse(req.query);
-    const { data, pagination } = await inventoryService.listSuppliers(actor, query);
-    res.status(200).json({ success: true, data, pagination });
-  },
-
-  getSupplierById: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = IdParamSchema.parse(req.params);
-    const data = await inventoryService.getSupplierById(actor, id);
-    res.status(200).json({ success: true, data });
-  },
-
-  createSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const input = CreateSupplierSchema.parse(req.body);
-    const data = await inventoryService.createSupplier(actor, input);
-    res.status(201).json({ success: true, data, message: 'Supplier created successfully' });
-  },
-
-  updateSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = IdParamSchema.parse(req.params);
-    const input = UpdateSupplierSchema.parse(req.body);
-    const data = await inventoryService.updateSupplier(actor, id, input);
-    res.status(200).json({ success: true, data, message: 'Supplier updated successfully' });
-  },
-
-  retireSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = IdParamSchema.parse(req.params);
-    const data = await inventoryService.retireSupplier(actor, id);
-    res.status(200).json({ success: true, data, message: 'Supplier retired successfully' });
-  },
-
-  restoreSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = IdParamSchema.parse(req.params);
-    const data = await inventoryService.restoreSupplier(actor, id);
-    res.status(200).json({ success: true, data, message: 'Supplier restored successfully' });
   },
 
   // ── Restock levels ───────────────────────────────────────────────────────

@@ -11,7 +11,8 @@ import {
   supplierInvoiceRepository,
   supplierPaymentRepository,
 } from './receiving-repository';
-import { inventoryItemRepository, supplierRepository } from './inventory-repository';
+import { inventoryItemRepository } from './inventory-repository';
+import { supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { authRepository } from '../../repositories/auth-repository';
@@ -72,10 +73,17 @@ vi.mock('./receiving-repository', () => ({
   },
 }));
 
-vi.mock('./inventory-repository', () => ({
+vi.mock('./supplier-repository', () => ({
   supplierRepository: {
     findById: vi.fn(),
   },
+  supplierItemRepository: {
+    findLastPrices: vi.fn(),
+    recordReceiptPrice: vi.fn(),
+  },
+}));
+
+vi.mock('./inventory-repository', () => ({
   inventoryItemRepository: {
     findLiveByIds: vi.fn(),
     findById: vi.fn(),
@@ -136,11 +144,16 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
   organizationId: hubOrgId,
   name: 'Samrat Supermarket Ltd',
-  contactName: 'Dattu',
+  code: 'SUPPLIER-0001',
+  tradingName: null,
+  status: 'ACTIVE' as const,
+  type: 'REGULAR' as const,
   category: null,
-  phone: '+254722160400',
-  email: 'samratnyeri@gmail.com',
-  location: 'Nyeri town',
+  address: 'Nyeri town',
+  mapUrl: null,
+  contacts: [
+    { id: 'c1', name: 'Dattu', role: 'OTHER', phone: '+254722160400', whatsapp: null, email: 'samratnyeri@gmail.com', isPrimary: true },
+  ],
   defaultPaymentTerms: 'INVOICE_TO_FOLLOW' as const,
   deletedAt: null,
   createdAt: new Date(),
@@ -245,6 +258,7 @@ const buildDelivery = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
 });
 
@@ -294,7 +308,7 @@ describe('receivingService.createExpectedDelivery', () => {
   });
 
   it('rejects a retired supplier with 409', async () => {
-    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier({ deletedAt: new Date() }) as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier({ status: 'ARCHIVED', deletedAt: new Date() }) as never);
     await expect(
       receivingService.createExpectedDelivery(storeManager, {
         supplierId,
@@ -686,7 +700,7 @@ describe('receivingService.createGoodsReceipt', () => {
   });
 
   it('409s on a retired supplier', async () => {
-    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier({ deletedAt: new Date() }) as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier({ status: 'ARCHIVED', deletedAt: new Date() }) as never);
     await expect(
       receivingService.createGoodsReceipt(storeManager, {
         supplierId,
@@ -1510,5 +1524,107 @@ describe('receivingService — RBAC (S7)', () => {
     // this service receives only already-validated input, so there is no
     // separate service-level check to test here.
     expect(true).toBe(true);
+  });
+});
+
+describe('supplier prices (suppliers expansion)', () => {
+  const validSignInput = { pin: '1234', acceptedPriceAlerts: [] };
+
+  it('upserts the supplier catalog price for every line inside the sign transaction', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById)
+      .mockResolvedValueOnce(buildGoodsReceipt() as never)
+      .mockResolvedValueOnce(buildGoodsReceipt({ status: 'RECEIVED_INVOICE_PENDING', signedAt: new Date() }) as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(1);
+    vi.mocked(goodsReceiptRepository.findHubStoreManagers).mockResolvedValue([]);
+
+    await receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput);
+
+    expect(supplierItemRepository.recordReceiptPrice).toHaveBeenCalledTimes(1);
+    expect(supplierItemRepository.recordReceiptPrice).toHaveBeenCalledWith(
+      hubOrgId,
+      supplierId,
+      itemId,
+      expect.anything(),
+      expect.any(Date),
+      'crate',
+      expect.anything(),
+    );
+    const price = vi.mocked(supplierItemRepository.recordReceiptPrice).mock.calls[0]![3];
+    expect(String(price)).toBe('2025');
+  });
+
+  it('does not write the supplier price when the sign transaction fails before the ledger', async () => {
+    vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue(actorWithPin() as never);
+    vi.mocked(comparePin).mockResolvedValue(true);
+    vi.mocked(goodsReceiptRepository.findById).mockResolvedValueOnce(buildGoodsReceipt() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(goodsReceiptRepository.markSigned).mockResolvedValue(0);
+
+    await expect(receivingService.signGoodsReceipt(storeManager, goodsReceiptId, validSignInput)).rejects.toThrow(
+      ConflictError,
+    );
+    expect(supplierItemRepository.recordReceiptPrice).not.toHaveBeenCalled();
+  });
+
+  it("compares the price alert against the supplier's own last price, ahead of other suppliers' receipts", async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map([[itemId, new Prisma.Decimal('1000')]]));
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
+      unitPrice: new Prisma.Decimal('2000'), // another supplier's receipt; would not alert
+      signedAt: new Date(),
+    });
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      expect(input.lines[0]!.priceAlertPrevPrice!.toString()).toBe('1000');
+      expect(input.lines[0]!.priceAlertPct).not.toBeNull();
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650' }],
+    });
+    expect(supplierItemRepository.findLastPrices).toHaveBeenCalledWith(hubOrgId, supplierId, [itemId]);
+  });
+
+  it('falls back to the item last receipt price when the supplier has none (unchanged behaviour)', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplier() as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
+    vi.mocked(lastPriceRepository.findLastReceiptLine).mockResolvedValue({
+      unitPrice: new Prisma.Decimal('1049'),
+      signedAt: new Date(),
+    });
+    vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('GRN-0001');
+    vi.mocked(goodsReceiptRepository.create).mockImplementation(async (_org, _ref, input) => {
+      expect(input.lines[0]!.priceAlertPrevPrice!.toString()).toBe('1049');
+      return buildGoodsReceipt() as never;
+    });
+
+    await receivingService.createGoodsReceipt(storeManager, {
+      supplierId,
+      paymentTerms: 'INVOICE_TO_FOLLOW',
+      lines: [{ inventoryItemId: itemId, quantityBuyUnit: '2', unitPrice: '1650' }],
+    });
+  });
+
+  it.each(['ON_HOLD', 'ARCHIVED'] as const)('refuses a new receipt against a %s supplier', async (status) => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue(
+      buildSupplier({ status, deletedAt: status === 'ARCHIVED' ? new Date() : null }) as never,
+    );
+    await expect(
+      receivingService.createGoodsReceipt(storeManager, {
+        supplierId,
+        paymentTerms: 'INVOICE_TO_FOLLOW',
+        lines: [{ inventoryItemId: itemId, quantityBuyUnit: '4', unitPrice: '2025' }],
+      }),
+    ).rejects.toThrow(ConflictError);
   });
 });

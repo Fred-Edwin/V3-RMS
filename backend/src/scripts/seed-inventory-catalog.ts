@@ -38,6 +38,7 @@ import 'dotenv/config';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
+import { createSeedSupplier } from './seed-supplier-helper';
 
 if (env.NODE_ENV === 'production') {
   if (process.env['ALLOW_PRODUCTION_SEED'] !== 'true' || process.env['SEED_REPORTS_CONFIRM'] !== 'YES') {
@@ -169,17 +170,15 @@ const run = async (): Promise<void> => {
   const supplierIdByName = new Map<string, string>();
   for (const s of SUPPLIERS) {
     const existing = await prisma.supplier.findFirst({ where: { organizationId, name: s.name } });
-    const supplier = existing ?? (await prisma.supplier.create({
-      data: {
-        organizationId,
-        name: s.name,
-        contactName: s.contactName,
-        categoryId: categoryIdByName.get(s.category) ?? null,
-        phone: s.phone,
-        email: s.email,
-        location: s.location,
-        defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
-      },
+    const supplier = existing ?? (await createSeedSupplier(prisma, {
+      organizationId,
+      name: s.name,
+      contactName: s.contactName,
+      categoryId: categoryIdByName.get(s.category) ?? null,
+      phone: s.phone,
+      email: s.email,
+      location: s.location,
+      defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
     }));
     supplierIdByName.set(s.name, supplier.id);
     console.log(`${existing ? 'SKIP ' : 'OK   '} Supplier: ${s.name}`);

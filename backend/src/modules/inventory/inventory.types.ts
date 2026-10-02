@@ -16,20 +16,16 @@ import type {
   CentralStoreLocationSchema,
   CreateCategorySchema,
   CreateItemSchema,
-  CreateSupplierSchema,
   InventoryItemSchema,
   ItemCatalogMetaSchema,
   ItemMutationResponseSchema,
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
   ListRestockLevelsQuerySchema,
-  ListSuppliersQuerySchema,
   RestockLevelRowSchema,
   SaveRestockLevelsSchema,
-  SupplierSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
-  UpdateSupplierSchema,
   departmentTagSchema,
   inventoryItemTypeSchema,
   supplierPaymentTermsSchema,
@@ -60,13 +56,6 @@ export type ListItemsQuery = z.infer<typeof ListItemsQuerySchema>;
 export type CreateItemInput = z.infer<typeof CreateItemSchema>;
 export type UpdateItemInput = z.infer<typeof UpdateItemSchema>;
 export type ItemMutationResponse = z.infer<typeof ItemMutationResponseSchema>;
-
-// --- Suppliers -------------------------------------------------------------
-
-export type Supplier = z.infer<typeof SupplierSchema>;
-export type ListSuppliersQuery = z.infer<typeof ListSuppliersQuerySchema>;
-export type CreateSupplierInput = z.infer<typeof CreateSupplierSchema>;
-export type UpdateSupplierInput = z.infer<typeof UpdateSupplierSchema>;
 
 // --- Restock levels --------------------------------------------------------
 

@@ -15,7 +15,8 @@ import {
   referenceCounterRepository,
   supplierInvoiceRepository,
 } from './receiving-repository';
-import { inventoryItemRepository, supplierRepository } from './inventory-repository';
+import { inventoryItemRepository } from './inventory-repository';
+import { supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import {
@@ -71,8 +72,12 @@ vi.mock('./receiving-repository', () => ({
   },
 }));
 
-vi.mock('./inventory-repository', () => ({
+vi.mock('./supplier-repository', () => ({
   supplierRepository: { findById: vi.fn() },
+  supplierItemRepository: { findLastPrices: vi.fn(), recordReceiptPrice: vi.fn() },
+}));
+
+vi.mock('./inventory-repository', () => ({
   inventoryItemRepository: { findLiveByIds: vi.fn(), findById: vi.fn() },
 }));
 
@@ -98,6 +103,7 @@ const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizati
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId, isHub: true, isActive: true } as never);
 });
 
@@ -161,7 +167,7 @@ describe('Receiving contract drift guard', () => {
   });
 
   it('ExpectedDeliverySummarySchema accepts createExpectedDelivery output', async () => {
-    vi.mocked(supplierRepository.findById).mockResolvedValue({ id: supplierId, deletedAt: null } as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue({ id: supplierId, status: 'ACTIVE', deletedAt: null } as never);
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0002');
     vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
@@ -349,6 +355,7 @@ describe('Receiving contract drift guard', () => {
       id: supplierId,
       organizationId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
+      status: 'ACTIVE',
       deletedAt: null,
     } as never);
     vi.mocked(recentSupplierItemsRepository.findRecentBySupplier).mockResolvedValue([
@@ -542,6 +549,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
       id: supplierId,
       organizationId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
+      status: 'ACTIVE',
       deletedAt: null,
       paymentDays: 30,
     } as never);
@@ -573,6 +581,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
       id: supplierId,
       organizationId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
+      status: 'ACTIVE',
       deletedAt: null,
     } as never);
     vi.mocked(supplierInvoiceRepository.findById).mockResolvedValue(buildInvoiceRow() as never);
@@ -611,11 +620,16 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
       id: supplierId,
       organizationId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
-      contactName: 'Dattu',
+      code: 'SUPPLIER-0001',
+      tradingName: null,
+      status: 'ACTIVE',
+      type: 'REGULAR',
       category: null,
-      phone: '+254722160400',
-      email: 'samratnyeri@gmail.com',
-      location: 'Nyeri town',
+      address: 'Nyeri town',
+      mapUrl: null,
+      contacts: [
+        { id: '77777777-7777-4777-8777-777777777777', name: 'Dattu', role: 'OTHER', phone: '+254722160400', whatsapp: null, email: 'samratnyeri@gmail.com', isPrimary: true },
+      ],
       defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
       paymentDays: 30,
       deletedAt: null,
