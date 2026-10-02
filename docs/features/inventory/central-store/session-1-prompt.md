@@ -14,9 +14,9 @@ You are building **Session 1 of the Central Store Catalog, suppliers and restock
 4. `backend/prisma/schema.prisma`: enums `SupplierPayMethodType`, `SupplierPaymentMethod`; models `SupplierPayMethod`, `SupplierItem`.
 5. `backend/prisma/migrations/20260930120000_suppliers_expansion/` to see how the last migration wrote raw SQL, partial indexes and enums.
 
-## Step 0 — branch state (do this before anything else)
+## Step 0 — start state
 
-`git status` shows uncommitted work from the supplier backend (`feat/suppliers-backend`: schema changes, `20260930120000_suppliers_expansion`, `supplier-*.ts`). **Do not build on a dirty tree and do not discard it.** Report what is uncommitted and ask the owner how to proceed: commit it first, or branch from it. Wait for the answer. Then create `feat/central-store-catalog-migration` from the agreed base.
+The supplier backend and the M6 integration fixes are merged to `main` (PR #47, deployed 2 Oct 2026, migration `20260930120000_suppliers_expansion` applied by the pipeline). Run `git checkout main && git pull`, confirm `git status` is clean apart from untracked owner files (`docs/Item Catalog/`, `backend/src/scripts/seed-catalog-from-staging.ts` — do not touch or commit them), then branch `feat/central-store-catalog-migration` from main. Read the supplier code (`backend/src/modules/inventory/supplier-*.ts`, `receiving-service.ts`) before changing any caller.
 
 ## What to build
 
