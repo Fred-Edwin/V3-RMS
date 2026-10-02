@@ -85,6 +85,15 @@ Build order follows the approved flow. Each screen is built, then checked with `
 
 Rules: no offline states; one states kit (loading / empty / error) with per-screen copy; attendants never see costs or stock; hooks stable per CLAUDE.md; the interaction baseline in `../milestone-6-plan.md` §4.2 applies to every screen; load `emil-design-eng`, `building-components`, `vercel-composition-patterns`, `web-design-guidelines`, `run-frontend-browser`.
 
+### Retiring the old screens (part of Part C)
+
+Approved Paper designs are the only target. Each old screen is **replaced in place when its new version passes the parity check**, never deleted up front, so the app keeps working in between. Each Part C session ends by deleting what it replaced:
+
+- Old screens, hooks, services and mock data in `frontend/features/inventory/` for the pages rebuilt that session (list in the supplier backend summary: `supplier-form-screen`, `supplier-detail-screen`, `suppliers-ap-screen`, `use-new-purchase-form`, the API and mock services, `types/index.ts`).
+- Old routes and nav links that point at them.
+- After the last Part C session: remove the deprecated supplier keys (`contactName`, `phone`, `email`, `location`, `retiredAt`) and the legacy `DELETE /suppliers/:id` and `POST …/restore` aliases from the API, and update `API_CONTRACT.md`.
+- Old Paper pages are not deleted; they stay labelled "SUPERSEDED".
+
 ## 5. Order of work and sessions
 
 0. **Design housekeeping (design agent, ~1 hour):** renumber steps 1b/9b/18b/20b/21b, fix the stale "Payment 2" count, re-paste to the master. Not blocking Part A.
