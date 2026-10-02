@@ -2167,7 +2167,7 @@ model SupplierPayment {
   supplierId     String                @map("supplier_id")
   amount         Decimal               @db.Decimal(12, 2)   -- may exceed the sum of allocations -> becomes a credit
   paidAt         DateTime              @map("paid_at")
-  method         SupplierPaymentMethod
+  method         SupplierPaymentMethod                      -- BANK | CASH | MPESA | CHEQUE (CHEQUE added 2026-10-02; the API does not accept it as input until the cheque flow is built)
   reference      String?                                    -- "EFT-88213"
   reversalOfId   String?               @map("reversal_of_id")
   reversalReason String?               @map("reversal_reason")
@@ -2918,11 +2918,11 @@ Many per supplier. `organizationId`, `supplierId` (cascade), `name`, `role` (`Su
 
 ### 4.80 SupplierPayMethod
 
-How Wendo pays a supplier (Prisma model `SupplierPayMethod`, table `supplier_pay_methods`; **named "PayMethod" because the enum `SupplierPaymentMethod` (BANK/CASH/MPESA) already classifies recorded `SupplierPayment` rows**). `organizationId`, `supplierId` (cascade), `type` (`SupplierPayMethodType`: `BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH`), typed nullable columns `bankName`, `bankBranch`, `accountName`, `accountNumber`, `paybillNumber`, `accountReference`, `tillNumber`, `phone`, `registeredName`, `isDefault`, `createdById`. **Partial unique index** `supplier_pay_methods_one_default_per_supplier` on `(supplier_id) WHERE is_default`. Only the columns belonging to `type` are populated. Visible to Store Manager, Accountant, Director only; never to attendants. Every create / update / delete / default change writes a `SupplierAuditLog` row.
+How Wendo pays a supplier (Prisma model `SupplierPayMethod`, table `supplier_pay_methods`; **named "PayMethod" because the enum `SupplierPaymentMethod` (BANK/CASH/MPESA/CHEQUE) already classifies recorded `SupplierPayment` rows**). `organizationId`, `supplierId` (cascade), `type` (`SupplierPayMethodType`: `BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH`), typed nullable columns `bankName`, `bankBranch`, `accountName`, `accountNumber`, `paybillNumber`, `accountReference`, `tillNumber`, `phone`, `registeredName`, `isDefault`, `createdById`. **Partial unique index** `supplier_pay_methods_one_default_per_supplier` on `(supplier_id) WHERE is_default`. Only the columns belonging to `type` are populated. **CHEQUE** (migration `catalog_cheque_and_pack_lines`, 2026-10-02) reuses `registeredName` (payable to) and `bankName`, and may carry a free-text `note` (`note TEXT NULL`, added to every pay method). Visible to Store Manager, Accountant, Director only; never to attendants. Every create / update / delete / default change writes a `SupplierAuditLog` row.
 
 ### 4.81 SupplierItem
 
-The supplier catalog: one row per (supplier, item). `organizationId`, `supplierId` (cascade), `inventoryItemId`, `supplierItemName?`, `supplierItemCode?`, `buyUnit?`, `packSize?` (`Decimal(12,4)`), `lastPrice?` (`Decimal(12,4)`, **per buy unit**), `lastPriceAt?`, `isPreferred`. `@@unique([supplierId, inventoryItemId])`. **Partial unique index** `supplier_items_one_preferred_per_item` on `(inventory_item_id) WHERE is_preferred`. `lastPrice` / `lastPriceAt` are written only by signing a goods receipt (same transaction as the ledger write). `isPreferred` is kept in step with `InventoryItem.preferredSupplierId` (old column retained; retire in a later cleanup).
+The supplier catalog: one row per supplier **line** — (supplier, item, buy unit, pack size), so one supplier can sell the same item in several pack sizes. `organizationId`, `supplierId` (cascade), `inventoryItemId`, `supplierItemName?`, `supplierItemCode?`, `buyUnit?`, `packSize?` (`Decimal(12,4)`), `lastPrice?` (`Decimal(12,4)`, **per buy unit**), `lastPriceAt?`, `isPreferred`, `preferredNeedsConfirm` (`Boolean`, default `false` — the "Preferred · confirm" flag that seeding sets). **Line key (raw SQL, no Prisma compound unique):** unique index `supplier_items_line_key` on `(supplier_id, inventory_item_id, COALESCE(buy_unit, ''), COALESCE(pack_size, 0))` — the COALESCE makes NULL unit / pack compare equal, because Postgres treats NULLs as distinct in a plain unique index; so a row with no unit and no pack is the same line as another with none. Because Prisma has no compound key for it, code finds a line with `findFirst` and then `update`/`create`, never `upsert`. Search indexes (raw SQL): `supplier_items_org_code_idx` on `(organization_id, supplier_item_code)` and `supplier_items_org_lower_name_idx` on `(organization_id, lower(supplier_item_name))`. **Partial unique index** `supplier_items_one_preferred_per_item` on `(inventory_item_id) WHERE is_preferred`. `lastPrice` / `lastPriceAt` are written only by signing a goods receipt (same transaction as the ledger write). `isPreferred` is kept in step with `InventoryItem.preferredSupplierId` (old column retained; retire in a later cleanup).
 
 ### 4.82 SupplierDocument
 
@@ -2934,7 +2934,7 @@ Append-only. `organizationId`, `supplierId` (cascade), `action` (`SupplierAuditA
 
 ### Supplier enums
 
-`SupplierStatus`, `SupplierType`, `SupplierContactRole`, `SupplierPayMethodType`, `SupplierDocumentType`, `SupplierAuditAction` — values as listed above (added 2026-09-30).
+`SupplierStatus`, `SupplierType`, `SupplierContactRole`, `SupplierPayMethodType` (+`CHEQUE`), `SupplierDocumentType`, `SupplierAuditAction` — values as listed above (added 2026-09-30).
 
 ### Why a separate PrepTicket table instead of status flags on Order?
 

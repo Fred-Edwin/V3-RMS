@@ -226,6 +226,13 @@ export const disputeStatusSchema = z.enum(['OPEN', 'RESOLVED']);
 
 export const supplierPaymentMethodSchema = z.enum(['BANK', 'CASH', 'MPESA']);
 
+/**
+ * Read side only. The DB enum gained CHEQUE (migration catalog_cheque_and_pack_lines) so a stored
+ * payment can carry it, but recording one is not accepted until the cheque flow is built, so
+ * the input schemas keep `supplierPaymentMethodSchema`.
+ */
+export const supplierPaymentMethodReadSchema = z.enum([...supplierPaymentMethodSchema.options, 'CHEQUE']);
+
 // --- Expected deliveries (Stage 1 — estimates, never a PO) ------------------
 
 export const ExpectedDeliveryLineSchema = z.object({
@@ -582,7 +589,7 @@ export const SupplierPaymentSchema = z.object({
   supplierId: uuid,
   amount: decimalString,
   paidAt: isoDate,
-  method: supplierPaymentMethodSchema,
+  method: supplierPaymentMethodReadSchema,
   reference: z.string().nullable(),
   allocations: z.array(
     z.object({
