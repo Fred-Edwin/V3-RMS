@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { discrepancyRepository, type DiscrepancyWithDetail } from './discrepancy-repository';
 import { dispatchRepository } from './dispatch-repository';
+import { referenceCounterRepository } from '../inventory/receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { authRepository } from '../../repositories/auth-repository';
@@ -121,6 +122,7 @@ export const discrepancyService = {
       } else if (input.outcome === 'TRANSIT_LOSS_WRITEOFF') {
         const centralStore = await locationRepository.findCentralStore();
         if (!centralStore) throw new ValidationError('No Central Store is configured');
+        const reference = await referenceCounterRepository.nextReference(tx, hubOrgId, 'ADJ');
         await tx.inventoryTransaction.create({
           data: {
             organizationId: hubOrgId,
@@ -130,6 +132,8 @@ export const discrepancyService = {
             quantity: discrepancy.gapQty.lessThan(0) ? discrepancy.gapQty : discrepancy.gapQty.negated(),
             unitCost: discrepancy.dispatchLine.costAtDispatch,
             dispatchLineId: discrepancy.dispatchLine.id,
+            reference,
+            reason: 'Transit loss',
             userId: actor.id,
           },
         });
@@ -140,6 +144,11 @@ export const discrepancyService = {
           discrepancy.dispatchLine.dispatch.departmentTag as never,
         );
         if (!departmentLocation) throw new ValidationError('No branch department location is configured for this dispatch');
+        const reference = await referenceCounterRepository.nextReference(
+          tx,
+          discrepancy.dispatchLine.dispatch.toOrganizationId,
+          'ADJ',
+        );
         await tx.inventoryTransaction.create({
           data: {
             organizationId: discrepancy.dispatchLine.dispatch.toOrganizationId,
@@ -149,6 +158,8 @@ export const discrepancyService = {
             quantity: discrepancy.gapQty,
             unitCost: discrepancy.dispatchLine.costAtDispatch,
             dispatchLineId: discrepancy.dispatchLine.id,
+            reference,
+            reason: 'Receiving miscount',
             userId: actor.id,
           },
         });
@@ -164,6 +175,8 @@ export const discrepancyService = {
       if (count === 0) {
         throw new ValidationError('This discrepancy has already been resolved');
       }
+      // Flow 11 step 4: the dispatch closes once its last open discrepancy is resolved.
+      await discrepancyRepository.closeDispatchIfResolved(tx, discrepancy.dispatchLine.dispatch.id);
     });
 
       void notifyResolution(discrepancy, actor.id);

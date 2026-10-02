@@ -39,6 +39,7 @@ vi.mock('./discrepancy-repository', () => ({
     findAllForHub: vi.fn(),
     findByIdForHub: vi.fn(),
     markResolved: vi.fn(),
+    closeDispatchIfResolved: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
