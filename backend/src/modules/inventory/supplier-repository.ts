@@ -360,6 +360,20 @@ export const supplierItemRepository = {
   find: (supplierId: string, inventoryItemId: string, organizationId: string, client: Client = prisma) =>
     client.supplierItem.findFirst({ where: { supplierId, inventoryItemId, organizationId } }),
 
+  /**
+   * The line key is now (supplier, item, buy unit, pack size) via a raw-SQL index, so Prisma has
+   * no compound key for upsert. Until pack lines exist (a later session) a supplier has at most
+   * one line per item, so "the line" is the oldest one for the pair.
+   */
+  findLineId: async (supplierId: string, inventoryItemId: string, organizationId: string, tx: TxClient): Promise<string | null> => {
+    const row = await tx.supplierItem.findFirst({
+      where: { supplierId, inventoryItemId, organizationId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    return row?.id ?? null;
+  },
+
   /** Upserts the catalog row without touching price fields. */
   upsert: async (
     organizationId: string,
@@ -367,13 +381,12 @@ export const supplierItemRepository = {
     inventoryItemId: string,
     data: SupplierItemData & { isPreferred?: boolean },
     tx: TxClient,
-  ): Promise<SupplierItemRow> =>
-    tx.supplierItem.upsert({
-      where: { supplierId_inventoryItemId: { supplierId, inventoryItemId } },
-      create: { organizationId, supplierId, inventoryItemId, ...data },
-      update: { ...data },
-      include: supplierItemInclude,
-    }),
+  ): Promise<SupplierItemRow> => {
+    const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
+    return id
+      ? tx.supplierItem.update({ where: { id }, data: { ...data }, include: supplierItemInclude })
+      : tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, ...data }, include: supplierItemInclude });
+  },
 
   delete: async (supplierId: string, inventoryItemId: string, organizationId: string, tx: TxClient): Promise<number> => {
     const { count } = await tx.supplierItem.deleteMany({ where: { supplierId, inventoryItemId, organizationId } });
@@ -392,11 +405,9 @@ export const supplierItemRepository = {
       data: { isPreferred: false },
     });
     if (supplierId) {
-      await tx.supplierItem.upsert({
-        where: { supplierId_inventoryItemId: { supplierId, inventoryItemId } },
-        create: { organizationId, supplierId, inventoryItemId, isPreferred: true },
-        update: { isPreferred: true },
-      });
+      const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
+      if (id) await tx.supplierItem.update({ where: { id }, data: { isPreferred: true } });
+      else await tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, isPreferred: true } });
     }
     await tx.inventoryItem.updateMany({
       where: { id: inventoryItemId, organizationId },
@@ -444,11 +455,9 @@ export const supplierItemRepository = {
     buyUnit: string,
     tx: TxClient,
   ): Promise<void> => {
-    await tx.supplierItem.upsert({
-      where: { supplierId_inventoryItemId: { supplierId, inventoryItemId } },
-      create: { organizationId, supplierId, inventoryItemId, buyUnit, lastPrice: price, lastPriceAt: at },
-      update: { lastPrice: price, lastPriceAt: at },
-    });
+    const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
+    if (id) await tx.supplierItem.update({ where: { id }, data: { lastPrice: price, lastPriceAt: at } });
+    else await tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, buyUnit, lastPrice: price, lastPriceAt: at } });
   },
 };
 

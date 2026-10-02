@@ -1782,6 +1782,7 @@ enum SupplierPayMethodType {
   MPESA_TILL
   MPESA_SEND_MONEY
   CASH
+  CHEQUE
 }
 
 enum SupplierDocumentType {
@@ -1887,7 +1888,8 @@ model SupplierPayMethod {
   accountReference String?               @map("account_reference")
   tillNumber       String?               @map("till_number")
   phone            String?
-  registeredName   String?               @map("registered_name")
+  registeredName   String?               @map("registered_name") // cheque: payable to
+  note             String?
   isDefault        Boolean               @default(false) @map("is_default")
   createdById      String                @map("created_by_id")
   createdAt        DateTime              @default(now()) @map("created_at")
@@ -1903,24 +1905,29 @@ model SupplierPayMethod {
 // One preferred supplier per item: partial unique index on (inventory_item_id)
 // WHERE is_preferred (raw SQL in the migration).
 model SupplierItem {
-  id               String    @id @default(uuid())
-  organizationId   String    @map("organization_id")
-  supplierId       String    @map("supplier_id")
-  inventoryItemId  String    @map("inventory_item_id")
-  supplierItemName String?   @map("supplier_item_name")
-  supplierItemCode String?   @map("supplier_item_code")
-  buyUnit          String?   @map("buy_unit")
-  packSize         Decimal?  @map("pack_size") @db.Decimal(12, 4)
-  lastPrice        Decimal?  @map("last_price") @db.Decimal(12, 4) // per BUY unit
-  lastPriceAt      DateTime? @map("last_price_at")
-  isPreferred      Boolean   @default(false) @map("is_preferred")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(uuid())
+  organizationId        String    @map("organization_id")
+  supplierId            String    @map("supplier_id")
+  inventoryItemId       String    @map("inventory_item_id")
+  supplierItemName      String?   @map("supplier_item_name")
+  supplierItemCode      String?   @map("supplier_item_code")
+  buyUnit               String?   @map("buy_unit")
+  packSize              Decimal?  @map("pack_size") @db.Decimal(12, 4)
+  lastPrice             Decimal?  @map("last_price") @db.Decimal(12, 4) // per BUY unit
+  lastPriceAt           DateTime? @map("last_price_at")
+  isPreferred           Boolean   @default(false) @map("is_preferred")
+  preferredNeedsConfirm Boolean   @default(false) @map("preferred_needs_confirm")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
 
-  @@unique([supplierId, inventoryItemId])
+  // Line key (raw SQL, see migration catalog_cheque_and_pack_lines): unique index
+  // supplier_items_line_key on (supplier_id, inventory_item_id, COALESCE(buy_unit,''),
+  // COALESCE(pack_size,0)). Prisma cannot express it, so there is no compound unique here.
+  // Search indexes (also raw SQL): (organization_id, supplier_item_code) and
+  // (organization_id, lower(supplier_item_name)).
   @@index([organizationId, inventoryItemId])
   @@map("supplier_items")
 }
@@ -2615,6 +2622,7 @@ enum SupplierPaymentMethod {
   BANK
   CASH
   MPESA
+  CHEQUE
 }
 
 /// Flow 15 — payments are immutable once saved; a correction is a reversal
