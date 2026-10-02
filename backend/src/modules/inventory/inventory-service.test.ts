@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { inventoryService } from './inventory-service';
-import { categoryRepository, inventoryItemRepository, restockLevelRepository, supplierRepository } from './inventory-repository';
+import { categoryRepository, inventoryItemRepository, restockLevelRepository } from './inventory-repository';
+import { supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
@@ -29,16 +30,6 @@ vi.mock('./inventory-repository', () => ({
     restore: vi.fn(),
     getCatalogMeta: vi.fn(),
   },
-  supplierRepository: {
-    findAllByOrganization: vi.fn(),
-    findById: vi.fn(),
-    findByLiveName: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    retire: vi.fn(),
-    restore: vi.fn(),
-    findLiveItemsPreferringSupplier: vi.fn(),
-  },
   restockLevelRepository: {
     findAllByLocation: vi.fn(),
     findByItemIdsForLocation: vi.fn(),
@@ -46,6 +37,11 @@ vi.mock('./inventory-repository', () => ({
     bulkUpsert: vi.fn(),
     sumOnHandByItemForLocation: vi.fn(),
   },
+}));
+
+vi.mock('./supplier-repository', () => ({
+  supplierRepository: { findById: vi.fn() },
+  supplierItemRepository: { applyPreferred: vi.fn() },
 }));
 
 vi.mock('../../repositories/branch-repository', () => ({
@@ -388,22 +384,35 @@ describe('inventoryService — live-name uniqueness ignores retired rows', () =>
   });
 });
 
-describe('inventoryService — supplier retire blocked while referenced as preferred', () => {
-  it('blocks retiring a supplier that is still preferred by a live item', async () => {
-    vi.mocked(supplierRepository.findLiveItemsPreferringSupplier).mockResolvedValue([
-      { id: itemId, name: 'Kabras Sugar 1kg' },
-    ]);
+describe('inventoryService — preferred supplier stays in sync with SupplierItem.isPreferred', () => {
+  const base = {
+    name: 'Milk', type: 'STOCKED', buyUnit: 'crate', usageUnit: 'unit', conversionFactor: null, packSize: null,
+    departmentTags: [], categoryId: null, categoryName: null, centralStoreRestockLevel: null,
+  };
 
-    await expect(inventoryService.retireSupplier(storeManager, supplierId)).rejects.toThrow(ConflictError);
-    expect(supplierRepository.retire).not.toHaveBeenCalled();
+  it('creating an item with a preferred supplier marks the catalog row', async () => {
+    vi.mocked(supplierRepository.findById).mockResolvedValue({ id: supplierId } as never);
+    vi.mocked(inventoryItemRepository.findLiveByName).mockResolvedValue(null);
+    vi.mocked(inventoryItemRepository.create).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+
+    await inventoryService.createItem(storeManager, { ...base, preferredSupplierId: supplierId } as never);
+    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, expect.anything());
   });
 
-  it('retires a supplier with no live items preferring it', async () => {
-    vi.mocked(supplierRepository.findLiveItemsPreferringSupplier).mockResolvedValue([]);
-    vi.mocked(supplierRepository.retire).mockResolvedValue(buildSupplier({ deletedAt: new Date() }) as never);
+  it('clearing the preferred supplier on update clears the catalog mark', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+    vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem({ preferredSupplierId: null }) as never);
 
-    const result = await inventoryService.retireSupplier(storeManager, supplierId);
-    expect(result.retiredAt).not.toBeNull();
+    await inventoryService.updateItem(storeManager, itemId, { preferredSupplierId: null } as never);
+    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, null, expect.anything());
+  });
+
+  it('does not touch the catalog when preferredSupplierId is not part of the update', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
+    vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem({ name: 'Renamed' }) as never);
+
+    await inventoryService.updateItem(storeManager, itemId, { name: 'Renamed' } as never);
+    expect(supplierItemRepository.applyPreferred).not.toHaveBeenCalled();
   });
 });
 

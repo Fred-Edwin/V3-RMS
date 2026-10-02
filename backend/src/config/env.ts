@@ -44,6 +44,12 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().default('info'),
   LOG_PRETTY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SENTRY_DSN: z.string().url().optional(),
+  // Cloudflare R2 (S3-compatible) for supplier documents. All four optional: when any is
+  // missing, non-production falls back to an in-memory fake and production refuses uploads.
+  R2_ACCOUNT_ID: z.string().optional().transform((v) => v || undefined),
+  R2_ACCESS_KEY_ID: z.string().optional().transform((v) => v || undefined),
+  R2_SECRET_ACCESS_KEY: z.string().optional().transform((v) => v || undefined),
+  R2_BUCKET: z.string().optional().transform((v) => v || undefined),
 });
 
 export const env = envSchema.parse(process.env);

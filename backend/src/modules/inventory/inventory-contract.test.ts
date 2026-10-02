@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { inventoryService } from './inventory-service';
-import { categoryRepository, inventoryItemRepository, restockLevelRepository, supplierRepository } from './inventory-repository';
+import { categoryRepository, inventoryItemRepository, restockLevelRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import {
@@ -16,7 +16,6 @@ import {
   InventoryItemSchema,
   ItemMutationResponseSchema,
   RestockLevelRowSchema,
-  SupplierSchema,
 } from './inventory-validators';
 
 vi.mock('./inventory-repository', () => ({
@@ -28,9 +27,6 @@ vi.mock('./inventory-repository', () => ({
   inventoryItemRepository: {
     findLiveByName: vi.fn(),
     create: vi.fn(),
-  },
-  supplierRepository: {
-    findAllByOrganization: vi.fn(),
   },
   restockLevelRepository: {
     findLiveItemsForRestock: vi.fn(),
@@ -132,37 +128,6 @@ describe('Inventory contract drift guard', () => {
 
     expect(() => ItemMutationResponseSchema.parse(result)).not.toThrow();
     expect(() => InventoryItemSchema.parse(result.item)).not.toThrow();
-  });
-
-  it('SupplierSchema accepts listSuppliers output', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({
-      suppliers: [
-        {
-          id: supplierId,
-          organizationId: hubOrgId,
-          name: 'Samrat Supermarket Ltd',
-          contactName: 'Dattu',
-          categoryId,
-          phone: '+254722160400',
-          email: 'samratnyeri@gmail.com',
-          location: 'Nyeri town',
-          defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
-          paymentDays: 30,
-          deletedAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          category: { id: categoryId, name: 'Dry items' },
-        },
-      ],
-      total: 1,
-    } as never);
-
-    const { data } = await inventoryService.listSuppliers(storeManager, {
-      includeRetired: false,
-      page: 1,
-      perPage: 20,
-    });
-    expect(() => SupplierSchema.parse(data[0])).not.toThrow();
   });
 
   it('RestockLevelRowSchema accepts listRestockLevels output, including a null level', async () => {

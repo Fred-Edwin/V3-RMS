@@ -1792,36 +1792,50 @@ model InventoryItem {
 
 ### 4.50 Supplier
 
-Suppliers Wendo buys from (Milestone One + Two). Central Store hub-org
-scoping (D-15, `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`) applies:
-suppliers live on the hub Organization only.
+Suppliers Wendo buys from (Milestone One + Two; expanded 2026-09-30 — see
+`docs/features/inventory/suppliers-plan.md`). Central Store hub-org scoping
+(D-15, `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`) applies: suppliers
+live on the hub Organization only.
 
 ```prisma
 model Supplier {
   id                  String               @id @default(uuid())
   organizationId      String               @map("organization_id")
+  code                String                                         -- SUPPLIER-0001; ReferenceCounter prefix SUPPLIER, pad 4; never reused, never edited
   name                String
-  contactName         String?              @map("contact_name")
+  tradingName         String?              @map("trading_name")
+  status              SupplierStatus       @default(ACTIVE)          -- ACTIVE | ON_HOLD | ARCHIVED
+  type                SupplierType         @default(REGULAR)         -- REGULAR | OCCASIONAL | ONE_OFF | MARKET
   categoryId          String?              @map("category_id")
-  phone               String?
-  email               String?
-  location            String?                                        -- free text, e.g. "Nyeri town"
+  kraPin              String?              @map("kra_pin")
+  vatRegistered       Boolean              @default(false) @map("vat_registered")
+  notes               String?
+  address             String                                         -- required free text ("—" when unknown); replaces `location`
+  mapUrl              String?              @map("map_url")
   defaultPaymentTerms SupplierPaymentTerms @default(INVOICE_TO_FOLLOW) @map("default_payment_terms")
   paymentDays         Int                  @default(30) @map("payment_days")
+  creditLimit         Decimal?             @map("credit_limit") @db.Decimal(12, 2)
+  createdById         String?              @map("created_by_id")
+  updatedById         String?              @map("updated_by_id")
 
-  deletedAt DateTime? @map("deleted_at")
+  deletedAt DateTime? @map("deleted_at")                            -- mirrors status = ARCHIVED (legacy `retiredAt`)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
+  @@unique([organizationId, code])
   @@index([organizationId])
   @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
   @@map("suppliers")
 }
 ```
 
 **Notes:**
+- **Removed columns** (migration `20260930120000_suppliers_expansion`): `contact_name`, `phone`, `email` moved into one primary `SupplierContact`; `location` became `address`. The API still serves `contactName` / `phone` / `email` / `location` as **deprecated derived keys** (see API_CONTRACT §27).
+- `status` ↔ `deletedAt`: setting `ARCHIVED` sets `deletedAt`; any other status clears it. Existing Milestone One partial unique index `suppliers_org_name_live_key` (`organization_id, lower(name)` WHERE `deleted_at IS NULL`) is **kept**, so two live suppliers cannot share an exact name (case-insensitive).
 - `defaultPaymentTerms` is only ever a *default* — the actual terms for a given purchase/receipt live on `ExpectedDelivery`/`GoodsReceipt` and can be overridden per document (e.g. a normally on-account supplier marked `PAY_NOW` for a one-off cash run).
-- `paymentDays` (added Milestone Two, 2026-09-16) is what makes an invoice overdue — `defaultPaymentTerms` says only *whether* a supplier bills on account, never *when* it's due. Defaults to 30 for existing rows; this is a starting assumption, not researched from real supplier terms.
+- `paymentDays` (added Milestone Two, 2026-09-16) is what makes an invoice overdue — `defaultPaymentTerms` says only *whether* a supplier bills on account, never *when* it's due. Defaults to 30 for existing rows.
+- **Migration backfill** (dev DBs only; production had 0 rows): codes assigned per organization in `created_at` order and the `SUPPLIER` counter set to the row count; `location` → `address` (empty → "—"); old contact fields → one primary contact (name falls back to the business name); retired rows → `ARCHIVED`; status `ACTIVE` and type `REGULAR` otherwise; `InventoryItem.preferredSupplierId` back-filled into `SupplierItem.isPreferred`.
 
 ---
 
@@ -2897,6 +2911,30 @@ Next-morning opening (Flow 12c, Milestone Six Session 4). One row per (`branchDa
 ### 4.78 DepartmentOpeningLine
 
 `openingId`, `inventoryItemId`, `prefilledQty` (department on-hand the ledger showed), `acceptedQty` (what was counted — authoritative), `overnightVariance` (= accepted − prefilled), `unitCost`. `@@unique([openingId, inventoryItemId])`. `InventoryTransaction.openingLineId` is a real nullable FK to this table: each overnight `ADJUSTMENT` (and its reversal on a re-close) carries it.
+
+### 4.79 SupplierContact
+
+Many per supplier. `organizationId`, `supplierId` (cascade), `name`, `role` (`SupplierContactRole`: `SALES_REP | ACCOUNTS | DELIVERY | OWNER | OTHER`), `phone?`, `whatsapp?`, `email?`, `isPrimary`. **Partial unique index** `supplier_contacts_one_primary_per_supplier` on `(supplier_id) WHERE is_primary` — at most one primary; the service keeps exactly one while any contact exists (first contact is primary; the primary cannot be deleted or un-flagged while others exist).
+
+### 4.80 SupplierPayMethod
+
+How Wendo pays a supplier (Prisma model `SupplierPayMethod`, table `supplier_pay_methods`; **named "PayMethod" because the enum `SupplierPaymentMethod` (BANK/CASH/MPESA) already classifies recorded `SupplierPayment` rows**). `organizationId`, `supplierId` (cascade), `type` (`SupplierPayMethodType`: `BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH`), typed nullable columns `bankName`, `bankBranch`, `accountName`, `accountNumber`, `paybillNumber`, `accountReference`, `tillNumber`, `phone`, `registeredName`, `isDefault`, `createdById`. **Partial unique index** `supplier_pay_methods_one_default_per_supplier` on `(supplier_id) WHERE is_default`. Only the columns belonging to `type` are populated. Visible to Store Manager, Accountant, Director only; never to attendants. Every create / update / delete / default change writes a `SupplierAuditLog` row.
+
+### 4.81 SupplierItem
+
+The supplier catalog: one row per (supplier, item). `organizationId`, `supplierId` (cascade), `inventoryItemId`, `supplierItemName?`, `supplierItemCode?`, `buyUnit?`, `packSize?` (`Decimal(12,4)`), `lastPrice?` (`Decimal(12,4)`, **per buy unit**), `lastPriceAt?`, `isPreferred`. `@@unique([supplierId, inventoryItemId])`. **Partial unique index** `supplier_items_one_preferred_per_item` on `(inventory_item_id) WHERE is_preferred`. `lastPrice` / `lastPriceAt` are written only by signing a goods receipt (same transaction as the ledger write). `isPreferred` is kept in step with `InventoryItem.preferredSupplierId` (old column retained; retire in a later cleanup).
+
+### 4.82 SupplierDocument
+
+Uploaded files (images/PDF, ≤ 10 MB, type verified by magic bytes). `organizationId`, `supplierId` (cascade), `objectKey` (`org/<orgId>/suppliers/<supplierId>/<uuid>` in the private R2 bucket — never returned by the API), `fileName`, `mimeType` (detected, not client-declared), `sizeBytes`, `docType` (`SupplierDocumentType`: `INVOICE | DELIVERY_NOTE | RECEIPT | PRICE_LIST | CONTRACT | TAX_DOCUMENT | OTHER`), `docDate?` (date), `note?`, `goodsReceiptId?`, `supplierInvoiceId?` (both must belong to the same supplier), `uploadedById`, `createdAt`.
+
+### 4.83 SupplierAuditLog
+
+Append-only. `organizationId`, `supplierId` (cascade), `action` (`SupplierAuditAction`: `PAY_METHOD_CREATED | PAY_METHOD_UPDATED | PAY_METHOD_DELETED | PAY_METHOD_DEFAULT_CHANGED | STATUS_CHANGED`), `entityId?`, `before?` / `after?` (JSON; **account numbers and wallet phone numbers are stored already masked** — last four characters only), `actorId`, `createdAt`. Index `(organizationId, supplierId, createdAt)`. No read endpoint yet.
+
+### Supplier enums
+
+`SupplierStatus`, `SupplierType`, `SupplierContactRole`, `SupplierPayMethodType`, `SupplierDocumentType`, `SupplierAuditAction` — values as listed above (added 2026-09-30).
 
 ### Why a separate PrepTicket table instead of status flags on Order?
 

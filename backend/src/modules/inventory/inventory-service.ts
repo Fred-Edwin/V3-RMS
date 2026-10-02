@@ -4,11 +4,10 @@ import {
   categoryRepository,
   inventoryItemRepository,
   restockLevelRepository,
-  supplierRepository,
   type CategoryWithItemCount,
   type InventoryItemWithRelations,
-  type SupplierWithRelations,
 } from './inventory-repository';
+import { supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
@@ -18,18 +17,15 @@ import type {
   CentralStoreLocation,
   CreateCategoryInput,
   CreateItemInput,
-  CreateSupplierInput,
   ItemCatalogListResponse,
   ItemMutationResponse,
   ListItemsQuery,
   ListRestockLevelsQuery,
-  ListSuppliersQuery,
   Paginated,
   RestockLevelRow,
   SaveRestockLevelsInput,
   UpdateCategoryInput,
   UpdateItemInput,
-  UpdateSupplierInput,
 } from './inventory.types';
 
 type Actor = NonNullable<Request['user']>;
@@ -103,21 +99,6 @@ const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLeve
   retiredAt: item.deletedAt?.toISOString() ?? null,
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
-});
-
-const serializeSupplier = (supplier: SupplierWithRelations) => ({
-  id: supplier.id,
-  name: supplier.name,
-  contactName: supplier.contactName,
-  category: supplier.category,
-  phone: supplier.phone,
-  email: supplier.email,
-  location: supplier.location,
-  defaultPaymentTerms: supplier.defaultPaymentTerms,
-  paymentDays: supplier.paymentDays,
-  retiredAt: supplier.deletedAt?.toISOString() ?? null,
-  createdAt: supplier.createdAt.toISOString(),
-  updatedAt: supplier.updatedAt.toISOString(),
 });
 
 /**
@@ -329,7 +310,7 @@ export const inventoryService = {
 
     const item = await prisma.$transaction(async (tx) => {
       const categoryId = await resolveCategoryId(organizationId, input.categoryId, input.categoryName, tx);
-      return inventoryItemRepository.create(
+      const created = await inventoryItemRepository.create(
         organizationId,
         {
           name: input.name,
@@ -344,6 +325,11 @@ export const inventoryService = {
         },
         tx,
       );
+      // Keep SupplierItem.isPreferred in step with the legacy pointer.
+      if (input.preferredSupplierId) {
+        await supplierItemRepository.applyPreferred(organizationId, created.id, input.preferredSupplierId, tx);
+      }
+      return created;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));
 
     if (input.centralStoreRestockLevel != null) {
@@ -389,7 +375,7 @@ export const inventoryService = {
 
     const item = await prisma.$transaction(async (tx) => {
       const categoryId = await resolveCategoryId(organizationId, input.categoryId, input.categoryName, tx);
-      return inventoryItemRepository.update(
+      const updated = await inventoryItemRepository.update(
         id,
         organizationId,
         {
@@ -405,6 +391,10 @@ export const inventoryService = {
         },
         tx,
       );
+      if (updated && input.preferredSupplierId !== undefined) {
+        await supplierItemRepository.applyPreferred(organizationId, id, input.preferredSupplierId ?? null, tx);
+      }
+      return updated;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));
 
     if (!item) throw new NotFoundError('Inventory item not found');
@@ -440,97 +430,6 @@ export const inventoryService = {
     const item = await inventoryItemRepository.restore(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
     return serializeItem(item);
-  },
-
-  // ── Suppliers ────────────────────────────────────────────────────────────
-
-  listSuppliers: async (actor: Actor, query: ListSuppliersQuery): Promise<Paginated<ReturnType<typeof serializeSupplier>>> => {
-    const organizationId = await requireHubActor(actor);
-    const { suppliers, total } = await supplierRepository.findAllByOrganization(organizationId, {
-      search: query.search,
-      includeRetired: query.includeRetired,
-      page: query.page,
-      perPage: query.perPage,
-    });
-
-    return {
-      data: suppliers.map(serializeSupplier),
-      pagination: {
-        total,
-        page: query.page,
-        perPage: query.perPage,
-        totalPages: Math.max(1, Math.ceil(total / query.perPage)),
-      },
-    };
-  },
-
-  getSupplierById: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const supplier = await supplierRepository.findById(id, organizationId);
-    if (!supplier) throw new NotFoundError('Supplier not found');
-    return serializeSupplier(supplier);
-  },
-
-  createSupplier: async (actor: Actor, input: CreateSupplierInput) => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await supplierRepository.findByLiveName(organizationId, input.name);
-    if (existing) {
-      throw new ConflictError('A supplier with this name already exists');
-    }
-    const supplier = await supplierRepository
-      .create(organizationId, {
-        name: input.name,
-        contactName: input.contactName ?? null,
-        categoryId: input.categoryId ?? null,
-        phone: input.phone ?? null,
-        email: input.email ?? null,
-        location: input.location ?? null,
-        defaultPaymentTerms: input.defaultPaymentTerms,
-        paymentDays: input.paymentDays,
-      })
-      .catch((error: unknown) => mapPrismaError(error, { conflict: 'A supplier with this name already exists' }));
-    return serializeSupplier(supplier);
-  },
-
-  updateSupplier: async (actor: Actor, id: string, input: UpdateSupplierInput) => {
-    const organizationId = await requireHubActor(actor);
-    if (input.name !== undefined) {
-      const existing = await supplierRepository.findByLiveName(organizationId, input.name);
-      if (existing && existing.id !== id) {
-        throw new ConflictError('A supplier with this name already exists');
-      }
-    }
-    const supplier = await supplierRepository
-      .update(id, organizationId, input)
-      .catch((error: unknown) => mapPrismaError(error, { conflict: 'A supplier with this name already exists' }));
-    if (!supplier) throw new NotFoundError('Supplier not found');
-    return serializeSupplier(supplier);
-  },
-
-  retireSupplier: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const blockingItems = await supplierRepository.findLiveItemsPreferringSupplier(id, organizationId);
-    if (blockingItems.length > 0) {
-      throw new ConflictError('This supplier is still the preferred supplier for one or more live items', 'CONFLICT', {
-        items: blockingItems,
-      });
-    }
-    const supplier = await supplierRepository.retire(id, organizationId);
-    if (!supplier) throw new NotFoundError('Supplier not found');
-    return serializeSupplier(supplier);
-  },
-
-  restoreSupplier: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const target = await supplierRepository.findById(id, organizationId);
-    if (!target) throw new NotFoundError('Supplier not found');
-    const existing = await supplierRepository.findByLiveName(organizationId, target.name);
-    if (existing) {
-      throw new ConflictError('A live supplier already holds this name');
-    }
-    const supplier = await supplierRepository.restore(id, organizationId);
-    if (!supplier) throw new NotFoundError('Supplier not found');
-    return serializeSupplier(supplier);
   },
 
   // ── Restock levels ───────────────────────────────────────────────────────

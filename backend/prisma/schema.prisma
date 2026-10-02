@@ -179,6 +179,11 @@ model User {
   goodsReceiptsCreated                GoodsReceipt[]                @relation("GoodsReceiptCreatedBy")
   goodsReceiptLinePriceAlertsAccepted GoodsReceiptLine[]            @relation("GoodsReceiptLinePriceAlertAcceptedBy")
   supplierInvoicesRecorded            SupplierInvoice[]             @relation("SupplierInvoiceRecordedBy")
+  suppliersCreated                    Supplier[]                    @relation("SupplierCreatedBy")
+  suppliersUpdated                    Supplier[]                    @relation("SupplierUpdatedBy")
+  supplierPayMethodsCreated           SupplierPayMethod[]           @relation("SupplierPayMethodCreatedBy")
+  supplierDocumentsUploaded           SupplierDocument[]            @relation("SupplierDocumentUploadedBy")
+  supplierAuditEntries                SupplierAuditLog[]            @relation("SupplierAuditActor")
   supplierInvoiceAdjustmentsRecorded  SupplierInvoiceAdjustment[]   @relation("SupplierInvoiceAdjustmentRecordedBy")
   supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
   prepRunsCreated                     PrepRun[]                     @relation("PrepRunCreatedBy")
@@ -1740,6 +1745,7 @@ model InventoryItem {
   stockCountLines        StockCountLine[]
   branchDayLines         BranchDayLine[]
   departmentOpeningLines DepartmentOpeningLine[]
+  supplierItems          SupplierItem[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1747,41 +1753,220 @@ model InventoryItem {
   @@map("inventory_items")
 }
 
+enum SupplierStatus {
+  ACTIVE
+  ON_HOLD
+  ARCHIVED // mirrored by deletedAt so the legacy retiredAt key keeps working
+}
+
+enum SupplierType {
+  REGULAR
+  OCCASIONAL
+  ONE_OFF
+  MARKET
+}
+
+enum SupplierContactRole {
+  SALES_REP
+  ACCOUNTS
+  DELIVERY
+  OWNER
+  OTHER
+}
+
+/// How WE pay a supplier. Named "PayMethod" because SupplierPaymentMethod
+/// (BANK/CASH/MPESA) already classifies recorded SupplierPayment rows.
+enum SupplierPayMethodType {
+  BANK_TRANSFER
+  MPESA_PAYBILL
+  MPESA_TILL
+  MPESA_SEND_MONEY
+  CASH
+}
+
+enum SupplierDocumentType {
+  INVOICE
+  DELIVERY_NOTE
+  RECEIPT
+  PRICE_LIST
+  CONTRACT
+  TAX_DOCUMENT
+  OTHER
+}
+
+enum SupplierAuditAction {
+  PAY_METHOD_CREATED
+  PAY_METHOD_UPDATED
+  PAY_METHOD_DELETED
+  PAY_METHOD_DEFAULT_CHANGED
+  STATUS_CHANGED
+}
+
 model Supplier {
   id                  String               @id @default(uuid())
   organizationId      String               @map("organization_id")
+  code                String // SUPPLIER-0001, from ReferenceCounter; never reused or edited
   name                String
-  contactName         String?              @map("contact_name")
+  tradingName         String?              @map("trading_name")
+  status              SupplierStatus       @default(ACTIVE)
+  type                SupplierType         @default(REGULAR)
   categoryId          String?              @map("category_id")
-  phone               String?
-  email               String?
-  location            String? // free text, e.g. "Nyeri town"
+  kraPin              String?              @map("kra_pin")
+  vatRegistered       Boolean              @default(false) @map("vat_registered")
+  notes               String?
+  address             String // free text, required ("—" when unknown)
+  mapUrl              String?              @map("map_url")
   defaultPaymentTerms SupplierPaymentTerms @default(INVOICE_TO_FOLLOW) @map("default_payment_terms")
   // Milestone Two (Receiving & Supplier AP), added 20260916: what makes an
   // invoice overdue. SupplierPaymentTerms says only WHETHER a supplier bills
   // on account, never WHEN it's due — the "what we owe" screens bucket
   // invoices by days overdue, which needs a due date to measure from.
-  // Editable on the supplier form; default backfills existing rows (30 is a
-  // starting assumption, not researched from real terms — review against
-  // production suppliers before relying on it). See milestone-2-plan.md §1.3,
-  // §7 Q3(b).
   paymentDays         Int                  @default(30) @map("payment_days")
+  creditLimit         Decimal?             @map("credit_limit") @db.Decimal(12, 2)
+  createdById         String?              @map("created_by_id")
+  updatedById         String?              @map("updated_by_id")
 
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization       Organization       @relation(fields: [organizationId], references: [id])
-  category           Category?          @relation(fields: [categoryId], references: [id])
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  createdBy          User?               @relation("SupplierCreatedBy", fields: [createdById], references: [id])
+  updatedBy          User?               @relation("SupplierUpdatedBy", fields: [updatedById], references: [id])
   preferredForItems  InventoryItem[]
   expectedDeliveries ExpectedDelivery[]
   goodsReceipts      GoodsReceipt[]
   supplierInvoices   SupplierInvoice[]
   supplierPayments   SupplierPayment[]
+  contacts           SupplierContact[]
+  payMethods         SupplierPayMethod[]
+  items              SupplierItem[]
+  documents          SupplierDocument[]
+  auditLogs          SupplierAuditLog[]
 
+  @@unique([organizationId, code])
   @@index([organizationId])
   @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
   @@map("suppliers")
+}
+
+// One primary contact per supplier: partial unique index on (supplier_id)
+// WHERE is_primary (raw SQL in the migration; not expressible in the DSL).
+model SupplierContact {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  supplierId     String              @map("supplier_id")
+  name           String
+  role           SupplierContactRole @default(OTHER)
+  phone          String?
+  whatsapp       String?
+  email          String?
+  isPrimary      Boolean             @default(false) @map("is_primary")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, supplierId])
+  @@map("supplier_contacts")
+}
+
+// One default per supplier: partial unique index on (supplier_id) WHERE is_default.
+model SupplierPayMethod {
+  id               String                @id @default(uuid())
+  organizationId   String                @map("organization_id")
+  supplierId       String                @map("supplier_id")
+  type             SupplierPayMethodType
+  bankName         String?               @map("bank_name")
+  bankBranch       String?               @map("bank_branch")
+  accountName      String?               @map("account_name")
+  accountNumber    String?               @map("account_number")
+  paybillNumber    String?               @map("paybill_number")
+  accountReference String?               @map("account_reference")
+  tillNumber       String?               @map("till_number")
+  phone            String?
+  registeredName   String?               @map("registered_name")
+  isDefault        Boolean               @default(false) @map("is_default")
+  createdById      String                @map("created_by_id")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("SupplierPayMethodCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, supplierId])
+  @@map("supplier_pay_methods")
+}
+
+// One preferred supplier per item: partial unique index on (inventory_item_id)
+// WHERE is_preferred (raw SQL in the migration).
+model SupplierItem {
+  id               String    @id @default(uuid())
+  organizationId   String    @map("organization_id")
+  supplierId       String    @map("supplier_id")
+  inventoryItemId  String    @map("inventory_item_id")
+  supplierItemName String?   @map("supplier_item_name")
+  supplierItemCode String?   @map("supplier_item_code")
+  buyUnit          String?   @map("buy_unit")
+  packSize         Decimal?  @map("pack_size") @db.Decimal(12, 4)
+  lastPrice        Decimal?  @map("last_price") @db.Decimal(12, 4) // per BUY unit
+  lastPriceAt      DateTime? @map("last_price_at")
+  isPreferred      Boolean   @default(false) @map("is_preferred")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@unique([supplierId, inventoryItemId])
+  @@index([organizationId, inventoryItemId])
+  @@map("supplier_items")
+}
+
+model SupplierDocument {
+  id                String               @id @default(uuid())
+  organizationId    String               @map("organization_id")
+  supplierId        String               @map("supplier_id")
+  objectKey         String               @map("object_key") // org/<orgId>/suppliers/<supplierId>/<uuid>
+  fileName          String               @map("file_name")
+  mimeType          String               @map("mime_type")
+  sizeBytes         Int                  @map("size_bytes")
+  docType           SupplierDocumentType @map("doc_type")
+  docDate           DateTime?            @map("doc_date") @db.Date
+  note              String?
+  goodsReceiptId    String?              @map("goods_receipt_id")
+  supplierInvoiceId String?              @map("supplier_invoice_id")
+  uploadedById      String               @map("uploaded_by_id")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  goodsReceipt    GoodsReceipt?    @relation(fields: [goodsReceiptId], references: [id])
+  supplierInvoice SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id])
+  uploadedBy      User             @relation("SupplierDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([organizationId, supplierId])
+  @@map("supplier_documents")
+}
+
+/// before/after hold account numbers already masked — never raw.
+model SupplierAuditLog {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  supplierId     String              @map("supplier_id")
+  action         SupplierAuditAction
+  entityId       String?             @map("entity_id")
+  before         Json?
+  after          Json?
+  actorId        String              @map("actor_id")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  actor    User     @relation("SupplierAuditActor", fields: [actorId], references: [id])
+
+  @@index([organizationId, supplierId, createdAt])
+  @@map("supplier_audit_logs")
 }
 
 /// Replaces ParLevel. One per (location, item). Set by whoever owns the stock:
@@ -2302,14 +2487,15 @@ model GoodsReceipt {
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
 
-  organization     Organization             @relation(fields: [organizationId], references: [id])
-  supplier         Supplier                 @relation(fields: [supplierId], references: [id])
-  expectedDelivery ExpectedDelivery?        @relation(fields: [expectedDeliveryId], references: [id])
-  location         Location                 @relation(fields: [locationId], references: [id])
-  signedBy         User?                    @relation("GoodsReceiptSignedBy", fields: [signedById], references: [id])
-  createdBy        User                     @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
-  lines            GoodsReceiptLine[]
-  invoices         SupplierInvoiceReceipt[]
+  organization      Organization             @relation(fields: [organizationId], references: [id])
+  supplier          Supplier                 @relation(fields: [supplierId], references: [id])
+  expectedDelivery  ExpectedDelivery?        @relation(fields: [expectedDeliveryId], references: [id])
+  location          Location                 @relation(fields: [locationId], references: [id])
+  signedBy          User?                    @relation("GoodsReceiptSignedBy", fields: [signedById], references: [id])
+  createdBy         User                     @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
+  lines             GoodsReceiptLine[]
+  invoices          SupplierInvoiceReceipt[]
+  supplierDocuments SupplierDocument[]
 
   @@unique([organizationId, reference])
   @@index([organizationId, status])
@@ -2379,12 +2565,13 @@ model SupplierInvoice {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
-  organization Organization                @relation(fields: [organizationId], references: [id])
-  supplier     Supplier                    @relation(fields: [supplierId], references: [id])
-  recordedBy   User                        @relation("SupplierInvoiceRecordedBy", fields: [recordedById], references: [id])
-  receipts     SupplierInvoiceReceipt[]
-  adjustments  SupplierInvoiceAdjustment[]
-  allocations  SupplierPaymentAllocation[]
+  organization      Organization                @relation(fields: [organizationId], references: [id])
+  supplier          Supplier                    @relation(fields: [supplierId], references: [id])
+  recordedBy        User                        @relation("SupplierInvoiceRecordedBy", fields: [recordedById], references: [id])
+  receipts          SupplierInvoiceReceipt[]
+  adjustments       SupplierInvoiceAdjustment[]
+  allocations       SupplierPaymentAllocation[]
+  supplierDocuments SupplierDocument[]
 
   @@unique([organizationId, supplierId, invoiceNumber])
   @@index([organizationId, status])

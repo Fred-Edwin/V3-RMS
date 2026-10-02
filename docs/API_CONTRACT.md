@@ -3519,7 +3519,7 @@ All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
 | `PATCH` | `/inventory/items/:id` | SM |
 | `DELETE` | `/inventory/items/:id` | SM |
 | `POST` | `/inventory/items/:id/restore` | SM |
-| `GET` | `/inventory/suppliers` | SM, ACC, DIR |
+| `GET` | `/inventory/suppliers` | SM, ACC, DIR *(SA stripped list — superseded by §27)* |
 | `GET` | `/inventory/suppliers/:id` | SM, ACC, DIR |
 | `POST` | `/inventory/suppliers` | SM |
 | `PATCH` | `/inventory/suppliers/:id` | SM |
@@ -4465,3 +4465,139 @@ Schemas: `backend/src/modules/branch-day/branch-day-validators.ts` (frozen by co
 | `POST` | `/branch-day/opening/accept` | Department Head | `{lines:[{inventoryItemId, acceptedQty}]}` — only recounted items need listing; the rest are accepted at pre-fill. One transaction: `DepartmentOpening` + a line per item + one linked `ADJUSTMENT` ("Overnight variance", `ADJ-####`, `openingLineId`) per differing line. 409 `OPENING_ALREADY_ACCEPTED` on a second accept the same day. After commit: Branch Manager push if any line ≥ `overnightAlertKes`. |
 
 **Recompute hook.** `POST /branch-day/:id/close` (re-close) also reverses the standing overnight adjustments of any opening already accepted for the *next* day (linked, equal and opposite), re-derives each line's pre-fill from the ledger without the opening's own rows, and writes a fresh overnight adjustment for whatever still differs. The department head's accepted figure stays authoritative.
+
+---
+
+## 27. Inventory — Suppliers expansion
+
+> **STATUS: BACKEND BUILT (2026-09-30), awaiting frontend.** Extends and, where
+> noted, supersedes the supplier rows of §21.3. Plan (authoritative for scope):
+> `docs/features/inventory/suppliers-plan.md`.
+
+| | |
+|---|---|
+| **Schemas (authoritative)** | `backend/src/modules/inventory/supplier-validators.ts` |
+| **Types** | `supplier.types.ts` (inferred) |
+| **Contract tests** | `supplier-contract.test.ts` (shapes, attendant blindness scan, route role matrix), `supplier-documents.test.ts`, `supplier-service.test.ts`, `tests/inventory-suppliers.test.ts` |
+| **Migration** | `20260930120000_suppliers_expansion` |
+| **Data model** | `DATA_MODEL.md` §4.50, §4.79–§4.83 |
+
+Inherits §21.2 / §22.2: standard envelope, decimals as strings, hub-org scoping
+(D-15 — every supplier lives on the hub org; a non-hub actor gets 403; a supplier
+outside the caller's org is 404 on every sub-resource). All routes carry
+`authenticate` + `requireRole`, all inputs are Zod-validated, and the service
+re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
+`DIR` Director · `SA` Store Attendant.
+
+### 27.1 Endpoints
+
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| `GET` | `/inventory/suppliers` | SM, ACC, DIR, SA | Query: `page`, `perPage`, `search` (name, trading name, code, contact phone), `status`, `type`, `categoryId`, legacy `includeRetired` (default false: hides ARCHIVED unless `status` is given). **SA gets the stripped row** `{id, code, name, type, primaryPhone}` and only ACTIVE suppliers, whatever the filters. |
+| `GET` | `/inventory/suppliers/:id` | SM, ACC, DIR | Detail (§27.2). `paymentMethods` are masked. |
+| `POST` | `/inventory/suppliers` | SM | Extended body (§27.3). Code generated in the create transaction. |
+| `PATCH` | `/inventory/suppliers/:id` | SM | Partial; `code` and `status` are not editable here. |
+| `POST` | `/inventory/suppliers/quick` | SM, SA | `{name, phone, confirmDuplicate?}` → ONE_OFF supplier, address `—`, one primary contact. SA gets the stripped row, SM the list row. |
+| `PATCH` | `/inventory/suppliers/:id/status` | SM | `{status, reason?}` (§27.4). |
+| `DELETE` | `/inventory/suppliers/:id` | SM | **Legacy alias** of `PATCH …/status {status:"ARCHIVED"}` (same open-invoice block). |
+| `POST` | `/inventory/suppliers/:id/restore` | SM | **Legacy alias** of `PATCH …/status {status:"ACTIVE"}`. |
+| `GET` | `/inventory/suppliers/:id/summary` | SM, ACC, DIR | §27.7. |
+| `GET` `POST` | `/inventory/suppliers/:id/contacts` | read SM, ACC, DIR · write SM | |
+| `PATCH` `DELETE` | `/inventory/suppliers/:id/contacts/:cid` | SM | |
+| `GET` | `/inventory/suppliers/:id/payment-methods` | SM, ACC, DIR | List — **account number masked** (`accountNumberMasked`). |
+| `GET` | `/inventory/suppliers/:id/payment-methods/:pid` | SM, ACC, DIR | **Only response carrying the full `accountNumber`** (the "Show" action). |
+| `POST` `PATCH` `DELETE` | `/inventory/suppliers/:id/payment-methods[/:pid]` | SM, ACC | Responses use the masked shape. |
+| `GET` | `/inventory/suppliers/:id/items` | SM, ACC, DIR | Catalog rows. |
+| `PUT` `DELETE` | `/inventory/suppliers/:id/items/:itemId` | SM | `PUT` upserts by inventory item id. |
+| `GET` | `/inventory/suppliers/:id/documents` | SM, ACC, DIR | Timeline + uploads, §27.6. Query `limit` (default 100, max 200). |
+| `POST` | `/inventory/suppliers/:id/documents` | SM, ACC | `multipart/form-data`: file part `file` + text fields `docType`, `docDate?` (`YYYY-MM-DD`), `note?`, `goodsReceiptId?`, `supplierInvoiceId?`. |
+| `GET` | `/inventory/suppliers/:id/documents/:docId/download` | SM, ACC, DIR | `{url, expiresAt, fileName}` — signed URL, valid 5 minutes. |
+| `DELETE` | `/inventory/suppliers/:id/documents/:docId` | SM | Removes the row and the stored object. |
+
+### 27.2 Read models
+
+**List row (`SupplierSchema`)** — `id, code, name, tradingName, status, type,
+category{id,name}|null, address, mapUrl, primaryContact{id,name,role,phone,whatsapp,email}|null,
+defaultPaymentTerms, paymentDays, createdAt, updatedAt`, plus the **deprecated
+legacy keys** below.
+
+**Detail (`SupplierDetailSchema`)** = list row + `kraPin, vatRegistered, notes,
+creditLimit (string|null), contacts[], paymentMethods[] (masked), createdBy{id,name}|null,
+updatedBy{id,name}|null`.
+
+> **DEPRECATED keys** (kept only so the current Milestone One screens keep
+> working; remove once the new screens ship): `contactName`, `phone`, `email`
+> (derived from the primary contact), `location` (= `address`), `retiredAt`
+> (set when `status` is ARCHIVED). New code must read `primaryContact`,
+> `address` and `status`. The same deprecated keys appear in the Supplier AP
+> detail (`§22`, `supplier`).
+
+Contact: `{id, name, role, phone, whatsapp, email, isPrimary, createdAt, updatedAt}`.
+Payment method: `{id, type, isDefault, bankName, bankBranch, accountName,
+accountNumberMasked, paybillNumber, accountReference, tillNumber, phone,
+registeredName, createdAt, updatedAt}`; the single-method GET adds `accountNumber`.
+Catalog row: `{inventoryItemId, itemName, itemBuyUnit, supplierItemName, supplierItemCode,
+buyUnit, packSize, lastPrice, lastPriceAt, isPreferred}` (`lastPrice` is per **buy** unit).
+
+### 27.3 Create / update bodies
+
+`POST /inventory/suppliers`: `name` (required), `address` (required — see legacy
+alias), `tradingName?, type` (default `REGULAR`), `categoryId?, kraPin?,
+vatRegistered` (default false), `notes?, mapUrl?, defaultPaymentTerms` (default
+`INVOICE_TO_FOLLOW`), `paymentDays?, creditLimit?` (decimal string), `contacts?`
+(array of `{name, role, phone?, whatsapp?, email?, isPrimary?}`; first, or the one
+flagged, is primary), `confirmDuplicate?`. `PATCH` accepts the same fields, all
+optional, at least one required.
+
+**Legacy write aliases (deprecated):** `location` is accepted as `address`;
+`contactName` / `phone` / `email` create or edit the primary contact. A create with
+none of `address`/`location`/legacy contact keys is a 400; a legacy-shaped create
+without a location stores address `—`.
+
+Enums — status `ACTIVE | ON_HOLD | ARCHIVED`; type `REGULAR | OCCASIONAL | ONE_OFF | MARKET`;
+contact role `SALES_REP | ACCOUNTS | DELIVERY | OWNER | OTHER`; payment method type
+`BANK_TRANSFER | MPESA_PAYBILL | MPESA_TILL | MPESA_SEND_MONEY | CASH`; document type
+`INVOICE | DELIVERY_NOTE | RECEIPT | PRICE_LIST | CONTRACT | TAX_DOCUMENT | OTHER`.
+
+Payment-method bodies are a union on `type`: bank transfer needs `bankName`,
+`accountName`, `accountNumber` (`bankBranch?`); paybill needs `paybillNumber`
+(`accountReference?`); till needs `tillNumber`; send money needs `phone`,
+`registeredName`; cash has none. Fields foreign to the type are dropped. `type`
+cannot be changed on PATCH (delete and re-add).
+
+### 27.4 Behaviours that are contract
+
+1. **Code** `SUPPLIER-0001…` comes from `ReferenceCounter` (prefix `SUPPLIER`, pad 4) inside the create transaction; never reused (even after a rollback or delete elsewhere), never editable.
+2. **Duplicate check** on create, quick-add and rename: same normalized name (case, spaces and punctuation ignored) **and** a matching contact phone (last nine digits; or no phone on either side) → `409 DUPLICATE_SUPPLIER` with `details.matches[{id,code,name}]`; resend with `confirmDuplicate: true` to proceed. **Exception:** an *exactly* equal live name (case-insensitive) is still refused by the Milestone One unique index (`409`, "A live supplier already has exactly this name") and `confirmDuplicate` does not override it.
+3. **One primary contact.** First contact is primary; `isPrimary:true` demotes the old one atomically; un-flagging or deleting the primary while other contacts exist is `409 PRIMARY_CONTACT_REQUIRED`.
+4. **One default payment method** — same rules, `409 DEFAULT_METHOD_REQUIRED`. Every create/update/delete/default change writes an audit row (account numbers masked).
+5. **Status.** ACTIVE ↔ ON_HOLD, any → ARCHIVED, ARCHIVED → ACTIVE/ON_HOLD. A no-op is `409 STATUS_UNCHANGED`. Archiving is `409 SUPPLIER_HAS_OPEN_INVOICES` (`details.openInvoices`) while any invoice is not fully paid; it also clears the supplier's preferred marks. ON_HOLD / ARCHIVED suppliers cannot be used for new expected deliveries or goods receipts (`409`); pass `status=ACTIVE` when filling receiving pickers. History is untouched.
+6. **Preferred supplier.** `PUT …/items/:itemId {isPreferred:true}` makes this supplier the item's single preferred one and sets `InventoryItem.preferredSupplierId`; `false` clears it only if it was this supplier's. Setting `preferredSupplierId` on an item (Milestone One endpoints) marks the matching catalog row.
+7. **Price sync.** Signing a goods receipt sets, in the same transaction, `SupplierItem.lastPrice` / `lastPriceAt` for every line (creating the catalog row if missing). The receipt price alert (§22.4) compares against the supplier's own `lastPrice` when one exists, otherwise the item's most recent signed receipt price from any supplier (unchanged behaviour).
+8. **Attendant blindness.** The attendant never receives payment methods, KRA PIN, credit limit, terms, notes, e-mail or documents, on any supplier endpoint; a contract test scans the serialized attendant list/quick-add JSON for forbidden keys.
+9. **Account numbers** appear in full only in `GET …/payment-methods/:pid`; never in lists, the detail, write responses, audit rows or error messages.
+
+### 27.5 Errors
+
+`400` validation · `403` role / non-hub · `404` not in org (supplier, contact, method, item, document) · `409` (duplicate, archive block, primary/default rules, status unchanged, supplier not ACTIVE for new receipts) · `422` file rejected — `FILE_TYPE_NOT_ALLOWED` (only JPEG, PNG, WebP and PDF, checked from file content, not extension or declared type) or `FILE_TOO_LARGE` (> 10 MB) · `503 STORAGE_NOT_CONFIGURED` (production without the R2 env vars).
+
+### 27.6 Documents
+
+`GET …/documents` returns one array of entries, newest first, each
+`{kind, id, occurredAt, title, reference, amount}` where `kind` is `RECEIPT`
+(signed goods receipt), `INVOICE`, `PAYMENT`, `DISPUTE` (an invoice with a dispute) or
+`UPLOAD` (which adds `document{id, fileName, mimeType, sizeBytes, docType, docDate, note,
+goodsReceiptId, supplierInvoiceId, uploadedBy{id,name}, createdAt}`). The storage object key
+never leaves the server. Files live in a private Cloudflare R2 bucket under
+`org/<orgId>/suppliers/<supplierId>/<uuid>`; downloads are 5-minute signed URLs issued only after
+the same role + org + supplier check. Without R2 env vars (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_BUCKET`) non-production uses an in-memory fake (files vanish on
+restart); production refuses (503).
+
+### 27.7 Summary
+
+`{totalSpend (string), lastPurchaseAt, receiptsCount, averageDaysToPay (number|null), priceAlerts, shortDeliveries}`.
+Spend / count / last date come from signed (non-cancelled) receipts; `averageDaysToPay` is the mean days from invoice
+date to the last (non-reversal) payment over fully paid invoices; `priceAlerts` counts receipt lines that fired an alert;
+`shortDeliveries` counts signed receipts (raised against an estimate) where an item arrived under its estimated quantity.
+

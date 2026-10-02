@@ -39,6 +39,7 @@ import 'dotenv/config';
 import { Prisma, type DepartmentTag, type InventoryItemType, type WasteReason } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
+import { createSeedSupplier } from './seed-supplier-helper';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-stock-waste-dev-fixtures must not run in production. Exiting.');
@@ -293,7 +294,7 @@ const run = async (): Promise<void> => {
     // (4) Coffee beans — a real GRN so the counterparty is the supplier.
     const supplier =
       (await tx.supplier.findFirst({ where: { organizationId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
-      (await tx.supplier.create({ data: { organizationId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' } }));
+      (await createSeedSupplier(tx, { organizationId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
     const grnCounter = await tx.referenceCounter.upsert({
       where: { organizationId_prefix: { organizationId: hub.id, prefix: 'GRN' } },
       update: { lastNumber: { increment: 1 } },

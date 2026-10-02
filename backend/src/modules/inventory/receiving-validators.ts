@@ -166,7 +166,8 @@
  */
 import { z } from 'zod';
 
-import { SupplierSchema, supplierPaymentTermsSchema } from './inventory-validators';
+import { supplierPaymentTermsSchema } from './inventory-validators';
+import { SupplierSchema } from './supplier-validators';
 
 // --- Shared primitives ------------------------------------------------------
 

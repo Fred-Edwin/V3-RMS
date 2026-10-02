@@ -38,3 +38,15 @@ export class ValidationError extends AppError {
     super(400, code, message, details);
   }
 }
+
+export class UnprocessableEntityError extends AppError {
+  constructor(message: string, code = 'UNPROCESSABLE_ENTITY', details?: unknown) {
+    super(422, code, message, details);
+  }
+}
+
+export class ServiceUnavailableError extends AppError {
+  constructor(message = 'Service unavailable', code = 'SERVICE_UNAVAILABLE', details?: unknown) {
+    super(503, code, message, details);
+  }
+}

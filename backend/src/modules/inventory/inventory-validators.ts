@@ -291,71 +291,9 @@ export const ItemMutationResponseSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Suppliers
+// Suppliers — MOVED to `supplier-validators.ts` (Suppliers expansion, 2026-09-30).
+// Only `supplierPaymentTermsSchema` (above) stays here as a shared primitive.
 // ---------------------------------------------------------------------------
-
-export const SupplierSchema = z.object({
-  id: uuidSchema,
-  name: z.string(),
-  contactName: z.string().nullable(),
-  category: z.object({ id: uuidSchema, name: z.string() }).nullable(),
-  phone: z.string().nullable(),
-  email: z.string().nullable(),
-  /** Free text, e.g. "Nyeri town" — shown on the supplier detail header. */
-  location: z.string().nullable(),
-  defaultPaymentTerms: supplierPaymentTermsSchema,
-  /**
-   * AMENDMENT 2026-09-18 (Milestone Two S8): a real `Supplier` column since
-   * migration `20260916031604_inventory_milestone_two_receiving_ap` — S7's
-   * `SupplierInvoice.dueDate` is computed from it — that no read model
-   * exposed until now. Editable on the supplier form (`VU2-0`/`X6B-0`).
-   */
-  paymentDays: z.number().int(),
-  retiredAt: z.string().datetime().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
-
-export const ListSuppliersQuerySchema = PaginationQuerySchema.extend({
-  search: z.string().trim().max(200).optional(),
-  includeRetired: booleanQueryParamSchema.default(false),
-});
-
-export const CreateSupplierSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(200),
-  contactName: z.string().trim().max(200).nullish(),
-  categoryId: uuidSchema.nullish(),
-  phone: z.string().trim().max(40).nullish(),
-  email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
-  location: z.string().trim().max(200).nullish(),
-  defaultPaymentTerms: supplierPaymentTermsSchema.default('INVOICE_TO_FOLLOW'),
-  /** Optional — the Prisma column default (30) applies when omitted. */
-  paymentDays: z.number().int().positive().optional(),
-});
-
-/**
- * Built field-by-field rather than `CreateSupplierSchema.partial()` — a plain
- * `.partial()` keeps `defaultPaymentTerms`'s `.default('INVOICE_TO_FOLLOW')`,
- * so an empty/partial PATCH body would silently inject that default into the
- * update and overwrite a supplier's real terms (e.g. `PAY_NOW`) back to the
- * default on every edit that doesn't re-send it. AMENDMENT 2026-09-15
- * (post-freeze, playbook Step 6 process): fixed during the backend build
- * session; see API_CONTRACT.md §21 changelog.
- */
-export const UpdateSupplierSchema = z
-  .object({
-    name: z.string().trim().min(1, 'Name is required').max(200).optional(),
-    contactName: z.string().trim().max(200).nullish(),
-    categoryId: uuidSchema.nullish(),
-    phone: z.string().trim().max(40).nullish(),
-    email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
-    location: z.string().trim().max(200).nullish(),
-    defaultPaymentTerms: supplierPaymentTermsSchema.optional(),
-    paymentDays: z.number().int().positive().optional(),
-  })
-  .refine((data) => Object.values(data).some((v) => v !== undefined), {
-    message: 'At least one field must be provided',
-  });
 
 // ---------------------------------------------------------------------------
 // Restock levels

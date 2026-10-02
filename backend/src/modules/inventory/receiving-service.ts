@@ -17,7 +17,8 @@ import {
   type SupplierInvoiceWithRelations,
   type SupplierPaymentWithRelations,
 } from './receiving-repository';
-import { supplierRepository } from './inventory-repository';
+import { supplierItemRepository, supplierRepository } from './supplier-repository';
+import { serializeSupplierBase } from './supplier-serializers';
 import { inventoryItemRepository } from './inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
@@ -324,6 +325,37 @@ const serializeGoodsReceipt = (receipt: GoodsReceiptWithRelations): GoodsReceipt
   };
 };
 
+/** Only ACTIVE suppliers can be picked for new purchases; history on others is untouched. */
+const assertSupplierReceivable = (status: 'ACTIVE' | 'ON_HOLD' | 'ARCHIVED'): void => {
+  if (status === 'ARCHIVED') throw new ConflictError('This supplier is retired');
+  if (status === 'ON_HOLD') throw new ConflictError('This supplier is on hold', 'SUPPLIER_ON_HOLD');
+};
+
+/**
+ * Price-alert comparison price per item: the supplier's own last price where
+ * one exists (kept current by signing receipts), otherwise the item's most
+ * recent signed receipt line from any supplier — the pre-existing behaviour.
+ * (`InventoryItem.currentCost` is per USAGE unit and is not comparable to a
+ * per-buy-unit receipt price, so it is deliberately not the fallback.)
+ */
+const findComparisonPrices = async (
+  organizationId: string,
+  supplierId: string,
+  itemIds: string[],
+): Promise<Map<string, Prisma.Decimal | null>> => {
+  const supplierPrices = await supplierItemRepository.findLastPrices(organizationId, supplierId, itemIds);
+  const result = new Map<string, Prisma.Decimal | null>();
+  await Promise.all(
+    itemIds.map(async (itemId) => {
+      const own = supplierPrices.get(itemId);
+      if (own) return void result.set(itemId, own);
+      const last = await lastPriceRepository.findLastReceiptLine(itemId, organizationId);
+      result.set(itemId, last ? last.unitPrice : null);
+    }),
+  );
+  return result;
+};
+
 /**
  * Buy→usage unit conversion (plan §1.6) and per-line total. `conversionFactor`
  * null means 1:1 (buy unit === usage unit, e.g. "unit" items) — `packSize` is
@@ -571,7 +603,7 @@ export const receivingService = {
     if (input.supplierId) {
       const supplier = await supplierRepository.findById(input.supplierId, organizationId);
       if (!supplier) throw new NotFoundError('Supplier not found');
-      if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+      assertSupplierReceivable(supplier.status);
     }
 
     const itemIds = input.lines.map((l) => l.inventoryItemId);
@@ -833,7 +865,7 @@ export const receivingService = {
 
     const supplier = await supplierRepository.findById(input.supplierId, organizationId);
     if (!supplier) throw new NotFoundError('Supplier not found');
-    if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
+    assertSupplierReceivable(supplier.status);
 
     const centralStore = await locationRepository.findCentralStore();
     if (!centralStore || centralStore.organizationId !== organizationId) {
@@ -852,14 +884,11 @@ export const receivingService = {
     // Price-alert comparison price per line, fetched before the transaction
     // — read-only, same lastPriceRepository the GET /items/:id/last-price
     // endpoint uses (S3), not a live join against InventoryItem.currentCost.
-    const lastPrices = await Promise.all(
-      input.lines.map((l) => lastPriceRepository.findLastReceiptLine(l.inventoryItemId, organizationId)),
-    );
+    const comparisonPrices = await findComparisonPrices(organizationId, input.supplierId, itemIds);
 
-    const lines: GoodsReceiptLineInput[] = input.lines.map((line, index) => {
+    const lines: GoodsReceiptLineInput[] = input.lines.map((line) => {
       const item = itemsById.get(line.inventoryItemId)!;
-      const lastPrice = lastPrices[index] ? lastPrices[index]!.unitPrice : null;
-      return buildLineInput(line, item, lastPrice);
+      return buildLineInput(line, item, comparisonPrices.get(line.inventoryItemId) ?? null);
     });
 
     // No ledger entry is ever written here (contract behaviour #1,
@@ -910,13 +939,10 @@ export const receivingService = {
           throw new ValidationError('One or more items were not found');
         }
       }
-      const lastPrices = await Promise.all(
-        input.lines.map((l) => lastPriceRepository.findLastReceiptLine(l.inventoryItemId, organizationId)),
-      );
-      lines = input.lines.map((line, index) => {
+      const comparisonPrices = await findComparisonPrices(organizationId, existing.supplierId, itemIds);
+      lines = input.lines.map((line) => {
         const item = itemsById.get(line.inventoryItemId)!;
-        const lastPrice = lastPrices[index] ? lastPrices[index]!.unitPrice : null;
-        return buildLineInput(line, item, lastPrice);
+        return buildLineInput(line, item, comparisonPrices.get(line.inventoryItemId) ?? null);
       });
     }
 
@@ -1003,6 +1029,16 @@ export const receivingService = {
           where: { id: line.inventoryItemId },
           data: { currentCost: costPerUsageUnit(line.unitPrice, line.quantityBuyUnit, line.quantityUsageUnit) },
         });
+        // Supplier catalog: this supplier's own last price (per buy unit) moves with the receipt.
+        await supplierItemRepository.recordReceiptPrice(
+          organizationId,
+          receipt.supplierId,
+          line.inventoryItemId,
+          line.unitPrice,
+          signedAt,
+          line.inventoryItem.buyUnit,
+          tx,
+        );
       }
 
       await goodsReceiptRepository.markPriceAlertsAccepted(input.acceptedPriceAlerts, actor.id, tx);
@@ -1134,20 +1170,7 @@ export const receivingService = {
     ]);
 
     return {
-      supplier: {
-        id: supplierRow.id,
-        name: supplierRow.name,
-        contactName: supplierRow.contactName,
-        category: supplierRow.category,
-        phone: supplierRow.phone,
-        email: supplierRow.email,
-        location: supplierRow.location,
-        defaultPaymentTerms: supplierRow.defaultPaymentTerms,
-        paymentDays: supplierRow.paymentDays,
-        retiredAt: supplierRow.deletedAt?.toISOString() ?? null,
-        createdAt: supplierRow.createdAt.toISOString(),
-        updatedAt: supplierRow.updatedAt.toISOString(),
-      },
+      supplier: serializeSupplierBase(supplierRow),
       row: buildSupplierApRow(supplierForAp, invoices, new Date()),
       invoices: invoices.map(serializeSupplierInvoice),
       payments: payments.map(serializeSupplierPayment),
