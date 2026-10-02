@@ -124,7 +124,39 @@ const itemInclude = {
   preferredSupplier: { select: { id: true, name: true } },
 } satisfies Prisma.InventoryItemInclude;
 
+/**
+ * Catalog search (§28.5): our item name (partial), or any supplier's item code (exact) or item
+ * name (partial) — all case-insensitive. ILIKE / insensitive equality cannot use the btree
+ * indexes on supplier_items; at catalog scale (hundreds of rows) that is a sequential scan of a
+ * small table, not a problem.
+ */
+const supplierLineSearch = (organizationId: string, search: string): Prisma.SupplierItemWhereInput => ({
+  organizationId,
+  OR: [
+    { supplierItemCode: { equals: search, mode: 'insensitive' } },
+    { supplierItemName: { contains: search, mode: 'insensitive' } },
+  ],
+});
+
+const searchWhere = (organizationId: string, search: string): Prisma.InventoryItemWhereInput[] => [
+  { name: { contains: search, mode: 'insensitive' } },
+  { supplierItems: { some: supplierLineSearch(organizationId, search) } },
+];
+
 export const inventoryItemRepository = {
+  /** The supplier lines that matched a search, for the "Matched Samrat code 190035" caption. */
+  findSearchMatches: async (organizationId: string, inventoryItemIds: string[], search: string) =>
+    prisma.supplierItem.findMany({
+      where: { inventoryItemId: { in: inventoryItemIds }, ...supplierLineSearch(organizationId, search) },
+      select: {
+        inventoryItemId: true,
+        supplierItemName: true,
+        supplierItemCode: true,
+        supplier: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
+
   findAllByOrganization: async (
     organizationId: string,
     filters: ListItemsFilters,
@@ -135,7 +167,7 @@ export const inventoryItemRepository = {
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters.departmentTag ? { departmentTags: { has: filters.departmentTag } } : {}),
-      ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
+      ...(filters.search ? { OR: searchWhere(organizationId, filters.search) } : {}),
     };
 
     const [items, total] = await Promise.all([

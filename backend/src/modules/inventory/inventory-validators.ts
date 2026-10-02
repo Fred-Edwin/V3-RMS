@@ -185,6 +185,17 @@ export const InventoryItemSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/** List rows add why a search matched when it was a supplier's code or name, not ours (§28.5). */
+export const InventoryItemListRowSchema = InventoryItemSchema.extend({
+  matchedOn: z
+    .object({
+      supplier: z.object({ id: uuidSchema, name: z.string() }),
+      field: z.enum(['supplierItemCode', 'supplierItemName']),
+      value: z.string(),
+    })
+    .nullable(),
+});
+
 /** The KPI strip on `SFQ-0`: items tracked / categories / departments / suppliers. */
 export const ItemCatalogMetaSchema = z.object({
   itemsTracked: z.number().int().min(0),

@@ -74,6 +74,13 @@ export const receivingController = {
     res.status(200).json({ success: true, data });
   },
 
+  getSupplierDocument: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const data = await receivingService.getSupplierDocument(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
   createExpectedDelivery: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const input = CreateExpectedDeliverySchema.parse(req.body);

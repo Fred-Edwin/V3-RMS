@@ -2061,6 +2061,9 @@ model GoodsReceiptLine {
   priceAlertPct          Decimal? @map("price_alert_pct") @db.Decimal(6, 2)       -- null = no alert fired
   priceAlertPrevPrice    Decimal? @map("price_alert_prev_price") @db.Decimal(12, 4)
   priceAlertAcceptedById String?  @map("price_alert_accepted_by_id")
+  packBuyUnit            String?  @map("pack_buy_unit")                           -- the pack bought in; null = not stated (2026-10-02)
+  packSize               Decimal? @map("pack_size") @db.Decimal(12, 4)
+  packNotOnFile          Boolean  @default(false) @map("pack_not_on_file")        -- stamped at signing: no supplier catalog line matched, no price written
 
   @@index([goodsReceiptId])
   @@index([inventoryItemId])
@@ -2071,6 +2074,7 @@ model GoodsReceiptLine {
 **Notes:**
 - `priceAlertPct`/`priceAlertPrevPrice` are a **persisted snapshot, never recomputed** — by the time a signed receipt is read back, latest-price costing has already overwritten `InventoryItem.currentCost`, so the price this line was compared against at entry time would otherwise be lost.
 - A price-change alert does not block signing — it only requires the receiving user to acknowledge it (`priceAlertAcceptedById`) before "Sign & save" enables. On save, the entered price becomes the item's current cost regardless (latest-price costing).
+- `packBuyUnit` / `packSize` / `packNotOnFile` (migration `receipt_line_pack_and_preferred_audit`): the supplier catalog price follows the pack (API_CONTRACT §28.4). No matching `SupplierItem` line = no catalog price written and `packNotOnFile = true`; stock and `currentCost` still post.
 - `unitPrice` is per **buy** unit. On sign, `unitPrice ÷ conversionFactor` (per **usage** unit) becomes `InventoryItem.currentCost` for that item — the only path by which the catalog's cost figure changes.
 
 ---

@@ -74,7 +74,12 @@ vi.mock('./receiving-repository', () => ({
 
 vi.mock('./supplier-repository', () => ({
   supplierRepository: { findById: vi.fn() },
-  supplierItemRepository: { findLastPrices: vi.fn(), recordReceiptPrice: vi.fn() },
+  supplierItemRepository: {
+    listBySupplierItems: vi.fn(),
+    findLinesWithPrices: vi.fn(),
+    setLinePrice: vi.fn(),
+    createLine: vi.fn(),
+  },
 }));
 
 vi.mock('./inventory-repository', () => ({
@@ -103,7 +108,8 @@ const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizati
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(supplierItemRepository.findLastPrices).mockResolvedValue(new Map());
+  vi.mocked(supplierItemRepository.findLinesWithPrices).mockResolvedValue([]);
+  vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([]);
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId, isHub: true, isActive: true } as never);
 });
 
@@ -489,6 +495,9 @@ describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
           priceAlertPrevPrice: new Prisma.Decimal('1049'),
           priceAlertAcceptedById: 'sm1',
           priceAlertAcceptedBy: { id: 'sm1', name: 'D. Kariuki' },
+          packBuyUnit: null,
+          packSize: null,
+          packNotOnFile: false,
         },
       ],
       invoices: [],

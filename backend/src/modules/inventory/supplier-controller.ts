@@ -6,7 +6,9 @@ import { supplierService } from './supplier-service';
 import {
   CreateContactSchema,
   CreatePayMethodSchema,
+  CreateSupplierItemSchema,
   CreateSupplierSchema,
+  DeleteSupplierItemQuerySchema,
   ListSuppliersQuerySchema,
   ListSupplierDocumentsQuerySchema,
   PutSupplierItemSchema,
@@ -174,6 +176,20 @@ export const supplierController = {
     res.status(200).json({ success: true, data: await supplierService.listItems(actor, id) });
   },
 
+  addItem: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = SupplierIdParamSchema.parse(req.params);
+    const input = CreateSupplierItemSchema.parse(req.body);
+    const data = await supplierService.addItem(actor, id, input);
+    res.status(201).json({ success: true, data, message: 'Catalog line added successfully' });
+  },
+
+  listPackMismatches: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = SupplierIdParamSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await supplierService.listPackMismatches(actor, id) });
+  },
+
   putItem: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id, itemId } = SupplierItemParamSchema.parse(req.params);
@@ -185,7 +201,8 @@ export const supplierController = {
   deleteItem: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id, itemId } = SupplierItemParamSchema.parse(req.params);
-    await supplierService.deleteItem(actor, id, itemId);
+    const { lineId } = DeleteSupplierItemQuerySchema.parse(req.query);
+    await supplierService.deleteItem(actor, id, itemId, lineId);
     res.status(200).json({ success: true, data: null, message: 'Catalog row removed successfully' });
   },
 

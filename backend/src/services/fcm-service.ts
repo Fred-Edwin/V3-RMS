@@ -554,6 +554,39 @@ export const fcmService = {
   },
 
   /**
+   * Tells the hub Accountant(s) a cheque payment method was added to a supplier.
+   * Fire-and-forget — never blocks or fails the request.
+   */
+  sendChequeMethodAddedPush: async (
+    recipientIds: string[],
+    payload: { supplierId: string; supplierName: string; addedByName: string; reason: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY || recipientIds.length === 0) return;
+      const users = await Promise.all(recipientIds.map((id) => authRepository.findFcmToken(id)));
+      const tokens = users.filter((t): t is string => t !== null);
+      if (tokens.length === 0) return;
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: `Cheque method added — ${payload.supplierName}`,
+            body: `${payload.addedByName}: ${payload.reason}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `supplier-cheque-${payload.supplierId}`,
+          },
+          fcmOptions: { link: `/app/inventory/suppliers/${payload.supplierId}` },
+        },
+        data: { supplierId: payload.supplierId, type: 'supplier-cheque-method-added' },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send cheque-method-added FCM push');
+    }
+  },
+
+  /**
    * Sends a 24h reminder to a staff member who has not acknowledged a formal notice.
    * Fire-and-forget.
    */

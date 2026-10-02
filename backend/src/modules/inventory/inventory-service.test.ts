@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { inventoryService } from './inventory-service';
 import { categoryRepository, inventoryItemRepository, restockLevelRepository } from './inventory-repository';
-import { supplierItemRepository, supplierRepository } from './supplier-repository';
+import { supplierAuditRepository, supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
@@ -29,6 +29,7 @@ vi.mock('./inventory-repository', () => ({
     retire: vi.fn(),
     restore: vi.fn(),
     getCatalogMeta: vi.fn(),
+    findSearchMatches: vi.fn(),
   },
   restockLevelRepository: {
     findAllByLocation: vi.fn(),
@@ -41,7 +42,8 @@ vi.mock('./inventory-repository', () => ({
 
 vi.mock('./supplier-repository', () => ({
   supplierRepository: { findById: vi.fn() },
-  supplierItemRepository: { applyPreferred: vi.fn() },
+  supplierItemRepository: { applyPreferred: vi.fn(), listForItem: vi.fn() },
+  supplierAuditRepository: { create: vi.fn() },
 }));
 
 vi.mock('../../repositories/branch-repository', () => ({
@@ -137,6 +139,9 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
   vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
+  vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId: 'line1', wasPreferred: false, wasNeedsConfirm: false });
+  vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([]);
+  vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([]);
 });
 
 describe('inventoryService — D-15 hub scoping', () => {
@@ -407,6 +412,37 @@ describe('inventoryService — preferred supplier stays in sync with SupplierIte
     expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, null, expect.anything());
   });
 
+  it('logs PREFERRED_SET when an item-level change makes a supplier line preferred (B8)', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
+    vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue({ id: supplierId } as never);
+
+    await inventoryService.updateItem(storeManager, itemId, { preferredSupplierId: supplierId } as never);
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PREFERRED_SET', 'line1',
+      expect.objectContaining({ inventoryItemId: itemId }), expect.objectContaining({ isPreferred: true }), expect.anything(),
+    );
+  });
+
+  it('confirms (and logs) a seeded "Preferred · confirm" line when the item re-selects that supplier (B8)', async () => {
+    vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId: 'line1', wasPreferred: true, wasNeedsConfirm: true });
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+    vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+    vi.mocked(supplierRepository.findById).mockResolvedValue({ id: supplierId } as never);
+
+    await inventoryService.updateItem(storeManager, itemId, { preferredSupplierId: supplierId } as never);
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PREFERRED_CONFIRMED', 'line1', expect.anything(), expect.anything(), expect.anything(),
+    );
+  });
+
+  it('logs nothing when clearing the preferred supplier or when nothing changed', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem({ preferredSupplierId: supplierId }) as never);
+    vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem() as never);
+    await inventoryService.updateItem(storeManager, itemId, { preferredSupplierId: null } as never);
+    expect(supplierAuditRepository.create).not.toHaveBeenCalled();
+  });
+
   it('does not touch the catalog when preferredSupplierId is not part of the update', async () => {
     vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
     vi.mocked(inventoryItemRepository.update).mockResolvedValue(buildItem({ name: 'Renamed' }) as never);
@@ -581,5 +617,123 @@ describe('inventoryService — onHandQty and isBelowLevel derivation', () => {
     expect(rows[0]!.onHandQty).toBe('40');
     expect(rows[0]!.level).toBe('100');
     expect(rows[0]!.isBelowLevel).toBe(true);
+  });
+});
+
+describe('inventoryService — catalog search by supplier code or name (B6)', () => {
+  const sugar = buildItem({ id: 'item-sugar', name: 'Sugar white 50kg' });
+  const milk = buildItem({ id: 'item-milk', name: 'Milk 500ml' });
+  const samrat = { id: supplierId, name: 'Samrat Supermarket Ltd' };
+  const listQuery = (search?: string) => ({ page: 1, perPage: 20, includeRetired: false, ...(search ? { search } : {}) });
+
+  beforeEach(() => {
+    vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({} as never);
+  });
+
+  it('passes the search to the repository and asks which supplier lines matched, for the hub', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    await inventoryService.listItems(storeManager, listQuery('190035'));
+    expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ search: '190035' }));
+    expect(inventoryItemRepository.findSearchMatches).toHaveBeenCalledWith(hubOrgId, ['item-sugar'], '190035');
+  });
+
+  it('matchedOn names the supplier, field and value when their code matched', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: 'item-sugar', supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', supplier: samrat },
+    ] as never);
+
+    const { data } = await inventoryService.listItems(storeManager, listQuery('190035'));
+    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemCode', value: '190035' });
+  });
+
+  it('matchedOn reports their item name (partial, any case) when only the name matched', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: 'item-sugar', supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', supplier: samrat },
+    ] as never);
+
+    const { data } = await inventoryService.listItems(storeManager, listQuery('KABRAS'));
+    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemName', value: 'Kabras sugar 50kg' });
+  });
+
+  it('prefers the exact code over a name hit when both match', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: 'item-sugar', supplierItemName: 'Code 77 sugar', supplierItemCode: 'X1', supplier: samrat },
+      { inventoryItemId: 'item-sugar', supplierItemName: 'Other', supplierItemCode: '77', supplier: { id: 's2', name: 'Other Ltd' } },
+    ] as never);
+
+    const { data } = await inventoryService.listItems(storeManager, listQuery('77'));
+    expect(data[0]!.matchedOn).toMatchObject({ field: 'supplierItemCode', value: '77', supplier: { id: 's2' } });
+  });
+
+  it('matchedOn is null when our own item name matched, even if a supplier line matched too', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: 'item-sugar', supplierItemName: 'Sugar 50kg', supplierItemCode: '1', supplier: samrat },
+    ] as never);
+
+    const { data } = await inventoryService.listItems(storeManager, listQuery('sugar'));
+    expect(data[0]!.matchedOn).toBeNull();
+  });
+
+  it('matchedOn is only set on the rows a supplier line explains, and is null with no search', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar, milk], total: 2 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: 'item-sugar', supplierItemName: null, supplierItemCode: '190035', supplier: samrat },
+    ] as never);
+    const hit = await inventoryService.listItems(storeManager, listQuery('190035'));
+    expect(hit.data.map((r) => r.matchedOn?.field ?? null)).toEqual(['supplierItemCode', null]);
+
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockClear();
+    const none = await inventoryService.listItems(storeManager, listQuery());
+    expect(none.data.every((r) => r.matchedOn === null)).toBe(true);
+    expect(inventoryItemRepository.findSearchMatches).not.toHaveBeenCalled();
+  });
+
+  it('rows validate against the list-row contract', async () => {
+    const { InventoryItemListRowSchema } = await import('./inventory-validators');
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem({ name: 'Sugar white 50kg' })], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
+      { inventoryItemId: itemId, supplierItemName: null, supplierItemCode: '190035', supplier: { id: supplierId, name: 'Samrat' } },
+    ] as never);
+    const { data } = await inventoryService.listItems(storeManager, listQuery('190035'));
+    expect(data[0]!.matchedOn).not.toBeNull();
+    expect(() => InventoryItemListRowSchema.parse(data[0])).not.toThrow();
+  });
+});
+
+describe('inventoryService — item page lists who sells it, with their names (B5)', () => {
+  it('returns every supplier pack line with their name and code, ours stays the item name', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem({ name: 'Sugar white' }) as never);
+    vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([
+      {
+        id: 'line1', supplierId, inventoryItemId: itemId, supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035',
+        buyUnit: 'bag', packSize: new Prisma.Decimal('50'), lastPrice: new Prisma.Decimal('5000'), lastPriceAt: new Date('2026-10-01T09:00:00.000Z'),
+        isPreferred: true, preferredNeedsConfirm: true, supplier: { id: supplierId, code: 'SUPPLIER-0003', name: 'Samrat' },
+      },
+      {
+        id: 'line2', supplierId, inventoryItemId: itemId, supplierItemName: null, supplierItemCode: null,
+        buyUnit: 'packet', packSize: new Prisma.Decimal('2'), lastPrice: null, lastPriceAt: null,
+        isPreferred: false, preferredNeedsConfirm: false, supplier: { id: supplierId, code: 'SUPPLIER-0003', name: 'Samrat' },
+      },
+    ] as never);
+
+    const item = await inventoryService.getItemById(storeManager, itemId);
+    expect(supplierItemRepository.listForItem).toHaveBeenCalledWith(itemId, hubOrgId);
+    expect(item.name).toBe('Sugar white');
+    expect(item.suppliers).toHaveLength(2);
+    expect(item.suppliers[0]).toEqual({
+      lineId: 'line1', supplierId, supplierCode: 'SUPPLIER-0003', supplierName: 'Samrat',
+      supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', buyUnit: 'bag', packSize: '50',
+      lastPrice: '5000', lastPriceAt: '2026-10-01T09:00:00.000Z', isPreferred: true, preferredNeedsConfirm: true,
+    });
+    expect(item.suppliers[1]).toMatchObject({ supplierItemName: null, packSize: '2', lastPrice: null });
+  });
+
+  it('is empty when nobody sells it yet', async () => {
+    vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
+    expect((await inventoryService.getItemById(storeManager, itemId)).suppliers).toEqual([]);
   });
 });

@@ -10,6 +10,8 @@ export const contactId2 = '66666666-6666-4666-8666-666666666667';
 export const methodId = '77777777-7777-4777-8777-777777777777';
 export const methodId2 = '77777777-7777-4777-8777-777777777778';
 export const itemId = '33333333-3333-4333-8333-333333333333';
+export const lineId = '99999999-9999-4999-8999-999999999991';
+export const lineId2 = '99999999-9999-4999-8999-999999999992';
 export const docId = '88888888-8888-4888-8888-888888888888';
 export const categoryId = '44444444-4444-4444-8444-444444444444';
 
@@ -51,10 +53,31 @@ export const buildPayMethod = (overrides: Record<string, unknown> = {}) => ({
   tillNumber: null,
   phone: null,
   registeredName: null,
+  note: null,
   isDefault: true,
   createdById: 'sm1',
   createdAt: now,
   updatedAt: now,
+  ...overrides,
+});
+
+/** A supplier catalog line as the repository returns it (with its item). */
+export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
+  id: lineId,
+  organizationId: hubOrgId,
+  supplierId,
+  inventoryItemId: itemId,
+  supplierItemName: null,
+  supplierItemCode: null,
+  buyUnit: 'crate',
+  packSize: null,
+  lastPrice: new Prisma.Decimal('2025'),
+  lastPriceAt: now,
+  isPreferred: false,
+  preferredNeedsConfirm: false,
+  createdAt: now,
+  updatedAt: now,
+  inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
   ...overrides,
 });
 
@@ -119,17 +142,25 @@ export const supplierRepositoryMocks = () => ({
     update: vi.fn(),
     delete: vi.fn(),
     unsetDefault: vi.fn(),
+    findHubAccountants: vi.fn(),
   },
   supplierAuditRepository: { create: vi.fn() },
   supplierItemRepository: {
     list: vi.fn(),
+    listForItem: vi.fn(),
+    listBySupplierItem: vi.fn(),
+    listBySupplierItems: vi.fn(),
     find: vi.fn(),
-    upsert: vi.fn(),
+    findById: vi.fn(),
+    findByKey: vi.fn(),
+    findLineId: vi.fn(),
+    createLine: vi.fn(),
+    updateLine: vi.fn(),
     delete: vi.fn(),
     applyPreferred: vi.fn(),
     clearPreferredIfSupplier: vi.fn(),
-    findLastPrices: vi.fn(),
-    recordReceiptPrice: vi.fn(),
+    findLinesWithPrices: vi.fn(),
+    setLinePrice: vi.fn(),
   },
   supplierDocumentRepository: {
     list: vi.fn(),

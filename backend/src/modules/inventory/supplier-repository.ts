@@ -15,6 +15,7 @@ import type {
   SupplierType,
 } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { normalizeBuyUnit, normalizePackSize, type LineKey } from './supplier-line-key';
 
 type TxClient = Prisma.TransactionClient;
 type Client = typeof prisma | TxClient;
@@ -260,6 +261,8 @@ export type PayMethodData = {
   tillNumber: string | null;
   phone: string | null;
   registeredName: string | null;
+  /** Cheque only: free-text note. */
+  note: string | null;
 };
 
 export const supplierPayMethodRepository = {
@@ -305,6 +308,13 @@ export const supplierPayMethodRepository = {
   unsetDefault: async (supplierId: string, organizationId: string, tx: TxClient): Promise<void> => {
     await tx.supplierPayMethod.updateMany({ where: { supplierId, organizationId, isDefault: true }, data: { isDefault: false } });
   },
+
+  /** Recipients for the "cheque method added" notice: every active Accountant on the hub org. */
+  findHubAccountants: (organizationId: string): Promise<{ id: string }[]> =>
+    prisma.user.findMany({
+      where: { organizationId, role: 'ACCOUNTANT', isActive: true, deletedAt: null },
+      select: { id: true },
+    }),
 };
 
 export const supplierAuditRepository = {
@@ -349,22 +359,82 @@ export type SupplierItemData = {
   packSize: string | null;
 };
 
+export type SupplierItemUpdate = Partial<SupplierItemData> & {
+  isPreferred?: boolean;
+  preferredNeedsConfirm?: boolean;
+};
+
+/** A line plus the supplier it belongs to, for the item page and search. */
+const supplierItemWithSupplierInclude = {
+  supplier: { select: { id: true, code: true, name: true } },
+} satisfies Prisma.SupplierItemInclude;
+export type SupplierItemWithSupplier = Prisma.SupplierItemGetPayload<{ include: typeof supplierItemWithSupplierInclude }>;
+
+/**
+ * Prisma has no compound key for the line index (it uses COALESCE), so the same equality is
+ * spelled out: a missing buy unit is null or '', a missing pack size is null or 0.
+ */
+const lineKeyWhere = (key: LineKey): Prisma.SupplierItemWhereInput => {
+  const unit = normalizeBuyUnit(key.buyUnit);
+  const pack = normalizePackSize(key.packSize);
+  return {
+    AND: [
+      unit === '' ? { OR: [{ buyUnit: null }, { buyUnit: '' }] } : { buyUnit: unit },
+      pack === null ? { OR: [{ packSize: null }, { packSize: 0 }] } : { packSize: pack },
+    ],
+  };
+};
+
 export const supplierItemRepository = {
   list: (supplierId: string, organizationId: string): Promise<SupplierItemRow[]> =>
     prisma.supplierItem.findMany({
       where: { supplierId, organizationId },
       include: supplierItemInclude,
-      orderBy: { inventoryItem: { name: 'asc' } },
+      orderBy: [{ inventoryItem: { name: 'asc' } }, { createdAt: 'asc' }],
+    }),
+
+  /** Every line for the item across suppliers (item page), with the supplier's id, code and name. */
+  listForItem: (inventoryItemId: string, organizationId: string): Promise<SupplierItemWithSupplier[]> =>
+    prisma.supplierItem.findMany({
+      where: { inventoryItemId, organizationId },
+      include: supplierItemWithSupplierInclude,
+      orderBy: [{ isPreferred: 'desc' }, { supplier: { name: 'asc' } }, { createdAt: 'asc' }],
+    }),
+
+  /** All of one supplier's lines for one item, oldest first. */
+  listBySupplierItem: (supplierId: string, inventoryItemId: string, organizationId: string, client: Client = prisma) =>
+    client.supplierItem.findMany({
+      where: { supplierId, inventoryItemId, organizationId },
+      orderBy: { createdAt: 'asc' },
+    }),
+
+  /** One supplier's lines for many items (receipt pricing, document names). */
+  listBySupplierItems: (supplierId: string, inventoryItemIds: string[], organizationId: string, client: Client = prisma) =>
+    client.supplierItem.findMany({
+      where: { supplierId, inventoryItemId: { in: inventoryItemIds }, organizationId },
+      orderBy: { createdAt: 'asc' },
     }),
 
   find: (supplierId: string, inventoryItemId: string, organizationId: string, client: Client = prisma) =>
     client.supplierItem.findFirst({ where: { supplierId, inventoryItemId, organizationId } }),
 
-  /**
-   * The line key is now (supplier, item, buy unit, pack size) via a raw-SQL index, so Prisma has
-   * no compound key for upsert. Until pack lines exist (a later session) a supplier has at most
-   * one line per item, so "the line" is the oldest one for the pair.
-   */
+  findById: (id: string, supplierId: string, inventoryItemId: string, organizationId: string, client: Client = prisma) =>
+    client.supplierItem.findFirst({ where: { id, supplierId, inventoryItemId, organizationId }, include: supplierItemInclude }),
+
+  /** The line with exactly this key, or null. */
+  findByKey: (
+    supplierId: string,
+    inventoryItemId: string,
+    organizationId: string,
+    key: LineKey,
+    client: Client = prisma,
+  ): Promise<SupplierItemRow | null> =>
+    client.supplierItem.findFirst({
+      where: { supplierId, inventoryItemId, organizationId, ...lineKeyWhere(key) },
+      include: supplierItemInclude,
+    }),
+
+  /** The oldest line for the pair — for callers that carry no pack (legacy toggles, preferred sync). */
   findLineId: async (supplierId: string, inventoryItemId: string, organizationId: string, tx: TxClient): Promise<string | null> => {
     const row = await tx.supplierItem.findFirst({
       where: { supplierId, inventoryItemId, organizationId },
@@ -374,90 +444,122 @@ export const supplierItemRepository = {
     return row?.id ?? null;
   },
 
-  /** Upserts the catalog row without touching price fields. */
-  upsert: async (
+  createLine: (
     organizationId: string,
     supplierId: string,
     inventoryItemId: string,
-    data: SupplierItemData & { isPreferred?: boolean },
+    data: Partial<SupplierItemData> & { lastPrice?: Prisma.Decimal.Value; lastPriceAt?: Date },
     tx: TxClient,
-  ): Promise<SupplierItemRow> => {
-    const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
-    return id
-      ? tx.supplierItem.update({ where: { id }, data: { ...data }, include: supplierItemInclude })
-      : tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, ...data }, include: supplierItemInclude });
+  ): Promise<SupplierItemRow> =>
+    tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, ...data }, include: supplierItemInclude }),
+
+  updateLine: async (id: string, organizationId: string, data: SupplierItemUpdate, tx: TxClient): Promise<SupplierItemRow | null> => {
+    const { count } = await tx.supplierItem.updateMany({ where: { id, organizationId }, data });
+    if (count === 0) return null;
+    return tx.supplierItem.findFirst({ where: { id, organizationId }, include: supplierItemInclude });
   },
 
-  delete: async (supplierId: string, inventoryItemId: string, organizationId: string, tx: TxClient): Promise<number> => {
-    const { count } = await tx.supplierItem.deleteMany({ where: { supplierId, inventoryItemId, organizationId } });
+  /** Removes one line, or every line the supplier has for the item when no id is given. */
+  delete: async (
+    supplierId: string,
+    inventoryItemId: string,
+    organizationId: string,
+    tx: TxClient,
+    lineId?: string,
+  ): Promise<number> => {
+    const { count } = await tx.supplierItem.deleteMany({
+      where: { supplierId, inventoryItemId, organizationId, ...(lineId ? { id: lineId } : {}) },
+    });
     return count;
   },
 
-  /** Sets exactly one preferred supplier for the item (or none), on both sides of the sync. */
+  /**
+   * Sets exactly one preferred line for the item (or none), on both sides of the sync. Only one
+   * line per item may be preferred (partial unique index), including two lines of one supplier.
+   * `lineId` picks the line; without it the supplier's oldest line is used (created when none).
+   * Whatever line ends up preferred has its "needs confirm" mark cleared; lines that lose the
+   * mark lose it too. Returns what changed so the caller can log it.
+   */
   applyPreferred: async (
     organizationId: string,
     inventoryItemId: string,
     supplierId: string | null,
     tx: TxClient,
-  ): Promise<void> => {
+    lineId?: string,
+  ): Promise<{ lineId: string | null; wasPreferred: boolean; wasNeedsConfirm: boolean }> => {
+    const existing = supplierId
+      ? lineId
+        ? await tx.supplierItem.findFirst({ where: { id: lineId, supplierId, inventoryItemId, organizationId } })
+        : await tx.supplierItem.findFirst({
+            where: { supplierId, inventoryItemId, organizationId },
+            orderBy: { createdAt: 'asc' },
+          })
+      : null;
+
     await tx.supplierItem.updateMany({
-      where: { organizationId, inventoryItemId, isPreferred: true, ...(supplierId ? { supplierId: { not: supplierId } } : {}) },
-      data: { isPreferred: false },
+      where: { organizationId, inventoryItemId, isPreferred: true, ...(existing ? { id: { not: existing.id } } : {}) },
+      data: { isPreferred: false, preferredNeedsConfirm: false },
     });
+
+    let resultId: string | null = null;
     if (supplierId) {
-      const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
-      if (id) await tx.supplierItem.update({ where: { id }, data: { isPreferred: true } });
-      else await tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, isPreferred: true } });
+      if (existing) {
+        await tx.supplierItem.update({ where: { id: existing.id }, data: { isPreferred: true, preferredNeedsConfirm: false } });
+        resultId = existing.id;
+      } else {
+        const created = await tx.supplierItem.create({
+          data: { organizationId, supplierId, inventoryItemId, isPreferred: true },
+          select: { id: true },
+        });
+        resultId = created.id;
+      }
     }
     await tx.inventoryItem.updateMany({
       where: { id: inventoryItemId, organizationId },
       data: { preferredSupplierId: supplierId },
     });
+    return {
+      lineId: resultId,
+      wasPreferred: existing?.isPreferred ?? false,
+      wasNeedsConfirm: existing?.preferredNeedsConfirm ?? false,
+    };
   },
 
-  /** Clears a preferred mark only if it is currently this supplier's. */
+  /** Clears a preferred mark only if it is currently this supplier's (optionally one line). */
   clearPreferredIfSupplier: async (
     organizationId: string,
     inventoryItemId: string,
     supplierId: string,
     tx: TxClient,
+    lineId?: string,
   ): Promise<void> => {
-    await tx.supplierItem.updateMany({
-      where: { organizationId, inventoryItemId, supplierId, isPreferred: true },
-      data: { isPreferred: false },
+    const { count } = await tx.supplierItem.updateMany({
+      where: { organizationId, inventoryItemId, supplierId, isPreferred: true, ...(lineId ? { id: lineId } : {}) },
+      data: { isPreferred: false, preferredNeedsConfirm: false },
     });
+    if (count === 0) return;
     await tx.inventoryItem.updateMany({
       where: { id: inventoryItemId, organizationId, preferredSupplierId: supplierId },
       data: { preferredSupplierId: null },
     });
   },
 
-  /** The supplier's own last price per item, for the receiving price alert. */
-  findLastPrices: async (
-    organizationId: string,
-    supplierId: string,
-    itemIds: string[],
-  ): Promise<Map<string, Prisma.Decimal>> => {
-    const rows = await prisma.supplierItem.findMany({
-      where: { organizationId, supplierId, inventoryItemId: { in: itemIds }, lastPrice: { not: null } },
-      select: { inventoryItemId: true, lastPrice: true },
-    });
-    return new Map(rows.filter((r) => r.lastPrice !== null).map((r) => [r.inventoryItemId, r.lastPrice as Prisma.Decimal]));
-  },
+  /** The supplier's lines (with prices) for the receiving price alert. */
+  findLinesWithPrices: (organizationId: string, supplierId: string, itemIds: string[]) =>
+    prisma.supplierItem.findMany({
+      where: { organizationId, supplierId, inventoryItemId: { in: itemIds } },
+      orderBy: { createdAt: 'asc' },
+    }),
 
-  /** Called from the receipt-sign transaction: price wins outright (latest-price, no averaging). */
-  recordReceiptPrice: async (
+  /** Called from the receipt-sign transaction: the price wins outright (latest-price, no averaging). */
+  setLinePrice: async (
+    id: string,
     organizationId: string,
-    supplierId: string,
-    inventoryItemId: string,
     price: Prisma.Decimal.Value,
     at: Date,
-    buyUnit: string,
     tx: TxClient,
   ): Promise<void> => {
-    const id = await supplierItemRepository.findLineId(supplierId, inventoryItemId, organizationId, tx);
-    if (id) await tx.supplierItem.update({ where: { id }, data: { lastPrice: price, lastPriceAt: at } });
-    else await tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, buyUnit, lastPrice: price, lastPriceAt: at } });
+    await tx.supplierItem.updateMany({ where: { id, organizationId }, data: { lastPrice: price, lastPriceAt: at } });
   },
 };
 

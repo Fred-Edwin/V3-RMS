@@ -89,6 +89,8 @@ router.delete(
 );
 
 router.get('/inventory/suppliers/:id/items', requireRole(...READ), supplierController.listItems);
+router.post('/inventory/suppliers/:id/items', requireRole(SM), supplierController.addItem);
+router.get('/inventory/suppliers/:id/pack-mismatches', requireRole(...READ), supplierController.listPackMismatches);
 router.put('/inventory/suppliers/:id/items/:itemId', requireRole(SM), supplierController.putItem);
 router.delete('/inventory/suppliers/:id/items/:itemId', requireRole(SM), supplierController.deleteItem);
 

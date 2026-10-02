@@ -3,7 +3,13 @@
  * serializer a role may use; nothing here reads the database.
  */
 import type { SupplierContact, SupplierPayMethod } from '@prisma/client';
-import type { SupplierDetailRow, SupplierWithRelations, SupplierItemRow, SupplierDocumentRow } from './supplier-repository';
+import type {
+  SupplierDetailRow,
+  SupplierWithRelations,
+  SupplierItemRow,
+  SupplierItemWithSupplier,
+  SupplierDocumentRow,
+} from './supplier-repository';
 
 /** "••••4821" — never more than the last four characters. */
 export const maskSensitive = (value: string | null): string | null => {
@@ -38,6 +44,7 @@ export const serializePayMethod = (m: SupplierPayMethod) => ({
   tillNumber: m.tillNumber,
   phone: m.phone,
   registeredName: m.registeredName,
+  note: m.note,
   createdAt: m.createdAt.toISOString(),
   updatedAt: m.updatedAt.toISOString(),
 });
@@ -61,6 +68,7 @@ export const auditSnapshot = (m: SupplierPayMethod) => ({
   tillNumber: m.tillNumber,
   phone: m.type === 'MPESA_SEND_MONEY' ? maskSensitive(m.phone) : m.phone,
   registeredName: m.registeredName,
+  note: m.note,
 });
 
 type SupplierBaseSource = SupplierWithRelations | SupplierDetailRow;
@@ -121,6 +129,7 @@ export const serializeSupplierDetail = (supplier: SupplierDetailRow, includePaym
 });
 
 export const serializeSupplierItem = (row: SupplierItemRow) => ({
+  id: row.id,
   inventoryItemId: row.inventoryItemId,
   itemName: row.inventoryItem.name,
   itemBuyUnit: row.inventoryItem.buyUnit,
@@ -131,6 +140,23 @@ export const serializeSupplierItem = (row: SupplierItemRow) => ({
   lastPrice: row.lastPrice ? row.lastPrice.toString() : null,
   lastPriceAt: row.lastPriceAt ? row.lastPriceAt.toISOString() : null,
   isPreferred: row.isPreferred,
+  preferredNeedsConfirm: row.preferredNeedsConfirm,
+});
+
+/** The item page's "who sells it" row: their name and code beside the supplier, ours stays the page title. */
+export const serializeItemSupplierLine = (row: SupplierItemWithSupplier) => ({
+  lineId: row.id,
+  supplierId: row.supplier.id,
+  supplierCode: row.supplier.code,
+  supplierName: row.supplier.name,
+  supplierItemName: row.supplierItemName,
+  supplierItemCode: row.supplierItemCode,
+  buyUnit: row.buyUnit,
+  packSize: row.packSize ? row.packSize.toString() : null,
+  lastPrice: row.lastPrice ? row.lastPrice.toString() : null,
+  lastPriceAt: row.lastPriceAt ? row.lastPriceAt.toISOString() : null,
+  isPreferred: row.isPreferred,
+  preferredNeedsConfirm: row.preferredNeedsConfirm,
 });
 
 export const serializeDocument = (doc: SupplierDocumentRow) => ({

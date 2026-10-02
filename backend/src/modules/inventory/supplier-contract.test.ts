@@ -37,7 +37,13 @@ import {
 } from './supplier-test-fixtures';
 
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
-vi.mock('./receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('./receiving-repository', () => ({
+  referenceCounterRepository: { nextReference: vi.fn() },
+  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+}));
+vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
+vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
+vi.mock('../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('./supplier-storage', async () => {
   const actual = await vi.importActual<typeof import('./supplier-storage')>('./supplier-storage');
@@ -121,13 +127,15 @@ describe('suppliers contract — response shapes', () => {
 
     vi.mocked(repos.supplierItemRepository.list).mockResolvedValue([
       {
+        id: '99999999-9999-4999-8999-999999999991',
         inventoryItemId: itemId, supplierItemName: 'Fresh milk', supplierItemCode: 'M1', buyUnit: 'crate',
         packSize: new Prisma.Decimal('12'), lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), isPreferred: true,
+        preferredNeedsConfirm: true,
         inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
       },
     ] as never);
     const [item] = SupplierItemSchema.array().parse(await supplierService.listItems(storeManager, supplierId));
-    expect(item).toMatchObject({ lastPrice: '2025', packSize: '12' }); // decimals cross the wire as strings
+    expect(item).toMatchObject({ lastPrice: '2025', packSize: '12', preferredNeedsConfirm: true }); // decimals cross the wire as strings
 
     const doc = {
       id: docId, objectKey: 'k', fileName: 'a.png', mimeType: 'image/png', sizeBytes: 5, docType: 'INVOICE',

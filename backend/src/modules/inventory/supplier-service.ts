@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { authRepository } from '../../repositories/auth-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { logger } from '../../utils/logger';
 import {
@@ -19,7 +20,10 @@ import {
   ValidationError,
 } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
-import { referenceCounterRepository } from './receiving-repository';
+import { socketService } from '../../sockets/socket-service';
+import { fcmService } from '../../services/fcm-service';
+import { goodsReceiptRepository, referenceCounterRepository } from './receiving-repository';
+import { describePack, matchSupplierLine, sameLineKey } from './supplier-line-key';
 import {
   supplierAuditRepository,
   supplierContactRepository,
@@ -36,6 +40,7 @@ import {
   serializeAttendantSupplier,
   serializeContact,
   serializeDocument,
+  serializeItemSupplierLine,
   serializePayMethod,
   serializePayMethodDetail,
   serializeSupplierBase,
@@ -53,6 +58,7 @@ import { PayMethodFieldsSchema } from './supplier-validators';
 import type {
   CreateContactInput,
   CreatePayMethodInput,
+  CreateSupplierItemInput,
   CreateSupplierInput,
   ListSuppliersQuery,
   PutSupplierItemInput,
@@ -64,6 +70,7 @@ import type {
   UploadSupplierDocumentInput,
   UploadedFile,
 } from './supplier.types';
+import type { SupplierItemRow } from './supplier-repository';
 import type { Paginated } from './inventory.types';
 
 type Actor = NonNullable<Request['user']>;
@@ -147,6 +154,7 @@ const emptyPayData: Omit<PayMethodData, 'type'> = {
   tillNumber: null,
   phone: null,
   registeredName: null,
+  note: null,
 };
 
 const toPayData = (parsed: ReturnType<typeof PayMethodFieldsSchema.parse>): PayMethodData => {
@@ -161,9 +169,86 @@ const toPayData = (parsed: ReturnType<typeof PayMethodFieldsSchema.parse>): PayM
 
 const asJson = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
+/**
+ * Fire-and-forget (called with `void`): tells the hub's Accountant(s) a cheque method was added.
+ * Same socket + FCM primitives the signed-receipt notice uses; never blocks or fails the request.
+ */
+const notifyAccountantsOfChequeMethod = async (
+  organizationId: string,
+  actor: Actor,
+  supplier: { id: string; name: string },
+  reason: string,
+): Promise<void> => {
+  try {
+    const accountants = await supplierPayMethodRepository.findHubAccountants(organizationId);
+    const recipientIds = accountants.map((a) => a.id).filter((id) => id !== actor.id);
+    if (recipientIds.length === 0) return;
+    const addedBy = await authRepository.findUserById(actor.id);
+    const payload = { supplierId: supplier.id, supplierName: supplier.name, addedByName: addedBy?.name ?? 'A colleague', reason };
+    recipientIds.forEach((id) => socketService.emitChequeMethodAdded(id, payload));
+    await fcmService.sendChequeMethodAddedPush(recipientIds, payload);
+  } catch (error) {
+    logger.warn({ err: error, supplierId: supplier.id }, 'Failed to notify Accountants of a cheque method');
+  }
+};
+
+/** "Sugar white · bag · 50 (their code 190035)" — names the clashing line in the 409 message. */
+const describeLine = (row: SupplierItemRow): string => {
+  const theirCode = row.supplierItemCode ? ` (their code ${row.supplierItemCode})` : '';
+  return `${row.supplierItemName ?? row.inventoryItem.name} · ${describePack(row)}${theirCode}`;
+};
+
+const packLineExists = (supplierName: string, existing: SupplierItemRow): ConflictError =>
+  new ConflictError(`${supplierName} already has this pack: ${describeLine(existing)}`, 'PACK_LINE_EXISTS', {
+    existingLine: serializeSupplierItem(existing),
+  });
+
+const hasOwn = (input: object, key: string): boolean => Object.prototype.hasOwnProperty.call(input, key);
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
+
+const PACK_LINE_RACE = 'This supplier already has this pack for the item';
+
+const requireLine = async (lineId: string, supplierId: string, inventoryItemId: string, organizationId: string) => {
+  const row = await supplierItemRepository.findById(lineId, supplierId, inventoryItemId, organizationId);
+  if (!row) throw new NotFoundError('Catalog row not found');
+  return row;
+};
+
+/**
+ * `isPreferred: true` makes the line the item's preferred one — which is also how a seeded
+ * "Preferred · confirm" mark is confirmed — and writes PREFERRED_SET / PREFERRED_CONFIRMED.
+ * `false` clears it when it is this line's. Absent: nothing changes.
+ */
+const applyPreferredChoice = async (
+  organizationId: string,
+  actor: Actor,
+  supplierId: string,
+  inventoryItemId: string,
+  lineId: string,
+  isPreferred: boolean | undefined,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  if (isPreferred === true) {
+    const result = await supplierItemRepository.applyPreferred(organizationId, inventoryItemId, supplierId, tx, lineId);
+    if (!result.wasPreferred || result.wasNeedsConfirm) {
+      await supplierAuditRepository.create(
+        organizationId,
+        supplierId,
+        actor.id,
+        result.wasNeedsConfirm ? 'PREFERRED_CONFIRMED' : 'PREFERRED_SET',
+        lineId,
+        { inventoryItemId, lineId, isPreferred: result.wasPreferred, preferredNeedsConfirm: result.wasNeedsConfirm },
+        { inventoryItemId, lineId, isPreferred: true, preferredNeedsConfirm: false },
+        tx,
+      );
+    }
+  } else if (isPreferred === false) {
+    await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx, lineId);
+  }
+};
 
 const createContactRows = async (
   organizationId: string,
@@ -538,9 +623,10 @@ export const supplierService = {
       throw new ForbiddenError('You cannot edit supplier payment details');
     }
     const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
-    const { isDefault, ...fields } = input;
+    const supplier = await requireSupplier(supplierId, organizationId);
+    const { isDefault, reason, ...fields } = input;
     const data = toPayData(PayMethodFieldsSchema.parse(fields));
+    const isCheque = data.type === 'CHEQUE';
 
     const created = await prisma.$transaction(async (tx) => {
       const count = await supplierPayMethodRepository.count(supplierId, organizationId, tx);
@@ -557,7 +643,9 @@ export const supplierService = {
         tx,
       );
       await supplierAuditRepository.create(
-        organizationId, supplierId, actor.id, 'PAY_METHOD_CREATED', row.id, null, asJson(auditSnapshot(row)), tx,
+        organizationId, supplierId, actor.id, 'PAY_METHOD_CREATED', row.id, null,
+        asJson(isCheque ? { ...auditSnapshot(row), summary: 'cheque method added', reason } : auditSnapshot(row)),
+        tx,
       );
       if (previousDefault) {
         await supplierAuditRepository.create(
@@ -567,6 +655,7 @@ export const supplierService = {
       }
       return row;
     });
+    if (isCheque) void notifyAccountantsOfChequeMethod(organizationId, actor, supplier, reason ?? '');
     return serializePayMethod(created);
   },
 
@@ -642,48 +731,167 @@ export const supplierService = {
     return (await supplierItemRepository.list(supplierId, organizationId)).map(serializeSupplierItem);
   },
 
+  /** Add one pack line. The key (supplier, item, buy unit, pack size) must be new — a clash is a 409. */
+  addItem: async (actor: Actor, supplierId: string, input: CreateSupplierItemInput) => {
+    requireReadAccess(actor);
+    const organizationId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, organizationId);
+    const item = await supplierItemLookupRepository.findLiveItem(input.inventoryItemId, organizationId);
+    if (!item) throw new NotFoundError('Inventory item not found');
+
+    const key = { buyUnit: nullable(input.buyUnit) ?? item.buyUnit, packSize: nullable(input.packSize) };
+    const lineId = await prisma
+      .$transaction(async (tx) => {
+        const clash = await supplierItemRepository.findByKey(supplierId, input.inventoryItemId, organizationId, key, tx);
+        if (clash) throw packLineExists(supplier.name, clash);
+        const created = await supplierItemRepository.createLine(
+          organizationId,
+          supplierId,
+          input.inventoryItemId,
+          {
+            supplierItemName: nullable(input.supplierItemName),
+            supplierItemCode: nullable(input.supplierItemCode),
+            buyUnit: key.buyUnit,
+            packSize: key.packSize,
+          },
+          tx,
+        );
+        await applyPreferredChoice(organizationId, actor, supplierId, input.inventoryItemId, created.id, input.isPreferred, tx);
+        return created.id;
+      })
+      .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
+    return serializeSupplierItem(await requireLine(lineId, supplierId, input.inventoryItemId, organizationId));
+  },
+
+  /**
+   * Edit or add on the line key. `lineId` edits that line (a key change onto another line is a 409).
+   * Without it: a named pack finds-or-creates the line with exactly that key; no pack named means the
+   * supplier's oldest line for the item (created if none) — the pre-pack-lines behaviour.
+   * Only the fields present in the body change.
+   */
   putItem: async (actor: Actor, supplierId: string, inventoryItemId: string, input: PutSupplierItemInput) => {
     requireReadAccess(actor);
     const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const supplier = await requireSupplier(supplierId, organizationId);
     const item = await supplierItemLookupRepository.findLiveItem(inventoryItemId, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
 
-    await prisma.$transaction(async (tx) => {
-      await supplierItemRepository.upsert(
-        organizationId,
-        supplierId,
-        inventoryItemId,
-        {
-          supplierItemName: nullable(input.supplierItemName),
-          supplierItemCode: nullable(input.supplierItemCode),
-          buyUnit: nullable(input.buyUnit) ?? item.buyUnit,
-          packSize: nullable(input.packSize),
-        },
-        tx,
-      );
-      if (input.isPreferred === true) {
-        await supplierItemRepository.applyPreferred(organizationId, inventoryItemId, supplierId, tx);
-      } else if (input.isPreferred === false) {
-        await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx);
-      }
-    });
-    const rows = await supplierItemRepository.list(supplierId, organizationId);
-    const found = rows.find((r) => r.inventoryItemId === inventoryItemId);
-    if (!found) throw new NotFoundError('Catalog row not found');
-    return serializeSupplierItem(found);
+    const namedPack = hasOwn(input, 'buyUnit') || hasOwn(input, 'packSize');
+    const fields = {
+      ...(input.supplierItemName !== undefined ? { supplierItemName: nullable(input.supplierItemName) } : {}),
+      ...(input.supplierItemCode !== undefined ? { supplierItemCode: nullable(input.supplierItemCode) } : {}),
+    };
+
+    const lineId = await prisma
+      .$transaction(async (tx) => {
+        let target: SupplierItemRow | null = null;
+        if (input.lineId) {
+          target = await supplierItemRepository.findById(input.lineId, supplierId, inventoryItemId, organizationId, tx);
+          if (!target) throw new NotFoundError('Catalog line not found');
+          const nextKey = {
+            buyUnit: input.buyUnit !== undefined ? nullable(input.buyUnit) : target.buyUnit,
+            packSize: input.packSize !== undefined ? nullable(input.packSize) : target.packSize,
+          };
+          if (!sameLineKey(target, nextKey)) {
+            const clash = await supplierItemRepository.findByKey(supplierId, inventoryItemId, organizationId, nextKey, tx);
+            if (clash && clash.id !== target.id) throw packLineExists(supplier.name, clash);
+          }
+          await supplierItemRepository.updateLine(
+            target.id,
+            organizationId,
+            {
+              ...fields,
+              ...(input.buyUnit !== undefined ? { buyUnit: nullable(input.buyUnit) } : {}),
+              ...(input.packSize !== undefined ? { packSize: nullable(input.packSize) } : {}),
+            },
+            tx,
+          );
+        } else if (namedPack) {
+          const key = { buyUnit: nullable(input.buyUnit) ?? item.buyUnit, packSize: nullable(input.packSize) };
+          target = await supplierItemRepository.findByKey(supplierId, inventoryItemId, organizationId, key, tx);
+          if (target) {
+            await supplierItemRepository.updateLine(target.id, organizationId, fields, tx);
+          } else {
+            target = await supplierItemRepository.createLine(
+              organizationId,
+              supplierId,
+              inventoryItemId,
+              { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: key.buyUnit, packSize: key.packSize },
+              tx,
+            );
+          }
+        } else {
+          const [oldest] = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], organizationId, tx);
+          if (oldest) {
+            target = await supplierItemRepository.findById(oldest.id, supplierId, inventoryItemId, organizationId, tx);
+            if (Object.keys(fields).length > 0) await supplierItemRepository.updateLine(oldest.id, organizationId, fields, tx);
+          } else {
+            target = await supplierItemRepository.createLine(
+              organizationId,
+              supplierId,
+              inventoryItemId,
+              { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: item.buyUnit, packSize: null },
+              tx,
+            );
+          }
+        }
+        if (!target) throw new NotFoundError('Catalog line not found');
+        await applyPreferredChoice(organizationId, actor, supplierId, inventoryItemId, target.id, input.isPreferred, tx);
+        return target.id;
+      })
+      .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
+    return serializeSupplierItem(await requireLine(lineId, supplierId, inventoryItemId, organizationId));
   },
 
-  deleteItem: async (actor: Actor, supplierId: string, inventoryItemId: string): Promise<void> => {
+  deleteItem: async (actor: Actor, supplierId: string, inventoryItemId: string, lineId?: string): Promise<void> => {
     requireReadAccess(actor);
     const organizationId = await requireHubActor(actor);
     await requireSupplier(supplierId, organizationId);
     await prisma.$transaction(async (tx) => {
-      const existing = await supplierItemRepository.find(supplierId, inventoryItemId, organizationId, tx);
-      if (!existing) throw new NotFoundError('Catalog row not found');
-      await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx);
-      await supplierItemRepository.delete(supplierId, inventoryItemId, organizationId, tx);
+      const lines = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], organizationId, tx);
+      if (lines.length === 0 || (lineId && !lines.some((l) => l.id === lineId))) {
+        throw new NotFoundError('Catalog row not found');
+      }
+      if (!lineId && lines.length > 1) {
+        throw new ConflictError(
+          'This supplier has several pack lines for this item — say which one to remove',
+          'MULTIPLE_PACK_LINES',
+          { lineIds: lines.map((l) => l.id) },
+        );
+      }
+      await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx, lineId);
+      await supplierItemRepository.delete(supplierId, inventoryItemId, organizationId, tx, lineId);
     });
+  },
+
+  /**
+   * Signed receipt lines whose pack matched no catalog line. Re-checked against today's lines, so
+   * adding the missing pack makes the row disappear without any write.
+   */
+  listPackMismatches: async (actor: Actor, supplierId: string) => {
+    requireReadAccess(actor);
+    const organizationId = await requireHubActor(actor);
+    await requireSupplier(supplierId, organizationId);
+    const flagged = await goodsReceiptRepository.findPackNotOnFileLines(supplierId, organizationId);
+    if (flagged.length === 0) return [];
+    const lines = await supplierItemRepository.listBySupplierItems(
+      supplierId,
+      [...new Set(flagged.map((f) => f.inventoryItemId))],
+      organizationId,
+    );
+    return flagged
+      .filter((f) => !matchSupplierLine(lines.filter((l) => l.inventoryItemId === f.inventoryItemId), { buyUnit: f.packBuyUnit, packSize: f.packSize }))
+      .map((f) => ({
+        receiptLineId: f.id,
+        goodsReceiptId: f.goodsReceipt.id,
+        reference: f.goodsReceipt.reference,
+        signedAt: f.goodsReceipt.signedAt ? f.goodsReceipt.signedAt.toISOString() : null,
+        inventoryItemId: f.inventoryItemId,
+        itemName: f.inventoryItem.name,
+        packBuyUnit: f.packBuyUnit,
+        packSize: f.packSize ? f.packSize.toString() : null,
+        unitPrice: f.unitPrice.toString(),
+      }));
   },
 
   // ── Documents ────────────────────────────────────────────────────────────

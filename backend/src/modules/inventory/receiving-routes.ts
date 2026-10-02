@@ -46,6 +46,11 @@ router.get(
   requireRole('STORE_MANAGER', 'STORE_ATTENDANT', 'ACCOUNTANT', 'DIRECTOR'),
   receivingController.getExpectedDelivery,
 );
+router.get(
+  '/inventory/expected-deliveries/:id/supplier-document',
+  requireRole('STORE_MANAGER'),
+  receivingController.getSupplierDocument,
+);
 router.post(
   '/inventory/expected-deliveries',
   requireRole('STORE_MANAGER'),

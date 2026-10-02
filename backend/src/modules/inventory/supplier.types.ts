@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type {
   CreateContactSchema,
   CreatePayMethodSchema,
+  CreateSupplierItemSchema,
   CreateSupplierSchema,
   ListSuppliersQuerySchema,
   PutSupplierItemSchema,
@@ -27,6 +28,7 @@ export type CreateContactInput = z.infer<typeof CreateContactSchema>;
 export type UpdateContactInput = z.infer<typeof UpdateContactSchema>;
 export type CreatePayMethodInput = z.infer<typeof CreatePayMethodSchema>;
 export type UpdatePayMethodInput = z.infer<typeof UpdatePayMethodSchema>;
+export type CreateSupplierItemInput = z.infer<typeof CreateSupplierItemSchema>;
 export type PutSupplierItemInput = z.infer<typeof PutSupplierItemSchema>;
 export type UploadSupplierDocumentInput = z.infer<typeof UploadSupplierDocumentSchema>;
 

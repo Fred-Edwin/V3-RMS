@@ -10,13 +10,17 @@ import {
   supplierItemLookupRepository,
 } from './supplier-repository';
 import * as supplierRepositoryModule from './supplier-repository';
-import { referenceCounterRepository } from './receiving-repository';
+import { goodsReceiptRepository, referenceCounterRepository } from './receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
+import { authRepository } from '../../repositories/auth-repository';
+import { socketService } from '../../sockets/socket-service';
+import { fcmService } from '../../services/fcm-service';
 import { prisma } from '../../config/database';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../utils/errors';
 import {
   accountant,
   attendant,
+  buildCatalogLine,
   buildContact,
   buildPayMethod,
   buildSupplierRow,
@@ -25,6 +29,8 @@ import {
   director,
   hubOrgId,
   itemId,
+  lineId,
+  lineId2,
   methodId,
   methodId2,
   otherOrgId,
@@ -34,7 +40,13 @@ import {
 } from './supplier-test-fixtures';
 
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
-vi.mock('./receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('./receiving-repository', () => ({
+  referenceCounterRepository: { nextReference: vi.fn() },
+  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+}));
+vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
+vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
+vi.mock('../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('./supplier-storage', () => ({ getDocumentStorage: vi.fn() }));
 
@@ -357,27 +369,263 @@ describe('supplierService — status', () => {
   });
 });
 
-describe('supplierService — catalog and preferred sync', () => {
+describe('supplierService — cheque payment method (B1)', () => {
+  const cheque = {
+    type: 'CHEQUE' as const,
+    registeredName: 'Samrat Supermarket Ltd',
+    bankName: 'Equity Bank',
+    note: 'Collect on Fridays',
+    reason: 'They asked to be paid by cheque from October',
+  };
+  const chequeRow = buildPayMethod({
+    type: 'CHEQUE', registeredName: 'Samrat Supermarket Ltd', bankName: 'Equity Bank', note: 'Collect on Fridays',
+    bankBranch: null, accountName: null, accountNumber: null,
+  });
+
   beforeEach(() => {
-    vi.mocked(supplierItemLookupRepository.findLiveItem).mockResolvedValue({ id: itemId, name: 'Milk', buyUnit: 'crate' } as never);
-    vi.mocked(supplierItemRepository.upsert).mockResolvedValue({} as never);
-    vi.mocked(supplierItemRepository.list).mockResolvedValue([
-      {
-        inventoryItemId: itemId, supplierItemName: null, supplierItemCode: null, buyUnit: 'crate', packSize: null,
-        lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), isPreferred: true,
-        inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
-      },
-    ] as never);
+    vi.mocked(supplierPayMethodRepository.count).mockResolvedValue(1);
+    vi.mocked(supplierPayMethodRepository.create).mockResolvedValue(chequeRow as never);
+    vi.mocked(supplierPayMethodRepository.findHubAccountants).mockResolvedValue([{ id: 'acc1' }, { id: 'acc2' }]);
+    vi.mocked(authRepository.findUserById).mockResolvedValue({ id: 'sm1', name: 'Joseph Mwangi' } as never);
   });
 
-  it('marking preferred makes it the single preferred supplier for the item', async () => {
+  it('stores payable-to in registeredName, the bank in bankName and the note', async () => {
+    const result = await supplierService.createPayMethod(storeManager, supplierId, cheque);
+    expect(vi.mocked(supplierPayMethodRepository.create).mock.calls[0]![3]).toMatchObject({
+      type: 'CHEQUE', registeredName: 'Samrat Supermarket Ltd', bankName: 'Equity Bank', note: 'Collect on Fridays', accountNumber: null,
+    });
+    expect(result).toMatchObject({ type: 'CHEQUE', registeredName: 'Samrat Supermarket Ltd', bankName: 'Equity Bank', note: 'Collect on Fridays' });
+  });
+
+  it('writes the audit line "cheque method added" with the reason', async () => {
+    await supplierService.createPayMethod(storeManager, supplierId, cheque);
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PAY_METHOD_CREATED', methodId, null,
+      expect.objectContaining({ type: 'CHEQUE', summary: 'cheque method added', reason: cheque.reason }), tx,
+    );
+  });
+
+  it('requires a reason, payable-to and bank (400 at the schema)', async () => {
+    const { CreatePayMethodSchema } = await import('./supplier-validators');
+    expect(CreatePayMethodSchema.safeParse({ ...cheque, reason: undefined }).success).toBe(false);
+    expect(CreatePayMethodSchema.safeParse({ ...cheque, reason: '   ' }).success).toBe(false);
+    expect(CreatePayMethodSchema.safeParse({ ...cheque, registeredName: '' }).success).toBe(false);
+    expect(CreatePayMethodSchema.safeParse({ ...cheque, bankName: undefined }).success).toBe(false);
+    expect(CreatePayMethodSchema.safeParse(cheque).success).toBe(true);
+    // The note stays optional.
+    expect(CreatePayMethodSchema.safeParse({ ...cheque, note: undefined }).success).toBe(true);
+  });
+
+  it('other types do not need a reason, so the current screens keep working', async () => {
+    const { CreatePayMethodSchema } = await import('./supplier-validators');
+    expect(CreatePayMethodSchema.safeParse({ type: 'CASH' }).success).toBe(true);
+  });
+
+  it('notifies every Accountant of the hub (socket + push), never the person who added it', async () => {
+    vi.mocked(supplierPayMethodRepository.findHubAccountants).mockResolvedValue([{ id: 'acc1' }, { id: 'sm1' }]);
+    await supplierService.createPayMethod(storeManager, supplierId, cheque);
+    await vi.waitFor(() => expect(fcmService.sendChequeMethodAddedPush).toHaveBeenCalled());
+
+    expect(supplierPayMethodRepository.findHubAccountants).toHaveBeenCalledWith(hubOrgId);
+    expect(socketService.emitChequeMethodAdded).toHaveBeenCalledTimes(1);
+    expect(socketService.emitChequeMethodAdded).toHaveBeenCalledWith('acc1', {
+      supplierId, supplierName: 'Samrat Supermarket Ltd', addedByName: 'Joseph Mwangi', reason: cheque.reason,
+    });
+    expect(fcmService.sendChequeMethodAddedPush).toHaveBeenCalledWith(['acc1'], expect.objectContaining({ supplierId }));
+  });
+
+  it('a failing notification never fails the request', async () => {
+    vi.mocked(supplierPayMethodRepository.findHubAccountants).mockRejectedValue(new Error('db down'));
+    await expect(supplierService.createPayMethod(storeManager, supplierId, cheque)).resolves.toMatchObject({ type: 'CHEQUE' });
+  });
+
+  it('does not notify for other method types', async () => {
+    vi.mocked(supplierPayMethodRepository.create).mockResolvedValue(buildPayMethod({ type: 'CASH' }) as never);
+    await supplierService.createPayMethod(storeManager, supplierId, { type: 'CASH' });
+    expect(supplierPayMethodRepository.findHubAccountants).not.toHaveBeenCalled();
+  });
+
+  it('a cheque method can be edited (payable to, bank, note) and is re-validated', async () => {
+    vi.mocked(supplierPayMethodRepository.findById)
+      .mockResolvedValueOnce(chequeRow as never)
+      .mockResolvedValueOnce(buildPayMethod({ ...chequeRow, note: 'Post it' }) as never);
+    await supplierService.updatePayMethod(storeManager, supplierId, methodId, { note: 'Post it' });
+    expect(vi.mocked(supplierPayMethodRepository.update).mock.calls[0]![3]).toMatchObject({ type: 'CHEQUE', note: 'Post it', bankName: 'Equity Bank' });
+
+    vi.mocked(supplierPayMethodRepository.findById).mockResolvedValueOnce(chequeRow as never);
+    await expect(supplierService.updatePayMethod(storeManager, supplierId, methodId, { bankName: '' })).rejects.toThrow();
+  });
+
+  it('only Store Manager and Accountant may add one', async () => {
+    for (const who of [director, waiter, attendant]) {
+      await expect(supplierService.createPayMethod(who, supplierId, cheque)).rejects.toThrow(ForbiddenError);
+    }
+  });
+});
+
+describe('supplierService — catalog, pack lines and preferred sync', () => {
+  const line = (overrides: Record<string, unknown> = {}) => buildCatalogLine(overrides);
+  const bag = line({ id: lineId, buyUnit: 'bag', packSize: new Prisma.Decimal('50'), supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035' });
+  const packet = line({ id: lineId2, buyUnit: 'packet', packSize: new Prisma.Decimal('2') });
+
+  beforeEach(() => {
+    vi.mocked(supplierItemLookupRepository.findLiveItem).mockResolvedValue({ id: itemId, name: 'Sugar', buyUnit: 'crate' } as never);
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(null);
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(line() as never);
+    vi.mocked(supplierItemRepository.createLine).mockResolvedValue(line() as never);
+    vi.mocked(supplierItemRepository.updateLine).mockResolvedValue(line() as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([]);
+    vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId, wasPreferred: false, wasNeedsConfirm: false });
+  });
+
+  // --- B3: add one -----------------------------------------------------------
+
+  it('add-one creates a line keyed by the item buy unit when no pack is given', async () => {
+    const result = await supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId });
+    expect(supplierItemRepository.findByKey).toHaveBeenCalledWith(supplierId, itemId, hubOrgId, { buyUnit: 'crate', packSize: null }, tx);
+    expect(supplierItemRepository.createLine).toHaveBeenCalledWith(
+      hubOrgId, supplierId, itemId, expect.objectContaining({ buyUnit: 'crate', packSize: null }), tx,
+    );
+    expect(result).toMatchObject({ id: lineId, inventoryItemId: itemId, preferredNeedsConfirm: false });
+  });
+
+  it('add-one stores their name and code (B5)', async () => {
+    await supplierService.addItem(storeManager, supplierId, {
+      inventoryItemId: itemId, supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', buyUnit: 'bag', packSize: '50',
+    });
+    expect(vi.mocked(supplierItemRepository.createLine).mock.calls[0]![3]).toMatchObject({
+      supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', buyUnit: 'bag', packSize: '50',
+    });
+  });
+
+  it('two pack lines for one supplier and item are allowed when the key differs', async () => {
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(null); // 2 kg packet is not on file
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag] as never);
+    await supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId, buyUnit: 'packet', packSize: '2' });
+    expect(supplierItemRepository.createLine).toHaveBeenCalledTimes(1);
+  });
+
+  it('add-one on an existing key is a 409 naming the existing line', async () => {
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(bag as never);
+    const error = await supplierService
+      .addItem(storeManager, supplierId, { inventoryItemId: itemId, buyUnit: 'bag', packSize: '50' })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ConflictError);
+    expect(error).toMatchObject({ code: 'PACK_LINE_EXISTS' });
+    expect((error as Error).message).toContain('Samrat Supermarket Ltd already has this pack: Kabras sugar 50kg · bag · 50 (their code 190035)');
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+  });
+
+  it('add-one is an owner-hub, Store Manager action', async () => {
+    await expect(supplierService.addItem(attendant, supplierId, { inventoryItemId: itemId })).rejects.toThrow(ForbiddenError);
+    await expect(
+      supplierService.addItem({ ...storeManager, organizationId: otherOrgId }, supplierId, { inventoryItemId: itemId }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  // --- B3: put -----------------------------------------------------------------
+
+  it('put with a named pack that already exists updates that line (Add several never duplicates)', async () => {
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(bag as never);
+    await supplierService.putItem(storeManager, supplierId, itemId, { buyUnit: 'bag', packSize: '50', supplierItemCode: '190035' });
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+    expect(supplierItemRepository.updateLine).toHaveBeenCalledWith(lineId, hubOrgId, { supplierItemCode: '190035' }, tx);
+  });
+
+  it('put with a named pack that is new creates a second line', async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { buyUnit: 'packet', packSize: '2' });
+    expect(supplierItemRepository.createLine).toHaveBeenCalledWith(
+      hubOrgId, supplierId, itemId, expect.objectContaining({ buyUnit: 'packet', packSize: '2' }), tx,
+    );
+  });
+
+  it('put with a lineId edits that line; moving its key onto another line is a 409', async () => {
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(packet as never);
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(bag as never); // the 50 kg bag already exists
+    await expect(
+      supplierService.putItem(storeManager, supplierId, itemId, { lineId: lineId2, buyUnit: 'bag', packSize: '50' }),
+    ).rejects.toMatchObject({ code: 'PACK_LINE_EXISTS' });
+    expect(supplierItemRepository.updateLine).not.toHaveBeenCalled();
+  });
+
+  it('put with a lineId changes only the fields sent and may keep its own key', async () => {
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(bag as never);
+    await supplierService.putItem(storeManager, supplierId, itemId, { lineId, supplierItemName: 'Sugar 50kg', buyUnit: 'bag', packSize: '50' });
+    expect(supplierItemRepository.findByKey).not.toHaveBeenCalled();
+    expect(supplierItemRepository.updateLine).toHaveBeenCalledWith(
+      lineId, hubOrgId, { supplierItemName: 'Sugar 50kg', buyUnit: 'bag', packSize: '50' }, tx,
+    );
+  });
+
+  it('put with a lineId that is not this supplier\'s line for the item is a 404', async () => {
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(null);
+    await expect(supplierService.putItem(storeManager, supplierId, itemId, { lineId, supplierItemName: 'x' })).rejects.toThrow(NotFoundError);
+  });
+
+  it('legacy put (no pack, no lineId) targets the oldest line and leaves its name alone', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag, packet] as never);
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(bag as never);
     await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: true });
-    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx);
+    expect(supplierItemRepository.updateLine).not.toHaveBeenCalled();
+    expect(supplierItemRepository.createLine).not.toHaveBeenCalled();
+    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx, lineId);
   });
 
-  it('un-marking clears only this supplier\'s preferred mark', async () => {
-    await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: false });
-    expect(supplierItemRepository.clearPreferredIfSupplier).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx);
+  it('legacy put with no line yet creates one keyed by the item buy unit', async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { supplierItemName: 'Fresh milk' });
+    expect(supplierItemRepository.createLine).toHaveBeenCalledWith(
+      hubOrgId, supplierId, itemId, expect.objectContaining({ supplierItemName: 'Fresh milk', buyUnit: 'crate', packSize: null }), tx,
+    );
+  });
+
+  it('a unique-index race surfaces as a 409, not a 500', async () => {
+    const { PrismaClientKnownRequestError } = await import('@prisma/client/runtime/library');
+    vi.mocked(supplierItemRepository.createLine).mockRejectedValue(
+      new PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'x' }),
+    );
+    await expect(supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId })).rejects.toThrow(ConflictError);
+  });
+
+  it('404s on an unknown or retired catalog item', async () => {
+    vi.mocked(supplierItemLookupRepository.findLiveItem).mockResolvedValue(null);
+    await expect(supplierService.putItem(storeManager, supplierId, itemId, {})).rejects.toThrow(NotFoundError);
+    await expect(supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId })).rejects.toThrow(NotFoundError);
+  });
+
+  // --- B8: preferred -----------------------------------------------------------
+
+  it('marking preferred makes that line the single preferred one and logs PREFERRED_SET', async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: true, lineId });
+    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx, lineId);
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PREFERRED_SET', lineId,
+      expect.objectContaining({ lineId }), expect.objectContaining({ isPreferred: true, preferredNeedsConfirm: false }), tx,
+    );
+  });
+
+  it('confirming a "Preferred · confirm" line clears the mark and logs PREFERRED_CONFIRMED', async () => {
+    vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId, wasPreferred: true, wasNeedsConfirm: true });
+    await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: true, lineId });
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PREFERRED_CONFIRMED', lineId,
+      expect.objectContaining({ preferredNeedsConfirm: true }), expect.objectContaining({ preferredNeedsConfirm: false }), tx,
+    );
+  });
+
+  it('re-sending preferred on a line that is already confirmed logs nothing', async () => {
+    vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId, wasPreferred: true, wasNeedsConfirm: false });
+    await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: true, lineId });
+    expect(supplierAuditRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('add-one can create the line as preferred', async () => {
+    await supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId, isPreferred: true });
+    expect(supplierItemRepository.applyPreferred).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx, lineId);
+  });
+
+  it("un-marking clears only this line's preferred mark", async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { isPreferred: false, lineId });
+    expect(supplierItemRepository.clearPreferredIfSupplier).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx, lineId);
     expect(supplierItemRepository.applyPreferred).not.toHaveBeenCalled();
   });
 
@@ -385,18 +633,89 @@ describe('supplierService — catalog and preferred sync', () => {
     await supplierService.putItem(storeManager, supplierId, itemId, { supplierItemName: 'Fresh milk' });
     expect(supplierItemRepository.applyPreferred).not.toHaveBeenCalled();
     expect(supplierItemRepository.clearPreferredIfSupplier).not.toHaveBeenCalled();
+    expect(supplierAuditRepository.create).not.toHaveBeenCalled();
   });
 
-  it('404s on an unknown or retired catalog item', async () => {
-    vi.mocked(supplierItemLookupRepository.findLiveItem).mockResolvedValue(null);
-    await expect(supplierService.putItem(storeManager, supplierId, itemId, {})).rejects.toThrow(NotFoundError);
+  it('returns preferredNeedsConfirm on the catalog rows', async () => {
+    vi.mocked(supplierItemRepository.list).mockResolvedValue([line({ isPreferred: true, preferredNeedsConfirm: true })] as never);
+    const [row] = await supplierService.listItems(storeManager, supplierId);
+    expect(row).toMatchObject({ id: lineId, isPreferred: true, preferredNeedsConfirm: true });
   });
 
-  it('deleting a row clears its preferred mark', async () => {
-    vi.mocked(supplierItemRepository.find).mockResolvedValue({} as never);
+  // --- delete -------------------------------------------------------------------
+
+  it('deleting the only line clears its preferred mark and removes it', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([line()] as never);
     await supplierService.deleteItem(storeManager, supplierId, itemId);
-    expect(supplierItemRepository.clearPreferredIfSupplier).toHaveBeenCalled();
-    expect(supplierItemRepository.delete).toHaveBeenCalledWith(supplierId, itemId, hubOrgId, tx);
+    expect(supplierItemRepository.clearPreferredIfSupplier).toHaveBeenCalledWith(hubOrgId, itemId, supplierId, tx, undefined);
+    expect(supplierItemRepository.delete).toHaveBeenCalledWith(supplierId, itemId, hubOrgId, tx, undefined);
+  });
+
+  it('with several pack lines, deleting without a lineId is a 409; with one it removes only that line', async () => {
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag, packet] as never);
+    await expect(supplierService.deleteItem(storeManager, supplierId, itemId)).rejects.toMatchObject({ code: 'MULTIPLE_PACK_LINES' });
+    expect(supplierItemRepository.delete).not.toHaveBeenCalled();
+
+    await supplierService.deleteItem(storeManager, supplierId, itemId, lineId2);
+    expect(supplierItemRepository.delete).toHaveBeenCalledWith(supplierId, itemId, hubOrgId, tx, lineId2);
+  });
+
+  it('deleting a missing row or a foreign lineId is a 404', async () => {
+    await expect(supplierService.deleteItem(storeManager, supplierId, itemId)).rejects.toThrow(NotFoundError);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([bag] as never);
+    await expect(supplierService.deleteItem(storeManager, supplierId, itemId, lineId2)).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('supplierService — pack mismatches (B4 surface)', () => {
+  const flagged = (overrides: Record<string, unknown> = {}) => ({
+    id: 'grl1',
+    inventoryItemId: itemId,
+    packBuyUnit: 'packet',
+    packSize: new Prisma.Decimal('2'),
+    unitPrice: new Prisma.Decimal('130'),
+    packNotOnFile: true,
+    goodsReceipt: { id: 'gr1', reference: 'GRN-0007', signedAt: new Date('2026-10-01T09:00:00.000Z') },
+    inventoryItem: { name: 'Sugar white' },
+    ...overrides,
+  });
+
+  it('lists flagged receipt lines that still match no catalog line', async () => {
+    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([flagged()] as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
+      buildCatalogLine({ buyUnit: 'bag', packSize: new Prisma.Decimal('50') }),
+    ] as never);
+
+    const rows = await supplierService.listPackMismatches(storeManager, supplierId);
+    expect(rows).toEqual([
+      {
+        receiptLineId: 'grl1', goodsReceiptId: 'gr1', reference: 'GRN-0007', signedAt: '2026-10-01T09:00:00.000Z',
+        inventoryItemId: itemId, itemName: 'Sugar white', packBuyUnit: 'packet', packSize: '2', unitPrice: '130',
+      },
+    ]);
+    expect(goodsReceiptRepository.findPackNotOnFileLines).toHaveBeenCalledWith(supplierId, hubOrgId);
+  });
+
+  it('drops a row once the missing pack has been added to the catalog', async () => {
+    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([flagged()] as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([
+      buildCatalogLine({ buyUnit: 'bag', packSize: new Prisma.Decimal('50') }),
+      buildCatalogLine({ id: lineId2, buyUnit: 'packet', packSize: new Prisma.Decimal('2') }),
+    ] as never);
+    expect(await supplierService.listPackMismatches(storeManager, supplierId)).toEqual([]);
+  });
+
+  it('is empty without touching the catalog when nothing is flagged', async () => {
+    vi.mocked(goodsReceiptRepository.findPackNotOnFileLines).mockResolvedValue([]);
+    expect(await supplierService.listPackMismatches(storeManager, supplierId)).toEqual([]);
+    expect(supplierItemRepository.listBySupplierItems).not.toHaveBeenCalled();
+  });
+
+  it('is closed to attendants and other organisations', async () => {
+    await expect(supplierService.listPackMismatches(attendant, supplierId)).rejects.toThrow(ForbiddenError);
+    await expect(
+      supplierService.listPackMismatches({ ...storeManager, organizationId: otherOrgId }, supplierId),
+    ).rejects.toThrow(ForbiddenError);
   });
 });
 

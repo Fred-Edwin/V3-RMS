@@ -30,6 +30,8 @@ import { comparePin } from '../../utils/password';
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
 import { costPerUsageUnit } from './receiving-cost';
+import { hasPackKey, matchSupplierLine, normalizeBuyUnit, type LineKey } from './supplier-line-key';
+import { buildPurchaseDocument } from './purchase-documents';
 import type {
   AgingBuckets,
   ApSummary,
@@ -53,6 +55,7 @@ import type {
   SupplierApRow,
   SupplierInvoice,
   SupplierPayment,
+  SupplierPaymentCreated,
   UpdateGoodsReceiptInput,
 } from './receiving.types';
 
@@ -119,11 +122,37 @@ const serializeExpectedDelivery = (
   };
 };
 
+/**
+ * The supplier's own name and code for an item, from the pack line that matches (§28.3). Ours stays
+ * primary everywhere; this is the secondary label. Null when no line matches or the supplier has none.
+ */
+type SupplierItemNames = { supplierItemName: string | null; supplierItemCode: string | null };
+type NameLookup = (inventoryItemId: string, key: LineKey) => SupplierItemNames;
+const noNames: NameLookup = () => ({ supplierItemName: null, supplierItemCode: null });
+const NO_PACK: LineKey = { buyUnit: null, packSize: null };
+
+const buildNameLookup = async (
+  organizationId: string,
+  supplierId: string | null,
+  itemIds: string[],
+): Promise<NameLookup> => {
+  if (!supplierId || itemIds.length === 0) return noNames;
+  const lines = await supplierItemRepository.listBySupplierItems(supplierId, [...new Set(itemIds)], organizationId);
+  return (inventoryItemId, key) => {
+    const line = matchSupplierLine(lines.filter((l) => l.inventoryItemId === inventoryItemId), key);
+    return { supplierItemName: line?.supplierItemName ?? null, supplierItemCode: line?.supplierItemCode ?? null };
+  };
+};
+
+const receiptNames = (organizationId: string, receipt: GoodsReceiptWithRelations): Promise<NameLookup> =>
+  buildNameLookup(organizationId, receipt.supplierId, receipt.lines.map((l) => l.inventoryItemId));
+
 /** Detail variant of `serializeExpectedDelivery` — adds the full line array for the New Goods Receipt prefill. */
 const serializeExpectedDeliveryDetail = (
   delivery: ExpectedDeliveryWithRelations,
   includeMoney: boolean,
   now: Date,
+  names: NameLookup = noNames,
 ): ExpectedDeliveryDetail => ({
   ...serializeExpectedDelivery(delivery, includeMoney, now),
   lines: delivery.lines.map((line) => ({
@@ -134,6 +163,7 @@ const serializeExpectedDeliveryDetail = (
     buyUnit: line.inventoryItem.buyUnit,
     usageUnit: line.inventoryItem.usageUnit,
     estimatedUnitPrice: toDecimalString(line.estimatedUnitPrice),
+    ...names(line.inventoryItemId, NO_PACK),
   })),
 });
 
@@ -278,7 +308,7 @@ const findHistoryCursorDate = async (organizationId: string, id: string): Promis
  * §22.4): by the time this is read back, signing has already moved the
  * item's cost on to this receipt's own price.
  */
-const serializeGoodsReceipt = (receipt: GoodsReceiptWithRelations): GoodsReceiptDetail => {
+const serializeGoodsReceipt = (receipt: GoodsReceiptWithRelations, names: NameLookup = noNames): GoodsReceiptDetail => {
   const linkedInvoiceRow = receipt.invoices[0];
   return {
     id: receipt.id,
@@ -301,6 +331,10 @@ const serializeGoodsReceipt = (receipt: GoodsReceiptWithRelations): GoodsReceipt
       usageUnit: line.inventoryItem.usageUnit,
       unitPrice: toDecimalString(line.unitPrice),
       lineTotal: toDecimalString(line.lineTotal),
+      packBuyUnit: line.packBuyUnit,
+      packSize: line.packSize ? toDecimalString(line.packSize) : null,
+      packNotOnFile: line.packNotOnFile,
+      ...names(line.inventoryItemId, { buyUnit: line.packBuyUnit, packSize: line.packSize }),
       priceAlert:
         line.priceAlertPct !== null && line.priceAlertPrevPrice !== null
           ? {
@@ -332,28 +366,33 @@ const assertSupplierReceivable = (status: 'ACTIVE' | 'ON_HOLD' | 'ARCHIVED'): vo
 };
 
 /**
- * Price-alert comparison price per item: the supplier's own last price where
- * one exists (kept current by signing receipts), otherwise the item's most
- * recent signed receipt line from any supplier — the pre-existing behaviour.
- * (`InventoryItem.currentCost` is per USAGE unit and is not comparable to a
+ * Price-alert comparison price per receipt line: the matching pack line's own last price where one
+ * exists (kept current by signing receipts), otherwise the item's most recent signed receipt price
+ * from any supplier — the pre-existing behaviour. When the supplier has pack lines for the item but
+ * none match this line's pack, there is no honest comparison (another pack's price is not one), so
+ * the line gets none. (`InventoryItem.currentCost` is per USAGE unit and is not comparable to a
  * per-buy-unit receipt price, so it is deliberately not the fallback.)
  */
 const findComparisonPrices = async (
   organizationId: string,
   supplierId: string,
-  itemIds: string[],
-): Promise<Map<string, Prisma.Decimal | null>> => {
-  const supplierPrices = await supplierItemRepository.findLastPrices(organizationId, supplierId, itemIds);
-  const result = new Map<string, Prisma.Decimal | null>();
-  await Promise.all(
-    itemIds.map(async (itemId) => {
-      const own = supplierPrices.get(itemId);
-      if (own) return void result.set(itemId, own);
-      const last = await lastPriceRepository.findLastReceiptLine(itemId, organizationId);
-      result.set(itemId, last ? last.unitPrice : null);
+  lines: { inventoryItemId: string; packBuyUnit?: string; packSize?: string }[],
+): Promise<(Prisma.Decimal | null)[]> => {
+  const supplierLines = await supplierItemRepository.findLinesWithPrices(
+    organizationId,
+    supplierId,
+    [...new Set(lines.map((l) => l.inventoryItemId))],
+  );
+  return Promise.all(
+    lines.map(async (line) => {
+      const forItem = supplierLines.filter((l) => l.inventoryItemId === line.inventoryItemId);
+      const match = matchSupplierLine(forItem, { buyUnit: line.packBuyUnit, packSize: line.packSize });
+      if (match?.lastPrice) return match.lastPrice;
+      if (forItem.length > 0 && !match) return null;
+      const last = await lastPriceRepository.findLastReceiptLine(line.inventoryItemId, organizationId);
+      return last ? last.unitPrice : null;
     }),
   );
-  return result;
 };
 
 /**
@@ -364,7 +403,7 @@ const findComparisonPrices = async (
  * multiplies against it.
  */
 const buildLineInput = (
-  line: { inventoryItemId: string; quantityBuyUnit: string; unitPrice: string },
+  line: { inventoryItemId: string; quantityBuyUnit: string; unitPrice: string; packBuyUnit?: string; packSize?: string },
   item: { conversionFactor: Prisma.Decimal | null },
   lastPrice: Prisma.Decimal | null,
 ): GoodsReceiptLineInput => {
@@ -392,7 +431,56 @@ const buildLineInput = (
     lineTotal,
     priceAlertPct,
     priceAlertPrevPrice,
+    packBuyUnit: line.packBuyUnit ?? null,
+    packSize: line.packSize ?? null,
   };
+};
+
+/**
+ * Writes the receipt line's price onto the supplier's catalog (§28.4), inside the sign transaction.
+ * - Supplier had no line for the item before this receipt: create it (or update the exact-key line
+ *   an earlier line of this same receipt just created).
+ * - Otherwise the line must match: a named pack by its full key, no pack only when the supplier has
+ *   a single line. No match writes NO price and stamps the receipt line "Pack not on file".
+ */
+const recordCatalogPrice = async (
+  organizationId: string,
+  supplierId: string,
+  line: GoodsReceiptWithRelations['lines'][number],
+  signedAt: Date,
+  hadLines: Set<string>,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  const key: LineKey = { buyUnit: line.packBuyUnit, packSize: line.packSize };
+  const current = await supplierItemRepository.listBySupplierItems(supplierId, [line.inventoryItemId], organizationId, tx);
+  const match = matchSupplierLine(current, key);
+
+  if (!hadLines.has(line.inventoryItemId)) {
+    const found = match ?? (hasPackKey(key) ? null : (current[0] ?? null));
+    if (found) {
+      await supplierItemRepository.setLinePrice(found.id, organizationId, line.unitPrice, signedAt, tx);
+    } else {
+      await supplierItemRepository.createLine(
+        organizationId,
+        supplierId,
+        line.inventoryItemId,
+        {
+          buyUnit: normalizeBuyUnit(line.packBuyUnit) || line.inventoryItem.buyUnit,
+          packSize: line.packSize ? line.packSize.toString() : null,
+          lastPrice: line.unitPrice,
+          lastPriceAt: signedAt,
+        },
+        tx,
+      );
+    }
+    return;
+  }
+
+  if (match) {
+    await supplierItemRepository.setLinePrice(match.id, organizationId, line.unitPrice, signedAt, tx);
+  } else {
+    await goodsReceiptRepository.markPackNotOnFile(line.id, tx);
+  }
 };
 
 /**
@@ -588,7 +676,45 @@ export const receivingService = {
     const organizationId = await requireHubActor(actor);
     const delivery = await expectedDeliveryRepository.findById(id, organizationId);
     if (!delivery) throw new NotFoundError('Expected delivery not found');
-    return serializeExpectedDeliveryDetail(delivery, canSeeMoney(actor), new Date());
+    const names = await buildNameLookup(organizationId, delivery.supplierId, delivery.lines.map((l) => l.inventoryItemId));
+    return serializeExpectedDeliveryDetail(delivery, canSeeMoney(actor), new Date(), names);
+  },
+
+  /**
+   * LPO print data and WhatsApp message body for an estimate (§28.6): supplier name + code first,
+   * "Our item: …" second, ours alone when the supplier has no name for the line.
+   */
+  getSupplierDocument: async (actor: Actor, id: string) => {
+    const organizationId = await requireHubActor(actor);
+    const delivery = await expectedDeliveryRepository.findById(id, organizationId);
+    if (!delivery) throw new NotFoundError('Expected delivery not found');
+    if (!delivery.supplierId) throw new ConflictError('Pick a supplier before preparing the order document');
+    const supplier = await supplierRepository.findById(delivery.supplierId, organizationId);
+    if (!supplier) throw new NotFoundError('Supplier not found');
+    const names = await buildNameLookup(organizationId, supplier.id, delivery.lines.map((l) => l.inventoryItemId));
+    const primary = supplier.contacts.find((c) => c.isPrimary) ?? null;
+    return buildPurchaseDocument({
+      reference: delivery.reference,
+      createdAt: delivery.createdAt,
+      expectedDate: delivery.expectedDate,
+      estimatedTotal: delivery.estimatedTotal,
+      supplier: {
+        id: supplier.id,
+        code: supplier.code,
+        name: supplier.name,
+        address: supplier.address,
+        contactName: primary?.name ?? null,
+        phone: primary?.phone ?? null,
+        whatsapp: primary?.whatsapp ?? null,
+      },
+      lines: delivery.lines.map((line) => ({
+        itemName: line.inventoryItem.name,
+        buyUnit: line.inventoryItem.buyUnit,
+        quantity: line.quantity,
+        estimatedUnitPrice: line.estimatedUnitPrice,
+        ...names(line.inventoryItemId, NO_PACK),
+      })),
+    });
   },
 
   createExpectedDelivery: async (
@@ -850,14 +976,25 @@ export const receivingService = {
       limit: query.limit,
       cursor: query.cursor,
     });
-    return receipts.map(serializeGoodsReceipt);
+    const lookups = new Map<string, NameLookup>();
+    for (const supplierId of new Set(receipts.map((r) => r.supplierId))) {
+      lookups.set(
+        supplierId,
+        await buildNameLookup(
+          organizationId,
+          supplierId,
+          receipts.filter((r) => r.supplierId === supplierId).flatMap((r) => r.lines.map((l) => l.inventoryItemId)),
+        ),
+      );
+    }
+    return receipts.map((r) => serializeGoodsReceipt(r, lookups.get(r.supplierId) ?? noNames));
   },
 
   getGoodsReceipt: async (actor: Actor, id: string): Promise<GoodsReceiptDetail> => {
     const organizationId = await requireHubActor(actor);
     const receipt = await goodsReceiptRepository.findById(id, organizationId);
     if (!receipt) throw new NotFoundError('Goods receipt not found');
-    return serializeGoodsReceipt(receipt);
+    return serializeGoodsReceipt(receipt, await receiptNames(organizationId, receipt));
   },
 
   createGoodsReceipt: async (actor: Actor, input: CreateGoodsReceiptContractInput): Promise<GoodsReceiptDetail> => {
@@ -884,11 +1021,11 @@ export const receivingService = {
     // Price-alert comparison price per line, fetched before the transaction
     // — read-only, same lastPriceRepository the GET /items/:id/last-price
     // endpoint uses (S3), not a live join against InventoryItem.currentCost.
-    const comparisonPrices = await findComparisonPrices(organizationId, input.supplierId, itemIds);
+    const comparisonPrices = await findComparisonPrices(organizationId, input.supplierId, input.lines);
 
-    const lines: GoodsReceiptLineInput[] = input.lines.map((line) => {
+    const lines: GoodsReceiptLineInput[] = input.lines.map((line, index) => {
       const item = itemsById.get(line.inventoryItemId)!;
-      return buildLineInput(line, item, comparisonPrices.get(line.inventoryItemId) ?? null);
+      return buildLineInput(line, item, comparisonPrices[index] ?? null);
     });
 
     // No ledger entry is ever written here (contract behaviour #1,
@@ -916,7 +1053,7 @@ export const receivingService = {
       })
       .catch((error: unknown) => mapPrismaError(error));
 
-    return serializeGoodsReceipt(created);
+    return serializeGoodsReceipt(created, await receiptNames(organizationId, created));
   },
 
   updateGoodsReceipt: async (
@@ -939,10 +1076,10 @@ export const receivingService = {
           throw new ValidationError('One or more items were not found');
         }
       }
-      const comparisonPrices = await findComparisonPrices(organizationId, existing.supplierId, itemIds);
-      lines = input.lines.map((line) => {
+      const comparisonPrices = await findComparisonPrices(organizationId, existing.supplierId, input.lines);
+      lines = input.lines.map((line, index) => {
         const item = itemsById.get(line.inventoryItemId)!;
-        return buildLineInput(line, item, comparisonPrices.get(line.inventoryItemId) ?? null);
+        return buildLineInput(line, item, comparisonPrices[index] ?? null);
       });
     }
 
@@ -959,7 +1096,7 @@ export const receivingService = {
     // in between.
     if (!updated) throw new ConflictError('Only a draft receipt can be edited');
 
-    return serializeGoodsReceipt(updated);
+    return serializeGoodsReceipt(updated, await receiptNames(organizationId, updated));
   },
 
   /**
@@ -1007,6 +1144,17 @@ export const receivingService = {
         throw new ConflictError('This receipt has already been signed');
       }
 
+      const hadLines = new Set(
+        (
+          await supplierItemRepository.listBySupplierItems(
+            receipt.supplierId,
+            [...new Set(receipt.lines.map((l) => l.inventoryItemId))],
+            organizationId,
+            tx,
+          )
+        ).map((l) => l.inventoryItemId),
+      );
+
       for (const line of receipt.lines) {
         await tx.inventoryTransaction.create({
           data: {
@@ -1029,16 +1177,8 @@ export const receivingService = {
           where: { id: line.inventoryItemId },
           data: { currentCost: costPerUsageUnit(line.unitPrice, line.quantityBuyUnit, line.quantityUsageUnit) },
         });
-        // Supplier catalog: this supplier's own last price (per buy unit) moves with the receipt.
-        await supplierItemRepository.recordReceiptPrice(
-          organizationId,
-          receipt.supplierId,
-          line.inventoryItemId,
-          line.unitPrice,
-          signedAt,
-          line.inventoryItem.buyUnit,
-          tx,
-        );
+        // Supplier catalog: the matching pack line's last price (per buy unit) moves with the receipt.
+        await recordCatalogPrice(organizationId, receipt.supplierId, line, signedAt, hadLines, tx);
       }
 
       await goodsReceiptRepository.markPriceAlertsAccepted(input.acceptedPriceAlerts, actor.id, tx);
@@ -1057,7 +1197,7 @@ export const receivingService = {
     // Never blocks or fails the sign response.
     void notifyHubStoreManagersOfSignedReceipt(organizationId, signed, actor.id, actorWithPin.name);
 
-    return serializeGoodsReceipt(signed);
+    return serializeGoodsReceipt(signed, await receiptNames(organizationId, signed));
   },
 
   // ── What we owe (Supplier AP) — S7 ───────────────────────────────────────
@@ -1174,7 +1314,7 @@ export const receivingService = {
       row: buildSupplierApRow(supplierForAp, invoices, new Date()),
       invoices: invoices.map(serializeSupplierInvoice),
       payments: payments.map(serializeSupplierPayment),
-      purchaseHistory: purchaseHistory.map(serializeGoodsReceipt),
+      purchaseHistory: purchaseHistory.map((r) => serializeGoodsReceipt(r)),
     };
   },
 
@@ -1281,11 +1421,17 @@ export const receivingService = {
   createSupplierPayment: async (
     actor: Actor,
     input: CreateSupplierPaymentContractInput,
-  ): Promise<SupplierPayment> => {
+  ): Promise<SupplierPaymentCreated> => {
     const organizationId = await requireHubActor(actor);
 
     const supplier = await supplierRepository.findById(input.supplierId, organizationId);
     if (!supplier) throw new NotFoundError('Supplier not found');
+
+    // A repeated cheque number is a warning on the response, never a refusal (§28.2).
+    const duplicateChequeNumber =
+      input.method === 'CHEQUE' && input.reference !== undefined
+        ? (await supplierPaymentRepository.countChequeNumber(input.supplierId, organizationId, input.reference)) > 0
+        : false;
 
     const invoices = await Promise.all(
       input.allocations.map((a) => supplierInvoiceRepository.findById(a.supplierInvoiceId, organizationId)),
@@ -1332,7 +1478,7 @@ export const receivingService = {
       })
       .catch((error: unknown) => mapPrismaError(error));
 
-    return serializeSupplierPayment(created);
+    return { ...serializeSupplierPayment(created), duplicateChequeNumber };
   },
 
   /**

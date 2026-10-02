@@ -321,6 +321,9 @@ export type GoodsReceiptLineInput = {
   lineTotal: Prisma.Decimal.Value;
   priceAlertPct: Prisma.Decimal.Value | null;
   priceAlertPrevPrice: Prisma.Decimal.Value | null;
+  /** What the goods were bought in; null = not stated. */
+  packBuyUnit: string | null;
+  packSize: Prisma.Decimal.Value | null;
 };
 
 export type CreateGoodsReceiptInput = {
@@ -443,6 +446,8 @@ export const goodsReceiptRepository = {
               priceAlertPct: line.priceAlertPct !== null ? new Prisma.Decimal(line.priceAlertPct) : null,
               priceAlertPrevPrice:
                 line.priceAlertPrevPrice !== null ? new Prisma.Decimal(line.priceAlertPrevPrice) : null,
+              packBuyUnit: line.packBuyUnit,
+              packSize: line.packSize !== null ? new Prisma.Decimal(line.packSize) : null,
               lineOrder: index,
             })),
           },
@@ -493,6 +498,8 @@ export const goodsReceiptRepository = {
           lineTotal: new Prisma.Decimal(line.lineTotal),
           priceAlertPct: line.priceAlertPct !== null ? new Prisma.Decimal(line.priceAlertPct) : null,
           priceAlertPrevPrice: line.priceAlertPrevPrice !== null ? new Prisma.Decimal(line.priceAlertPrevPrice) : null,
+          packBuyUnit: line.packBuyUnit,
+          packSize: line.packSize !== null ? new Prisma.Decimal(line.packSize) : null,
           lineOrder: index,
         })),
       });
@@ -519,6 +526,25 @@ export const goodsReceiptRepository = {
     });
     return updated.count;
   },
+
+  /** "Pack not on file": no catalog line matched, so no price was written. Inside the sign transaction. */
+  markPackNotOnFile: async (lineId: string, tx: TxClient): Promise<void> => {
+    await tx.goodsReceiptLine.updateMany({ where: { id: lineId }, data: { packNotOnFile: true } });
+  },
+
+  /** Signed (non-cancelled) receipt lines of one supplier stamped "Pack not on file", newest receipt first. */
+  findPackNotOnFileLines: async (supplierId: string, organizationId: string) =>
+    prisma.goodsReceiptLine.findMany({
+      where: {
+        packNotOnFile: true,
+        goodsReceipt: { supplierId, organizationId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
+      },
+      include: {
+        goodsReceipt: { select: { id: true, reference: true, signedAt: true } },
+        inventoryItem: { select: { name: true } },
+      },
+      orderBy: { goodsReceipt: { signedAt: 'desc' } },
+    }),
 
   /** Stamps acceptance on the alerted lines, inside the same sign transaction. */
   markPriceAlertsAccepted: async (lineIds: string[], acceptedById: string, tx: TxClient): Promise<void> => {
@@ -720,6 +746,21 @@ export const supplierPaymentRepository = {
   ): Promise<SupplierPaymentWithRelations | null> => {
     return client.supplierPayment.findFirst({ where: { id, organizationId }, include: supplierPaymentInclude });
   },
+
+  /**
+   * Another CHEQUE payment (not a reversal) to this supplier with the same number, trimmed and
+   * case-insensitive. Run before the new payment is written.
+   */
+  countChequeNumber: async (supplierId: string, organizationId: string, chequeNumber: string): Promise<number> =>
+    prisma.supplierPayment.count({
+      where: {
+        organizationId,
+        supplierId,
+        method: 'CHEQUE',
+        reversalOfId: null,
+        reference: { equals: chequeNumber.trim(), mode: 'insensitive' },
+      },
+    }),
 
   create: async (organizationId: string, input: CreateSupplierPaymentInput, tx: TxClient): Promise<SupplierPaymentWithRelations> => {
     return tx.supplierPayment.create({

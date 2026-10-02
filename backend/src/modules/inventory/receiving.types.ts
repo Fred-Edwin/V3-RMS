@@ -41,6 +41,7 @@ import type {
   SupplierApDetailSchema,
   SupplierApRowSchema,
   SupplierInvoiceSchema,
+  SupplierPaymentCreatedSchema,
   SupplierPaymentSchema,
   UpdateGoodsReceiptSchema,
   disputeStatusSchema,
@@ -83,6 +84,7 @@ export type SupplierInvoice = z.infer<typeof SupplierInvoiceSchema>;
 export type CreateSupplierInvoiceInput = z.infer<typeof CreateSupplierInvoiceSchema>;
 export type CreateInvoiceAdjustmentInput = z.infer<typeof CreateInvoiceAdjustmentSchema>;
 export type SupplierPayment = z.infer<typeof SupplierPaymentSchema>;
+export type SupplierPaymentCreated = z.infer<typeof SupplierPaymentCreatedSchema>;
 export type CreateSupplierPaymentInput = z.infer<typeof CreateSupplierPaymentSchema>;
 export type ReverseSupplierPaymentInput = z.infer<typeof ReverseSupplierPaymentSchema>;
 
