@@ -3,12 +3,12 @@
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
 
-import { InventorySidebar } from '@/features/inventory/components/inventory-shell';
-import { InventoryMobileNavDrawer } from '@/features/inventory/components/inventory-shell';
+import { InventorySidebar } from '@/features/inventory/_shared/components/inventory-shell';
+import { InventoryMobileNavDrawer } from '@/features/inventory/_shared/components/inventory-shell';
 import {
   MobileNavDrawerProvider,
   useMobileNavDrawer,
-} from '@/features/inventory/hooks/use-mobile-nav-drawer';
+} from '@/features/inventory/_shared/hooks/use-mobile-nav-drawer';
 
 /**
  * Persistent shell for Catalog + Suppliers — the two Inventory screens that

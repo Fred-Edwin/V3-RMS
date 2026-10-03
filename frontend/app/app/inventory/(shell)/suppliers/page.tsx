@@ -1,4 +1,4 @@
-import { SuppliersListScreen } from '@/features/inventory/components/screens/suppliers-list-screen';
+import { SuppliersListScreen } from '@/features/inventory/suppliers/components/screens/suppliers-list-screen';
 
 export default function SuppliersPage() {
   return <SuppliersListScreen />;

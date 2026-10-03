@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { ConfirmReceiptScreenMobile } from '@/features/dispatch';
+import { ConfirmReceiptScreenMobile } from '@/features/inventory/dispatch';
 
 function ConfirmDeliveryPageInner() {
   const router = useRouter();

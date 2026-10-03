@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/app';
-import { receivingService } from '../src/modules/inventory/receiving-service';
+import { receivingService } from '../src/modules/inventory/purchasing/receiving-service';
 import { ConflictError, ForbiddenError, NotFoundError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 

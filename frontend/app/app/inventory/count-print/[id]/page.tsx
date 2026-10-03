@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 
-import { PrintableCountVerification } from '@/features/inventory/components/printable-count-verification';
-import { useCountPrint } from '@/features/inventory/hooks/use-counts';
+import { PrintableCountVerification } from '@/features/inventory/counting/components/printable-count-verification';
+import { useCountPrint } from '@/features/inventory/counting/hooks/use-counts';
 
 /**
  * Standalone print route for a count verification document (`1AMZ-0` /

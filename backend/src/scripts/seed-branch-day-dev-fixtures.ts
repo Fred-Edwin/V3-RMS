@@ -35,7 +35,7 @@ import 'dotenv/config';
 import { Prisma, type DepartmentTag } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
-import { branchDayService } from '../modules/branch-day/branch-day-service';
+import { branchDayService } from '../modules/inventory/branch-day/branch-day-service';
 import { hashPin } from '../utils/password';
 import { getTodayDateOnly } from '../utils/date-only';
 

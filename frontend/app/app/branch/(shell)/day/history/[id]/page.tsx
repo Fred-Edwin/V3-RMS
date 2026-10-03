@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
 
-import { DayHistoryDetailScreen } from '@/features/branch-day';
+import { DayHistoryDetailScreen } from '@/features/inventory/branch-day';
 
 export default function BranchDayHistoryDetailPage() {
   const params = useParams();

@@ -29,15 +29,15 @@ import payslipRoutes from './payslip-routes';
 import orderCorrectionRoutes from './order-correction-routes';
 import locationRoutes from './location-routes';
 import departmentRoutes from './department-routes';
-import inventoryRoutes from '../modules/inventory/inventory-routes';
-import receivingRoutes from '../modules/inventory/receiving-routes';
-import prepRoutes from '../modules/inventory/prep-routes';
-import stockRoutes from '../modules/inventory/stock-routes';
-import wasteRoutes from '../modules/inventory/waste-routes';
-import countRoutes from '../modules/inventory/count-routes';
-import branchDayRoutes from '../modules/branch-day/branch-day-routes';
-import requisitionsRoutes from '../modules/requisitions/requisitions-routes';
-import dispatchRoutes from '../modules/dispatch/dispatch-routes';
+import inventoryRoutes from '../modules/inventory/catalog/inventory-routes';
+import receivingRoutes from '../modules/inventory/purchasing/receiving-routes';
+import prepRoutes from '../modules/inventory/prep/prep-routes';
+import stockRoutes from '../modules/inventory/stock/stock-routes';
+import wasteRoutes from '../modules/inventory/waste/waste-routes';
+import countRoutes from '../modules/inventory/counting/count-routes';
+import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
+import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
+import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 
 const apiRouter = Router();
 

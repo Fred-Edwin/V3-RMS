@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 
-import { PrintableDayDocument, useDayDocument } from '@/features/branch-day';
+import { PrintableDayDocument, useDayDocument } from '@/features/inventory/branch-day';
 
 /**
  * Standalone print route for the signed day-close document (`19S2-0`) —

@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { RequisitionApprovalMobileScreen } from '@/features/requisitions/components/screens/requisition-approval-mobile-screen';
+import { RequisitionApprovalMobileScreen } from '@/features/inventory/requisitions/components/screens/requisition-approval-mobile-screen';
 
 /**
  * Mobile-only review route (M3 family) — the desktop master-detail handles

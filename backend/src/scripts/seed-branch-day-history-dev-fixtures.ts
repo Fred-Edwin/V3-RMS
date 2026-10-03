@@ -26,7 +26,7 @@ import 'dotenv/config';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
 import { env } from '../config/env';
-import { branchDayService } from '../modules/branch-day/branch-day-service';
+import { branchDayService } from '../modules/inventory/branch-day/branch-day-service';
 import { getTodayDateOnly } from '../utils/date-only';
 
 if (env.NODE_ENV === 'production') {

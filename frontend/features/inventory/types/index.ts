@@ -395,10 +395,10 @@ export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow>
 // Kept in its own file (./receiving.ts) since it's a separate milestone's
 // contract, re-exported here so `features/inventory` (this module's public
 // entry) exposes both milestones' types from one place.
-export * from './receiving';
+export * from '../purchasing/types/receiving';
 
 // ─── Milestone Three — Prep ────────────────────────────────────────────────
-export * from './prep';
-export * from './stock';
-export * from './waste';
-export * from './count';
+export * from '../prep/types/prep';
+export * from '../stock/types/stock';
+export * from '../waste/types/waste';
+export * from '../counting/types/count';

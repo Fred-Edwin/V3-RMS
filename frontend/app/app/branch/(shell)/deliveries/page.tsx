@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { BranchIncomingConfirmScreen, BranchIncomingScreenMobile } from '@/features/dispatch';
+import { BranchIncomingConfirmScreen, BranchIncomingScreenMobile } from '@/features/inventory/dispatch';
 
 function BranchDeliveriesPageInner() {
   const searchParams = useSearchParams();

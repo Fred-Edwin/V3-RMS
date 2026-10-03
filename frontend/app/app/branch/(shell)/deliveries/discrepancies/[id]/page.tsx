@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 
-import { DiscrepancyDetailScreen } from '@/features/dispatch';
+import { DiscrepancyDetailScreen } from '@/features/inventory/dispatch';
 
 export default function BranchDiscrepancyDetailPage() {
   const params = useParams();

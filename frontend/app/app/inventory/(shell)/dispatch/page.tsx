@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import { DispatchQueueFulfilScreen } from '@/features/dispatch';
+import { DispatchQueueFulfilScreen } from '@/features/inventory/dispatch';
 
 function DispatchPageInner() {
   const searchParams = useSearchParams();
