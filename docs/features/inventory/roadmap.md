@@ -10,7 +10,7 @@ Set by the owner on 3 Oct 2026, after the Central Store roles pass (PR #66) and 
 | 4 | **Stock & counts rebuild** (Overview, All items, Daily count, Spot count, Stock ledger; opens them to the other desktop roles for reading) | Design approved | Step 3 |
 | 5 | **Waste rebuild** | Design approved | Step 4 |
 | 6 | **Requisitions, Dispatch and Branch day: design in Paper, owner approval, then rebuild** | Not designed yet. Open decision F4 (attendant on-hand in dispatch fulfil) is settled here, with the requisitions flow | Step 5 |
-| 7 | **Dashboard and Reports for the Central Store: design in Paper (start from [reports-spec.md](reports-spec.md)), owner approval, then build.** Un-hide the sidebar links when built | They show numbers from every flow, so they come after the flows exist | Step 6 |
+| 7 | **Dashboard and Reports for the Central Store: moved into the Reporting module** (step 7 of [../../ROADMAP.md](../../ROADMAP.md)), designed once with the other dashboards (start from [reports-spec.md](reports-spec.md)). Un-hide the sidebar links when built | They show numbers from every flow, so they come after the flows exist | Reporting module |
 | 8 | **Phone versions for the desktop roles** (Store Manager, Accountant, Director, Branch Manager, System Admin): design in Paper, owner approval, then build | Deferred by the owner until all of the inventory is built | Step 7 |
 | 9 | **Small findings and housekeeping** | Clean-up after the builds | Step 8 |
 
