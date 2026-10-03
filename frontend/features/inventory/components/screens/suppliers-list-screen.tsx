@@ -197,7 +197,7 @@ export function SuppliersListScreen() {
       <Topbar
         breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }}
         hideSearch
-        actions={canWrite ? <Button onClick={() => setDrawerOpen(true)}>New supplier</Button> : null}
+        actions={canWrite ? <Button className="px-3.5" onClick={() => setDrawerOpen(true)}>New supplier</Button> : null}
         className="shrink-0"
       />
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-8 py-7">

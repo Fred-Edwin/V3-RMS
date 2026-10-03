@@ -154,7 +154,7 @@ export function CatalogTab({ supplierName, lines, summary, mismatches, canEdit, 
       {cells.length > 0 ? <CatalogKpiStrip cells={cells} /> : null}
 
       {mismatches.length > 0 ? (
-        <InlineNotice>
+        <InlineNotice tone="warning">
           <span className="font-medium">Pack not on file.</span>{' '}
           {mismatches.slice(0, 3).map((m, i) => (
             <span key={m.receiptLineId}>

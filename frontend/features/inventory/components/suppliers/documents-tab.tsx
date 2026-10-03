@@ -181,7 +181,7 @@ export function DocumentsTab({ supplierId, entries, canUpload, onUpload }: Docum
               <span role="columnheader" className={cn(tableHead, 'min-w-0 grow basis-0')}>DOCUMENT</span>
               <span role="columnheader" className={cn(tableHead, 'w-[130px] shrink-0')}>TYPE</span>
               <span role="columnheader" className={cn(tableHead, 'w-[100px] shrink-0')}>DATE</span>
-              <span role="columnheader" className={cn(tableHead, 'w-[220px] shrink-0')}>ADDED BY</span>
+              <span role="columnheader" className={cn(tableHead, 'w-[260px] shrink-0')}>ADDED BY</span>
               <span role="columnheader" className={cn(tableHead, 'w-[150px] shrink-0')}>LINKED TO</span>
               <span role="columnheader" className="w-20 shrink-0" />
             </div>
@@ -190,7 +190,7 @@ export function DocumentsTab({ supplierId, entries, canUpload, onUpload }: Docum
                 <span role="cell" className="min-w-0 grow basis-0 truncate font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{entry.title}</span>
                 <span role="cell" className="w-[130px] shrink-0 font-wds-sans text-[13px] leading-4 text-wds-text-ink">{docTypeLabel(entry)}</span>
                 <span role="cell" className="w-[100px] shrink-0 font-wds-mono text-[12px] leading-4 text-wds-text-secondary">{formatDayMonth(docDate(entry))}</span>
-                <span role="cell" className={cn('w-[220px] shrink-0 truncate font-wds-sans text-[13px] leading-4', isAutomatic(entry) ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{docAddedBy(entry)}</span>
+                <span role="cell" className={cn('w-[260px] shrink-0 truncate font-wds-sans text-[13px] leading-4', isAutomatic(entry) ? 'text-wds-text-secondary' : 'text-wds-text-ink')}>{docAddedBy(entry)}</span>
                 <span role="cell" className="w-[150px] shrink-0 font-wds-mono text-[12px] leading-4 text-wds-text-ink">{entry.reference ?? <span className="font-wds-sans text-[13px] text-wds-text-faint">—</span>}</span>
                 <span role="cell" className="flex w-20 shrink-0 justify-end">
                   {entry.kind === 'UPLOAD' ? (

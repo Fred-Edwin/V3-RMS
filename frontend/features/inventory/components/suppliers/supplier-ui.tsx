@@ -153,13 +153,15 @@ export function QuietAction({ className, ...props }: React.ComponentProps<'butto
 }
 
 /** A small inline problem or note at the top of a tab (a failed row action). */
-export function InlineNotice({ children, tone = 'error' }: { children: React.ReactNode; tone?: 'error' | 'info' }) {
+export function InlineNotice({ children, tone = 'error' }: { children: React.ReactNode; tone?: 'error' | 'warning' | 'info' }) {
   return (
     <div
-      role={tone === 'error' ? 'alert' : 'status'}
+      role={tone === 'info' ? 'status' : 'alert'}
       className={cn(
         'border px-3.5 py-2.5 font-wds-sans text-[12px] leading-4',
-        tone === 'error' ? 'border-wds-error-border bg-wds-error-bg text-wds-error-fg' : 'border-wds-info-border bg-wds-info-bg text-wds-info-fg'
+        tone === 'error' && 'border-wds-error-border bg-wds-error-bg text-wds-error-fg',
+        tone === 'warning' && 'border-wds-warning-border bg-wds-warning-bg text-wds-warning-fg',
+        tone === 'info' && 'border-wds-info-border bg-wds-info-bg text-wds-info-fg'
       )}
     >
       {children}
