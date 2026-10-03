@@ -41,6 +41,10 @@ export interface ComboboxProps {
   onOpenChange?: (open: boolean) => void;
   /** Accessible name for the input when there's no visible `<label htmlFor>` pointing at it. */
   'aria-label'?: string;
+  /** Draw the ▾ of a closed select at the right edge, and no clear button (Catalog drawers: Paper draws these as selects). */
+  chevron?: boolean;
+  /** Form field name (autofill and the browser's form-field audit). */
+  name?: string;
 }
 
 export function Combobox({
@@ -55,6 +59,8 @@ export function Combobox({
   open: openProp,
   onOpenChange,
   'aria-label': ariaLabel,
+  chevron = false,
+  name,
 }: ComboboxProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openProp ?? uncontrolledOpen;
@@ -113,7 +119,7 @@ export function Combobox({
 
   const rowId = (i: number) => `${listboxId}-option-${i}`;
   const activeDescendant = open && rows[highlighted] ? rowId(highlighted) : undefined;
-  const showClear = Boolean(value) && !disabled;
+  const showClear = Boolean(value) && !disabled && !chevron;
 
   const clearValue = () => {
     onValueChange('');
@@ -128,6 +134,7 @@ export function Combobox({
         ref={inputRef}
         type="text"
         role="combobox"
+        name={name}
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-controls={listboxId}
@@ -171,10 +178,15 @@ export function Combobox({
           'placeholder:text-wds-text-muted',
           'focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring',
           'disabled:cursor-not-allowed disabled:opacity-60',
-          showClear && 'pr-7',
+          (showClear || chevron) && 'pr-7',
           className
         )}
       />
+      {chevron ? (
+        <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-wds-sans text-[10px] leading-3 text-wds-text-secondary">
+          &#9662;
+        </span>
+      ) : null}
       {showClear ? (
         <button
           type="button"

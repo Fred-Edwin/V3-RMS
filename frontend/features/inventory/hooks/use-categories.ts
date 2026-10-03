@@ -73,7 +73,7 @@ export function useCategoryManager(onChange?: () => void) {
         await load();
         onChange?.();
       } catch (err) {
-        setActionError(formatApiErrorMessage(err, 'Could not archive that category.'));
+        setActionError(formatApiErrorMessage(err, 'Could not retire that category.'));
       }
     },
     [load, onChange]
@@ -87,7 +87,7 @@ export function useCategoryManager(onChange?: () => void) {
         await load();
         onChange?.();
       } catch (err) {
-        setActionError(formatApiErrorMessage(err, 'Could not unarchive that category.'));
+        setActionError(formatApiErrorMessage(err, 'Could not restore that category.'));
       }
     },
     [load, onChange]

@@ -120,6 +120,7 @@ const wdsPreset: Partial<Config> = {
         },
 
         'wds-accent-strong': 'var(--wds-accent-strong)',
+        'wds-selected-edge': 'var(--wds-selected-edge)',
 
         'wds-avatar-bg': 'var(--wds-avatar-bg)',
         'wds-avatar-fg': 'var(--wds-avatar-fg)',

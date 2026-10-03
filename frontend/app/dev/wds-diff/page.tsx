@@ -15,56 +15,13 @@ import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
 import { DrawerShell } from '@/features/inventory/components/drawer-shell';
-import {
-  ItemCatalogToolbar,
-  ItemCatalogTable,
-  ItemCatalogList,
-  type ItemCatalogRow,
-} from '@/features/inventory/components/item-catalog-table';
-import { ItemFormFields, type ItemFormValues } from '@/features/inventory/components/item-form';
 
-const DEMO_CATEGORY_OPTIONS = [
-  { value: 'dry-goods', label: 'Dry goods' },
-  { value: 'dairy', label: 'Dairy' },
-  { value: 'beverages', label: 'Beverages' },
-  { value: 'prepped-bases', label: 'Prepped bases' },
-];
-const DEMO_SUPPLIER_OPTIONS = [
-  { value: 'samrat', label: 'Samrat Ltd' },
-  { value: 'nyeri-dairy', label: 'Nyeri Dairy Co-op' },
-];
-const DEMO_DEPARTMENT_OPTIONS = [
-  { value: 'KITCHEN', label: 'Kitchen' },
-  { value: 'PASTRY', label: 'Pastry' },
-  { value: 'BARISTA', label: 'Barista' },
-  { value: 'SERVICE', label: 'Service' },
-  { value: 'HOUSEKEEPING', label: 'Housekeeping' },
-];
-import { CategoryManagerList, type CategoryRow } from '@/features/inventory/components/category-manager-list';
 import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
 import {
   RestockLevelGrid,
   RestockLevelHelperNote,
   type RestockLevelRow,
 } from '@/features/inventory/components/restock-level-grid';
-
-const demoCatalogRows: ItemCatalogRow[] = [
-  { id: 'rice', name: 'Rice', type: 'raw', category: 'Dry goods', units: 'bag → kg · ÷25', pack: '25 kg', restockLevel: '—', departmentScope: 'Central Store only' },
-  { id: 'coffee', name: 'Coffee beans', type: 'stocked', category: 'Beverages', units: 'kg · no conversion', pack: '1 kg', restockLevel: '—', departmentScope: 'Central Store · Barista' },
-  { id: 'chicken', name: 'Chicken stock', type: 'prepped', category: 'Prepped bases', units: 'litres · no conversion', pack: '—', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
-  { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen, Barista' },
-  { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
-  { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', restockLevel: '—', departmentScope: 'Retired 04 Aug · history kept', retired: true },
-];
-
-const demoCategories: CategoryRow[] = [
-  { id: 'dairy', name: 'Dairy', itemCount: 14 },
-  { id: 'dry-goods', name: 'Dry goods', itemCount: 38 },
-  { id: 'produce', name: 'Produce', itemCount: 22 },
-  { id: 'beverages', name: 'Beverages', itemCount: 19 },
-  { id: 'cleaning', name: 'Cleaning', itemCount: 11 },
-  { id: 'seasonal', name: 'Seasonal (retired)', itemCount: 0, retired: true },
-];
 
 export default function WdsDiffPage() {
   const [target, setTarget] = React.useState<string | null>(null);
@@ -88,18 +45,6 @@ export default function WdsDiffPage() {
   ]);
   const setRestockLevel = (id: string, value: string) =>
     setRestockRows((rows) => rows.map((r) => (r.id === id ? { ...r, restockLevel: Number(value) || 0 } : r)));
-  const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
-    name: 'Basmati rice',
-    type: 'raw',
-    category: 'dry-goods',
-    preferredSupplierId: undefined,
-    buyUnit: 'bag',
-    usageUnit: 'kg',
-    conversion: '1 bag = 25 kg',
-    packSize: '25 kg',
-    departmentTags: [],
-    restockLevel: '',
-  });
 
   if (!target) return null;
 
@@ -196,63 +141,6 @@ export default function WdsDiffPage() {
             <Input placeholder="Basmati rice" />
           </div>
         </DrawerShell>
-      );
-
-    case 'item-catalog-table-desktop':
-      return (
-        <div className="w-[1140px]">
-          <ItemCatalogToolbar itemCount={148} className="rounded-t-wds-md border border-b-0 border-wds-border" />
-          <ItemCatalogTable rows={demoCatalogRows} />
-        </div>
-      );
-
-    case 'item-catalog-table-mobile':
-      return (
-        <div className="w-[358px]">
-          <ItemCatalogList rows={demoCatalogRows.filter((r) => r.id !== 'oil')} />
-        </div>
-      );
-
-    case 'item-form-desktop':
-      return (
-        <div className="w-[500px] bg-wds-surface py-[20px] px-wds-6">
-          <ItemFormFields
-            variant="desktop"
-            values={itemFormValues}
-            onChange={setItemFormValues}
-            categoryOptions={DEMO_CATEGORY_OPTIONS}
-            supplierOptions={DEMO_SUPPLIER_OPTIONS}
-            departmentOptions={DEMO_DEPARTMENT_OPTIONS}
-          />
-        </div>
-      );
-
-    case 'item-form-mobile':
-      return (
-        <div className="w-[390px] bg-wds-surface p-wds-4">
-          <ItemFormFields
-            variant="mobile"
-            values={itemFormValues}
-            onChange={setItemFormValues}
-            categoryOptions={DEMO_CATEGORY_OPTIONS}
-            supplierOptions={DEMO_SUPPLIER_OPTIONS}
-            departmentOptions={DEMO_DEPARTMENT_OPTIONS}
-          />
-        </div>
-      );
-
-    case 'category-manager-desktop':
-      return (
-        <div className="w-[420px] bg-wds-surface py-wds-4 px-wds-6">
-          <CategoryManagerList variant="desktop" categories={demoCategories} />
-        </div>
-      );
-
-    case 'category-manager-mobile':
-      return (
-        <div className="w-[390px] bg-wds-surface p-wds-4">
-          <CategoryManagerList variant="mobile" categories={demoCategories} />
-        </div>
       );
 
     case 'supplier-form-desktop':

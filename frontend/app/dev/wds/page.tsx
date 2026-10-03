@@ -46,32 +46,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
 import { DrawerShell } from '@/features/inventory/components/drawer-shell';
-import {
-  ItemCatalogToolbar,
-  ItemCatalogTable,
-  ItemCatalogList,
-  type ItemCatalogRow,
-} from '@/features/inventory/components/item-catalog-table';
-import { ItemFormFields, type ItemFormValues } from '@/features/inventory/components/item-form';
 
-const DEMO_CATEGORY_OPTIONS = [
-  { value: 'dry-goods', label: 'Dry goods' },
-  { value: 'dairy', label: 'Dairy' },
-  { value: 'beverages', label: 'Beverages' },
-  { value: 'prepped-bases', label: 'Prepped bases' },
-];
-const DEMO_SUPPLIER_OPTIONS = [
-  { value: 'samrat', label: 'Samrat Ltd' },
-  { value: 'nyeri-dairy', label: 'Nyeri Dairy Co-op' },
-];
-const DEMO_DEPARTMENT_OPTIONS = [
-  { value: 'KITCHEN', label: 'Kitchen' },
-  { value: 'PASTRY', label: 'Pastry' },
-  { value: 'BARISTA', label: 'Barista' },
-  { value: 'SERVICE', label: 'Service' },
-  { value: 'HOUSEKEEPING', label: 'Housekeeping' },
-];
-import { CategoryManagerList, type CategoryRow } from '@/features/inventory/components/category-manager-list';
 import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
 import {
   RestockLevelGrid,
@@ -145,24 +120,6 @@ function GradientSwatch({ name, className, note }: { name: string; className: st
     </div>
   );
 }
-
-const demoCatalogRows: ItemCatalogRow[] = [
-  { id: 'rice', name: 'Rice', type: 'raw', category: 'Dry goods', units: 'bag → kg · ÷25', pack: '25 kg', restockLevel: '—', departmentScope: 'Central Store only' },
-  { id: 'coffee', name: 'Coffee beans', type: 'stocked', category: 'Beverages', units: 'kg · no conversion', pack: '1 kg', restockLevel: '—', departmentScope: 'Central Store · Barista' },
-  { id: 'chicken', name: 'Chicken stock', type: 'prepped', category: 'Prepped bases', units: 'litres · no conversion', pack: '—', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
-  { id: 'milk', name: 'Milk', type: 'stocked', category: 'Dairy', units: 'crate → L · ÷12', pack: '12 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen, Barista' },
-  { id: 'oil', name: 'Cooking oil', type: 'stocked', category: 'Dry goods', units: 'jerrican → L · ÷20', pack: '20 L', restockLevel: '—', departmentScope: 'Central Store · Kitchen' },
-  { id: 'vanilla', name: 'Vanilla syrup (retired)', type: 'stocked', category: 'Beverages', units: 'bottle → ml · ÷750', pack: '750 ml', restockLevel: '—', departmentScope: 'Retired 04 Aug · history kept', retired: true },
-];
-
-const demoCategories: CategoryRow[] = [
-  { id: 'dairy', name: 'Dairy', itemCount: 14 },
-  { id: 'dry-goods', name: 'Dry goods', itemCount: 38 },
-  { id: 'produce', name: 'Produce', itemCount: 22 },
-  { id: 'beverages', name: 'Beverages', itemCount: 19 },
-  { id: 'cleaning', name: 'Cleaning', itemCount: 11 },
-  { id: 'seasonal', name: 'Seasonal (retired)', itemCount: 0, retired: true },
-];
 
 const demoNavGroups: SidebarNavGroup[] = [
   {
@@ -312,18 +269,6 @@ export default function WdsPreviewPage() {
   ]);
   const setRestockLevel = (id: string, value: string) =>
     setRestockRows((rows) => rows.map((r) => (r.id === id ? { ...r, restockLevel: Number(value) || 0 } : r)));
-  const [itemFormValues, setItemFormValues] = React.useState<ItemFormValues>({
-    name: 'Basmati rice',
-    type: 'raw',
-    category: 'dry-goods',
-    preferredSupplierId: undefined,
-    buyUnit: 'bag',
-    usageUnit: 'kg',
-    conversion: '1 bag = 25 kg',
-    packSize: '25 kg',
-    departmentTags: [],
-    restockLevel: '',
-  });
 
   return (
     <div className="min-h-screen bg-wds-canvas">
@@ -849,78 +794,6 @@ export default function WdsPreviewPage() {
                   <Input placeholder="Basmati rice" />
                 </div>
               </DrawerShell>
-            </div>
-          </Section>
-
-          <Section
-            title="Item Catalog Table"
-            note="Desktop table (toolbar + per-type status dot + retired-row 55% opacity) + mobile card list. Reference: SFT-0 (desktop) / TN1-0 (mobile)."
-          >
-            <div className="flex flex-col gap-wds-4">
-              <div className="w-[1140px] max-w-full">
-                <ItemCatalogToolbar
-                  itemCount={148}
-                  className="rounded-t-wds-md border border-b-0 border-wds-border"
-                />
-                <ItemCatalogTable rows={demoCatalogRows} />
-              </div>
-              <div className="w-[358px] max-w-full">
-                <ItemCatalogList rows={demoCatalogRows} />
-              </div>
-            </div>
-          </Section>
-
-          <Section
-            title="Item Form"
-            note="Shared field set, New/edit item — desktop drawer body + mobile full-screen route. Identical fields both places, only the shell differs. Reference: SL2-0 (desktop) / TV7-0 (mobile)."
-          >
-            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
-              <div className="w-[500px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
-                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
-                  Desktop (drawer body)
-                </span>
-                <ItemFormFields
-                  variant="desktop"
-                  values={itemFormValues}
-                  onChange={setItemFormValues}
-                  categoryOptions={DEMO_CATEGORY_OPTIONS}
-                  supplierOptions={DEMO_SUPPLIER_OPTIONS}
-                  departmentOptions={DEMO_DEPARTMENT_OPTIONS}
-                />
-              </div>
-              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
-                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
-                  Mobile (full-screen route)
-                </span>
-                <ItemFormFields
-                  variant="mobile"
-                  values={itemFormValues}
-                  onChange={setItemFormValues}
-                  categoryOptions={DEMO_CATEGORY_OPTIONS}
-                  supplierOptions={DEMO_SUPPLIER_OPTIONS}
-                  departmentOptions={DEMO_DEPARTMENT_OPTIONS}
-                />
-              </div>
-            </div>
-          </Section>
-
-          <Section
-            title="Category Manager List"
-            note="Manage categories drawer body (420px — narrower than Item Form's 500px drawer) + mobile full-screen route. Retired rows: Restore link, whole row 55% opacity. Reference: SRG-0 (desktop) / TX2-0 (mobile)."
-          >
-            <div className="flex flex-col gap-wds-6 lg:flex-row lg:items-start">
-              <div className="w-[420px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-6">
-                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
-                  Desktop (drawer body)
-                </span>
-                <CategoryManagerList variant="desktop" categories={demoCategories} />
-              </div>
-              <div className="w-[390px] max-w-full rounded-wds-md border border-wds-border bg-wds-surface p-wds-4">
-                <span className="mb-wds-4 block font-wds-mono text-wds-mono-sm uppercase tracking-[0.04em] text-wds-text-muted">
-                  Mobile (full-screen route)
-                </span>
-                <CategoryManagerList variant="mobile" categories={demoCategories} />
-              </div>
             </div>
           </Section>
 

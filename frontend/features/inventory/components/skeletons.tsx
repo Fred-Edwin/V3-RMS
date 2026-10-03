@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
  * loading") and `71E-0` ("A3 · Supplier detail · desktop · loading") — real
  * breadcrumb/title/toolbar/actions stay put, only the data region (KPI
  * values, table rows, form fields) swaps to skeleton blocks. Mobile variants
- * and the Item Catalog skeleton have no Paper node (not drawn there) and
+ * have no Paper node (not drawn there) and
  * follow the same established pattern instead of a literal Paper source.
  *
  * All blocks are the shared animated `Skeleton` primitive — Paper's own
@@ -119,49 +119,6 @@ export function SupplierDetailSkeletonMobile({ className }: { className?: string
         <Skeleton className="h-14 rounded-wds-md" />
       </div>
       <Skeleton className="h-[160px] rounded-wds-md" />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------- Catalog */
-
-/**
- * Item Catalog — no Paper loading node exists for this screen at all.
- * Follows the same pattern established by Suppliers (`5R3-0`): real KPI
- * strip/toolbar shell stays, table rows become skeleton blocks matching
- * `ItemCatalogTable`'s actual column widths (`item-catalog-table.tsx`).
- */
-export function ItemCatalogSkeletonDesktop({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex flex-col', className)}>
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="flex h-[46px] items-center gap-4 border-b border-wds-neutral-100 px-wds-4 last:border-b-0">
-          <Skeleton className="h-3 min-w-[180px] flex-1" />
-          <Skeleton className="h-3 w-[120px] shrink-0" />
-          <Skeleton className="h-3 w-[140px] shrink-0" />
-          <Skeleton className="h-3 w-[160px] shrink-0" />
-          <Skeleton className="h-3 w-[110px] shrink-0" />
-          <Skeleton className="h-3 w-[120px] shrink-0" />
-          <Skeleton className="h-3 w-[250px] shrink-0" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Mobile — matches `ItemCatalogList`'s real card shape (name + units row, caption below). */
-export function ItemCatalogSkeletonMobile({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex flex-col rounded-wds-md border border-wds-border bg-wds-surface', className)}>
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-1.5 border-b border-wds-border p-wds-3 last:border-b-0">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-3.5 w-[50%]" />
-            <Skeleton className="h-3 w-[15%]" />
-          </div>
-          <Skeleton className="h-3 w-[65%]" />
-        </div>
-      ))}
     </div>
   );
 }

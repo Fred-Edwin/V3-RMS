@@ -2,91 +2,103 @@
 
 import * as React from 'react';
 
+import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { Topbar } from '@/components/app/shell/topbar';
+import { PermissionDeniedState, LoadingState } from '@/components/app/shell/shell-states';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
-import { ItemCatalogList, ItemCatalogPaginationBar, ItemCatalogTable, ItemCatalogToolbar, type ItemCatalogRow, type ItemType } from '../item-catalog-table';
-import { KpiRow, KpiStrip, type KpiCellData } from '../kpi-strip';
-import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
-import { ItemCatalogSkeletonDesktop, ItemCatalogSkeletonMobile } from '../skeletons';
-import { CategoryManagerDrawer } from './category-manager-screen';
-import { ItemFormDrawer } from './item-form-screen';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useItemCatalog, type ItemCatalogFilters } from '../../hooks/use-item-catalog';
-import type { DepartmentTag, InventoryItem, InventoryItemType } from '../../types';
+import type { DepartmentTag, InventoryItemListRow, InventoryItemType } from '../../types';
+import { DEPARTMENT_ORDER, ITEM_TYPE_DOT_CLASS, ITEM_TYPE_LABEL_SHORT } from '../../lib/item-labels';
+import { formatHowWeBuy, formatUsedBy } from '../../lib/item-format';
+import { CatalogFilters, type FilterOption } from '../catalog/catalog-filters';
+import { CatalogKpiStrip, type CatalogKpiCell } from '../catalog/catalog-kpi-strip';
+import { CategoryPills } from '../catalog/category-pills';
+import { CatalogTable } from '../catalog/catalog-table';
+import { ItemAddedBar } from '../catalog/catalog-toast';
+import { ItemDrawers, type DrawerRequest } from '../catalog/item-drawers';
+import type { CreatedItem } from '../catalog/item-form-view';
+import { DEPARTMENT_LABEL } from '../stock/stock-format';
+import { MobileListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard, TableRowSkeleton } from '../stock/stock-states';
+import { RestockLevelsDrawer } from './restock-levels-screen';
 
-const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
-  KITCHEN: 'Kitchen',
-  PASTRY: 'Pastry',
-  BARISTA: 'Barista',
-  SERVICE: 'Service',
-  HOUSEKEEPING: 'Housekeeping',
-};
+const SEARCH_DEBOUNCE_MS = 250;
+const ADDED_BAR_MS = 12_000;
 
-const TYPE_TO_ROW_TYPE: Record<InventoryItemType, ItemType> = {
-  RAW_INGREDIENT: 'raw',
-  STOCKED: 'stocked',
-  PREPPED: 'prepped',
-};
+const DEPARTMENT_OPTIONS: FilterOption[] = DEPARTMENT_ORDER.map((tag) => ({ value: tag, label: DEPARTMENT_LABEL[tag] }));
 
-function formatUnits(item: InventoryItem): string {
-  if (!item.conversionFactor) return `${item.usageUnit} · no conversion`;
-  return `${item.buyUnit} → ${item.usageUnit} · ÷${item.conversionFactor}`;
+/** A value that follows `value` after it has been still for `delay` ms. */
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = React.useState(value);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
 }
 
-function formatPack(item: InventoryItem): string {
-  if (!item.packSize) return '—';
-  return `${item.packSize} ${item.usageUnit}`;
-}
-
-function formatDepartmentScope(item: InventoryItem): string {
-  if (item.retiredAt) return `Archived ${new Date(item.retiredAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} · history kept`;
-  if (item.type === 'RAW_INGREDIENT') return 'Central Store only';
-  if (item.departmentTags.length === 0) return 'Central Store only';
-  return `Central Store · ${item.departmentTags.map((t) => DEPARTMENT_LABEL[t]).join(', ')}`;
-}
-
-function formatRestockLevel(item: InventoryItem): string {
-  if (item.centralStoreRestockLevel == null) return '—';
-  return `${item.centralStoreRestockLevel} ${item.usageUnit}`;
-}
-
-function toRow(item: InventoryItem): ItemCatalogRow {
-  return {
-    id: item.id,
-    name: item.name,
-    type: TYPE_TO_ROW_TYPE[item.type],
-    category: item.category?.name ?? '—',
-    units: formatUnits(item),
-    pack: formatPack(item),
-    restockLevel: formatRestockLevel(item),
-    departmentScope: formatDepartmentScope(item),
-    retired: Boolean(item.retiredAt),
-  };
+function MobileItemRow({ row, onClick }: { row: InventoryItemListRow; onClick?: () => void }) {
+  const retired = row.retiredAt !== null;
+  return (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && onClick() : undefined}
+      className={cn('flex flex-col gap-1 border-b border-wds-border p-3 last:border-b-0', retired && 'opacity-55', onClick && 'cursor-pointer')}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-wds-sans text-wds-body font-medium text-wds-text-ink">{row.name}</span>
+        <span className="shrink-0 font-wds-mono text-wds-caption text-wds-text-copy-muted">{formatHowWeBuy(row)}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span aria-hidden className={cn('size-1.5 shrink-0 rounded-wds-full', ITEM_TYPE_DOT_CLASS[row.type])} />
+        <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+          {ITEM_TYPE_LABEL_SHORT[row.type]} · {row.category?.name ?? 'No category'} · {formatUsedBy(row)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 /**
- * Item Catalog — screen 1. Reference: `SFQ-0` (desktop) / `TLT-0` (mobile).
- * Assembles KPI Strip + toolbar (real filter wiring) + table/list + the
- * Item Form drawer, plus the universal loading/empty/error/permission states.
+ * Item catalog — Paper "Chapter 1 · Add an item", step 01 (and 1b search
+ * match). The strip's cells are one-tap filters; search also matches the name
+ * or code a supplier uses. Add, edit, retire and the item page are drawers
+ * (`ItemDrawers`). The phone layout is the previous one, kept working until
+ * the phone session redraws it.
  */
 export function ItemCatalogScreen() {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const role = useAuthStore((s) => s.role);
-  const [search, setSearch] = React.useState('');
+  const isManager = role === 'STORE_MANAGER';
+  const canRead = isManager || role === 'STORE_ATTENDANT';
+
+  const [searchInput, setSearchInput] = React.useState('');
+  const search = useDebounced(searchInput.trim(), SEARCH_DEBOUNCE_MS);
   const [type, setType] = React.useState<InventoryItemType | null>(null);
   const [departmentTag, setDepartmentTag] = React.useState<DepartmentTag | null>(null);
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [showRetired, setShowRetired] = React.useState(false);
-  const [drawerItemId, setDrawerItemId] = React.useState<string | null | undefined>(undefined);
-  const [restockDrawerOpen, setRestockDrawerOpen] = React.useState(false);
-  const [categoryDrawerOpen, setCategoryDrawerOpen] = React.useState(false);
+  const [needsSetup, setNeedsSetup] = React.useState(false);
+
+  const [request, setRequest] = React.useState<DrawerRequest | null>(null);
+  const requestCount = React.useRef(0);
+  const openDrawer = React.useCallback((next: DistributiveOmit<DrawerRequest, 'key'>) => {
+    requestCount.current += 1;
+    setRequest({ ...next, key: requestCount.current } as DrawerRequest);
+  }, []);
+  const closeDrawer = React.useCallback(() => setRequest(null), []);
+
+  const [restockOpen, setRestockOpen] = React.useState(false);
+  const [added, setAdded] = React.useState<CreatedItem | null>(null);
   const { open: openMobileNav } = useMobileNavDrawer();
+  const { locationId: centralStoreLocationId } = useCentralStoreLocation(isManager);
 
   const filters: ItemCatalogFilters = React.useMemo(
     () => ({
@@ -95,15 +107,34 @@ export function ItemCatalogScreen() {
       departmentTag: departmentTag ?? undefined,
       categoryId: categoryId ?? undefined,
       includeRetired: showRetired,
+      needsSetup,
     }),
-    [search, type, departmentTag, categoryId, showRetired]
+    [search, type, departmentTag, categoryId, showRetired, needsSetup]
   );
-
   const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
-  const canRead = role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
-  const canWrite = role === 'STORE_MANAGER';
-  // The restock-level lookup is Store-Manager-only; the Attendant gets a 403.
-  const { locationId: centralStoreLocationId } = useCentralStoreLocation(canWrite);
+
+  // On a phone the list scrolls inside <main>: a new filter or page starts from its top.
+  const listRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, page]);
+
+  // The "Item added" bar goes by itself; the row's tag stays until the list is reloaded for another reason.
+  React.useEffect(() => {
+    if (!added) return;
+    const timer = setTimeout(() => setAdded(null), ADDED_BAR_MS);
+    return () => clearTimeout(timer);
+  }, [added]);
+
+  const anyFilter = Boolean(search) || type !== null || departmentTag !== null || categoryId !== null || showRetired || needsSetup;
+  const clearFilters = () => {
+    setSearchInput('');
+    setType(null);
+    setDepartmentTag(null);
+    setCategoryId(null);
+    setShowRetired(false);
+    setNeedsSetup(false);
+  };
 
   if (!hydrated) {
     return (
@@ -114,9 +145,7 @@ export function ItemCatalogScreen() {
   }
 
   if (!canRead) {
-    const denied = (
-      <PermissionDeniedState description="Item catalog is visible to Store Managers and Store Attendants only." />
-    );
+    const denied = <PermissionDeniedState description="Item catalog is visible to Store Managers and Store Attendants only." />;
     return isDesktop ? (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={{ section: 'Central Store', screen: 'Catalog' }} className="shrink-0" />
@@ -127,152 +156,188 @@ export function ItemCatalogScreen() {
     );
   }
 
-  const kpiCells: KpiCellData[] = meta
-    ? [
-        { key: 'items', label: 'Items tracked', value: String(meta.itemsTracked), detail: `across ${meta.typesRepresented} types` },
-        { key: 'categories', label: 'Categories', value: String(meta.categoryCount), detail: `${meta.retiredCategoryCount} archived` },
-        {
-          key: 'departments',
-          label: 'Departments',
-          value: String(meta.departmentCount),
-          detail: 'Kitchen, Pastry, Barista, Service, Housekeeping',
-        },
-        { key: 'suppliers', label: 'Suppliers', value: String(meta.supplierCount), detail: 'on file' },
-      ]
-    : [];
+  const categoryOptions: FilterOption[] = categories.filter((c) => !c.retiredAt).map((c) => ({ value: c.id, label: c.name }));
 
-  const rows = items.map(toRow);
-  const categoryOptions = categories.filter((c) => !c.retiredAt).map((c) => ({ value: c.id, label: c.name }));
-  const departmentOptions = (Object.keys(DEPARTMENT_LABEL) as DepartmentTag[]).map((tag) => ({
-    value: tag,
-    label: DEPARTMENT_LABEL[tag],
-  }));
+  const cells: CatalogKpiCell[] = [];
+  if (meta) {
+    cells.push({
+      key: 'tracked',
+      label: 'Items tracked',
+      value: String(meta.itemsTracked),
+      sub: `across ${meta.typesRepresented} ${meta.typesRepresented === 1 ? 'type' : 'types'}`,
+      onSelect: clearFilters,
+    });
+    cells.push({
+      key: 'needs-setup',
+      label: 'Needs setup',
+      value: String(meta.needsSetup),
+      sub: 'pack or units not set yet',
+      attention: meta.needsSetup > 0,
+      onSelect: () => setNeedsSetup((on) => !on),
+      active: needsSetup,
+    });
+    if (meta.lowOrOut !== null) {
+      cells.push({
+        key: 'low-or-out',
+        label: 'Low or out',
+        value: String(meta.lowOrOut),
+        sub: 'below their restock level',
+        attention: meta.lowOrOut > 0,
+        onSelect: centralStoreLocationId ? () => setRestockOpen(true) : undefined,
+      });
+    }
+    cells.push({ key: 'added', label: 'Added this week', value: String(meta.addedThisWeek), sub: 'in the last 7 days' });
+  }
 
-  const toolbar = (
-    <ItemCatalogToolbar
-      itemCount={pagination?.total ?? rows.length}
-      onManageCategories={() => setCategoryDrawerOpen(true)}
-      typeFilter={type}
-      onTypeFilterChange={(v) => setType(v as InventoryItemType | null)}
-      departmentOptions={departmentOptions}
-      departmentFilter={departmentTag}
-      onDepartmentFilterChange={(v) => setDepartmentTag(v as DepartmentTag | null)}
-      categoryOptions={categoryOptions}
-      categoryFilter={categoryId}
-      onCategoryFilterChange={setCategoryId}
-      showRetired={showRetired}
-      onShowRetiredChange={setShowRetired}
+  const openItem = isManager ? (row: InventoryItemListRow) => openDrawer({ kind: 'item', itemId: row.id }) : undefined;
+  const total = meta?.itemsTracked ?? null;
+
+  const loadingBody = (
+    <div className="border border-wds-border bg-white" aria-hidden={false}>
+      <div className="flex h-[34px] items-center border-b border-wds-text-ink px-4 font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-ink">ITEM</div>
+      <SkeletonRows count={8} label="Loading items">
+        {(i) => (
+          <TableRowSkeleton key={i} className="h-[46px]" nameWidth={160 + ((i * 37) % 90)} widths={[96, 90, 110, 56, 100]} />
+        )}
+      </SkeletonRows>
+    </div>
+  );
+
+  const emptyBody = anyFilter ? (
+    <StockEmptyCard title="No items match" description="Nothing in the catalog fits these filters. Clear them to see every item." actionLabel="Clear filters" onAction={clearFilters} />
+  ) : (
+    <StockEmptyCard
+      title="No items yet"
+      description="Add the first item the store counts. You can add who sells it afterwards."
+      actionLabel={isManager ? 'Add an item' : undefined}
+      onAction={isManager ? () => openDrawer({ kind: 'add' }) : undefined}
     />
   );
 
-  const tableBody = (() => {
-    if (status === 'loading' || status === 'idle') {
-      return isDesktop ? (
-        <ItemCatalogSkeletonDesktop />
-      ) : (
-        <ItemCatalogSkeletonMobile className="mx-4" />
-      );
-    }
+  const dataBody = (() => {
+    if (status === 'idle' || (status === 'loading' && items.length === 0)) return loadingBody;
     if (status === 'error') {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <ErrorState
-            title="Couldn't load the item catalog"
-            description={error ?? 'Check your connection and try again.'}
-            onRetry={reload}
-          />
-        </div>
-      );
+      return <StockErrorCard title="Couldn’t load the item catalog" description={error ?? 'Check your connection and try again.'} onRetry={() => void reload()} />;
     }
-    if (rows.length === 0) {
-      return (
-        <div className="flex flex-1 items-center justify-center">
-          <EmptyState
-            title="Nothing here yet"
-            description="No items match these filters. Try clearing a filter or add a new item."
-          />
-        </div>
-      );
-    }
-    return isDesktop ? (
-      <div className="flex-1 overflow-x-auto overflow-y-auto">
-        <ItemCatalogTable
-          rows={rows}
-          onRowClick={canWrite ? (row) => setDrawerItemId(row.id) : undefined}
-          className="min-w-[860px]"
-        />
-      </div>
-    ) : (
-      <ItemCatalogList rows={rows} onRowClick={canWrite ? (row) => setDrawerItemId(row.id) : undefined} />
-    );
+    if (items.length === 0) return emptyBody;
+    return <CatalogTable rows={items} showRestockLevel={isManager} onRowClick={openItem} highlightId={added && added.itemType !== 'PREPPED' ? added.itemId : null} />;
   })();
 
-  // Desktop-only: the toolbar+table live inside one bordered card, with the
-  // toolbar always rendered (loading/error/empty states swap only the body
-  // beneath it) — a filter that produces zero results must still be
-  // clearable from the same toolbar that caused it.
-  const body = isDesktop ? (
-    <div className="flex flex-1 flex-col overflow-hidden rounded-wds-md border border-wds-border bg-wds-surface">
-      {toolbar}
-      {tableBody}
-      {status === 'ready' && pagination ? (
-        <ItemCatalogPaginationBar
-          page={pagination.page}
-          totalPages={pagination.totalPages}
-          total={pagination.total}
-          onPageChange={setPage}
+  const footerNote = (() => {
+    if (status !== 'ready' && status !== 'loading') return null;
+    if (items.length === 0) return null;
+    // Search counts against the whole catalog (Paper 1b); a filter counts against what matches it.
+    const outOf = search || !anyFilter ? total : (pagination?.total ?? total);
+    const count = outOf !== null ? `Showing ${items.length} of ${outOf}` : `Showing ${items.length}`;
+    if (search) {
+      return `${count} for “${search}”. Search also matches the name or code a supplier uses for an item. Our name stays the same.`;
+    }
+    return isManager ? `${count}. Restock level is for the Central Store. Departments set their own on their phones.` : `${count}.`;
+  })();
+
+  const drawers = isManager ? (
+    <>
+      <ItemDrawers
+        request={request}
+        onClose={closeDrawer}
+        onItemCreated={(created) => {
+          // The list is sorted by name, so the new row may be pages away: narrow to it so it shows, tinted.
+          clearFilters();
+          setSearchInput(created.itemName);
+          setAdded(created);
+          void reload();
+        }}
+        onItemChanged={() => void reload()}
+        onCategoriesChanged={() => void reload()}
+        totalItems={total}
+        onOpenRestockLevels={() => setRestockOpen(true)}
+      />
+      {centralStoreLocationId ? (
+        <RestockLevelsDrawer
+          open={restockOpen}
+          onOpenChange={setRestockOpen}
+          variant={isDesktop ? 'desktop' : 'mobile'}
+          locationId={centralStoreLocationId}
+          actor={{ role: 'STORE_MANAGER' }}
         />
       ) : null}
-    </div>
-  ) : (
-    tableBody
-  );
+      {added ? (
+        <ItemAddedBar
+          message={`${added.itemName} added.`}
+          // A Prepped item is made in Prep, not bought: nobody sells it, so the next step is just to open it.
+          actionLabel={added.itemType === 'PREPPED' ? 'Open item →' : 'Add who sells it →'}
+          onAction={() => {
+            openDrawer(added.itemType === 'PREPPED' ? { kind: 'item', itemId: added.itemId } : { kind: 'addSeller', itemId: added.itemId });
+            setAdded(null);
+          }}
+          onDismiss={() => setAdded(null)}
+        />
+      ) : null}
+    </>
+  ) : null;
 
   if (!isDesktop) {
+    const pills = categories.filter((c) => !c.retiredAt).map((c) => ({ id: c.id, name: c.name, count: c.itemCount }));
     return (
-      <div className="flex min-h-screen flex-col bg-wds-canvas">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
         <MobileStatusBar />
-        <MobileHubHeader
-          title="Item catalog"
-          subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`}
-          userInitials="JM"
-          onMenuClick={openMobileNav}
-        />
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          {meta ? (
-            <KpiRow
-              cells={[
-                { key: 'items', label: 'Items', value: String(meta.itemsTracked) },
-                { key: 'categories', label: 'Categories', value: String(meta.categoryCount) },
-                { key: 'suppliers', label: 'Suppliers', value: String(meta.supplierCount) },
-              ]}
-            />
-          ) : null}
-          {body}
+        <MobileHubHeader title="Item catalog" subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`} userInitials="JM" onMenuClick={openMobileNav} />
+        {/* Search and category pills stay put; only the list below scrolls. */}
+        <div className="flex shrink-0 flex-col gap-3 border-b border-wds-border bg-wds-surface px-4 py-3">
+          <input
+            type="search"
+            name="search"
+            aria-label="Search items"
+            placeholder="Search items"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-11 w-full rounded-wds-md border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-wds-body text-wds-text-ink placeholder:text-wds-text-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
+          />
+          {pills.length > 0 ? <CategoryPills categories={pills} selectedId={categoryId} onSelect={setCategoryId} /> : null}
         </div>
-        {canWrite ? (
-          <div className="sticky bottom-0 flex gap-2 border-t border-wds-border bg-wds-surface p-4">
-            <Button variant="secondary" className="flex-1" onClick={() => setCategoryDrawerOpen(true)}>
+        <main ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4 [&>*]:shrink-0">
+          {status === 'error' ? (
+            <StockErrorCard title="Couldn’t load the item catalog" description={error ?? 'Check your connection and try again.'} onRetry={() => void reload()} />
+          ) : status === 'idle' || (status === 'loading' && items.length === 0) ? (
+            <SkeletonRows count={6} label="Loading items">
+              {(i) => <MobileListRowSkeleton key={i} />}
+            </SkeletonRows>
+          ) : items.length === 0 ? (
+            emptyBody
+          ) : (
+            <>
+              <div className="flex flex-col rounded-wds-md border border-wds-border bg-wds-surface">
+                {items.map((row) => (
+                  <MobileItemRow key={row.id} row={row} onClick={openItem ? () => openItem(row) : undefined} />
+                ))}
+              </div>
+              {pagination && pagination.totalPages > 1 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <Button variant="secondary" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
+                    Previous
+                  </Button>
+                  <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <Button variant="secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
+                    Next
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </main>
+        {isManager ? (
+          <div className="flex shrink-0 gap-2 border-t border-wds-border bg-wds-surface p-4">
+            <Button variant="secondary" className="flex-1" onClick={() => openDrawer({ kind: 'categories' })}>
               Categories
             </Button>
-            <Button className="flex-1" onClick={() => setDrawerItemId(null)}>
+            <Button className="flex-1" onClick={() => openDrawer({ kind: 'add' })}>
               New item
             </Button>
           </div>
         ) : null}
-        <ItemFormDrawer
-          itemId={drawerItemId === undefined ? null : drawerItemId}
-          open={drawerItemId !== undefined}
-          onOpenChange={(open) => setDrawerItemId(open ? drawerItemId ?? null : undefined)}
-          onSaved={reload}
-          variant="mobile"
-        />
-        <CategoryManagerDrawer
-          open={categoryDrawerOpen}
-          onOpenChange={setCategoryDrawerOpen}
-          variant="mobile"
-          onCategoriesChanged={reload}
-        />
+        {drawers}
       </div>
     );
   }
@@ -281,56 +346,60 @@ export function ItemCatalogScreen() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar
         breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}
-        searchProps={{ placeholder: 'Search items', value: search, onChange: (e) => setSearch(e.target.value) }}
-        actions={
-          canWrite ? (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => setRestockDrawerOpen(true)}
-                disabled={!centralStoreLocationId}
-              >
-                Restock levels
-              </Button>
-              <Button onClick={() => setDrawerItemId(null)}>New item</Button>
-            </>
-          ) : null
-        }
+        searchProps={{ placeholder: 'Search items', value: searchInput, onChange: (e) => setSearchInput(e.target.value), className: 'w-[380px]', 'aria-label': 'Search items' }}
+        actions={isManager ? <Button onClick={() => openDrawer({ kind: 'add' })}>New item</Button> : null}
         className="shrink-0"
       />
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Item catalog</h1>
-          <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
-            Every item Wendo tracks — raw ingredients, prepped items, stocked items. Archiving keeps history; nothing
-            is hard-deleted.
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <h1 className="font-wds-sans text-[24px] font-semibold leading-[30px] tracking-[-0.01em] text-wds-text-ink">Item catalog</h1>
+          <p className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+            Everything Wendo buys, makes and uses. Nothing is deleted: retire an item and its history stays.
           </p>
         </div>
-        {kpiCells.length > 0 ? <KpiStrip cells={kpiCells} /> : null}
-        {body}
-      </div>
-      <ItemFormDrawer
-        itemId={drawerItemId === undefined ? null : drawerItemId}
-        open={drawerItemId !== undefined}
-        onOpenChange={(open) => setDrawerItemId(open ? drawerItemId ?? null : undefined)}
-        onSaved={reload}
-        variant="desktop"
-      />
-      {centralStoreLocationId ? (
-        <RestockLevelsDrawer
-          open={restockDrawerOpen}
-          onOpenChange={setRestockDrawerOpen}
-          variant="desktop"
-          locationId={centralStoreLocationId}
-          actor={{ role: 'STORE_MANAGER' }}
+        {cells.length > 0 ? <CatalogKpiStrip cells={cells} className="shrink-0" /> : null}
+        <CatalogFilters
+          className="shrink-0"
+          total={total}
+          type={type}
+          onTypeChange={setType}
+          needsSetup={needsSetup}
+          needsSetupCount={meta?.needsSetup ?? null}
+          onNeedsSetupChange={setNeedsSetup}
+          categoryOptions={categoryOptions}
+          categoryId={categoryId}
+          onCategoryChange={setCategoryId}
+          departmentOptions={DEPARTMENT_OPTIONS}
+          departmentTag={departmentTag}
+          onDepartmentChange={(tag) => setDepartmentTag(tag as DepartmentTag | null)}
+          showRetired={showRetired}
+          onShowRetiredChange={setShowRetired}
+          onManageCategories={isManager ? () => openDrawer({ kind: 'categories' }) : undefined}
         />
-      ) : null}
-      <CategoryManagerDrawer
-        open={categoryDrawerOpen}
-        onOpenChange={setCategoryDrawerOpen}
-        variant="desktop"
-        onCategoriesChanged={reload}
-      />
+        <div className="shrink-0 overflow-x-auto">{dataBody}</div>
+        {footerNote || (pagination && pagination.totalPages > 1) ? (
+          <div className="flex shrink-0 items-center justify-between gap-4">
+            <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">{footerNote}</p>
+            {pagination && pagination.totalPages > 1 ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
+                  Page {pagination.page} of {pagination.totalPages}
+                </span>
+                <Button variant="secondary" size="sm" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
+                  Previous
+                </Button>
+                <Button variant="secondary" size="sm" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
+                  Next
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {drawers}
     </div>
   );
 }
+
+type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omit<T, K> : never;
+
