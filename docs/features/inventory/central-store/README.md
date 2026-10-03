@@ -5,6 +5,7 @@ Everything about building the Central Store side of Inventory lives in this fold
 | File | What it is |
 |---|---|
 | `catalog-suppliers-restock-plan.md` | Build plan for the approved Catalog, suppliers and restock levels flow (migrations, services, frontend). |
+| `session-N-prompt.md` / `session-N-log.md` | The handover prompt each agent session starts from, and what that session did. Written per session. |
 | `visual-parity-protocol.md` | How a frontend agent proves each screen matches Paper without wasting time. Binding for every Central Store screen. |
 
 Later flows (Stock and counting, Prep, Purchasing changes) add their plans here as `<flow>-plan.md`.
