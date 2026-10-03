@@ -6,13 +6,13 @@ const userAuthSelect = {
   name: true,
   email: true,
   role: true,
-  organizationId: true,
+  siteId: true,
   departmentTag: true,
   isDepartmentHead: true,
   isActive: true,
   passwordHash: true,
   pinHash: true,
-  organization: {
+  site: {
     select: {
       name: true,
     },
@@ -24,12 +24,12 @@ const userPublicSelect = {
   name: true,
   email: true,
   role: true,
-  organizationId: true,
+  siteId: true,
   departmentTag: true,
   isDepartmentHead: true,
   isActive: true,
   phone: true,
-  organization: {
+  site: {
     select: {
       name: true,
     },
@@ -122,7 +122,7 @@ export const authRepository = {
   },
 
   findFcmTokensByStation: async (
-    organizationId: string,
+    siteId: string,
     station: 'KITCHEN' | 'BARISTA' | 'PIZZA' | 'PASTRY',
   ): Promise<string[]> => {
     const roles =
@@ -132,7 +132,7 @@ export const authRepository = {
 
     const users = await prisma.user.findMany({
       where: {
-        organizationId,
+        siteId,
         role: { in: [...roles] },
         isActive: true,
         fcmToken: { not: null },
@@ -144,12 +144,12 @@ export const authRepository = {
   },
 
   findFcmTokensByRole: async (
-    organizationId: string,
+    siteId: string,
     roles: UserRole[],
   ): Promise<string[]> => {
     const users = await prisma.user.findMany({
       where: {
-        organizationId,
+        siteId,
         role: { in: roles },
         isActive: true,
         fcmToken: { not: null },

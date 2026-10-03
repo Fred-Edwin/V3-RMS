@@ -28,7 +28,7 @@ vi.mock('../purchasing/receiving-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn() },
 }));
 
 vi.mock('../../../repositories/auth-repository', () => ({
@@ -71,23 +71,23 @@ const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const departmentHead = {
   id: 'dh1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   departmentTag: 'KITCHEN' as const,
   isDepartmentHead: true,
 };
-const branchManager = { id: 'bm1', role: 'MANAGER' as const, organizationId: branchOrgId };
+const branchManager = { id: 'bm1', role: 'MANAGER' as const, siteId: branchOrgId };
 
-const centralStore = { id: centralStoreId, organizationId: 'hub1', type: 'CENTRAL_STORE' as const };
-const departmentLocation = { id: departmentLocationId, organizationId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
+const centralStore = { id: centralStoreId, siteId: 'hub1', type: 'CENTRAL_STORE' as const };
+const departmentLocation = { id: departmentLocationId, siteId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
 
 const buildDispatch = (overrides: Record<string, unknown> = {}) => ({
   id: dispatchId,
-  organizationId: 'hub1',
-  toOrganizationId: branchOrgId,
+  siteId: 'hub1',
+  toSiteId: branchOrgId,
   departmentTag: 'KITCHEN',
   status: 'IN_TRANSIT',
   sequenceLabel: 'Dispatch 1 · Nyeri Town · 22 Sep',
-  toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+  toSite: { id: branchOrgId, name: 'Nyeri Town' },
   dispatchedBy: { id: 'sm1', name: 'Store Manager' },
   confirmedBy: null,
   dispatchedAt: new Date('2026-09-22T05:00:00.000Z'),
@@ -112,7 +112,7 @@ const buildDispatch = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(departmentLocation as never);
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(departmentLocation as never);
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: departmentHead.id, pinHash: 'hash' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(dispatchRepository.markConfirmed).mockResolvedValue(1);
@@ -195,7 +195,7 @@ describe('dispatchService.confirmDelivery — shortfall opens a discrepancy', ()
     const discrepancyCall = vi.mocked(discrepancyRepository.createForLine).mock.calls[0]![0];
     expect(discrepancyCall.dispatchLineId).toBe(dispatchLineId);
     expect(discrepancyCall.gapQty.toString()).toBe('-3'); // confirmed(7) - dispatched(10)
-    expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(expect.anything(), centralStore.organizationId, 'DSC');
+    expect(referenceCounterRepository.nextReference).toHaveBeenCalledWith(expect.anything(), centralStore.siteId, 'DSC');
 
     expect(txDispatchUpdate).toHaveBeenCalledWith({ where: { id: dispatchId }, data: { status: 'DISCREPANCY_OPEN' } });
     expect(fcmService.sendReceiptVariancePush).toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe('dispatchService.confirmDeliveryOnBehalf — Flow 10b', () => {
 
 describe('dispatchService.listDeliveries / getDeliveryDetail — role scoping', () => {
   it('is exercised in dispatch-repository.test.ts for the department filter; here we just confirm the guard raises for a user with no department', async () => {
-    const noDeptHead = { id: 'x', role: 'CHEF' as const, organizationId: branchOrgId, isDepartmentHead: true, departmentTag: undefined };
+    const noDeptHead = { id: 'x', role: 'CHEF' as const, siteId: branchOrgId, isDepartmentHead: true, departmentTag: undefined };
     await expect(dispatchService.listDeliveries(noDeptHead as never, { limit: 50 })).rejects.toThrow(ValidationError);
   });
 

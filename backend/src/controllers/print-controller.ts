@@ -38,15 +38,15 @@ export const printController = {
     const actor = requireActor(req);
     const { orderId, receiptType, targetStationId } = CreatePrintJobSchema.parse(req.body);
 
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
     const job = await printService.createPrintJob(
       orderId,
       actor.id,
-      organizationId,
+      siteId,
       receiptType,
       targetStationId ?? null,
     );
@@ -62,12 +62,12 @@ export const printController = {
     const actor = requireActor(req);
     const { entryId } = CreateOtherIncomePrintJobSchema.parse(req.body);
 
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const job = await printService.createOtherIncomePrintJob(entryId, organizationId, actor.id);
+    const job = await printService.createOtherIncomePrintJob(entryId, siteId, actor.id);
 
     res.status(201).json({
       success: true,
@@ -81,15 +81,15 @@ export const printController = {
     const { settlementId, targetStationId } = CreateCorporateSettlementPrintJobSchema.parse(req.body);
     const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId =
-      branchId && actor.role && SETTLEMENT_RECEIPT_ROLES.has(actor.role) ? branchId : actor.organizationId;
-    if (!organizationId) {
+    const siteId =
+      branchId && actor.role && SETTLEMENT_RECEIPT_ROLES.has(actor.role) ? branchId : actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('Select a branch to print the settlement receipt at');
     }
 
     const job = await printService.createCorporateSettlementPrintJob(
       settlementId,
-      organizationId,
+      siteId,
       actor.id,
       targetStationId ?? null,
     );
@@ -105,12 +105,12 @@ export const printController = {
     const actor = requireActor(req);
     const query = PrintJobQuerySchema.parse(req.query);
 
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const result = await printService.getPrintJobs(organizationId, query);
+    const result = await printService.getPrintJobs(siteId, query);
 
     res.status(200).json({
       success: true,
@@ -123,12 +123,12 @@ export const printController = {
     const actor = requireActor(req);
     const { id } = routeIdParamSchema.parse(req.params);
 
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const job = await printService.getPrintJobById(id, organizationId);
+    const job = await printService.getPrintJobById(id, siteId);
 
     res.status(200).json({
       success: true,
@@ -143,7 +143,7 @@ export const printController = {
     const query = StationJobQuerySchema.parse(req.query);
 
     const jobs = await printService.claimJobsForStation(
-      station.organizationId,
+      station.siteId,
       station.id,
       query.limit,
     );
@@ -159,7 +159,7 @@ export const printController = {
     const { id } = routeIdParamSchema.parse(req.params);
     const body = UpdatePrintJobStatusSchema.parse(req.body);
 
-    const updated = await printService.updateJobStatus(id, station.organizationId, {
+    const updated = await printService.updateJobStatus(id, station.siteId, {
       status: body.status,
       printedAt: 'printedAt' in body ? body.printedAt : undefined,
       failureReason: 'failureReason' in body ? body.failureReason : undefined,
@@ -189,13 +189,13 @@ export const printController = {
     const { name } = CreatePrintStationSchema.parse(req.body);
     const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId =
-      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
-    if (!organizationId) {
+    const siteId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const station = await printService.createPrintStation(name, organizationId);
+    const station = await printService.createPrintStation(name, siteId);
 
     res.status(201).json({
       success: true,
@@ -208,13 +208,13 @@ export const printController = {
     const actor = requireActor(req);
     const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId =
-      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
-    if (!organizationId) {
+    const siteId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const stations = await printService.listPrintStations(organizationId);
+    const stations = await printService.listPrintStations(siteId);
 
     res.status(200).json({
       success: true,
@@ -227,12 +227,12 @@ export const printController = {
   listSelectablePrintStations: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
 
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const stations = await printService.listPrintStations(organizationId);
+    const stations = await printService.listPrintStations(siteId);
 
     res.status(200).json({
       success: true,
@@ -249,13 +249,13 @@ export const printController = {
     const { id } = routeIdParamSchema.parse(req.params);
     const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId =
-      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
-    if (!organizationId) {
+    const siteId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    const job = await printService.createTestPrintJob(id, organizationId, actor.id);
+    const job = await printService.createTestPrintJob(id, siteId, actor.id);
 
     res.status(201).json({
       success: true,
@@ -269,13 +269,13 @@ export const printController = {
     const { id } = routeIdParamSchema.parse(req.params);
     const { branchId } = BranchIdQuerySchema.parse(req.query);
 
-    const organizationId =
-      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.organizationId;
-    if (!organizationId) {
+    const siteId =
+      branchId && actor.role && ELEVATED_ROLES.has(actor.role) ? branchId : actor.siteId;
+    if (!siteId) {
       throw new UnauthorizedError('User is not assigned to a branch');
     }
 
-    await printService.deactivatePrintStation(id, organizationId);
+    await printService.deactivatePrintStation(id, siteId);
 
     res.status(200).json({
       success: true,

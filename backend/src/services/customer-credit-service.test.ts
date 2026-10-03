@@ -7,8 +7,8 @@ import { customerCreditService } from './customer-credit-service';
 
 vi.mock('../repositories/customer-credit-repository', () => ({
   customerCreditRepository: {
-    findAllByOrganization: vi.fn(),
-    findActiveByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
+    findActiveBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -26,14 +26,14 @@ const managerId = '22222222-2222-4222-8222-222222222222';
 
 type Actor = NonNullable<Request['user']>;
 
-const managerActor: Actor = { id: managerId, role: 'MANAGER', organizationId: orgId } as Actor;
-const waiterActor: Actor = { id: '33333333-3333-4333-8333-333333333333', role: 'WAITER', organizationId: orgId } as Actor;
-const accountantActor: Actor = { id: '44444444-4444-4444-8444-444444444444', role: 'ACCOUNTANT', organizationId: null } as Actor;
-const chefActor: Actor = { id: '55555555-5555-4555-8555-555555555555', role: 'CHEF', organizationId: orgId } as Actor;
+const managerActor: Actor = { id: managerId, role: 'MANAGER', siteId: orgId } as Actor;
+const waiterActor: Actor = { id: '33333333-3333-4333-8333-333333333333', role: 'WAITER', siteId: orgId } as Actor;
+const accountantActor: Actor = { id: '44444444-4444-4444-8444-444444444444', role: 'ACCOUNTANT', siteId: null } as Actor;
+const chefActor: Actor = { id: '55555555-5555-4555-8555-555555555555', role: 'CHEF', siteId: orgId } as Actor;
 
 const buildAccount = (overrides = {}) => ({
   id: accountId,
-  organizationId: orgId,
+  siteId: orgId,
   customerName: 'John Doe',
   customerPhone: '+254700000001',
   creditLimit: new Prisma.Decimal(10000),
@@ -44,7 +44,7 @@ const buildAccount = (overrides = {}) => ({
   createdAt: new Date(),
   updatedAt: new Date(),
   createdBy: { id: managerId, name: 'Manager' },
-  organization: { name: 'Wendo Kingz' },
+  site: { name: 'Wendo Kingz' },
   ...overrides,
 });
 
@@ -52,16 +52,16 @@ describe('customerCreditService.list', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
   it('returns full list for manager', async () => {
-    vi.mocked(customerCreditRepository.findAllByOrganization).mockResolvedValue([buildAccount()]);
+    vi.mocked(customerCreditRepository.findAllBySite).mockResolvedValue([buildAccount()]);
     const result = await customerCreditService.list(managerActor);
-    expect(customerCreditRepository.findAllByOrganization).toHaveBeenCalledWith(orgId);
+    expect(customerCreditRepository.findAllBySite).toHaveBeenCalledWith(orgId);
     expect(result).toHaveLength(1);
   });
 
   it('returns active list for waiter', async () => {
-    vi.mocked(customerCreditRepository.findActiveByOrganization).mockResolvedValue([]);
+    vi.mocked(customerCreditRepository.findActiveBySite).mockResolvedValue([]);
     await customerCreditService.list(waiterActor);
-    expect(customerCreditRepository.findActiveByOrganization).toHaveBeenCalledWith(orgId);
+    expect(customerCreditRepository.findActiveBySite).toHaveBeenCalledWith(orgId);
   });
 
   it('throws ForbiddenError for accountant missing branchId', async () => {
@@ -69,9 +69,9 @@ describe('customerCreditService.list', () => {
   });
 
   it('uses requestedOrgId for accountant', async () => {
-    vi.mocked(customerCreditRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(customerCreditRepository.findAllBySite).mockResolvedValue([]);
     await customerCreditService.list(accountantActor, orgId);
-    expect(customerCreditRepository.findAllByOrganization).toHaveBeenCalledWith(orgId);
+    expect(customerCreditRepository.findAllBySite).toHaveBeenCalledWith(orgId);
   });
 });
 
@@ -172,7 +172,7 @@ describe('customerCreditService.getOrderHistory', () => {
   });
 
   it('throws ForbiddenError when no organizationId', async () => {
-    const noOrgActor = { ...managerActor, organizationId: null } as Actor;
+    const noOrgActor = { ...managerActor, siteId: null } as Actor;
     await expect(
       customerCreditService.getOrderHistory(noOrgActor, accountId, 1, 20),
     ).rejects.toThrow('Branch context missing');

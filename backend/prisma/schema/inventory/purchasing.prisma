@@ -11,16 +11,16 @@
 /// OrderCounter, generalized across document types instead of reset per day.
 model ReferenceCounter {
   id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
+  siteId String   @map("organization_id")
   prefix         String // "GRN", "EXP"
   lastNumber     Int      @default(0) @map("last_number")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  site Site @relation(fields: [siteId], references: [id])
 
-  @@unique([organizationId, prefix])
-  @@index([organizationId])
+  @@unique([siteId, prefix])
+  @@index([siteId])
   @@map("reference_counters")
 }
 
@@ -36,7 +36,7 @@ enum ExpectedDeliveryStatus {
 /// thing that ever moves stock.
 model ExpectedDelivery {
   id             String                 @id @default(uuid())
-  organizationId String                 @map("organization_id")
+  siteId String                 @map("organization_id")
   reference      String // "EXP-0091", generated via ReferenceCounter
   // AMENDMENT 2026-09-17 (New purchase redesign, receiving-validators.ts):
   // nullable — a purchase list may be saved with no supplier (a pure shopping
@@ -56,14 +56,14 @@ model ExpectedDelivery {
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
 
-  organization  Organization           @relation(fields: [organizationId], references: [id])
+  site  Site           @relation(fields: [siteId], references: [id])
   supplier      Supplier?              @relation(fields: [supplierId], references: [id])
   createdBy     User                   @relation("ExpectedDeliveryCreatedBy", fields: [createdById], references: [id])
   lines         ExpectedDeliveryLine[]
   goodsReceipts GoodsReceipt[]
 
-  @@unique([organizationId, reference])
-  @@index([organizationId, status])
+  @@unique([siteId, reference])
+  @@index([siteId, status])
   @@index([supplierId])
   @@map("expected_deliveries")
 }
@@ -101,7 +101,7 @@ enum GoodsReceiptStatus {
 /// first writer to InventoryTransaction (plan §0, §1.6).
 model GoodsReceipt {
   id                 String               @id @default(uuid())
-  organizationId     String               @map("organization_id")
+  siteId     String               @map("organization_id")
   reference          String // "GRN-1042", generated via ReferenceCounter
   supplierId         String               @map("supplier_id")
   expectedDeliveryId String?              @map("expected_delivery_id") // nullable: receiving without an estimate is allowed (Flow 1)
@@ -117,7 +117,7 @@ model GoodsReceipt {
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
 
-  organization      Organization             @relation(fields: [organizationId], references: [id])
+  site      Site             @relation(fields: [siteId], references: [id])
   supplier          Supplier                 @relation(fields: [supplierId], references: [id])
   expectedDelivery  ExpectedDelivery?        @relation(fields: [expectedDeliveryId], references: [id])
   location          Location                 @relation(fields: [locationId], references: [id])
@@ -127,8 +127,8 @@ model GoodsReceipt {
   invoices          SupplierInvoiceReceipt[]
   supplierDocuments SupplierDocument[]
 
-  @@unique([organizationId, reference])
-  @@index([organizationId, status])
+  @@unique([siteId, reference])
+  @@index([siteId, status])
   @@index([supplierId])
   @@index([expectedDeliveryId])
   @@map("goods_receipts")
@@ -184,7 +184,7 @@ enum DisputeStatus {
 /// Stage 10 (Supplier payment) — a running tab per supplier, Flow 14.
 model SupplierInvoice {
   id               String                @id @default(uuid())
-  organizationId   String                @map("organization_id")
+  siteId   String                @map("organization_id")
   supplierId       String                @map("supplier_id")
   invoiceNumber    String                @map("invoice_number") // supplier's own number
   invoiceDate      DateTime              @map("invoice_date")
@@ -201,7 +201,7 @@ model SupplierInvoice {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
-  organization      Organization                @relation(fields: [organizationId], references: [id])
+  site      Site                @relation(fields: [siteId], references: [id])
   supplier          Supplier                    @relation(fields: [supplierId], references: [id])
   recordedBy        User                        @relation("SupplierInvoiceRecordedBy", fields: [recordedById], references: [id])
   receipts          SupplierInvoiceReceipt[]
@@ -209,8 +209,8 @@ model SupplierInvoice {
   allocations       SupplierPaymentAllocation[]
   supplierDocuments SupplierDocument[]
 
-  @@unique([organizationId, supplierId, invoiceNumber])
-  @@index([organizationId, status])
+  @@unique([siteId, supplierId, invoiceNumber])
+  @@index([siteId, status])
   @@index([supplierId, dueDate])
   @@map("supplier_invoices")
 }
@@ -258,7 +258,7 @@ enum SupplierPaymentMethod {
 /// (negative allocation) with a reason, never an edit or delete.
 model SupplierPayment {
   id             String                @id @default(uuid())
-  organizationId String                @map("organization_id")
+  siteId String                @map("organization_id")
   supplierId     String                @map("supplier_id")
   amount         Decimal               @db.Decimal(12, 2) // may exceed the sum of allocations -> credit
   paidAt         DateTime              @map("paid_at")
@@ -269,14 +269,14 @@ model SupplierPayment {
   recordedById   String                @map("recorded_by_id")
   createdAt      DateTime              @default(now()) @map("created_at")
 
-  organization Organization                @relation(fields: [organizationId], references: [id])
+  site Site                @relation(fields: [siteId], references: [id])
   supplier     Supplier                    @relation(fields: [supplierId], references: [id])
   recordedBy   User                        @relation("SupplierPaymentRecordedBy", fields: [recordedById], references: [id])
   reversalOf   SupplierPayment?            @relation("SupplierPaymentReversal", fields: [reversalOfId], references: [id])
   reversals    SupplierPayment[]           @relation("SupplierPaymentReversal")
   allocations  SupplierPaymentAllocation[]
 
-  @@index([organizationId, supplierId])
+  @@index([siteId, supplierId])
   @@map("supplier_payments")
 }
 

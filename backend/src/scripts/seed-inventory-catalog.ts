@@ -134,34 +134,34 @@ const d = (v: Prisma.Decimal.Value) => new Prisma.Decimal(v);
 
 const run = async (): Promise<void> => {
   const storeManager = await prisma.user.findFirst({
-    where: { role: 'STORE_MANAGER', organizationId: { not: null } },
-    select: { id: true, organizationId: true },
+    where: { role: 'STORE_MANAGER', siteId: { not: null } },
+    select: { id: true, siteId: true },
   });
-  if (!storeManager || !storeManager.organizationId) {
+  if (!storeManager || !storeManager.siteId) {
     throw new Error('No STORE_MANAGER user with an organizationId found. Run seed-dev.ts first.');
   }
-  const organizationId = storeManager.organizationId;
+  const siteId = storeManager.siteId;
 
-  const organization = await prisma.organization.findUnique({ where: { id: organizationId }, select: { isHub: true } });
-  if (!organization?.isHub) {
+  const site = await prisma.site.findUnique({ where: { id: siteId }, select: { isHub: true } });
+  if (!site?.isHub) {
     throw new Error(
-      `STORE_MANAGER's organization (${organizationId}) is not the hub org — D-15 requires Central Store ` +
+      `STORE_MANAGER's organization (${siteId}) is not the hub org — D-15 requires Central Store ` +
         'data on the hub org. Run seed-dev.ts first.',
     );
   }
 
-  const location = await prisma.location.findFirst({ where: { organizationId, type: 'CENTRAL_STORE' } });
+  const location = await prisma.location.findFirst({ where: { siteId, type: 'CENTRAL_STORE' } });
   if (!location) {
     throw new Error('No CENTRAL_STORE location found. Run seed-dev.ts first.');
   }
 
-  console.log(`Seeding Inventory Milestone One catalog for hub org ${organizationId}, location ${location.id}\n`);
+  console.log(`Seeding Inventory Milestone One catalog for hub org ${siteId}, location ${location.id}\n`);
 
   // --- Categories ---
   const categoryIdByName = new Map<string, string>();
   for (const name of CATEGORIES) {
-    const existing = await prisma.category.findFirst({ where: { organizationId, name } });
-    const category = existing ?? (await prisma.category.create({ data: { organizationId, name } }));
+    const existing = await prisma.category.findFirst({ where: { siteId, name } });
+    const category = existing ?? (await prisma.category.create({ data: { siteId, name } }));
     categoryIdByName.set(name, category.id);
     console.log(`${existing ? 'SKIP ' : 'OK   '} Category: ${name}`);
   }
@@ -169,9 +169,9 @@ const run = async (): Promise<void> => {
   // --- Suppliers ---
   const supplierIdByName = new Map<string, string>();
   for (const s of SUPPLIERS) {
-    const existing = await prisma.supplier.findFirst({ where: { organizationId, name: s.name } });
+    const existing = await prisma.supplier.findFirst({ where: { siteId, name: s.name } });
     const supplier = existing ?? (await createSeedSupplier(prisma, {
-      organizationId,
+      siteId,
       name: s.name,
       contactName: s.contactName,
       categoryId: categoryIdByName.get(s.category) ?? null,
@@ -187,10 +187,10 @@ const run = async (): Promise<void> => {
   // --- Items + Central Store restock levels ---
   const ALL_ITEMS = [...SAMRAT_ITEMS, ...SUMMER_ITEMS, ...MARKET_ITEMS];
   for (const spec of ALL_ITEMS) {
-    const existing = await prisma.inventoryItem.findFirst({ where: { organizationId, name: spec.name } });
+    const existing = await prisma.inventoryItem.findFirst({ where: { siteId, name: spec.name } });
     const item = existing ?? (await prisma.inventoryItem.create({
       data: {
-        organizationId,
+        siteId,
         name: spec.name,
         type: spec.type,
         categoryId: categoryIdByName.get(spec.category) ?? null,
@@ -208,7 +208,7 @@ const run = async (): Promise<void> => {
       where: { locationId_inventoryItemId: { locationId: location.id, inventoryItemId: item.id } },
       update: {},
       create: {
-        organizationId,
+        siteId,
         locationId: location.id,
         inventoryItemId: item.id,
         level: d(spec.centralStoreLevel),

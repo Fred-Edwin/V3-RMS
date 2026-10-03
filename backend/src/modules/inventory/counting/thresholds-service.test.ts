@@ -11,15 +11,15 @@ import { UpdateBranchThresholdsSchema, UpdateDirectorThresholdSchema, UpdateStor
 import { hubOrgId, storeManager } from './count-test-fixtures';
 
 vi.mock('./thresholds-repository', () => ({
-  thresholdsRepository: { findByOrganization: vi.fn(), upsertStoreReason: vi.fn(), upsertBranch: vi.fn(), upsertDirectorAlert: vi.fn() },
+  thresholdsRepository: { findBySite: vi.fn(), upsertStoreReason: vi.fn(), upsertBranch: vi.fn(), upsertDirectorAlert: vi.fn() },
 }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 
-const director = { id: 'd1', role: 'DIRECTOR' as const, organizationId: null };
-const branchManager = { id: 'bm1', role: 'MANAGER' as const, organizationId: 'branch-1' };
+const director = { id: 'd1', role: 'DIRECTOR' as const, siteId: null };
+const branchManager = { id: 'bm1', role: 'MANAGER' as const, siteId: 'branch-1' };
 const row = (over = {}) => ({
   id: 't1',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   reasonRequiredKes: 800,
   overnightAlertKes: null,
   directorAlertKes: 5000,
@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('thresholds', () => {
   it('defaults apply when no row exists (hub 500 / Director 5,000; branch 1,000 / 500)', async () => {
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null);
     expect(await thresholdsService.get(storeManager)).toMatchObject({
       reasonRequiredKes: 500,
       overnightAlertKes: null,
@@ -57,7 +57,7 @@ describe('thresholds', () => {
   });
 
   it('reads who last changed the Store Manager value', async () => {
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(row() as never);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(row() as never);
     expect(await thresholdsService.get(storeManager)).toMatchObject({
       reasonRequiredKes: 800,
       isDefault: false,
@@ -67,7 +67,7 @@ describe('thresholds', () => {
   });
 
   it('the Store Manager write keeps the Director amount', async () => {
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(row({ directorAlertKes: 7500 }) as never);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(row({ directorAlertKes: 7500 }) as never);
     vi.mocked(thresholdsRepository.upsertStoreReason).mockResolvedValue(row({ reasonRequiredKes: 300, directorAlertKes: 7500 }) as never);
     await thresholdsService.updateStore(storeManager, { reasonRequiredKes: 300 });
     expect(thresholdsRepository.upsertStoreReason).toHaveBeenCalledWith(hubOrgId, {
@@ -90,7 +90,7 @@ describe('thresholds', () => {
   it('only a Director sets the company-wide amount', async () => {
     await expect(thresholdsService.updateDirector(storeManager as never, { directorAlertKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
     await expect(thresholdsService.updateDirector(branchManager as never, { directorAlertKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null);
     vi.mocked(thresholdsRepository.upsertDirectorAlert).mockResolvedValue(
       row({ directorAlertKes: 8000, directorUpdatedById: 'd1', directorUpdatedAt: new Date(), directorUpdatedBy: { id: 'd1', name: 'Director' } }) as never,
     );
@@ -105,15 +105,15 @@ describe('thresholds', () => {
 
   it('a Store Manager write is refused for anyone else', async () => {
     await expect(thresholdsService.updateStore(branchManager as never, { reasonRequiredKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
-    await expect(thresholdsService.updateStore({ ...storeManager, organizationId: 'x' }, { reasonRequiredKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
+    await expect(thresholdsService.updateStore({ ...storeManager, siteId: 'x' }, { reasonRequiredKes: 1 })).rejects.toMatchObject({ statusCode: 403 });
   });
 });
 
 describe('branch thresholds (Session 3)', () => {
   it('a Branch Manager writes their own branch row only — the org always comes from the actor', async () => {
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null);
     vi.mocked(thresholdsRepository.upsertBranch).mockResolvedValue(
-      row({ organizationId: 'branch-1', reasonRequiredKes: 1500, overnightAlertKes: 300, directorAlertKes: null, updatedById: 'bm1' }) as never,
+      row({ siteId: 'branch-1', reasonRequiredKes: 1500, overnightAlertKes: 300, directorAlertKes: null, updatedById: 'bm1' }) as never,
     );
     const result = await thresholdsService.updateBranch(branchManager as never, { reasonRequiredKes: 1500, overnightAlertKes: 300 });
     expect(thresholdsRepository.upsertBranch).toHaveBeenCalledWith('branch-1', { reasonRequiredKes: 1500, overnightAlertKes: 300, updatedById: 'bm1' });
@@ -130,7 +130,7 @@ describe('branch thresholds (Session 3)', () => {
 
   it('a Branch Manager cannot send the Director amount or another org; values are bounded', () => {
     expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1, directorAlertKes: 9 }).success).toBe(false);
-    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1, organizationId: 'x' }).success).toBe(false);
+    expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1, overnightAlertKes: 1, siteId: 'x' }).success).toBe(false);
     expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 1 }).success).toBe(false);
     expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: -1, overnightAlertKes: 1 }).success).toBe(false);
     expect(UpdateBranchThresholdsSchema.safeParse({ reasonRequiredKes: 0, overnightAlertKes: 1_000_000 }).success).toBe(true);

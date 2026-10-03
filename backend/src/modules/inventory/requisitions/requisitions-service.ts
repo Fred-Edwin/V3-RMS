@@ -68,10 +68,10 @@ const requireManager = (actor: Actor): void => {
 };
 
 const requireBranchOrg = (actor: Actor): string => {
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ValidationError('Branch context missing for this user');
   }
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 /**
@@ -82,7 +82,7 @@ const requireBranchOrg = (actor: Actor): string => {
  * `requireHubOrgForCatalogRead` use, duplicated locally per this module's
  * own-repository convention (prep/receiving precedent).
  */
-const requireHubOrganization = async (): Promise<string> => {
+const requireHubSite = async (): Promise<string> => {
   const hub = await branchRepository.findHub();
   if (!hub) {
     throw new ValidationError('No hub organization is configured');
@@ -158,13 +158,13 @@ const resolveParentCategoryNames = async (
  * null — no fallback, no zero (session-a-plan.md §2).
  */
 const resolveParAtRequest = async (
-  organizationId: string,
+  siteId: string,
   departmentTag: DepartmentTag,
   inventoryItemId: string,
 ): Promise<Prisma.Decimal | null> => {
-  const location = await locationRepository.findByOrganizationTypeDepartment(organizationId, 'BRANCH_DEPARTMENT', departmentTag);
+  const location = await locationRepository.findBySiteTypeDepartment(siteId, 'BRANCH_DEPARTMENT', departmentTag);
   if (!location) return null;
-  const levels = await restockLevelRepository.findByItemIdsForLocation(organizationId, location.id, [inventoryItemId]);
+  const levels = await restockLevelRepository.findByItemIdsForLocation(siteId, location.id, [inventoryItemId]);
   return levels.get(inventoryItemId) ?? null;
 };
 
@@ -312,24 +312,24 @@ const NOT_SUBMITTED_STATUSES: RequisitionSectionStatus[] = ['NOT_STARTED', 'DRAF
  * `notifyHubStoreManagersOfSignedReceipt` shape. Never awaited by the caller;
  * a rejected promise here must never fail the write that triggered it.
  */
-const notifyManagersOfSubmission = async (organizationId: string, requisitionId: string, departmentTag: DepartmentTag, actorId: string): Promise<void> => {
-  const managers = await requisitionRepository.findBranchManagers(organizationId);
+const notifyManagersOfSubmission = async (siteId: string, requisitionId: string, departmentTag: DepartmentTag, actorId: string): Promise<void> => {
+  const managers = await requisitionRepository.findBranchManagers(siteId);
   const recipientIds = managers.map((m) => m.id).filter((id) => id !== actorId);
   if (recipientIds.length === 0) return;
   const payload = { requisitionId, departmentTag };
   recipientIds.forEach((id) => socketService.emitRequisitionSubmitted(id, payload));
-  await fcmService.sendRequisitionSubmittedPush(organizationId, payload);
+  await fcmService.sendRequisitionSubmittedPush(siteId, payload);
 };
 
 const notifyHeadsOfApproval = async (
-  organizationId: string,
+  siteId: string,
   requisition: RequisitionWithAllSections,
   actorId: string,
 ): Promise<void> => {
   const seen = new Set<string>();
   for (const section of requisition.sections) {
     if (section.status !== 'SUBMITTED') continue; // unsubmitted sections were never part of this decision
-    const heads = await requisitionRepository.findSectionHeads(organizationId, section.departmentTag, section.submittedBy?.id ?? null);
+    const heads = await requisitionRepository.findSectionHeads(siteId, section.departmentTag, section.submittedBy?.id ?? null);
     for (const head of heads) {
       if (head.id === actorId || seen.has(head.id)) continue;
       seen.add(head.id);
@@ -353,8 +353,8 @@ const notifyHeadOfReturn = async (
   await fcmService.sendRequisitionSectionReturnedPush(headId, payload);
 };
 
-const notifyHeadOfNudge = async (organizationId: string, departmentTag: DepartmentTag, requisitionId: string, actorId: string): Promise<void> => {
-  const heads = await requisitionRepository.findSectionHeads(organizationId, departmentTag, null);
+const notifyHeadOfNudge = async (siteId: string, departmentTag: DepartmentTag, requisitionId: string, actorId: string): Promise<void> => {
+  const heads = await requisitionRepository.findSectionHeads(siteId, departmentTag, null);
   for (const head of heads) {
     if (head.id === actorId) continue;
     const payload = { requisitionId, departmentTag };
@@ -365,19 +365,19 @@ const notifyHeadOfNudge = async (organizationId: string, departmentTag: Departme
 
 export const requisitionService = {
   openRequisition: async (actor: Actor, input: OpenRequisitionInput): Promise<RequisitionListRow> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     if (!actor.departmentTag) {
       throw new ValidationError('This user has no department assigned');
     }
 
     const created = await requisitionRepository.create({
-      organizationId,
+      siteId,
       type: input.type,
       note: input.note,
       openedById: actor.id,
     });
 
-    const withSections = await requisitionRepository.findAllByOrganization(organizationId, 1);
+    const withSections = await requisitionRepository.findAllBySite(siteId, 1);
     const row = withSections.find((r) => r.id === created.id);
     if (!row) throw new NotFoundError('Requisition not found');
     return serializeListRow(row, actor.departmentTag as DepartmentTag);
@@ -392,37 +392,37 @@ export const requisitionService = {
    * resubmit is the only path from there, not cancel.
    */
   cancelRequisition: async (actor: Actor, requisitionId: string): Promise<void> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     if (!actor.departmentTag) {
       throw new ValidationError('This user has no department assigned');
     }
 
-    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findById(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
     if (requisition.openedById !== actor.id) {
       throw new ForbiddenError('You may only cancel a requisition you opened');
     }
 
-    const cancelled = await requisitionRepository.cancel(requisitionId, organizationId);
+    const cancelled = await requisitionRepository.cancel(requisitionId, siteId);
     if (!cancelled) {
       throw new ConflictError('This requisition can no longer be cancelled — a section has already been submitted');
     }
   },
 
   listRequisitions: async (actor: Actor, query: ListRequisitionsQuery): Promise<RequisitionListRow[]> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     if (!actor.departmentTag) {
       throw new ValidationError('This user has no department assigned');
     }
-    const rows = await requisitionRepository.findAllByOrganization(organizationId, query.limit);
+    const rows = await requisitionRepository.findAllBySite(siteId, query.limit);
     return rows.map((row) => serializeListRow(row, actor.departmentTag as DepartmentTag));
   },
 
   getSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
     assertOwnDepartment(actor, departmentTag);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
 
     const parentNames = await resolveParentCategoryNames(section);
@@ -443,9 +443,9 @@ export const requisitionService = {
     input: UpsertRequisitionLinesInput,
   ): Promise<RequisitionSectionDetail> => {
     assertOwnDepartment(actor, departmentTag);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
     if (section.status === 'SUBMITTED' || section.status === 'RETURNED') {
       throw new ConflictError('This section cannot be edited in its current state');
@@ -455,7 +455,7 @@ export const requisitionService = {
     if (newItemIds.length > 0) {
       // The catalog lives on the hub org (D-15), not this branch — validate
       // against the hub, never `organizationId` (the branch).
-      const hubOrgId = await requireHubOrganization();
+      const hubOrgId = await requireHubSite();
       const liveItems = await inventoryItemRepository.findLiveByIds(newItemIds, hubOrgId);
       if (liveItems.length !== new Set(newItemIds).size) {
         throw new NotFoundError('One or more items were not found');
@@ -469,7 +469,7 @@ export const requisitionService = {
           // Zero-not-delete: "0" is a real value, the row stays.
           await requisitionRepository.updateLineQty(line.id, requestedQty, tx);
         } else if (line.inventoryItemId) {
-          const parAtRequest = await resolveParAtRequest(organizationId, departmentTag, line.inventoryItemId);
+          const parAtRequest = await resolveParAtRequest(siteId, departmentTag, line.inventoryItemId);
           await requisitionRepository.createLine(
             section.id,
             { inventoryItemId: line.inventoryItemId, requestedQty, parAtRequest },
@@ -496,9 +496,9 @@ export const requisitionService = {
   /** NOT_STARTED/DRAFT -> SUBMITTED; flips parent Requisition.status OPEN -> PENDING_APPROVAL only on the first section submitted. */
   submitSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
     assertOwnDepartment(actor, departmentTag);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
 
     await prisma.$transaction(async (tx) => {
@@ -523,7 +523,7 @@ export const requisitionService = {
     // Session A shipped this endpoint with no notification at all — the
     // manager's "Awaiting your approval" badge never lit up. Fire-and-forget,
     // after commit, actor filtered out.
-    void notifyManagersOfSubmission(organizationId, requisitionId, departmentTag, actor.id);
+    void notifyManagersOfSubmission(siteId, requisitionId, departmentTag, actor.id);
 
     return requisitionService.getSection(actor, requisitionId, departmentTag);
   },
@@ -531,15 +531,15 @@ export const requisitionService = {
   /** SUBMITTED -> DRAFT; rejected if Requisition.status === 'APPROVED'. */
   recallSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<RequisitionSectionDetail> => {
     assertOwnDepartment(actor, departmentTag);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findById(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
     if (requisition.status === 'APPROVED') {
       throw new ConflictError('This requisition has already been approved and can no longer be recalled');
     }
 
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
 
     const count = await prisma.$transaction((tx) =>
@@ -559,16 +559,16 @@ export const requisitionService = {
   /** Manager's needs-approval list. Deliberately a new literal path (decision #9) — Session A's list contract stays untouched. */
   listForManagerApproval: async (actor: Actor, query: ListNeedsApprovalQuery): Promise<RequisitionManagerListRow[]> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
-    const rows = await requisitionRepository.findAllByOrganizationForManager(organizationId, query.limit);
+    const siteId = requireBranchOrg(actor);
+    const rows = await requisitionRepository.findAllBySiteForManager(siteId, query.limit);
     return rows.map(serializeManagerListRow);
   },
 
   getRequisitionForApproval: async (actor: Actor, requisitionId: string): Promise<RequisitionApprovalDetail> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
 
     const parentNames = await resolveParentCategoryNamesForLines(requisition.sections.flatMap((s) => s.lines));
@@ -577,9 +577,9 @@ export const requisitionService = {
 
   listHistory: async (actor: Actor, query: ListRequisitionHistoryQuery): Promise<RequisitionHistoryRow[]> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const rows = await requisitionRepository.findHistoryRows(organizationId, {
+    const rows = await requisitionRepository.findHistoryRows(siteId, {
       from: query.from ? new Date(query.from) : undefined,
       to: query.to ? new Date(query.to) : undefined,
       status: query.status,
@@ -606,21 +606,21 @@ export const requisitionService = {
     input: UpsertApprovalLinesInput,
   ): Promise<RequisitionApprovalDetail> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findById(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
     if (requisition.status === 'APPROVED') {
       throw new ConflictError('This requisition has already been approved');
     }
 
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
     const existingById = new Map(section.lines.map((l) => [l.id, l]));
 
     const newItemIds = input.lines.filter((l) => !l.id && l.inventoryItemId).map((l) => l.inventoryItemId!);
     if (newItemIds.length > 0) {
-      const hubOrgId = await requireHubOrganization();
+      const hubOrgId = await requireHubSite();
       const liveItems = await inventoryItemRepository.findLiveByIds(newItemIds, hubOrgId);
       if (liveItems.length !== new Set(newItemIds).size) {
         throw new NotFoundError('One or more items were not found');
@@ -679,15 +679,15 @@ export const requisitionService = {
   /** SUBMITTED -> RETURNED with the manager's note. Rejected on an already-approved requisition. */
   returnSection: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag, input: ReturnSectionInput): Promise<RequisitionApprovalDetail> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const requisition = await requisitionRepository.findById(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findById(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
     if (requisition.status === 'APPROVED') {
       throw new ConflictError('This requisition has already been approved');
     }
 
-    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionWithLines(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
 
     const count = await prisma.$transaction((tx) =>
@@ -703,15 +703,15 @@ export const requisitionService = {
   /** Pure notification — no state change. Section must be NOT_STARTED/DRAFT (a submitted section needs no nudge). */
   nudgeHead: async (actor: Actor, requisitionId: string, departmentTag: DepartmentTag): Promise<void> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
-    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, organizationId);
+    const section = await requisitionRepository.findSectionById(requisitionId, departmentTag, siteId);
     if (!section) throw new NotFoundError('Requisition section not found');
     if (!NOT_SUBMITTED_STATUSES.includes(section.status)) {
       throw new ConflictError('This section has already been submitted');
     }
 
-    void notifyHeadOfNudge(organizationId, departmentTag, requisitionId, actor.id);
+    void notifyHeadOfNudge(siteId, departmentTag, requisitionId, actor.id);
   },
 
   /**
@@ -721,7 +721,7 @@ export const requisitionService = {
    */
   approveRequisition: async (actor: Actor, requisitionId: string, input: ApproveRequisitionInput): Promise<RequisitionApprovalDetail> => {
     requireManager(actor);
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
 
     const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
     if (!actorWithPin || !actorWithPin.pinHash) {
@@ -730,7 +730,7 @@ export const requisitionService = {
     const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
     if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
 
-    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    const requisition = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
     if (!requisition) throw new NotFoundError('Requisition not found');
     if (requisition.status === 'APPROVED') {
       throw new ConflictError('This requisition has already been approved');
@@ -775,10 +775,10 @@ export const requisitionService = {
       }
     });
 
-    const approved = await requisitionRepository.findByIdWithAllSections(requisitionId, organizationId);
+    const approved = await requisitionRepository.findByIdWithAllSections(requisitionId, siteId);
     if (!approved) throw new NotFoundError('Requisition not found');
 
-    void notifyHeadsOfApproval(organizationId, approved, actor.id);
+    void notifyHeadsOfApproval(siteId, approved, actor.id);
 
     const parentNames = await resolveParentCategoryNamesForLines(approved.sections.flatMap((s) => s.lines));
     return serializeApprovalDetail(approved, parentNames);

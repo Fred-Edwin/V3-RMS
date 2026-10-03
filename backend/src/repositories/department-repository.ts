@@ -13,17 +13,17 @@ const staffSelect = {
 } as const;
 
 export const departmentRepository = {
-  findOrganization: async (organizationId: string) => {
-    return prisma.organization.findUnique({
-      where: { id: organizationId },
+  findSite: async (siteId: string) => {
+    return prisma.site.findUnique({
+      where: { id: siteId },
       select: { id: true, name: true, isHub: true, isActive: true },
     });
   },
 
-  findHeadByDepartment: async (organizationId: string, departmentTag: DepartmentTag) => {
+  findHeadByDepartment: async (siteId: string, departmentTag: DepartmentTag) => {
     return prisma.user.findFirst({
       where: {
-        organizationId,
+        siteId,
         departmentTag,
         isDepartmentHead: true,
         isActive: true,
@@ -32,18 +32,18 @@ export const departmentRepository = {
     });
   },
 
-  listMembersByDepartment: async (organizationId: string, departmentTag: DepartmentTag) => {
+  listMembersByDepartment: async (siteId: string, departmentTag: DepartmentTag) => {
     // Department membership for scheduling is role-derived (see utils/departments):
     // the worked roles for this department. The head is one of those roles too,
     // so no separate clause is needed. The count is just `members.length`.
     return prisma.user.findMany({
-      where: { organizationId, isActive: true, ...departmentScopeFilter(departmentTag) },
+      where: { siteId, isActive: true, ...departmentScopeFilter(departmentTag) },
       select: { id: true, name: true, role: true },
       orderBy: { name: 'asc' },
     });
   },
 
-  findEligibleStaff: async (organizationId: string, departmentTag: DepartmentTag) => {
+  findEligibleStaff: async (siteId: string, departmentTag: DepartmentTag) => {
     // Eligible = active staff at this branch whose worked role belongs to this
     // department (role-derived membership, see utils/departments — KITCHEN also
     // covers PASTRY). Anyone already heading a department is excluded: change a
@@ -51,7 +51,7 @@ export const departmentRepository = {
     // department a person heads.
     return prisma.user.findMany({
       where: {
-        organizationId,
+        siteId,
         isActive: true,
         isDepartmentHead: false,
         ...departmentScopeFilter(departmentTag),
@@ -61,15 +61,15 @@ export const departmentRepository = {
     });
   },
 
-  findStaffById: async (id: string, organizationId: string) => {
+  findStaffById: async (id: string, siteId: string) => {
     return prisma.user.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       select: {
         id: true,
         name: true,
         role: true,
         isActive: true,
-        organizationId: true,
+        siteId: true,
         departmentTag: true,
         isDepartmentHead: true,
       },
@@ -84,7 +84,7 @@ export const departmentRepository = {
       // never two heads for the same (branch, department) simultaneously.
       const currentHead = await tx.user.findFirst({
         where: {
-          organizationId: user.organizationId,
+          siteId: user.siteId,
           departmentTag,
           isDepartmentHead: true,
           id: { not: userId },

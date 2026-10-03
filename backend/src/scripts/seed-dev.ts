@@ -69,7 +69,7 @@ const upsertUser = async (
   email: string,
   name: string,
   role: UserRole,
-  organizationId: string,
+  siteId: string,
   passwordHash: string,
   pinHash?: string,
 ): Promise<boolean> => {
@@ -83,14 +83,14 @@ const upsertUser = async (
   }
 
   await prisma.user.create({
-    data: { name, email, role, organizationId, passwordHash, pinHash, isActive: true },
+    data: { name, email, role, siteId, passwordHash, pinHash, isActive: true },
   });
 
   return true; // created
 };
 
 const run = async (): Promise<void> => {
-  const orgs = await prisma.organization.findMany({
+  const orgs = await prisma.site.findMany({
     where: { isActive: true },
     orderBy: { createdAt: 'asc' },
     select: { id: true, name: true, isHub: true },
@@ -139,12 +139,12 @@ const run = async (): Promise<void> => {
   // locations_single_central_store (one CENTRAL_STORE system-wide) still
   // guards against duplicates at the DB level regardless.
   let centralStore = await prisma.location.findFirst({
-    where: { organizationId: hubOrg.id, type: 'CENTRAL_STORE' },
+    where: { siteId: hubOrg.id, type: 'CENTRAL_STORE' },
   });
   if (!centralStore) {
     centralStore = await prisma.location.create({
       data: {
-        organizationId: hubOrg.id,
+        siteId: hubOrg.id,
         type: 'CENTRAL_STORE',
         name: 'Central Store',
       },

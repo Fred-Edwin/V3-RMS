@@ -5,13 +5,14 @@ import { z } from 'zod';
 import { env } from '../config/env';
 import { verifyAccessToken } from '../utils/jwt';
 import { logger } from '../utils/logger';
+import { fromWire, toWire } from '../shared/utils/wire-names';
 
 const joinBranchSchema = z.object({
-  organizationId: z.string().uuid(),
+  siteId: z.string().uuid(),
 });
 
 const joinStationSchema = z.object({
-  organizationId: z.string().uuid(),
+  siteId: z.string().uuid(),
   station: z.enum(['KITCHEN', 'BARISTA', 'PIZZA', 'PASTRY']),
 });
 
@@ -19,15 +20,15 @@ const joinUserSchema = z.object({
   userId: z.string().uuid(),
 });
 
-export const branchRoomName = (organizationId: string): string => `branch:${organizationId}`;
-export const stationRoomName = (organizationId: string, station: PrepStation): string =>
-  `branch:${organizationId}:${station.toLowerCase()}`;
+export const branchRoomName = (siteId: string): string => `branch:${siteId}`;
+export const stationRoomName = (siteId: string, station: PrepStation): string =>
+  `branch:${siteId}:${station.toLowerCase()}`;
 export const userRoomName = (userId: string): string => `user:${userId}`;
 
 interface SocketAuthContext {
   userId: string;
   role: UserRole;
-  organizationId: string | null;
+  siteId: string | null;
 }
 
 interface SocketData {
@@ -55,6 +56,16 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
     },
   });
 
+  // Every room emit leaves with wire names ("organizationId", ...), same as the REST API.
+  const to = io.to.bind(io);
+  io.to = ((room: Parameters<typeof io.to>[0]) => {
+    const operator = to(room);
+    const emit = operator.emit.bind(operator);
+    operator.emit = ((event: string, ...args: unknown[]) =>
+      emit(event, ...args.map((arg) => toWire(arg)))) as typeof operator.emit;
+    return operator;
+  }) as typeof io.to;
+
   io.use((socket, next) => {
     const token = socket.handshake.auth?.['token'];
     if (typeof token !== 'string' || token.length === 0) {
@@ -67,7 +78,7 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
       (socket.data as SocketData).auth = {
         userId: payload.userId,
         role: payload.role,
-        organizationId: payload.organizationId,
+        siteId: payload.siteId,
       };
       next();
     } catch {
@@ -88,31 +99,31 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
     }
 
     socket.on('join:branch', (payload: unknown) => {
-      const parsedPayload = joinBranchSchema.safeParse(payload);
+      const parsedPayload = joinBranchSchema.safeParse(fromWire(payload));
       if (!parsedPayload.success) {
         socket.emit('error:join:branch', { message: 'Invalid organizationId payload.' });
         return;
       }
 
-      if (!auth.organizationId || auth.organizationId !== parsedPayload.data.organizationId) {
+      if (!auth.siteId || auth.siteId !== parsedPayload.data.siteId) {
         socket.emit('error:join:branch', { message: 'Unauthorized branch room join.' });
         return;
       }
 
-      const room = branchRoomName(parsedPayload.data.organizationId);
+      const room = branchRoomName(parsedPayload.data.siteId);
       socket.join(room);
       socket.emit('joined:branch', { room });
       logger.info({ socketId: socket.id, room }, 'Socket client joined branch room');
     });
 
     socket.on('join:station', (payload: unknown) => {
-      const parsedPayload = joinStationSchema.safeParse(payload);
+      const parsedPayload = joinStationSchema.safeParse(fromWire(payload));
       if (!parsedPayload.success) {
         socket.emit('error:join:station', { message: 'Invalid station room payload.' });
         return;
       }
 
-      if (!auth.organizationId || auth.organizationId !== parsedPayload.data.organizationId) {
+      if (!auth.siteId || auth.siteId !== parsedPayload.data.siteId) {
         socket.emit('error:join:station', { message: 'Unauthorized station room join.' });
         return;
       }
@@ -122,7 +133,7 @@ export const createSocketServer = (httpServer: HttpServer): Server => {
         return;
       }
 
-      const room = stationRoomName(parsedPayload.data.organizationId, parsedPayload.data.station);
+      const room = stationRoomName(parsedPayload.data.siteId, parsedPayload.data.station);
       socket.join(room);
       socket.emit('joined:station', { room, station: parsedPayload.data.station });
       logger.info({ socketId: socket.id, room, station: parsedPayload.data.station }, 'Socket client joined station room');

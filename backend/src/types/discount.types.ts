@@ -2,7 +2,7 @@ import type { CustomerDiscountAuthStatus, DiscountType } from '@prisma/client';
 
 export interface DiscountRecord {
   id: string;
-  organizationId: string | null;
+  siteId: string | null;
   name: string;
   type: DiscountType;
   value: string;
@@ -16,7 +16,7 @@ export interface DiscountRecord {
 
 export interface CustomerDiscountAuthRequestRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string;
   discountId: string;
   requestedById: string;

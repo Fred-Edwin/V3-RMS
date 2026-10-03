@@ -21,7 +21,7 @@ export interface DirectMessageRecord {
 
 export interface DirectConversationRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   otherParticipant: ConversationParticipant;
   lastMessage: DirectMessageRecord | null;
   unreadCount: number;
@@ -30,7 +30,7 @@ export interface DirectConversationRecord {
 
 export interface BroadcastRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   sender: { id: string; name: string };
   scope: BroadcastScopeValue;
   targetRole: string | null;
@@ -57,7 +57,7 @@ export interface BroadcastRecipientStatusRecord {
 
 export interface FormalNoticeRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   issuer: { id: string; name: string };
   subject: string;
   bodyHtml: string;

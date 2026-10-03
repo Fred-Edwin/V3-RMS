@@ -8,18 +8,18 @@ import { signAccessToken } from '../src/utils/jwt';
 // were added to ALL_STAFF in hr-routes.ts. These self-service leave routes
 // previously returned 403 for both roles.
 
-const organizationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const siteId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 const managerToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'STORE_MANAGER',
-  organizationId,
+  siteId,
 });
 
 const attendantToken = signAccessToken({
   userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   role: 'STORE_ATTENDANT',
-  organizationId,
+  siteId,
 });
 
 describe('Store roles — leave self-service RBAC', () => {

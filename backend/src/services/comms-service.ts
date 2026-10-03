@@ -75,19 +75,19 @@ export const commsService = {
     actor: Actor,
     query: GetConversationsQueryInput,
   ): Promise<{ conversations: DirectConversationRecord[]; nextCursor: string | null }> => {
-    const rows = actor.organizationId
-      ? await commsRepository.findConversationsByUser(actor.id, actor.organizationId, query.limit, query.cursor)
+    const rows = actor.siteId
+      ? await commsRepository.findConversationsByUser(actor.id, actor.siteId, query.limit, query.cursor)
       : await commsRepository.findConversationsByUserAnyOrg(actor.id, query.limit, query.cursor);
 
     const conversations: DirectConversationRecord[] = await Promise.all(
       rows.map(async (row) => {
         const other =
           row.participantAId === actor.id ? row.participantB : row.participantA;
-        const unreadCount = await commsRepository.countUnreadInConversation(row.id, actor.id, row.organizationId);
+        const unreadCount = await commsRepository.countUnreadInConversation(row.id, actor.id, row.siteId);
         const lastMsg = row.messages[0] ?? null;
         return {
           id: row.id,
-          organizationId: row.organizationId,
+          siteId: row.siteId,
           otherParticipant: { id: other.id, name: other.name, role: other.role },
           lastMessage: lastMsg ? serializeMessage(lastMsg as Parameters<typeof serializeMessage>[0]) : null,
           unreadCount,
@@ -111,14 +111,14 @@ export const commsService = {
 
     // Resolve org: use actor's org, else recipient's org, else any org (for
     // cross-branch users like DIRECTOR ↔ ACCOUNTANT who both have no branch).
-    let orgId = actor.organizationId;
+    let orgId = actor.siteId;
     if (!orgId) {
-      orgId = await commsRepository.findUserOrganizationId(input.recipientId);
+      orgId = await commsRepository.findUserSiteId(input.recipientId);
     }
     if (!orgId) {
       // Both users are unscoped (e.g. DIRECTOR ↔ ACCOUNTANT) — use any org as
       // the conversation container since DMs require an org scope in the schema.
-      orgId = await commsRepository.findFirstOrganizationId();
+      orgId = await commsRepository.findFirstSiteId();
     }
     if (!orgId) throw new ForbiddenError('Cannot determine organization for this conversation');
 
@@ -132,7 +132,7 @@ export const commsService = {
     const other = row.participantAId === actor.id ? row.participantB : row.participantA;
     return {
       id: row.id,
-      organizationId: row.organizationId,
+      siteId: row.siteId,
       otherParticipant: { id: other.id, name: other.name, role: other.role },
       lastMessage: null,
       unreadCount: 0,
@@ -151,7 +151,7 @@ export const commsService = {
 
     const rows = await commsRepository.findMessagesByConversation(
       conversationId,
-      conv.organizationId,
+      conv.siteId,
       query.limit,
       query.before,
     );
@@ -163,7 +163,7 @@ export const commsService = {
     conversationId: string,
     input: SendDirectMessageInput,
   ): Promise<DirectMessageRecord> => {
-    const conv = await commsRepository.findConversationById(conversationId, actor.organizationId);
+    const conv = await commsRepository.findConversationById(conversationId, actor.siteId);
     if (!conv) throw new NotFoundError('Conversation not found');
 
     const isParticipant =
@@ -175,7 +175,7 @@ export const commsService = {
 
     const msg = await commsRepository.createDirectMessage({
       conversationId,
-      organizationId: conv.organizationId,
+      siteId: conv.siteId,
       senderId: actor.id,
       bodyHtml: input.bodyHtml,
       attachmentUrl: input.attachmentUrl,
@@ -234,8 +234,8 @@ export const commsService = {
     actor: Actor,
     query: ListQueryInput,
   ): Promise<{ broadcasts: BroadcastRecord[]; pagination: PaginationMeta }> => {
-    const { total, broadcasts } = actor.organizationId
-      ? await commsRepository.findBroadcastsByOrganization(actor.organizationId, query.page, query.perPage, actor.id)
+    const { total, broadcasts } = actor.siteId
+      ? await commsRepository.findBroadcastsBySite(actor.siteId, query.page, query.perPage, actor.id)
       : await commsRepository.findBroadcastsForDirector(actor.id, query.page, query.perPage);
 
     const serialized: BroadcastRecord[] = (broadcasts as Array<typeof broadcasts[number] & { recipients?: Array<{ readAt: Date | null; acknowledgedAt: Date | null }> }>).map((b) => {
@@ -243,7 +243,7 @@ export const commsService = {
       const myRecipient = Array.isArray(recipientsArr) ? (recipientsArr[0] ?? null) : null;
       return {
         id: b.id,
-        organizationId: b.organizationId,
+        siteId: b.siteId,
         sender: { id: b.sender.id, name: b.sender.name },
         scope: b.scope,
         targetRole: b.targetRole,
@@ -274,13 +274,13 @@ export const commsService = {
   },
 
   getBroadcastDetail: async (actor: Actor, broadcastId: string): Promise<BroadcastRecord> => {
-    const result = await commsRepository.findBroadcastById(broadcastId, actor.organizationId, actor.id);
+    const result = await commsRepository.findBroadcastById(broadcastId, actor.siteId, actor.id);
     if (!result) throw new NotFoundError('Broadcast not found');
 
     const { broadcast: b, readCount, ackCount, myRecipient } = result;
     return {
       id: b.id,
-      organizationId: b.organizationId,
+      siteId: b.siteId,
       sender: { id: b.sender.id, name: b.sender.name },
       scope: b.scope,
       targetRole: b.targetRole,
@@ -301,7 +301,7 @@ export const commsService = {
 
   sendBroadcast: async (actor: Actor, input: SendBroadcastInput): Promise<BroadcastRecord> => {
     // DIRECTOR has no organizationId; they must specify a target branch or COMPANY scope
-    if (!actor.organizationId && input.scope !== 'COMPANY' && !input.targetBranchId) {
+    if (!actor.siteId && input.scope !== 'COMPANY' && !input.targetBranchId) {
       throw new ForbiddenError('Director must specify a target branch or use COMPANY scope');
     }
 
@@ -312,19 +312,19 @@ export const commsService = {
 
     // For COMPANY scope by a Director (no orgId), pick any org as the hub anchor
     // for the broadcast record FK — recipients still fan out across all orgs.
-    let targetOrgId = input.targetBranchId ?? actor.organizationId ?? '';
+    let targetOrgId = input.targetBranchId ?? actor.siteId ?? '';
     if (!targetOrgId) {
-      targetOrgId = (await commsRepository.findFirstOrganizationId()) ?? '';
+      targetOrgId = (await commsRepository.findFirstSiteId()) ?? '';
     }
 
-    if (actor.role === 'MANAGER' && targetOrgId !== actor.organizationId) {
+    if (actor.role === 'MANAGER' && targetOrgId !== actor.siteId) {
       throw new ForbiddenError('Managers can only send broadcasts to their own branch');
     }
 
     // For COMPANY scope (DIRECTOR only), fan out to all active orgs
     let hubOrgIds: string[] | undefined;
     if (input.scope === 'COMPANY') {
-      const allOrgs = await commsRepository.findAllActiveOrganizationIds();
+      const allOrgs = await commsRepository.findAllActiveSiteIds();
       hubOrgIds = allOrgs;
     }
 
@@ -339,7 +339,7 @@ export const commsService = {
 
     const broadcast = await commsRepository.createBroadcast(
       {
-        organizationId: targetOrgId,
+        siteId: targetOrgId,
         senderId: actor.id,
         scope: input.scope,
         targetRole: input.targetRole as Parameters<typeof commsRepository.createBroadcast>[0]['targetRole'],
@@ -375,7 +375,7 @@ export const commsService = {
 
     return {
       id: broadcast.id,
-      organizationId: broadcast.organizationId,
+      siteId: broadcast.siteId,
       sender: { id: broadcast.sender.id, name: broadcast.sender.name },
       scope: broadcast.scope,
       targetRole: broadcast.targetRole,
@@ -447,8 +447,8 @@ export const commsService = {
     actor: Actor,
     query: ListQueryInput,
   ): Promise<{ notices: FormalNoticeRecord[]; pagination: PaginationMeta }> => {
-    const { total, notices } = actor.organizationId
-      ? await commsRepository.findNoticesByOrganization(actor.organizationId, query.page, query.perPage, actor.id)
+    const { total, notices } = actor.siteId
+      ? await commsRepository.findNoticesBySite(actor.siteId, query.page, query.perPage, actor.id)
       : await commsRepository.findNoticesForDirector(actor.id, query.page, query.perPage);
 
     const serialized: FormalNoticeRecord[] = (notices as Array<typeof notices[number] & { recipients?: Array<{ acknowledgedAt: Date | null }> }>).map((n) => {
@@ -456,7 +456,7 @@ export const commsService = {
       const myRecipient = Array.isArray(recipientsArr2) ? (recipientsArr2[0] ?? null) : null;
       return {
         id: n.id,
-        organizationId: n.organizationId,
+        siteId: n.siteId,
         issuer: { id: n.issuer.id, name: n.issuer.name },
         subject: n.subject,
         bodyHtml: n.bodyHtml,
@@ -482,13 +482,13 @@ export const commsService = {
   },
 
   getNoticeDetail: async (actor: Actor, noticeId: string): Promise<FormalNoticeRecord> => {
-    const result = await commsRepository.findNoticeById(noticeId, actor.organizationId, actor.id);
+    const result = await commsRepository.findNoticeById(noticeId, actor.siteId, actor.id);
     if (!result) throw new NotFoundError('Notice not found');
 
     const { notice: n, ackCount, myRecipient } = result;
     return {
       id: n.id,
-      organizationId: n.organizationId,
+      siteId: n.siteId,
       issuer: { id: n.issuer.id, name: n.issuer.name },
       subject: n.subject,
       bodyHtml: n.bodyHtml,
@@ -508,14 +508,14 @@ export const commsService = {
 
     if (input.targetUserId) {
       // Individual targeting — one specific staff member
-      const userOrgId = await commsRepository.findUserOrganizationId(input.targetUserId);
+      const userOrgId = await commsRepository.findUserSiteId(input.targetUserId);
       // Use user's org, or if both are null (e.g. Director → Director), fall back to first org
-      targetOrgId = userOrgId ?? actor.organizationId ?? (await commsRepository.findFirstOrganizationId()) ?? '';
+      targetOrgId = userOrgId ?? actor.siteId ?? (await commsRepository.findFirstSiteId()) ?? '';
       if (!targetOrgId) throw new ForbiddenError('Cannot determine organization for notice');
       recipientIds = [input.targetUserId].filter((id) => id !== actor.id);
     } else if (input.allBranches) {
       // All-branches — company-wide notice
-      const allOrgIds = await commsRepository.findAllActiveOrganizationIds();
+      const allOrgIds = await commsRepository.findAllActiveSiteIds();
       if (allOrgIds.length === 0) throw new ForbiddenError('No active branches found');
       // Anchor organizationId to first org (same pattern as COMPANY broadcasts)
       targetOrgId = allOrgIds[0]!;
@@ -533,11 +533,11 @@ export const commsService = {
       recipientIds = [...new Set(recipientIds)];
     } else {
       // Single branch (original behaviour)
-      if (!actor.organizationId && !input.targetBranchId) {
+      if (!actor.siteId && !input.targetBranchId) {
         throw new ForbiddenError('Director must specify a target branch when issuing a formal notice');
       }
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      targetOrgId = (input.targetBranchId ?? actor.organizationId)!;
+      targetOrgId = (input.targetBranchId ?? actor.siteId)!;
       const branchUsers = await commsRepository.findUsersForBroadcastScope(
         input.targetRole ? 'ROLE_GROUP' : 'BRANCH',
         targetOrgId,
@@ -548,7 +548,7 @@ export const commsService = {
 
     const notice = await commsRepository.createFormalNotice(
       {
-        organizationId: targetOrgId,
+        siteId: targetOrgId,
         issuerId: actor.id,
         subject: input.subject,
         bodyHtml: input.bodyHtml,
@@ -569,7 +569,7 @@ export const commsService = {
       // Individual notice — emit only to the recipient's own socket room
       for (const recipientId of recipientIds) socketService.emitNewFormalNoticeToUser(recipientId, noticePayload);
     } else if (input.allBranches) {
-      const allOrgIds = await commsRepository.findAllActiveOrganizationIds();
+      const allOrgIds = await commsRepository.findAllActiveSiteIds();
       for (const orgId of allOrgIds) socketService.emitNewFormalNotice(orgId, noticePayload);
     } else {
       socketService.emitNewFormalNotice(targetOrgId, noticePayload);
@@ -590,7 +590,7 @@ export const commsService = {
 
     return {
       id: notice.id,
-      organizationId: notice.organizationId,
+      siteId: notice.siteId,
       issuer: { id: notice.issuer.id, name: notice.issuer.name },
       subject: notice.subject,
       bodyHtml: notice.bodyHtml,

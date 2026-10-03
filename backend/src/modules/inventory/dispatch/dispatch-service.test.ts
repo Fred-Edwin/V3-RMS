@@ -73,25 +73,25 @@ const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const requisitionLineId = '66666666-6666-4666-8666-666666666666';
 const dispatchId = '77777777-7777-4777-8777-777777777777';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: branchOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: branchOrgId };
 
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 const buildRequisitionForFulfil = (overrides: Record<string, unknown> = {}) => ({
   id: requisitionId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   status: 'APPROVED',
   type: 'MORNING',
   openedAt: new Date('2026-09-17T05:00:00.000Z'),
-  toOrganizationName: 'Nyeri Town',
+  toSiteName: 'Nyeri Town',
   sections: [
     {
       id: 'section-1',
       departmentTag: 'KITCHEN',
       status: 'SUBMITTED',
-      requisition: { id: requisitionId, organizationId: branchOrgId, toOrganizationName: 'Nyeri Town' },
+      requisition: { id: requisitionId, siteId: branchOrgId, toSiteName: 'Nyeri Town' },
       lines: [
         {
           id: requisitionLineId,
@@ -175,7 +175,7 @@ describe('dispatchService.getFulfilDetail', () => {
             id: 'section-1',
             departmentTag: 'KITCHEN',
             status: 'SUBMITTED',
-            requisition: { id: requisitionId, organizationId: branchOrgId, toOrganizationName: 'Nyeri Town' },
+            requisition: { id: requisitionId, siteId: branchOrgId, toSiteName: 'Nyeri Town' },
             lines: [
               {
                 id: requisitionLineId,
@@ -269,7 +269,7 @@ describe('dispatchService.fulfilDepartment — sign + PIN gate', () => {
       sequenceLabel: 'Dispatch 4',
       status: 'IN_TRANSIT',
       departmentTag: 'KITCHEN',
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
       dispatchedBy: { id: storeManager.id, name: 'Store Manager' },
       dispatchedAt: new Date(),
       confirmedBy: null,
@@ -291,13 +291,13 @@ describe('dispatchService.fulfilDepartment — sign + PIN gate', () => {
     await dispatchService.fulfilDepartment(storeManager, requisitionId, 'KITCHEN', validInput);
 
     expect(dispatchRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: hubOrgId, toOrganizationId: branchOrgId, departmentTag: 'KITCHEN' }),
+      expect.objectContaining({ siteId: hubOrgId, toSiteId: branchOrgId, departmentTag: 'KITCHEN' }),
       expect.anything(),
     );
     expect(txInventoryTransactionCreate).toHaveBeenCalledTimes(1);
     expect(txInventoryTransactionCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         locationId: centralStoreId,
         inventoryItemId: itemId,
         type: 'DISPATCH_OUT',
@@ -331,7 +331,7 @@ describe('dispatchService.fulfilDepartment — sign + PIN gate', () => {
       sequenceLabel: 'Dispatch 1',
       status: 'IN_TRANSIT',
       departmentTag: 'KITCHEN',
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
       dispatchedBy: null,
       dispatchedAt: null,
       confirmedBy: null,
@@ -365,7 +365,7 @@ describe('dispatchService.fulfilDepartment — sign + PIN gate', () => {
       sequenceLabel: 'Dispatch 1',
       status: 'IN_TRANSIT',
       departmentTag: 'KITCHEN',
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
       dispatchedBy: null,
       dispatchedAt: null,
       confirmedBy: null,

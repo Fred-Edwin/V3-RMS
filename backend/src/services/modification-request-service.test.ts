@@ -39,13 +39,13 @@ const managerId = '33333333-3333-4333-8333-333333333333';
 
 type Actor = NonNullable<Request['user']>;
 
-const waiterActor: Actor = { id: waiterId, role: 'WAITER', organizationId: orgId } as Actor;
-const managerActor: Actor = { id: managerId, role: 'MANAGER', organizationId: orgId } as Actor;
-const noOrgActor: Actor = { id: waiterId, role: 'WAITER', organizationId: null } as Actor;
+const waiterActor: Actor = { id: waiterId, role: 'WAITER', siteId: orgId } as Actor;
+const managerActor: Actor = { id: managerId, role: 'MANAGER', siteId: orgId } as Actor;
+const noOrgActor: Actor = { id: waiterId, role: 'WAITER', siteId: null } as Actor;
 
 const buildOrder = (overrides = {}) => ({
   id: orderId,
-  organizationId: orgId,
+  siteId: orgId,
   dailyNumber: 5,
   createdById: waiterId,
   status: 'IN_PROGRESS',
@@ -56,7 +56,7 @@ const buildOrder = (overrides = {}) => ({
 
 const buildModRequest = (overrides = {}) => ({
   id: requestId,
-  organizationId: orgId,
+  siteId: orgId,
   orderId,
   description: 'Remove onions',
   status: 'PENDING',
@@ -80,7 +80,7 @@ describe('modificationRequestService.create', () => {
     const result = await modificationRequestService.create(orderId, 'Remove onions', waiterActor);
 
     expect(modificationRequestRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: orgId, orderId, requestedById: waiterId }),
+      expect.objectContaining({ siteId: orgId, orderId, requestedById: waiterId }),
     );
     expect(socketService.emitModificationRequested).toHaveBeenCalled();
     expect(result.status).toBe('PENDING');

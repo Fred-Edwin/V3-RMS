@@ -2,7 +2,7 @@ import type { HouseAccountAuthStatus } from '@prisma/client';
 
 export interface HouseAccountAuthRequestRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string;
   houseAccountId: string;
   requestedById: string;

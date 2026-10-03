@@ -4,7 +4,7 @@ export type OrderCancellationDecision = Exclude<CancellationRequestStatus, 'PEND
 
 export interface OrderCancellationAuthRequestRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string;
   requestedById: string;
   reason: string;

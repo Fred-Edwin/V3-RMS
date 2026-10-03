@@ -43,7 +43,7 @@ vi.mock('./branch-day-repository', () => ({
   },
 }));
 vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../utils/password', () => ({ comparePin: vi.fn() }));
@@ -65,10 +65,10 @@ const otherBranchOrgId = '99999999-9999-4999-8999-999999999999';
 const dayId = '33333333-3333-4333-8333-333333333333';
 const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-const manager = { id: 'bm1', role: 'MANAGER' as const, organizationId: branchOrgId, isDepartmentHead: false };
+const manager = { id: 'bm1', role: 'MANAGER' as const, siteId: branchOrgId, isDepartmentHead: false };
 const deptHead = { ...manager, id: 'dh1', isDepartmentHead: true };
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const director = { id: 'dir1', role: 'DIRECTOR' as const, organizationId: null };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const director = { id: 'dir1', role: 'DIRECTOR' as const, siteId: null };
 
 const items = [
   { id: uid(1), name: 'Rice', usageUnit: 'kg', currentCost: D(100) },
@@ -105,7 +105,7 @@ const TAGS = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
 
 const day = (over: Record<string, unknown> = {}, departments = TAGS.map((t) => department(t))) => ({
   id: dayId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   businessDate: new Date('2026-09-30T00:00:00Z'),
   status: 'OPEN',
   reference: 'DAY-0001',
@@ -114,7 +114,7 @@ const day = (over: Record<string, unknown> = {}, departments = TAGS.map((t) => d
   closedBy: null,
   reopenCount: 0,
   createdAt: new Date('2026-09-30T03:00:00Z'),
-  organization: { id: branchOrgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: '+254712000000' },
+  site: { id: branchOrgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: '+254712000000' },
   departments,
   reopens: [],
   ...over,
@@ -128,7 +128,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   order.length = 0;
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
-  vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null); // defaults: branch 1,000 / Director 5,000
+  vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null); // defaults: branch 1,000 / Director 5,000
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ name: 'Peter Njoroge', pinHash: 'h' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(branchDayRepository.inTransitDispatches).mockResolvedValue([]);
@@ -233,7 +233,7 @@ describe('saveLines', () => {
   });
 
   it('judges against the branch threshold in force, not the default', async () => {
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue({ reasonRequiredKes: 50, overnightAlertKes: 500, directorAlertKes: null } as never);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue({ reasonRequiredKes: 50, overnightAlertKes: 500, directorAlertKes: null } as never);
     await branchDayService.saveLines(manager as never, dayId, 'KITCHEN', { lines: [{ inventoryItemId: uid(1), countedQty: '17' }] });
     expect(vi.mocked(branchDayRepository.upsertLines).mock.calls[0]![2][0]!.reasonRequired).toBe(true);
   });
@@ -321,7 +321,7 @@ describe('close', () => {
 
   it('writes one ADJ-numbered ADJUSTMENT per non-zero gap in one transaction, closes the day, then notifies after commit', async () => {
     vi.mocked(branchDayRepository.findById).mockResolvedValue(day({}, countedDepartments(twoCounted())) as never);
-    vi.mocked(thresholdsRepository.findByOrganization).mockImplementation(
+    vi.mocked(thresholdsRepository.findBySite).mockImplementation(
       async (org) => (org === hubOrgId ? ({ reasonRequiredKes: 500, directorAlertKes: 1000 } as never) : null),
     );
 
@@ -330,7 +330,7 @@ describe('close', () => {
     expect(branchDayRepository.writeAdjustment).toHaveBeenCalledTimes(1);
     const adj = vi.mocked(branchDayRepository.writeAdjustment).mock.calls[0]![1];
     expect(adj).toMatchObject({
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       locationId: 'loc-kitchen',
       inventoryItemId: uid(2),
       branchDayLineId: uid(102),
@@ -419,7 +419,7 @@ describe('reopen', () => {
   });
 
   it('a Director may reopen any branch day (unscoped lookup); a manager stays scoped to their own org', async () => {
-    vi.mocked(branchDayRepository.findById).mockResolvedValue(day({ status: 'CLOSED', organizationId: otherBranchOrgId }) as never);
+    vi.mocked(branchDayRepository.findById).mockResolvedValue(day({ status: 'CLOSED', siteId: otherBranchOrgId }) as never);
     vi.mocked(branchDayRepository.reopenDay).mockResolvedValue({ reopenCount: 1 });
     await branchDayService.reopen(director as never, dayId, { reason: 'Audit correction' });
     expect(branchDayRepository.findById).toHaveBeenLastCalledWith(dayId, null);

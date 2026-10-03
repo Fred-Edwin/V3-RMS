@@ -123,7 +123,7 @@ const dailyRef = (d: Date): string => {
 };
 
 const run = async (): Promise<void> => {
-  const hub = await prisma.organization.findFirst({ where: { isHub: true } });
+  const hub = await prisma.site.findFirst({ where: { isHub: true } });
   const store = await prisma.location.findFirst({ where: { type: 'CENTRAL_STORE' } });
   const sm = await prisma.user.findUnique({ where: { email: 'store.manager@wendo.test' } });
   const att = await prisma.user.findUnique({ where: { email: 'store.attendant@wendo.test' } });
@@ -133,27 +133,27 @@ const run = async (): Promise<void> => {
   }
 
   // --- 0. Clear previous count data ---------------------------------------------------------
-  const oldLines = await prisma.stockCountLine.findMany({ where: { stockCount: { organizationId: hub.id } }, select: { id: true } });
+  const oldLines = await prisma.stockCountLine.findMany({ where: { stockCount: { siteId: hub.id } }, select: { id: true } });
   const removed = await prisma.$transaction(async (tx) => {
     const tr = await tx.inventoryTransaction.deleteMany({
       where: {
-        organizationId: hub.id,
+        siteId: hub.id,
         OR: [{ stockCountLineId: { in: oldLines.map((l) => l.id) } }, { reason: { startsWith: FIXTURE_NOTE } }],
       },
     });
-    await tx.stockCountLine.deleteMany({ where: { stockCount: { organizationId: hub.id } } });
-    await tx.stockCount.deleteMany({ where: { organizationId: hub.id } });
-    await tx.countingThresholds.deleteMany({ where: { organizationId: hub.id } });
+    await tx.stockCountLine.deleteMany({ where: { stockCount: { siteId: hub.id } } });
+    await tx.stockCount.deleteMany({ where: { siteId: hub.id } });
+    await tx.countingThresholds.deleteMany({ where: { siteId: hub.id } });
     await tx.referenceCounter.upsert({
-      where: { organizationId_prefix: { organizationId: hub.id, prefix: 'SPT' } },
+      where: { siteId_prefix: { siteId: hub.id, prefix: 'SPT' } },
       update: { lastNumber: 0 },
-      create: { organizationId: hub.id, prefix: 'SPT', lastNumber: 0 },
+      create: { siteId: hub.id, prefix: 'SPT', lastNumber: 0 },
     });
     // ADJ-3402 is the first number on `18GE-0`.
     await tx.referenceCounter.upsert({
-      where: { organizationId_prefix: { organizationId: hub.id, prefix: 'ADJ' } },
+      where: { siteId_prefix: { siteId: hub.id, prefix: 'ADJ' } },
       update: { lastNumber: 3401 },
-      create: { organizationId: hub.id, prefix: 'ADJ', lastNumber: 3401 },
+      create: { siteId: hub.id, prefix: 'ADJ', lastNumber: 3401 },
     });
     return tr.count;
   });
@@ -161,11 +161,11 @@ const run = async (): Promise<void> => {
 
   // --- 1. Shape the catalog ------------------------------------------------------------------
   const cat = async (name: string) =>
-    (await prisma.category.findFirst({ where: { organizationId: hub.id, name, deletedAt: null } })) ??
-    (await prisma.category.create({ data: { organizationId: hub.id, name } }));
+    (await prisma.category.findFirst({ where: { siteId: hub.id, name, deletedAt: null } })) ??
+    (await prisma.category.create({ data: { siteId: hub.id, name } }));
   const [dairy, produce, dryGoods, dryItems] = await Promise.all([cat('Dairy'), cat('Produce'), cat('Dry goods'), cat('Dry items')]);
 
-  const live = () => prisma.inventoryItem.findMany({ where: { organizationId: hub.id, deletedAt: null } });
+  const live = () => prisma.inventoryItem.findMany({ where: { siteId: hub.id, deletedAt: null } });
   let items = await live();
   const byName = new Map(items.map((i) => [i.name, i]));
   const fillerPool = items.filter((i) => FILLER_NAMES.has(i.name));
@@ -184,7 +184,7 @@ const run = async (): Promise<void> => {
       });
     } else {
       await prisma.inventoryItem.create({
-        data: { organizationId: hub.id, name, type, usageUnit: unit, buyUnit: unit, categoryId, currentCost: D(cost), departmentTags: [] },
+        data: { siteId: hub.id, name, type, usageUnit: unit, buyUnit: unit, categoryId, currentCost: D(cost), departmentTags: [] },
       });
     }
   };
@@ -193,7 +193,7 @@ const run = async (): Promise<void> => {
   await shape(SAFFRON.name, SAFFRON.unit, SAFFRON.cost, dryGoods.id);
 
   // Tomatoes stays in Produce; Dry goods trimmed to 45 (Paper set stays put).
-  await prisma.inventoryItem.updateMany({ where: { organizationId: hub.id, name: 'Tomatoes', deletedAt: null }, data: { categoryId: produce.id } });
+  await prisma.inventoryItem.updateMany({ where: { siteId: hub.id, name: 'Tomatoes', deletedAt: null }, data: { categoryId: produce.id } });
   items = await live();
   const dryNow = items.filter((i) => i.categoryId === dryGoods.id && !PAPER_ITEMS.includes(i.name) && i.name !== SAFFRON.name);
   const surplus = items.filter((i) => i.categoryId === dryGoods.id).length - 45;
@@ -213,7 +213,7 @@ const run = async (): Promise<void> => {
   const sumByItem = async (): Promise<Map<string, Prisma.Decimal>> => {
     const rows = await prisma.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
-      where: { organizationId: hub.id, locationId: store.id },
+      where: { siteId: hub.id, locationId: store.id },
       _sum: { quantity: true },
     });
     return new Map(rows.map((r) => [r.inventoryItemId, r._sum.quantity ?? D(0)]));
@@ -227,7 +227,7 @@ const run = async (): Promise<void> => {
     // Chicken 36 → 27 after yesterday's −9; cream 39 (design); everything else deterministic 20–110.
     const qty = item.name === 'Whole chicken 1.2kg' ? 36 : item.name === 'Fresh cream 250ml' ? 39 : 20 + ((idx * 17) % 91);
     openings.push({
-      organizationId: hub.id, locationId: store.id, inventoryItemId: item.id, type: 'RECEIVE', quantity: D(qty),
+      siteId: hub.id, locationId: store.id, inventoryItemId: item.id, type: 'RECEIVE', quantity: D(qty),
       unitCost: item.currentCost, reason: `${FIXTURE_NOTE} — opening balance`, userId: sm.id, createdAt: nairobiAt(20, 9),
     });
   });
@@ -268,7 +268,7 @@ const run = async (): Promise<void> => {
         if (compensate) {
           await tx.inventoryTransaction.create({
             data: {
-              organizationId: hub.id, locationId: store.id, inventoryItemId: v.item.id, type: 'RECEIVE', quantity: variance.negated(),
+              siteId: hub.id, locationId: store.id, inventoryItemId: v.item.id, type: 'RECEIVE', quantity: variance.negated(),
               unitCost: cost, reason: `${FIXTURE_NOTE} — stock before the count`, userId: sm.id, createdAt: nairobiAt(input.daysBack + 1, 15),
             },
           });
@@ -288,7 +288,7 @@ const run = async (): Promise<void> => {
       const alert = lines.some((l) => !l.variance.isZero() && l.variance.times(l.cost).abs().greaterThanOrEqualTo(directorThreshold));
       const count = await tx.stockCount.create({
         data: {
-          organizationId: hub.id, locationId: store.id, kind: input.kind, countDate: date, status: 'VERIFIED', reference,
+          siteId: hub.id, locationId: store.id, kind: input.kind, countDate: date, status: 'VERIFIED', reference,
           counterId: input.counterId, counterSignedAt: input.signedAt, verifierId: sm.id, verifiedAt: input.verifiedAt,
           directorNotified: alert,
           lines: {
@@ -305,14 +305,14 @@ const run = async (): Promise<void> => {
         if (l.variance.isZero()) continue;
         await tx.inventoryTransaction.create({
           data: {
-            organizationId: hub.id, locationId: store.id, inventoryItemId: line.inventoryItemId, type: 'ADJUSTMENT', quantity: l.variance,
+            siteId: hub.id, locationId: store.id, inventoryItemId: line.inventoryItemId, type: 'ADJUSTMENT', quantity: l.variance,
             unitCost: l.cost, reason: l.reason ?? null, stockCountLineId: line.id, reference: nextAdj(), userId: sm.id, createdAt: input.verifiedAt,
           },
         });
       }
     }, { timeout: 60_000 });
     await prisma.referenceCounter.update({
-      where: { organizationId_prefix: { organizationId: hub.id, prefix: 'ADJ' } },
+      where: { siteId_prefix: { siteId: hub.id, prefix: 'ADJ' } },
       data: { lastNumber: adjNumber },
     });
   };
@@ -366,7 +366,7 @@ const run = async (): Promise<void> => {
   });
   console.log('OK    spot counts: 3 days ago (Director-flagged), 8 days ago (1 adjustment, −KES 180)');
   await prisma.referenceCounter.update({
-    where: { organizationId_prefix: { organizationId: hub.id, prefix: 'SPT' } },
+    where: { siteId_prefix: { siteId: hub.id, prefix: 'SPT' } },
     data: { lastNumber: sptNumber },
   });
 
@@ -406,7 +406,7 @@ const run = async (): Promise<void> => {
   const returned = stateArg === 'returned';
   const count = await prisma.stockCount.create({
     data: {
-      organizationId: hub.id, locationId: store.id, kind: 'DAILY', countDate: today, reference: dailyRef(today), counterId: att.id,
+      siteId: hub.id, locationId: store.id, kind: 'DAILY', countDate: today, reference: dailyRef(today), counterId: att.id,
       status: returned ? 'RETURNED' : submitted ? 'SUBMITTED' : 'DRAFT',
       counterSignedAt: submitted ? signedAt : null,
       returnNote: returned ? 'Just the chicken, please — everything else is accepted.' : null,

@@ -8,25 +8,25 @@ import { signAccessToken } from '../src/utils/jwt';
 const systemAdminToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'SYSTEM_ADMIN',
-  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
 const waiterToken = signAccessToken({
   userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   role: 'WAITER',
-  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
 const chefToken = signAccessToken({
   userId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'CHEF',
-  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
 const managerToken = signAccessToken({
   userId: '55555555-5555-4555-8555-555555555555',
   role: 'MANAGER',
-  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 });
 
 const orderId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
@@ -48,8 +48,8 @@ const sampleListResult = {
       total: '700.00',
       createdAt: new Date().toISOString(),
       closedAt: new Date().toISOString(),
-      organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      organizationName: 'Wendo Coffee Bistro',
+      siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      siteName: 'Wendo Coffee Bistro',
       createdByName: 'Waiter One',
     },
   ],
@@ -71,8 +71,8 @@ const sampleDetail = {
   total: '700.00',
   createdAt: new Date().toISOString(),
   closedAt: new Date().toISOString(),
-  organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  organizationName: 'Wendo Coffee Bistro',
+  siteId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  siteName: 'Wendo Coffee Bistro',
   createdByName: 'Waiter One',
   items: [
     {

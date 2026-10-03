@@ -5,18 +5,18 @@ import { logger } from '../utils/logger';
 
 const serialize = (incident: {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string | null;
   type: string;
   actorId: string | null;
   details: unknown;
   createdAt: Date;
   actor: { id: string; name: string } | null;
-  organization: { id: string; name: string };
+  site: { id: string; name: string };
 }): IncidentLogRecord => ({
   id: incident.id,
-  organizationId: incident.organizationId,
-  branchName: incident.organization.name,
+  siteId: incident.siteId,
+  branchName: incident.site.name,
   orderId: incident.orderId,
   type: incident.type as IncidentLogRecord['type'],
   actor: incident.actor ? { id: incident.actor.id, name: incident.actor.name } : null,
@@ -32,13 +32,13 @@ export const incidentService = {
   },
 
   getMany: async (
-    organizationId: string | null,
+    siteId: string | null,
     query: IncidentQueryInput,
   ) => {
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
     const endDate = query.endDate ? new Date(query.endDate) : undefined;
 
-    const { incidents, total } = await incidentRepository.findMany(organizationId, {
+    const { incidents, total } = await incidentRepository.findMany(siteId, {
       type: query.type,
       startDate,
       endDate,

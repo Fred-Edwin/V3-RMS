@@ -53,7 +53,7 @@ enum SupplierAuditAction {
 
 model Supplier {
   id                  String               @id @default(uuid())
-  organizationId      String               @map("organization_id")
+  siteId      String               @map("organization_id")
   code                String // SUPPLIER-0001, from ReferenceCounter; never reused or edited
   name                String
   tradingName         String?              @map("trading_name")
@@ -79,7 +79,7 @@ model Supplier {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization       Organization        @relation(fields: [organizationId], references: [id])
+  site       Site        @relation(fields: [siteId], references: [id])
   category           Category?           @relation(fields: [categoryId], references: [id])
   createdBy          User?               @relation("SupplierCreatedBy", fields: [createdById], references: [id])
   updatedBy          User?               @relation("SupplierUpdatedBy", fields: [updatedById], references: [id])
@@ -94,10 +94,10 @@ model Supplier {
   documents          SupplierDocument[]
   auditLogs          SupplierAuditLog[]
 
-  @@unique([organizationId, code])
-  @@index([organizationId])
-  @@index([organizationId, deletedAt])
-  @@index([organizationId, status])
+  @@unique([siteId, code])
+  @@index([siteId])
+  @@index([siteId, deletedAt])
+  @@index([siteId, status])
   @@map("suppliers")
 }
 
@@ -105,7 +105,7 @@ model Supplier {
 // WHERE is_primary (raw SQL in the migration; not expressible in the DSL).
 model SupplierContact {
   id             String              @id @default(uuid())
-  organizationId String              @map("organization_id")
+  siteId String              @map("organization_id")
   supplierId     String              @map("supplier_id")
   name           String
   role           SupplierContactRole @default(OTHER)
@@ -118,14 +118,14 @@ model SupplierContact {
 
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  @@index([organizationId, supplierId])
+  @@index([siteId, supplierId])
   @@map("supplier_contacts")
 }
 
 // One default per supplier: partial unique index on (supplier_id) WHERE is_default.
 model SupplierPayMethod {
   id               String                @id @default(uuid())
-  organizationId   String                @map("organization_id")
+  siteId   String                @map("organization_id")
   supplierId       String                @map("supplier_id")
   type             SupplierPayMethodType
   bankName         String?               @map("bank_name")
@@ -146,7 +146,7 @@ model SupplierPayMethod {
   supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   createdBy User     @relation("SupplierPayMethodCreatedBy", fields: [createdById], references: [id])
 
-  @@index([organizationId, supplierId])
+  @@index([siteId, supplierId])
   @@map("supplier_pay_methods")
 }
 
@@ -154,7 +154,7 @@ model SupplierPayMethod {
 // WHERE is_preferred (raw SQL in the migration).
 model SupplierItem {
   id                    String    @id @default(uuid())
-  organizationId        String    @map("organization_id")
+  siteId        String    @map("organization_id")
   supplierId            String    @map("supplier_id")
   inventoryItemId       String    @map("inventory_item_id")
   supplierItemName      String?   @map("supplier_item_name")
@@ -179,14 +179,14 @@ model SupplierItem {
   // COALESCE(pack_size,0)). Prisma cannot express it, so there is no compound unique here.
   // Search indexes: (organization_id, supplier_item_code) is declared below; the expression index
   // (organization_id, lower(supplier_item_name)) is raw SQL only.
-  @@index([organizationId, inventoryItemId])
-  @@index([organizationId, supplierItemCode], map: "supplier_items_org_code_idx")
+  @@index([siteId, inventoryItemId])
+  @@index([siteId, supplierItemCode], map: "supplier_items_org_code_idx")
   @@map("supplier_items")
 }
 
 model SupplierDocument {
   id                String               @id @default(uuid())
-  organizationId    String               @map("organization_id")
+  siteId    String               @map("organization_id")
   supplierId        String               @map("supplier_id")
   objectKey         String               @map("object_key") // org/<orgId>/suppliers/<supplierId>/<uuid>
   fileName          String               @map("file_name")
@@ -205,14 +205,14 @@ model SupplierDocument {
   supplierInvoice SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id])
   uploadedBy      User             @relation("SupplierDocumentUploadedBy", fields: [uploadedById], references: [id])
 
-  @@index([organizationId, supplierId])
+  @@index([siteId, supplierId])
   @@map("supplier_documents")
 }
 
 /// before/after hold account numbers already masked — never raw.
 model SupplierAuditLog {
   id             String              @id @default(uuid())
-  organizationId String              @map("organization_id")
+  siteId String              @map("organization_id")
   supplierId     String              @map("supplier_id")
   action         SupplierAuditAction
   entityId       String?             @map("entity_id")
@@ -224,6 +224,6 @@ model SupplierAuditLog {
   supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   actor    User     @relation("SupplierAuditActor", fields: [actorId], references: [id])
 
-  @@index([organizationId, supplierId, createdAt])
+  @@index([siteId, supplierId, createdAt])
   @@map("supplier_audit_logs")
 }

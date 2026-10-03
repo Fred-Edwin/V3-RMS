@@ -17,7 +17,7 @@ export const discountController = {
     const data = CreateDiscountSchema.parse(req.body);
     const result = await discountService.create(
       {
-        organizationId: data.organizationId ?? null,
+        siteId: data.siteId ?? null,
         name: data.name,
         type: data.type,
         value: data.value,

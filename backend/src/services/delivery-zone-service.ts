@@ -7,12 +7,12 @@ import type { CreateDeliveryZoneInput, UpdateDeliveryZoneInput } from '../valida
 
 type Actor = NonNullable<Request['user']>;
 
-const requireOrganizationId = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const requireSiteId = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const remapDeliveryZoneWriteError = (error: unknown): never => {
@@ -31,14 +31,14 @@ const remapDeliveryZoneWriteError = (error: unknown): never => {
 
 export const deliveryZoneService = {
   listZones: async (actor: Actor): Promise<DeliveryZone[]> => {
-    const organizationId = requireOrganizationId(actor);
-    return deliveryZoneRepository.findAllActiveByOrganization(organizationId);
+    const siteId = requireSiteId(actor);
+    return deliveryZoneRepository.findAllActiveBySite(siteId);
   },
 
   createZone: async (actor: Actor, input: CreateDeliveryZoneInput): Promise<DeliveryZone> => {
-    const organizationId = requireOrganizationId(actor);
+    const siteId = requireSiteId(actor);
     try {
-      return await deliveryZoneRepository.create(organizationId, input);
+      return await deliveryZoneRepository.create(siteId, input);
     } catch (error) {
       remapDeliveryZoneWriteError(error);
     }
@@ -51,10 +51,10 @@ export const deliveryZoneService = {
     id: string,
     input: UpdateDeliveryZoneInput,
   ): Promise<DeliveryZone> => {
-    const organizationId = requireOrganizationId(actor);
+    const siteId = requireSiteId(actor);
     let zone: DeliveryZone | null = null;
     try {
-      zone = await deliveryZoneRepository.update(id, organizationId, input);
+      zone = await deliveryZoneRepository.update(id, siteId, input);
     } catch (error) {
       remapDeliveryZoneWriteError(error);
     }
@@ -67,17 +67,17 @@ export const deliveryZoneService = {
   },
 
   deleteZone: async (actor: Actor, id: string): Promise<void> => {
-    const organizationId = requireOrganizationId(actor);
-    const zone = await deliveryZoneRepository.findById(id, organizationId);
+    const siteId = requireSiteId(actor);
+    const zone = await deliveryZoneRepository.findById(id, siteId);
     if (!zone) {
       throw new NotFoundError('Delivery zone not found');
     }
 
-    const hasOrders = await deliveryZoneRepository.hasOrders(id, organizationId);
+    const hasOrders = await deliveryZoneRepository.hasOrders(id, siteId);
     if (hasOrders) {
       throw new ConflictError('Delivery zone cannot be deactivated because it has associated orders');
     }
 
-    await deliveryZoneRepository.update(id, organizationId, { isActive: false });
+    await deliveryZoneRepository.update(id, siteId, { isActive: false });
   },
 };

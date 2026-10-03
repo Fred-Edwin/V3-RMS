@@ -144,12 +144,12 @@ const toPercent = (numerator: Prisma.Decimal, denominator: Prisma.Decimal): numb
 };
 
 export const reportRepository = {
-  getDailySummaryByDate: async (organizationId: string, date: Date): Promise<DailySummaryReport> => {
+  getDailySummaryByDate: async (siteId: string, date: Date): Promise<DailySummaryReport> => {
     const { start, endExclusive } = getOrderDateBounds(date);
-    const [organization, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows, otherIncomeCategoryTotals, staffDiscountAggregate, customerDiscountAggregate] = await Promise.all([
-      prisma.organization.findFirst({
+    const [site, aggregate, ordersByTypeRows, paymentRows, topItemRows, prepRows, otherIncomeCategoryTotals, staffDiscountAggregate, customerDiscountAggregate] = await Promise.all([
+      prisma.site.findFirst({
         where: {
-          id: organizationId,
+          id: siteId,
         },
         select: {
           id: true,
@@ -158,7 +158,7 @@ export const reportRepository = {
       }),
       prisma.order.aggregate({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: {
             gte: start,
@@ -178,7 +178,7 @@ export const reportRepository = {
       prisma.order.groupBy({
         by: ['type'],
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: {
             gte: start,
@@ -193,7 +193,7 @@ export const reportRepository = {
       prisma.order.groupBy({
         by: ['paymentMethod'],
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: {
             gte: start,
@@ -211,7 +211,7 @@ export const reportRepository = {
       prisma.orderItem.findMany({
         where: {
           order: {
-            organizationId,
+            siteId,
             status: OrderStatus.CLOSED,
             orderDate: {
               gte: start,
@@ -232,7 +232,7 @@ export const reportRepository = {
       }),
       prisma.prepTicket.findMany({
         where: {
-          organizationId,
+          siteId,
           status: 'READY',
           claimedAt: {
             not: null,
@@ -241,7 +241,7 @@ export const reportRepository = {
             not: null,
           },
           order: {
-            organizationId,
+            siteId,
             orderDate: {
               gte: start,
               lt: endExclusive,
@@ -254,10 +254,10 @@ export const reportRepository = {
           readyAt: true,
         },
       }),
-      otherIncomeRepository.sumByCategory(organizationId, start, new Date(endExclusive.getTime() - 1)),
+      otherIncomeRepository.sumByCategory(siteId, start, new Date(endExclusive.getTime() - 1)),
       prisma.order.aggregate({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           discountAmount: { not: null },
@@ -269,7 +269,7 @@ export const reportRepository = {
       }),
       prisma.order.aggregate({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           discountAmount: { not: null },
@@ -361,8 +361,8 @@ export const reportRepository = {
 
     return {
       date: formatDateOnly(date),
-      organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      siteId,
+      siteName: site?.name ?? 'Unknown Branch',
       totalRevenue: grandTotal.toFixed(2),
       orderCount: aggregate._count._all,
       ordersByType,
@@ -386,7 +386,7 @@ export const reportRepository = {
   },
 
   getStaffPerformance: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
     role?: StaffPerformanceRow['role'],
@@ -394,10 +394,10 @@ export const reportRepository = {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
     const selectedRoles: StaffPerformanceRow['role'][] = role ? [role] : ['WAITER', 'CHEF', 'BARISTA'];
 
-    const [organization, users] = await Promise.all([
-      prisma.organization.findFirst({
+    const [site, users] = await Promise.all([
+      prisma.site.findFirst({
         where: {
-          id: organizationId,
+          id: siteId,
         },
         select: {
           id: true,
@@ -406,7 +406,7 @@ export const reportRepository = {
       }),
       prisma.user.findMany({
         where: {
-          organizationId,
+          siteId,
           role: {
             in: selectedRoles,
           },
@@ -426,8 +426,8 @@ export const reportRepository = {
           startDate: formatDateOnly(startDate),
           endDate: formatDateOnly(endDate),
         },
-        organizationId,
-        organizationName: organization?.name ?? 'Unknown Branch',
+        siteId,
+        siteName: site?.name ?? 'Unknown Branch',
         staff: [],
       };
     }
@@ -444,7 +444,7 @@ export const reportRepository = {
         : prisma.order.groupBy({
             by: ['createdById'],
             where: {
-              organizationId,
+              siteId,
               status: OrderStatus.CLOSED,
               createdById: {
                 in: waiterIds,
@@ -466,7 +466,7 @@ export const reportRepository = {
         ? Promise.resolve([])
         : prisma.prepTicket.findMany({
             where: {
-              organizationId,
+              siteId,
               status: 'READY',
               claimedById: {
                 in: prepUserIds,
@@ -493,7 +493,7 @@ export const reportRepository = {
           }),
       prisma.shiftAssignment.findMany({
         where: {
-          organizationId,
+          siteId,
           userId: {
             in: userIds,
           },
@@ -514,7 +514,7 @@ export const reportRepository = {
       }),
       prisma.clockRecord.findMany({
         where: {
-          organizationId,
+          siteId,
           userId: {
             in: userIds,
           },
@@ -535,7 +535,7 @@ export const reportRepository = {
         ? Promise.resolve([])
         : prisma.order.findMany({
             where: {
-              organizationId,
+              siteId,
               status: OrderStatus.CLOSED,
               createdById: { in: waiterIds },
               orderDate: { gte: start, lt: endExclusive },
@@ -669,15 +669,15 @@ export const reportRepository = {
         startDate: formatDateOnly(startDate),
         endDate: formatDateOnly(endDate),
       },
-      organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      siteId,
+      siteName: site?.name ?? 'Unknown Branch',
       staff,
     };
   },
 
   getBranchOverview: async (startDate: Date, endDate: Date): Promise<BranchOverviewReport> => {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
-    const organizations = await prisma.organization.findMany({
+    const sites = await prisma.site.findMany({
       where: {
         isActive: true,
         // Sales reports enumerate branches only — the hub org (Central Store)
@@ -694,11 +694,11 @@ export const reportRepository = {
     });
 
     const branchResults = await Promise.all(
-      organizations.map(async (organization) => {
+      sites.map(async (site) => {
         const [orderAggregate, prepRows, paymentOrders, otherIncomeRows, staffDiscountAgg, customerDiscountAgg] = await Promise.all([
           prisma.order.aggregate({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: OrderStatus.CLOSED,
               orderDate: {
                 gte: start,
@@ -717,7 +717,7 @@ export const reportRepository = {
           }),
           prisma.prepTicket.findMany({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: 'READY',
               claimedAt: {
                 not: null,
@@ -740,7 +740,7 @@ export const reportRepository = {
           }),
           prisma.order.findMany({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: OrderStatus.CLOSED,
               orderDate: {
                 gte: start,
@@ -763,10 +763,10 @@ export const reportRepository = {
               },
             },
           }),
-          otherIncomeRepository.sumByCategory(organization.id, startDate, endDate),
+          otherIncomeRepository.sumByCategory(site.id, startDate, endDate),
           prisma.order.aggregate({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: OrderStatus.CLOSED,
               orderDate: { gte: start, lt: endExclusive },
               discountAmount: { not: null },
@@ -777,7 +777,7 @@ export const reportRepository = {
           }),
           prisma.order.aggregate({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: OrderStatus.CLOSED,
               orderDate: { gte: start, lt: endExclusive },
               discountAmount: { not: null },
@@ -805,8 +805,8 @@ export const reportRepository = {
           otherIncomeDecimal,
           orderCount: orderAggregate._count._all,
           branch: {
-            id: organization.id,
-            name: organization.name,
+            id: site.id,
+            name: site.name,
             revenue: revenueDecimal.toFixed(2),
             otherIncomeTotal: otherIncomeDecimal.toFixed(2),
             staffDiscountTotal: staffDiscountDecimal.toFixed(2),
@@ -846,17 +846,17 @@ export const reportRepository = {
   },
 
   getBranchTrends: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<BranchTrendsReport> => {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
     const dateKeys = buildDateRangeKeys(startDate, endDate);
 
-    const [organization, orders, prepRows] = await Promise.all([
-      prisma.organization.findFirst({
+    const [site, orders, prepRows] = await Promise.all([
+      prisma.site.findFirst({
         where: {
-          id: organizationId,
+          id: siteId,
         },
         select: {
           id: true,
@@ -865,7 +865,7 @@ export const reportRepository = {
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: {
             gte: start,
@@ -882,7 +882,7 @@ export const reportRepository = {
       }),
       prisma.prepTicket.findMany({
         where: {
-          organizationId,
+          siteId,
           status: 'READY',
           claimedAt: {
             not: null,
@@ -891,7 +891,7 @@ export const reportRepository = {
             not: null,
           },
           order: {
-            organizationId,
+            siteId,
             orderDate: {
               gte: start,
               lt: endExclusive,
@@ -951,8 +951,8 @@ export const reportRepository = {
         startDate: formatDateOnly(startDate),
         endDate: formatDateOnly(endDate),
       },
-      organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      siteId,
+      siteName: site?.name ?? 'Unknown Branch',
       points: dateKeys.map((date) => ({
         date,
         orders: orderCountByDate.get(date) ?? 0,
@@ -968,7 +968,7 @@ export const reportRepository = {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
     const dateKeys = buildDateRangeKeys(startDate, endDate);
 
-    const organizations = await prisma.organization.findMany({
+    const sites = await prisma.site.findMany({
       where: {
         isActive: true,
         // Branch sales trends — exclude the hub org (see getBranchOverview).
@@ -983,8 +983,8 @@ export const reportRepository = {
       },
     });
 
-    const organizationIds = organizations.map((organization) => organization.id);
-    if (organizationIds.length === 0) {
+    const siteIds = sites.map((site) => site.id);
+    if (siteIds.length === 0) {
       return {
         period: {
           startDate: formatDateOnly(startDate),
@@ -1006,8 +1006,8 @@ export const reportRepository = {
     const [orders, categoryRows, otherIncomeEntries] = await Promise.all([
       prisma.order.findMany({
         where: {
-          organizationId: {
-            in: organizationIds,
+          siteId: {
+            in: siteIds,
           },
           status: OrderStatus.CLOSED,
           orderDate: {
@@ -1019,7 +1019,7 @@ export const reportRepository = {
           paymentMethod: { not: 'HOUSE_ACCOUNT' },
         },
         select: {
-          organizationId: true,
+          siteId: true,
           orderDate: true,
           total: true,
         },
@@ -1028,8 +1028,8 @@ export const reportRepository = {
       prisma.orderItem.findMany({
         where: {
           order: {
-            organizationId: {
-              in: organizationIds,
+            siteId: {
+              in: siteIds,
             },
             status: OrderStatus.CLOSED,
             orderDate: {
@@ -1059,11 +1059,11 @@ export const reportRepository = {
       }),
       prisma.otherIncomeEntry.findMany({
         where: {
-          organizationId: { in: organizationIds },
+          siteId: { in: siteIds },
           entryDate: { gte: start, lt: endExclusive },
         },
         select: {
-          organizationId: true,
+          siteId: true,
           entryDate: true,
           amount: true,
         },
@@ -1075,9 +1075,9 @@ export const reportRepository = {
     const branchRevenue = new Map<string, Map<string, Prisma.Decimal>>();
     const branchOrders = new Map<string, Map<string, number>>();
 
-    for (const organization of organizations) {
-      branchRevenue.set(organization.id, new Map<string, Prisma.Decimal>());
-      branchOrders.set(organization.id, new Map<string, number>());
+    for (const site of sites) {
+      branchRevenue.set(site.id, new Map<string, Prisma.Decimal>());
+      branchOrders.set(site.id, new Map<string, number>());
     }
 
     for (const order of orders) {
@@ -1086,21 +1086,21 @@ export const reportRepository = {
       dailyOrders.set(dateKey, (dailyOrders.get(dateKey) ?? 0) + 1);
       dailyRevenue.set(dateKey, (dailyRevenue.get(dateKey) ?? new Prisma.Decimal(0)).add(order.total));
 
-      const revenueMap = branchRevenue.get(order.organizationId) ?? new Map<string, Prisma.Decimal>();
+      const revenueMap = branchRevenue.get(order.siteId) ?? new Map<string, Prisma.Decimal>();
       revenueMap.set(dateKey, (revenueMap.get(dateKey) ?? new Prisma.Decimal(0)).add(order.total));
-      branchRevenue.set(order.organizationId, revenueMap);
+      branchRevenue.set(order.siteId, revenueMap);
 
-      const orderMap = branchOrders.get(order.organizationId) ?? new Map<string, number>();
+      const orderMap = branchOrders.get(order.siteId) ?? new Map<string, number>();
       orderMap.set(dateKey, (orderMap.get(dateKey) ?? 0) + 1);
-      branchOrders.set(order.organizationId, orderMap);
+      branchOrders.set(order.siteId, orderMap);
     }
 
     for (const entry of otherIncomeEntries) {
       const dateKey = formatDateOnly(entry.entryDate);
       dailyRevenue.set(dateKey, (dailyRevenue.get(dateKey) ?? new Prisma.Decimal(0)).add(entry.amount));
-      const revenueMap = branchRevenue.get(entry.organizationId) ?? new Map<string, Prisma.Decimal>();
+      const revenueMap = branchRevenue.get(entry.siteId) ?? new Map<string, Prisma.Decimal>();
       revenueMap.set(dateKey, (revenueMap.get(dateKey) ?? new Prisma.Decimal(0)).add(entry.amount));
-      branchRevenue.set(entry.organizationId, revenueMap);
+      branchRevenue.set(entry.siteId, revenueMap);
     }
 
     const categoryTotals = new Map<string, Prisma.Decimal>();
@@ -1117,11 +1117,11 @@ export const reportRepository = {
       categoryByDate.set(categoryName, byDate);
     }
 
-    const branchRevenueSeries: NamedSeries[] = organizations.map((organization) => {
-      const byDate = branchRevenue.get(organization.id) ?? new Map<string, Prisma.Decimal>();
+    const branchRevenueSeries: NamedSeries[] = sites.map((site) => {
+      const byDate = branchRevenue.get(site.id) ?? new Map<string, Prisma.Decimal>();
       return {
-        id: organization.id,
-        name: organization.name,
+        id: site.id,
+        name: site.name,
         points: dateKeys.map((date) => ({
           date,
           value: toNumber(byDate.get(date)),
@@ -1129,11 +1129,11 @@ export const reportRepository = {
       };
     });
 
-    const branchOrdersSeries: NamedSeries[] = organizations.map((organization) => {
-      const byDate = branchOrders.get(organization.id) ?? new Map<string, number>();
+    const branchOrdersSeries: NamedSeries[] = sites.map((site) => {
+      const byDate = branchOrders.get(site.id) ?? new Map<string, number>();
       return {
-        id: organization.id,
-        name: organization.name,
+        id: site.id,
+        name: site.name,
         points: dateKeys.map((date) => ({
           date,
           value: byDate.get(date) ?? 0,
@@ -1163,11 +1163,11 @@ export const reportRepository = {
       })),
       branchRevenueSeries,
       branchOrdersSeries,
-      branchContributionSeries: organizations.map((organization) => {
-        const revenueByDate = branchRevenue.get(organization.id) ?? new Map<string, Prisma.Decimal>();
+      branchContributionSeries: sites.map((site) => {
+        const revenueByDate = branchRevenue.get(site.id) ?? new Map<string, Prisma.Decimal>();
         return {
-          id: organization.id,
-          name: organization.name,
+          id: site.id,
+          name: site.name,
           points: dateKeys.map((date) => ({
             date,
             value: toPercent(
@@ -1188,16 +1188,16 @@ export const reportRepository = {
           })),
         };
       }),
-      branches: organizations.map((organization) => ({
-        id: organization.id,
-        name: organization.name,
+      branches: sites.map((site) => ({
+        id: site.id,
+        name: site.name,
       })),
     };
   },
 
   getMyPerformance: async (
     userId: string,
-    organizationId: string,
+    siteId: string,
     role: 'WAITER' | 'CHEF' | 'BARISTA',
     startDate: Date,
     endDate: Date,
@@ -1208,7 +1208,7 @@ export const reportRepository = {
     if (role === 'WAITER') {
       const orders = await prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           createdById: userId,
           orderDate: {
@@ -1311,7 +1311,7 @@ export const reportRepository = {
     const station = roleToStation[role];
     const tickets = await prisma.prepTicket.findMany({
       where: {
-        organizationId,
+        siteId,
         claimedById: userId,
         station,
         status: 'READY',
@@ -1388,8 +1388,8 @@ export const reportRepository = {
     return prepReport;
   },
 
-  listActiveOrganizations: async (): Promise<Array<{ id: string; name: string }>> => {
-    return prisma.organization.findMany({
+  listActiveSites: async (): Promise<Array<{ id: string; name: string }>> => {
+    return prisma.site.findMany({
       where: {
         isActive: true,
       },
@@ -1404,7 +1404,7 @@ export const reportRepository = {
   },
 
   getDailySummaryInRange: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<DailySummaryReport[]> => {
@@ -1413,7 +1413,7 @@ export const reportRepository = {
 
     // Single parallel batch — replaces the N×9 per-day query loop
     const [
-      organization,
+      site,
       closedOrders,
       orderItems,
       prepTickets,
@@ -1421,13 +1421,13 @@ export const reportRepository = {
       customerDiscountOrders,
       otherIncomeEntries,
     ] = await Promise.all([
-      prisma.organization.findFirst({
-        where: { id: organizationId },
+      prisma.site.findFirst({
+        where: { id: siteId },
         select: { id: true, name: true },
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           createdBy: { isTestUser: false },
@@ -1448,7 +1448,7 @@ export const reportRepository = {
       prisma.orderItem.findMany({
         where: {
           order: {
-            organizationId,
+            siteId,
             status: OrderStatus.CLOSED,
             orderDate: { gte: start, lt: endExclusive },
           },
@@ -1463,11 +1463,11 @@ export const reportRepository = {
       }),
       prisma.prepTicket.findMany({
         where: {
-          organizationId,
+          siteId,
           status: 'READY',
           claimedAt: { not: null },
           readyAt: { not: null },
-          order: { organizationId, orderDate: { gte: start, lt: endExclusive } },
+          order: { siteId, orderDate: { gte: start, lt: endExclusive } },
         },
         select: {
           station: true,
@@ -1478,7 +1478,7 @@ export const reportRepository = {
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           discountAmount: { not: null },
@@ -1489,7 +1489,7 @@ export const reportRepository = {
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           discountAmount: { not: null },
@@ -1498,7 +1498,7 @@ export const reportRepository = {
         },
         select: { orderDate: true, discountAmount: true },
       }),
-      otherIncomeRepository.findByDateRange(organizationId, start, new Date(endExclusive.getTime() - 1)),
+      otherIncomeRepository.findByDateRange(siteId, start, new Date(endExclusive.getTime() - 1)),
     ]);
 
     // Pre-index all data by date key
@@ -1556,7 +1556,7 @@ export const reportRepository = {
       otherIncomeByDate.set(key, bucket);
     }
 
-    const orgName = organization?.name ?? 'Unknown Branch';
+    const orgName = site?.name ?? 'Unknown Branch';
 
     return dateKeys.map((dateKey) => {
       const dayOrders = ordersByDate.get(dateKey) ?? [];
@@ -1635,8 +1635,8 @@ export const reportRepository = {
 
       return {
         date: dateKey,
-        organizationId,
-        organizationName: orgName,
+        siteId,
+        siteName: orgName,
         totalRevenue: grandTotal.toFixed(2),
         orderCount,
         ordersByType,
@@ -1661,7 +1661,7 @@ export const reportRepository = {
   },
 
   getDirectorPulse: async (): Promise<import('../types/report.types').DirectorPulseReport> => {
-    const organizations = await prisma.organization.findMany({
+    const sites = await prisma.site.findMany({
       // Branch sales pulse — exclude the hub org (see getBranchOverview).
       where: { isActive: true, isHub: false },
       select: { id: true, name: true },
@@ -1671,7 +1671,7 @@ export const reportRepository = {
     const now = new Date();
 
     const branchResults = await Promise.all(
-      organizations.map(async (organization) => {
+      sites.map(async (site) => {
         const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
         // Start of today in Africa/Nairobi (UTC+3)
         const startOfTodayNairobi = new Date(now);
@@ -1682,7 +1682,7 @@ export const reportRepository = {
         const [activeOrders, tickets, clockedInRecords, lateOrderRows] = await Promise.all([
           prisma.order.count({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: { in: ['PENDING', 'IN_PROGRESS', 'READY'] },
               createdAt: { gte: startOfTodayUtc },
             },
@@ -1690,14 +1690,14 @@ export const reportRepository = {
           prisma.prepTicket.groupBy({
             by: ['status'],
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: { in: ['PENDING', 'IN_PROGRESS'] },
             },
             _count: { _all: true },
           }),
           prisma.clockRecord.findMany({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               clockInAt: { not: null },
               clockOutAt: null,
             },
@@ -1708,7 +1708,7 @@ export const reportRepository = {
           // READY orders created today that have been unclosed for more than 2 hours
           prisma.order.findMany({
             where: {
-              organizationId: organization.id,
+              siteId: site.id,
               status: 'READY',
               createdAt: { gte: startOfTodayUtc },
               updatedAt: { lt: twoHoursAgo },
@@ -1730,8 +1730,8 @@ export const reportRepository = {
           tickets.find((ticket) => ticket.status === 'IN_PROGRESS')?._count._all ?? 0;
 
         return {
-          id: organization.id,
-          name: organization.name,
+          id: site.id,
+          name: site.name,
           activeOrders,
           pendingTickets,
           inProgressTickets,
@@ -1760,11 +1760,11 @@ export const reportRepository = {
     };
   },
 
-  getPrepRowsByReadyAtRange: async (organizationId: string, date: Date) => {
+  getPrepRowsByReadyAtRange: async (siteId: string, date: Date) => {
     const nextDate = toNextDate(date);
     return prisma.prepTicket.findMany({
       where: {
-        organizationId,
+        siteId,
         status: 'READY',
         claimedAt: {
           not: null,
@@ -1783,20 +1783,20 @@ export const reportRepository = {
   },
 
   getHourlyHeatmap: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<HourlyHeatmapReport> => {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
 
-    const [organization, orders] = await Promise.all([
-      prisma.organization.findFirst({
-        where: { id: organizationId },
+    const [site, orders] = await Promise.all([
+      prisma.site.findFirst({
+        where: { id: siteId },
         select: { id: true, name: true },
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           createdAt: { gte: start, lt: endExclusive },
           status: { not: 'CANCELLED' },
           createdBy: { isTestUser: false },
@@ -1887,14 +1887,14 @@ export const reportRepository = {
         startDate: formatDateOnly(startDate),
         endDate: formatDateOnly(endDate),
       },
-      organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      siteId,
+      siteName: site?.name ?? 'Unknown Branch',
       hourlyPoints,
       dowPoints,
     };
   },
 
-  getOutstandingBalances: async (organizationId?: string) => {
+  getOutstandingBalances: async (siteId?: string) => {
     const [houseAccounts, corporateAccounts, customerCreditAccounts] = await Promise.all([
       prisma.houseAccount.findMany({
         where: { isActive: true, currentBalance: { gt: 0 } },
@@ -1925,16 +1925,16 @@ export const reportRepository = {
         where: {
           isActive: true,
           currentBalance: { gt: 0 },
-          ...(organizationId ? { organizationId } : {}),
+          ...(siteId ? { siteId } : {}),
         },
         select: {
           id: true,
-          organizationId: true,
+          siteId: true,
           customerName: true,
           customerPhone: true,
           currentBalance: true,
           creditLimit: true,
-          organization: { select: { name: true } },
+          site: { select: { name: true } },
         },
         orderBy: { currentBalance: 'desc' },
         take: 500,
@@ -1945,7 +1945,7 @@ export const reportRepository = {
   },
 
   getItemsPerformance: async (
-    organizationId: string | null,
+    siteId: string | null,
     startDate: Date,
     endDate: Date,
     limit: number,
@@ -1955,7 +1955,7 @@ export const reportRepository = {
     const orderItems = await prisma.orderItem.findMany({
       where: {
         order: {
-          ...(organizationId ? { organizationId } : {}),
+          ...(siteId ? { siteId } : {}),
           createdAt: { gte: start, lt: endExclusive },
           status: { not: 'CANCELLED' },
           createdBy: { isTestUser: false },
@@ -1975,13 +1975,13 @@ export const reportRepository = {
       take: 200000,
     });
 
-    let organizationName = 'All Branches';
-    if (organizationId) {
-      const org = await prisma.organization.findFirst({
-        where: { id: organizationId },
+    let siteName = 'All Branches';
+    if (siteId) {
+      const org = await prisma.site.findFirst({
+        where: { id: siteId },
         select: { name: true },
       });
-      organizationName = org?.name ?? 'Unknown Branch';
+      siteName = org?.name ?? 'Unknown Branch';
     }
 
     // Aggregate by menuItemId
@@ -2031,8 +2031,8 @@ export const reportRepository = {
         startDate: formatDateOnly(startDate),
         endDate: formatDateOnly(endDate),
       },
-      organizationId,
-      organizationName,
+      siteId,
+      siteName,
       topItems,
       bottomItems,
       limit,
@@ -2040,19 +2040,19 @@ export const reportRepository = {
   },
 
   getAccountantReconciliation: async (
-    organizationId: string,
+    siteId: string,
     date: Date,
   ): Promise<import('../types/report.types').AccountantReconciliationReport> => {
     const { start, endExclusive } = getOrderDateBounds(date);
 
-    const [organization, orders] = await Promise.all([
-      prisma.organization.findFirst({
-        where: { id: organizationId },
+    const [site, orders] = await Promise.all([
+      prisma.site.findFirst({
+        where: { id: siteId },
         select: { id: true, name: true },
       }),
       prisma.order.findMany({
         where: {
-          organizationId,
+          siteId,
           status: OrderStatus.CLOSED,
           orderDate: { gte: start, lt: endExclusive },
           createdBy: { isTestUser: false },
@@ -2160,8 +2160,8 @@ export const reportRepository = {
 
     return {
       date: formatDateOnly(date),
-      organizationId,
-      organizationName: organization?.name ?? 'Unknown Branch',
+      siteId,
+      siteName: site?.name ?? 'Unknown Branch',
       summary: computePaymentBreakdown(allPaymentRows),
       waiters,
       orders: reconciliationOrders,
@@ -2169,7 +2169,7 @@ export const reportRepository = {
   },
 
   getStaleOrders: async (
-    organizationId: string | null,
+    siteId: string | null,
     startDate?: Date,
     endDate?: Date,
   ): Promise<import('../types/report.types').StaleOrdersReport> => {
@@ -2178,7 +2178,7 @@ export const reportRepository = {
 
     const orders = await prisma.order.findMany({
       where: {
-        ...(organizationId ? { organizationId } : {}),
+        ...(siteId ? { siteId } : {}),
         orderDate: {
           lt: today,
           ...(startDate ? { gte: startDate } : {}),
@@ -2212,7 +2212,7 @@ export const reportRepository = {
     const totalAtRisk = orders.reduce((sum, o) => sum + o.total.toNumber(), 0);
 
     return {
-      organizationId: organizationId ?? null,
+      siteId: siteId ?? null,
       totalOrders: orders.length,
       totalAtRisk: totalAtRisk.toFixed(2),
       orders: orders.map((o) => ({
@@ -2243,7 +2243,7 @@ export const reportRepository = {
   // Only orders on/after env.LIABILITY_START_DATE count. Orders before it are excluded —
   // e.g. the Mar/Apr 2026 dual-run backlog already reconciled in the legacy system.
   getWaiterStaleLiabilities: async (
-    organizationIds: string[],
+    siteIds: string[],
     waiterId?: string,
   ): Promise<
     Array<{
@@ -2258,7 +2258,7 @@ export const reportRepository = {
       branchName: string;
     }>
   > => {
-    if (organizationIds.length === 0) return [];
+    if (siteIds.length === 0) return [];
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -2267,7 +2267,7 @@ export const reportRepository = {
 
     const orders = await prisma.order.findMany({
       where: {
-        organizationId: { in: organizationIds },
+        siteId: { in: siteIds },
         orderDate: { gte: liabilityStart, lt: today },
         status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
         paymentMethod: null,
@@ -2283,7 +2283,7 @@ export const reportRepository = {
         tableNumber: true,
         total: true,
         createdBy: { select: { id: true, name: true } },
-        organization: { select: { name: true } },
+        site: { select: { name: true } },
       },
       orderBy: { orderDate: 'asc' },
       take: 2000,
@@ -2298,14 +2298,14 @@ export const reportRepository = {
       total: o.total,
       waiterId: o.createdBy.id,
       waiterName: o.createdBy.name,
-      branchName: o.organization.name,
+      branchName: o.site.name,
     }));
   },
 
   getDiscountUsage: async (
     startDate: Date,
     endDate: Date,
-    organizationId?: string,
+    siteId?: string,
   ) => {
     const { start, endExclusive } = getOrderDateRangeBounds(startDate, endDate);
 
@@ -2315,7 +2315,7 @@ export const reportRepository = {
       discountAmount: { not: null as null },
       orderDate: { gte: start, lt: endExclusive },
       createdBy: { isTestUser: false },
-      ...(organizationId ? { organizationId } : {}),
+      ...(siteId ? { siteId } : {}),
     };
 
     // Per-discount breakdown
@@ -2338,7 +2338,7 @@ export const reportRepository = {
       }),
       // Per-branch breakdown
       prisma.order.groupBy({
-        by: ['organizationId'],
+        by: ['siteId'],
         where: baseWhere,
         _count: { _all: true },
         _sum: { discountAmount: true },
@@ -2359,11 +2359,11 @@ export const reportRepository = {
     ]);
 
     // Resolve org and waiter names
-    const orgIds = perBranchRaw.map((r) => r.organizationId);
+    const orgIds = perBranchRaw.map((r) => r.siteId);
     const waiterIds = perWaiterRaw.map((r) => r.createdById);
 
     const [orgs, waiters] = await Promise.all([
-      prisma.organization.findMany({
+      prisma.site.findMany({
         where: { id: { in: orgIds } },
         select: { id: true, name: true },
       }),
@@ -2392,8 +2392,8 @@ export const reportRepository = {
         };
       }),
       byBranch: perBranchRaw.map((r) => ({
-        organizationId: r.organizationId,
-        name: orgMap.get(r.organizationId) ?? 'Unknown',
+        siteId: r.siteId,
+        name: orgMap.get(r.siteId) ?? 'Unknown',
         orderCount: r._count._all,
         totalDiscounted: toCurrencyString(r._sum.discountAmount),
       })),

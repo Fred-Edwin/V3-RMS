@@ -26,7 +26,7 @@ export const dispatchStatusSchema = z.enum(['AWAITING', 'IN_TRANSIT', 'CONFIRMED
 
 export const DispatchQueueRowSchema = z.object({
   requisitionId: uuid,
-  toOrganizationId: uuid,
+  toSiteId: uuid,
   branchName: z.string(),
   requisitionType: z.enum(['MORNING', 'AFTERNOON', 'EVENING', 'AD_HOC']),
   openedAt: isoDate,
@@ -68,7 +68,7 @@ export const FulfilSectionSchema = z.object({
 
 export const FulfilDetailSchema = z.object({
   requisitionId: uuid,
-  toOrganizationId: uuid,
+  toSiteId: uuid,
   branchName: z.string(),
   requisitionType: z.enum(['MORNING', 'AFTERNOON', 'EVENING', 'AD_HOC']),
   openedAt: isoDate,

@@ -27,7 +27,7 @@ const DEPARTMENTS: { tag: DepartmentTag; name: string }[] = [
 ];
 
 const run = async (): Promise<void> => {
-  const branchOrgs = await prisma.organization.findMany({
+  const branchOrgs = await prisma.site.findMany({
     where: { isHub: false },
     select: { id: true, name: true },
   });
@@ -44,8 +44,8 @@ const run = async (): Promise<void> => {
     for (const dept of DEPARTMENTS) {
       const existing = await prisma.location.findUnique({
         where: {
-          organizationId_type_departmentTag: {
-            organizationId: branch.id,
+          siteId_type_departmentTag: {
+            siteId: branch.id,
             type: 'BRANCH_DEPARTMENT',
             departmentTag: dept.tag,
           },
@@ -60,7 +60,7 @@ const run = async (): Promise<void> => {
 
       await prisma.location.create({
         data: {
-          organizationId: branch.id,
+          siteId: branch.id,
           type: 'BRANCH_DEPARTMENT',
           departmentTag: dept.tag,
           name: `${branch.name} — ${dept.name}`,

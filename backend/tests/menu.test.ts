@@ -20,7 +20,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'sa-1',
       role: 'SYSTEM_ADMIN',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -39,7 +39,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: branchId,
+      siteId: branchId,
     });
 
     const response = await request(app)
@@ -61,7 +61,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'sa-1',
       role: 'SYSTEM_ADMIN',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -74,7 +74,7 @@ describe('Menu routes', () => {
   it('PATCH /api/v1/menu/items/:id/availability lets manager toggle own branch item', async () => {
     vi.spyOn(menuService, 'setItemAvailability').mockResolvedValue({
       id: 'availability-1',
-      organizationId: branchId,
+      siteId: branchId,
       menuItemId: itemId,
       isAvailable: false,
       updatedAt: new Date('2026-02-23T12:00:00.000Z'),
@@ -83,7 +83,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'manager-1',
       role: 'MANAGER',
-      organizationId: branchId,
+      siteId: branchId,
     });
 
     const response = await request(app)
@@ -103,7 +103,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'manager-1',
       role: 'MANAGER',
-      organizationId: branchId,
+      siteId: branchId,
     });
 
     const response = await request(app)
@@ -137,7 +137,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: branchId,
+      siteId: branchId,
     });
 
     const response = await request(app).get('/api/v1/menu').set('Authorization', `Bearer ${token}`);
@@ -170,7 +170,7 @@ describe('Menu routes', () => {
     const token = signAccessToken({
       userId: 'manager-1',
       role: 'MANAGER',
-      organizationId: branchId,
+      siteId: branchId,
     });
 
     const response = await request(app).get('/api/v1/menu').set('Authorization', `Bearer ${token}`);

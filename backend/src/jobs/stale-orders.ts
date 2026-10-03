@@ -14,10 +14,10 @@ import { fcmService } from '../services/fcm-service';
 // Runs nightly at 00:05 Nairobi time — same window as the stale clock-out job.
 export const flagStaleOrders = async (): Promise<number> => {
   const today = getTodayDateOnly();
-  const organizations = await reportRepository.listActiveOrganizations();
+  const sites = await reportRepository.listActiveSites();
 
   let totalFlagged = 0;
-  for (const org of organizations) {
+  for (const org of sites) {
     const staleOrders = await orderRepository.findStaleOrders(org.id, today);
     if (staleOrders.length === 0) continue;
 
@@ -30,7 +30,7 @@ export const flagStaleOrders = async (): Promise<number> => {
 
     for (const order of newStaleOrders) {
       incidentService.log({
-        organizationId: org.id,
+        siteId: org.id,
         orderId: order.id,
         type: 'ORDER_STALE',
         actorId: order.createdBy.id,
@@ -49,7 +49,7 @@ export const flagStaleOrders = async (): Promise<number> => {
     }
 
     logger.info(
-      { organizationId: org.id, orgName: org.name, totalStale: staleOrders.length, newlyFlagged: newStaleOrders.length },
+      { siteId: org.id, orgName: org.name, totalStale: staleOrders.length, newlyFlagged: newStaleOrders.length },
       'Nightly stale orders: flagged unclosed orders and notified managers',
     );
 

@@ -2,13 +2,21 @@ import type { Request, Response } from 'express';
 import { branchService } from '../services/branch-service';
 import { createBranchSchema, updateBranchSchema, updateBranchProfileSchema, branchIdParamSchema } from '../validators/branch-schemas';
 
+/** `companyId` and `type` are new columns; the branch API keeps its original shape (see docs/API_CONTRACT.md). */
+const toBranchResponse = <T extends object>(row: T): Record<string, unknown> => {
+  const copy = { ...row } as Record<string, unknown>;
+  delete copy['companyId'];
+  delete copy['type'];
+  return copy;
+};
+
 export const branchController = {
   list: async (_req: Request, res: Response): Promise<void> => {
     const branches = await branchService.listBranches();
 
     res.status(200).json({
       success: true,
-      data: branches,
+      data: branches.map(toBranchResponse),
     });
   },
 
@@ -18,7 +26,7 @@ export const branchController = {
 
     res.status(201).json({
       success: true,
-      data: branch,
+      data: toBranchResponse(branch),
       message: 'Branch created successfully',
     });
   },
@@ -30,7 +38,7 @@ export const branchController = {
 
     res.status(200).json({
       success: true,
-      data: branch,
+      data: toBranchResponse(branch),
       message: 'Branch updated successfully',
     });
   },
@@ -41,7 +49,7 @@ export const branchController = {
 
     res.status(200).json({
       success: true,
-      data: branch,
+      data: toBranchResponse(branch),
     });
   },
 
@@ -52,7 +60,7 @@ export const branchController = {
 
     res.status(200).json({
       success: true,
-      data: branch,
+      data: toBranchResponse(branch),
       message: 'Branch details updated successfully',
     });
   },
@@ -63,7 +71,7 @@ export const branchController = {
 
     res.status(200).json({
       success: true,
-      data: branch,
+      data: toBranchResponse(branch),
       message: `${branch.name} set as hub branch`,
     });
   },

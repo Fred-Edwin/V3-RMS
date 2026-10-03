@@ -7,64 +7,64 @@ type Actor = NonNullable<Request['user']>;
 
 const isStartBeforeEnd = (startTime: string, endTime: string): boolean => startTime < endTime;
 
-const requireActorOrganizationId = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const requireActorSiteId = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
-const requiresExplicitOrganizationId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
+const requiresExplicitSiteId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
 
-const resolveReadOrganizationId = (actor: Actor, query: ShiftListQueryInput): string => {
-  if (requiresExplicitOrganizationId(actor)) {
-    if (!query.organizationId) {
+const resolveReadSiteId = (actor: Actor, query: ShiftListQueryInput): string => {
+  if (requiresExplicitSiteId(actor)) {
+    if (!query.siteId) {
       throw new ValidationError('organizationId query param is required for organization-level shift access');
     }
-    return query.organizationId;
+    return query.siteId;
   }
 
-  return requireActorOrganizationId(actor);
+  return requireActorSiteId(actor);
 };
 
-const resolveWriteOrganizationId = (actor: Actor, organizationId?: string): string => {
-  if (requiresExplicitOrganizationId(actor)) {
-    if (!organizationId) {
+const resolveWriteSiteId = (actor: Actor, siteId?: string): string => {
+  if (requiresExplicitSiteId(actor)) {
+    if (!siteId) {
       throw new ValidationError('organizationId is required for organization-level shift access');
     }
-    return organizationId;
+    return siteId;
   }
 
-  const actorOrganizationId = requireActorOrganizationId(actor);
-  if (organizationId && organizationId !== actorOrganizationId) {
+  const actorSiteId = requireActorSiteId(actor);
+  if (siteId && siteId !== actorSiteId) {
     throw new ForbiddenError('Cannot manage shifts outside your branch');
   }
 
-  return actorOrganizationId;
+  return actorSiteId;
 };
 
 export const shiftService = {
   listShifts: async (actor: Actor, query: ShiftListQueryInput) => {
-    const organizationId = resolveReadOrganizationId(actor, query);
-    return shiftRepository.findAllByOrganization(organizationId);
+    const siteId = resolveReadSiteId(actor, query);
+    return shiftRepository.findAllBySite(siteId);
   },
 
   createShift: async (actor: Actor, input: CreateShiftInput) => {
-    const { organizationId: requestedOrganizationId, ...shiftInput } = input;
-    const organizationId = resolveWriteOrganizationId(actor, requestedOrganizationId);
+    const { siteId: requestedSiteId, ...shiftInput } = input;
+    const siteId = resolveWriteSiteId(actor, requestedSiteId);
 
     if (!isStartBeforeEnd(shiftInput.startTime, shiftInput.endTime)) {
       throw new ValidationError('startTime must be earlier than endTime');
     }
 
-    return shiftRepository.create(organizationId, shiftInput);
+    return shiftRepository.create(siteId, shiftInput);
   },
 
   updateShift: async (actor: Actor, id: string, input: UpdateShiftInput) => {
-    const { organizationId: requestedOrganizationId, ...shiftInput } = input;
-    const organizationId = resolveWriteOrganizationId(actor, requestedOrganizationId);
-    const existing = await shiftRepository.findById(id, organizationId);
+    const { siteId: requestedSiteId, ...shiftInput } = input;
+    const siteId = resolveWriteSiteId(actor, requestedSiteId);
+    const existing = await shiftRepository.findById(id, siteId);
     if (!existing) {
       throw new NotFoundError('Shift not found');
     }
@@ -75,7 +75,7 @@ export const shiftService = {
       throw new ValidationError('startTime must be earlier than endTime');
     }
 
-    const updated = await shiftRepository.update(id, organizationId, shiftInput);
+    const updated = await shiftRepository.update(id, siteId, shiftInput);
     if (!updated) {
       throw new NotFoundError('Shift not found');
     }
@@ -84,12 +84,12 @@ export const shiftService = {
   },
 
   deleteShift: async (actor: Actor, id: string, query: ShiftListQueryInput = {}): Promise<void> => {
-    const organizationId = resolveWriteOrganizationId(actor, query.organizationId);
-    const existing = await shiftRepository.findById(id, organizationId);
+    const siteId = resolveWriteSiteId(actor, query.siteId);
+    const existing = await shiftRepository.findById(id, siteId);
     if (!existing) {
       throw new NotFoundError('Shift not found');
     }
 
-    await shiftRepository.softDelete(id, organizationId);
+    await shiftRepository.softDelete(id, siteId);
   },
 };

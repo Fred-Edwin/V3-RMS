@@ -19,7 +19,7 @@ const serializeAuthRequest = (
   if (!raw) throw new NotFoundError('Customer discount auth request not found');
   return {
     id: raw.id,
-    organizationId: raw.organizationId,
+    siteId: raw.siteId,
     orderId: raw.orderId,
     discountId: raw.discountId,
     requestedById: raw.requestedById,
@@ -50,19 +50,19 @@ const serializeAuthRequest = (
 
 export const customerDiscountAuthService = {
   listPending: async (actor: Actor): Promise<CustomerDiscountAuthRequestRecord[]> => {
-    if (!actor.organizationId) return [];
-    const records = await customerDiscountAuthRepository.findPendingByOrganization(
-      actor.organizationId,
+    if (!actor.siteId) return [];
+    const records = await customerDiscountAuthRepository.findPendingBySite(
+      actor.siteId,
     );
     return records.map(serializeAuthRequest);
   },
 
   getPendingByOrderId: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<CustomerDiscountAuthRequestRecord> => {
-    const authRequest = await customerDiscountAuthRepository.findPendingByOrderId(orderId, organizationId);
-    if (!authRequest || authRequest.organizationId !== organizationId) {
+    const authRequest = await customerDiscountAuthRepository.findPendingByOrderId(orderId, siteId);
+    if (!authRequest || authRequest.siteId !== siteId) {
       throw new NotFoundError('No pending customer discount request found for this order');
     }
     return serializeAuthRequest(authRequest);
@@ -90,10 +90,10 @@ export const customerDiscountAuthService = {
   createAuthRequest: async (
     orderId: string,
     discountId: string,
-    organizationId: string,
+    siteId: string,
     actor: Actor,
   ): Promise<{ requiresApproval: boolean; authRequest?: CustomerDiscountAuthRequestRecord }> => {
-    const order = await orderRepository.findById(orderId, organizationId);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (order.status !== 'READY') {
@@ -109,7 +109,7 @@ export const customerDiscountAuthService = {
     if (!discount || !discount.isActive) {
       throw new NotFoundError('Discount not found or inactive');
     }
-    if (discount.organizationId !== null && discount.organizationId !== organizationId) {
+    if (discount.siteId !== null && discount.siteId !== siteId) {
       throw new ForbiddenError('This discount is not available at this branch');
     }
 
@@ -143,7 +143,7 @@ export const customerDiscountAuthService = {
       // Auto-apply — write discount directly without going through AWAITING_AUTHORIZATION
       await orderRepository.applyDiscount(
         orderId,
-        organizationId,
+        siteId,
         discountPercent ?? '0',
         discountAmount.toString(),
         actor.id,
@@ -158,7 +158,7 @@ export const customerDiscountAuthService = {
 
     // Requires approval — create pending request
     const authRequest = await customerDiscountAuthRepository.create({
-      organizationId,
+      siteId,
       orderId,
       discountId,
       requestedById: actor.id,
@@ -168,9 +168,9 @@ export const customerDiscountAuthService = {
       discountAmount: discountAmount.toString(),
     });
 
-    await orderRepository.updateStatus(orderId, organizationId, 'AWAITING_AUTHORIZATION');
+    await orderRepository.updateStatus(orderId, siteId, 'AWAITING_AUTHORIZATION');
 
-    socketService.emitCustomerDiscountAuthPending(actor.id, organizationId, {
+    socketService.emitCustomerDiscountAuthPending(actor.id, siteId, {
       orderId,
       dailyNumber: order.dailyNumber,
       authRequestId: authRequest.id,
@@ -202,7 +202,7 @@ export const customerDiscountAuthService = {
     const authRequest = await customerDiscountAuthRepository.findById(authRequestId);
     if (!authRequest) throw new NotFoundError('Customer discount auth request not found');
 
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
+    if (actor.siteId && authRequest.siteId !== actor.siteId) {
       throw new ForbiddenError('Access denied');
     }
 
@@ -214,17 +214,17 @@ export const customerDiscountAuthService = {
     decision: CustomerDiscountDecision,
     resolvedById: string,
   ): Promise<CustomerDiscountAuthRequestRecord> => {
-    const { organizationId, orderId, requestedById } = authRequest;
+    const { siteId, orderId, requestedById } = authRequest;
 
     const resolved = await customerDiscountAuthRepository.resolveIfPending(
       authRequest.id,
-      organizationId,
+      siteId,
       decision,
       resolvedById,
     );
 
     if (!resolved) {
-      const current = await customerDiscountAuthRepository.findById(authRequest.id, organizationId);
+      const current = await customerDiscountAuthRepository.findById(authRequest.id, siteId);
       if (!current) throw new NotFoundError('Customer discount auth request not found');
       logger.info({ authRequestId: authRequest.id }, 'Customer discount resolution race: already resolved');
       return serializeAuthRequest(current);
@@ -236,7 +236,7 @@ export const customerDiscountAuthService = {
       const discountPercent = authRequest.discountPercent?.toString() ?? '0';
       const discountedOrder = await orderRepository.applyDiscount(
         orderId,
-        organizationId,
+        siteId,
         discountPercent,
         authRequest.discountAmount.toString(),
         resolvedById,
@@ -252,12 +252,12 @@ export const customerDiscountAuthService = {
         discountedTotal = discountedOrder.total.toString();
       }
 
-      await orderRepository.updateStatus(orderId, organizationId, 'READY');
+      await orderRepository.updateStatus(orderId, siteId, 'READY');
     } else {
-      await orderRepository.updateStatus(orderId, organizationId, 'READY');
+      await orderRepository.updateStatus(orderId, siteId, 'READY');
     }
 
-    socketService.emitCustomerDiscountAuthResolved(requestedById, organizationId, {
+    socketService.emitCustomerDiscountAuthResolved(requestedById, siteId, {
       orderId,
       dailyNumber: authRequest.order.dailyNumber,
       approved: decision === 'APPROVED',

@@ -42,10 +42,10 @@ function resolveOrgId(actor: Actor, requestedOrgId?: string): string {
     }
     return requestedOrgId;
   }
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for your account');
   }
-  return actor.organizationId;
+  return actor.siteId;
 }
 
 // ── Category operations ───────────────────────────────────────────────────────
@@ -66,10 +66,10 @@ export const otherIncomeService = {
     }
 
     // Branch-level roles: active only
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for your account');
     }
-    return otherIncomeRepository.findActiveCategories(actor.organizationId, actor.organizationId);
+    return otherIncomeRepository.findActiveCategories(actor.siteId, actor.siteId);
   },
 
   /** Active categories for the record-entry form dropdown (and cross-branch filter dropdowns). */
@@ -88,10 +88,10 @@ export const otherIncomeService = {
       }
       return otherIncomeRepository.findAllActiveCategoriesAcrossOrgs();
     }
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for your account');
     }
-    return otherIncomeRepository.findActiveCategories(actor.organizationId, actor.organizationId);
+    return otherIncomeRepository.findActiveCategories(actor.siteId, actor.siteId);
   },
 
   createCategory: async (
@@ -104,7 +104,7 @@ export const otherIncomeService = {
     }
     const orgId = resolveOrgId(actor, requestedOrgId);
     return otherIncomeRepository.createCategory({
-      organizationId: orgId,
+      siteId: orgId,
       branchId: input.branchId ?? null,
       name: input.name,
     });
@@ -142,7 +142,7 @@ export const otherIncomeService = {
     // For branch-level roles, orgId = their branch org. For org-level, branchId must be in input.
     const orgId = ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')
       ? resolveOrgId(actor, input.branchId)
-      : (actor.organizationId ?? (() => { throw new ForbiddenError('Branch context missing'); })());
+      : (actor.siteId ?? (() => { throw new ForbiddenError('Branch context missing'); })());
 
     // Validate category is active and accessible
     const activeCategories = ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')
@@ -155,7 +155,7 @@ export const otherIncomeService = {
     const entryDate = new Date(`${input.entryDate}T00:00:00`);
 
     return otherIncomeRepository.createEntry({
-      organizationId: orgId,
+      siteId: orgId,
       branchId: orgId, // in this system each branch = one org, so branchId = orgId
       categoryId: input.categoryId,
       amount: input.amount,
@@ -189,7 +189,7 @@ export const otherIncomeService = {
     // Org-level roles look up without scope; branch roles are pinned to their org.
     const scopeOrgId = ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')
       ? undefined
-      : actor.organizationId ?? undefined;
+      : actor.siteId ?? undefined;
     const existing = await otherIncomeRepository.findEntryById(id, scopeOrgId);
     if (!existing) throw new NotFoundError('Income entry not found');
 
@@ -207,8 +207,8 @@ export const otherIncomeService = {
     // Validate a changed category is active and reachable for this branch.
     if (input.categoryId && input.categoryId !== existing.categoryId) {
       const activeCategories = await otherIncomeRepository.findActiveCategories(
-        existing.organizationId,
-        existing.organizationId,
+        existing.siteId,
+        existing.siteId,
       );
       if (!activeCategories.some((c) => c.id === input.categoryId)) {
         throw new ValidationError('Income category not found or is not available for this branch');
@@ -321,7 +321,7 @@ export const otherIncomeService = {
 
     const updated = await otherIncomeRepository.updateEntry(
       id,
-      existing.organizationId,
+      existing.siteId,
       {
         categoryId: next.categoryId,
         amount: next.amount,
@@ -354,10 +354,10 @@ export const otherIncomeService = {
       // branchId in the query is used as an org filter for these roles
       orgId = input.branchId; // may be undefined — means all orgs (handled below)
     } else {
-      if (!actor.organizationId) {
+      if (!actor.siteId) {
         throw new ForbiddenError('Branch context missing for your account');
       }
-      orgId = actor.organizationId;
+      orgId = actor.siteId;
     }
 
     const startDate = input.startDate ? new Date(`${input.startDate}T00:00:00`) : undefined;
@@ -397,7 +397,7 @@ export const otherIncomeService = {
     // Find entry without org scope for org-level roles; with scope for branch-level
     const orgId = ORG_LEVEL_ROLES.has(actor.role as 'DIRECTOR' | 'SYSTEM_ADMIN')
       ? undefined
-      : actor.organizationId ?? undefined;
+      : actor.siteId ?? undefined;
     const entry = await otherIncomeRepository.findEntryById(id, orgId);
     if (!entry) throw new NotFoundError('Income entry not found');
 
@@ -415,6 +415,6 @@ export const otherIncomeService = {
       throw new ForbiddenError('You do not have permission to delete income entries');
     }
 
-    await otherIncomeRepository.deleteEntry(id, entry.organizationId);
+    await otherIncomeRepository.deleteEntry(id, entry.siteId);
   },
 };

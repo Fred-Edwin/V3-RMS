@@ -31,7 +31,7 @@ export const checkFormalNoticeReminders = async (): Promise<void> => {
   // Group by organizationId to batch director lookups
   const byOrg = new Map<string, typeof pending48>();
   for (const row of pending48) {
-    const orgId = row.notice.organizationId;
+    const orgId = row.notice.siteId;
     const existing = byOrg.get(orgId);
     if (existing) {
       existing.push(row);

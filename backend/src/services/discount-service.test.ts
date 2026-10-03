@@ -14,24 +14,24 @@ vi.mock('../repositories/discount-repository', () => ({
   },
 }));
 
-const organizationId = '11111111-1111-4111-8111-111111111111';
+const siteId = '11111111-1111-4111-8111-111111111111';
 const discountId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const directorId = '22222222-2222-4222-8222-222222222222';
 
 const directorActor = {
   id: directorId,
   role: 'DIRECTOR',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const waiterActor = {
   id: '33333333-3333-4333-8333-333333333333',
   role: 'WAITER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 type DiscountRecordFixture = {
-  id: string; organizationId: string | null; name: string;
+  id: string; siteId: string | null; name: string;
   type: 'PERCENTAGE' | 'FIXED_AMOUNT'; value: Prisma.Decimal;
   requiresApproval: boolean; isActive: boolean; createdById: string;
   createdAt: Date; updatedAt: Date; createdBy: { id: string; name: string };
@@ -39,7 +39,7 @@ type DiscountRecordFixture = {
 
 const buildDiscountRecord = (overrides: Partial<DiscountRecordFixture> = {}): DiscountRecordFixture => ({
   id: discountId,
-  organizationId,
+  siteId,
   name: 'Happy Hour',
   type: 'PERCENTAGE' as const,
   value: new Prisma.Decimal('10.00'),
@@ -58,7 +58,7 @@ describe('discountService.list', () => {
   it('returns active discounts for a waiter', async () => {
     vi.mocked(discountRepository.findByBranch).mockResolvedValue([buildDiscountRecord()]);
     const result = await discountService.list(waiterActor);
-    expect(discountRepository.findByBranch).toHaveBeenCalledWith(organizationId, true);
+    expect(discountRepository.findByBranch).toHaveBeenCalledWith(siteId, true);
     expect(result).toHaveLength(1);
     expect(result[0]?.name).toBe('Happy Hour');
   });
@@ -67,11 +67,11 @@ describe('discountService.list', () => {
     const managerActor = { ...directorActor, role: 'MANAGER' as const };
     vi.mocked(discountRepository.findByBranch).mockResolvedValue([buildDiscountRecord()]);
     await discountService.list(managerActor);
-    expect(discountRepository.findByBranch).toHaveBeenCalledWith(organizationId, false);
+    expect(discountRepository.findByBranch).toHaveBeenCalledWith(siteId, false);
   });
 
   it('returns empty array when actor has no organizationId', async () => {
-    const actorNoOrg = { ...waiterActor, organizationId: null };
+    const actorNoOrg = { ...waiterActor, siteId: null };
     const result = await discountService.list(actorNoOrg as NonNullable<Request['user']>);
     expect(result).toEqual([]);
     expect(discountRepository.findByBranch).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('discountService.create', () => {
   it('creates a discount when actor is a director', async () => {
     vi.mocked(discountRepository.create).mockResolvedValue(buildDiscountRecord());
     const result = await discountService.create(
-      { organizationId, name: 'Happy Hour', type: 'PERCENTAGE', value: 10, requiresApproval: false },
+      { siteId, name: 'Happy Hour', type: 'PERCENTAGE', value: 10, requiresApproval: false },
       directorActor,
     );
     expect(discountRepository.create).toHaveBeenCalledWith(
@@ -97,23 +97,23 @@ describe('discountService.create', () => {
   it('throws ForbiddenError when actor is not a director', async () => {
     await expect(
       discountService.create(
-        { organizationId, name: 'Happy Hour', type: 'PERCENTAGE', value: 10, requiresApproval: false },
+        { siteId, name: 'Happy Hour', type: 'PERCENTAGE', value: 10, requiresApproval: false },
         waiterActor,
       ),
     ).rejects.toThrow('Only directors can create discounts');
   });
 
   it('creates an all-branch discount when organizationId is null', async () => {
-    const allBranchDiscount = buildDiscountRecord({ organizationId: null });
+    const allBranchDiscount = buildDiscountRecord({ siteId: null });
     vi.mocked(discountRepository.create).mockResolvedValue(allBranchDiscount);
     const result = await discountService.create(
-      { organizationId: null, name: 'All Branches', type: 'FIXED_AMOUNT', value: 100, requiresApproval: true },
+      { siteId: null, name: 'All Branches', type: 'FIXED_AMOUNT', value: 100, requiresApproval: true },
       directorActor,
     );
     expect(discountRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: null }),
+      expect.objectContaining({ siteId: null }),
     );
-    expect(result.organizationId).toBeNull();
+    expect(result.siteId).toBeNull();
   });
 });
 
@@ -126,7 +126,7 @@ describe('discountService.deactivate', () => {
       buildDiscountRecord({ isActive: false }),
     );
     const result = await discountService.deactivate(discountId, directorActor);
-    expect(discountRepository.deactivate).toHaveBeenCalledWith(discountId, directorActor.organizationId);
+    expect(discountRepository.deactivate).toHaveBeenCalledWith(discountId, directorActor.siteId);
     expect(result.isActive).toBe(false);
   });
 

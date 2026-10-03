@@ -79,7 +79,7 @@ export const wasteService = {
       .$transaction(async (tx) => {
         const created = await wasteRepository.create(
           {
-            organizationId: scope.locationOrgId,
+            siteId: scope.locationOrgId,
             locationId: scope.locationId,
             inventoryItemId: item.id,
             quantity,
@@ -94,7 +94,7 @@ export const wasteService = {
         // Negative-signed, like PREP_CONSUME / DISPATCH_OUT — on-hand is a plain Σ quantity.
         await tx.inventoryTransaction.create({
           data: {
-            organizationId: scope.locationOrgId,
+            siteId: scope.locationOrgId,
             locationId: scope.locationId,
             inventoryItemId: item.id,
             type: 'WASTE',

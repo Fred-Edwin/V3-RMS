@@ -1,34 +1,34 @@
 model Shift {
   id             String            @id @default(uuid())
-  organizationId String            @map("organization_id")
+  siteId String            @map("organization_id")
   name           String
   startTime      String            @map("start_time")
   endTime        String            @map("end_time")
   isActive       Boolean           @default(true) @map("is_active")
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
-  organization   Organization      @relation(fields: [organizationId], references: [id])
+  site   Site      @relation(fields: [siteId], references: [id])
   assignments    ShiftAssignment[]
 
-  @@index([organizationId])
+  @@index([siteId])
   @@map("shifts")
 }
 
 model ShiftAssignment {
   id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
+  siteId String       @map("organization_id")
   shiftId        String       @map("shift_id")
   userId         String       @map("user_id")
   date           DateTime     @db.Date
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  site   Site @relation(fields: [siteId], references: [id])
   shift          Shift        @relation(fields: [shiftId], references: [id])
   user           User         @relation(fields: [userId], references: [id])
   clockRecord    ClockRecord?
 
   @@unique([userId, date, shiftId])
-  @@index([organizationId])
+  @@index([siteId])
   @@index([userId])
   @@index([date])
   @@map("shift_assignments")
@@ -36,7 +36,7 @@ model ShiftAssignment {
 
 model ClockRecord {
   id                String          @id @default(uuid())
-  organizationId    String          @map("organization_id")
+  siteId    String          @map("organization_id")
   shiftAssignmentId String          @unique @map("shift_assignment_id")
   userId            String          @map("user_id")
   clockInAt         DateTime?       @map("clock_in_at")
@@ -50,7 +50,7 @@ model ClockRecord {
   shiftAssignment   ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
   user              User            @relation(fields: [userId], references: [id])
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([userId])
   @@index([clockInAt])
   @@map("clock_records")
@@ -108,18 +108,18 @@ model EmployeeProfile {
 
 model ContractType {
   id             String   @id @default(uuid())
-  organizationId String?  @map("organization_id")
+  siteId String?  @map("organization_id")
   name           String
   durationMonths Int?     @map("duration_months")
   isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  site     Site?     @relation(fields: [siteId], references: [id])
   leavePolicies    LeavePolicy[]
   employeeProfiles EmployeeProfile[]
 
-  @@index([organizationId])
+  @@index([siteId])
   @@map("contract_types")
 }
 
@@ -158,7 +158,7 @@ model LeaveRequest {
   id                String      @id @default(uuid())
   employeeProfileId String      @map("employee_profile_id")
   leaveBalanceId    String      @map("leave_balance_id")
-  organizationId    String?     @map("organization_id")
+  siteId    String?     @map("organization_id")
   leaveType         LeaveType   @map("leave_type")
   startDate         DateTime    @map("start_date")
   endDate           DateTime    @map("end_date")
@@ -175,13 +175,13 @@ model LeaveRequest {
 
   employeeProfile  EmployeeProfile               @relation(fields: [employeeProfileId], references: [id])
   leaveBalance     LeaveBalance                  @relation(fields: [leaveBalanceId], references: [id])
-  organization     Organization?                 @relation(fields: [organizationId], references: [id])
+  site     Site?                 @relation(fields: [siteId], references: [id])
   reviewedBy       User?                         @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
   cancelledBy      User?                         @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
   documents        HrDocument[]
   acknowledgements LeaveRequestAcknowledgement[]
 
-  @@index([organizationId, status])
+  @@index([siteId, status])
   @@index([employeeProfileId])
   @@map("leave_requests")
 }
@@ -203,7 +203,7 @@ model LeaveRequestAcknowledgement {
 model DisciplinaryRecord {
   id                String               @id @default(uuid())
   employeeProfileId String               @map("employee_profile_id")
-  organizationId    String               @map("organization_id")
+  siteId    String               @map("organization_id")
   incidentDate      DateTime             @map("incident_date")
   actionDate        DateTime             @map("action_date")
   category          DisciplinaryCategory
@@ -220,11 +220,11 @@ model DisciplinaryRecord {
   createdAt         DateTime             @default(now()) @map("created_at")
 
   employeeProfile EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
-  organization    Organization    @relation(fields: [organizationId], references: [id])
+  site    Site    @relation(fields: [siteId], references: [id])
   issuedBy        User            @relation("DisciplinaryIssuedBy", fields: [issuedById], references: [id])
   documents       HrDocument[]
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([employeeProfileId])
   @@map("disciplinary_records")
 }
@@ -253,7 +253,7 @@ model HrDocument {
 
 model Payslip {
   id              String   @id @default(uuid())
-  organizationId  String   @map("organization_id")
+  siteId  String   @map("organization_id")
   userId          String   @map("user_id")
   payPeriod       String   @map("pay_period")
   payDate         DateTime @map("pay_date")
@@ -276,12 +276,12 @@ model Payslip {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  site Site @relation(fields: [siteId], references: [id])
   user         User         @relation("StaffPayslips", fields: [userId], references: [id])
   createdBy    User         @relation("PayslipsCreated", fields: [createdById], references: [id])
 
-  @@unique([organizationId, userId, payPeriod])
-  @@index([organizationId, payPeriod])
+  @@unique([siteId, userId, payPeriod])
+  @@index([siteId, payPeriod])
   @@index([userId])
   @@map("payslips")
 }

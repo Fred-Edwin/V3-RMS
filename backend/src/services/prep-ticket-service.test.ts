@@ -55,24 +55,24 @@ vi.mock('./incident-service', () => ({
   },
 }));
 
-const organizationId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const siteId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 const chefActor = {
   id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   role: 'CHEF',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const otherChefActor = {
   id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'CHEF',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const kitchenDisplayActor = {
   id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
   role: 'KITCHEN_DISPLAY',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const buildTicket = (
@@ -81,7 +81,7 @@ const buildTicket = (
 ): PrepTicketWithOrderRecord => {
   return {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    organizationId,
+    siteId,
     orderId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
     station: 'KITCHEN',
     status,
@@ -128,7 +128,7 @@ describe('prepTicketService ownership enforcement', () => {
     const result = await prepTicketService.markReady(ticket.id, chefActor);
 
     expect(result.status).toBe('READY');
-    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId);
+    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, siteId);
     expect(socketService.emitOrderReady).toHaveBeenCalled();
     expect(socketService.emitOrderAllReady).toHaveBeenCalled();
     expect(fcmService.sendOrderReadyPush).toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('prepTicketService ownership enforcement', () => {
     const result = await prepTicketService.markReady(ticket.id, kitchenDisplayActor);
 
     expect(result.status).toBe('READY');
-    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, organizationId);
+    expect(prepTicketRepository.markReady).toHaveBeenCalledWith(ticket.id, siteId);
   });
 
   it('allows a CHEF to mark a PIZZA ticket ready', async () => {

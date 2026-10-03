@@ -27,7 +27,7 @@ describe('restockLevelRepository.bulkUpsert — change log', () => {
 
     expect(tx.restockLevelChange.createMany).toHaveBeenCalledWith({
       data: [
-        { organizationId: org, locationId: location, inventoryItemId: 'i1', oldLevel: null, newLevel: d('30'), changedById: 'sm1', reason: 'New wing' },
+        { siteId: org, locationId: location, inventoryItemId: 'i1', oldLevel: null, newLevel: d('30'), changedById: 'sm1', reason: 'New wing' },
       ],
     });
   });
@@ -57,10 +57,10 @@ describe('restockLevelRepository.bulkUpsert — change log', () => {
       { inventoryItemId: 'i9', level: null },
     ]);
 
-    expect(tx.restockLevel.deleteMany).toHaveBeenCalledWith({ where: { organizationId: org, locationId: location, inventoryItemId: { in: ['i1', 'i9'] } } });
+    expect(tx.restockLevel.deleteMany).toHaveBeenCalledWith({ where: { siteId: org, locationId: location, inventoryItemId: { in: ['i1', 'i9'] } } });
     const data = tx.restockLevelChange.createMany.mock.calls[0]![0].data;
     expect(data).toEqual([
-      { organizationId: org, locationId: location, inventoryItemId: 'i1', oldLevel: d('10'), newLevel: null, changedById: 'dh1', reason: undefined },
+      { siteId: org, locationId: location, inventoryItemId: 'i1', oldLevel: d('10'), newLevel: null, changedById: 'dh1', reason: undefined },
     ]);
   });
 
@@ -73,7 +73,7 @@ describe('restockLevelRepository.bulkUpsert — change log', () => {
   it('reads the previous levels scoped to the org and location', async () => {
     await restockLevelRepository.bulkUpsert(org, location, 'sm1', [{ inventoryItemId: 'i1', level: '1' }]);
     expect(tx.restockLevel.findMany).toHaveBeenCalledWith({
-      where: { organizationId: org, locationId: location, inventoryItemId: { in: ['i1'] } },
+      where: { siteId: org, locationId: location, inventoryItemId: { in: ['i1'] } },
       select: { inventoryItemId: true, level: true },
     });
   });

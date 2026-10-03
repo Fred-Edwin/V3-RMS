@@ -12,7 +12,7 @@ import { houseAccountAuthService } from './house-account-auth-service';
 vi.mock('../repositories/house-account-auth-request-repository', () => ({
   houseAccountAuthRequestRepository: {
     findPendingByHolderUserId: vi.fn(),
-    findPendingByOrganization: vi.fn(),
+    findPendingBySite: vi.fn(),
     findPendingByOrderId: vi.fn(),
     findById: vi.fn(),
     resolveIfPending: vi.fn(),
@@ -70,14 +70,14 @@ const directorId = '55555555-5555-4555-8555-555555555555';
 
 type Actor = NonNullable<Request['user']>;
 
-const holderActor: Actor = { id: holderId, role: 'DIRECTOR', organizationId: null } as Actor;
-const managerActor: Actor = { id: managerId, role: 'MANAGER', organizationId: orgId } as Actor;
-const waiterActor: Actor = { id: waiterId, role: 'WAITER', organizationId: orgId } as Actor;
-const directorActor: Actor = { id: directorId, role: 'DIRECTOR', organizationId: null } as Actor;
+const holderActor: Actor = { id: holderId, role: 'DIRECTOR', siteId: null } as Actor;
+const managerActor: Actor = { id: managerId, role: 'MANAGER', siteId: orgId } as Actor;
+const waiterActor: Actor = { id: waiterId, role: 'WAITER', siteId: orgId } as Actor;
+const directorActor: Actor = { id: directorId, role: 'DIRECTOR', siteId: null } as Actor;
 
 const buildAuthRequest = (overrides = {}) => ({
   id: authRequestId,
-  organizationId: orgId,
+  siteId: orgId,
   orderId,
   houseAccountId: accountId,
   requestedById: waiterId,
@@ -107,9 +107,9 @@ describe('houseAccountAuthService.listPending', () => {
   });
 
   it('scopes to organizationId for branch actor', async () => {
-    vi.mocked(houseAccountAuthRequestRepository.findPendingByOrganization).mockResolvedValue([buildAuthRequest() as never]);
+    vi.mocked(houseAccountAuthRequestRepository.findPendingBySite).mockResolvedValue([buildAuthRequest() as never]);
     const result = await houseAccountAuthService.listPending(managerActor);
-    expect(houseAccountAuthRequestRepository.findPendingByOrganization).toHaveBeenCalledWith(orgId);
+    expect(houseAccountAuthRequestRepository.findPendingBySite).toHaveBeenCalledWith(orgId);
     expect(result).toHaveLength(1);
   });
 });
@@ -266,7 +266,7 @@ describe('houseAccountAuthService.managerOverride', () => {
   });
 
   it('throws ForbiddenError when manager from wrong branch', async () => {
-    const req = buildAuthRequest({ organizationId: 'other-org-id' });
+    const req = buildAuthRequest({ siteId: 'other-org-id' });
     vi.mocked(houseAccountAuthRequestRepository.findById).mockResolvedValue(req as never);
     await expect(
       houseAccountAuthService.managerOverride(authRequestId, 'APPROVED', managerActor),

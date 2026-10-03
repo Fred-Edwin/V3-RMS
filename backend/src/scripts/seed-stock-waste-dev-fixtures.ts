@@ -98,23 +98,23 @@ const daysAgo = (n: number, hour = 9): Date => {
 };
 
 const run = async (): Promise<void> => {
-  const hub = await prisma.organization.findFirst({ where: { isHub: true } });
+  const hub = await prisma.site.findFirst({ where: { isHub: true } });
   const centralStore = await prisma.location.findFirst({ where: { type: 'CENTRAL_STORE' } });
   const storeManager = await prisma.user.findUnique({ where: { email: 'store.manager@wendo.test' } });
   const attendant = await prisma.user.findUnique({ where: { email: 'store.attendant@wendo.test' } });
-  const town = await prisma.organization.findFirst({ where: { name: 'Nyeri Town' } });
+  const town = await prisma.site.findFirst({ where: { name: 'Nyeri Town' } });
   if (!hub || !centralStore || !storeManager || !attendant || !town) {
     console.log('SKIP  hub / Central Store / store users / Nyeri Town missing — run seed-dev.ts first');
     return;
   }
   const kitchenHead = await prisma.user.findFirst({
-    where: { organizationId: town.id, isDepartmentHead: true, departmentTag: 'KITCHEN' },
+    where: { siteId: town.id, isDepartmentHead: true, departmentTag: 'KITCHEN' },
   });
   const townKitchen = await prisma.location.findFirst({
-    where: { organizationId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN' },
+    where: { siteId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN' },
   });
   const townBarista = await prisma.location.findFirst({
-    where: { organizationId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'BARISTA' },
+    where: { siteId: town.id, type: 'BRANCH_DEPARTMENT', departmentTag: 'BARISTA' },
   });
   if (!kitchenHead || !townKitchen || !townBarista) {
     console.log('SKIP  Nyeri Town Kitchen head / department locations missing — run seed-dispatch-dev-fixtures.ts + provision-branch-departments.ts first');
@@ -129,8 +129,8 @@ const run = async (): Promise<void> => {
   // --- 2. Categories + items ------------------------------------------------------
   const categoryIds = new Map<string, string>();
   for (const name of ['Dairy', 'Dry goods', 'Produce', 'Bakery', 'Prepped']) {
-    const existing = await prisma.category.findFirst({ where: { organizationId: hub.id, name, deletedAt: null } });
-    const category = existing ?? (await prisma.category.create({ data: { organizationId: hub.id, name } }));
+    const existing = await prisma.category.findFirst({ where: { siteId: hub.id, name, deletedAt: null } });
+    const category = existing ?? (await prisma.category.create({ data: { siteId: hub.id, name } }));
     categoryIds.set(name, category.id);
   }
 
@@ -143,10 +143,10 @@ const run = async (): Promise<void> => {
       currentCost: new Prisma.Decimal(spec.cost),
       departmentTags: spec.tags,
     };
-    const existing = await prisma.inventoryItem.findFirst({ where: { organizationId: hub.id, name: spec.name, deletedAt: null } });
+    const existing = await prisma.inventoryItem.findFirst({ where: { siteId: hub.id, name: spec.name, deletedAt: null } });
     return existing
       ? prisma.inventoryItem.update({ where: { id: existing.id }, data })
-      : prisma.inventoryItem.create({ data: { organizationId: hub.id, name: spec.name, ...data } });
+      : prisma.inventoryItem.create({ data: { siteId: hub.id, name: spec.name, ...data } });
   };
 
   const itemIds = new Map<string, string>();
@@ -160,7 +160,7 @@ const run = async (): Promise<void> => {
       where: { locationId_inventoryItemId: { locationId: centralStore.id, inventoryItemId: itemIds.get(spec.name)! } },
       update: { level: new Prisma.Decimal(spec.restock), setById: storeManager.id },
       create: {
-        organizationId: hub.id,
+        siteId: hub.id,
         locationId: centralStore.id,
         inventoryItemId: itemIds.get(spec.name)!,
         level: new Prisma.Decimal(spec.restock),
@@ -169,16 +169,16 @@ const run = async (): Promise<void> => {
     });
   }
 
-  let live = await prisma.inventoryItem.count({ where: { organizationId: hub.id, deletedAt: null } });
+  let live = await prisma.inventoryItem.count({ where: { siteId: hub.id, deletedAt: null } });
   fill: for (const pack of FILLER_PACKS) {
     for (const base of FILLER_BASES) {
       if (live >= TARGET_LIVE_ITEMS) break fill;
       const name = `${base} ${pack}`;
-      const exists = await prisma.inventoryItem.findFirst({ where: { organizationId: hub.id, name } });
+      const exists = await prisma.inventoryItem.findFirst({ where: { siteId: hub.id, name } });
       if (exists) continue;
       await prisma.inventoryItem.create({
         data: {
-          organizationId: hub.id,
+          siteId: hub.id,
           name,
           type: 'RAW_INGREDIENT',
           usageUnit: 'pcs',
@@ -196,13 +196,13 @@ const run = async (): Promise<void> => {
   // --- 6. Attention table = the Paper set --------------------------------------------
   const paperIds = HUB_ITEMS.map((s) => itemIds.get(s.name)!);
   const cleared = await prisma.restockLevel.deleteMany({
-    where: { organizationId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: paperIds } },
+    where: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: paperIds } },
   });
   console.log(`OK    cleared ${cleared.count} Central Store restock levels outside the Paper set`);
 
   const negatives = await prisma.inventoryTransaction.groupBy({
     by: ['inventoryItemId'],
-    where: { organizationId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: [...itemIds.values()] } },
+    where: { siteId: hub.id, locationId: centralStore.id, inventoryItemId: { notIn: [...itemIds.values()] } },
     _sum: { quantity: true },
   });
   for (const row of negatives) {
@@ -210,7 +210,7 @@ const run = async (): Promise<void> => {
     if (sum.greaterThanOrEqualTo(0)) continue;
     await prisma.inventoryTransaction.create({
       data: {
-        organizationId: hub.id,
+        siteId: hub.id,
         locationId: centralStore.id,
         inventoryItemId: row.inventoryItemId,
         type: 'RECEIVE',
@@ -223,7 +223,7 @@ const run = async (): Promise<void> => {
   }
 
   // --- 3–5. Ledger history (once) -----------------------------------------------------
-  const already = await prisma.requisition.findFirst({ where: { organizationId: town.id, note: FIXTURE_NOTE } });
+  const already = await prisma.requisition.findFirst({ where: { siteId: town.id, note: FIXTURE_NOTE } });
   if (already) {
     console.log('SKIP  ledger history already written (fixture requisition exists)');
     return;
@@ -234,7 +234,7 @@ const run = async (): Promise<void> => {
     const onHand = async (locationOrgId: string, locationId: string, itemId: string) =>
       (
         await tx.inventoryTransaction.aggregate({
-          where: { organizationId: locationOrgId, locationId, inventoryItemId: itemId },
+          where: { siteId: locationOrgId, locationId, inventoryItemId: itemId },
           _sum: { quantity: true },
         })
       )._sum.quantity ?? new Prisma.Decimal(0);
@@ -255,19 +255,19 @@ const run = async (): Promise<void> => {
       if (opening.isZero()) continue;
       if (opening.greaterThan(0)) {
         await tx_({
-          organizationId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
           quantity: opening, unitCost: new Prisma.Decimal(spec.cost), reason: `${FIXTURE_NOTE} — opening balance`,
           userId: storeManager.id, createdAt: daysAgo(20),
         });
       } else {
         // Tomatoes: receive, then a count correction below zero.
         await tx_({
-          organizationId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'RECEIVE',
           quantity: new Prisma.Decimal(10), unitCost: new Prisma.Decimal(spec.cost), reason: `${FIXTURE_NOTE} — opening balance`,
           userId: storeManager.id, createdAt: daysAgo(20),
         });
         await tx_({
-          organizationId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'ADJUSTMENT',
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: id, type: 'ADJUSTMENT',
           quantity: opening.minus(10), unitCost: new Prisma.Decimal(spec.cost), reason: 'Count correction',
           userId: storeManager.id, createdAt: daysAgo(6),
         });
@@ -279,13 +279,13 @@ const run = async (): Promise<void> => {
       const at = daysAgo(w.daysAgo, 8);
       const log = await tx.wasteLog.create({
         data: {
-          organizationId: hub.id, locationId: centralStore.id, inventoryItemId: itemIds.get(w.item)!,
+          siteId: hub.id, locationId: centralStore.id, inventoryItemId: itemIds.get(w.item)!,
           quantity: new Prisma.Decimal(w.qty), reason: w.reason, note: w.note ?? null,
           unitCost: new Prisma.Decimal(spec.cost), loggedById: attendant.id, createdAt: at,
         },
       });
       await tx_({
-        organizationId: hub.id, locationId: centralStore.id, inventoryItemId: log.inventoryItemId, type: 'WASTE',
+        siteId: hub.id, locationId: centralStore.id, inventoryItemId: log.inventoryItemId, type: 'WASTE',
         quantity: log.quantity.negated(), unitCost: log.unitCost, reason: w.reason, wasteLogId: log.id,
         userId: attendant.id, createdAt: at,
       });
@@ -293,17 +293,17 @@ const run = async (): Promise<void> => {
 
     // (4) Coffee beans — a real GRN so the counterparty is the supplier.
     const supplier =
-      (await tx.supplier.findFirst({ where: { organizationId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
-      (await createSeedSupplier(tx, { organizationId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
+      (await tx.supplier.findFirst({ where: { siteId: hub.id, name: 'Samrat Suppliers Ltd', deletedAt: null } })) ??
+      (await createSeedSupplier(tx, { siteId: hub.id, name: 'Samrat Suppliers Ltd', defaultPaymentTerms: 'PAY_NOW' }));
     const grnCounter = await tx.referenceCounter.upsert({
-      where: { organizationId_prefix: { organizationId: hub.id, prefix: 'GRN' } },
+      where: { siteId_prefix: { siteId: hub.id, prefix: 'GRN' } },
       update: { lastNumber: { increment: 1 } },
-      create: { organizationId: hub.id, prefix: 'GRN', lastNumber: 1 },
+      create: { siteId: hub.id, prefix: 'GRN', lastNumber: 1 },
     });
     const receivedAt = daysAgo(12);
     const grn = await tx.goodsReceipt.create({
       data: {
-        organizationId: hub.id, reference: `GRN-${String(grnCounter.lastNumber).padStart(4, '0')}`,
+        siteId: hub.id, reference: `GRN-${String(grnCounter.lastNumber).padStart(4, '0')}`,
         supplierId: supplier.id, paymentTerms: 'PAY_NOW', status: 'RECEIVED_PAID', receiptTotal: new Prisma.Decimal(29500),
         locationId: centralStore.id, signedById: storeManager.id, signedAt: receivedAt, createdById: storeManager.id,
         createdAt: receivedAt,
@@ -317,14 +317,14 @@ const run = async (): Promise<void> => {
       include: { lines: true },
     });
     await tx_({
-      organizationId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'RECEIVE',
+      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'RECEIVE',
       quantity: new Prisma.Decimal(25), unitCost: new Prisma.Decimal(1180), goodsReceiptLineId: grn.lines[0]!.id,
       userId: storeManager.id, createdAt: receivedAt,
     });
 
     const requisition = await tx.requisition.create({
       data: {
-        organizationId: town.id, type: 'AD_HOC', note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id,
+        siteId: town.id, type: 'AD_HOC', note: FIXTURE_NOTE, status: 'APPROVED', openedById: kitchenHead.id,
         openedAt: daysAgo(12, 7), approvedAt: daysAgo(12, 8),
       },
     });
@@ -334,7 +334,7 @@ const run = async (): Promise<void> => {
     ) => {
       const dispatch = await tx.dispatch.create({
         data: {
-          organizationId: hub.id, toOrganizationId: town.id, requisitionId: requisition.id, departmentTag,
+          siteId: hub.id, toSiteId: town.id, requisitionId: requisition.id, departmentTag,
           sequenceLabel: label, status: 'CONFIRMED', dispatchedById: storeManager.id, dispatchedAt: at,
           confirmedById: kitchenHead.id, confirmedAt: at,
           lines: {
@@ -348,12 +348,12 @@ const run = async (): Promise<void> => {
       });
       const lineId = dispatch.lines[0]!.id;
       await tx_({
-        organizationId: hub.id, locationId: centralStore.id, inventoryItemId: itemId, type: 'DISPATCH_OUT',
+        siteId: hub.id, locationId: centralStore.id, inventoryItemId: itemId, type: 'DISPATCH_OUT',
         quantity: new Prisma.Decimal(qty).negated(), unitCost: new Prisma.Decimal(cost), dispatchLineId: lineId,
         userId: storeManager.id, createdAt: at,
       });
       await tx_({
-        organizationId: town.id, locationId: destination, inventoryItemId: itemId, type: 'DISPATCH_IN',
+        siteId: town.id, locationId: destination, inventoryItemId: itemId, type: 'DISPATCH_IN',
         quantity: new Prisma.Decimal(qty), unitCost: new Prisma.Decimal(cost), dispatchLineId: lineId,
         userId: kitchenHead.id, createdAt: at,
       });
@@ -363,17 +363,17 @@ const run = async (): Promise<void> => {
 
     const coffeeWaste = await tx.wasteLog.create({
       data: {
-        organizationId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, quantity: new Prisma.Decimal(2),
+        siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, quantity: new Prisma.Decimal(2),
         reason: 'SPOILAGE', unitCost: new Prisma.Decimal(1180), loggedById: attendant.id, createdAt: daysAgo(10),
       },
     });
     await tx_({
-      organizationId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'WASTE',
+      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'WASTE',
       quantity: new Prisma.Decimal(-2), unitCost: new Prisma.Decimal(1180), reason: 'SPOILAGE', wasteLogId: coffeeWaste.id,
       userId: attendant.id, createdAt: daysAgo(10),
     });
     await tx_({
-      organizationId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'ADJUSTMENT',
+      siteId: hub.id, locationId: centralStore.id, inventoryItemId: coffeeId, type: 'ADJUSTMENT',
       quantity: new Prisma.Decimal(-17), unitCost: new Prisma.Decimal(1180), reason: 'Daily count · verified by J. Mwangi',
       userId: storeManager.id, createdAt: daysAgo(8),
     });
@@ -381,13 +381,13 @@ const run = async (): Promise<void> => {
     // (5) Nyeri Town Kitchen — Grilled chicken portion: in +14, count −5 → 9 pcs.
     const chickenId = itemIds.get(CHICKEN.name)!;
     await tx_({
-      organizationId: hub.id, locationId: centralStore.id, inventoryItemId: chickenId, type: 'RECEIVE',
+      siteId: hub.id, locationId: centralStore.id, inventoryItemId: chickenId, type: 'RECEIVE',
       quantity: new Prisma.Decimal(14), unitCost: new Prisma.Decimal(145), reason: `${FIXTURE_NOTE} — opening balance`,
       userId: storeManager.id, createdAt: daysAgo(3),
     });
     await dispatchWithLine('KITCHEN', 'Dispatch 2 · Nyeri Town · fixture', chickenId, '14', '145', daysAgo(2), townKitchen.id);
     await tx_({
-      organizationId: town.id, locationId: townKitchen.id, inventoryItemId: chickenId, type: 'ADJUSTMENT',
+      siteId: town.id, locationId: townKitchen.id, inventoryItemId: chickenId, type: 'ADJUSTMENT',
       quantity: new Prisma.Decimal(-5), unitCost: new Prisma.Decimal(145), reason: 'End-of-day count',
       userId: kitchenHead.id, createdAt: daysAgo(1, 22),
     });

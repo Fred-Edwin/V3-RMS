@@ -5,7 +5,7 @@ import { prisma } from '../config/database';
 
 export interface PrintJobRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string | null;
   activeKey: string | null;
   receiptType: ReceiptType;
@@ -57,7 +57,7 @@ export interface SettlementForReceipt {
 
 export interface PrintStationRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   name: string;
   isActive: boolean;
   lastSeenAt: Date | null;
@@ -69,7 +69,7 @@ export interface PrintStationRecord {
 
 export interface OrderForReceipt {
   id: string;
-  organizationId: string;
+  siteId: string;
   dailyNumber: number;
   orderDate: Date;
   type: string;
@@ -85,7 +85,7 @@ export interface OrderForReceipt {
   splitType: string | null;
   paidAt: Date | null;
   createdAt: Date;
-  organization: {
+  site: {
     name: string;
     phone: string | null;
     mpesaPaybill: string | null;
@@ -115,7 +115,7 @@ export interface OrderForReceipt {
 
 export const printRepository = {
   createPrintJob: async (data: {
-    organizationId: string;
+    siteId: string;
     orderId?: string;
     corporateAccountSettlementId?: string;
     requestedById: string;
@@ -127,7 +127,7 @@ export const printRepository = {
   }): Promise<PrintJobSummaryRecord> => {
     return prisma.printJob.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         orderId: data.orderId ?? null,
         corporateAccountSettlementId: data.corporateAccountSettlementId ?? null,
         requestedById: data.requestedById,
@@ -151,28 +151,28 @@ export const printRepository = {
 
   findPrintJobById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<PrintJobRecord | null> => {
     return prisma.printJob.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
     });
   },
 
   findActiveJobForOrder: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     receiptType: ReceiptType,
   ): Promise<PrintJobSummaryRecord | null> => {
     return prisma.printJob.findFirst({
       where: {
         orderId,
-        organizationId,
+        siteId,
         receiptType,
         status: { in: ['PENDING', 'PRINTING'] },
       },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         orderId: true,
         receiptType: true,
         copies: true,
@@ -186,17 +186,17 @@ export const printRepository = {
 
   findActiveJobByActiveKey: async (
     activeKey: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<PrintJobSummaryRecord | null> => {
     return prisma.printJob.findFirst({
       where: {
         activeKey,
-        organizationId,
+        siteId,
         status: { in: ['PENDING', 'PRINTING'] },
       },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         orderId: true,
         receiptType: true,
         copies: true,
@@ -209,11 +209,11 @@ export const printRepository = {
   },
 
   listPrintJobs: async (
-    organizationId: string,
+    siteId: string,
     filters: { status?: PrintJobStatus; page: number; perPage: number },
   ): Promise<{ jobs: PrintJobRecord[]; total: number }> => {
     const where: Prisma.PrintJobWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.status ? { status: filters.status } : {}),
     };
 
@@ -231,17 +231,17 @@ export const printRepository = {
   },
 
   listPendingJobsForStation: async (
-    organizationId: string,
+    siteId: string,
     status: PrintJobStatus,
   ): Promise<PrintJobRecord[]> => {
     return prisma.printJob.findMany({
-      where: { organizationId, status },
+      where: { siteId, status },
       orderBy: { createdAt: 'asc' },
     });
   },
 
   claimPendingJobsForStation: async (
-    organizationId: string,
+    siteId: string,
     stationId: string,
     limit: number,
     leaseTtlSeconds: number,
@@ -253,7 +253,7 @@ export const printRepository = {
       WITH candidates AS (
         SELECT "id"
         FROM "public"."print_jobs"
-        WHERE "organization_id" = ${organizationId}
+        WHERE "organization_id" = ${siteId}
           AND ("target_station_id" = ${stationId} OR "target_station_id" IS NULL)
           AND (
             "status" = 'PENDING'
@@ -274,7 +274,7 @@ export const printRepository = {
       WHERE pj."id" = candidates."id"
       RETURNING
         pj."id",
-        pj."organization_id" AS "organizationId",
+        pj."organization_id" AS "siteId",
         pj."order_id" AS "orderId",
         pj."active_key" AS "activeKey",
         pj."receipt_type" AS "receiptType",
@@ -297,7 +297,7 @@ export const printRepository = {
 
   updatePrintJobStatus: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       status: PrintJobStatus;
       printedAt?: Date;
@@ -310,7 +310,7 @@ export const printRepository = {
     },
   ): Promise<PrintJobRecord> => {
     return prisma.printJob.update({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: {
         status: data.status,
         printedAt: data.printedAt,
@@ -324,10 +324,10 @@ export const printRepository = {
     });
   },
 
-  expireOldPendingJobs: async (organizationId: string, before: Date): Promise<number> => {
+  expireOldPendingJobs: async (siteId: string, before: Date): Promise<number> => {
     const result = await prisma.printJob.updateMany({
       where: {
-        organizationId,
+        siteId,
         status: 'PENDING',
         createdAt: { lt: before },
       },
@@ -345,13 +345,13 @@ export const printRepository = {
 
   findOrderForReceipt: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<OrderForReceipt | null> => {
     return prisma.order.findFirst({
-      where: { id: orderId, organizationId },
+      where: { id: orderId, siteId },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         dailyNumber: true,
         orderDate: true,
         type: true,
@@ -367,7 +367,7 @@ export const printRepository = {
         splitType: true,
         paidAt: true,
         createdAt: true,
-        organization: {
+        site: {
           select: { name: true, phone: true, mpesaPaybill: true, accountNumber: true, googleReviewUrl: true },
         },
         createdBy: {
@@ -415,19 +415,19 @@ export const printRepository = {
   // ─── Print Station Repository ────────────────────────────────────────────
 
   createPrintStation: async (data: {
-    organizationId: string;
+    siteId: string;
     name: string;
     tokenHash: string;
   }): Promise<PrintStationRecord> => {
     return prisma.printStation.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         name: data.name,
         token: data.tokenHash,
       },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         name: true,
         isActive: true,
         lastSeenAt: true,
@@ -437,12 +437,12 @@ export const printRepository = {
     });
   },
 
-  listPrintStations: async (organizationId: string): Promise<PrintStationRecord[]> => {
+  listPrintStations: async (siteId: string): Promise<PrintStationRecord[]> => {
     return prisma.printStation.findMany({
-      where: { organizationId, isActive: true },
+      where: { siteId, isActive: true },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         name: true,
         isActive: true,
         lastSeenAt: true,
@@ -455,13 +455,13 @@ export const printRepository = {
 
   findPrintStationById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<PrintStationRecord | null> => {
     return prisma.printStation.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         name: true,
         isActive: true,
         lastSeenAt: true,
@@ -471,16 +471,16 @@ export const printRepository = {
     });
   },
 
-  deactivatePrintStation: async (id: string, organizationId: string): Promise<void> => {
+  deactivatePrintStation: async (id: string, siteId: string): Promise<void> => {
     await prisma.printStation.updateMany({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: { isActive: false },
     });
   },
 
-  updateHeartbeat: async (stationId: string, organizationId: string): Promise<{ lastSeenAt: Date | null }> => {
+  updateHeartbeat: async (stationId: string, siteId: string): Promise<{ lastSeenAt: Date | null }> => {
     return prisma.printStation.update({
-      where: { id: stationId, organizationId },
+      where: { id: stationId, siteId },
       data: { lastSeenAt: new Date() },
       select: { lastSeenAt: true },
     });
@@ -488,22 +488,22 @@ export const printRepository = {
 
   findPrintStationByTokenHash: async (
     tokenHash: string,
-  ): Promise<{ id: string; organizationId: string; isActive: boolean } | null> => {
+  ): Promise<{ id: string; siteId: string; isActive: boolean } | null> => {
     return prisma.printStation.findUnique({
       where: { token: tokenHash },
-      select: { id: true, organizationId: true, isActive: true },
+      select: { id: true, siteId: true, isActive: true },
     });
   },
 
   findStationWithOrg: async (
     stationId: string,
-  ): Promise<{ id: string; organizationId: string; organization: { id: string; name: string } } | null> => {
+  ): Promise<{ id: string; siteId: string; site: { id: string; name: string } } | null> => {
     return prisma.printStation.findUnique({
       where: { id: stationId },
       select: {
         id: true,
-        organizationId: true,
-        organization: {
+        siteId: true,
+        site: {
           select: { id: true, name: true },
         },
       },

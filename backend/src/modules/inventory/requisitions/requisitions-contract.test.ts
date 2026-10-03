@@ -26,7 +26,7 @@ import {
 vi.mock('./requisitions-repository', () => ({
   requisitionRepository: {
     create: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     markPendingApprovalIfOpen: vi.fn(),
     findSectionWithLines: vi.fn(),
@@ -36,7 +36,7 @@ vi.mock('./requisitions-repository', () => ({
     updateManagerNote: vi.fn(),
     setSectionStatus: vi.fn(),
     findByIdWithAllSections: vi.fn(),
-    findAllByOrganizationForManager: vi.fn(),
+    findAllBySiteForManager: vi.fn(),
     updateLineApproval: vi.fn(),
     softDeleteLine: vi.fn(),
     createManagerLine: vi.fn(),
@@ -79,7 +79,7 @@ vi.mock('../catalog/inventory-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findBySiteTypeDepartment: vi.fn() },
 }));
 
 vi.mock('../../../repositories/branch-repository', () => ({
@@ -102,7 +102,7 @@ const lineId = '66666666-6666-4666-8666-666666666666';
 const kitchenHead = {
   id: 'head-1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
@@ -110,7 +110,7 @@ const kitchenHead = {
 const manager = {
   id: 'manager-1',
   role: 'MANAGER' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: false,
   departmentTag: null,
 };
@@ -165,10 +165,10 @@ describe('Requisition request schemas', () => {
 
 describe('Requisition response contract shapes', () => {
   it('listRequisitions output satisfies RequisitionListRowSchema', async () => {
-    vi.mocked(requisitionRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(requisitionRepository.findAllBySite).mockResolvedValue([
       {
         id: requisitionId,
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         type: 'MORNING',
         note: null,
         status: 'OPEN',
@@ -336,7 +336,7 @@ describe('Requisition approval response contract shapes', () => {
   it('getRequisitionForApproval output satisfies RequisitionApprovalDetailSchema, with a mixed fixture (edited, manager-added, as-requested, not-submitted sections) and soft-deleted lines absent', async () => {
     vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue({
       id: requisitionId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'MORNING',
       note: null,
       status: 'PENDING_APPROVAL',
@@ -394,10 +394,10 @@ describe('Requisition approval response contract shapes', () => {
   });
 
   it('listForManagerApproval output satisfies RequisitionManagerListRowSchema', async () => {
-    vi.mocked(requisitionRepository.findAllByOrganizationForManager).mockResolvedValue([
+    vi.mocked(requisitionRepository.findAllBySiteForManager).mockResolvedValue([
       {
         id: requisitionId,
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         type: 'MORNING',
         note: null,
         status: 'PENDING_APPROVAL',
@@ -422,7 +422,7 @@ describe('Requisition approval response contract shapes', () => {
     vi.mocked(requisitionRepository.findHistoryRows).mockResolvedValue([
       {
         id: requisitionId,
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         type: 'MORNING',
         note: null,
         status: 'APPROVED',

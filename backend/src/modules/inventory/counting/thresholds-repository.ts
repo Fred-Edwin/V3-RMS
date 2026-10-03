@@ -12,19 +12,19 @@ const include = {
 };
 
 export const thresholdsRepository = {
-  findByOrganization: async (organizationId: string): Promise<ThresholdsRow | null> => {
-    return prisma.countingThresholds.findFirst({ where: { organizationId }, include });
+  findBySite: async (siteId: string): Promise<ThresholdsRow | null> => {
+    return prisma.countingThresholds.findFirst({ where: { siteId }, include });
   },
 
   /** Store Manager: the hub row's reason threshold. Lazily created with the other defaults. */
   upsertStoreReason: async (
-    organizationId: string,
+    siteId: string,
     input: { reasonRequiredKes: number; directorAlertKes: number; updatedById: string },
   ): Promise<ThresholdsRow> => {
     return prisma.countingThresholds.upsert({
-      where: { organizationId },
+      where: { siteId },
       create: {
-        organizationId,
+        siteId,
         reasonRequiredKes: input.reasonRequiredKes,
         directorAlertKes: input.directorAlertKes,
         updatedById: input.updatedById,
@@ -36,13 +36,13 @@ export const thresholdsRepository = {
 
   /** Branch Manager: their own branch's row — reason threshold + overnight alert. Lazily created. */
   upsertBranch: async (
-    organizationId: string,
+    siteId: string,
     input: { reasonRequiredKes: number; overnightAlertKes: number; updatedById: string },
   ): Promise<ThresholdsRow> => {
     return prisma.countingThresholds.upsert({
-      where: { organizationId },
+      where: { siteId },
       create: {
-        organizationId,
+        siteId,
         reasonRequiredKes: input.reasonRequiredKes,
         overnightAlertKes: input.overnightAlertKes,
         updatedById: input.updatedById,
@@ -58,14 +58,14 @@ export const thresholdsRepository = {
 
   /** Director: only the company-wide alert amount, on the hub row. */
   upsertDirectorAlert: async (
-    organizationId: string,
+    siteId: string,
     input: { directorAlertKes: number; reasonRequiredKes: number; updatedById: string },
   ): Promise<ThresholdsRow> => {
     const at = new Date();
     return prisma.countingThresholds.upsert({
-      where: { organizationId },
+      where: { siteId },
       create: {
-        organizationId,
+        siteId,
         reasonRequiredKes: input.reasonRequiredKes,
         directorAlertKes: input.directorAlertKes,
         directorUpdatedById: input.updatedById,

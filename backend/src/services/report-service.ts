@@ -5,6 +5,7 @@ import { branchRepository } from '../repositories/branch-repository';
 import { corporateAccountRepository } from '../repositories/corporate-account-repository';
 import { redisClient } from '../config/redis';
 import { ForbiddenError, ValidationError } from '../utils/errors';
+import { fromWire } from '../shared/utils/wire-names';
 import { formatDateOnly, getTodayDateOnly, parseDateOnly } from '../utils/date-only';
 import { toCsv, toPdf } from '../utils/report-formatters';
 import type {
@@ -70,23 +71,23 @@ const isTodayInNairobi = (date: Date): boolean => {
   return formatDateOnly(date) === getNairobiDateString();
 };
 
-const resolveBranchScopedOrganizationId = (
+const resolveBranchScopedSiteId = (
   actor: Actor,
-  requestedOrganizationId?: string,
+  requestedSiteId?: string,
 ): string => {
   if (actor.role === 'DIRECTOR' || actor.role === 'ACCOUNTANT') {
-    if (!requestedOrganizationId) {
+    if (!requestedSiteId) {
       throw new ValidationError('organizationId query param is required for this role');
     }
 
-    return requestedOrganizationId;
+    return requestedSiteId;
   }
 
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const ensureValidRange = (startDate: string, endDate: string): { start: Date; end: Date } => {
@@ -100,8 +101,8 @@ const ensureValidRange = (startDate: string, endDate: string): { start: Date; en
   return { start, end };
 };
 
-export const buildDailySummaryCacheKey = (organizationId: string, date: string): string => {
-  return `report:daily:${organizationId}:${date}`;
+export const buildDailySummaryCacheKey = (siteId: string, date: string): string => {
+  return `report:daily:${siteId}:${date}`;
 };
 
 interface CachedDailySummaryValue {
@@ -133,7 +134,8 @@ const getCachedDailySummary = async (
     }
 
     return {
-      summary: parsed.data as DailySummaryReport,
+      // Entries cached before the Organization -> Site rename carry the old key names.
+      summary: fromWire(parsed.data) as DailySummaryReport,
       cachedAt,
     };
   } catch {
@@ -155,7 +157,7 @@ const cacheDailySummary = async (
 };
 
 const fetchDailySummary = async (
-  organizationId: string,
+  siteId: string,
   date: Date,
   options?: {
     useCache?: boolean;
@@ -164,7 +166,7 @@ const fetchDailySummary = async (
   },
 ): Promise<DailySummaryReport> => {
   const dateString = formatDateOnly(date);
-  const cacheKey = buildDailySummaryCacheKey(organizationId, dateString);
+  const cacheKey = buildDailySummaryCacheKey(siteId, dateString);
   const shouldUseCache = options?.useCache ?? false;
 
   if (shouldUseCache) {
@@ -181,7 +183,7 @@ const fetchDailySummary = async (
     }
   }
 
-  const summary = await reportRepository.getDailySummaryByDate(organizationId, date);
+  const summary = await reportRepository.getDailySummaryByDate(siteId, date);
 
   if (shouldUseCache || options?.cacheTtlSeconds) {
     await cacheDailySummary(cacheKey, summary, options?.cacheTtlSeconds ?? 86_400);
@@ -195,10 +197,10 @@ export const reportService = {
     actor: Actor,
     query: DailySummaryQueryInput,
   ): Promise<DailySummaryReport> => {
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const siteId = resolveBranchScopedSiteId(actor, query.siteId);
     const date = query.date ? parseDateOnly(query.date) : parseDateOnly(getNairobiDateString());
 
-    return fetchDailySummary(organizationId, date, {
+    return fetchDailySummary(siteId, date, {
       useCache: isTodayInNairobi(date),
       cacheTtlSeconds: 86_400,
       maxCacheAgeMs: 60_000,
@@ -209,10 +211,10 @@ export const reportService = {
     actor: Actor,
     query: StaffPerformanceQueryInput,
   ): Promise<StaffPerformanceReport> => {
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const siteId = resolveBranchScopedSiteId(actor, query.siteId);
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
 
-    return reportRepository.getStaffPerformance(organizationId, start, end, query.role);
+    return reportRepository.getStaffPerformance(siteId, start, end, query.role);
   },
 
   getBranchOverview: async (
@@ -231,9 +233,9 @@ export const reportService = {
     actor: Actor,
     query: BranchTrendsQueryInput,
   ): Promise<BranchTrendsReport> => {
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const siteId = resolveBranchScopedSiteId(actor, query.siteId);
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
-    return reportRepository.getBranchTrends(organizationId, start, end);
+    return reportRepository.getBranchTrends(siteId, start, end);
   },
 
   getDirectorTrends: async (
@@ -256,13 +258,13 @@ export const reportService = {
       throw new ForbiddenError('Only operational staff can access personal performance reports');
     }
 
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
 
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
 
-    return reportRepository.getMyPerformance(actor.id, actor.organizationId, actor.role, start, end);
+    return reportRepository.getMyPerformance(actor.id, actor.siteId, actor.role, start, end);
   },
 
   exportReport: async (
@@ -285,7 +287,7 @@ export const reportService = {
       }
       const dailySummary = await reportService.getDailySummary(actor, {
         date: query.startDate,
-        organizationId: query.organizationId,
+        siteId: query.siteId,
       });
       reportData = dailySummary;
       filenameStem = `daily-summary-${query.startDate}`;
@@ -293,7 +295,7 @@ export const reportService = {
       const staffReport = await reportService.getStaffPerformance(actor, {
         startDate: query.startDate,
         endDate: query.endDate,
-        organizationId: query.organizationId,
+        siteId: query.siteId,
         role: undefined,
       });
       reportData = staffReport;
@@ -310,11 +312,11 @@ export const reportService = {
       if (actor.role !== 'DIRECTOR' && actor.role !== 'ACCOUNTANT') {
         throw new ForbiddenError('Only accountants and directors can export reconciliation reports');
       }
-      if (!query.organizationId) {
+      if (!query.siteId) {
         throw new ValidationError('organizationId is required for reconciliation export');
       }
       const reconciliation = await reportRepository.getAccountantReconciliation(
-        query.organizationId,
+        query.siteId,
         parseDateOnly(query.startDate),
       );
       reportData = reconciliation;
@@ -338,9 +340,9 @@ export const reportService = {
         corporateAccountRepository.getBalanceBefore(query.corporateAccountId, start),
       ]);
 
-      const organizationIds = [...new Set(orders.map((o) => o.organizationId))];
-      const organizations = await Promise.all(organizationIds.map((id) => branchRepository.findById(id)));
-      const branchNameById = new Map(organizations.filter((o) => !!o).map((o) => [o!.id, o!.name]));
+      const siteIds = [...new Set(orders.map((o) => o.siteId))];
+      const sites = await Promise.all(siteIds.map((id) => branchRepository.findById(id)));
+      const branchNameById = new Map(sites.filter((o) => !!o).map((o) => [o!.id, o!.name]));
 
       const totalCharged = orders.reduce((sum, o) => sum + Number(o.total), 0);
       const totalSettled = settlements.reduce((sum, s) => sum + Number(s.amount), 0);
@@ -368,7 +370,7 @@ export const reportService = {
           dailyNumber: o.dailyNumber,
           date: formatDateOnly(o.createdAt),
           employeeRef: o.corporateEmployeeRef,
-          branchName: branchNameById.get(o.organizationId) ?? 'Unknown branch',
+          branchName: branchNameById.get(o.siteId) ?? 'Unknown branch',
           total: o.total.toString(),
         })),
         settlements: settlements.map((s) => ({
@@ -403,9 +405,9 @@ export const reportService = {
     actor: Actor,
     query: HourlyHeatmapQueryInput,
   ): Promise<HourlyHeatmapReport> => {
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
+    const siteId = resolveBranchScopedSiteId(actor, query.siteId);
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
-    return reportRepository.getHourlyHeatmap(organizationId, start, end);
+    return reportRepository.getHourlyHeatmap(siteId, start, end);
   },
 
   getDirectorPulse: async (actor: Actor): Promise<DirectorPulseReport> => {
@@ -416,12 +418,12 @@ export const reportService = {
     return reportRepository.getDirectorPulse();
   },
 
-  precomputeDailySummaryForOrganization: async (
-    organizationId: string,
+  precomputeDailySummaryForSite: async (
+    siteId: string,
     date: Date,
     cacheTtlSeconds: number,
   ): Promise<DailySummaryReport> => {
-    return fetchDailySummary(organizationId, date, {
+    return fetchDailySummary(siteId, date, {
       useCache: false,
       cacheTtlSeconds,
     });
@@ -431,7 +433,7 @@ export const reportService = {
     if (!actor) throw new ForbiddenError('Authentication required');
 
     // MANAGER sees only their branch customer credits; others see all
-    const orgId = actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined;
+    const orgId = actor.role === 'MANAGER' ? (actor.siteId ?? undefined) : undefined;
 
     const { houseAccounts, corporateAccounts, customerCreditAccounts } =
       await reportRepository.getOutstandingBalances(orgId);
@@ -469,8 +471,8 @@ export const reportService = {
       })),
       customerCreditAccounts: customerCreditAccounts.map((a) => ({
         id: a.id,
-        organizationId: a.organizationId,
-        organizationName: a.organization.name,
+        siteId: a.siteId,
+        siteName: a.site.name,
         customerName: a.customerName,
         customerPhone: a.customerPhone,
         currentBalance: a.currentBalance.toFixed(2),
@@ -493,11 +495,11 @@ export const reportService = {
 
     // Directors/Accountants may omit organizationId to get cross-branch aggregation
     if (actor.role === 'DIRECTOR' || actor.role === 'ACCOUNTANT') {
-      return reportRepository.getItemsPerformance(query.organizationId ?? null, start, end, query.limit);
+      return reportRepository.getItemsPerformance(query.siteId ?? null, start, end, query.limit);
     }
 
-    const organizationId = resolveBranchScopedOrganizationId(actor, query.organizationId);
-    return reportRepository.getItemsPerformance(organizationId, start, end, query.limit);
+    const siteId = resolveBranchScopedSiteId(actor, query.siteId);
+    return reportRepository.getItemsPerformance(siteId, start, end, query.limit);
   },
 
   getAccountantReconciliation: async (
@@ -508,7 +510,7 @@ export const reportService = {
       throw new ForbiddenError('Only accountants can access reconciliation reports');
     }
     const date = parseDateOnly(query.date);
-    return reportRepository.getAccountantReconciliation(query.organizationId, date);
+    return reportRepository.getAccountantReconciliation(query.siteId, date);
   },
 
   getStaleOrders: async (
@@ -520,7 +522,7 @@ export const reportService = {
     }
     const startDate = query.startDate ? parseDateOnly(query.startDate) : undefined;
     const endDate = query.endDate ? parseDateOnly(query.endDate) : undefined;
-    return reportRepository.getStaleOrders(query.organizationId ?? null, startDate, endDate);
+    return reportRepository.getStaleOrders(query.siteId ?? null, startDate, endDate);
   },
 
   // WAITER self-service: the waiter's own unresolved stale-order liabilities + running total.
@@ -529,11 +531,11 @@ export const reportService = {
     if (actor.role !== 'WAITER') {
       throw new ForbiddenError('Only waiters can view their own order liabilities');
     }
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
 
-    const rows = await reportRepository.getWaiterStaleLiabilities([actor.organizationId], actor.id);
+    const rows = await reportRepository.getWaiterStaleLiabilities([actor.siteId], actor.id);
     const total = rows.reduce((sum, row) => sum.add(row.total), new Prisma.Decimal(0));
 
     return {
@@ -559,32 +561,32 @@ export const reportService = {
     query: WaiterLiabilitySummaryQueryInput,
   ): Promise<WaiterLiabilitySummaryReport> => {
     const crossBranchRoles = ['HR_MANAGER', 'DIRECTOR', 'SYSTEM_ADMIN'];
-    let organizationIds: string[];
+    let siteIds: string[];
 
     if (crossBranchRoles.includes(actor.role)) {
-      organizationIds = query.organizationId
-        ? [query.organizationId]
+      siteIds = query.siteId
+        ? [query.siteId]
         : await branchRepository.findActiveIds();
     } else if (actor.role === 'MANAGER' || actor.role === 'ACCOUNTANT') {
       if (actor.role === 'ACCOUNTANT') {
-        if (!query.organizationId) {
+        if (!query.siteId) {
           throw new ValidationError('organizationId query param is required for this role');
         }
-        organizationIds = [query.organizationId];
+        siteIds = [query.siteId];
       } else {
-        if (!actor.organizationId) {
+        if (!actor.siteId) {
           throw new ForbiddenError('Branch context missing for this user');
         }
-        if (query.organizationId && query.organizationId !== actor.organizationId) {
+        if (query.siteId && query.siteId !== actor.siteId) {
           throw new ForbiddenError('Cannot access liabilities for another branch');
         }
-        organizationIds = [actor.organizationId];
+        siteIds = [actor.siteId];
       }
     } else {
       throw new ForbiddenError('You do not have permission to view waiter liabilities');
     }
 
-    const rows = await reportRepository.getWaiterStaleLiabilities(organizationIds);
+    const rows = await reportRepository.getWaiterStaleLiabilities(siteIds);
 
     // Roll up per waiter, keeping each waiter's individual orders for the HR drill-down.
     const byWaiter = new Map<string, WaiterLiabilitySummaryRow & { runningTotal: Prisma.Decimal }>();
@@ -639,7 +641,7 @@ export const reportService = {
       throw new ForbiddenError('Only directors can access discount usage reports');
     }
     const { start, end } = ensureValidRange(query.startDate, query.endDate);
-    return reportRepository.getDiscountUsage(start, end, query.organizationId);
+    return reportRepository.getDiscountUsage(start, end, query.siteId);
   },
 };
 

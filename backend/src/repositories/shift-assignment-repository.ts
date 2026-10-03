@@ -38,15 +38,15 @@ export type ShiftAssignmentWithRelations = Prisma.ShiftAssignmentGetPayload<{
 }>;
 
 export const shiftAssignmentRepository = {
-  findByOrganizationAndDateRange: async (
-    organizationId: string,
+  findBySiteAndDateRange: async (
+    siteId: string,
     startDate: Date,
     endDate: Date,
     filters?: { userId?: string; shiftId?: string; userWhere?: Prisma.UserWhereInput },
   ): Promise<ShiftAssignmentWithRelations[]> => {
     return prisma.shiftAssignment.findMany({
       where: {
-        organizationId,
+        siteId,
         date: {
           gte: startDate,
           lte: endDate,
@@ -63,14 +63,14 @@ export const shiftAssignmentRepository = {
 
   findByUserAndDateRange: async (
     userId: string,
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
     filters?: { shiftId?: string },
   ): Promise<ShiftAssignmentWithRelations[]> => {
     return prisma.shiftAssignment.findMany({
       where: {
-        organizationId,
+        siteId,
         userId,
         shiftId: filters?.shiftId,
         date: {
@@ -83,18 +83,18 @@ export const shiftAssignmentRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<ShiftAssignmentWithRelations | null> => {
+  findById: async (id: string, siteId: string): Promise<ShiftAssignmentWithRelations | null> => {
     return prisma.shiftAssignment.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: shiftAssignmentInclude,
     });
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     data: {
       userId: string;
       shiftId: string;
@@ -103,7 +103,7 @@ export const shiftAssignmentRepository = {
   ): Promise<ShiftAssignment> => {
     return prisma.shiftAssignment.create({
       data: {
-        organizationId,
+        siteId,
         userId: data.userId,
         shiftId: data.shiftId,
         date: data.date,
@@ -111,19 +111,19 @@ export const shiftAssignmentRepository = {
     });
   },
 
-  delete: async (id: string, organizationId: string): Promise<boolean> => {
+  delete: async (id: string, siteId: string): Promise<boolean> => {
     const result = await prisma.shiftAssignment.deleteMany({
       where: {
         id,
-        organizationId,
+        siteId,
       },
     });
 
     return result.count > 0;
   },
 
-  findByOrganizationAndWeek: async (
-    organizationId: string,
+  findBySiteAndWeek: async (
+    siteId: string,
     weekStart: Date,
     filters?: { userWhere?: Prisma.UserWhereInput },
   ): Promise<ShiftAssignmentWithRelations[]> => {
@@ -131,7 +131,7 @@ export const shiftAssignmentRepository = {
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     return prisma.shiftAssignment.findMany({
       where: {
-        organizationId,
+        siteId,
         date: { gte: weekStart, lte: weekEnd },
         // Department-head scoping: restrict the copied roster to the head's department.
         user: filters?.userWhere,
@@ -141,21 +141,21 @@ export const shiftAssignmentRepository = {
     });
   },
 
-  deleteByIds: async (ids: string[], organizationId: string): Promise<number> => {
+  deleteByIds: async (ids: string[], siteId: string): Promise<number> => {
     // Delete clock records first to satisfy the FK constraint, then the assignments
     return prisma.$transaction(async (tx) => {
       await tx.clockRecord.deleteMany({
         where: { shiftAssignmentId: { in: ids } },
       });
       const result = await tx.shiftAssignment.deleteMany({
-        where: { id: { in: ids }, organizationId },
+        where: { id: { in: ids }, siteId },
       });
       return result.count;
     });
   },
 
   reconcileWeek: async (
-    organizationId: string,
+    siteId: string,
     operations: Array<{
       userId: string;
       date: Date;
@@ -169,7 +169,7 @@ export const shiftAssignmentRepository = {
           await tx.shiftAssignment.deleteMany({
             where: {
               id: { in: operation.deleteIds },
-              organizationId,
+              siteId,
             },
           });
         }
@@ -177,7 +177,7 @@ export const shiftAssignmentRepository = {
         if (operation.shiftId) {
           await tx.shiftAssignment.create({
             data: {
-              organizationId,
+              siteId,
               userId: operation.userId,
               shiftId: operation.shiftId,
               date: operation.date,

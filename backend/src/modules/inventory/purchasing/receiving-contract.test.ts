@@ -35,14 +35,14 @@ import {
 
 vi.mock('./receiving-repository', () => ({
   expectedDeliveryRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     create: vi.fn(),
     countByStatus: vi.fn(),
     countOverdue: vi.fn(),
     findHistoryRows: vi.fn(),
   },
   goodsReceiptRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     findHistoryRows: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock('./receiving-repository', () => ({
     createAdjustment: vi.fn(),
     updateStatus: vi.fn(),
     findAllBySupplier: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
   },
   supplierPaymentRepository: {
     findById: vi.fn(),
@@ -103,8 +103,8 @@ const supplierId = '22222222-2222-4222-8222-222222222222';
 const itemId = '33333333-3333-4333-8333-333333333333';
 const deliveryId = '44444444-4444-4444-8444-444444444444';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -115,10 +115,10 @@ beforeEach(() => {
 
 describe('Receiving contract drift guard', () => {
   it('ExpectedDeliverySummarySchema accepts listExpectedDeliveries output (Manager, with money)', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([
       {
         id: deliveryId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         reference: 'EXP-0001',
         supplierId,
         supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -148,10 +148,10 @@ describe('Receiving contract drift guard', () => {
   });
 
   it('ExpectedDeliverySummarySchema accepts a STORE_ATTENDANT row with estimatedTotal: null', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([
       {
         id: deliveryId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         reference: 'EXP-0001',
         supplierId,
         supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -178,7 +178,7 @@ describe('Receiving contract drift guard', () => {
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0002');
     vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
       id: deliveryId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       reference: 'EXP-0002',
       supplierId,
       supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -211,10 +211,10 @@ describe('Receiving contract drift guard', () => {
   });
 
   it('ExpectedDeliverySummarySchema accepts a null-supplier row (AMENDMENT 2026-09-17)', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([
       {
         id: deliveryId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         reference: 'EXP-0003',
         supplierId: null,
         supplier: null,
@@ -240,7 +240,7 @@ describe('Receiving contract drift guard', () => {
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0004');
     vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
       id: deliveryId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       reference: 'EXP-0004',
       supplierId: null,
       supplier: null,
@@ -274,8 +274,8 @@ describe('Receiving contract drift guard', () => {
   it('PurchasingSummarySchema accepts getPurchasingSummary output — 3 tiles, no inTransit', async () => {
     vi.mocked(expectedDeliveryRepository.countByStatus).mockResolvedValue(2);
     vi.mocked(expectedDeliveryRepository.countOverdue).mockResolvedValue(1);
-    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([]);
-    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findAllBySite).mockResolvedValue([]);
+    vi.mocked(supplierInvoiceRepository.findAllBySite).mockResolvedValue([]);
 
     const summary = await receivingService.getPurchasingSummary(storeManager);
     expect(() => PurchasingSummarySchema.parse(summary)).not.toThrow();
@@ -286,7 +286,7 @@ describe('Receiving contract drift guard', () => {
     vi.mocked(expectedDeliveryRepository.findHistoryRows).mockResolvedValue([
       {
         id: deliveryId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         reference: 'EXP-0091',
         supplierId,
         supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -309,7 +309,7 @@ describe('Receiving contract drift guard', () => {
 
   const goodsReceiptHistoryFixture = {
     id: '55555555-5555-4555-8555-555555555555',
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     reference: 'GRN-1041',
     supplierId,
     supplier: { id: supplierId, name: 'Kimathi Butchery' },
@@ -359,7 +359,7 @@ describe('Receiving contract drift guard', () => {
   it('RecentSupplierItemSchema accepts getRecentSupplierItems output', async () => {
     vi.mocked(supplierRepository.findById).mockResolvedValue({
       id: supplierId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
       status: 'ACTIVE',
       deletedAt: null,
@@ -435,7 +435,7 @@ describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('EXP-0005');
     vi.mocked(expectedDeliveryRepository.create).mockResolvedValue({
       id: deliveryId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       reference: 'EXP-0005',
       supplierId: null,
       supplier: null,
@@ -462,7 +462,7 @@ describe('AP exclusion invariant (AMENDMENT 2026-09-17, part c)', () => {
   it('GoodsReceiptDetailSchema accepts getGoodsReceipt output, including a price-alerted line and no linked invoice', async () => {
     vi.mocked(goodsReceiptRepository.findById).mockResolvedValue({
       id: '77777777-7777-4777-8777-777777777777',
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       reference: 'GRN-0001',
       supplierId,
       supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -516,7 +516,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
 
   const buildInvoiceRow = (overrides: Record<string, unknown> = {}) => ({
     id: invoiceId,
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     supplierId,
     supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
     invoiceNumber: 'INV-001',
@@ -536,7 +536,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
   });
 
   it('ApSummarySchema accepts getApSummary output', async () => {
-    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([buildInvoiceRow()] as never);
+    vi.mocked(supplierInvoiceRepository.findAllBySite).mockResolvedValue([buildInvoiceRow()] as never);
     const summary = await receivingService.getApSummary(storeManager);
     expect(ApSummarySchema.safeParse(summary).success).toBe(true);
   });
@@ -556,7 +556,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
   it('SupplierInvoiceSchema accepts createSupplierInvoice output, including the dispute variant', async () => {
     vi.mocked(supplierRepository.findById).mockResolvedValue({
       id: supplierId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
       status: 'ACTIVE',
       deletedAt: null,
@@ -588,7 +588,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
     const { supplierPaymentRepository } = await import('./receiving-repository');
     vi.mocked(supplierRepository.findById).mockResolvedValue({
       id: supplierId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
       status: 'ACTIVE',
       deletedAt: null,
@@ -596,7 +596,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
     vi.mocked(supplierInvoiceRepository.findById).mockResolvedValue(buildInvoiceRow() as never);
     vi.mocked(supplierPaymentRepository.create).mockResolvedValue({
       id: paymentId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       supplierId,
       amount: new Prisma.Decimal('5000'),
       paidAt: new Date(),
@@ -627,7 +627,7 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
     const { supplierPaymentRepository } = await import('./receiving-repository');
     vi.mocked(supplierRepository.findById).mockResolvedValue({
       id: supplierId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       name: 'Samrat Supermarket Ltd',
       code: 'SUPPLIER-0001',
       tradingName: null,
@@ -647,10 +647,10 @@ describe('Receiving contract drift guard — S7 (Supplier AP)', () => {
     } as never);
     vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue([buildInvoiceRow()] as never);
     vi.mocked(supplierPaymentRepository.findAllBySupplier).mockResolvedValue([]);
-    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(goodsReceiptRepository.findAllBySite).mockResolvedValue([
       {
         id: goodsReceiptId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         reference: 'GRN-1042',
         supplierId,
         supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },

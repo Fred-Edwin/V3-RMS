@@ -15,10 +15,10 @@ type Client = typeof prisma | TxClient;
 
 export type DispatchQueueRequisition = {
   id: string;
-  organizationId: string;
+  siteId: string;
   type: string;
   openedAt: Date;
-  toOrganization: { id: string; name: string };
+  toSite: { id: string; name: string };
   sections: {
     departmentTag: DepartmentTag;
     lines: { requestedQty: Prisma.Decimal | null; approvedQty: Prisma.Decimal | null }[];
@@ -27,7 +27,7 @@ export type DispatchQueueRequisition = {
 };
 
 export type DispatchWithLines = Dispatch & {
-  toOrganization: { id: string; name: string };
+  toSite: { id: string; name: string };
   dispatchedBy: { id: string; name: string } | null;
   confirmedBy: { id: string; name: string } | null;
   lines: (DispatchLine & { item: { id: string; name: string; usageUnit: string } })[];
@@ -37,7 +37,7 @@ export type RequisitionSectionForFulfil = {
   id: string;
   departmentTag: DepartmentTag;
   status: string;
-  requisition: { id: string; organizationId: string; toOrganizationName: string } | null;
+  requisition: { id: string; siteId: string; toSiteName: string } | null;
   lines: {
     id: string;
     inventoryItemId: string;
@@ -58,9 +58,9 @@ export const dispatchRepository = {
   findQueueByBranchOrgIds: async (branchOrgIds: string[], limit: number): Promise<DispatchQueueRequisition[]> => {
     if (branchOrgIds.length === 0) return [];
     const rows = await prisma.requisition.findMany({
-      where: { organizationId: { in: branchOrgIds }, status: 'APPROVED' },
+      where: { siteId: { in: branchOrgIds }, status: 'APPROVED' },
       include: {
-        organization: { select: { id: true, name: true } },
+        site: { select: { id: true, name: true } },
         sections: {
           select: {
             departmentTag: true,
@@ -74,10 +74,10 @@ export const dispatchRepository = {
     });
     return rows.map((r) => ({
       id: r.id,
-      organizationId: r.organizationId,
+      siteId: r.siteId,
       type: r.type,
       openedAt: r.openedAt,
-      toOrganization: r.organization,
+      toSite: r.site,
       sections: r.sections,
       dispatches: r.dispatches,
     }));
@@ -93,18 +93,18 @@ export const dispatchRepository = {
     branchOrgIds: string[],
   ): Promise<{
     id: string;
-    organizationId: string;
+    siteId: string;
     status: string;
     type: string;
     openedAt: Date;
-    toOrganizationName: string;
+    toSiteName: string;
     sections: RequisitionSectionForFulfil[];
   } | null> => {
     if (branchOrgIds.length === 0) return null;
     const requisition = await prisma.requisition.findFirst({
-      where: { id: requisitionId, organizationId: { in: branchOrgIds } },
+      where: { id: requisitionId, siteId: { in: branchOrgIds } },
       include: {
-        organization: { select: { id: true, name: true } },
+        site: { select: { id: true, name: true } },
         sections: {
           include: {
             lines: {
@@ -120,26 +120,26 @@ export const dispatchRepository = {
     if (!requisition) return null;
     return {
       id: requisition.id,
-      organizationId: requisition.organizationId,
+      siteId: requisition.siteId,
       status: requisition.status,
       type: requisition.type,
       openedAt: requisition.openedAt,
-      toOrganizationName: requisition.organization.name,
+      toSiteName: requisition.site.name,
       sections: requisition.sections.map((s) => ({
         id: s.id,
         departmentTag: s.departmentTag,
         status: s.status,
-        requisition: { id: requisition.id, organizationId: requisition.organizationId, toOrganizationName: requisition.organization.name },
+        requisition: { id: requisition.id, siteId: requisition.siteId, toSiteName: requisition.site.name },
         lines: s.lines,
       })),
     };
   },
 
   /** Count of dispatches already created today for a branch org — feeds the daily sequenceLabel (not a persistent counter). */
-  countDispatchesTodayForBranch: async (toOrganizationId: string, tx: TxClient): Promise<number> => {
+  countDispatchesTodayForBranch: async (toSiteId: string, tx: TxClient): Promise<number> => {
     const { start, end } = getTodayNairobiRangeUtc();
     return tx.dispatch.count({
-      where: { toOrganizationId, dispatchedAt: { gte: start, lt: end } },
+      where: { toSiteId, dispatchedAt: { gte: start, lt: end } },
     });
   },
 
@@ -150,13 +150,13 @@ export const dispatchRepository = {
     hubOrgId: string,
     client: Client = prisma,
   ): Promise<Dispatch | null> => {
-    return client.dispatch.findFirst({ where: { requisitionId, departmentTag, organizationId: hubOrgId } });
+    return client.dispatch.findFirst({ where: { requisitionId, departmentTag, siteId: hubOrgId } });
   },
 
   create: async (
     input: {
-      organizationId: string;
-      toOrganizationId: string;
+      siteId: string;
+      toSiteId: string;
       requisitionId: string;
       departmentTag: DepartmentTag;
       sequenceLabel: string;
@@ -176,8 +176,8 @@ export const dispatchRepository = {
   ): Promise<Dispatch> => {
     return tx.dispatch.create({
       data: {
-        organizationId: input.organizationId,
-        toOrganizationId: input.toOrganizationId,
+        siteId: input.siteId,
+        toSiteId: input.toSiteId,
         requisitionId: input.requisitionId,
         departmentTag: input.departmentTag,
         sequenceLabel: input.sequenceLabel,
@@ -194,7 +194,7 @@ export const dispatchRepository = {
     return client.dispatch.findFirst({
       where: { id },
       include: {
-        toOrganization: { select: { id: true, name: true } },
+        toSite: { select: { id: true, name: true } },
         dispatchedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
         lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
@@ -205,9 +205,9 @@ export const dispatchRepository = {
   /** Same shape, but org-scoped to the hub — used by the store-side detail read (not the branch-side, which Session B scopes by toOrganizationId). */
   findByIdWithLinesForHub: async (id: string, hubOrgId: string): Promise<DispatchWithLines | null> => {
     return prisma.dispatch.findFirst({
-      where: { id, organizationId: hubOrgId },
+      where: { id, siteId: hubOrgId },
       include: {
-        toOrganization: { select: { id: true, name: true } },
+        toSite: { select: { id: true, name: true } },
         dispatchedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
         lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
@@ -216,9 +216,9 @@ export const dispatchRepository = {
   },
 
   /** Active department heads for the receiving branch's department — recipients of the in-transit push. */
-  findDepartmentHeads: async (organizationId: string, departmentTag: DepartmentTag): Promise<{ id: string; name: string }[]> => {
+  findDepartmentHeads: async (siteId: string, departmentTag: DepartmentTag): Promise<{ id: string; name: string }[]> => {
     return prisma.user.findMany({
-      where: { organizationId, departmentTag, isDepartmentHead: true, isActive: true },
+      where: { siteId, departmentTag, isDepartmentHead: true, isActive: true },
       select: { id: true, name: true },
     });
   },
@@ -233,18 +233,18 @@ export const dispatchRepository = {
    * the service decides whether to pass one).
    */
   findDispatchesForBranch: async (
-    toOrganizationId: string,
+    toSiteId: string,
     departmentTag: DepartmentTag | null,
     limit: number,
   ): Promise<DispatchWithLines[]> => {
     return prisma.dispatch.findMany({
       where: {
-        toOrganizationId,
+        toSiteId,
         ...(departmentTag ? { departmentTag } : {}),
         status: { in: ['IN_TRANSIT', 'CONFIRMED', 'DISCREPANCY_OPEN'] },
       },
       include: {
-        toOrganization: { select: { id: true, name: true } },
+        toSite: { select: { id: true, name: true } },
         dispatchedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
         lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
@@ -255,11 +255,11 @@ export const dispatchRepository = {
   },
 
   /** Same shape, but org-scoped to the receiving branch — used by the branch-side detail read (never hub-scoped). */
-  findByIdWithLinesForBranch: async (id: string, toOrganizationId: string): Promise<DispatchWithLines | null> => {
+  findByIdWithLinesForBranch: async (id: string, toSiteId: string): Promise<DispatchWithLines | null> => {
     return prisma.dispatch.findFirst({
-      where: { id, toOrganizationId },
+      where: { id, toSiteId },
       include: {
-        toOrganization: { select: { id: true, name: true } },
+        toSite: { select: { id: true, name: true } },
         dispatchedBy: { select: { id: true, name: true } },
         confirmedBy: { select: { id: true, name: true } },
         lines: { include: { item: { select: { id: true, name: true, usageUnit: true } } }, orderBy: { id: 'asc' } },
@@ -276,21 +276,21 @@ export const dispatchRepository = {
    */
   markConfirmed: async (
     id: string,
-    toOrganizationId: string,
+    toSiteId: string,
     tx: TxClient,
     data: { status: DispatchStatus; confirmedById: string; confirmedAt: Date; confirmedOnBehalf: boolean },
   ): Promise<number> => {
     const updated = await tx.dispatch.updateMany({
-      where: { id, toOrganizationId, status: 'IN_TRANSIT' },
+      where: { id, toSiteId, status: 'IN_TRANSIT' },
       data,
     });
     return updated.count;
   },
 
   /** Active Branch Managers for the branch org — recipients of variance/resolution pushes. */
-  findBranchManagers: async (organizationId: string): Promise<{ id: string; name: string }[]> => {
+  findBranchManagers: async (siteId: string): Promise<{ id: string; name: string }[]> => {
     return prisma.user.findMany({
-      where: { organizationId, role: 'MANAGER', isActive: true },
+      where: { siteId, role: 'MANAGER', isActive: true },
       select: { id: true, name: true },
     });
   },

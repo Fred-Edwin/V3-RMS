@@ -32,7 +32,7 @@ enum InventoryTransactionType {
 // are first written in Sessions 2/3 (milestone-6-plan.md §1.7).
 model InventoryTransaction {
   id                    String                   @id @default(uuid())
-  organizationId        String                   @map("organization_id")
+  siteId        String                   @map("organization_id")
   locationId            String                   @map("location_id")
   inventoryItemId       String                   @map("inventory_item_id")
   type                  InventoryTransactionType
@@ -52,7 +52,7 @@ model InventoryTransaction {
   userId                String                   @map("user_id")
   createdAt             DateTime                 @default(now()) @map("created_at")
 
-  organization     Organization           @relation(fields: [organizationId], references: [id])
+  site     Site           @relation(fields: [siteId], references: [id])
   location         Location               @relation(fields: [locationId], references: [id])
   inventoryItem    InventoryItem          @relation(fields: [inventoryItemId], references: [id])
   user             User                   @relation("InventoryTransactionUser", fields: [userId], references: [id])
@@ -66,7 +66,7 @@ model InventoryTransaction {
   reverses         InventoryTransaction?  @relation("InventoryTransactionReversal", fields: [reversesTransactionId], references: [id])
   reversedBy       InventoryTransaction?  @relation("InventoryTransactionReversal")
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([locationId])
   @@index([inventoryItemId])
   @@index([type])

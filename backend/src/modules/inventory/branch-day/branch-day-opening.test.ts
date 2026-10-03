@@ -47,7 +47,7 @@ vi.mock('./branch-day-repository', () => ({
   },
 }));
 vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../utils/password', () => ({ comparePin: vi.fn() }));
@@ -70,9 +70,9 @@ const branchOrgId = '22222222-2222-4222-8222-222222222222';
 const dayId = '33333333-3333-4333-8333-333333333333';
 const uid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-const manager = { id: 'bm1', role: 'MANAGER' as const, organizationId: branchOrgId, isDepartmentHead: false };
-const kitchenHead = { id: 'dh1', role: 'CHEF' as const, organizationId: branchOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
-const waiter = { id: 'w1', role: 'WAITER' as const, organizationId: branchOrgId, isDepartmentHead: false, departmentTag: 'SERVICE' as const };
+const manager = { id: 'bm1', role: 'MANAGER' as const, siteId: branchOrgId, isDepartmentHead: false };
+const kitchenHead = { id: 'dh1', role: 'CHEF' as const, siteId: branchOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
+const waiter = { id: 'w1', role: 'WAITER' as const, siteId: branchOrgId, isDepartmentHead: false, departmentTag: 'SERVICE' as const };
 
 const items = [
   { id: uid(1), name: 'Rice', usageUnit: 'kg', currentCost: D(100) },
@@ -96,7 +96,7 @@ const department = (tag: string, lines: unknown[] = [], over: Record<string, unk
 
 const day = (over: Record<string, unknown> = {}, departments = TAGS.map((t) => department(t))) => ({
   id: dayId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   businessDate: new Date('2026-09-30T00:00:00Z'),
   status: 'OPEN',
   reference: 'DAY-0002',
@@ -105,7 +105,7 @@ const day = (over: Record<string, unknown> = {}, departments = TAGS.map((t) => d
   closedBy: null,
   reopenCount: 0,
   createdAt: new Date('2026-09-30T03:00:00Z'),
-  organization: { id: branchOrgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: null },
+  site: { id: branchOrgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: null },
   departments,
   reopens: [],
   ...over,
@@ -120,7 +120,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   order.length = 0;
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
-  vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null); // branch overnight alert defaults to KES 500
+  vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null); // branch overnight alert defaults to KES 500
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ name: 'Peter Njoroge', pinHash: 'h' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(branchDayRepository.inTransitDispatches).mockResolvedValue([]);

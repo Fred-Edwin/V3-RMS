@@ -7,7 +7,7 @@ import { staffService } from '../src/services/staff-service';
 // include STORE_MANAGER/STORE_ATTENDANT, which were previously absent from
 // staff-service.ts's hand-maintained role arrays.
 
-const organizationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const siteId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 describe('Store roles — staff directory visibility', () => {
   beforeEach(() => {
@@ -20,7 +20,7 @@ describe('Store roles — staff directory visibility', () => {
     await staffService.listStaff({
       id: 'manager-1',
       role: 'MANAGER',
-      organizationId,
+      siteId,
     } as never);
 
     expect(spy).toHaveBeenCalledWith(
@@ -36,7 +36,7 @@ describe('Store roles — staff directory visibility', () => {
     await staffService.getMessagingContacts({
       id: 'director-1',
       role: 'DIRECTOR',
-      organizationId: null,
+      siteId: null,
     } as never);
 
     expect(spy).toHaveBeenCalledWith(
@@ -52,9 +52,9 @@ describe('Store roles — staff directory visibility', () => {
     await staffService.getMessagingContacts({
       id: 'manager-1',
       role: 'MANAGER',
-      organizationId,
+      siteId,
     } as never);
 
-    expect(spy).toHaveBeenCalledWith(organizationId, 'manager-1');
+    expect(spy).toHaveBeenCalledWith(siteId, 'manager-1');
   });
 });

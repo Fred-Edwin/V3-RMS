@@ -12,11 +12,11 @@ const BRANCH_B = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const WAITER_ID = '44444444-4444-4444-8444-444444444444';
 const WAITER_2_ID = '55555555-5555-4555-8555-555555555555';
 
-const waiterToken = signAccessToken({ userId: WAITER_ID, role: 'WAITER', organizationId: BRANCH_A });
-const hrToken = signAccessToken({ userId: '66666666-6666-4666-8666-666666666666', role: 'HR_MANAGER', organizationId: null });
-const directorToken = signAccessToken({ userId: '33333333-3333-4333-8333-333333333333', role: 'DIRECTOR', organizationId: null });
-const accountantToken = signAccessToken({ userId: '77777777-7777-4777-8777-777777777777', role: 'ACCOUNTANT', organizationId: null });
-const chefToken = signAccessToken({ userId: '88888888-8888-4888-8888-888888888888', role: 'CHEF', organizationId: BRANCH_A });
+const waiterToken = signAccessToken({ userId: WAITER_ID, role: 'WAITER', siteId: BRANCH_A });
+const hrToken = signAccessToken({ userId: '66666666-6666-4666-8666-666666666666', role: 'HR_MANAGER', siteId: null });
+const directorToken = signAccessToken({ userId: '33333333-3333-4333-8333-333333333333', role: 'DIRECTOR', siteId: null });
+const accountantToken = signAccessToken({ userId: '77777777-7777-4777-8777-777777777777', role: 'ACCOUNTANT', siteId: null });
+const chefToken = signAccessToken({ userId: '88888888-8888-4888-8888-888888888888', role: 'CHEF', siteId: BRANCH_A });
 
 type Row = Awaited<ReturnType<typeof reportRepository.getWaiterStaleLiabilities>>[number];
 

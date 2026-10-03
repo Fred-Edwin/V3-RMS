@@ -42,7 +42,7 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
   if (!hub) {
     throw new ValidationError('No hub organization is configured');
   }
-  if (actor.organizationId !== hub.id) {
+  if (actor.siteId !== hub.id) {
     throw new ForbiddenError('Only the hub organization may access Central Store dispatch data');
   }
   return hub.id;
@@ -50,10 +50,10 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
 
 /** Branch-side actions require a non-null org — mirrors `requisitions-service.ts`'s `requireBranchOrg`. */
 const requireBranchOrg = (actor: Actor): string => {
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ValidationError('Branch context missing for this user');
   }
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 /** `approvedQty ?? requestedQty` — the frozen quantity a requisition section carries after Milestone Four's approve-time freeze. */
@@ -67,8 +67,8 @@ const serializeQueueRow = (row: DispatchQueueRequisition): DispatchQueueRow => {
   const dispatchByDept = new Map(row.dispatches.map((d) => [d.departmentTag, d]));
   return {
     requisitionId: row.id,
-    toOrganizationId: row.organizationId,
-    branchName: row.toOrganization.name,
+    toSiteId: row.siteId,
+    branchName: row.toSite.name,
     requisitionType: row.type as DispatchQueueRow['requisitionType'],
     openedAt: row.openedAt.toISOString(),
     departments: row.sections
@@ -138,7 +138,7 @@ const serializeDeliveryRow = (dispatch: DispatchWithLines): DeliveryRow => ({
   sequenceLabel: dispatch.sequenceLabel,
   status: dispatch.status,
   departmentTag: dispatch.departmentTag,
-  branchName: dispatch.toOrganization.name,
+  branchName: dispatch.toSite.name,
   dispatchedByName: dispatch.dispatchedBy?.name ?? null,
   dispatchedAt: dispatch.dispatchedAt ? dispatch.dispatchedAt.toISOString() : null,
   confirmedByName: dispatch.confirmedBy?.name ?? null,
@@ -171,7 +171,7 @@ const confirmDispatch = async (
   input: ConfirmDeliveryInput,
   confirmedOnBehalf: boolean,
 ): Promise<DeliveryNote> => {
-  const organizationId = requireBranchOrg(actor);
+  const siteId = requireBranchOrg(actor);
 
   const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
   if (!actorWithPin || !actorWithPin.pinHash) {
@@ -180,7 +180,7 @@ const confirmDispatch = async (
   const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
   if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
 
-  const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+  const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, siteId);
   if (!dispatch) throw new NotFoundError('Dispatch not found');
   if (dispatch.status !== 'IN_TRANSIT') {
     throw new ConflictError('This dispatch has already been confirmed');
@@ -195,8 +195,8 @@ const confirmDispatch = async (
 
   const centralStore = await locationRepository.findCentralStore();
   if (!centralStore) throw new ValidationError('No Central Store is configured');
-  const departmentLocation = await locationRepository.findByOrganizationTypeDepartment(
-    organizationId,
+  const departmentLocation = await locationRepository.findBySiteTypeDepartment(
+    siteId,
     'BRANCH_DEPARTMENT',
     dispatch.departmentTag,
   );
@@ -208,7 +208,7 @@ const confirmDispatch = async (
   let hasMismatch = false;
 
   await prisma.$transaction(async (tx) => {
-    const count = await dispatchRepository.markConfirmed(dispatchId, organizationId, tx, {
+    const count = await dispatchRepository.markConfirmed(dispatchId, siteId, tx, {
       status: 'CONFIRMED', // corrected to DISCREPANCY_OPEN below if any line mismatches
       confirmedById: actor.id,
       confirmedAt,
@@ -225,7 +225,7 @@ const confirmDispatch = async (
       if (confirmedQty.greaterThan(0)) {
         await tx.inventoryTransaction.create({
           data: {
-            organizationId,
+            siteId,
             locationId: departmentLocation.id,
             inventoryItemId: line.inventoryItemId,
             type: 'DISPATCH_IN',
@@ -240,7 +240,7 @@ const confirmDispatch = async (
       if (!confirmedQty.equals(line.dispatchedQty)) {
         hasMismatch = true;
         const gapQty = confirmedQty.minus(line.dispatchedQty);
-        const reference = await referenceCounterRepository.nextReference(tx, centralStore.organizationId, 'DSC');
+        const reference = await referenceCounterRepository.nextReference(tx, centralStore.siteId, 'DSC');
         await discrepancyRepository.createForLine({ dispatchLineId: line.id, referenceNumber: reference, gapQty }, tx);
       }
     }
@@ -251,20 +251,20 @@ const confirmDispatch = async (
   });
 
   if (hasMismatch) {
-    void fcmService.sendReceiptVariancePush(dispatch.organizationId, { dispatchId, itemCount: dispatch.lines.length });
+    void fcmService.sendReceiptVariancePush(dispatch.siteId, { dispatchId, itemCount: dispatch.lines.length });
   }
 
   return dispatchService.getDeliveryNoteForBranch(actor, dispatchId);
 };
 
 const notifyDepartmentHeadsOfDispatch = async (
-  toOrganizationId: string,
+  toSiteId: string,
   departmentTag: DepartmentTag,
   dispatchId: string,
   sequenceLabel: string,
   actorId: string,
 ): Promise<void> => {
-  const heads = await dispatchRepository.findDepartmentHeads(toOrganizationId, departmentTag);
+  const heads = await dispatchRepository.findDepartmentHeads(toSiteId, departmentTag);
   for (const head of heads) {
     if (head.id === actorId) continue;
     void fcmService.sendDispatchInTransitPush(head.id, { dispatchId, deliveryNoteNumber: sequenceLabel });
@@ -293,18 +293,18 @@ export const dispatchService = {
     const allItemIds = [...new Set(requisition.sections.flatMap((s) => s.lines.map((l) => l.inventoryItemId)))];
     const onHandByItemId =
       allItemIds.length > 0
-        ? await restockLevelRepository.sumOnHandByItemForLocation(centralStore.organizationId, centralStore.id)
+        ? await restockLevelRepository.sumOnHandByItemForLocation(centralStore.siteId, centralStore.id)
         : new Map<string, Prisma.Decimal>();
 
     const existingDispatches = await Promise.all(
-      requisition.sections.map((s) => dispatchRepository.findByRequisitionAndDepartment(requisitionId, s.departmentTag, centralStore.organizationId)),
+      requisition.sections.map((s) => dispatchRepository.findByRequisitionAndDepartment(requisitionId, s.departmentTag, centralStore.siteId)),
     );
     const dispatchByDept = new Map(requisition.sections.map((s, i) => [s.departmentTag, existingDispatches[i]]));
 
     return {
       requisitionId: requisition.id,
-      toOrganizationId: requisition.organizationId,
-      branchName: requisition.toOrganizationName,
+      toSiteId: requisition.siteId,
+      branchName: requisition.toSiteName,
       requisitionType: requisition.type as FulfilDetail['requisitionType'],
       openedAt: requisition.openedAt.toISOString(),
       sections: requisition.sections
@@ -374,7 +374,7 @@ export const dispatchService = {
     const substituteItems =
       substituteItemIds.length > 0
         ? await prisma.inventoryItem.findMany({
-            where: { id: { in: substituteItemIds }, organizationId: hubOrgId, deletedAt: null },
+            where: { id: { in: substituteItemIds }, siteId: hubOrgId, deletedAt: null },
             select: { id: true, name: true, usageUnit: true, currentCost: true },
           })
         : [];
@@ -393,13 +393,13 @@ export const dispatchService = {
     const dispatchedAt = new Date();
 
     const dispatch = await prisma.$transaction(async (tx) => {
-      const todayCount = await dispatchRepository.countDispatchesTodayForBranch(requisition.organizationId, tx);
-      const sequenceLabel = buildSequenceLabel(todayCount + 1, requisition.toOrganizationName, dispatchedAt);
+      const todayCount = await dispatchRepository.countDispatchesTodayForBranch(requisition.siteId, tx);
+      const sequenceLabel = buildSequenceLabel(todayCount + 1, requisition.toSiteName, dispatchedAt);
 
       const created = await dispatchRepository.create(
         {
-          organizationId: hubOrgId,
-          toOrganizationId: requisition.organizationId,
+          siteId: hubOrgId,
+          toSiteId: requisition.siteId,
           requisitionId,
           departmentTag,
           sequenceLabel,
@@ -431,7 +431,7 @@ export const dispatchService = {
         if (dispatchLine.dispatchedQty.lessThanOrEqualTo(0)) continue; // a zeroed line (short dispatch to nothing) writes no ledger row
         await tx.inventoryTransaction.create({
           data: {
-            organizationId: hubOrgId,
+            siteId: hubOrgId,
             locationId: centralStore.id,
             inventoryItemId: dispatchLine.inventoryItemId,
             type: 'DISPATCH_OUT',
@@ -446,7 +446,7 @@ export const dispatchService = {
       return fullDispatch;
     });
 
-    void notifyDepartmentHeadsOfDispatch(requisition.organizationId, departmentTag, dispatch.id, dispatch.sequenceLabel, actor.id);
+    void notifyDepartmentHeadsOfDispatch(requisition.siteId, departmentTag, dispatch.id, dispatch.sequenceLabel, actor.id);
 
     return dispatchService.getDeliveryNoteForHub(actor, dispatch.id);
   },
@@ -461,8 +461,8 @@ export const dispatchService = {
 
   /** Branch-side (toOrganizationId-scoped) delivery-note read — same shared renderer, never hub-scoped. */
   getDeliveryNoteForBranch: async (actor: Actor, dispatchId: string): Promise<DeliveryNote> => {
-    const organizationId = requireBranchOrg(actor);
-    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    const siteId = requireBranchOrg(actor);
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, siteId);
     if (!dispatch) throw new NotFoundError('Dispatch not found');
     return serializeDeliveryNote(dispatch);
   },
@@ -471,16 +471,16 @@ export const dispatchService = {
 
   /** Branch's own dispatches, all departments (Branch Manager) or own department only (Department Head), per C4's scoping. */
   listDeliveries: async (actor: Actor, query: ListDeliveriesQuery): Promise<DeliveryRow[]> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     const departmentFilter = resolveBranchDepartmentFilter(actor);
-    const rows = await dispatchRepository.findDispatchesForBranch(organizationId, departmentFilter, query.limit);
+    const rows = await dispatchRepository.findDispatchesForBranch(siteId, departmentFilter, query.limit);
     return rows.map(serializeDeliveryRow);
   },
 
   getDeliveryDetail: async (actor: Actor, dispatchId: string): Promise<DeliveryRow> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     const departmentFilter = resolveBranchDepartmentFilter(actor);
-    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, siteId);
     if (!dispatch) throw new NotFoundError('Dispatch not found');
     if (departmentFilter && dispatch.departmentTag !== departmentFilter) {
       throw new ForbiddenError('You may only access your own department');
@@ -490,12 +490,12 @@ export const dispatchService = {
 
   /** Department Head's own confirm — the real signer is the department head themselves. */
   confirmDelivery: async (actor: Actor, dispatchId: string, input: ConfirmDeliveryInput): Promise<DeliveryNote> => {
-    const organizationId = requireBranchOrg(actor);
+    const siteId = requireBranchOrg(actor);
     const departmentFilter = resolveBranchDepartmentFilter(actor);
     if (!departmentFilter) {
       throw new ForbiddenError('A Branch Manager must use confirm-on-behalf');
     }
-    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, organizationId);
+    const dispatch = await dispatchRepository.findByIdWithLinesForBranch(dispatchId, siteId);
     if (!dispatch) throw new NotFoundError('Dispatch not found');
     if (dispatch.departmentTag !== departmentFilter) {
       throw new ForbiddenError('You may only access your own department');
@@ -517,7 +517,7 @@ const serializeDeliveryNote = (dispatch: DispatchWithLines): DeliveryNote => ({
   sequenceLabel: dispatch.sequenceLabel,
   status: dispatch.status,
   departmentTag: dispatch.departmentTag,
-  branchName: dispatch.toOrganization.name,
+  branchName: dispatch.toSite.name,
   dispatchedByName: dispatch.dispatchedBy?.name ?? null,
   dispatchedAt: dispatch.dispatchedAt ? dispatch.dispatchedAt.toISOString() : null,
   confirmedByName: dispatch.confirmedBy?.name ?? null,

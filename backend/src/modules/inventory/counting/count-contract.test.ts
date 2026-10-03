@@ -46,7 +46,7 @@ vi.mock('./count-repository', () => ({
   },
 }));
 vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('./thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('./thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../repositories/location-repository', () => ({ locationRepository: { findCentralStore: vi.fn() } }));
@@ -100,7 +100,7 @@ beforeEach(() => {
     { id: 'cat-milk', name: 'Milk', parentCategoryId: 'cat-dairy' },
   ]);
   vi.mocked(countRepository.listLiveCatalogItems).mockResolvedValue([]);
-  vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+  vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null);
   vi.mocked(countRepository.markSubmitted).mockResolvedValue(1);
   vi.mocked(countRepository.touch).mockResolvedValue(new Date('2026-09-12T04:08:00Z'));
   vi.mocked(countRepository.onHandByItem).mockResolvedValue(new Map());

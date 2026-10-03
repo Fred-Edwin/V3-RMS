@@ -21,7 +21,7 @@ enum DepartmentTag {
 
 model Location {
   id             String         @id @default(uuid())
-  organizationId String         @map("organization_id")
+  siteId String         @map("organization_id")
   type           LocationType
   departmentTag  DepartmentTag? @map("department_tag")
   name           String
@@ -29,7 +29,7 @@ model Location {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 
-  organization         Organization           @relation(fields: [organizationId], references: [id])
+  site         Site           @relation(fields: [siteId], references: [id])
   transactions         InventoryTransaction[]
   restockLevels        RestockLevel[]
   restockLevelChanges  RestockLevelChange[]
@@ -48,8 +48,8 @@ model Location {
   // A partial unique index (migration 20260731090000, not expressible in
   // Prisma DSL) additionally enforces that only ONE CENTRAL_STORE row exists
   // across all organizations — it belongs to the hub org (design doc D-15).
-  @@unique([organizationId, type, departmentTag])
-  @@index([organizationId])
+  @@unique([siteId, type, departmentTag])
+  @@index([siteId])
   @@map("locations")
 }
 
@@ -68,14 +68,14 @@ enum SupplierPaymentTerms {
 /// suppliers (Paper SRB-0 + SX5-0 both draw from one list).
 model Category {
   id               String    @id @default(uuid())
-  organizationId   String    @map("organization_id")
+  siteId   String    @map("organization_id")
   name             String
   parentCategoryId String?   @map("parent_category_id") // one level only, service-enforced — see docs/DATA_MODEL.md §4.48
   deletedAt        DateTime? @map("deleted_at") // retire; never hard-delete
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
+  site Site    @relation(fields: [siteId], references: [id])
   items        InventoryItem[]
   suppliers    Supplier[]
 
@@ -83,13 +83,13 @@ model Category {
   // partial unique index on lower(name) WHERE deleted_at IS NULL (raw SQL;
   // not expressible in the Prisma DSL). A retired "Seasonal" must not block
   // creating a new "Seasonal".
-  @@index([organizationId])
+  @@index([siteId])
   @@map("categories")
 }
 
 model InventoryItem {
   id                  String            @id @default(uuid())
-  organizationId      String            @map("organization_id")
+  siteId      String            @map("organization_id")
   name                String
   type                InventoryItemType
   categoryId          String?           @map("category_id")
@@ -109,7 +109,7 @@ model InventoryItem {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  organization           Organization            @relation(fields: [organizationId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
   category               Category?               @relation(fields: [categoryId], references: [id])
   preferredSupplier      Supplier?               @relation(fields: [preferredSupplierId], references: [id])
   restockLevels          RestockLevel[]
@@ -128,9 +128,9 @@ model InventoryItem {
   supplierItems          SupplierItem[]
   changes                InventoryItemChange[]
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([categoryId])
-  @@index([organizationId, deletedAt]) // the catalog list's default filter
+  @@index([siteId, deletedAt]) // the catalog list's default filter
   @@map("inventory_items")
 }
 
@@ -148,7 +148,7 @@ enum InventoryItemChangeKind {
 /// `before` / `after` hold only the fields that changed. `reason` is optional and never required.
 model InventoryItemChange {
   id              String                  @id @default(uuid())
-  organizationId  String                  @map("organization_id")
+  siteId  String                  @map("organization_id")
   inventoryItemId String                  @map("inventory_item_id")
   kind            InventoryItemChangeKind
   summary         String
@@ -161,8 +161,8 @@ model InventoryItemChange {
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
   changedBy     User          @relation("InventoryItemChangedBy", fields: [changedById], references: [id])
 
-  @@index([organizationId, inventoryItemId, createdAt])
-  @@index([organizationId, kind, createdAt])
+  @@index([siteId, inventoryItemId, createdAt])
+  @@index([siteId, kind, createdAt])
   @@map("inventory_item_changes")
 }
 
@@ -171,7 +171,7 @@ model InventoryItemChange {
 /// department (01-description.md §4).
 model RestockLevel {
   id              String   @id @default(uuid())
-  organizationId  String   @map("organization_id")
+  siteId  String   @map("organization_id")
   locationId      String   @map("location_id")
   inventoryItemId String   @map("inventory_item_id")
   level           Decimal  @map("level") @db.Decimal(12, 4) // in the item's usage unit
@@ -179,13 +179,13 @@ model RestockLevel {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  organization  Organization  @relation(fields: [organizationId], references: [id])
+  site  Site  @relation(fields: [siteId], references: [id])
   location      Location      @relation(fields: [locationId], references: [id])
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
   setBy         User          @relation("RestockLevelSetBy", fields: [setById], references: [id])
 
   @@unique([locationId, inventoryItemId])
-  @@index([organizationId])
+  @@index([siteId])
   @@index([inventoryItemId])
   @@map("restock_levels")
 }
@@ -196,7 +196,7 @@ model RestockLevel {
 /// means the level was cleared; a null `oldLevel` means none was set before.
 model RestockLevelChange {
   id              String   @id @default(uuid())
-  organizationId  String   @map("organization_id") // the location's org (same as restock_levels)
+  siteId  String   @map("organization_id") // the location's org (same as restock_levels)
   locationId      String   @map("location_id")
   inventoryItemId String   @map("inventory_item_id")
   oldLevel        Decimal? @map("old_level") @db.Decimal(12, 4)
@@ -205,12 +205,12 @@ model RestockLevelChange {
   reason          String?
   createdAt       DateTime @default(now()) @map("created_at")
 
-  organization  Organization  @relation(fields: [organizationId], references: [id])
+  site  Site  @relation(fields: [siteId], references: [id])
   location      Location      @relation(fields: [locationId], references: [id])
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
   changedBy     User          @relation("RestockLevelChangedBy", fields: [changedById], references: [id])
 
   @@index([locationId, inventoryItemId, createdAt])
-  @@index([organizationId])
+  @@index([siteId])
   @@map("restock_level_changes")
 }

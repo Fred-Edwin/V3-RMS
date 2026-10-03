@@ -53,12 +53,12 @@ describe('authService.refresh', () => {
       name: 'Manager One',
       email: 'manager@wendo.test',
       role: 'MANAGER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
       departmentTag: null,
       isDepartmentHead: false,
       isActive: true,
       phone: null,
-      organization: {
+      site: {
         name: 'Wendo Nyeri',
       },
     });

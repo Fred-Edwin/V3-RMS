@@ -15,7 +15,7 @@ export const lineId2 = '99999999-9999-4999-8999-999999999992';
 export const docId = '88888888-8888-4888-8888-888888888888';
 export const categoryId = '44444444-4444-4444-8444-444444444444';
 
-const actor = (role: string, id: string, organizationId = hubOrgId) => ({ id, role: role as never, organizationId });
+const actor = (role: string, id: string, siteId = hubOrgId) => ({ id, role: role as never, siteId });
 export const storeManager = actor('STORE_MANAGER', 'sm1');
 export const accountant = actor('ACCOUNTANT', 'acc1');
 export const director = actor('DIRECTOR', 'dir1');
@@ -26,7 +26,7 @@ const now = new Date('2026-09-30T08:00:00.000Z');
 
 export const buildContact = (overrides: Record<string, unknown> = {}) => ({
   id: contactId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   supplierId,
   name: 'Dattu',
   role: 'SALES_REP',
@@ -41,7 +41,7 @@ export const buildContact = (overrides: Record<string, unknown> = {}) => ({
 
 export const buildPayMethod = (overrides: Record<string, unknown> = {}) => ({
   id: methodId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   supplierId,
   type: 'BANK_TRANSFER',
   bankName: 'Equity Bank',
@@ -64,7 +64,7 @@ export const buildPayMethod = (overrides: Record<string, unknown> = {}) => ({
 /** A supplier catalog line as the repository returns it (with its item). */
 export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
   id: lineId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   supplierId,
   inventoryItemId: itemId,
   supplierItemName: null,
@@ -84,7 +84,7 @@ export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
 
 export const buildSupplierRow = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   code: 'SUPPLIER-0001',
   name: 'Samrat Supermarket Ltd',
   tradingName: 'Samrat',
@@ -115,7 +115,7 @@ export const buildSupplierRow = (overrides: Record<string, unknown> = {}) => ({
 /** Every supplier repository export, mocked. */
 export const supplierRepositoryMocks = () => ({
   supplierRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findDetailById: vi.fn(),
     findLiveWithPhones: vi.fn(),

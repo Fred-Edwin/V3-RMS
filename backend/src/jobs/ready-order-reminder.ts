@@ -11,10 +11,10 @@ import { fcmService } from '../services/fcm-service';
 export const sendReadyOrderReminders = async (): Promise<number> => {
   const today = getTodayDateOnly();
   const idleSince = new Date(Date.now() - 30 * 60 * 1000);
-  const organizations = await reportRepository.listActiveOrganizations();
+  const sites = await reportRepository.listActiveSites();
 
   let totalNotified = 0;
-  for (const org of organizations) {
+  for (const org of sites) {
     const idleOrders = await orderRepository.findIdleReadyOrders(org.id, idleSince, today);
     if (idleOrders.length === 0) continue;
 
@@ -29,7 +29,7 @@ export const sendReadyOrderReminders = async (): Promise<number> => {
     }
 
     logger.info(
-      { organizationId: org.id, orgName: org.name, waitersNotified: byWaiter.size, idleOrderCount: idleOrders.length },
+      { siteId: org.id, orgName: org.name, waitersNotified: byWaiter.size, idleOrderCount: idleOrders.length },
       'Ready order reminders sent to waiters',
     );
 

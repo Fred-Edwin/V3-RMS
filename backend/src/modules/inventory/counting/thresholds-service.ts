@@ -16,7 +16,7 @@ type Actor = NonNullable<Request['user']>;
 export const getHubThresholdsInForce = async (
   hubOrgId: string,
 ): Promise<{ reasonRequiredKes: number; directorAlertKes: number }> => {
-  const row = await thresholdsRepository.findByOrganization(hubOrgId);
+  const row = await thresholdsRepository.findBySite(hubOrgId);
   return {
     reasonRequiredKes: row?.reasonRequiredKes ?? COUNTING_THRESHOLD_DEFAULTS.hubReasonRequiredKes,
     directorAlertKes: row?.directorAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.directorAlertKes,
@@ -27,7 +27,7 @@ export const getHubThresholdsInForce = async (
 export const getBranchThresholdsInForce = async (
   branchOrgId: string,
 ): Promise<{ reasonRequiredKes: number; overnightAlertKes: number }> => {
-  const row = await thresholdsRepository.findByOrganization(branchOrgId);
+  const row = await thresholdsRepository.findBySite(branchOrgId);
   return {
     reasonRequiredKes: row?.reasonRequiredKes ?? COUNTING_THRESHOLD_DEFAULTS.branchReasonRequiredKes,
     overnightAlertKes: row?.overnightAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.branchOvernightAlertKes,
@@ -53,7 +53,7 @@ export const thresholdsService = {
   /** Store Manager → the hub row; Manager → their branch's row (Session 3 writes it). */
   get: async (actor: Actor): Promise<Thresholds> => {
     const hubOrgId = await requireHubOrgId();
-    const hubRow = await thresholdsRepository.findByOrganization(hubOrgId);
+    const hubRow = await thresholdsRepository.findBySite(hubOrgId);
     const directorAlertKes = hubRow?.directorAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.directorAlertKes;
     const withDirector = (t: Thresholds): Thresholds => ({
       ...t,
@@ -62,14 +62,14 @@ export const thresholdsService = {
     });
 
     if (actor.role === 'STORE_MANAGER') {
-      if (actor.organizationId !== hubOrgId) throw new ForbiddenError('Only the hub organization has Central Store thresholds');
+      if (actor.siteId !== hubOrgId) throw new ForbiddenError('Only the hub organization has Central Store thresholds');
       return withDirector(
         serialize(hubRow, { reasonRequiredKes: COUNTING_THRESHOLD_DEFAULTS.hubReasonRequiredKes, overnightAlertKes: null }, directorAlertKes),
       );
     }
     if (actor.role === 'MANAGER') {
-      if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
-      const row = await thresholdsRepository.findByOrganization(actor.organizationId);
+      if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
+      const row = await thresholdsRepository.findBySite(actor.siteId);
       return withDirector(
         serialize(
           row,
@@ -87,7 +87,7 @@ export const thresholdsService = {
   /** Store Manager: the Central Store reason threshold. Branch fields are structurally rejected by the schema. */
   updateStore: async (actor: Actor, input: UpdateStoreThresholdsInput): Promise<Thresholds> => {
     const hubOrgId = await requireHubOrgId();
-    if (actor.role !== 'STORE_MANAGER' || actor.organizationId !== hubOrgId) {
+    if (actor.role !== 'STORE_MANAGER' || actor.siteId !== hubOrgId) {
       throw new ForbiddenError('Only the Store Manager sets the Central Store threshold');
     }
     const current = await getHubThresholdsInForce(hubOrgId);
@@ -105,16 +105,16 @@ export const thresholdsService = {
 
   /** Branch Manager: their own branch's thresholds. The row is always the actor's own organization — never a client-supplied id. */
   updateBranch: async (actor: Actor, input: UpdateBranchThresholdsInput): Promise<Thresholds> => {
-    if (actor.role !== 'MANAGER' || actor.isDepartmentHead || !actor.organizationId) {
+    if (actor.role !== 'MANAGER' || actor.isDepartmentHead || !actor.siteId) {
       throw new ForbiddenError('Only the Branch Manager sets the branch thresholds');
     }
     const hubOrgId = await requireHubOrgId();
-    const row = await thresholdsRepository.upsertBranch(actor.organizationId, {
+    const row = await thresholdsRepository.upsertBranch(actor.siteId, {
       reasonRequiredKes: input.reasonRequiredKes,
       overnightAlertKes: input.overnightAlertKes,
       updatedById: actor.id,
     });
-    const hubRow = await thresholdsRepository.findByOrganization(hubOrgId);
+    const hubRow = await thresholdsRepository.findBySite(hubOrgId);
     return {
       ...serialize(row, { reasonRequiredKes: 0, overnightAlertKes: null }, hubRow?.directorAlertKes ?? COUNTING_THRESHOLD_DEFAULTS.directorAlertKes),
       directorUpdatedBy: hubRow?.directorUpdatedBy ?? null,

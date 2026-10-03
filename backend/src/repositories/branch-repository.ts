@@ -2,13 +2,13 @@ import { prisma } from '../config/database';
 
 export const branchRepository = {
   findAll: async () => {
-    return prisma.organization.findMany({
+    return prisma.site.findMany({
       orderBy: { createdAt: 'asc' },
     });
   },
 
   findActiveIds: async (): Promise<string[]> => {
-    const rows = await prisma.organization.findMany({
+    const rows = await prisma.site.findMany({
       where: { isActive: true },
       select: { id: true },
       orderBy: { createdAt: 'asc' },
@@ -22,7 +22,7 @@ export const branchRepository = {
    * unscoped query across all orgs). See CENTRAL_STORE_SCOPING_DESIGN.md §4.
    */
   findActiveBranchIds: async (): Promise<string[]> => {
-    const rows = await prisma.organization.findMany({
+    const rows = await prisma.site.findMany({
       where: { isActive: true, isHub: false },
       select: { id: true },
       orderBy: { createdAt: 'asc' },
@@ -32,7 +32,7 @@ export const branchRepository = {
 
   /** Active branch orgs (hub excluded) as id + name, oldest first — the "Whose levels" branch select. */
   findActiveBranchOptions: async (): Promise<Array<{ id: string; name: string }>> => {
-    return prisma.organization.findMany({
+    return prisma.site.findMany({
       where: { isActive: true, isHub: false },
       select: { id: true, name: true },
       orderBy: { createdAt: 'asc' },
@@ -40,20 +40,31 @@ export const branchRepository = {
   },
 
   findById: async (id: string) => {
-    return prisma.organization.findUnique({
+    return prisma.site.findUnique({
       where: { id },
     });
   },
 
+  /** The company every new site joins. One company exists today; multi-company readiness picks it from the actor. */
+  findDefaultCompanyId: async (): Promise<string | null> => {
+    const company = await prisma.company.findFirst({
+      where: { isActive: true },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+    return company?.id ?? null;
+  },
+
   create: async (data: {
+    companyId: string;
     name: string;
     address: string;
     city: string;
     latitude: number;
     longitude: number;
   }) => {
-    return prisma.organization.create({
-      data,
+    return prisma.site.create({
+      data: { ...data, type: 'BRANCH' },
     });
   },
 
@@ -68,7 +79,7 @@ export const branchRepository = {
       isActive: boolean;
     }>,
   ) => {
-    return prisma.organization.update({
+    return prisma.site.update({
       where: { id },
       data,
     });
@@ -78,7 +89,7 @@ export const branchRepository = {
     id: string,
     data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string; kraPIN: string }>,
   ) => {
-    return prisma.organization.update({
+    return prisma.site.update({
       where: { id },
       data: {
         phone: data.phone,
@@ -91,21 +102,21 @@ export const branchRepository = {
   },
 
   findHub: async () => {
-    return prisma.organization.findFirst({
+    return prisma.site.findFirst({
       where: { isHub: true, isActive: true },
     });
   },
 
   setHub: async (id: string) => {
     return prisma.$transaction(async (tx) => {
-      await tx.organization.updateMany({
+      await tx.site.updateMany({
         where: { isHub: true },
-        data: { isHub: false },
+        data: { isHub: false, type: 'BRANCH' },
       });
 
-      return tx.organization.update({
+      return tx.site.update({
         where: { id },
-        data: { isHub: true },
+        data: { isHub: true, type: 'CENTRAL_STORE' },
       });
     });
   },

@@ -36,7 +36,7 @@ vi.mock('../catalog/inventory-repository', () => ({
     countSuppliersByItem: vi.fn(),
     retire: vi.fn(),
     restore: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findLiveByIds: vi.fn(),
     findLiveByName: vi.fn(),
@@ -64,7 +64,7 @@ vi.mock('../suppliers/supplier-repository', () => ({
 }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn() },
 }));
 vi.mock('../../../config/database', () => ({
   prisma: { $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})), inventoryTransaction: { groupBy: vi.fn() } },
@@ -79,27 +79,27 @@ const item2Id = '44444444-4444-4444-8444-444444444445';
 const townHousekeepingId = '77777777-7777-4777-8777-777777777777';
 const townKitchenId = '77777777-7777-4777-8777-777777777778';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'att1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-const nonHubManager = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: townOrgId };
-const kitchenHead = { id: 'dh1', role: 'CHEF' as const, organizationId: townOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'att1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+const nonHubManager = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: townOrgId };
+const kitchenHead = { id: 'dh1', role: 'CHEF' as const, siteId: townOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
 const housekeepingHead = {
   id: 'dh2',
   role: 'HOUSEKEEPING' as const,
-  organizationId: townOrgId,
+  siteId: townOrgId,
   isDepartmentHead: true,
   departmentTag: 'HOUSEKEEPING' as const,
 };
 
 const hubOrg = { id: hubOrgId, name: 'Wendo Central Kitchen', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 const townOrg = { id: townOrgId, name: 'Nyeri Town', isHub: false, isActive: true };
-const townHousekeeping = { id: townHousekeepingId, organizationId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'HOUSEKEEPING' as const };
-const townKitchen = { id: townKitchenId, organizationId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'KITCHEN' as const };
+const townHousekeeping = { id: townHousekeepingId, siteId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'HOUSEKEEPING' as const };
+const townKitchen = { id: townKitchenId, siteId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'KITCHEN' as const };
 
 const buildItem = (overrides: Record<string, unknown> = {}) => ({
   id: itemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Toilex White Tissue',
   type: 'STOCKED' as const,
   categoryId: null,
@@ -126,7 +126,7 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(branchRepository.findById).mockImplementation(async (id: string) => (id === townOrgId ? (townOrg as never) : id === hubOrgId ? (hubOrg as never) : null));
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockImplementation(async (org: string, _t: unknown, tag: string) =>
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockImplementation(async (org: string, _t: unknown, tag: string) =>
     org === townOrgId && tag === 'HOUSEKEEPING' ? (townHousekeeping as never) : org === townOrgId && tag === 'KITCHEN' ? (townKitchen as never) : null,
   );
   vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
@@ -247,7 +247,7 @@ describe('B10 restock scope', () => {
   });
 
   it('a Branch Manager on a branch org can READ the Central Store levels but never change them (D-15 read-only exception)', async () => {
-    const branchManager = { id: 'bm1', role: 'MANAGER' as const, organizationId: townOrgId };
+    const branchManager = { id: 'bm1', role: 'MANAGER' as const, siteId: townOrgId };
     vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([]);
     await expect(inventoryService.listRestockLevels(branchManager, { scope: 'CENTRAL_STORE' })).resolves.toEqual([]);
     await expect(inventoryService.saveRestockLevels(branchManager, { ...save, scope: 'CENTRAL_STORE' })).rejects.toThrow(ForbiddenError);
@@ -255,7 +255,7 @@ describe('B10 restock scope', () => {
   });
 
   it('the System Admin has no organization and still reads and writes the Central Store levels', async () => {
-    const admin = { id: 'adm1', role: 'SYSTEM_ADMIN' as const, organizationId: null };
+    const admin = { id: 'adm1', role: 'SYSTEM_ADMIN' as const, siteId: null };
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
     vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([]);
     await expect(inventoryService.listRestockLevels(admin as never, { scope: 'CENTRAL_STORE' })).resolves.toEqual([]);
@@ -294,7 +294,7 @@ describe('B11 catalog strip', () => {
   const emptyList = { items: [], total: 0 };
 
   it('adds needsSetup, lowOrOut and addedThisWeek to meta and keeps the contract shape', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue(emptyList as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue(emptyList as never);
     vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([itemId, item2Id, 'x3']);
     vi.mocked(inventoryItemRepository.countCreatedSince).mockResolvedValue(5);
     vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([
@@ -314,18 +314,18 @@ describe('B11 catalog strip', () => {
   });
 
   it('needsSetup=true restricts the list to those ids (the repository sorts them oldest first)', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue(emptyList as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue(emptyList as never);
     vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([itemId]);
 
     await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: true, lowOrOut: false });
-    expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ onlyIds: [itemId] }));
+    expect(inventoryItemRepository.findAllBySite).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ onlyIds: [itemId] }));
 
     await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[1]![1].onlyIds).toBeUndefined();
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[1]![1].onlyIds).toBeUndefined();
   });
 
   it('lowOrOut is null for the attendant and a department head (restock levels are not theirs)', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue(emptyList as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue(emptyList as never);
     const q = { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false };
     expect((await inventoryService.listItems(attendant, q)).meta.lowOrOut).toBeNull();
     expect((await inventoryService.listItems(kitchenHead, q)).meta.lowOrOut).toBeNull();
@@ -456,12 +456,12 @@ describe('B12 attendant item creation', () => {
 
   it('D-15: an attendant on a branch org cannot create at all', async () => {
     await expect(
-      inventoryService.createItem({ ...attendant, organizationId: townOrgId }, { ...base, type: 'STOCKED' }),
+      inventoryService.createItem({ ...attendant, siteId: townOrgId }, { ...base, type: 'STOCKED' }),
     ).rejects.toThrow(ForbiddenError);
   });
 
   it('attendant reads (list and by id) carry no money keys; the supplier lines carry no prices', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findById).mockResolvedValue(buildItem() as never);
     vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map([[itemId, new Prisma.Decimal('9')]]));
     vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([
@@ -550,7 +550,7 @@ function allowedRoles(method: string, path: string): string[] {
     guards.every((g) => {
       const next = vi.fn() as unknown as NextFunction;
       try {
-        g.handle({ user: { id: 'u', role, organizationId: hubOrgId } } as Request, {} as Response, next);
+        g.handle({ user: { id: 'u', role, siteId: hubOrgId } } as Request, {} as Response, next);
       } catch {
         return false;
       }

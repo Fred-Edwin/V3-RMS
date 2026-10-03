@@ -7,7 +7,7 @@ export const createStaffSchema = z.object({
   phone: z.string().optional(),
   role: z.nativeEnum(UserRole),
   temporaryPassword: z.string().min(8),
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const updateStaffSchema = z.object({
@@ -21,7 +21,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export const listStaffQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   role: z.nativeEnum(UserRole).optional(),
   onShift: z
     .enum(['true', 'false'])

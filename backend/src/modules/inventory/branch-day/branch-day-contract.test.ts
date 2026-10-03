@@ -45,7 +45,7 @@ vi.mock('./branch-day-repository', () => ({
   },
 }));
 vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('../../../utils/password', () => ({ comparePin: vi.fn() }));
@@ -55,12 +55,12 @@ vi.mock('../../../config/database', () => ({ prisma: { $transaction: vi.fn(async
 const orgId = '22222222-2222-4222-8222-222222222222';
 const dayId = '33333333-3333-4333-8333-333333333333';
 const itemId = '44444444-4444-4444-8444-444444444444';
-const manager = { id: 'bm1', role: 'MANAGER' as const, organizationId: orgId, isDepartmentHead: false };
+const manager = { id: 'bm1', role: 'MANAGER' as const, siteId: orgId, isDepartmentHead: false };
 const TAGS = ['KITCHEN', 'PASTRY', 'BARISTA', 'SERVICE', 'HOUSEKEEPING'];
 
 const dayRow = (status: 'OPEN' | 'CLOSED') => ({
   id: dayId,
-  organizationId: orgId,
+  siteId: orgId,
   businessDate: new Date('2026-09-30T00:00:00Z'),
   status,
   reference: 'DAY-0001',
@@ -69,7 +69,7 @@ const dayRow = (status: 'OPEN' | 'CLOSED') => ({
   closedBy: status === 'CLOSED' ? { id: '55555555-5555-4555-8555-555555555555', name: 'Peter Njoroge' } : null,
   reopenCount: 0,
   createdAt: new Date('2026-09-30T03:00:00Z'),
-  organization: { id: orgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: null },
+  site: { id: orgId, name: 'Nyeri Town', address: 'Kimathi Way', city: 'Nyeri', phone: null },
   reopens: [],
   departments: TAGS.map((tag) => ({
     id: `dept-${tag}`,
@@ -102,7 +102,7 @@ const dayRow = (status: 'OPEN' | 'CLOSED') => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111' } as never);
-  vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null);
+  vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null);
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ name: 'Peter Njoroge', pinHash: 'h' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(branchDayRepository.inTransitDispatches).mockResolvedValue([]);

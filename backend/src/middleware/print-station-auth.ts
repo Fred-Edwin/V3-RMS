@@ -25,7 +25,7 @@ export const authenticatePrintStation = async (
 
   req.printStation = {
     id: station.id,
-    organizationId: station.organizationId,
+    siteId: station.siteId,
   };
 
   next();

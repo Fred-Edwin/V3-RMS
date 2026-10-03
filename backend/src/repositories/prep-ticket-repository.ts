@@ -66,23 +66,23 @@ const prepTicketInclude = {
 } as const;
 
 export const prepTicketRepository = {
-  findByIdAndOrg: async (id: string, organizationId: string): Promise<PrepTicketWithOrderRecord | null> => {
+  findByIdAndOrg: async (id: string, siteId: string): Promise<PrepTicketWithOrderRecord | null> => {
     return prisma.prepTicket.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: prepTicketInclude,
     });
   },
 
   findByStation: async (
-    organizationId: string,
+    siteId: string,
     station: PrepStation | PrepStation[],
     filters: PrepTicketFilters,
   ): Promise<{ tickets: PrepTicketWithOrderRecord[]; total: number }> => {
     const where: Prisma.PrepTicketWhereInput = {
-      organizationId,
+      siteId,
       station: Array.isArray(station) ? { in: station } : station,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.activeOnly
@@ -130,14 +130,14 @@ export const prepTicketRepository = {
 
   claim: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     claimedById: string,
   ): Promise<PrepTicketWithOrderRecord | null> => {
     const claimedAt = new Date();
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         status: PrepTicketStatus.PENDING,
       },
       data: {
@@ -154,18 +154,18 @@ export const prepTicketRepository = {
     return prisma.prepTicket.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: prepTicketInclude,
     });
   },
 
-  markReady: async (id: string, organizationId: string): Promise<PrepTicketWithOrderRecord | null> => {
+  markReady: async (id: string, siteId: string): Promise<PrepTicketWithOrderRecord | null> => {
     const readyAt = new Date();
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         status: PrepTicketStatus.IN_PROGRESS,
       },
       data: {
@@ -181,17 +181,17 @@ export const prepTicketRepository = {
     return prisma.prepTicket.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: prepTicketInclude,
     });
   },
 
-  findAllByOrder: async (orderId: string, organizationId: string): Promise<PrepTicketWithOrderRecord[]> => {
+  findAllByOrder: async (orderId: string, siteId: string): Promise<PrepTicketWithOrderRecord[]> => {
     return prisma.prepTicket.findMany({
       where: {
         orderId,
-        organizationId,
+        siteId,
       },
       include: prepTicketInclude,
       orderBy: {
@@ -202,14 +202,14 @@ export const prepTicketRepository = {
 
   reject: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     rejectedById: string,
     rejectedReason: string,
   ): Promise<PrepTicketWithOrderRecord | null> => {
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.IN_PROGRESS] },
       },
       data: {
@@ -227,19 +227,19 @@ export const prepTicketRepository = {
     }
 
     return prisma.prepTicket.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: prepTicketInclude,
     });
   },
 
   unclaim: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<PrepTicketWithOrderRecord | null> => {
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         status: PrepTicketStatus.IN_PROGRESS,
       },
       data: {
@@ -254,15 +254,15 @@ export const prepTicketRepository = {
     }
 
     return prisma.prepTicket.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: prepTicketInclude,
     });
   },
 
-  countInProgressByStaff: async (staffId: string, organizationId: string): Promise<number> => {
+  countInProgressByStaff: async (staffId: string, siteId: string): Promise<number> => {
     return prisma.prepTicket.count({
       where: {
-        organizationId,
+        siteId,
         claimedById: staffId,
         status: PrepTicketStatus.IN_PROGRESS,
         order: {
@@ -274,13 +274,13 @@ export const prepTicketRepository = {
 
   updateItemsSnapshot: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     items: PrepTicketItemSnapshot[],
   ): Promise<PrepTicketWithOrderRecord | null> => {
     const updated = await prisma.prepTicket.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       data: {
         items: items as unknown as Prisma.InputJsonValue,
@@ -294,7 +294,7 @@ export const prepTicketRepository = {
     return prisma.prepTicket.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: prepTicketInclude,
     });

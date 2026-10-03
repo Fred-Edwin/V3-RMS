@@ -4,7 +4,7 @@ import { prisma } from '../../../config/database';
 type Tx = Prisma.TransactionClient;
 
 const dayInclude = {
-  organization: { select: { id: true, name: true, address: true, city: true, phone: true } },
+  site: { select: { id: true, name: true, address: true, city: true, phone: true } },
   closedBy: { select: { id: true, name: true } },
   departments: {
     include: {
@@ -52,27 +52,27 @@ export type LineWrite = {
 };
 
 export const branchDayRepository = {
-  findByDate: async (organizationId: string, businessDate: Date): Promise<BranchDayFull | null> =>
-    prisma.branchDay.findFirst({ where: { organizationId, businessDate }, include: dayInclude }),
+  findByDate: async (siteId: string, businessDate: Date): Promise<BranchDayFull | null> =>
+    prisma.branchDay.findFirst({ where: { siteId, businessDate }, include: dayInclude }),
 
   /** Org-scoped. Pass `null` only for the Director's cross-branch reopen. */
-  findById: async (id: string, organizationId: string | null): Promise<BranchDayFull | null> =>
-    prisma.branchDay.findFirst({ where: { id, ...(organizationId ? { organizationId } : {}) }, include: dayInclude }),
+  findById: async (id: string, siteId: string | null): Promise<BranchDayFull | null> =>
+    prisma.branchDay.findFirst({ where: { id, ...(siteId ? { siteId } : {}) }, include: dayInclude }),
 
   /** The branch's department locations — one per department tag. */
-  departmentLocations: async (organizationId: string) =>
+  departmentLocations: async (siteId: string) =>
     prisma.location.findMany({
-      where: { organizationId, type: 'BRANCH_DEPARTMENT', isActive: true, departmentTag: { not: null } },
+      where: { siteId, type: 'BRANCH_DEPARTMENT', isActive: true, departmentTag: { not: null } },
       select: { id: true, departmentTag: true, name: true },
     }),
 
   createDay: async (
     tx: Tx,
-    input: { organizationId: string; businessDate: Date; reference: string; locations: { id: string; tag: DepartmentTag }[] },
+    input: { siteId: string; businessDate: Date; reference: string; locations: { id: string; tag: DepartmentTag }[] },
   ): Promise<string> => {
     const day = await tx.branchDay.create({
       data: {
-        organizationId: input.organizationId,
+        siteId: input.siteId,
         businessDate: input.businessDate,
         reference: input.reference,
         departments: { create: input.locations.map((l) => ({ departmentTag: l.tag, locationId: l.id })) },
@@ -95,13 +95,13 @@ export const branchDayRepository = {
   ): Promise<DepartmentItem[]> => {
     const held = await prisma.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
-      where: { organizationId: branchOrgId, locationId },
+      where: { siteId: branchOrgId, locationId },
       _sum: { quantity: true },
       having: { quantity: { _sum: { not: 0 } } },
     });
     return prisma.inventoryItem.findMany({
       where: {
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         deletedAt: null,
         OR: [{ departmentTags: { has: tag } }, { id: { in: held.map((h) => h.inventoryItemId) } }],
       },
@@ -113,7 +113,7 @@ export const branchDayRepository = {
   /** Catalog rows by id (hub catalog) — used to show a signed line whose item has since left the department's set. */
   itemsByIds: async (hubOrgId: string, ids: string[]): Promise<DepartmentItem[]> =>
     prisma.inventoryItem.findMany({
-      where: { organizationId: hubOrgId, id: { in: ids } },
+      where: { siteId: hubOrgId, id: { in: ids } },
       select: { id: true, name: true, usageUnit: true, currentCost: true },
     }),
 
@@ -129,7 +129,7 @@ export const branchDayRepository = {
     const rows = await prisma.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
       where: {
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         locationId,
         inventoryItemId: { in: itemIds },
         OR: [{ branchDayLineId: null }, { branchDayLineId: { notIn: dayLineIds } }],
@@ -158,7 +158,7 @@ export const branchDayRepository = {
   /** Unconfirmed dispatches into this branch — what blocks a department (plan §1.4, derived, never stored). */
   inTransitDispatches: async (branchOrgId: string) =>
     prisma.dispatch.findMany({
-      where: { toOrganizationId: branchOrgId, status: 'IN_TRANSIT' },
+      where: { toSiteId: branchOrgId, status: 'IN_TRANSIT' },
       select: { id: true, departmentTag: true, sequenceLabel: true },
       orderBy: { dispatchedAt: 'asc' },
     }),
@@ -197,7 +197,7 @@ export const branchDayRepository = {
       ? []
       : tx.inventoryTransaction.findMany({
           where: {
-            organizationId: branchOrgId,
+            siteId: branchOrgId,
             branchDayLineId: { in: dayLineIds },
             type: 'ADJUSTMENT',
             reversesTransactionId: null,
@@ -209,7 +209,7 @@ export const branchDayRepository = {
   writeAdjustment: async (
     tx: Tx,
     input: {
-      organizationId: string;
+      siteId: string;
       locationId: string;
       inventoryItemId: string;
       quantity: Prisma.Decimal;
@@ -228,10 +228,10 @@ export const branchDayRepository = {
   // ── History (Session 4) ───────────────────────────────────────────────────
 
   /** Closed days in range, plus any earlier day still open (a day nobody closed). Never today's open day. */
-  historyDays: async (organizationId: string, from: Date, to: Date, today: Date): Promise<BranchDayFull[]> =>
+  historyDays: async (siteId: string, from: Date, to: Date, today: Date): Promise<BranchDayFull[]> =>
     prisma.branchDay.findMany({
       where: {
-        organizationId,
+        siteId,
         businessDate: { gte: from, lte: to },
         OR: [{ status: 'CLOSED' }, { businessDate: { lt: today } }],
       },
@@ -261,7 +261,7 @@ export const branchDayRepository = {
     const rows = await client.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
       where: {
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         locationId,
         inventoryItemId: { in: itemIds },
         ...(excludeOpeningLineIds.length > 0
@@ -293,9 +293,9 @@ export const branchDayRepository = {
     }),
 
   /** Openings already accepted for the given day (the recompute hook's input). */
-  openingsForDate: async (tx: Tx, organizationId: string, businessDate: Date) =>
+  openingsForDate: async (tx: Tx, siteId: string, businessDate: Date) =>
     tx.departmentOpening.findMany({
-      where: { branchDay: { organizationId, businessDate } },
+      where: { branchDay: { siteId, businessDate } },
       include: { lines: true },
     }),
 
@@ -309,7 +309,7 @@ export const branchDayRepository = {
       ? []
       : tx.inventoryTransaction.findMany({
           where: {
-            organizationId: branchOrgId,
+            siteId: branchOrgId,
             openingLineId: { in: openingLineIds },
             type: 'ADJUSTMENT',
             reversesTransactionId: null,

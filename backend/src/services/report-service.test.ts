@@ -21,7 +21,7 @@ vi.mock('../repositories/report-repository', () => ({
     getBranchTrends: vi.fn(),
     getDirectorTrends: vi.fn(),
     getMyPerformance: vi.fn(),
-    listActiveOrganizations: vi.fn(),
+    listActiveSites: vi.fn(),
   },
 }));
 
@@ -33,19 +33,19 @@ vi.mock('../utils/report-formatters', () => ({
 const managerActor = {
   id: 'manager-1',
   role: 'MANAGER',
-  organizationId: 'org-1',
+  siteId: 'org-1',
 } as NonNullable<Request['user']>;
 
 const directorActor = {
   id: 'director-1',
   role: 'DIRECTOR',
-  organizationId: null,
+  siteId: null,
 } as NonNullable<Request['user']>;
 
 const sampleDailySummary = {
   date: '2026-02-24',
-  organizationId: 'org-1',
-  organizationName: 'Wendo Kingz',
+  siteId: 'org-1',
+  siteName: 'Wendo Kingz',
   totalRevenue: '1000.00',
   orderCount: 2,
   ordersByType: {
@@ -163,7 +163,7 @@ describe('reportService', () => {
 
     await reportService.getDailySummary(managerActor, {
       date: '2026-02-01',
-      organizationId: 'org-999',
+      siteId: 'org-999',
     });
 
     expect(reportRepository.getDailySummaryByDate).toHaveBeenCalledWith('org-1', expect.any(Date));
@@ -202,8 +202,8 @@ describe('reportService', () => {
         startDate: '2026-02-01',
         endDate: '2026-02-24',
       },
-      organizationId: 'org-1',
-      organizationName: 'Wendo Kingz',
+      siteId: 'org-1',
+      siteName: 'Wendo Kingz',
       staff: [],
     });
 

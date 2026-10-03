@@ -12,19 +12,19 @@ import { signAccessToken } from '../src/utils/jwt';
 const waiterToken = signAccessToken({
   userId: '11111111-1111-4111-8111-111111111111',
   role: 'WAITER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const managerToken = signAccessToken({
   userId: '33333333-3333-4333-8333-333333333333',
   role: 'MANAGER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const chefToken = signAccessToken({
   userId: '44444444-4444-4444-8444-444444444444',
   role: 'CHEF',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const orgId = '22222222-2222-4222-8222-222222222222';
@@ -34,7 +34,7 @@ const stationId = '77777777-7777-4777-8777-777777777777';
 
 const samplePrintJob = {
   id: printJobId,
-  organizationId: orgId,
+  siteId: orgId,
   orderId,
   activeKey: `${orderId}:RECEIPT`,
   receiptType: 'RECEIPT' as const,
@@ -67,7 +67,7 @@ const samplePrintJobSummary = {
 // Shared paid-order fixture for createPrintJob service tests.
 const paidOrderFixture = {
   id: orderId,
-  organizationId: orgId,
+  siteId: orgId,
   dailyNumber: 42,
   orderDate: new Date('2026-03-08'),
   type: 'DINE_IN',
@@ -78,14 +78,14 @@ const paidOrderFixture = {
   paymentMethod: 'CASH',
   paidAt: new Date('2026-03-08T14:32:00Z'),
   createdAt: new Date('2026-03-08T10:00:00Z'),
-  organization: { name: 'Wendo Kingz' },
+  site: { name: 'Wendo Kingz' },
   createdBy: { name: 'Jane M.' },
   items: [],
 };
 
 const sampleStation = {
   id: stationId,
-  organizationId: orgId,
+  siteId: orgId,
   name: 'Counter Printer',
   isActive: true,
   lastSeenAt: null,
@@ -233,7 +233,7 @@ describe('POST /api/v1/print-stations', () => {
   it('creates a print station for manager', async () => {
     vi.spyOn(printService, 'createPrintStation').mockResolvedValue({
       id: stationId,
-      organizationId: orgId,
+      siteId: orgId,
       name: 'Counter Printer',
       token: 'pst_abc123',
       isActive: true,
@@ -352,7 +352,7 @@ describe('Print station token auth middleware', () => {
   it('returns 401 for inactive station', async () => {
     vi.spyOn(printRepository, 'findPrintStationByTokenHash').mockResolvedValue({
       id: stationId,
-      organizationId: orgId,
+      siteId: orgId,
       isActive: false,
     });
 
@@ -366,7 +366,7 @@ describe('Print station token auth middleware', () => {
   it('returns jobs for valid station token', async () => {
     vi.spyOn(printRepository, 'findPrintStationByTokenHash').mockResolvedValue({
       id: stationId,
-      organizationId: orgId,
+      siteId: orgId,
       isActive: true,
     });
     vi.spyOn(printService, 'claimJobsForStation').mockResolvedValue([]);
@@ -398,7 +398,7 @@ describe('printService.createPrintJob', () => {
   it('throws ValidationError when order is not paid', async () => {
     vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue({
       id: orderId,
-      organizationId: orgId,
+      siteId: orgId,
       dailyNumber: 42,
       orderDate: new Date('2026-03-08'),
       type: 'DINE_IN',
@@ -409,7 +409,7 @@ describe('printService.createPrintJob', () => {
       paymentMethod: null, // not paid
       paidAt: null,
       createdAt: new Date(),
-      organization: { name: 'Wendo Kingz' },
+      site: { name: 'Wendo Kingz' },
       createdBy: { name: 'Jane M.' },
       items: [],
     });
@@ -422,7 +422,7 @@ describe('printService.createPrintJob', () => {
   it('creates print job with correct receipt data snapshot', async () => {
     vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue({
       id: orderId,
-      organizationId: orgId,
+      siteId: orgId,
       dailyNumber: 42,
       orderDate: new Date('2026-03-08'),
       type: 'DINE_IN',
@@ -433,7 +433,7 @@ describe('printService.createPrintJob', () => {
       paymentMethod: 'CASH',
       paidAt: new Date('2026-03-08T14:32:00Z'),
       createdAt: new Date('2026-03-08T10:00:00Z'),
-      organization: { name: 'Wendo Kingz' },
+      site: { name: 'Wendo Kingz' },
       createdBy: { name: 'Jane M.' },
       items: [
         {
@@ -464,7 +464,7 @@ describe('printService.createPrintJob', () => {
   it('returns existing active job when unique active key conflict occurs', async () => {
     vi.spyOn(printRepository, 'findOrderForReceipt').mockResolvedValue({
       id: orderId,
-      organizationId: orgId,
+      siteId: orgId,
       dailyNumber: 42,
       orderDate: new Date('2026-03-08'),
       type: 'DINE_IN',
@@ -475,7 +475,7 @@ describe('printService.createPrintJob', () => {
       paymentMethod: 'CASH',
       paidAt: new Date('2026-03-08T14:32:00Z'),
       createdAt: new Date('2026-03-08T10:00:00Z'),
-      organization: { name: 'Wendo Kingz' },
+      site: { name: 'Wendo Kingz' },
       createdBy: { name: 'Jane M.' },
       items: [],
     });

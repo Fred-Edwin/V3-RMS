@@ -12,14 +12,14 @@ export type ModRequestWithRelations = Prisma.OrderModificationRequestGetPayload<
 
 export const modificationRequestRepository = {
   create: async (data: {
-    organizationId: string;
+    siteId: string;
     orderId: string;
     requestedById: string;
     description: string;
   }): Promise<ModRequestWithRelations> => {
     return prisma.orderModificationRequest.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         orderId: data.orderId,
         requestedById: data.requestedById,
         description: data.description,
@@ -28,29 +28,29 @@ export const modificationRequestRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<ModRequestWithRelations | null> => {
+  findById: async (id: string, siteId: string): Promise<ModRequestWithRelations | null> => {
     return prisma.orderModificationRequest.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: modRequestInclude,
     });
   },
 
-  findPendingByOrder: async (orderId: string, organizationId: string): Promise<ModRequestWithRelations | null> => {
+  findPendingByOrder: async (orderId: string, siteId: string): Promise<ModRequestWithRelations | null> => {
     return prisma.orderModificationRequest.findFirst({
       where: {
         orderId,
-        organizationId,
+        siteId,
         status: ModificationRequestStatus.PENDING,
       },
       include: modRequestInclude,
     });
   },
 
-  findApprovedByOrder: async (orderId: string, organizationId: string): Promise<ModRequestWithRelations | null> => {
+  findApprovedByOrder: async (orderId: string, siteId: string): Promise<ModRequestWithRelations | null> => {
     return prisma.orderModificationRequest.findFirst({
       where: {
         orderId,
-        organizationId,
+        siteId,
         status: ModificationRequestStatus.APPROVED,
       },
       include: modRequestInclude,
@@ -58,9 +58,9 @@ export const modificationRequestRepository = {
     });
   },
 
-  findByOrder: async (orderId: string, organizationId: string): Promise<ModRequestWithRelations[]> => {
+  findByOrder: async (orderId: string, siteId: string): Promise<ModRequestWithRelations[]> => {
     return prisma.orderModificationRequest.findMany({
-      where: { orderId, organizationId },
+      where: { orderId, siteId },
       include: modRequestInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -68,7 +68,7 @@ export const modificationRequestRepository = {
 
   review: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       status: ModificationRequestStatus;
       reviewedById: string;
@@ -78,7 +78,7 @@ export const modificationRequestRepository = {
     const updated = await prisma.orderModificationRequest.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         status: ModificationRequestStatus.PENDING,
       },
       data: {
@@ -94,16 +94,16 @@ export const modificationRequestRepository = {
     }
 
     return prisma.orderModificationRequest.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: modRequestInclude,
     });
   },
 
-  consumeApproved: async (orderId: string, organizationId: string): Promise<boolean> => {
+  consumeApproved: async (orderId: string, siteId: string): Promise<boolean> => {
     const updated = await prisma.orderModificationRequest.updateMany({
       where: {
         orderId,
-        organizationId,
+        siteId,
         status: ModificationRequestStatus.APPROVED,
       },
       data: {

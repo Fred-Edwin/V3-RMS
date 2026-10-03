@@ -17,10 +17,10 @@ const repo = vi.mocked(otherIncomeRepository);
 
 type Actor = NonNullable<Request['user']>;
 
-const managerActor = { id: 'mgr-1', role: 'MANAGER', organizationId: 'org-1' } as Actor;
-const directorActor = { id: 'dir-1', role: 'DIRECTOR', organizationId: null } as Actor;
-const accountantActor = { id: 'acc-1', role: 'ACCOUNTANT', organizationId: null } as Actor;
-const waiterActor = { id: 'wtr-1', role: 'WAITER', organizationId: 'org-1' } as Actor;
+const managerActor = { id: 'mgr-1', role: 'MANAGER', siteId: 'org-1' } as Actor;
+const directorActor = { id: 'dir-1', role: 'DIRECTOR', siteId: null } as Actor;
+const accountantActor = { id: 'acc-1', role: 'ACCOUNTANT', siteId: null } as Actor;
+const waiterActor = { id: 'wtr-1', role: 'WAITER', siteId: 'org-1' } as Actor;
 
 /** A recorded CASH entry, `daysAgo` old, for `org-1`. */
 const makeEntry = (daysAgo: number, over: Partial<Record<string, unknown>> = {}) => {
@@ -29,7 +29,7 @@ const makeEntry = (daysAgo: number, over: Partial<Record<string, unknown>> = {})
   entryDate.setUTCDate(entryDate.getUTCDate() - daysAgo);
   return {
     id: 'entry-1',
-    organizationId: 'org-1',
+    siteId: 'org-1',
     branchId: 'org-1',
     categoryId: 'cat-1',
     amount: new Prisma.Decimal('33000'),

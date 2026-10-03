@@ -8,7 +8,7 @@ import { socketService } from '../src/sockets/socket-service';
 import type { PrepTicketRecord } from '../src/types/order.types';
 import { signAccessToken } from '../src/utils/jwt';
 
-const organizationId = '22222222-2222-4222-8222-222222222222';
+const siteId = '22222222-2222-4222-8222-222222222222';
 
 let httpServer: HttpServer;
 let ioServer: SocketIOServer;
@@ -90,17 +90,17 @@ describe('Order websocket events', () => {
     const socket = await connectAuthenticatedSocket({
       userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       role: 'KITCHEN_DISPLAY',
-      organizationId,
+      siteId,
     });
 
     try {
-      socket.emit('join:station', { organizationId, station: 'KITCHEN' });
+      socket.emit('join:station', { siteId, station: 'KITCHEN' });
       const joined = await waitForEvent<{ room: string; station: 'KITCHEN' | 'BARISTA' }>(
         socket,
         'joined:station',
       );
       expect(joined.station).toBe('KITCHEN');
-      expect(joined.room).toBe(`branch:${organizationId}:kitchen`);
+      expect(joined.room).toBe(`branch:${siteId}:kitchen`);
 
       const ticket: PrepTicketRecord = {
         id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
@@ -117,7 +117,7 @@ describe('Order websocket events', () => {
       };
 
       const newOrderEvent = waitForEvent<{ id: string; station: 'KITCHEN' | 'BARISTA' }>(socket, 'order:new');
-      socketService.emitNewOrder(organizationId, [ticket]);
+      socketService.emitNewOrder(siteId, [ticket]);
 
       const payload = await newOrderEvent;
       expect(payload.id).toBe(ticket.id);
@@ -132,7 +132,7 @@ describe('Order websocket events', () => {
     const socket = await connectAuthenticatedSocket({
       userId: waiterId,
       role: 'WAITER',
-      organizationId,
+      siteId,
     });
 
     try {
@@ -147,7 +147,7 @@ describe('Order websocket events', () => {
         claimedBy: { id: string; name: string };
       }>(socket, 'order:claimed');
 
-      socketService.emitOrderClaimed(organizationId, waiterId, {
+      socketService.emitOrderClaimed(siteId, waiterId, {
         orderId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
         ticketId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
         station: 'KITCHEN',

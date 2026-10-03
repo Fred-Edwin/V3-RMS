@@ -111,7 +111,7 @@ const findHubId = async (): Promise<string> => {
  */
 export const requireHubActor = async (actor: Actor): Promise<string> => {
   const hubId = await findHubId();
-  if (actor.role === 'SYSTEM_ADMIN' || actor.organizationId === hubId) return hubId;
+  if (actor.role === 'SYSTEM_ADMIN' || actor.siteId === hubId) return hubId;
   throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
 };
 
@@ -122,6 +122,6 @@ export const requireHubActor = async (actor: Actor): Promise<string> => {
  */
 export const requireHubReader = async (actor: Actor): Promise<string> => {
   const hubId = await findHubId();
-  if (actor.organizationId === hubId || actorCan(actor, 'central_store.read_any_org')) return hubId;
+  if (actor.siteId === hubId || actorCan(actor, 'central_store.read_any_org')) return hubId;
   throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
 };

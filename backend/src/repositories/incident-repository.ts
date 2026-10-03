@@ -6,7 +6,7 @@ const incidentInclude = {
   actor: {
     select: { id: true, name: true },
   },
-  organization: {
+  site: {
     select: { id: true, name: true },
   },
 } as const;
@@ -15,7 +15,7 @@ export const incidentRepository = {
   create: async (data: CreateIncidentDto) => {
     return prisma.incidentLog.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         orderId: data.orderId ?? null,
         type: data.type,
         actorId: data.actorId ?? null,
@@ -25,16 +25,16 @@ export const incidentRepository = {
     });
   },
 
-  findStaleOrderIds: async (organizationId: string, orderIds: string[]): Promise<Set<string>> => {
+  findStaleOrderIds: async (siteId: string, orderIds: string[]): Promise<Set<string>> => {
     const rows = await prisma.incidentLog.findMany({
-      where: { organizationId, type: 'ORDER_STALE', orderId: { in: orderIds } },
+      where: { siteId, type: 'ORDER_STALE', orderId: { in: orderIds } },
       select: { orderId: true },
     });
     return new Set(rows.map((r) => r.orderId).filter((id): id is string => id !== null));
   },
 
   findMany: async (
-    organizationId: string | null,
+    siteId: string | null,
     filters: {
       type?: IncidentType;
       startDate?: Date;
@@ -45,7 +45,7 @@ export const incidentRepository = {
       perPage: number;
     },
   ) => {
-    const where: Record<string, unknown> = organizationId ? { organizationId } : {};
+    const where: Record<string, unknown> = siteId ? { siteId } : {};
 
     if (filters.type) {
       where.type = filters.type;
@@ -54,7 +54,7 @@ export const incidentRepository = {
       where.orderId = filters.orderId;
     }
     if (filters.branchId) {
-      where.organizationId = filters.branchId;
+      where.siteId = filters.branchId;
     }
     if (filters.startDate || filters.endDate) {
       const createdAt: Record<string, Date> = {};

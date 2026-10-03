@@ -2,7 +2,7 @@ import type { StaffDiscountAuthStatus } from '@prisma/client';
 
 export interface StaffDiscountAuthRequestRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string;
   requestedById: string;
   discountPercent: string;

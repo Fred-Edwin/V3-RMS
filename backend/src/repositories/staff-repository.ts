@@ -8,9 +8,9 @@ const staffSelect = {
   phone: true,
   role: true,
   isActive: true,
-  organizationId: true,
+  siteId: true,
   createdAt: true,
-  organization: {
+  site: {
     select: {
       name: true,
     },
@@ -22,7 +22,7 @@ const staffSelect = {
 const staffWithPinSelect = { ...staffSelect, pinHash: true } as const;
 
 interface StaffFilters {
-  organizationId?: string;
+  siteId?: string;
   role?: UserRole;
   isActive?: boolean;
   onShift?: boolean;
@@ -49,19 +49,19 @@ export const staffRepository = {
     });
   },
 
-  findMany: async ({ organizationId, role, isActive, onShift, allowedRoles }: StaffFilters) => {
+  findMany: async ({ siteId, role, isActive, onShift, allowedRoles }: StaffFilters) => {
     const { startOfDay, endOfDay } = getTodayRange();
 
     return prisma.user.findMany({
       where: {
-        organizationId,
+        siteId,
         role: role ?? (allowedRoles ? { in: allowedRoles } : undefined),
         isActive,
         ...(onShift
           ? {
               shiftAssignments: {
                 some: {
-                  ...(organizationId ? { organizationId } : {}),
+                  ...(siteId ? { siteId } : {}),
                   date: {
                     gte: startOfDay,
                     lt: endOfDay,
@@ -85,9 +85,9 @@ export const staffRepository = {
   },
 
   /** Team list for a scoped org: accounts of the given roles, each with a `hasPin` boolean (never the hash). */
-  findTeamWithPinStatus: async (organizationId: string, roles: UserRole[], isActive?: boolean) => {
+  findTeamWithPinStatus: async (siteId: string, roles: UserRole[], isActive?: boolean) => {
     const users = await prisma.user.findMany({
-      where: { organizationId, role: { in: roles }, isActive },
+      where: { siteId, role: { in: roles }, isActive },
       select: staffWithPinSelect,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -95,19 +95,19 @@ export const staffRepository = {
   },
 
   /** Clears the signing PIN so the user sets a new one at next signing. */
-  clearPin: async (id: string, organizationId: string, allowedRoles: UserRole[]) => {
+  clearPin: async (id: string, siteId: string, allowedRoles: UserRole[]) => {
     return prisma.user.updateMany({
-      where: { id, organizationId, role: { in: allowedRoles } },
+      where: { id, siteId, role: { in: allowedRoles } },
       data: { pinHash: null },
     });
   },
 
-  findMessagingContacts: async (organizationId: string, excludeId: string) => {
+  findMessagingContacts: async (siteId: string, excludeId: string) => {
     // Branch staff for the caller's org + system-level leadership (DIRECTOR, HR_MANAGER)
     const [branchStaff, leadership] = await Promise.all([
       prisma.user.findMany({
         where: {
-          organizationId,
+          siteId,
           isActive: true,
           id: { not: excludeId },
           role: { in: ['MANAGER', 'ACCOUNTANT', 'WAITER', 'CHEF', 'BARISTA', 'STEWARD', 'HOUSEKEEPING', 'STORE_MANAGER', 'STORE_ATTENDANT'] },
@@ -128,11 +128,11 @@ export const staffRepository = {
     return [...leadership, ...branchStaff];
   },
 
-  findById: async (id: string, organizationId?: string, allowedRoles?: UserRole[]) => {
+  findById: async (id: string, siteId?: string, allowedRoles?: UserRole[]) => {
     return prisma.user.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
         role: allowedRoles ? { in: allowedRoles } : undefined,
       },
       select: staffSelect,
@@ -144,7 +144,7 @@ export const staffRepository = {
     email: string;
     phone?: string;
     role: UserRole;
-    organizationId: string | null;
+    siteId: string | null;
     passwordHash: string;
     /** Create the EmployeeProfile atomically with the user (contract type left unset). */
     withEmployeeProfile?: boolean;
@@ -168,12 +168,12 @@ export const staffRepository = {
       email?: string;
       phone?: string;
     },
-    organizationId?: string,
+    siteId?: string,
   ) => {
     return prisma.user.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       data,
     });
@@ -182,34 +182,34 @@ export const staffRepository = {
   updatePassword: async (
     id: string,
     passwordHash: string,
-    organizationId?: string,
+    siteId?: string,
     allowedRoles?: UserRole[],
   ) => {
     return prisma.user.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         role: allowedRoles ? { in: allowedRoles } : undefined,
       },
       data: { passwordHash },
     });
   },
 
-  countDependencies: async (id: string, organizationId?: string) => {
-    const where = { userId: id, ...(organizationId ? { organizationId } : {}) };
+  countDependencies: async (id: string, siteId?: string) => {
+    const where = { userId: id, ...(siteId ? { siteId } : {}) };
     const [orders, shiftAssignments, clockRecords] = await Promise.all([
-      prisma.order.count({ where: { createdById: id, ...(organizationId ? { organizationId } : {}) } }),
+      prisma.order.count({ where: { createdById: id, ...(siteId ? { siteId } : {}) } }),
       prisma.shiftAssignment.count({ where }),
       prisma.clockRecord.count({ where }),
     ]);
     return { orders, shiftAssignments, clockRecords };
   },
 
-  hardDelete: async (id: string, organizationId?: string) => {
+  hardDelete: async (id: string, siteId?: string) => {
     return prisma.user.deleteMany({
       where: {
         id,
-        organizationId,
+        siteId,
       },
     });
   },
@@ -217,13 +217,13 @@ export const staffRepository = {
   setActive: async (
     id: string,
     isActive: boolean,
-    organizationId?: string,
+    siteId?: string,
     allowedRoles?: UserRole[],
   ) => {
     return prisma.user.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         role: allowedRoles ? { in: allowedRoles } : undefined,
       },
       data: {
@@ -234,7 +234,7 @@ export const staffRepository = {
 
   findByIdOnShift: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     allowedRoles: UserRole[],
   ) => {
     const { startOfDay, endOfDay } = getTodayRange();
@@ -242,14 +242,14 @@ export const staffRepository = {
     return prisma.user.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
         role: {
           in: allowedRoles,
         },
         isActive: true,
         shiftAssignments: {
           some: {
-            organizationId,
+            siteId,
             date: {
               gte: startOfDay,
               lt: endOfDay,

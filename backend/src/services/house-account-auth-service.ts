@@ -21,7 +21,7 @@ const serializeAuthRequest = (
   if (!raw) throw new NotFoundError('Auth request not found');
   return {
     id: raw.id,
-    organizationId: raw.organizationId,
+    siteId: raw.siteId,
     orderId: raw.orderId,
     houseAccountId: raw.houseAccountId,
     requestedById: raw.requestedById,
@@ -56,11 +56,11 @@ const serializeAuthRequest = (
 export const houseAccountAuthService = {
   listPending: async (actor: Actor): Promise<HouseAccountAuthRequestRecord[]> => {
     // Directors may have no organizationId (system-level role) — scope to their own house account requests
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       const records = await houseAccountAuthRequestRepository.findPendingByHolderUserId(actor.id);
       return records.map(serializeAuthRequest);
     }
-    const records = await houseAccountAuthRequestRepository.findPendingByOrganization(actor.organizationId);
+    const records = await houseAccountAuthRequestRepository.findPendingBySite(actor.siteId);
     return records.map(serializeAuthRequest);
   },
 
@@ -72,10 +72,10 @@ export const houseAccountAuthService = {
   createAuthRequest: async (
     orderId: string,
     houseAccountId: string,
-    organizationId: string,
+    siteId: string,
     actor: Actor,
   ): Promise<HouseAccountAuthRequestRecord> => {
-    const order = await orderRepository.findById(orderId, organizationId);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     const account = await houseAccountRepository.findById(houseAccountId);
@@ -88,7 +88,7 @@ export const houseAccountAuthService = {
     const authRequest = await prisma.$transaction(async (tx) => {
       const created = await tx.houseAccountAuthRequest.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           houseAccountId,
           requestedById: actor.id,
@@ -118,7 +118,7 @@ export const houseAccountAuthService = {
         },
       });
       await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { status: 'AWAITING_AUTHORIZATION' },
       });
       return created;
@@ -133,14 +133,14 @@ export const houseAccountAuthService = {
     });
 
     // Notify branch managers via FCM so they see it even when app is in background
-    void fcmService.sendHouseAccountAuthPushToManagers(organizationId, {
+    void fcmService.sendHouseAccountAuthPushToManagers(siteId, {
       orderId,
       dailyNumber: order.dailyNumber,
       amount: order.total.toString(),
     });
 
     // Notify all branch members via socket so order cards update immediately
-    socketService.emitAuthPending(actor.id, organizationId, {
+    socketService.emitAuthPending(actor.id, siteId, {
       orderId,
       dailyNumber: order.dailyNumber,
       authRequestId: authRequest.id,
@@ -156,10 +156,10 @@ export const houseAccountAuthService = {
    */
   getPendingByOrderId: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<HouseAccountAuthRequestRecord> => {
-    const authRequest = await houseAccountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
-    if (!authRequest || authRequest.organizationId !== organizationId) {
+    const authRequest = await houseAccountAuthRequestRepository.findPendingByOrderId(orderId, siteId);
+    if (!authRequest || authRequest.siteId !== siteId) {
       throw new NotFoundError('No pending authorization request found for this order');
     }
     return serializeAuthRequest(authRequest);
@@ -214,7 +214,7 @@ export const houseAccountAuthService = {
     if (!authRequest) throw new NotFoundError('Authorization request not found');
 
     // Scope check — manager must belong to the same branch
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
+    if (actor.siteId && authRequest.siteId !== actor.siteId) {
       throw new ForbiddenError('Access denied');
     }
 
@@ -261,20 +261,20 @@ export const houseAccountAuthService = {
 
     const resolved = await houseAccountAuthRequestRepository.resolveIfPending(
       authRequestId,
-      authRequest.organizationId,
+      authRequest.siteId,
       newStatus,
       resolvedById,
     );
 
     if (!resolved) {
       // Race condition: already resolved by another path — read current state
-      const current = await houseAccountAuthRequestRepository.findById(authRequestId, authRequest.organizationId);
+      const current = await houseAccountAuthRequestRepository.findById(authRequestId, authRequest.siteId);
       if (!current) throw new NotFoundError('Authorization request not found');
       logger.info({ authRequestId }, 'Auth resolution race: request already resolved, returning current state');
       return serializeAuthRequest(current);
     }
 
-    const { organizationId, orderId, requestedById } = authRequest;
+    const { siteId, orderId, requestedById } = authRequest;
 
     // Cancel the timeout job if it exists and we're not the timeout
     if (!isTimeout && authRequest.bullmqJobId) {
@@ -284,7 +284,7 @@ export const houseAccountAuthService = {
     if (decision === 'APPROVED') {
       // Run the payment — same logic as the immediate path in order-service
       try {
-        await orderRepository.recordPayment(orderId, organizationId, {
+        await orderRepository.recordPayment(orderId, siteId, {
           paymentMethod: 'HOUSE_ACCOUNT',
           mpesaCode: null,
           mpesaAmount: null,
@@ -298,30 +298,30 @@ export const houseAccountAuthService = {
         });
       } catch (err) {
         // If payment fails (e.g. credit limit race), revert to READY and treat as rejection
-        await orderRepository.updateStatus(orderId, organizationId, 'READY');
+        await orderRepository.updateStatus(orderId, siteId, 'READY');
         logger.error({ err, orderId, authRequestId }, 'House account payment failed after approval — reverting to READY');
         throw new ConflictError('Payment could not be processed after approval. Order returned to READY.');
       }
 
       // Notify kitchen/barista stations the order is closed
-      const order = await orderRepository.findById(orderId, organizationId);
+      const order = await orderRepository.findById(orderId, siteId);
       if (order) {
         const { PrepStation } = await import('@prisma/client');
         const stations = [...new Set(order.prepTickets.map((t) => t.station))];
         socketService.emitOrderClosed(
-          organizationId,
+          siteId,
           stations as (typeof PrepStation)[keyof typeof PrepStation][],
           { orderId, dailyNumber: order.dailyNumber },
         );
       }
     } else {
       // Rejected or timed out — return order to READY so waiter can collect differently
-      await orderRepository.updateStatus(orderId, organizationId, 'READY');
+      await orderRepository.updateStatus(orderId, siteId, 'READY');
 
       // Log incident
       const reason = isTimeout ? 'Authorization timed out' : 'Rejected by account holder';
       incidentService.log({
-        organizationId,
+        siteId,
         orderId,
         type: 'PAYMENT_REJECTED',
         actorId: resolvedById,
@@ -335,7 +335,7 @@ export const houseAccountAuthService = {
     }
 
     // Notify waiter and all branch members via socket
-    socketService.emitAuthResolved(requestedById, organizationId, {
+    socketService.emitAuthResolved(requestedById, siteId, {
       orderId,
       dailyNumber: authRequest.order.dailyNumber,
       approved: decision === 'APPROVED',
@@ -370,7 +370,7 @@ export const houseAccountAuthService = {
     }
 
     // Scope check for managers
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
+    if (actor.siteId && authRequest.siteId !== actor.siteId) {
       throw new ForbiddenError('Access denied');
     }
 

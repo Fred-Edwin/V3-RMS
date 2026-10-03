@@ -66,32 +66,32 @@ const D = (v: string | number) => new Prisma.Decimal(v);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function main(): Promise<void> {
-  const org = await prisma.organization.findFirst({ where: { name: branchName, isHub: false } });
+  const org = await prisma.site.findFirst({ where: { name: branchName, isHub: false } });
   if (!org) throw new Error(`Branch "${branchName}" not found`);
   const manager = await prisma.user.findFirst({
-    where: { organizationId: org.id, role: 'MANAGER', isActive: true },
+    where: { siteId: org.id, role: 'MANAGER', isActive: true },
     orderBy: { createdAt: 'asc' },
   });
   if (!manager) throw new Error(`No manager for ${org.name}`);
-  const hub = await prisma.organization.findFirst({ where: { isHub: true } });
+  const hub = await prisma.site.findFirst({ where: { isHub: true } });
   if (!hub) throw new Error('No hub organization');
 
   await prisma.user.update({ where: { id: manager.id }, data: { pinHash: await hashPin(PIN) } });
-  const locations = await prisma.location.findMany({ where: { organizationId: org.id, type: 'BRANCH_DEPARTMENT' } });
+  const locations = await prisma.location.findMany({ where: { siteId: org.id, type: 'BRANCH_DEPARTMENT' } });
 
   // 1. Remove today's day, its adjustments and any earlier fixture stock.
   const today = getTodayDateOnly();
   const yesterday = new Date(today.getTime() - DAY_MS);
   await prisma.$transaction(async (tx) => {
-    const days = await tx.branchDay.findMany({ where: { organizationId: org.id }, select: { id: true } });
+    const days = await tx.branchDay.findMany({ where: { siteId: org.id }, select: { id: true } });
     const lineIds = (
       await tx.branchDayLine.findMany({ where: { department: { branchDayId: { in: days.map((d) => d.id) } } }, select: { id: true } })
     ).map((l) => l.id);
     // Reversal rows point at the rows they reverse — clear those links first.
     await tx.inventoryTransaction.updateMany({ where: { branchDayLineId: { in: lineIds } }, data: { reversesTransactionId: null } });
     await tx.inventoryTransaction.deleteMany({ where: { branchDayLineId: { in: lineIds } } });
-    await tx.branchDay.deleteMany({ where: { organizationId: org.id, businessDate: { in: [today, yesterday] } } });
-    await tx.inventoryTransaction.deleteMany({ where: { organizationId: org.id, reason: FIXTURE_NOTE } });
+    await tx.branchDay.deleteMany({ where: { siteId: org.id, businessDate: { in: [today, yesterday] } } });
+    await tx.inventoryTransaction.deleteMany({ where: { siteId: org.id, reason: FIXTURE_NOTE } });
   });
 
   // 2. Stock in every department, with a cost, so gaps carry a KES value.
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   for (const loc of locations) {
     if (!loc.departmentTag) continue;
     const items = await prisma.inventoryItem.findMany({
-      where: { organizationId: hub.id, deletedAt: null, departmentTags: { has: loc.departmentTag } },
+      where: { siteId: hub.id, deletedAt: null, departmentTags: { has: loc.departmentTag } },
       orderBy: { name: 'asc' },
     });
     let i = 0;
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       const quantity = D(6 + ((i * 7) % 15));
       await prisma.inventoryTransaction.create({
         data: {
-          organizationId: org.id,
+          siteId: org.id,
           locationId: loc.id,
           inventoryItemId: item.id,
           type: 'DISPATCH_IN',
@@ -127,14 +127,14 @@ async function main(): Promise<void> {
   const closedAt = new Date(yesterday.getTime() + 18 * 60 * 60 * 1000 + 40 * 60 * 1000); // 21:40 EAT = 18:40 UTC
   await prisma.$transaction(async (tx) => {
     const ref = await tx.referenceCounter.upsert({
-      where: { organizationId_prefix: { organizationId: org.id, prefix: 'DAY' } },
+      where: { siteId_prefix: { siteId: org.id, prefix: 'DAY' } },
       update: { lastNumber: { increment: 1 } },
-      create: { organizationId: org.id, prefix: 'DAY', lastNumber: 1 },
+      create: { siteId: org.id, prefix: 'DAY', lastNumber: 1 },
       select: { lastNumber: true },
     });
     await tx.branchDay.create({
       data: {
-        organizationId: org.id,
+        siteId: org.id,
         businessDate: yesterday,
         status: 'CLOSED',
         reference: `DAY-${String(ref.lastNumber).padStart(4, '0')}`,
@@ -150,9 +150,9 @@ async function main(): Promise<void> {
   // 3b. Dispatches: confirm the branch's in-transit ones, then (unless --block=none) re-point one
   // dispatch at the blocked department and put it back in transit. Picks from all of the branch's
   // dispatches, so the seed stays repeatable after an earlier run confirmed everything.
-  const dispatches = await prisma.dispatch.findMany({ where: { toOrganizationId: org.id }, orderBy: { dispatchedAt: 'asc' } });
+  const dispatches = await prisma.dispatch.findMany({ where: { toSiteId: org.id }, orderBy: { dispatchedAt: 'asc' } });
   await prisma.dispatch.updateMany({
-    where: { toOrganizationId: org.id, status: 'IN_TRANSIT' },
+    where: { toSiteId: org.id, status: 'IN_TRANSIT' },
     data: { status: 'CONFIRMED', confirmedById: manager.id, confirmedAt: new Date() },
   });
   if (block !== 'NONE' && dispatches[0]) {
@@ -164,7 +164,7 @@ async function main(): Promise<void> {
 
   // 4. Today, in the requested state — through the real service so every rule runs.
   if (state !== 'none') {
-    const actor = { id: manager.id, role: 'MANAGER' as const, organizationId: org.id, isDepartmentHead: false } as never;
+    const actor = { id: manager.id, role: 'MANAGER' as const, siteId: org.id, isDepartmentHead: false } as never;
     const dayView = await branchDayService.getToday(actor);
     if (state !== 'open') {
       let gapsWritten = 0;

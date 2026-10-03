@@ -9,7 +9,7 @@ import type { Request } from 'express';
 type Actor = NonNullable<Request['user']>;
 
 function resolveOrgId(actor: Actor): string {
-  if ('organizationId' in actor && actor.organizationId) return actor.organizationId as string;
+  if ('siteId' in actor && actor.siteId) return actor.siteId as string;
   throw new ForbiddenError('Cannot resolve organization from actor');
 }
 
@@ -25,8 +25,8 @@ export const splitLineService = {
     data: AddSplitLineInput,
     actor: Actor,
   ): Promise<SplitPaymentLineRecord> => {
-    const organizationId = resolveOrgId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveOrgId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (
@@ -61,15 +61,15 @@ export const splitLineService = {
   },
 
   getLines: async (orderId: string, actor: Actor): Promise<SplitPaymentLineRecord[]> => {
-    const organizationId = resolveOrgId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveOrgId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
     return splitLineRepository.findByOrderId(orderId);
   },
 
   removeLine: async (orderId: string, lineId: string, actor: Actor): Promise<void> => {
-    const organizationId = resolveOrgId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveOrgId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (

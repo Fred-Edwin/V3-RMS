@@ -12,13 +12,13 @@ const otherBranchOrgId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const managerToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'STORE_MANAGER',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const departmentHeadToken = signAccessToken({
   userId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
   role: 'CHEF',
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN',
 });
@@ -26,7 +26,7 @@ const departmentHeadToken = signAccessToken({
 const otherDepartmentHeadToken = signAccessToken({
   userId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
   role: 'BARISTA',
-  organizationId: otherBranchOrgId,
+  siteId: otherBranchOrgId,
   isDepartmentHead: true,
   departmentTag: 'BARISTA',
 });
@@ -34,7 +34,7 @@ const otherDepartmentHeadToken = signAccessToken({
 const waiterToken = signAccessToken({
   userId: '11111111-1111-4111-8111-111111111111',
   role: 'WAITER',
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
 });
 
 const centralStoreId = '22222222-2222-4222-8222-222222222222';

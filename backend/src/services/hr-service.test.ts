@@ -38,19 +38,19 @@ vi.mock('../utils/cloudinary', () => ({
 const hrActor: hrService.HrActor = {
   id: '11111111-1111-4111-8111-111111111111',
   role: 'HR_MANAGER',
-  organizationId: null,
+  siteId: null,
 };
 
 const waiterActor: hrService.HrActor = {
   id: '22222222-2222-4222-8222-222222222222',
   role: 'WAITER',
-  organizationId: '33333333-3333-4333-8333-333333333333',
+  siteId: '33333333-3333-4333-8333-333333333333',
 };
 
 const managerActor: hrService.HrActor = {
   id: '44444444-4444-4444-8444-444444444444',
   role: 'MANAGER',
-  organizationId: '33333333-3333-4333-8333-333333333333',
+  siteId: '33333333-3333-4333-8333-333333333333',
 };
 
 const waiterProfile = {
@@ -60,7 +60,7 @@ const waiterProfile = {
     id: waiterActor.id,
     name: 'Jane Waiter',
     role: 'WAITER',
-    organizationId: waiterActor.organizationId,
+    siteId: waiterActor.siteId,
   },
 };
 
@@ -224,7 +224,7 @@ describe('authorizeDocumentUpload', () => {
       hrService.authorizeDocumentUpload(managerActor, waiterActor.id, 'CONTRACT'),
     ).resolves.toBe(waiterProfile);
 
-    const otherBranchManager = { ...managerActor, organizationId: 'other-org' };
+    const otherBranchManager = { ...managerActor, siteId: 'other-org' };
     await expect(
       hrService.authorizeDocumentUpload(otherBranchManager, waiterActor.id, 'ID_COPY'),
     ).rejects.toBeInstanceOf(ForbiddenError);

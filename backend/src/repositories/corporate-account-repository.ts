@@ -146,7 +146,7 @@ export const corporateAccountRepository = {
           dailyNumber: true,
           total: true,
           createdAt: true,
-          organizationId: true,
+          siteId: true,
           corporateEmployeeRef: true,
         },
         orderBy: { createdAt: 'desc' },

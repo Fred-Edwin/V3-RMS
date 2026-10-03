@@ -2,7 +2,7 @@ import type { ModificationRequestStatus } from '@prisma/client';
 
 export interface ModificationRequestRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   orderId: string;
   requestedBy: { id: string; name: string };
   description: string;

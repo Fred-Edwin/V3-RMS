@@ -40,7 +40,7 @@ describe('prepTicketRepository.findByStation', () => {
 
     expect(mocks.count).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        organizationId: 'org-1',
+        siteId: 'org-1',
         station: { in: ['KITCHEN', 'PIZZA', 'PASTRY'] },
         status: { in: ['PENDING', 'IN_PROGRESS'] },
         order: {

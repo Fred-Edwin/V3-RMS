@@ -184,7 +184,7 @@ export const stockRepository = {
     client: Prisma.TransactionClient | typeof prisma = prisma,
   ): Promise<Prisma.Decimal> => {
     const result = await client.inventoryTransaction.aggregate({
-      where: { organizationId: locationOrgId, locationId, inventoryItemId },
+      where: { siteId: locationOrgId, locationId, inventoryItemId },
       _sum: { quantity: true },
     });
     return result._sum.quantity ?? new Prisma.Decimal(0);
@@ -196,7 +196,7 @@ export const stockRepository = {
     inventoryItemId: string,
   ): Promise<Prisma.Decimal | null> => {
     const row = await prisma.restockLevel.findFirst({
-      where: { organizationId: locationOrgId, locationId, inventoryItemId },
+      where: { siteId: locationOrgId, locationId, inventoryItemId },
       select: { level: true },
     });
     return row?.level ?? null;
@@ -204,7 +204,7 @@ export const stockRepository = {
 
   lastMovementAt: async (locationOrgId: string, locationId: string, inventoryItemId: string): Promise<Date | null> => {
     const row = await prisma.inventoryTransaction.findFirst({
-      where: { organizationId: locationOrgId, locationId, inventoryItemId },
+      where: { siteId: locationOrgId, locationId, inventoryItemId },
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     });
@@ -214,7 +214,7 @@ export const stockRepository = {
   /** When `currentCost` was last set: the latest receipt or prep-output row for the item on the hub org. */
   currentCostSetAt: async (hubOrgId: string, inventoryItemId: string): Promise<Date | null> => {
     const row = await prisma.inventoryTransaction.findFirst({
-      where: { organizationId: hubOrgId, inventoryItemId, type: { in: ['RECEIVE', 'PREP_PRODUCE'] } },
+      where: { siteId: hubOrgId, inventoryItemId, type: { in: ['RECEIVE', 'PREP_PRODUCE'] } },
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     });

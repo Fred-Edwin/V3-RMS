@@ -24,7 +24,7 @@ enum RequisitionSectionStatus {
 
 model Requisition {
   id             String            @id @default(uuid())
-  organizationId String            @map("organization_id") // branch org
+  siteId String            @map("organization_id") // branch org
   type           RequisitionType
   note           String? // optional free text, e.g. distinguishing two same-day AD_HOC requisitions
   status         RequisitionStatus @default(OPEN)
@@ -33,13 +33,13 @@ model Requisition {
   approvedById   String?           @map("approved_by_id")
   approvedAt     DateTime?         @map("approved_at")
 
-  organization Organization         @relation(fields: [organizationId], references: [id])
+  site Site         @relation(fields: [siteId], references: [id])
   openedBy     User                 @relation("RequisitionOpenedBy", fields: [openedById], references: [id])
   approvedBy   User?                @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
   sections     RequisitionSection[]
   dispatches   Dispatch[]
 
-  @@index([organizationId, status])
+  @@index([siteId, status])
   @@map("requisitions")
 }
 
@@ -96,8 +96,8 @@ enum DispatchStatus {
 
 model Dispatch {
   id                String         @id @default(uuid())
-  organizationId    String         @map("organization_id") // hub org — Central Store owns this document
-  toOrganizationId  String         @map("to_organization_id") // branch org
+  siteId    String         @map("organization_id") // hub org — Central Store owns this document
+  toSiteId  String         @map("to_organization_id") // branch org
   requisitionId     String         @map("requisition_id")
   departmentTag     DepartmentTag  @map("department_tag") // one Dispatch per department, per Flow 9 step 4
   sequenceLabel     String         @map("sequence_label") // "Dispatch 4 · Nyeri Town · 17 Sep" — daily per-branch sequence, not a persistent ID
@@ -108,16 +108,16 @@ model Dispatch {
   confirmedAt       DateTime?      @map("confirmed_at")
   confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
 
-  organization             Organization   @relation("DispatchFrom", fields: [organizationId], references: [id])
-  toOrganization           Organization   @relation("DispatchTo", fields: [toOrganizationId], references: [id])
+  site             Site   @relation("DispatchFrom", fields: [siteId], references: [id])
+  toSite           Site   @relation("DispatchTo", fields: [toSiteId], references: [id])
   requisition              Requisition    @relation(fields: [requisitionId], references: [id])
   dispatchedBy             User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
   confirmedBy              User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
   lines                    DispatchLine[]
   followUpForDiscrepancies Discrepancy[]  @relation("DiscrepancyFollowUpDispatch")
 
-  @@index([organizationId, status])
-  @@index([toOrganizationId, departmentTag, status])
+  @@index([siteId, status])
+  @@index([toSiteId, departmentTag, status])
   @@index([requisitionId])
   @@map("dispatches")
 }

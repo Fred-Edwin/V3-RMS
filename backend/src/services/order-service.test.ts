@@ -20,7 +20,7 @@ vi.mock('../repositories/menu-repository', () => ({
 
 vi.mock('../repositories/delivery-zone-repository', () => ({
   deliveryZoneRepository: {
-    findActiveByIdAndOrganization: vi.fn(),
+    findActiveByIdAndSite: vi.fn(),
   },
 }));
 
@@ -65,12 +65,12 @@ vi.mock('../sockets/socket-service', () => ({
   },
 }));
 
-const organizationId = '11111111-1111-4111-8111-111111111111';
+const siteId = '11111111-1111-4111-8111-111111111111';
 
 const waiterActor = {
   id: '22222222-2222-4222-8222-222222222222',
   role: 'WAITER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const createMenuItem = (
@@ -105,7 +105,7 @@ const createMenuItem = (
 const buildCreatedOrderRecord = (): FullOrderPrismaRecord => {
   return {
     id: '33333333-3333-4333-8333-333333333333',
-    organizationId,
+    siteId,
     dailyNumber: 1,
     orderDate: new Date('2026-02-24T00:00:00.000Z'),
     type: 'DINE_IN',
@@ -148,7 +148,7 @@ const buildCreatedOrderRecord = (): FullOrderPrismaRecord => {
     prepTickets: [
       {
         id: '66666666-6666-4666-8666-666666666666',
-        organizationId,
+        siteId,
         orderId: '33333333-3333-4333-8333-333333333333',
         station: 'BARISTA',
         status: 'PENDING',
@@ -195,7 +195,7 @@ describe('orderService.create', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(orderRepository.createWithItemsAndTickets).mockResolvedValue(buildCreatedOrderRecord());
-    vi.mocked(deliveryZoneRepository.findActiveByIdAndOrganization).mockResolvedValue(null);
+    vi.mocked(deliveryZoneRepository.findActiveByIdAndSite).mockResolvedValue(null);
   });
 
   it('snapshots menu item prices into order items', async () => {
@@ -218,16 +218,16 @@ describe('orderService.create', () => {
     expect(createDto.items[0]?.subtotal.toString()).toBe('700');
     expect(createDto.prepTickets).toHaveLength(1);
     expect(createDto.prepTickets[0]?.station).toBe('BARISTA');
-    expect(socketService.emitNewOrder).toHaveBeenCalledWith(organizationId, expect.any(Array));
+    expect(socketService.emitNewOrder).toHaveBeenCalledWith(siteId, expect.any(Array));
   });
 
   it('calculates delivery totals using snapshotted item prices plus delivery fee', async () => {
     vi.mocked(menuRepository.findItemsWithCategoriesByIds).mockResolvedValue([
       createMenuItem('bbbbbbb2-bbbb-4bbb-8bbb-bbbbbbbbbbb2', 'Burger', '200.00', 'KITCHEN'),
     ]);
-    vi.mocked(deliveryZoneRepository.findActiveByIdAndOrganization).mockResolvedValue({
+    vi.mocked(deliveryZoneRepository.findActiveByIdAndSite).mockResolvedValue({
       fee: new Prisma.Decimal('120.00'),
-    } as Awaited<ReturnType<typeof deliveryZoneRepository.findActiveByIdAndOrganization>>);
+    } as Awaited<ReturnType<typeof deliveryZoneRepository.findActiveByIdAndSite>>);
 
     await orderService.create(
       {
@@ -323,7 +323,7 @@ describe('orderService.updateItems', () => {
       prepTickets: [
         {
           id: 'ticket-kitchen-1',
-          organizationId,
+          siteId,
           orderId: '33333333-3333-4333-8333-333333333333',
           station: 'KITCHEN',
           sequence: 1,
@@ -341,7 +341,7 @@ describe('orderService.updateItems', () => {
         },
         {
           id: 'ticket-barista-1',
-          organizationId,
+          siteId,
           orderId: '33333333-3333-4333-8333-333333333333',
           station: 'BARISTA',
           sequence: 1,
@@ -394,7 +394,7 @@ describe('orderService.updateItems', () => {
         ...order.prepTickets,
         {
           id: 'ticket-kitchen-2',
-          organizationId,
+          siteId,
           orderId: order.id,
           station: 'KITCHEN',
           sequence: 2,
@@ -434,7 +434,7 @@ describe('orderService.updateItems', () => {
       { station: 'KITCHEN', items: [{ menuItemId: 'kitchen-item-2', name: 'Fries', quantity: 1, notes: null }] },
     ]);
 
-    expect(socketService.emitNewOrder).toHaveBeenCalledWith(organizationId, expect.any(Array));
+    expect(socketService.emitNewOrder).toHaveBeenCalledWith(siteId, expect.any(Array));
   });
 
   it('creates an extra ticket when a started item quantity is increased via stepper', async () => {
@@ -539,7 +539,7 @@ describe('orderService.updateItems', () => {
       prepTickets: [
         {
           id: 'ticket-kitchen-1',
-          organizationId,
+          siteId,
           orderId: '33333333-3333-4333-8333-333333333333',
           station: 'KITCHEN',
           sequence: 1,
@@ -598,9 +598,9 @@ describe('orderService.updateItems', () => {
         { id: 'item-k-3', orderId: '33333333-3333-4333-8333-333333333333', menuItemId: 'fries-1', quantity: 1, unitPrice: new Prisma.Decimal('200.00'), subtotal: new Prisma.Decimal('200.00'), notes: null, menuItem: { id: 'fries-1', name: 'French Fries', category: { prepStation: 'KITCHEN' } } },
       ],
       prepTickets: [
-        { id: 'ticket-k-1', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 1, status: 'IN_PROGRESS', claimedById: 'chef-1', claimedAt: new Date(), readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: { id: 'chef-1', name: 'Chef One' } },
-        { id: 'ticket-k-2', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 2, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
-        { id: 'ticket-k-3', organizationId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 3, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
+        { id: 'ticket-k-1', siteId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 1, status: 'IN_PROGRESS', claimedById: 'chef-1', claimedAt: new Date(), readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: { id: 'chef-1', name: 'Chef One' } },
+        { id: 'ticket-k-2', siteId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 2, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
+        { id: 'ticket-k-3', siteId, orderId: '33333333-3333-4333-8333-333333333333', station: 'KITCHEN', sequence: 3, status: 'PENDING', claimedById: null, claimedAt: null, readyAt: null, rejectedById: null, rejectedReason: null, rejectedAt: null, items: [{ menuItemId: 'fries-1', name: 'French Fries', quantity: 1, notes: null }], createdAt: new Date(), updatedAt: new Date(), claimedBy: null },
       ],
     });
 
@@ -668,7 +668,7 @@ describe('orderService.recordPayment', () => {
 
     expect(orderRepository.recordPayment).toHaveBeenCalledWith(
       '33333333-3333-4333-8333-333333333333',
-      organizationId,
+      siteId,
       {
         paymentMethod: PaymentMethod.MPESA,
         mpesaCode: null,
@@ -707,7 +707,7 @@ describe('orderService.recordPayment', () => {
 
     expect(staffDiscountAuthService.createAuthRequest).toHaveBeenCalledWith(
       '33333333-3333-4333-8333-333333333333',
-      organizationId,
+      siteId,
       waiterActor,
     );
     expect(orderRepository.recordPayment).not.toHaveBeenCalled();
@@ -732,7 +732,7 @@ describe('orderService.cancel', () => {
       .mockResolvedValueOnce(pendingOrder);
     vi.mocked(orderCancellationAuthService.createRequest).mockResolvedValue({
       id: '77777777-7777-4777-8777-777777777777',
-      organizationId,
+      siteId,
       orderId: order.id,
       requestedById: waiterActor.id,
       reason: 'Customer left',

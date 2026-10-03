@@ -19,8 +19,8 @@ describe('Auth routes', () => {
         name: 'Manager User',
         email: 'manager@wendo.co.ke',
         role: 'MANAGER',
-        organizationId: 'org-1',
-        organizationName: 'Wendo Kingz',
+        siteId: 'org-1',
+        siteName: 'Wendo Kingz',
       },
     });
 
@@ -55,8 +55,8 @@ describe('Auth routes', () => {
         name: 'Manager User',
         email: 'manager@wendo.co.ke',
         role: 'MANAGER',
-        organizationId: 'org-1',
-        organizationName: 'Wendo Kingz',
+        siteId: 'org-1',
+        siteName: 'Wendo Kingz',
       },
     });
 
@@ -105,7 +105,7 @@ describe('Auth routes', () => {
     const token = signAccessToken({
       userId: 'manager-1',
       role: 'MANAGER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
     });
 
     const response = await request(app)
@@ -124,7 +124,7 @@ describe('Auth routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
     });
 
     const response = await request(app)
@@ -143,7 +143,7 @@ describe('Auth routes', () => {
     vi.spyOn(authService, 'verifyPassword').mockResolvedValue();
 
     for (const role of ['STEWARD', 'HOUSEKEEPING'] as const) {
-      const token = signAccessToken({ userId: `${role}-1`, role, organizationId: 'org-1' });
+      const token = signAccessToken({ userId: `${role}-1`, role, siteId: 'org-1' });
 
       const response = await request(app)
         .post('/api/v1/auth/verify-password')
@@ -162,7 +162,7 @@ describe('Auth routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
     });
 
     const response = await request(app)
@@ -186,7 +186,7 @@ describe('Auth routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
     });
 
     const response = await request(app)

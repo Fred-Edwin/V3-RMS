@@ -37,7 +37,7 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
   if (!hub) {
     throw new ValidationError('No hub organization is configured');
   }
-  if (actor.organizationId !== hub.id) {
+  if (actor.siteId !== hub.id) {
     throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
   }
   return hub.id;
@@ -160,8 +160,8 @@ const computeYieldVariance = (
 
 export const prepService = {
   listPrepRuns: async (actor: Actor, query: ListPrepRunsQuery): Promise<PrepRunSummary[]> => {
-    const organizationId = await requireHubActor(actor);
-    const runs = await prepRunRepository.findAllByOrganization(organizationId, {
+    const siteId = await requireHubActor(actor);
+    const runs = await prepRunRepository.findAllBySite(siteId, {
       search: query.search,
       outputItemId: query.outputItemId,
       yieldVarianceLabel: query.yieldFlag ? yieldFlagToLabel[query.yieldFlag] : undefined,
@@ -174,15 +174,15 @@ export const prepService = {
   },
 
   getPrepRun: async (actor: Actor, id: string): Promise<PrepRunDetail> => {
-    const organizationId = await requireHubActor(actor);
-    const run = await prepRunRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const run = await prepRunRepository.findById(id, siteId);
     if (!run) throw new NotFoundError('Prep run not found');
     return serializePrepRunDetail(run);
   },
 
   getPrepSummary: async (actor: Actor, query: PrepSummaryQuery): Promise<PrepSummary> => {
-    const organizationId = await requireHubActor(actor);
-    const rows = await prepRunRepository.findSummaryRows(organizationId, {
+    const siteId = await requireHubActor(actor);
+    const rows = await prepRunRepository.findSummaryRows(siteId, {
       from: query.dateFrom ? new Date(query.dateFrom) : undefined,
       to: query.dateTo ? new Date(query.dateTo) : undefined,
     });
@@ -198,12 +198,12 @@ export const prepService = {
   },
 
   getTypicalYield: async (actor: Actor, outputItemId: string): Promise<TypicalYield> => {
-    const organizationId = await requireHubActor(actor);
-    const outputItem = await inventoryItemRepository.findById(outputItemId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const outputItem = await inventoryItemRepository.findById(outputItemId, siteId);
     if (!outputItem) throw new NotFoundError('Inventory item not found');
 
     const candidateRuns = await prepRunRepository.findRecentForRollingAverage(
-      organizationId,
+      siteId,
       outputItemId,
       ROLLING_AVERAGE_MAX_RUNS,
     );
@@ -216,7 +216,7 @@ export const prepService = {
     // Most-recent run's own input mix stands in for "typical inputs" — the
     // plan does not maintain a separate typical-input-mix aggregate, and the
     // nudge only needs an illustrative example, not a computed blend.
-    const mostRecentRun = await prepRunRepository.findById(candidateRuns[0]!.id, organizationId);
+    const mostRecentRun = await prepRunRepository.findById(candidateRuns[0]!.id, siteId);
     const firstLine = mostRecentRun?.inputLines[0];
     const typicalInputSummary = firstLine
       ? `~${formatInputLabel(firstLine.quantity, firstLine.inputItem.usageUnit, firstLine.inputItem.name)}`
@@ -238,14 +238,14 @@ export const prepService = {
    * an InventoryItem.currentCost update on the output item only.
    */
   createPrepRun: async (actor: Actor, input: CreatePrepRunInput): Promise<PrepRunDetail> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
 
-    const outputItem = await inventoryItemRepository.findById(input.outputItemId, organizationId);
+    const outputItem = await inventoryItemRepository.findById(input.outputItemId, siteId);
     if (!outputItem) throw new NotFoundError('Output item not found');
     if (outputItem.deletedAt) throw new ConflictError('This item is retired');
 
     const inputItemIds = input.inputLines.map((l) => l.inventoryItemId);
-    const liveInputItems = await inventoryItemRepository.findLiveByIds(inputItemIds, organizationId);
+    const liveInputItems = await inventoryItemRepository.findLiveByIds(inputItemIds, siteId);
     const itemsById = new Map(liveInputItems.map((i) => [i.id, i]));
     for (const line of input.inputLines) {
       if (!itemsById.has(line.inventoryItemId)) {
@@ -254,7 +254,7 @@ export const prepService = {
     }
 
     const centralStore = await locationRepository.findCentralStore();
-    if (!centralStore || centralStore.organizationId !== organizationId) {
+    if (!centralStore || centralStore.siteId !== siteId) {
       throw new NotFoundError('No Central Store is configured for this organization');
     }
 
@@ -275,7 +275,7 @@ export const prepService = {
     const outputUnitCost = totalInputCost.dividedBy(actualYield);
 
     const candidateRuns = await prepRunRepository.findRecentForRollingAverage(
-      organizationId,
+      siteId,
       input.outputItemId,
       ROLLING_AVERAGE_MAX_RUNS,
     );
@@ -302,7 +302,7 @@ export const prepService = {
 
     const created = await prisma
       .$transaction(async (tx) => {
-        const prepRun = await prepRunRepository.create(organizationId, createInput, tx);
+        const prepRun = await prepRunRepository.create(siteId, createInput, tx);
 
         // N PREP_CONSUME rows — quantity NEGATIVE-signed. First negative-signed
         // ledger writer in this codebase (on-hand is a plain _sum(quantity) —
@@ -311,7 +311,7 @@ export const prepService = {
         for (const line of inputLineData) {
           await tx.inventoryTransaction.create({
             data: {
-              organizationId,
+              siteId,
               locationId: centralStore.id,
               inventoryItemId: line.inputItemId,
               type: 'PREP_CONSUME',
@@ -328,7 +328,7 @@ export const prepService = {
         // 1 PREP_PRODUCE row for the output — positive-signed.
         await tx.inventoryTransaction.create({
           data: {
-            organizationId,
+            siteId,
             locationId: centralStore.id,
             inventoryItemId: input.outputItemId,
             type: 'PREP_PRODUCE',
@@ -346,7 +346,7 @@ export const prepService = {
           data: { currentCost: outputUnitCost },
         });
 
-        return prepRunRepository.findById(prepRun.id, organizationId, tx);
+        return prepRunRepository.findById(prepRun.id, siteId, tx);
       })
       .catch((error: unknown) => mapPrismaError(error));
 

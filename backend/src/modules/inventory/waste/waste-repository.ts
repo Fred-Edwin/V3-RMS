@@ -16,7 +16,7 @@ export type WasteLogWithRelations = WasteLog & {
 };
 
 export type CreateWasteLogInput = {
-  organizationId: string;
+  siteId: string;
   locationId: string;
   inventoryItemId: string;
   quantity: Prisma.Decimal;
@@ -47,12 +47,12 @@ export const wasteRepository = {
   },
 
   findRecentForLocation: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     since: Date,
   ): Promise<WasteLogWithRelations[]> => {
     return prisma.wasteLog.findMany({
-      where: { organizationId, locationId, createdAt: { gte: since } },
+      where: { siteId, locationId, createdAt: { gte: since } },
       include: wasteLogInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -69,7 +69,7 @@ export const wasteRepository = {
     client: Client = prisma,
   ): Promise<Prisma.Decimal | null> => {
     const row = await client.inventoryTransaction.findFirst({
-      where: { organizationId: locationOrgId, locationId, inventoryItemId, type: 'DISPATCH_IN' },
+      where: { siteId: locationOrgId, locationId, inventoryItemId, type: 'DISPATCH_IN' },
       orderBy: { createdAt: 'desc' },
       select: { unitCost: true },
     });

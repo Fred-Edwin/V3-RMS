@@ -14,7 +14,7 @@ import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, Valida
 vi.mock('./requisitions-repository', () => ({
   requisitionRepository: {
     create: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     markPendingApprovalIfOpen: vi.fn(),
     findSectionWithLines: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock('./requisitions-repository', () => ({
     updateManagerNote: vi.fn(),
     setSectionStatus: vi.fn(),
     findByIdWithAllSections: vi.fn(),
-    findAllByOrganizationForManager: vi.fn(),
+    findAllBySiteForManager: vi.fn(),
     updateLineApproval: vi.fn(),
     softDeleteLine: vi.fn(),
     createManagerLine: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('../catalog/inventory-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findBySiteTypeDepartment: vi.fn() },
 }));
 
 vi.mock('../../../repositories/branch-repository', () => ({
@@ -93,7 +93,7 @@ const lineId = '66666666-6666-4666-8666-666666666666';
 const kitchenHead = {
   id: 'head-1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
@@ -101,7 +101,7 @@ const kitchenHead = {
 const baristaHead = {
   id: 'head-2',
   role: 'BARISTA' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'BARISTA' as const,
 };
@@ -109,7 +109,7 @@ const baristaHead = {
 const manager = {
   id: 'manager-1',
   role: 'MANAGER' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: false,
   departmentTag: null,
 };
@@ -156,7 +156,7 @@ describe('requisitionService.openRequisition', () => {
   it('creates exactly 5 sections (via the repository) for the caller\'s branch', async () => {
     vi.mocked(requisitionRepository.create).mockResolvedValue({
       id: requisitionId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'MORNING',
       note: null,
       status: 'OPEN',
@@ -165,10 +165,10 @@ describe('requisitionService.openRequisition', () => {
       approvedById: null,
       approvedAt: null,
     } as never);
-    vi.mocked(requisitionRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(requisitionRepository.findAllBySite).mockResolvedValue([
       {
         id: requisitionId,
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         type: 'MORNING',
         note: null,
         status: 'OPEN',
@@ -189,7 +189,7 @@ describe('requisitionService.openRequisition', () => {
     const row = await requisitionService.openRequisition(kitchenHead, { type: 'MORNING' });
 
     expect(requisitionRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: branchOrgId, type: 'MORNING', openedById: kitchenHead.id }),
+      expect.objectContaining({ siteId: branchOrgId, type: 'MORNING', openedById: kitchenHead.id }),
     );
     expect(row.mySectionStatus).toBe('NOT_STARTED');
   });
@@ -264,7 +264,7 @@ describe('requisitionService.upsertLines', () => {
   it('validates a new line\'s inventoryItemId against the hub org, not the branch org (regression: catalog lives on the hub only, D-15)', async () => {
     vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({ id: locationId } as never);
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
     vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
     vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
 
@@ -279,7 +279,7 @@ describe('requisitionService.upsertLines', () => {
   it('parAtRequest snapshot is null when no RestockLevel row exists', async () => {
     vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({ id: locationId } as never);
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
     vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
     vi.mocked(requisitionRepository.findSectionWithLines).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
 
@@ -297,7 +297,7 @@ describe('requisitionService.upsertLines', () => {
   it('parAtRequest snapshot is the real value when a RestockLevel row exists', async () => {
     vi.mocked(requisitionRepository.findSectionById).mockResolvedValue(buildSection({ status: 'DRAFT' }) as never);
     vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([{ id: itemId }] as never);
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({ id: locationId } as never);
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({ id: locationId } as never);
     vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(
       new Map([[itemId, new Prisma.Decimal(20)]]),
     );
@@ -420,7 +420,7 @@ const buildApprovalLine = (overrides: Record<string, unknown> = {}) => ({
 
 const buildRequisitionWithSections = (sections: unknown[], overrides: Record<string, unknown> = {}) => ({
   id: requisitionId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   type: 'MORNING' as const,
   note: null,
   status: 'PENDING_APPROVAL' as const,
@@ -442,7 +442,7 @@ describe('requisitionService — manager authorization guard', () => {
 
   it('getRequisitionForApproval throws NotFoundError (not a 403 leak) for another org\'s requisition', async () => {
     vi.mocked(requisitionRepository.findByIdWithAllSections).mockResolvedValue(null);
-    await expect(requisitionService.getRequisitionForApproval({ ...manager, organizationId: otherOrgId }, requisitionId)).rejects.toThrow(
+    await expect(requisitionService.getRequisitionForApproval({ ...manager, siteId: otherOrgId }, requisitionId)).rejects.toThrow(
       NotFoundError,
     );
   });

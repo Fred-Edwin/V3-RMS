@@ -178,7 +178,7 @@ export const menuRepository = {
   },
 
   findMenuWithBranchAvailability: async (
-    organizationId: string,
+    siteId: string,
     categoryId?: string,
   ): Promise<MenuCategoryWithOverridesRecord[]> => {
     return prisma.menuCategory.findMany({
@@ -201,7 +201,7 @@ export const menuRepository = {
           include: {
             branchOverrides: {
               where: {
-                organizationId,
+                siteId,
               },
             },
           },
@@ -212,19 +212,19 @@ export const menuRepository = {
 
   upsertBranchMenuItemAvailability: async (
     menuItemId: string,
-    organizationId: string,
+    siteId: string,
     updatedBy: string,
     isAvailable: boolean,
   ): Promise<BranchMenuItem> => {
     return prisma.branchMenuItem.upsert({
       where: {
-        organizationId_menuItemId: {
-          organizationId,
+        siteId_menuItemId: {
+          siteId,
           menuItemId,
         },
       },
       create: {
-        organizationId,
+        siteId,
         menuItemId,
         isAvailable,
         updatedBy,
@@ -238,7 +238,7 @@ export const menuRepository = {
 
   findItemsWithCategoriesByIds: async (
     ids: string[],
-    organizationId: string,
+    siteId: string,
   ): Promise<MenuItemWithCategoryRecord[]> => {
     if (ids.length === 0) {
       return [];
@@ -254,7 +254,7 @@ export const menuRepository = {
         category: true,
         branchOverrides: {
           where: {
-            organizationId,
+            siteId,
           },
         },
       },

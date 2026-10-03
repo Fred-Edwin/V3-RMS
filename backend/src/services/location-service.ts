@@ -6,22 +6,22 @@ import { ConflictError, NotFoundError, ValidationError } from '../utils/errors';
 
 type Actor = NonNullable<Request['user']>;
 
-const requireOrganization = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const requireSite = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ValidationError('Branch context missing for this user');
   }
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 export const locationService = {
   list: async (actor: Actor): Promise<Location[]> => {
-    const organizationId = requireOrganization(actor);
-    return locationRepository.findAllByOrganization(organizationId);
+    const siteId = requireSite(actor);
+    return locationRepository.findAllBySite(siteId);
   },
 
   getById: async (actor: Actor, id: string): Promise<Location> => {
-    const organizationId = requireOrganization(actor);
-    const location = await locationRepository.findById(id, organizationId);
+    const siteId = requireSite(actor);
+    const location = await locationRepository.findById(id, siteId);
     if (!location) {
       throw new NotFoundError('Location not found');
     }

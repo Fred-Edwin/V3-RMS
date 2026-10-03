@@ -90,38 +90,38 @@ const ensureHumanActor = (actor: PayslipActor): void => {
   }
 };
 
-const getAccessibleOrganizationIds = async (
+const getAccessibleSiteIds = async (
   actor: PayslipActor,
-  requestedOrganizationId?: string,
+  requestedSiteId?: string,
 ): Promise<string[]> => {
   if (CROSS_BRANCH_READ_ROLES.has(actor.role)) {
-    if (requestedOrganizationId) return [requestedOrganizationId];
+    if (requestedSiteId) return [requestedSiteId];
     return branchRepository.findActiveIds();
   }
 
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  if (requestedOrganizationId && requestedOrganizationId !== actor.organizationId) {
+  if (requestedSiteId && requestedSiteId !== actor.siteId) {
     throw new ForbiddenError('Cannot access payslips for another branch');
   }
 
-  return [actor.organizationId];
+  return [actor.siteId];
 };
 
-const getBranchScopedOrganizationIds = async (
+const getBranchScopedSiteIds = async (
   actor: PayslipActor,
   branchId: string,
 ): Promise<string[]> => {
   if (actor.role === 'MANAGER') {
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
-    if (actor.organizationId !== branchId) {
+    if (actor.siteId !== branchId) {
       throw new ForbiddenError('Managers can only access payslips for their own branch');
     }
-    return [actor.organizationId];
+    return [actor.siteId];
   }
 
   if (actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER' || actor.role === 'SYSTEM_ADMIN') {
@@ -155,7 +155,7 @@ export const payslipService = {
 
     return payslipRepository.bulkUpsert(
       input.rows,
-      input.organizationId,
+      input.siteId,
       input.payPeriod,
       actor.id,
       computedRows,
@@ -165,14 +165,14 @@ export const payslipService = {
   publish: async (actor: PayslipActor, input: PublishInput): Promise<{ count: number }> => {
     ensureHumanActor(actor);
     assertCanPublish(actor);
-    const count = await payslipRepository.publishPeriod(input.organizationId, input.payPeriod);
+    const count = await payslipRepository.publishPeriod(input.siteId, input.payPeriod);
     return { count };
   },
 
   revert: async (actor: PayslipActor, input: RevertInput): Promise<{ count: number }> => {
     ensureHumanActor(actor);
     assertCanPublish(actor);
-    const count = await payslipRepository.revertPeriod(input.organizationId, input.payPeriod);
+    const count = await payslipRepository.revertPeriod(input.siteId, input.payPeriod);
     return { count };
   },
 
@@ -182,9 +182,9 @@ export const payslipService = {
       throw new ForbiddenError('Only Directors, HR Managers, and System Admins can list all payslips');
     }
 
-    const organizationIds = await getAccessibleOrganizationIds(actor, query.organizationId);
+    const siteIds = await getAccessibleSiteIds(actor, query.siteId);
     const result = await payslipRepository.list({
-      organizationIds,
+      siteIds,
       payPeriod: query.payPeriod,
       userId: query.userId,
       isLocked: query.status === 'PUBLISHED' ? true : query.status === 'DRAFT' ? false : undefined,
@@ -201,8 +201,8 @@ export const payslipService = {
 
   listMine: async (actor: PayslipActor, query: PayslipMineQuery) => {
     ensureHumanActor(actor);
-    const organizationIds = await getAccessibleOrganizationIds(actor);
-    const result = await payslipRepository.listMine(actor.id, organizationIds, query.page, query.perPage);
+    const siteIds = await getAccessibleSiteIds(actor);
+    const result = await payslipRepository.listMine(actor.id, siteIds, query.page, query.perPage);
 
     return {
       ...result,
@@ -213,8 +213,8 @@ export const payslipService = {
 
   listByBranch: async (actor: PayslipActor, branchId: string, query: PayslipBranchQuery) => {
     ensureHumanActor(actor);
-    const organizationIds = await getBranchScopedOrganizationIds(actor, branchId);
-    const result = await payslipRepository.listByBranch(branchId, organizationIds, {
+    const siteIds = await getBranchScopedSiteIds(actor, branchId);
+    const result = await payslipRepository.listByBranch(branchId, siteIds, {
       payPeriod: query.payPeriod,
       userId: query.userId,
       isLocked: query.status === 'PUBLISHED' ? true : query.status === 'DRAFT' ? false : undefined,
@@ -231,8 +231,8 @@ export const payslipService = {
 
   getById: async (actor: PayslipActor, id: string): Promise<PayslipWithRelations> => {
     ensureHumanActor(actor);
-    const organizationIds = await getAccessibleOrganizationIds(actor);
-    const payslip = await payslipRepository.findById(id, organizationIds);
+    const siteIds = await getAccessibleSiteIds(actor);
+    const payslip = await payslipRepository.findById(id, siteIds);
 
     if (!payslip) {
       throw new NotFoundError('Payslip not found');

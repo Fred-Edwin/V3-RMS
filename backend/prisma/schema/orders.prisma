@@ -1,21 +1,21 @@
 model DeliveryZone {
   id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
+  siteId String       @map("organization_id")
   name           String
   fee            Decimal      @db.Decimal(10, 2)
   isActive       Boolean      @default(true) @map("is_active")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  site   Site @relation(fields: [siteId], references: [id])
   orders         Order[]
 
-  @@index([organizationId])
+  @@index([siteId])
   @@map("delivery_zones")
 }
 
 model Order {
   id                           String                        @id @default(uuid())
-  organizationId               String                        @map("organization_id")
+  siteId               String                        @map("organization_id")
   dailyNumber                  Int                           @map("daily_number")
   orderDate                    DateTime                      @map("order_date") @db.Date
   type                         OrderType
@@ -47,7 +47,7 @@ model Order {
   createdAt                    DateTime                      @default(now()) @map("created_at")
   updatedAt                    DateTime                      @updatedAt @map("updated_at")
   closedAt                     DateTime?                     @map("closed_at")
-  organization                 Organization                  @relation(fields: [organizationId], references: [id])
+  site                 Site                  @relation(fields: [siteId], references: [id])
   deliveryZone                 DeliveryZone?                 @relation(fields: [deliveryZoneId], references: [id])
   houseAccount                 HouseAccount?                 @relation(fields: [houseAccountId], references: [id])
   corporateAccount             CorporateAccount?             @relation(fields: [corporateAccountId], references: [id])
@@ -67,17 +67,17 @@ model Order {
   cancellationRequests         OrderCancellationRequest[]
   splitPaymentLines            SplitPaymentLine[]
 
-  @@unique([organizationId, dailyNumber, orderDate])
-  @@index([organizationId])
-  @@index([organizationId, status])
-  @@index([organizationId, orderDate])
+  @@unique([siteId, dailyNumber, orderDate])
+  @@index([siteId])
+  @@index([siteId, status])
+  @@index([siteId, orderDate])
   @@index([createdById])
   @@map("orders")
 }
 
 model OrderCancellationRequest {
   id             String                    @id @default(uuid())
-  organizationId String                    @map("organization_id")
+  siteId String                    @map("organization_id")
   orderId        String                    @map("order_id")
   requestedById  String                    @map("requested_by_id")
   reason         String
@@ -90,12 +90,12 @@ model OrderCancellationRequest {
   createdAt      DateTime                  @default(now()) @map("created_at")
   updatedAt      DateTime                  @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  site Site @relation(fields: [siteId], references: [id])
   order        Order        @relation(fields: [orderId], references: [id])
   requestedBy  User         @relation("OrderCancellationRequestedBy", fields: [requestedById], references: [id])
   resolvedBy   User?        @relation("OrderCancellationResolvedBy", fields: [resolvedById], references: [id])
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([orderId])
   @@index([requestedById])
   @@index([status])
@@ -135,7 +135,7 @@ model SplitPaymentLine {
 
 model PrepTicket {
   id             String           @id @default(uuid())
-  organizationId String           @map("organization_id")
+  siteId String           @map("organization_id")
   orderId        String           @map("order_id")
   station        PrepStation
   sequence       Int              @default(1)
@@ -149,14 +149,14 @@ model PrepTicket {
   items          Json
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
-  organization   Organization     @relation(fields: [organizationId], references: [id])
+  site   Site     @relation(fields: [siteId], references: [id])
   order          Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
   claimedBy      User?            @relation("PrepTicketClaimedBy", fields: [claimedById], references: [id])
   rejectedBy     User?            @relation("PrepTicketRejectedBy", fields: [rejectedById], references: [id])
 
   @@unique([orderId, station, sequence])
-  @@index([organizationId])
-  @@index([organizationId, station, status])
+  @@index([siteId])
+  @@index([siteId, station, status])
   @@index([claimedById])
   @@map("prep_tickets")
 }
@@ -230,7 +230,7 @@ enum ModificationRequestStatus {
 
 model OrderModificationRequest {
   id             String                    @id @default(uuid())
-  organizationId String                    @map("organization_id")
+  siteId String                    @map("organization_id")
   orderId        String                    @map("order_id")
   requestedById  String                    @map("requested_by_id")
   description    String
@@ -244,26 +244,26 @@ model OrderModificationRequest {
   requestedBy    User                      @relation("ModRequestedBy", fields: [requestedById], references: [id])
   reviewedBy     User?                     @relation("ModReviewedBy", fields: [reviewedById], references: [id])
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([orderId])
-  @@index([organizationId, status])
+  @@index([siteId, status])
   @@map("order_modification_requests")
 }
 
 model IncidentLog {
   id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
+  siteId String       @map("organization_id")
   orderId        String?      @map("order_id")
   type           IncidentType
   actorId        String?      @map("actor_id")
   details        Json
   createdAt      DateTime     @default(now()) @map("created_at")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  site   Site @relation(fields: [siteId], references: [id])
   order          Order?       @relation(fields: [orderId], references: [id])
   actor          User?        @relation("IncidentActor", fields: [actorId], references: [id])
 
-  @@index([organizationId])
-  @@index([organizationId, type])
+  @@index([siteId])
+  @@index([siteId, type])
   @@index([orderId])
   @@index([createdAt])
   @@map("incident_logs")

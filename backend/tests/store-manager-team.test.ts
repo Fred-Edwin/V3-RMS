@@ -13,7 +13,7 @@ const hubOrgId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const targetId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
 const tokenFor = (role: Parameters<typeof signAccessToken>[0]['role']) =>
-  signAccessToken({ userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', role, organizationId: hubOrgId });
+  signAccessToken({ userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', role, siteId: hubOrgId });
 
 const storeManagerToken = tokenFor('STORE_MANAGER');
 const attendantToken = tokenFor('STORE_ATTENDANT');

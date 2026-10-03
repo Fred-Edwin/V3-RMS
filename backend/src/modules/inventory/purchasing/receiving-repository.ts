@@ -22,11 +22,11 @@ type Client = typeof prisma | TxClient;
 
 export const referenceCounterRepository = {
   /** Must run inside the same `$transaction` as the create it numbers. */
-  nextReference: async (tx: TxClient, organizationId: string, prefix: string, pad = 4): Promise<string> => {
+  nextReference: async (tx: TxClient, siteId: string, prefix: string, pad = 4): Promise<string> => {
     const counter = await tx.referenceCounter.upsert({
-      where: { organizationId_prefix: { organizationId, prefix } },
+      where: { siteId_prefix: { siteId, prefix } },
       update: { lastNumber: { increment: 1 } },
-      create: { organizationId, prefix, lastNumber: 1 },
+      create: { siteId, prefix, lastNumber: 1 },
       select: { lastNumber: true },
     });
     return `${prefix}-${String(counter.lastNumber).padStart(pad, '0')}`;
@@ -73,12 +73,12 @@ const expectedDeliveryInclude = {
 } satisfies Prisma.ExpectedDeliveryInclude;
 
 export const expectedDeliveryRepository = {
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
     filters: ListExpectedDeliveriesFilters,
   ): Promise<ExpectedDeliveryWithRelations[]> => {
     const where: Prisma.ExpectedDeliveryWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
       ...(filters.search ? { supplier: { name: { contains: filters.search, mode: 'insensitive' } } } : {}),
@@ -95,14 +95,14 @@ export const expectedDeliveryRepository = {
 
   findById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<ExpectedDeliveryWithRelations | null> => {
-    return client.expectedDelivery.findFirst({ where: { id, organizationId }, include: expectedDeliveryInclude });
+    return client.expectedDelivery.findFirst({ where: { id, siteId }, include: expectedDeliveryInclude });
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     reference: string,
     input: CreateExpectedDeliveryInput,
     tx: TxClient,
@@ -114,7 +114,7 @@ export const expectedDeliveryRepository = {
 
     return tx.expectedDelivery.create({
       data: {
-        organizationId,
+        siteId,
         reference,
         supplierId: input.supplierId ?? null,
         paymentTerms: input.paymentTerms ?? null,
@@ -136,13 +136,13 @@ export const expectedDeliveryRepository = {
     });
   },
 
-  cancel: async (id: string, organizationId: string): Promise<ExpectedDeliveryWithRelations | null> => {
+  cancel: async (id: string, siteId: string): Promise<ExpectedDeliveryWithRelations | null> => {
     const updated = await prisma.expectedDelivery.updateMany({
-      where: { id, organizationId, status: 'AWAITING' },
+      where: { id, siteId, status: 'AWAITING' },
       data: { status: 'CANCELLED' },
     });
     if (updated.count === 0) return null;
-    return expectedDeliveryRepository.findById(id, organizationId);
+    return expectedDeliveryRepository.findById(id, siteId);
   },
 
   /**
@@ -153,22 +153,22 @@ export const expectedDeliveryRepository = {
    * delivery was already fulfilled/cancelled by some other path; the caller
    * doesn't need the result, this never blocks or fails the sign.
    */
-  markFulfilled: async (id: string, organizationId: string, tx: TxClient): Promise<void> => {
+  markFulfilled: async (id: string, siteId: string, tx: TxClient): Promise<void> => {
     await tx.expectedDelivery.updateMany({
-      where: { id, organizationId, status: 'AWAITING' },
+      where: { id, siteId, status: 'AWAITING' },
       data: { status: 'FULFILLED' },
     });
   },
 
   // ── Purchasing hub summary + history ────────────────────────────────────
 
-  countByStatus: async (organizationId: string, status: ExpectedDeliveryStatus): Promise<number> => {
-    return prisma.expectedDelivery.count({ where: { organizationId, status } });
+  countByStatus: async (siteId: string, status: ExpectedDeliveryStatus): Promise<number> => {
+    return prisma.expectedDelivery.count({ where: { siteId, status } });
   },
 
-  countOverdue: async (organizationId: string, now: Date): Promise<number> => {
+  countOverdue: async (siteId: string, now: Date): Promise<number> => {
     return prisma.expectedDelivery.count({
-      where: { organizationId, status: 'AWAITING', expectedDate: { lt: now } },
+      where: { siteId, status: 'AWAITING', expectedDate: { lt: now } },
     });
   },
 
@@ -181,7 +181,7 @@ export const expectedDeliveryRepository = {
    * new `getReceivingHistory` service method is what actually passes one.
    */
   findHistoryRows: async (
-    organizationId: string,
+    siteId: string,
     filters: {
       search?: string;
       supplierId?: string;
@@ -193,7 +193,7 @@ export const expectedDeliveryRepository = {
     },
   ): Promise<ExpectedDeliveryWithRelations[]> => {
     const where: Prisma.ExpectedDeliveryWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
       // A FULFILLED delivery's story is already told by its resulting
       // GoodsReceipt row (the other half of this union) — showing the
@@ -237,12 +237,12 @@ export const recentSupplierItemsRepository = {
    * than a raw SQL window-function query, and cheap at this data volume.
    */
   findRecentBySupplier: async (
-    organizationId: string,
+    siteId: string,
     supplierId: string,
     limit: number,
   ): Promise<{ inventoryItemId: string; itemName: string; buyUnit: string; lastUnitPrice: Prisma.Decimal; lastPurchasedAt: Date }[]> => {
     const lines = await prisma.expectedDeliveryLine.findMany({
-      where: { expectedDelivery: { organizationId, supplierId } },
+      where: { expectedDelivery: { siteId, supplierId } },
       include: {
         inventoryItem: { select: { id: true, name: true, buyUnit: true } },
         expectedDelivery: { select: { createdAt: true } },
@@ -281,12 +281,12 @@ export const lastPriceRepository = {
   /** Most recent signed goods-receipt line for this item, if any. */
   findLastReceiptLine: async (
     inventoryItemId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<{ unitPrice: Prisma.Decimal; signedAt: Date } | null> => {
     const line = await prisma.goodsReceiptLine.findFirst({
       where: {
         inventoryItemId,
-        goodsReceipt: { organizationId, signedAt: { not: null } },
+        goodsReceipt: { siteId, signedAt: { not: null } },
       },
       orderBy: { goodsReceipt: { signedAt: 'desc' } },
       select: { unitPrice: true, goodsReceipt: { select: { signedAt: true } } },
@@ -389,12 +389,12 @@ const computeLineTotal = (
 ): Prisma.Decimal => new Prisma.Decimal(quantityBuyUnit).times(new Prisma.Decimal(unitPrice));
 
 export const goodsReceiptRepository = {
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
     filters: ListGoodsReceiptsFilters,
   ): Promise<GoodsReceiptWithRelations[]> => {
     const where: Prisma.GoodsReceiptWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
     };
@@ -408,12 +408,12 @@ export const goodsReceiptRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<GoodsReceiptWithRelations | null> => {
-    return prisma.goodsReceipt.findFirst({ where: { id, organizationId }, include: goodsReceiptInclude });
+  findById: async (id: string, siteId: string): Promise<GoodsReceiptWithRelations | null> => {
+    return prisma.goodsReceipt.findFirst({ where: { id, siteId }, include: goodsReceiptInclude });
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     reference: string,
     input: CreateGoodsReceiptInput,
     tx: TxClient,
@@ -425,7 +425,7 @@ export const goodsReceiptRepository = {
 
     return tx.goodsReceipt.create({
       data: {
-        organizationId,
+        siteId,
         reference,
         supplierId: input.supplierId,
         expectedDeliveryId: input.expectedDeliveryId,
@@ -460,11 +460,11 @@ export const goodsReceiptRepository = {
   /** Status-guarded like `expectedDeliveryRepository.cancel` — DRAFT only, replaces all lines. */
   update: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     input: Partial<Omit<CreateGoodsReceiptInput, 'supplierId' | 'createdById' | 'locationId'>>,
   ): Promise<GoodsReceiptWithRelations | null> => {
     const updated = await prisma.goodsReceipt.updateMany({
-      where: { id, organizationId, status: 'DRAFT' },
+      where: { id, siteId, status: 'DRAFT' },
       data: {
         ...(input.expectedDeliveryId !== undefined ? { expectedDeliveryId: input.expectedDeliveryId } : {}),
         ...(input.paymentTerms !== undefined ? { paymentTerms: input.paymentTerms } : {}),
@@ -505,7 +505,7 @@ export const goodsReceiptRepository = {
       });
     }
 
-    return goodsReceiptRepository.findById(id, organizationId);
+    return goodsReceiptRepository.findById(id, siteId);
   },
 
   /**
@@ -516,12 +516,12 @@ export const goodsReceiptRepository = {
    */
   markSigned: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     tx: TxClient,
     data: { status: GoodsReceiptStatus; signedById: string; signedAt: Date },
   ): Promise<number> => {
     const updated = await tx.goodsReceipt.updateMany({
-      where: { id, organizationId, status: 'DRAFT' },
+      where: { id, siteId, status: 'DRAFT' },
       data,
     });
     return updated.count;
@@ -533,11 +533,11 @@ export const goodsReceiptRepository = {
   },
 
   /** Signed (non-cancelled) receipt lines of one supplier stamped "Pack not on file", newest receipt first. */
-  findPackNotOnFileLines: async (supplierId: string, organizationId: string) =>
+  findPackNotOnFileLines: async (supplierId: string, siteId: string) =>
     prisma.goodsReceiptLine.findMany({
       where: {
         packNotOnFile: true,
-        goodsReceipt: { supplierId, organizationId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
+        goodsReceipt: { supplierId, siteId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
       },
       include: {
         goodsReceipt: { select: { id: true, reference: true, signedAt: true } },
@@ -547,21 +547,21 @@ export const goodsReceiptRepository = {
     }),
 
   /** Signed (non-cancelled) receipts of one supplier signed at exactly these moments, with the items on each (the Catalog tab's "from receipt"). */
-  findReceiptsSignedAt: async (supplierId: string, organizationId: string, signedAt: Date[]) => {
+  findReceiptsSignedAt: async (supplierId: string, siteId: string, signedAt: Date[]) => {
     if (signedAt.length === 0) return [];
     const receipts = await prisma.goodsReceipt.findMany({
-      where: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { in: signedAt } },
+      where: { supplierId, siteId, status: { not: 'CANCELLED' }, signedAt: { in: signedAt } },
       select: { id: true, reference: true, signedAt: true, lines: { select: { inventoryItemId: true } } },
     });
     return receipts.map((r) => ({ id: r.id, reference: r.reference, signedAt: r.signedAt as Date, itemIds: r.lines.map((l) => l.inventoryItemId) }));
   },
 
   /** Signed receipt lines of one supplier that fired a price alert since `since`, newest receipt first. */
-  findPriceAlertLines: async (supplierId: string, organizationId: string, since: Date) => {
+  findPriceAlertLines: async (supplierId: string, siteId: string, since: Date) => {
     const lines = await prisma.goodsReceiptLine.findMany({
       where: {
         priceAlertPct: { not: null },
-        goodsReceipt: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { gte: since } },
+        goodsReceipt: { supplierId, siteId, status: { not: 'CANCELLED' }, signedAt: { gte: since } },
       },
       select: {
         inventoryItemId: true,
@@ -584,9 +584,9 @@ export const goodsReceiptRepository = {
   },
 
   /** When the supplier last sold this item before `before` (the date the alert compares against), if ever. */
-  findPreviousSignedAt: async (supplierId: string, organizationId: string, inventoryItemId: string, before: Date): Promise<Date | null> => {
+  findPreviousSignedAt: async (supplierId: string, siteId: string, inventoryItemId: string, before: Date): Promise<Date | null> => {
     const previous = await prisma.goodsReceipt.findFirst({
-      where: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { lt: before }, lines: { some: { inventoryItemId } } },
+      where: { supplierId, siteId, status: { not: 'CANCELLED' }, signedAt: { lt: before }, lines: { some: { inventoryItemId } } },
       orderBy: { signedAt: 'desc' },
       select: { signedAt: true },
     });
@@ -603,9 +603,9 @@ export const goodsReceiptRepository = {
   },
 
   /** Recipients for the post-sign notification (plan §3.3) — every active Store Manager on the hub org. */
-  findHubStoreManagers: async (hubOrganizationId: string): Promise<{ id: string; name: string }[]> => {
+  findHubStoreManagers: async (hubSiteId: string): Promise<{ id: string; name: string }[]> => {
     return prisma.user.findMany({
-      where: { organizationId: hubOrganizationId, role: 'STORE_MANAGER', isActive: true, deletedAt: null },
+      where: { siteId: hubSiteId, role: 'STORE_MANAGER', isActive: true, deletedAt: null },
       select: { id: true, name: true },
     });
   },
@@ -619,7 +619,7 @@ export const goodsReceiptRepository = {
    * Manager searching history by date range should find.
    */
   findHistoryRows: async (
-    organizationId: string,
+    siteId: string,
     filters: {
       search?: string;
       supplierId?: string;
@@ -631,7 +631,7 @@ export const goodsReceiptRepository = {
     },
   ): Promise<GoodsReceiptHistoryRow[]> => {
     const where: Prisma.GoodsReceiptWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.search ? { supplier: { name: { contains: filters.search, mode: 'insensitive' } } } : {}),
@@ -686,10 +686,10 @@ export type CreateSupplierInvoiceInput = {
 export const supplierInvoiceRepository = {
   findById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<SupplierInvoiceWithRelations | null> => {
-    return client.supplierInvoice.findFirst({ where: { id, organizationId }, include: supplierInvoiceInclude });
+    return client.supplierInvoice.findFirst({ where: { id, siteId }, include: supplierInvoiceInclude });
   },
 
   /** Which of these receipts (if any) is already bundled into some invoice — used for the 409 check. */
@@ -701,10 +701,10 @@ export const supplierInvoiceRepository = {
     return new Set(rows.map((r) => r.goodsReceiptId));
   },
 
-  create: async (organizationId: string, input: CreateSupplierInvoiceInput, tx: TxClient): Promise<SupplierInvoiceWithRelations> => {
+  create: async (siteId: string, input: CreateSupplierInvoiceInput, tx: TxClient): Promise<SupplierInvoiceWithRelations> => {
     return tx.supplierInvoice.create({
       data: {
-        organizationId,
+        siteId,
         supplierId: input.supplierId,
         invoiceNumber: input.invoiceNumber,
         invoiceDate: input.invoiceDate,
@@ -749,18 +749,18 @@ export const supplierInvoiceRepository = {
   },
 
   /** All invoices for one supplier, for the aging/outstanding derivation and the Supplier detail panel. */
-  findAllBySupplier: async (supplierId: string, organizationId: string): Promise<SupplierInvoiceWithRelations[]> => {
+  findAllBySupplier: async (supplierId: string, siteId: string): Promise<SupplierInvoiceWithRelations[]> => {
     return prisma.supplierInvoice.findMany({
-      where: { organizationId, supplierId },
+      where: { siteId, supplierId },
       include: supplierInvoiceInclude,
       orderBy: { invoiceDate: 'desc' },
     });
   },
 
   /** All invoices in the org, for the `/ap/suppliers` table's per-supplier aggregation. */
-  findAllByOrganization: async (organizationId: string): Promise<SupplierInvoiceWithRelations[]> => {
+  findAllBySite: async (siteId: string): Promise<SupplierInvoiceWithRelations[]> => {
     return prisma.supplierInvoice.findMany({
-      where: { organizationId },
+      where: { siteId },
       include: supplierInvoiceInclude,
     });
   },
@@ -788,20 +788,20 @@ export type CreateSupplierPaymentInput = {
 export const supplierPaymentRepository = {
   findById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<SupplierPaymentWithRelations | null> => {
-    return client.supplierPayment.findFirst({ where: { id, organizationId }, include: supplierPaymentInclude });
+    return client.supplierPayment.findFirst({ where: { id, siteId }, include: supplierPaymentInclude });
   },
 
   /**
    * Another CHEQUE payment (not a reversal) to this supplier with the same number, trimmed and
    * case-insensitive. Run before the new payment is written.
    */
-  countChequeNumber: async (supplierId: string, organizationId: string, chequeNumber: string): Promise<number> =>
+  countChequeNumber: async (supplierId: string, siteId: string, chequeNumber: string): Promise<number> =>
     prisma.supplierPayment.count({
       where: {
-        organizationId,
+        siteId,
         supplierId,
         method: 'CHEQUE',
         reversalOfId: null,
@@ -809,10 +809,10 @@ export const supplierPaymentRepository = {
       },
     }),
 
-  create: async (organizationId: string, input: CreateSupplierPaymentInput, tx: TxClient): Promise<SupplierPaymentWithRelations> => {
+  create: async (siteId: string, input: CreateSupplierPaymentInput, tx: TxClient): Promise<SupplierPaymentWithRelations> => {
     return tx.supplierPayment.create({
       data: {
-        organizationId,
+        siteId,
         supplierId: input.supplierId,
         amount: new Prisma.Decimal(input.amount),
         paidAt: input.paidAt,
@@ -839,7 +839,7 @@ export const supplierPaymentRepository = {
    * that negates them into the stored, allowed-negative allocation amounts.
    */
   createReversal: async (
-    organizationId: string,
+    siteId: string,
     input: {
       supplierId: string;
       reversalOfId: string;
@@ -855,7 +855,7 @@ export const supplierPaymentRepository = {
     );
     return tx.supplierPayment.create({
       data: {
-        organizationId,
+        siteId,
         supplierId: input.supplierId,
         amount: totalReversed.negated(),
         paidAt: new Date(),
@@ -876,9 +876,9 @@ export const supplierPaymentRepository = {
     });
   },
 
-  findAllBySupplier: async (supplierId: string, organizationId: string): Promise<SupplierPaymentWithRelations[]> => {
+  findAllBySupplier: async (supplierId: string, siteId: string): Promise<SupplierPaymentWithRelations[]> => {
     return prisma.supplierPayment.findMany({
-      where: { organizationId, supplierId },
+      where: { siteId, supplierId },
       include: supplierPaymentInclude,
       orderBy: { paidAt: 'desc' },
     });
@@ -917,12 +917,12 @@ export const supplierApRepository = {
    * derived from real (empty) data, not faked.
    */
   findSuppliersWithInvoices: async (
-    organizationId: string,
+    siteId: string,
     filters: { search?: string; terms?: 'INVOICE_TO_FOLLOW' | 'PAY_NOW' } = {},
   ): Promise<SupplierForAp[]> => {
     const suppliers = await prisma.supplier.findMany({
       where: {
-        organizationId,
+        siteId,
         deletedAt: null,
         ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
         ...(filters.terms ? { defaultPaymentTerms: filters.terms } : {}),
@@ -933,9 +933,9 @@ export const supplierApRepository = {
     return suppliers.map((s) => ({ id: s.id, name: s.name, paymentTerms: s.defaultPaymentTerms }));
   },
 
-  findSupplierForAp: async (id: string, organizationId: string): Promise<SupplierForAp | null> => {
+  findSupplierForAp: async (id: string, siteId: string): Promise<SupplierForAp | null> => {
     const supplier = await prisma.supplier.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       select: { id: true, name: true, defaultPaymentTerms: true },
     });
     if (!supplier) return null;

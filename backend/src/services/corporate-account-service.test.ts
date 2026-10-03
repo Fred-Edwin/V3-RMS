@@ -27,10 +27,10 @@ const directorId = '22222222-2222-4222-8222-222222222222';
 
 type Actor = NonNullable<Request['user']>;
 
-const directorActor: Actor = { id: directorId, role: 'DIRECTOR', organizationId: null } as Actor;
-const accountantActor: Actor = { id: '33333333-3333-4333-8333-333333333333', role: 'ACCOUNTANT', organizationId: null } as Actor;
-const managerActor: Actor = { id: '44444444-4444-4444-8444-444444444444', role: 'MANAGER', organizationId: orgId } as Actor;
-const waiterActor: Actor = { id: '55555555-5555-4555-8555-555555555555', role: 'WAITER', organizationId: orgId } as Actor;
+const directorActor: Actor = { id: directorId, role: 'DIRECTOR', siteId: null } as Actor;
+const accountantActor: Actor = { id: '33333333-3333-4333-8333-333333333333', role: 'ACCOUNTANT', siteId: null } as Actor;
+const managerActor: Actor = { id: '44444444-4444-4444-8444-444444444444', role: 'MANAGER', siteId: orgId } as Actor;
+const waiterActor: Actor = { id: '55555555-5555-4555-8555-555555555555', role: 'WAITER', siteId: orgId } as Actor;
 
 const buildAccount = (overrides = {}) => ({
   id: accountId,

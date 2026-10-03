@@ -8,7 +8,7 @@ export interface PayslipLineItemStored {
 }
 
 const payslipInclude = {
-  organization: {
+  site: {
     select: {
       id: true,
       name: true,
@@ -21,7 +21,7 @@ const payslipInclude = {
       name: true,
       email: true,
       role: true,
-      organizationId: true,
+      siteId: true,
       employeeProfile: {
         select: {
           jobTitle: true,
@@ -50,7 +50,7 @@ export type PayslipWithRelations = Prisma.PayslipGetPayload<{
 }>;
 
 export interface PayslipListFilters {
-  organizationIds: string[];
+  siteIds: string[];
   payPeriod?: string;
   userId?: string;
   isLocked?: boolean;
@@ -62,7 +62,7 @@ export interface PayslipTargetUser {
   id: string;
   name: string;
   role: UserRole;
-  organizationId: string | null;
+  siteId: string | null;
   isActive: boolean;
 }
 
@@ -82,17 +82,17 @@ export const payslipRepository = {
         id: true,
         name: true,
         role: true,
-        organizationId: true,
+        siteId: true,
         isActive: true,
       },
     });
   },
 
-  findById: async (id: string, organizationIds: string[]): Promise<PayslipWithRelations | null> => {
+  findById: async (id: string, siteIds: string[]): Promise<PayslipWithRelations | null> => {
     return prisma.payslip.findFirst({
       where: {
         id,
-        organizationId: { in: organizationIds },
+        siteId: { in: siteIds },
       },
       include: payslipInclude,
     });
@@ -100,7 +100,7 @@ export const payslipRepository = {
 
   list: async (filters: PayslipListFilters): Promise<{ items: PayslipWithRelations[]; total: number }> => {
     const where: Prisma.PayslipWhereInput = {
-      organizationId: { in: filters.organizationIds },
+      siteId: { in: filters.siteIds },
       // Hide payslips of deactivated staff — they should not appear anywhere in the UI.
       // Historical payslip rows are preserved in the DB and reappear if the user is reactivated.
       user: { is: { isActive: true } },
@@ -125,12 +125,12 @@ export const payslipRepository = {
 
   listMine: async (
     userId: string,
-    organizationIds: string[],
+    siteIds: string[],
     page: number,
     perPage: number,
   ): Promise<{ items: PayslipWithRelations[]; total: number }> => {
     return payslipRepository.list({
-      organizationIds,
+      siteIds,
       userId,
       page,
       perPage,
@@ -139,11 +139,11 @@ export const payslipRepository = {
 
   listByBranch: async (
     branchId: string,
-    organizationIds: string[],
-    filters: Omit<PayslipListFilters, 'organizationIds'>,
+    siteIds: string[],
+    filters: Omit<PayslipListFilters, 'siteIds'>,
   ): Promise<{ items: PayslipWithRelations[]; total: number }> => {
     return payslipRepository.list({
-      organizationIds: organizationIds.filter((id) => id === branchId),
+      siteIds: siteIds.filter((id) => id === branchId),
       page: filters.page,
       perPage: filters.perPage,
       payPeriod: filters.payPeriod,
@@ -154,7 +154,7 @@ export const payslipRepository = {
 
   bulkUpsert: async (
     rows: BulkUpsertRowInput[],
-    organizationId: string,
+    siteId: string,
     payPeriod: string,
     createdById: string,
     computedRows: Array<{ totalDeductions: Prisma.Decimal; netPay: Prisma.Decimal }>,
@@ -170,8 +170,8 @@ export const payslipRepository = {
         // Check if existing payslip is locked — skip if so
         const existing = await tx.payslip.findUnique({
           where: {
-            organizationId_userId_payPeriod: {
-              organizationId,
+            siteId_userId_payPeriod: {
+              siteId,
               userId: row.userId,
               payPeriod,
             },
@@ -190,14 +190,14 @@ export const payslipRepository = {
 
         const upserted = await tx.payslip.upsert({
           where: {
-            organizationId_userId_payPeriod: {
-              organizationId,
+            siteId_userId_payPeriod: {
+              siteId,
               userId: row.userId,
               payPeriod,
             },
           },
           create: {
-            organizationId,
+            siteId,
             userId: row.userId,
             payPeriod,
             payDate: new Date(row.payDate),
@@ -249,17 +249,17 @@ export const payslipRepository = {
     return { saved, skipped };
   },
 
-  publishPeriod: async (organizationId: string, payPeriod: string): Promise<number> => {
+  publishPeriod: async (siteId: string, payPeriod: string): Promise<number> => {
     const result = await prisma.payslip.updateMany({
-      where: { organizationId, payPeriod },
+      where: { siteId, payPeriod },
       data: { isLocked: true },
     });
     return result.count;
   },
 
-  revertPeriod: async (organizationId: string, payPeriod: string): Promise<number> => {
+  revertPeriod: async (siteId: string, payPeriod: string): Promise<number> => {
     const result = await prisma.payslip.updateMany({
-      where: { organizationId, payPeriod },
+      where: { siteId, payPeriod },
       data: { isLocked: false },
     });
     return result.count;

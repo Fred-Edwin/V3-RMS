@@ -7,9 +7,9 @@ import { signAccessToken } from '../src/utils/jwt';
 
 const BRANCH = '22222222-2222-4222-8222-222222222222';
 
-const managerToken = signAccessToken({ userId: '11111111-1111-4111-8111-111111111111', role: 'MANAGER', organizationId: BRANCH });
-const waiterToken = signAccessToken({ userId: '44444444-4444-4444-8444-444444444444', role: 'WAITER', organizationId: BRANCH });
-const chefToken = signAccessToken({ userId: '33333333-3333-4333-8333-333333333333', role: 'CHEF', organizationId: BRANCH });
+const managerToken = signAccessToken({ userId: '11111111-1111-4111-8111-111111111111', role: 'MANAGER', siteId: BRANCH });
+const waiterToken = signAccessToken({ userId: '44444444-4444-4444-8444-444444444444', role: 'WAITER', siteId: BRANCH });
+const chefToken = signAccessToken({ userId: '33333333-3333-4333-8333-333333333333', role: 'CHEF', siteId: BRANCH });
 
 const orderId = '55555555-5555-4555-8555-555555555555';
 

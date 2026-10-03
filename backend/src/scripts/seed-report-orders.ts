@@ -42,11 +42,11 @@ type SeedArgs = {
   reset: boolean;
   resetOnly: boolean;
   seed: number;
-  organizationIds: string[] | null;
+  siteIds: string[] | null;
 };
 
 type SeedStats = {
-  organizationName: string;
+  siteName: string;
   ordersCreated: number;
   totalRevenue: Prisma.Decimal;
   clockRecordsCreated: number;
@@ -54,9 +54,9 @@ type SeedStats = {
 
 type ClockRow = {
   shiftAssignment: Prisma.ShiftAssignmentCreateManyInput;
-  clockRecord: Omit<Prisma.ClockRecordCreateInput, 'shiftAssignment' | 'user' | 'organization'> & {
+  clockRecord: Omit<Prisma.ClockRecordCreateInput, 'shiftAssignment' | 'user' | 'site'> & {
     id: string;
-    organizationId: string;
+    siteId: string;
     userId: string;
     clockInMethod: ClockMethod;
   };
@@ -122,7 +122,7 @@ const parseArgs = (argv: string[]): SeedArgs => {
   let reset = false;
   let resetOnly = false;
   let seed = 42;
-  const organizationIds: string[] = [];
+  const siteIds: string[] = [];
 
   for (const arg of argv) {
     if (arg === '--help') {
@@ -166,7 +166,7 @@ const parseArgs = (argv: string[]): SeedArgs => {
       if (!orgId) {
         throw new Error('--org requires a branch id value');
       }
-      organizationIds.push(orgId);
+      siteIds.push(orgId);
       continue;
     }
 
@@ -184,7 +184,7 @@ const parseArgs = (argv: string[]): SeedArgs => {
     reset,
     resetOnly,
     seed,
-    organizationIds: organizationIds.length > 0 ? organizationIds : null,
+    siteIds: siteIds.length > 0 ? siteIds : null,
   };
 };
 
@@ -238,11 +238,11 @@ const categoryWeight = (name: string): number => {
   return 1;
 };
 
-const loadDiscounts = async (organizationId: string): Promise<SeedDiscount[]> => {
+const loadDiscounts = async (siteId: string): Promise<SeedDiscount[]> => {
   const rows = await prisma.discount.findMany({
     where: {
       isActive: true,
-      OR: [{ organizationId }, { organizationId: null }],
+      OR: [{ siteId }, { siteId: null }],
     },
     select: { id: true, type: true, value: true },
   });
@@ -290,10 +290,10 @@ const weightedPick = <T>(values: T[], getWeight: (value: T) => number, rng: LcgR
   return values[values.length - 1] as T;
 };
 
-const buildUserPools = async (organizationId: string): Promise<BranchUserPools> => {
+const buildUserPools = async (siteId: string): Promise<BranchUserPools> => {
   const users = await prisma.user.findMany({
     where: {
-      organizationId,
+      siteId,
       isActive: true,
       role: {
         in: ['WAITER', 'CHEF', 'BARISTA', 'MANAGER'],
@@ -318,7 +318,7 @@ const buildUserPools = async (organizationId: string): Promise<BranchUserPools> 
   };
 };
 
-const buildMenuPool = async (organizationId: string): Promise<BranchMenuItem[]> => {
+const buildMenuPool = async (siteId: string): Promise<BranchMenuItem[]> => {
   const menuItems = await prisma.menuItem.findMany({
     where: {
       isActive: true,
@@ -336,7 +336,7 @@ const buildMenuPool = async (organizationId: string): Promise<BranchMenuItem[]> 
       },
       branchOverrides: {
         where: {
-          organizationId,
+          siteId,
         },
         select: {
           isAvailable: true,
@@ -456,14 +456,14 @@ const getDailyOrderCount = (
 };
 
 const buildInitialDailyNumbers = async (
-  organizationId: string,
+  siteId: string,
   startDate: Date,
   endDate: Date,
 ): Promise<Map<string, number>> => {
   const grouped = await prisma.order.groupBy({
     by: ['orderDate'],
     where: {
-      organizationId,
+      siteId,
       orderDate: {
         gte: startDate,
         lte: endDate,
@@ -500,9 +500,9 @@ const insertInChunks = async <T>(
   }
 };
 
-const prepareRowsForOrganization = async (
-  organizationId: string,
-  organizationIndex: number,
+const prepareRowsForSite = async (
+  siteId: string,
+  siteIndex: number,
   args: SeedArgs,
   seedTag: string,
   userPools: BranchUserPools,
@@ -512,14 +512,14 @@ const prepareRowsForOrganization = async (
   today: Date,
 ): Promise<PreparedRows> => {
   const startDate = addUtcDays(today, -(args.days - 1));
-  const nextDailyByDate = await buildInitialDailyNumbers(organizationId, startDate, today);
+  const nextDailyByDate = await buildInitialDailyNumbers(siteId, startDate, today);
 
   const orders: Prisma.OrderCreateManyInput[] = [];
   const orderItems: Prisma.OrderItemCreateManyInput[] = [];
   const prepTickets: Prisma.PrepTicketCreateManyInput[] = [];
   let totalRevenue = new Prisma.Decimal(0);
 
-  const organizationMultiplier = 1 + organizationIndex * 0.24;
+  const siteMultiplier = 1 + siteIndex * 0.24;
 
   for (let dayOffset = args.days - 1; dayOffset >= 0; dayOffset -= 1) {
     const dayDate = addUtcDays(today, -dayOffset);
@@ -527,7 +527,7 @@ const prepareRowsForOrganization = async (
     const expectedOrders = getDailyOrderCount(
       dayDate,
       args.days - dayOffset,
-      organizationMultiplier,
+      siteMultiplier,
       args,
       rng,
     );
@@ -562,7 +562,7 @@ const prepareRowsForOrganization = async (
 
       orders.push({
         id: orderId,
-        organizationId,
+        siteId,
         dailyNumber: nextDailyNumber,
         orderDate: dayDate,
         type: orderType,
@@ -612,7 +612,7 @@ const prepareRowsForOrganization = async (
 
         prepTickets.push({
           id: randomUUID(),
-          organizationId,
+          siteId,
           orderId,
           station,
           status: PrepTicketStatus.READY,
@@ -657,14 +657,14 @@ const chooseClockOutcome = (rng: LcgRng): 'on_time' | 'late' | 'no_show' | 'left
 };
 
 const buildClockRows = async (
-  organizationId: string,
+  siteId: string,
   userPools: BranchUserPools,
   today: Date,
   rng: LcgRng,
 ): Promise<ClockRow[]> => {
   // Fetch active shifts for this org
   const shifts = await prisma.shift.findMany({
-    where: { organizationId, isActive: true },
+    where: { siteId, isActive: true },
     select: { id: true, startTime: true, endTime: true },
   });
 
@@ -692,7 +692,7 @@ const buildClockRows = async (
 
     const shiftAssignment: Prisma.ShiftAssignmentCreateManyInput = {
       id: randomUUID(),
-      organizationId,
+      siteId,
       shiftId: shift.id,
       userId,
       date: today,
@@ -704,7 +704,7 @@ const buildClockRows = async (
         shiftAssignment,
         clockRecord: {
           id: randomUUID(),
-          organizationId,
+          siteId,
           userId,
           clockInAt: null,
           clockOutAt: null,
@@ -731,7 +731,7 @@ const buildClockRows = async (
       shiftAssignment,
       clockRecord: {
         id: randomUUID(),
-        organizationId,
+        siteId,
         userId,
         clockInAt,
         clockOutAt,
@@ -752,10 +752,10 @@ const run = async (): Promise<void> => {
   const rng = new LcgRng(args.seed);
   const seedTag = `${Date.now()}-${args.seed}`;
 
-  const organizations = await prisma.organization.findMany({
+  const sites = await prisma.site.findMany({
     where: {
       isActive: true,
-      ...(args.organizationIds ? { id: { in: args.organizationIds } } : {}),
+      ...(args.siteIds ? { id: { in: args.siteIds } } : {}),
     },
     select: {
       id: true,
@@ -766,7 +766,7 @@ const run = async (): Promise<void> => {
     },
   });
 
-  if (organizations.length === 0) {
+  if (sites.length === 0) {
     throw new Error('No active organizations found for report seeding');
   }
 
@@ -776,7 +776,7 @@ const run = async (): Promise<void> => {
     const deleted = await prisma.order.deleteMany({
       where: {
         notes: { startsWith: SEED_NOTE_PREFIX },
-        ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
+        ...(args.siteIds ? { siteId: { in: args.siteIds } } : {}),
       },
     });
     console.log(`Deleted ${deleted.count} previously seeded report orders`);
@@ -786,14 +786,14 @@ const run = async (): Promise<void> => {
       where: {
         shiftAssignment: {
           date: today,
-          ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
+          ...(args.siteIds ? { siteId: { in: args.siteIds } } : {}),
         },
       },
     });
     const deletedAssignments = await prisma.shiftAssignment.deleteMany({
       where: {
         date: today,
-        ...(args.organizationIds ? { organizationId: { in: args.organizationIds } } : {}),
+        ...(args.siteIds ? { siteId: { in: args.siteIds } } : {}),
       },
     });
     console.log(`Deleted ${deletedClockRecords.count} clock records and ${deletedAssignments.count} shift assignments`);
@@ -805,30 +805,30 @@ const run = async (): Promise<void> => {
   }
   const stats: SeedStats[] = [];
 
-  for (let organizationIndex = 0; organizationIndex < organizations.length; organizationIndex += 1) {
-    const organization = organizations[organizationIndex];
-    if (!organization) {
+  for (let siteIndex = 0; siteIndex < sites.length; siteIndex += 1) {
+    const site = sites[siteIndex];
+    if (!site) {
       continue;
     }
 
-    const userPools = await buildUserPools(organization.id);
+    const userPools = await buildUserPools(site.id);
     if (userPools.fallback.length === 0) {
-      console.log(`Skipping ${organization.name}: no active users in branch`);
+      console.log(`Skipping ${site.name}: no active users in branch`);
       continue;
     }
 
-    const menuPool = await buildMenuPool(organization.id);
+    const menuPool = await buildMenuPool(site.id);
     if (menuPool.length === 0) {
-      console.log(`Skipping ${organization.name}: no active menu items available`);
+      console.log(`Skipping ${site.name}: no active menu items available`);
       continue;
     }
 
-    const discounts = await loadDiscounts(organization.id);
-    console.log(`Seeding ${organization.name} (${discounts.length} discounts available)...`);
+    const discounts = await loadDiscounts(site.id);
+    console.log(`Seeding ${site.name} (${discounts.length} discounts available)...`);
 
-    const prepared = await prepareRowsForOrganization(
-      organization.id,
-      organizationIndex,
+    const prepared = await prepareRowsForSite(
+      site.id,
+      siteIndex,
       args,
       seedTag,
       userPools,
@@ -864,7 +864,7 @@ const run = async (): Promise<void> => {
     );
 
     // Seed today's clock-in/out data for all staff
-    const clockRows = await buildClockRows(organization.id, userPools, today, rng);
+    const clockRows = await buildClockRows(site.id, userPools, today, rng);
     console.log(`  seeding ${clockRows.length} clock records for today...`);
     let clockCount = 0;
     for (const row of clockRows) {
@@ -878,7 +878,7 @@ const run = async (): Promise<void> => {
     }
 
     stats.push({
-      organizationName: organization.name,
+      siteName: site.name,
       ordersCreated: prepared.orders.length,
       totalRevenue: prepared.totalRevenue,
       clockRecordsCreated: clockCount,
@@ -896,7 +896,7 @@ const run = async (): Promise<void> => {
   console.log(`Revenue generated: KES ${grandRevenue.toFixed(2)}`);
   console.log(`Clock records created: ${totalClock}`);
   for (const branch of stats) {
-    console.log(`- ${branch.organizationName}: ${branch.ordersCreated} orders, KES ${branch.totalRevenue.toFixed(2)}`);
+    console.log(`- ${branch.siteName}: ${branch.ordersCreated} orders, KES ${branch.totalRevenue.toFixed(2)}`);
   }
 };
 

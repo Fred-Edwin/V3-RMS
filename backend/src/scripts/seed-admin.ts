@@ -29,7 +29,7 @@ const run = async (): Promise<void> => {
       name: 'System Admin',
       email: env.SYSTEM_ADMIN_EMAIL,
       role: 'SYSTEM_ADMIN',
-      organizationId: null,
+      siteId: null,
       passwordHash,
       isActive: true,
     },

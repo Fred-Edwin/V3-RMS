@@ -136,7 +136,7 @@ describe('supplierService.getListSummary', () => {
   it('refuses the attendant, a waiter and a non-hub actor', async () => {
     await expect(supplierService.getListSummary(attendant)).rejects.toThrow(ForbiddenError);
     await expect(supplierService.getListSummary(waiter)).rejects.toThrow(ForbiddenError);
-    await expect(supplierService.getListSummary({ ...storeManager, organizationId: otherOrgId })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.getListSummary({ ...storeManager, siteId: otherOrgId })).rejects.toThrow(ForbiddenError);
     expect(supplierStripRepository.listForStrip).not.toHaveBeenCalled();
   });
 });

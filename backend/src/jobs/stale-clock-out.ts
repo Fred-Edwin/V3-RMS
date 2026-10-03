@@ -9,14 +9,14 @@ import { reportRepository } from '../repositories/report-repository';
 // block themselves (or each other) from clocking in the next morning.
 export const closeStaleClockRecords = async (): Promise<number> => {
   const todayStartUtc = getTodayDateOnly();
-  const organizations = await reportRepository.listActiveOrganizations();
+  const sites = await reportRepository.listActiveSites();
 
   let totalClosed = 0;
-  for (const org of organizations) {
+  for (const org of sites) {
     const closed = await clockRecordRepository.closeStaleOpenRecords(org.id, todayStartUtc);
     if (closed > 0) {
       logger.info(
-        { organizationId: org.id, closed },
+        { siteId: org.id, closed },
         'Nightly stale clock-out: closed open records from previous day',
       );
     }

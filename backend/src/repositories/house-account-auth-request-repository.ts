@@ -29,7 +29,7 @@ const authRequestInclude = {
 
 export const houseAccountAuthRequestRepository = {
   create: async (data: {
-    organizationId: string;
+    siteId: string;
     orderId: string;
     houseAccountId: string;
     requestedById: string;
@@ -39,7 +39,7 @@ export const houseAccountAuthRequestRepository = {
   }) => {
     return prisma.houseAccountAuthRequest.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         orderId: data.orderId,
         houseAccountId: data.houseAccountId,
         requestedById: data.requestedById,
@@ -51,16 +51,16 @@ export const houseAccountAuthRequestRepository = {
     });
   },
 
-  findById: async (id: string, organizationId?: string) => {
+  findById: async (id: string, siteId?: string) => {
     return prisma.houseAccountAuthRequest.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrderId: async (orderId: string, organizationId?: string) => {
+  findPendingByOrderId: async (orderId: string, siteId?: string) => {
     return prisma.houseAccountAuthRequest.findFirst({
-      where: { orderId, status: 'PENDING', ...(organizationId ? { organizationId } : {}) },
+      where: { orderId, status: 'PENDING', ...(siteId ? { siteId } : {}) },
       include: authRequestInclude,
     });
   },
@@ -72,12 +72,12 @@ export const houseAccountAuthRequestRepository = {
    */
   resolveIfPending: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     status: Exclude<HouseAccountAuthStatus, 'PENDING'>,
     resolvedById: string,
   ) => {
     const result = await prisma.houseAccountAuthRequest.updateMany({
-      where: { id, organizationId, status: 'PENDING' },
+      where: { id, siteId, status: 'PENDING' },
       data: {
         status,
         resolvedById,
@@ -90,14 +90,14 @@ export const houseAccountAuthRequestRepository = {
     }
 
     return prisma.houseAccountAuthRequest.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrganization: async (organizationId: string) => {
+  findPendingBySite: async (siteId: string) => {
     return prisma.houseAccountAuthRequest.findMany({
-      where: { organizationId, status: 'PENDING' },
+      where: { siteId, status: 'PENDING' },
       include: authRequestInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -115,9 +115,9 @@ export const houseAccountAuthRequestRepository = {
     });
   },
 
-  updateBullmqJobId: async (id: string, organizationId: string, bullmqJobId: string) => {
+  updateBullmqJobId: async (id: string, siteId: string, bullmqJobId: string) => {
     return prisma.houseAccountAuthRequest.updateMany({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: { bullmqJobId },
     });
   },

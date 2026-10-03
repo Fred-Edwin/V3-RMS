@@ -13,7 +13,7 @@ vi.mock('../repositories/staff-discount-auth-request-repository', () => ({
     create: vi.fn(),
     findById: vi.fn(),
     findPendingByOrderId: vi.fn(),
-    findPendingByOrganization: vi.fn(),
+    findPendingBySite: vi.fn(),
     findAllPending: vi.fn(),
     resolveIfPending: vi.fn(),
     cancelIfPending: vi.fn(),
@@ -41,33 +41,33 @@ vi.mock('./fcm-service', () => ({
   },
 }));
 
-const organizationId = '11111111-1111-4111-8111-111111111111';
+const siteId = '11111111-1111-4111-8111-111111111111';
 const orderId = '33333333-3333-4333-8333-333333333333';
 const authRequestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 const waiterActor = {
   id: '22222222-2222-4222-8222-222222222222',
   role: 'WAITER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const managerActor = {
   id: '55555555-5555-4555-8555-555555555555',
   role: 'MANAGER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 // Directors are system-level: no organizationId. They approve staff discounts for any branch.
 const directorActor = {
   id: '77777777-7777-4777-8777-777777777777',
   role: 'DIRECTOR',
-  organizationId: undefined,
+  siteId: undefined,
 } as unknown as NonNullable<Request['user']>;
 
 const buildReadyOrder = (): FullOrderPrismaRecord => {
   return {
     id: orderId,
-    organizationId,
+    siteId,
     dailyNumber: 5,
     orderDate: new Date('2026-04-10T00:00:00.000Z'),
     type: 'DINE_IN',
@@ -97,7 +97,7 @@ const buildReadyOrder = (): FullOrderPrismaRecord => {
 
 const buildPendingAuthRequest = () => ({
   id: authRequestId,
-  organizationId,
+  siteId,
   orderId,
   requestedById: waiterActor.id,
   discountPercent: new Prisma.Decimal('20'),
@@ -127,11 +127,11 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     vi.mocked(staffDiscountAuthRequestRepository.create).mockResolvedValue(pendingRequest);
     vi.mocked(orderRepository.updateStatus).mockResolvedValue(readyOrder);
 
-    const result = await staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor);
+    const result = await staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor);
 
     expect(staffDiscountAuthRequestRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationId,
+        siteId,
         orderId,
         requestedById: waiterActor.id,
         discountPercent: '20',
@@ -139,10 +139,10 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
         discountAmount: '200',
       }),
     );
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'AWAITING_AUTHORIZATION');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'AWAITING_AUTHORIZATION');
     expect(socketService.emitStaffDiscountAuthPending).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, authRequestId, discountAmount: '200' }),
     );
     expect(result.status).toBe('PENDING');
@@ -158,7 +158,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     vi.mocked(staffDiscountAuthRequestRepository.create).mockResolvedValue(pendingRequest);
     vi.mocked(orderRepository.updateStatus).mockResolvedValue(readyOrder);
 
-    await staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor);
+    await staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor);
 
     expect(fcmService.sendStaffDiscountAuthPushToDirectors).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -183,7 +183,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
       new Error('FCM unavailable'),
     );
 
-    const result = await staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor);
+    const result = await staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor);
 
     expect(result.status).toBe('PENDING');
   });
@@ -192,7 +192,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.findById).mockResolvedValue(null);
 
     await expect(
-      staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor),
+      staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor),
     ).rejects.toThrow('Order not found');
   });
 
@@ -201,7 +201,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.findById).mockResolvedValue(order as unknown as FullOrderPrismaRecord);
 
     await expect(
-      staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor),
+      staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor),
     ).rejects.toThrow('Order must be in READY status');
   });
 
@@ -210,7 +210,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.findById).mockResolvedValue(order as unknown as FullOrderPrismaRecord);
 
     await expect(
-      staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor),
+      staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor),
     ).rejects.toThrow('Staff discount can only be applied to your own orders');
   });
 
@@ -221,7 +221,7 @@ describe('staffDiscountAuthService.createAuthRequest', () => {
     );
 
     await expect(
-      staffDiscountAuthService.createAuthRequest(orderId, organizationId, waiterActor),
+      staffDiscountAuthService.createAuthRequest(orderId, siteId, waiterActor),
     ).rejects.toThrow('A staff discount approval request is already pending');
   });
 });
@@ -272,15 +272,15 @@ describe('staffDiscountAuthService.managerApprove', () => {
 
     expect(orderRepository.applyDiscount).toHaveBeenCalledWith(
       orderId,
-      organizationId,
+      siteId,
       '20',
       '200',
       directorActor.id,
     );
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'READY');
     expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, approved: true, discountedTotal: '800' }),
     );
     expect(result.status).toBe('APPROVED');
@@ -301,10 +301,10 @@ describe('staffDiscountAuthService.managerApprove', () => {
     const result = await staffDiscountAuthService.managerApprove(authRequestId, 'REJECTED', directorActor);
 
     expect(orderRepository.applyDiscount).not.toHaveBeenCalled();
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'READY');
     expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, approved: false }),
     );
     expect(result.status).toBe('REJECTED');
@@ -363,11 +363,11 @@ describe('staffDiscountAuthService.withdraw', () => {
     const result = await staffDiscountAuthService.withdraw(authRequestId, waiterActor);
 
     expect(staffDiscountAuthRequestRepository.cancelIfPending).toHaveBeenCalledWith(authRequestId, waiterActor.id);
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'READY');
     expect(orderRepository.applyDiscount).not.toHaveBeenCalled();
     expect(socketService.emitStaffDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, approved: false }),
     );
     expect(result.status).toBe('CANCELLED');

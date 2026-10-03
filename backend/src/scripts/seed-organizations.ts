@@ -61,14 +61,20 @@ const ORGS: OrgSpec[] = [
 ];
 
 const run = async (): Promise<void> => {
+  const company =
+    (await prisma.company.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })) ??
+    (await prisma.company.create({ data: { name: 'Wendo Coffee Bistro' } }));
+
   for (const spec of ORGS) {
-    const existing = await prisma.organization.findFirst({ where: { name: spec.name } });
+    const existing = await prisma.site.findFirst({ where: { name: spec.name } });
     if (existing) {
       console.log(`SKIP  ${spec.name} (already exists, id: ${existing.id})`);
       continue;
     }
-    const created = await prisma.organization.create({
+    const created = await prisma.site.create({
       data: {
+        companyId: company.id,
+        type: spec.isHub ? 'CENTRAL_STORE' : 'BRANCH',
         name: spec.name,
         address: spec.address,
         city: spec.city,

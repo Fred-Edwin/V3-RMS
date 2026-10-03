@@ -62,7 +62,7 @@ export const countRepository = {
   /** Live hub catalog items — every one is a line on the daily sheet. */
   listLiveCatalogItems: async (itemOrgId: string, client: Client = prisma): Promise<LiveCatalogItem[]> => {
     return client.inventoryItem.findMany({
-      where: { organizationId: itemOrgId, deletedAt: null },
+      where: { siteId: itemOrgId, deletedAt: null },
       select: { id: true, name: true, usageUnit: true, categoryId: true, currentCost: true },
       orderBy: { name: 'asc' },
     });
@@ -70,33 +70,33 @@ export const countRepository = {
 
   /** id → {name, parentId}: the tabs are top-level categories (plan §7 Q-C). */
   listCategories: async (
-    organizationId: string,
+    siteId: string,
   ): Promise<{ id: string; name: string; parentCategoryId: string | null }[]> => {
     return prisma.category.findMany({
-      where: { organizationId },
+      where: { siteId },
       select: { id: true, name: true, parentCategoryId: true },
     });
   },
 
   findDaily: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     countDate: Date,
     client: Client = prisma,
   ): Promise<CountWithRelations | null> => {
     return client.stockCount.findFirst({
-      where: { organizationId, locationId, kind: 'DAILY', countDate },
+      where: { siteId, locationId, kind: 'DAILY', countDate },
       include: countInclude,
     });
   },
 
-  findById: async (id: string, organizationId: string, client: Client = prisma): Promise<CountWithRelations | null> => {
-    return client.stockCount.findFirst({ where: { id, organizationId }, include: countInclude });
+  findById: async (id: string, siteId: string, client: Client = prisma): Promise<CountWithRelations | null> => {
+    return client.stockCount.findFirst({ where: { id, siteId }, include: countInclude });
   },
 
   createDraft: async (
     input: {
-      organizationId: string;
+      siteId: string;
       locationId: string;
       countDate: Date;
       reference: string;
@@ -107,7 +107,7 @@ export const countRepository = {
   ): Promise<string> => {
     const created = await tx.stockCount.create({
       data: {
-        organizationId: input.organizationId,
+        siteId: input.siteId,
         locationId: input.locationId,
         kind: 'DAILY',
         countDate: input.countDate,
@@ -186,13 +186,13 @@ export const countRepository = {
 
   markSubmitted: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     from: StockCountStatus[],
     data: { counterId: string; counterSignedAt: Date },
     tx: TxClient,
   ): Promise<number> => {
     const result = await tx.stockCount.updateMany({
-      where: { id, organizationId, status: { in: from } },
+      where: { id, siteId, status: { in: from } },
       data: { ...data, status: 'SUBMITTED' },
     });
     return result.count;
@@ -215,12 +215,12 @@ export const countRepository = {
 
   markReturned: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: { returnNote: string | null; returnedAt: Date; returnedById: string },
     tx: TxClient,
   ): Promise<number> => {
     const result = await tx.stockCount.updateMany({
-      where: { id, organizationId, status: 'SUBMITTED' },
+      where: { id, siteId, status: 'SUBMITTED' },
       data: { ...data, status: 'RETURNED' },
     });
     return result.count;
@@ -233,13 +233,13 @@ export const countRepository = {
 
   markVerified: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     from: StockCountStatus,
     data: { verifierId: string; verifiedAt: Date; directorNotified: boolean },
     tx: TxClient,
   ): Promise<number> => {
     const result = await tx.stockCount.updateMany({
-      where: { id, organizationId, status: from },
+      where: { id, siteId, status: from },
       data: { ...data, status: 'VERIFIED' },
     });
     return result.count;
@@ -247,7 +247,7 @@ export const countRepository = {
 
   createVerifiedSpot: async (
     input: {
-      organizationId: string;
+      siteId: string;
       locationId: string;
       countDate: Date;
       reference: string;
@@ -268,7 +268,7 @@ export const countRepository = {
   ): Promise<{ id: string; lines: { id: string; inventoryItemId: string }[] }> => {
     return tx.stockCount.create({
       data: {
-        organizationId: input.organizationId,
+        siteId: input.siteId,
         locationId: input.locationId,
         kind: 'SPOT',
         countDate: input.countDate,
@@ -286,7 +286,7 @@ export const countRepository = {
   },
 
   listSummaries: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     filters: { kind?: StockCountKind; limit: number },
   ): Promise<CountSummaryRow[]> => {
@@ -303,7 +303,7 @@ export const countRepository = {
         },
       },
     };
-    const base = { organizationId, locationId, status: { not: 'DRAFT' as const }, ...(filters.kind ? { kind: filters.kind } : {}) };
+    const base = { siteId, locationId, status: { not: 'DRAFT' as const }, ...(filters.kind ? { kind: filters.kind } : {}) };
     // Awaiting the Store Manager first (oldest first), then history newest first.
     const [pending, done] = await Promise.all([
       prisma.stockCount.findMany({
@@ -324,7 +324,7 @@ export const countRepository = {
 
   /** Any of the actor's own counts for today — feeds the summary's `todaysCount`. */
   todaysDaily: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     countDate: Date,
   ): Promise<{
@@ -336,7 +336,7 @@ export const countRepository = {
     totalLines: number;
   } | null> => {
     const row = await prisma.stockCount.findFirst({
-      where: { organizationId, locationId, kind: 'DAILY', countDate },
+      where: { siteId, locationId, kind: 'DAILY', countDate },
       select: {
         id: true,
         status: true,
