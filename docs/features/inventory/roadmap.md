@@ -10,18 +10,16 @@ Set by the owner on 3 Oct 2026, after the Central Store roles pass (PR #66) and 
 | 4 | **Stock & counts rebuild** (Overview, All items, Daily count, Spot count, Stock ledger; opens them to the other desktop roles for reading) | Design approved | Step 3 |
 | 5 | **Waste rebuild** | Design approved | Step 4 |
 | 6 | **Requisitions, Dispatch and Branch day: design in Paper, owner approval, then rebuild** | Not designed yet. Open decision F4 (attendant on-hand in dispatch fulfil) is settled here, with the requisitions flow | Step 5 |
-| 7 | **Small findings and housekeeping** | Clean-up after the builds | Step 6 |
+| 7 | **Dashboard and Reports for the Central Store: design in Paper (start from [reports-spec.md](reports-spec.md)), owner approval, then build.** Un-hide the sidebar links when built | They show numbers from every flow, so they come after the flows exist | Step 6 |
+| 8 | **Phone versions for the desktop roles** (Store Manager, Accountant, Director, Branch Manager, System Admin): design in Paper, owner approval, then build | Deferred by the owner until all of the inventory is built | Step 7 |
+| 9 | **Small findings and housekeeping** | Clean-up after the builds | Step 8 |
 
-## Small findings (step 7)
+## Small findings (step 9)
 - The old receipt row shows a KES price box to the attendant (the attendant must be blind to money).
 - System Admin cannot sign old-flow documents yet (the rebuilt flows will use their own PIN).
 - The older sidebars (Branch Manager, Accountant, Director) carry one "Central Store" link, not the tree.
 
-## Housekeeping (step 7)
+## Housekeeping (step 9)
 - After each merge: check the deploy run in GitHub Actions and the server disk (PR #64 prunes old images).
 - Prepare the production demo; the rehearsal sheet is [demo-run-sheet.md](demo-run-sheet.md) and has stale steps.
 - Rebuilt screens must use `requireCapability(...)` and the permissions table, never a new `requireRole(...)` list.
-
-## Not scheduled yet
-- **Dashboard and Reports** for the Central Store: no design. They stay hidden from the sidebar. Start from [reports-spec.md](reports-spec.md).
-- **Phone versions for the desktop roles**: deferred until all of the inventory feature is built.
