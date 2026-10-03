@@ -69,7 +69,7 @@ Features with several workflows are built as **workflow-based milestones** (a gr
 of related screens), not phases. Steps 1–2 and 4 have owner approval gates.
 
 ### Step 1 — Walkthrough brief
-An agent plays the relevant domain expert. It studies how the flow works today (code,
+Use the reusable prompt in `docs/design-briefs/` (generic template + worked examples). An agent plays the relevant domain expert. It studies how the flow works today (code,
 real-use findings, the client's paper records), then sends a **flow brief** and waits:
 how it works today, what is weak from the user's point of view, the proposed flow in
 chapters (today / proposed / why), screens kept/improved/new/removed, and numbered open
@@ -230,7 +230,7 @@ Rules:
 | Sub-module spec: purpose, roles, approved rules, status, endpoints, coupling | `<sub>/README.md` beside the code | Permanent; updated in the same commit as behaviour changes |
 | Feature map, standing rules, decisions in force, open owner decisions | `docs/features/<feature>/README.md`, `decisions.md` | Permanent |
 | Contract and schema of record | `API_CONTRACT.md`, `DATA_MODEL.md` | Permanent |
-| Process and standards | this file, `CODING_STANDARDS.md`, `UI_BUILD_RULES.md`, `DESIGN_SYSTEM.md` | Permanent |
+| Process and standards, reusable agent prompts | this file, `docs/design-briefs/`, `CODING_STANDARDS.md`, `UI_BUILD_RULES.md`, `DESIGN_SYSTEM.md` | Permanent |
 | Milestone plans, session prompts, handoffs, walkthrough decision notes, run sheets | `docs/features/<feature>/` or `<sub>/DESIGN-NOTES.md` | **Temporary**: before deleting, extract any decision still in force into the README or `decisions.md`; then delete (git is the archive). Untracked files are not in git: commit or back them up first |
 
 Authority when sources disagree: **Paper approved page > sub-module README > `decisions.md` > code.**
