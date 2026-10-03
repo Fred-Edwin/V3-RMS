@@ -152,7 +152,7 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
     content = (
       <ItemDetailView
         item={item}
-        review={detail.review}
+        history={detail.history}
         onEdit={() => setView({ kind: 'edit', itemId: item.id })}
         onAddSeller={() => setView({ kind: 'addSeller', itemId: item.id })}
         onRetire={() => {

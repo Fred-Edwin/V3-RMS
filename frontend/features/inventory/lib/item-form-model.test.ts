@@ -92,6 +92,28 @@ describe('toCreateInput', () => {
   });
 });
 
+describe('usual price (add only)', () => {
+  const sugar = values({ name: 'Brown sugar', buyUnit: 'bag', usageUnit: 'kg', holds: '50' });
+
+  it('is sent per buy unit with the commas taken out, and left out when empty', () => {
+    expect(toCreateInput({ ...sugar, usualPrice: '8,900' }).usualPrice).toBe('8900');
+    expect(toCreateInput(sugar)).not.toHaveProperty('usualPrice');
+  });
+  it('is never sent for a Prepped item', () => {
+    expect(toCreateInput({ ...sugar, type: 'PREPPED', usualPrice: '8,900' })).not.toHaveProperty('usualPrice');
+  });
+  it('must be a positive amount', () => {
+    expect(validateItemForm({ ...sugar, usualPrice: '0' }).usualPrice).toBeDefined();
+    expect(validateItemForm({ ...sugar, usualPrice: 'abc' }).usualPrice).toBeDefined();
+    expect(validateItemForm({ ...sugar, usualPrice: '8,900' }).usualPrice).toBeUndefined();
+    expect(validateItemForm({ ...sugar, type: 'PREPPED', usageUnit: 'kg', usualPrice: 'abc' }).usualPrice).toBeUndefined();
+  });
+  it('an edit never carries it', () => {
+    expect(itemToFormValues(flour).usualPrice).toBe('');
+    expect(buildEditPlan(flour, itemToFormValues(flour)).input).not.toHaveProperty('usualPrice');
+  });
+});
+
 describe('buildEditPlan', () => {
   it('sends nothing when nothing changed', () => {
     const plan = buildEditPlan(flour, itemToFormValues(flour));

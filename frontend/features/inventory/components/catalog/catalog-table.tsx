@@ -35,12 +35,11 @@ function MatchedLine({ matchedOn }: { matchedOn: NonNullable<InventoryItemListRo
  * under the header, 46px rows (taller when a supplier's code or name matched
  * the search). Retired rows are drawn faint, with no type dot.
  *
- * The Suppliers column is not drawn yet: the list response carries no
- * per-row supplier count (deferred to the backend follow-up).
+ * Suppliers is the count of suppliers with a line for the item ("—" for none).
  */
 export function CatalogTable({ rows, showRestockLevel, onRowClick, highlightId, className }: CatalogTableProps) {
   return (
-    <div role="table" aria-label="Items" className={cn('min-w-[760px] border border-wds-border bg-white', className)}>
+    <div role="table" aria-label="Items" className={cn('min-w-[860px] border border-wds-border bg-white', className)}>
       <div role="row" className="flex h-[34px] items-center border-b border-wds-text-ink px-4">
         <span role="columnheader" className={cn(headCell, 'min-w-0 grow basis-0')}>
           ITEM
@@ -59,6 +58,9 @@ export function CatalogTable({ rows, showRestockLevel, onRowClick, highlightId, 
             RESTOCK LEVEL
           </span>
         ) : null}
+        <span role="columnheader" className={cn(headCell, 'w-[90px] shrink-0 text-right')}>
+          SUPPLIERS
+        </span>
         <span role="columnheader" className={cn(headCell, 'w-[160px] shrink-0 pl-6')}>
           USED BY
         </span>
@@ -107,6 +109,9 @@ export function CatalogTable({ rows, showRestockLevel, onRowClick, highlightId, 
                 ) : null}
               </span>
               {row.matchedOn ? <MatchedLine matchedOn={row.matchedOn} /> : null}
+              {row.matchedOn?.field === 'supplierItemCode' && row.matchedOn.supplierItemName ? (
+                <span className="font-wds-sans text-[12px] leading-4 text-wds-text-muted">Their name: {row.matchedOn.supplierItemName}</span>
+              ) : null}
             </span>
             <span role="cell" className="w-[150px] shrink-0">
               {retired ? (
@@ -133,6 +138,12 @@ export function CatalogTable({ rows, showRestockLevel, onRowClick, highlightId, 
                 {!retired && row.centralStoreRestockLevel != null ? `${trimDecimal(row.centralStoreRestockLevel)} ${row.usageUnit}` : ''}
               </span>
             ) : null}
+            <span
+              role="cell"
+              className={cn('w-[90px] shrink-0 text-right font-wds-mono text-[13px] leading-4', row.supplierCount > 0 ? 'text-wds-text-ink' : 'text-wds-text-muted')}
+            >
+              {retired ? '' : row.supplierCount > 0 ? row.supplierCount : '—'}
+            </span>
             <span
               role="cell"
               className={cn('w-[160px] shrink-0 truncate pl-6 font-wds-sans text-[13px] leading-4', retired ? 'text-wds-text-muted' : 'text-wds-text-secondary')}

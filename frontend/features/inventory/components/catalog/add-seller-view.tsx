@@ -8,7 +8,9 @@ import type { InventoryItemDetail, Supplier } from '../../types';
 import { useAddSupplierLine } from '../../hooks/use-item-form';
 import { COMMON_UNITS } from '../../lib/item-labels';
 import { trimDecimal } from '../../lib/item-format';
+import { normalizePriceInput, pricePerUsageUnit, validateOptionalPrice } from '../../lib/item-price';
 import { DrawerError, DrawerFrame, FieldLabel, PrimaryFooterButton, SecondaryFooterButton, fieldClass } from './drawer-parts';
+import { PriceField } from './price-field';
 
 export interface AddSellerViewProps {
   item: InventoryItemDetail;
@@ -27,9 +29,9 @@ const DECIMAL = /^\d{1,8}(\.\d{1,4})?$/;
  * item, and — only when they sell a different pack — that pack, which gets its
  * own line. A pack already on file is a 409 whose message is shown inline.
  *
- * "Their price" is not here: adding a line takes no price today, the first
- * signed receipt sets it (the item page says so). The preferred switch starts
- * on only when no other supplier is preferred yet.
+ * "Their price" is the price they quote per their pack; it is set by hand here and
+ * every signed receipt updates it after that. Left empty, the first signed receipt
+ * sets it. The preferred switch starts on only when no other supplier is preferred yet.
  */
 export function AddSellerView({ item, suppliers, suppliersLoading, suppliersError, onRetrySuppliers, onCancel, onAdded }: AddSellerViewProps) {
   const { add, saving, error, clearError } = useAddSupplierLine();
@@ -39,8 +41,9 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
   const [samePack, setSamePack] = React.useState(true);
   const [buyUnit, setBuyUnit] = React.useState('');
   const [packSize, setPackSize] = React.useState('');
+  const [price, setPrice] = React.useState('');
   const [preferred, setPreferred] = React.useState(!item.suppliers.some((s) => s.isPreferred));
-  const [errors, setErrors] = React.useState<{ supplier?: string; buyUnit?: string; packSize?: string }>({});
+  const [errors, setErrors] = React.useState<{ supplier?: string; buyUnit?: string; packSize?: string; price?: string }>({});
 
   const supplier = suppliers.find((s) => s.id === supplierId);
   const options: ComboboxOption[] = suppliers.map((s) => ({ value: s.id, label: s.name }));
@@ -50,9 +53,16 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
 
   const unitOptions: ComboboxOption[] = (buyUnit && !COMMON_UNITS.includes(buyUnit) ? [buyUnit, ...COMMON_UNITS] : [...COMMON_UNITS]).map((u) => ({ value: u, label: u }));
 
+  // What a pack holds, in usage units, and how the price box words it: "per 50 kg bag". Their own pack when they sell a different one.
+  const theirHolds = samePack ? (itemPack ? trimDecimal(itemPack) : null) : packSize.trim() !== '' ? packSize.trim() : null;
+  const theirUnit = samePack ? item.buyUnit : buyUnit.trim() || 'pack';
+  const theirPackText = theirHolds ? `${trimDecimal(theirHolds)} ${item.usageUnit} ${theirUnit}` : theirUnit;
+
   const submit = async () => {
     const found: typeof errors = {};
     if (!supplierId) found.supplier = 'Pick a supplier.';
+    const priceError = validateOptionalPrice(price);
+    if (priceError) found.price = priceError;
     if (!samePack) {
       if (!buyUnit.trim()) found.buyUnit = 'Choose how they sell it.';
       if (!DECIMAL.test(packSize.trim()) || Number.parseFloat(packSize) <= 0) found.packSize = `How many ${item.usageUnit} does one hold?`;
@@ -68,6 +78,7 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
       supplierItemCode: theirCode.trim() || null,
       ...pack,
       isPreferred: preferred,
+      ...(normalizePriceInput(price) !== '' ? { price: normalizePriceInput(price) } : {}),
     });
     if (ok) onAdded();
   };
@@ -76,7 +87,7 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
     <DrawerFrame
       eyebrow={item.name}
       title="Add who sells it"
-      subtitle="Pick a supplier and how they write it on their invoice."
+      subtitle="Pick a supplier and the price they quote."
       footer={
         <div className="flex w-full justify-end gap-2.5">
           <SecondaryFooterButton onClick={onCancel}>Cancel</SecondaryFooterButton>
@@ -140,6 +151,26 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
           How {sellerName} writes it on their invoice. Our name for the item never changes.
         </span>
       </div>
+
+      <PriceField
+        id="their-price"
+        name="price"
+        label="Their price"
+        hint="optional"
+        width={210}
+        value={price}
+        onChange={(v) => {
+          setPrice(v);
+          setErrors((prev) => ({ ...prev, price: undefined }));
+          clearError();
+        }}
+        unitText={`per ${theirPackText}`}
+        perUsageUnit={(() => {
+          const amount = pricePerUsageUnit(price, theirHolds);
+          return amount === null || theirHolds === null ? null : { amount, unit: item.usageUnit };
+        })()}
+        error={errors.price}
+      />
 
       <div className="flex flex-col gap-2">
         <FieldLabel>How they sell it</FieldLabel>
@@ -228,7 +259,7 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
       </div>
 
       <p className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-        After this, the first signed receipt sets the price, and every signed receipt updates it.
+        After this, the price updates by itself from each signed receipt. Every change is kept in the item history.
       </p>
     </DrawerFrame>
   );

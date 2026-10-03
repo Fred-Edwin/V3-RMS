@@ -17,9 +17,13 @@ export interface ItemCatalogFilters {
   categoryId?: string;
   includeRetired: boolean;
   needsSetup: boolean;
+  /** Only Central Store items below their restock level (Store Manager). */
+  lowOrOut: boolean;
+  /** Unset = by name (oldest first under Needs setup). */
+  sort?: 'name' | 'newest';
 }
 
-const DEFAULT_FILTERS: ItemCatalogFilters = { includeRetired: false, needsSetup: false };
+const DEFAULT_FILTERS: ItemCatalogFilters = { includeRetired: false, needsSetup: false, lowOrOut: false };
 const PER_PAGE = 20;
 
 export interface ItemCatalogPagination {
@@ -48,12 +52,12 @@ export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
   const [page, setPage] = useState(1);
   const latestRequest = useRef(0);
 
-  const { search, type, departmentTag, categoryId, includeRetired, needsSetup } = filters;
+  const { search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort } = filters;
 
   // Any real filter change invalidates the current page.
   useEffect(() => {
     setPage(1);
-  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup]);
+  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort]);
 
   const load = useCallback(async () => {
     const requestId = ++latestRequest.current;
@@ -68,6 +72,8 @@ export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
           categoryId,
           includeRetired,
           needsSetup: needsSetup || undefined,
+          lowOrOut: lowOrOut || undefined,
+          sort,
           page,
           perPage: PER_PAGE,
         }),
@@ -84,7 +90,7 @@ export function useItemCatalog(filters: ItemCatalogFilters = DEFAULT_FILTERS) {
       setError(formatApiErrorMessage(err, 'Could not load the item catalog.'));
       setStatus('error');
     }
-  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, page]);
+  }, [search, type, departmentTag, categoryId, includeRetired, needsSetup, lowOrOut, sort, page]);
 
   useEffect(() => {
     void load();

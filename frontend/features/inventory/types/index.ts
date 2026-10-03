@@ -99,6 +99,10 @@ export interface ItemCatalogMeta {
   lowOrOut: number | null;
   /** Live items created in the last 7 days. */
   addedThisWeek: number;
+  /** Live items per type, regardless of the list's filters — the counts on the type chips (§30.1). */
+  typeCounts: Record<InventoryItemType, number>;
+  /** Live items created in the last 7 days by a Store Attendant (§30.1). */
+  addedByAttendant: number;
 }
 
 /** Why a search matched when it was a supplier's code or name rather than ours (§28.5). */
@@ -106,6 +110,8 @@ export interface ItemMatchedOn {
   supplier: { id: string; name: string };
   field: 'supplierItemCode' | 'supplierItemName';
   value: string;
+  /** The matched line's name for the item, so a code match can show "Their name: …" (§30.1). */
+  supplierItemName: string | null;
 }
 
 /**
@@ -115,6 +121,8 @@ export interface ItemMatchedOn {
  * declares them; screens that render them must be Store-Manager-only.
  */
 export interface InventoryItemListRow extends InventoryItem {
+  /** Suppliers with at least one catalog line for the item (§30.1). */
+  supplierCount: number;
   matchedOn: ItemMatchedOn | null;
 }
 
@@ -130,6 +138,8 @@ export interface ItemSupplierLine {
   packSize: string | null;
   lastPrice: string | null;
   lastPriceAt: string | null;
+  /** Who set the price by hand; `null` when it came from a signed receipt or is unset (§30.3). */
+  lastPriceSetBy: { id: string; name: string } | null;
   isPreferred: boolean;
   /** Seeding marked this line preferred; shows "Preferred · confirm" until confirmed. */
   preferredNeedsConfirm: boolean;
@@ -137,7 +147,23 @@ export interface ItemSupplierLine {
 
 /** `GET /inventory/items/:id` — the item plus who sells it. */
 export interface InventoryItemDetail extends InventoryItem {
+  /** On hand at the Central Store only, from the ledger (§30.1). Store Manager only. */
+  centralStoreOnHand: string;
   suppliers: ItemSupplierLine[];
+}
+
+export type ItemChangeKind = 'CREATED' | 'UPDATED' | 'RETIRED' | 'RESTORED' | 'SUPPLIER_ADDED' | 'SUPPLIER_PRICE_SET';
+
+/** One line of an item's history (§30.4). `summary` is a sentence without the actor: show "{changedBy.name} {summary}". */
+export interface ItemHistoryEntry {
+  id: string;
+  kind: ItemChangeKind;
+  summary: string;
+  reason: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  changedBy: { id: string; name: string };
+  createdAt: string;
 }
 
 /** `GET /inventory/items/:id/change-review` — counts for the "Review the change" step (§29.6). Always numbers. */
@@ -153,7 +179,7 @@ export interface ItemChangeReview {
   hasHistory: boolean;
 }
 
-/** Add one supplier pack line (§28.3). The backend takes no price here: prices come from signed receipts. */
+/** Add one supplier pack line (§28.3). `price` is a price set by hand, per the line's buy unit (§30.3). */
 export interface AddSupplierLineInput {
   inventoryItemId: string;
   supplierItemName?: string | null;
@@ -161,6 +187,7 @@ export interface AddSupplierLineInput {
   buyUnit?: string | null;
   packSize?: string | null;
   isPreferred?: boolean;
+  price?: string;
 }
 
 export interface ListItemsQuery {
@@ -173,6 +200,10 @@ export interface ListItemsQuery {
   includeRetired?: boolean;
   /** Only items still on placeholder units, oldest first (§29.3). */
   needsSetup?: boolean;
+  /** Only Central Store items below their restock level — Store Manager only (§30.1). */
+  lowOrOut?: boolean;
+  /** `name` (default) or `newest` (§30.1). */
+  sort?: 'name' | 'newest';
 }
 
 /**
@@ -193,6 +224,8 @@ export interface CreateItemInput {
   departmentTags: DepartmentTag[];
   /** Optional Central Store restock level, set inline from the item form. */
   centralStoreRestockLevel?: string | null;
+  /** Per buy unit, Store Manager only. Sets the item's cost per usage unit; creates no supplier line (§30.2). */
+  usualPrice?: string | null;
 }
 
 export type UpdateItemInput = Partial<CreateItemInput>;

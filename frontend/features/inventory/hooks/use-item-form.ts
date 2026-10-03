@@ -6,6 +6,7 @@ import {
   createItem,
   getItem,
   getItemChangeReview,
+  getItemHistory,
   listCategories,
   listItems,
   listSuppliers,
@@ -21,6 +22,7 @@ import type {
   InventoryItemListRow,
   InventoryItemType,
   ItemChangeReview,
+  ItemHistoryEntry,
   Supplier,
   UpdateItemInput,
 } from '../types';
@@ -83,6 +85,8 @@ export function useSupplierOptions(enabled: boolean) {
 export function useItemDetail(itemId: string | null) {
   const [item, setItem] = useState<InventoryItemDetail | null>(null);
   const [review, setReview] = useState<ItemChangeReview | null>(null);
+  // `null` = the history could not be read; the page then simply leaves the panel out.
+  const [history, setHistory] = useState<ItemHistoryEntry[] | null>(null);
   const [status, setStatus] = useState<LoadStatus>(itemId ? 'loading' : 'idle');
   const [error, setError] = useState<string | null>(null);
   const latest = useRef(0);
@@ -94,6 +98,7 @@ export function useItemDetail(itemId: string | null) {
       loadedId.current = null;
       setItem(null);
       setReview(null);
+      setHistory(null);
       setStatus('idle');
       return;
     }
@@ -101,11 +106,16 @@ export function useItemDetail(itemId: string | null) {
     if (loadedId.current !== itemId) setStatus('loading');
     setError(null);
     try {
-      const [found, counts] = await Promise.all([getItem(itemId), getItemChangeReview(itemId)]);
+      const [found, counts, changes] = await Promise.all([
+        getItem(itemId),
+        getItemChangeReview(itemId),
+        getItemHistory(itemId).catch(() => null),
+      ]);
       if (requestId !== latest.current) return;
       loadedId.current = itemId;
       setItem(found);
       setReview(counts);
+      setHistory(changes);
       setStatus('ready');
     } catch (err) {
       if (requestId !== latest.current) return;
@@ -118,7 +128,7 @@ export function useItemDetail(itemId: string | null) {
     void load();
   }, [load]);
 
-  return { item, review, status, error, reload: load };
+  return { item, review, history, status, error, reload: load };
 }
 
 /**

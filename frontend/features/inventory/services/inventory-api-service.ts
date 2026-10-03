@@ -20,6 +20,7 @@ import type {
   InventoryItemListRow,
   ItemCatalogListResponse,
   ItemChangeReview,
+  ItemHistoryEntry,
   ItemMutationResponse,
   ListCategoriesQuery,
   ListItemsQuery,
@@ -92,6 +93,11 @@ export async function listItems(query: ListItemsQuery = {}): Promise<ItemCatalog
 /** The item plus who sells it (`suppliers[]`, §28.3). */
 export async function getItem(id: string): Promise<InventoryItemDetail> {
   return apiClient.get<InventoryItemDetail>(`/inventory/items/${id}`, token());
+}
+
+/** What happened to the item, newest first (§30.4). Store Manager only. */
+export async function getItemHistory(id: string, limit = 50): Promise<ItemHistoryEntry[]> {
+  return apiClient.get<ItemHistoryEntry[]>(`/inventory/items/${id}/history?limit=${limit}`, token());
 }
 
 /** Counts behind the "Review the change" step (§29.6). Store Manager only. */

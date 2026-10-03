@@ -59,6 +59,12 @@ function MenuChip({
 export interface CatalogFiltersProps {
   /** Items tracked, shown beside "All". */
   total: number | null;
+  /** Live items per type, for the counts on the chips; omitted until loaded. */
+  typeCounts?: Record<InventoryItemType, number>;
+  /** Another filter is on (Low or out): "All" is then not the active chip. */
+  otherFilterOn?: boolean;
+  /** "All": back to every item — type, Needs setup and Low or out off. */
+  onShowAll: () => void;
   type: InventoryItemType | null;
   onTypeChange: (type: InventoryItemType | null) => void;
   needsSetup: boolean;
@@ -80,10 +86,12 @@ export interface CatalogFiltersProps {
 /**
  * The filter row under the strip: All / type chips / Needs setup on the left;
  * Category, Department, Show retired and Manage categories on the right.
- * Type chips carry no counts yet (the list response has no per-type counts).
  */
 export function CatalogFilters({
   total,
+  typeCounts,
+  otherFilterOn = false,
+  onShowAll,
   type,
   onTypeChange,
   needsSetup,
@@ -100,16 +108,13 @@ export function CatalogFilters({
   onManageCategories,
   className,
 }: CatalogFiltersProps) {
-  const allActive = type === null && !needsSetup;
+  const allActive = type === null && !needsSetup && !otherFilterOn;
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <button
         type="button"
         aria-pressed={allActive}
-        onClick={() => {
-          onTypeChange(null);
-          onNeedsSetupChange(false);
-        }}
+        onClick={onShowAll}
         className={cn(
           chipBase,
           allActive
@@ -134,6 +139,7 @@ export function CatalogFilters({
             className={cn(chipOutline, active && 'border-wds-text-ink bg-wds-text-ink font-medium text-white hover:bg-wds-text-ink')}
           >
             {ITEM_TYPE_LABEL[t]}
+            {typeCounts ? <Count className={active ? 'text-[#B5AEA5]' : undefined}>{typeCounts[t]}</Count> : null}
           </button>
         );
       })}
