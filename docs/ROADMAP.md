@@ -90,6 +90,8 @@ Why this shape: the client asked for Workforce to be prioritised, and no Workfor
 
 ## Company and Branch foundation
 
+Brief for the session: [sessions/foundation-company-site-rename.md](sessions/foundation-company-site-rename.md). The recommended names are `Site` / `siteId` (the Central Store is never a branch), with API and frontend names unchanged until each module is rebuilt; the owner confirms the names at the start of that session.
+
 Today the database table `Organization` is really a branch (it holds a branch's address, coordinates and M-Pesa paybill, plus an `isHub` flag for the Central Store). Nothing represents Wendo Coffee Bistro as one company. `organizationId` appears about 3,050 times in 197 backend files and in 186 places in the schema.
 
 Three steps, in one dedicated session, never mixed with feature work:
