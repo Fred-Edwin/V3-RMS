@@ -14,6 +14,8 @@ first feature of the redo and the template for the others
 | Rules that cut across sub-modules; open owner decisions | [decisions.md](decisions.md) |
 | Central Store hub-org scoping (D-15) | [../../inventory/CENTRAL_STORE_SCOPING_DESIGN.md](../../inventory/CENTRAL_STORE_SCOPING_DESIGN.md) |
 | Domain research, the client's paper records | `docs/inventory/central_kitchen_inventory_model.md`, `docs/inventory/reference-photos/`, `docs/Item Catalog/` |
+| **What is left to do, in the owner's order** | [roadmap.md](roadmap.md) |
+| **Where the code is ahead of Paper (update Paper first, before new design work)** | [paper-updates-needed.md](paper-updates-needed.md) |
 | Designed-not-built Director/Accountant reports | [reports-spec.md](reports-spec.md) |
 | Client demo script (rehearsed 2026-09-30; a few steps are stale, see its notes) | [demo-run-sheet.md](demo-run-sheet.md) |
 | Full approved wording for not-yet-rebuilt areas | `prep/DESIGN-NOTES.md`, `counting/DESIGN-NOTES.md` (delete when the redo merges) |

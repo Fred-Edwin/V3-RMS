@@ -100,21 +100,11 @@ export const ReportsIcon: NavIcon = (props) => (
   </svg>
 );
 
-/** Restock levels — two sliders: how much to keep. */
-export const RestockLevelsIcon: NavIcon = (props) => (
-  <svg {...base} {...props}>
-    <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
-    <circle cx="16" cy="7" r="2" />
-    <circle cx="8" cy="17" r="2" />
-  </svg>
-);
-
-/** Audit log — a page with ruled lines and a tick: the record that cannot be edited. */
+/** Audit log — Paper's clipboard glyph (approved sidebar, "Parts · sidebars"): the record that cannot be edited. */
 export const AuditLogIcon: NavIcon = (props) => (
   <svg {...base} {...props}>
-    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-    <path d="M14 3v5h5" />
-    <path d="M9 13h6M9 17h4" />
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01" />
   </svg>
 );
 

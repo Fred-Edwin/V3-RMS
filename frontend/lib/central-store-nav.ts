@@ -1,9 +1,10 @@
-import { Boxes, ScrollText, SlidersHorizontal, Truck, type LucideIcon } from 'lucide-react';
+import { Warehouse, type LucideIcon } from 'lucide-react';
 
 /**
- * The "Central Store" section the desktop roles from other parts of the app (Branch Manager, Accountant, Director, System
- * Admin) get in their own sidebar, so every Central Store destination is one click away. What each person may do on the other
- * side comes from the server's permissions table; these links only open the screens that role is allowed to see.
+ * The way into the Central Store from the sidebars of the desktop roles that live in other parts of the app (Branch Manager,
+ * Accountant, Director, System Admin). Those sidebars belong to the older design system and cannot draw the branching tree,
+ * so they get ONE link; the Central Store's own sidebar (UI2, `components/app/shell/sidebar-nav.tsx`) shows the full tree,
+ * filtered to what that person may open.
  */
 export interface CentralStoreNavItem {
   label: string;
@@ -11,11 +12,6 @@ export interface CentralStoreNavItem {
   icon: LucideIcon;
 }
 
-export const CENTRAL_STORE_NAV_LABEL = 'Central Store';
+export const CENTRAL_STORE_NAV_LABEL = 'Inventory';
 
-export const CENTRAL_STORE_NAV_ITEMS: CentralStoreNavItem[] = [
-  { label: 'Catalog', href: '/app/inventory/catalog', icon: Boxes },
-  { label: 'Suppliers', href: '/app/inventory/suppliers', icon: Truck },
-  { label: 'Restock levels', href: '/app/inventory/stock/restock-levels', icon: SlidersHorizontal },
-  { label: 'Audit log', href: '/app/inventory/audit-log', icon: ScrollText },
-];
+export const CENTRAL_STORE_NAV_ITEMS: CentralStoreNavItem[] = [{ label: 'Central Store', href: '/app/inventory/catalog', icon: Warehouse }];
