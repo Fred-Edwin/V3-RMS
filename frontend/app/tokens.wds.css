@@ -108,6 +108,8 @@
   --wds-primary-hover:     var(--wds-espresso-600);
   --wds-primary-pressed:   var(--wds-espresso-800);
   --wds-primary-fg:        var(--wds-neutral-0);
+  /* Selected-chip / focused-field edge in the Catalog, suppliers and restock levels flow: Paper master `--color-primary` (#B0610F), which is the primary button's start stop, not espresso-700. */
+  --wds-selected-edge:     var(--wds-primary-btn-start);
   --wds-ring:              oklch(0.404 0.078 54 / 0.40);   /* espresso-700 @ 40% */
 
   /* ---- Sidebar (nav rail) — its own tokens, not tied to espresso-900 --- */

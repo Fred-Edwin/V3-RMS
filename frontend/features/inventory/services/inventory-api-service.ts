@@ -1,24 +1,25 @@
 /**
  * Inventory Milestone One — real backend implementation of the frozen
  * contract (`../types`, mirroring `backend/src/modules/inventory/
- * inventory-validators.ts`). Same function names/signatures as
- * `inventory-mock-service.ts` so `services/index.ts` can point at either
- * with a one-line change — no hook or screen needs to change.
+ * inventory-validators.ts`).
  *
  * Reads the access token via `useAuthStore.getState()` rather than taking it
- * as a parameter (same pattern as `lib/logout.ts`) so every function keeps
- * the mock's exact signature — hooks call these the same way either way.
+ * as a parameter (same pattern as `lib/logout.ts`).
  */
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type { ApiResponseEnvelope } from '@/types/api';
 import type {
+  AddSupplierLineInput,
   Category,
   CreateCategoryInput,
   CreateItemInput,
   CreateSupplierInput,
   InventoryItem,
+  InventoryItemDetail,
+  InventoryItemListRow,
   ItemCatalogListResponse,
+  ItemChangeReview,
   ItemMutationResponse,
   ListCategoriesQuery,
   ListItemsQuery,
@@ -71,10 +72,10 @@ export async function restoreCategory(id: string): Promise<Category> {
 // ─── Items ──────────────────────────────────────────────────────────────────
 
 /** The item list endpoint additionally carries `meta` (the KPI strip counts), not declared on the shared envelope type. */
-type ItemListEnvelope = ApiResponseEnvelope<InventoryItem[]> & { meta?: ItemCatalogListResponse['meta'] };
+type ItemListEnvelope = ApiResponseEnvelope<InventoryItemListRow[]> & { meta?: ItemCatalogListResponse['meta'] };
 
 export async function listItems(query: ListItemsQuery = {}): Promise<ItemCatalogListResponse> {
-  const envelope = (await apiClient.getWithEnvelope<InventoryItem[]>(
+  const envelope = (await apiClient.getWithEnvelope<InventoryItemListRow[]>(
     `/inventory/items${toQueryString(query)}`,
     token()
   )) as ItemListEnvelope;
@@ -88,8 +89,14 @@ export async function listItems(query: ListItemsQuery = {}): Promise<ItemCatalog
   };
 }
 
-export async function getItem(id: string): Promise<InventoryItem> {
-  return apiClient.get<InventoryItem>(`/inventory/items/${id}`, token());
+/** The item plus who sells it (`suppliers[]`, §28.3). */
+export async function getItem(id: string): Promise<InventoryItemDetail> {
+  return apiClient.get<InventoryItemDetail>(`/inventory/items/${id}`, token());
+}
+
+/** Counts behind the "Review the change" step (§29.6). Store Manager only. */
+export async function getItemChangeReview(id: string): Promise<ItemChangeReview> {
+  return apiClient.get<ItemChangeReview>(`/inventory/items/${id}/change-review`, token());
 }
 
 export async function createItem(input: CreateItemInput): Promise<ItemMutationResponse> {
@@ -141,6 +148,15 @@ export async function restoreSupplier(id: string): Promise<Supplier> {
   return apiClient.post<Supplier>(`/inventory/suppliers/${id}/restore`, {}, token());
 }
 
+/**
+ * Add one supplier pack line for an item (§28.3). A line with the same
+ * buy unit and pack size already on file is a 409 `PACK_LINE_EXISTS` whose
+ * message names the existing line — show it inline.
+ */
+export async function addSupplierLine(supplierId: string, input: AddSupplierLineInput): Promise<void> {
+  await apiClient.post<unknown>(`/inventory/suppliers/${supplierId}/items`, input, token());
+}
+
 // ─── Restock levels ─────────────────────────────────────────────────────────
 
 /**
@@ -150,6 +166,8 @@ export async function restoreSupplier(id: string): Promise<Supplier> {
  */
 export async function listRestockLevels(
   query: ListRestockLevelsQuery,
+  // Kept for the restock drawers' call shape until the restock-levels session replaces them.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _actor?: { role: 'STORE_MANAGER' | 'DEPARTMENT_HEAD' }
 ): Promise<RestockLevelRow[]> {
   return apiClient.get<RestockLevelRow[]>(`/inventory/restock-levels${toQueryString(query)}`, token());
@@ -157,6 +175,7 @@ export async function listRestockLevels(
 
 export async function saveRestockLevels(
   input: SaveRestockLevelsInput,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _actor?: { role: 'STORE_MANAGER' | 'DEPARTMENT_HEAD' }
 ): Promise<RestockLevelRow[]> {
   return apiClient.put<RestockLevelRow[]>('/inventory/restock-levels', input, token());

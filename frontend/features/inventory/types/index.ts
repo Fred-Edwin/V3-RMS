@@ -82,7 +82,10 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
-/** The KPI strip on the Item Catalog screen: items tracked / categories / departments / suppliers. */
+/**
+ * The KPI strip on the Item Catalog screen (§29.3). Counts cover all live
+ * items, regardless of the list's filters.
+ */
 export interface ItemCatalogMeta {
   itemsTracked: number;
   typesRepresented: number;
@@ -90,6 +93,74 @@ export interface ItemCatalogMeta {
   retiredCategoryCount: number;
   departmentCount: number;
   supplierCount: number;
+  /** Placeholder units from seeding: usage unit = buy unit, no pack size, no conversion. */
+  needsSetup: number;
+  /** Central Store items below their restock level. `null` for anyone but the Store Manager. */
+  lowOrOut: number | null;
+  /** Live items created in the last 7 days. */
+  addedThisWeek: number;
+}
+
+/** Why a search matched when it was a supplier's code or name rather than ours (§28.5). */
+export interface ItemMatchedOn {
+  supplier: { id: string; name: string };
+  field: 'supplierItemCode' | 'supplierItemName';
+  value: string;
+}
+
+/**
+ * A catalog list row. For a Store Attendant the four money / ordering fields
+ * (`currentCost`, `centralStoreRestockLevel`, `preferredSupplier`,
+ * `preferredSupplierId`) are absent at runtime (§29.4) even though this type
+ * declares them; screens that render them must be Store-Manager-only.
+ */
+export interface InventoryItemListRow extends InventoryItem {
+  matchedOn: ItemMatchedOn | null;
+}
+
+/** One supplier's line for an item: their name and code, their pack, their price (§28.3). Prices are absent for attendants. */
+export interface ItemSupplierLine {
+  lineId: string;
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  supplierItemName: string | null;
+  supplierItemCode: string | null;
+  buyUnit: string | null;
+  packSize: string | null;
+  lastPrice: string | null;
+  lastPriceAt: string | null;
+  isPreferred: boolean;
+  /** Seeding marked this line preferred; shows "Preferred · confirm" until confirmed. */
+  preferredNeedsConfirm: boolean;
+}
+
+/** `GET /inventory/items/:id` — the item plus who sells it. */
+export interface InventoryItemDetail extends InventoryItem {
+  suppliers: ItemSupplierLine[];
+}
+
+/** `GET /inventory/items/:id/change-review` — counts for the "Review the change" step (§29.6). Always numbers. */
+export interface ItemChangeReview {
+  inventoryItemId: string;
+  itemName: string;
+  onHandQty: string;
+  locationsHoldingStock: number;
+  stockEntries: number;
+  receipts: number;
+  receiptLines: number;
+  openOrders: number;
+  hasHistory: boolean;
+}
+
+/** Add one supplier pack line (§28.3). The backend takes no price here: prices come from signed receipts. */
+export interface AddSupplierLineInput {
+  inventoryItemId: string;
+  supplierItemName?: string | null;
+  supplierItemCode?: string | null;
+  buyUnit?: string | null;
+  packSize?: string | null;
+  isPreferred?: boolean;
 }
 
 export interface ListItemsQuery {
@@ -100,6 +171,8 @@ export interface ListItemsQuery {
   categoryId?: string;
   departmentTag?: DepartmentTag;
   includeRetired?: boolean;
+  /** Only items still on placeholder units, oldest first (§29.3). */
+  needsSetup?: boolean;
 }
 
 /**
@@ -242,7 +315,7 @@ export interface Paginated<T> {
 }
 
 /** The item catalog list additionally carries the KPI strip's counts. */
-export interface ItemCatalogListResponse extends Paginated<InventoryItem> {
+export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow> {
   meta: ItemCatalogMeta;
 }
 
