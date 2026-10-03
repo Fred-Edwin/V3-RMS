@@ -7,10 +7,10 @@ import {
   type RequisitionSectionForFulfil,
 } from './dispatch-repository';
 import { discrepancyRepository } from './discrepancy-repository';
-import { referenceCounterRepository } from '../inventory/receiving-repository';
+import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
-import { restockLevelRepository } from '../inventory/inventory-repository';
+import { restockLevelRepository } from '../inventory/catalog/inventory-repository';
 import { authRepository } from '../../repositories/auth-repository';
 import { prisma } from '../../config/database';
 import { fcmService } from '../../services/fcm-service';

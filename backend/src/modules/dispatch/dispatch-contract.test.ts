@@ -10,7 +10,7 @@ import { dispatchService } from './dispatch-service';
 import { dispatchRepository } from './dispatch-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
-import { restockLevelRepository } from '../inventory/inventory-repository';
+import { restockLevelRepository } from '../inventory/catalog/inventory-repository';
 import { authRepository } from '../../repositories/auth-repository';
 import { comparePin } from '../../utils/password';
 import {
@@ -34,7 +34,7 @@ vi.mock('./dispatch-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/inventory-repository', () => ({
+vi.mock('../inventory/catalog/inventory-repository', () => ({
   restockLevelRepository: { sumOnHandByItemForLocation: vi.fn() },
 }));
 

@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { lineVariance, lineVarianceValue, isReasonRequired, isDirectorAlert } from '../inventory/count-calc';
+import { lineVariance, lineVarianceValue, isReasonRequired, isDirectorAlert } from '../inventory/counting/count-calc';
 
 export { lineVariance, lineVarianceValue, isReasonRequired, isDirectorAlert };
 

@@ -9,7 +9,7 @@ import {
   type RequisitionWithAllSections,
   type RequisitionWithMySection,
 } from './requisitions-repository';
-import { inventoryItemRepository, restockLevelRepository } from '../inventory/inventory-repository';
+import { inventoryItemRepository, restockLevelRepository } from '../inventory/catalog/inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { authRepository } from '../../repositories/auth-repository';

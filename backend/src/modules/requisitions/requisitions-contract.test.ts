@@ -73,7 +73,7 @@ vi.mock('../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
-vi.mock('../inventory/inventory-repository', () => ({
+vi.mock('../inventory/catalog/inventory-repository', () => ({
   inventoryItemRepository: { findLiveByIds: vi.fn() },
   restockLevelRepository: { findByItemIdsForLocation: vi.fn() },
 }));

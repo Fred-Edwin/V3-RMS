@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { branchDayService } from './branch-day-service';
 import { branchDayRepository } from './branch-day-repository';
-import { referenceCounterRepository } from '../inventory/receiving-repository';
-import { thresholdsRepository } from '../inventory/thresholds-repository';
+import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
+import { thresholdsRepository } from '../inventory/counting/thresholds-repository';
 import { authRepository } from '../../repositories/auth-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { fcmService } from '../../services/fcm-service';
@@ -46,8 +46,8 @@ vi.mock('./branch-day-repository', () => ({
     activeOpeningAdjustments: vi.fn(),
   },
 }));
-vi.mock('../inventory/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../inventory/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('../inventory/purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('../inventory/counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
 vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../utils/password', () => ({ comparePin: vi.fn() }));

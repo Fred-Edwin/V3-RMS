@@ -43,7 +43,7 @@ vi.mock('./discrepancy-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/receiving-repository', () => ({
+vi.mock('../inventory/purchasing/receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('DSC-0001') },
 }));
 

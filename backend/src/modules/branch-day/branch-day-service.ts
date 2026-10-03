@@ -10,11 +10,11 @@ import {
 } from './branch-day-repository';
 import { hasGap, isDirectorAlert, isReasonRequired, lineVariance, lineVarianceValue, reasonSatisfied } from './branch-day-calc';
 import { GAP_REASON_LABEL } from './branch-day-validators';
-import { referenceCounterRepository } from '../inventory/receiving-repository';
-import { getBranchThresholdsInForce, getHubThresholdsInForce } from '../inventory/thresholds-service';
-import { requireHubOrgId } from '../inventory/stock-scope';
-import { departmentLabel as departmentLabelOf } from '../inventory/stock-service';
-import { toMoney } from '../inventory/count-calc';
+import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
+import { getBranchThresholdsInForce, getHubThresholdsInForce } from '../inventory/counting/thresholds-service';
+import { requireHubOrgId } from '../inventory/_shared/stock-scope';
+import { departmentLabel as departmentLabelOf } from '../inventory/stock/stock-service';
+import { toMoney } from '../inventory/counting/count-calc';
 import { authRepository } from '../../repositories/auth-repository';
 import { prisma } from '../../config/database';
 import { fcmService } from '../../services/fcm-service';

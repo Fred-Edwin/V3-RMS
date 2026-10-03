@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { requisitionService } from './requisitions-service';
 import { requisitionRepository } from './requisitions-repository';
-import { inventoryItemRepository, restockLevelRepository } from '../inventory/inventory-repository';
+import { inventoryItemRepository, restockLevelRepository } from '../inventory/catalog/inventory-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { authRepository } from '../../repositories/auth-repository';
@@ -35,7 +35,7 @@ vi.mock('./requisitions-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/inventory-repository', () => ({
+vi.mock('../inventory/catalog/inventory-repository', () => ({
   inventoryItemRepository: { findLiveByIds: vi.fn() },
   restockLevelRepository: { findByItemIdsForLocation: vi.fn() },
 }));
