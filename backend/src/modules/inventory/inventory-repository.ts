@@ -1,5 +1,6 @@
 import { Prisma, type Category, type DepartmentTag, type InventoryItem, type InventoryItemType, type RestockLevel, type Supplier, type SupplierPaymentTerms } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { USE_TRANSACTION_TYPES, type ItemUse } from './restock-suggestion';
 
 type TxClient = Prisma.TransactionClient;
 type Client = typeof prisma | TxClient;
@@ -115,6 +116,8 @@ export type ListItemsFilters = {
   categoryId?: string;
   departmentTag?: DepartmentTag;
   includeRetired: boolean;
+  /** When set, only these ids, oldest first (the "Needs setup" list, §29.3). */
+  onlyIds?: string[];
   page: number;
   perPage: number;
 };
@@ -168,13 +171,14 @@ export const inventoryItemRepository = {
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters.departmentTag ? { departmentTags: { has: filters.departmentTag } } : {}),
       ...(filters.search ? { OR: searchWhere(organizationId, filters.search) } : {}),
+      ...(filters.onlyIds ? { id: { in: filters.onlyIds } } : {}),
     };
 
     const [items, total] = await Promise.all([
       prisma.inventoryItem.findMany({
         where,
         include: itemInclude,
-        orderBy: { name: 'asc' },
+        orderBy: filters.onlyIds ? [{ createdAt: 'asc' }, { id: 'asc' }] : { name: 'asc' },
         skip: (filters.page - 1) * filters.perPage,
         take: filters.perPage,
       }),
@@ -284,6 +288,27 @@ export const inventoryItemRepository = {
     return prisma.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
   },
 
+  /**
+   * Live items still on placeholder units from seeding (API_CONTRACT.md §29.3): the usage unit equals the
+   * buy unit (case- and space-insensitive) and neither a pack size nor a conversion factor was entered.
+   * A column-to-column comparison, which Prisma's filter API cannot express, so it is raw SQL.
+   */
+  findNeedsSetupIds: async (organizationId: string): Promise<string[]> => {
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM inventory_items
+      WHERE organization_id = ${organizationId}
+        AND deleted_at IS NULL
+        AND pack_size IS NULL
+        AND conversion_factor IS NULL
+        AND lower(btrim(usage_unit)) = lower(btrim(buy_unit))
+      ORDER BY created_at ASC, id ASC`;
+    return rows.map((r) => r.id);
+  },
+
+  /** Live items created at or after `since` — "added this week". */
+  countCreatedSince: async (organizationId: string, since: Date): Promise<number> =>
+    prisma.inventoryItem.count({ where: { organizationId, deletedAt: null, createdAt: { gte: since } } }),
+
   /** KPI strip counts (F1's four figures) — plan §5.3 `ItemCatalogMetaSchema`. */
   getCatalogMeta: async (
     organizationId: string,
@@ -350,6 +375,12 @@ export const restockLevelRepository = {
     return new Map(rows.map((r) => [r.inventoryItemId, r.level]));
   },
 
+  /** Ids of the org's live items, for counting levels that belong to retired items out of a strip. */
+  findLiveItemIds: async (organizationId: string): Promise<string[]> => {
+    const rows = await prisma.inventoryItem.findMany({ where: { organizationId, deletedAt: null }, select: { id: true } });
+    return rows.map((r) => r.id);
+  },
+
   /** Items live at this org, optionally filtered by search — the restock grid's row set. */
   findLiveItemsForRestock: async (
     organizationId: string,
@@ -366,14 +397,26 @@ export const restockLevelRepository = {
     });
   },
 
-  /** Bulk atomic upsert — `level: null` deletes the row (Flow 19: clearing a level). */
+  /**
+   * Bulk atomic upsert — `level: null` deletes the row (Flow 19: clearing a level). Every level that
+   * actually changes is also written to `restock_level_changes` in the same transaction (§29.2): who,
+   * for which location, from what to what. A save that changes nothing logs nothing.
+   */
   bulkUpsert: async (
     organizationId: string,
     locationId: string,
     setById: string,
     levels: { inventoryItemId: string; level: Prisma.Decimal.Value | null }[],
+    reason?: string,
   ): Promise<void> => {
     await prisma.$transaction(async (tx) => {
+      const existing = await tx.restockLevel.findMany({
+        where: { organizationId, locationId, inventoryItemId: { in: levels.map((l) => l.inventoryItemId) } },
+        select: { inventoryItemId: true, level: true },
+      });
+      const before = new Map(existing.map((r) => [r.inventoryItemId, r.level]));
+      const changes: Prisma.RestockLevelChangeCreateManyInput[] = [];
+
       const toClear = levels.filter((l) => l.level === null).map((l) => l.inventoryItemId);
       const toSet = levels.filter((l) => l.level !== null);
 
@@ -381,22 +424,76 @@ export const restockLevelRepository = {
         await tx.restockLevel.deleteMany({
           where: { organizationId, locationId, inventoryItemId: { in: toClear } },
         });
+        for (const inventoryItemId of toClear) {
+          const old = before.get(inventoryItemId);
+          if (old === undefined) continue; // clearing a level that was never set changes nothing
+          changes.push({ organizationId, locationId, inventoryItemId, oldLevel: old, newLevel: null, changedById: setById, reason });
+        }
       }
 
       for (const l of toSet) {
+        const next = new Prisma.Decimal(l.level!);
         await tx.restockLevel.upsert({
           where: { locationId_inventoryItemId: { locationId, inventoryItemId: l.inventoryItemId } },
-          update: { level: new Prisma.Decimal(l.level!), setById },
+          update: { level: next, setById },
           create: {
             organizationId,
             locationId,
             inventoryItemId: l.inventoryItemId,
-            level: new Prisma.Decimal(l.level!),
+            level: next,
             setById,
           },
         });
+        const old = before.get(l.inventoryItemId);
+        if (old !== undefined && old.equals(next)) continue;
+        changes.push({
+          organizationId,
+          locationId,
+          inventoryItemId: l.inventoryItemId,
+          oldLevel: old ?? null,
+          newLevel: next,
+          changedById: setById,
+          reason,
+        });
       }
+
+      if (changes.length > 0) await tx.restockLevelChange.createMany({ data: changes });
     });
+  },
+
+  /**
+   * Net use per item at one location, for the suggested level (§29.5): the sum over the last
+   * `since…now` window and the first use row ever written. Only items with at least one use row appear.
+   */
+  findUseByItemForLocation: async (
+    organizationId: string,
+    locationId: string,
+    since: Date,
+  ): Promise<Map<string, ItemUse>> => {
+    const base = { organizationId, locationId, type: { in: USE_TRANSACTION_TYPES } };
+    const [inWindow, first] = await Promise.all([
+      prisma.inventoryTransaction.groupBy({
+        by: ['inventoryItemId'],
+        where: { ...base, createdAt: { gte: since } },
+        _sum: { quantity: true },
+      }),
+      prisma.inventoryTransaction.groupBy({
+        by: ['inventoryItemId'],
+        where: base,
+        _min: { createdAt: true },
+      }),
+    ]);
+    const windowSum = new Map(inWindow.map((r) => [r.inventoryItemId, r._sum.quantity ?? new Prisma.Decimal(0)]));
+    const result = new Map<string, ItemUse>();
+    for (const row of first) {
+      if (!row._min.createdAt) continue;
+      // Ledger use is negative, so net use is the negated sum.
+      result.set(row.inventoryItemId, {
+        useInWindow: (windowSum.get(row.inventoryItemId) ?? new Prisma.Decimal(0)).negated(),
+        firstUseAt: row._min.createdAt,
+      });
+    }
+    return result;
   },
 
   /** Sum of ledger quantity per item at one location — onHandQty, derived live, never stored. */
@@ -410,5 +507,50 @@ export const restockLevelRepository = {
       _sum: { quantity: true },
     });
     return new Map(rows.map((r) => [r.inventoryItemId, r._sum.quantity ?? new Prisma.Decimal(0)]));
+  },
+};
+
+// ---------------------------------------------------------------------------
+// "Review a change" counts (B13, §29.6)
+// ---------------------------------------------------------------------------
+
+export const itemChangeReviewRepository = {
+  /** Every count is a plain count, so an item with no history yields zeros — never null. */
+  counts: async (
+    inventoryItemId: string,
+    organizationId: string,
+  ): Promise<{
+    onHandQty: Prisma.Decimal;
+    locationsHoldingStock: number;
+    stockEntries: number;
+    receipts: number;
+    receiptLines: number;
+    openOrders: number;
+  }> => {
+    const receiptWhere = { inventoryItemId, goodsReceipt: { organizationId, status: { not: 'CANCELLED' as const } } };
+    const [perLocation, stockEntries, receiptLines, receiptGroups, openOrderGroups] = await Promise.all([
+      prisma.inventoryTransaction.groupBy({
+        by: ['locationId'],
+        where: { organizationId, inventoryItemId },
+        _sum: { quantity: true },
+      }),
+      prisma.inventoryTransaction.count({ where: { organizationId, inventoryItemId } }),
+      prisma.goodsReceiptLine.count({ where: receiptWhere }),
+      prisma.goodsReceiptLine.groupBy({ by: ['goodsReceiptId'], where: receiptWhere }),
+      prisma.expectedDeliveryLine.groupBy({
+        by: ['expectedDeliveryId'],
+        where: { inventoryItemId, expectedDelivery: { organizationId, status: 'AWAITING' } },
+      }),
+    ]);
+    const zero = new Prisma.Decimal(0);
+    const onHandQty = perLocation.reduce((sum, r) => sum.plus(r._sum.quantity ?? zero), zero);
+    return {
+      onHandQty,
+      locationsHoldingStock: perLocation.filter((r) => !(r._sum.quantity ?? zero).isZero()).length,
+      stockEntries,
+      receipts: receiptGroups.length,
+      receiptLines,
+      openOrders: openOrderGroups.length,
+    };
   },
 };

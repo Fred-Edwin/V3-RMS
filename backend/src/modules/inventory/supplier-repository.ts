@@ -681,3 +681,46 @@ export const supplierItemLookupRepository = {
       select: { id: true, name: true, buyUnit: true },
     }),
 };
+
+// ---------------------------------------------------------------------------
+// Summary strips (B11, API_CONTRACT.md §29.3)
+// ---------------------------------------------------------------------------
+
+export const supplierStripRepository = {
+  /** Every non-archived supplier with just what the profile checks and the owed figure need. */
+  listForStrip: (organizationId: string) =>
+    prisma.supplier.findMany({
+      where: { organizationId, deletedAt: null, status: { not: 'ARCHIVED' } },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        status: true,
+        address: true,
+        kraPin: true,
+        contacts: { select: { name: true, phone: true, isPrimary: true } },
+        _count: { select: { payMethods: true } },
+        supplierInvoices: {
+          select: {
+            amountBilled: true,
+            adjustments: { select: { amount: true } },
+            allocations: { select: { amount: true } },
+          },
+        },
+      },
+    }),
+
+  /** The supplier Catalog tab's four numbers: lines, receipts since `since`, and the latest signed receipt. */
+  catalogStrip: async (supplierId: string, organizationId: string, since: Date) => {
+    const signed = { supplierId, organizationId, signedAt: { not: null }, status: { not: 'CANCELLED' as const } };
+    const [itemGroups, recent, latest] = await Promise.all([
+      prisma.supplierItem.groupBy({ by: ['inventoryItemId'], where: { supplierId, organizationId } }),
+      prisma.goodsReceipt.findMany({
+        where: { ...signed, signedAt: { gte: since } },
+        select: { receiptTotal: true, lines: { select: { priceAlertPct: true } } },
+      }),
+      prisma.goodsReceipt.findFirst({ where: signed, orderBy: { signedAt: 'desc' }, select: { signedAt: true } }),
+    ]);
+    return { itemsTheySell: itemGroups.length, recent, lastReceiptAt: latest?.signedAt ?? null };
+  },
+};

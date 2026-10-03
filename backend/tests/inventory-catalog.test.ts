@@ -109,11 +109,38 @@ describe('Inventory catalog routes', () => {
       expect(res.status).toBe(200);
     });
 
-    it('POST /inventory/items blocks attendant (403)', async () => {
+    it('POST /inventory/items admits the attendant to the service (B12); the type rule is the service’s', async () => {
+      const spy = vi.spyOn(inventoryService, 'createItem').mockResolvedValue({ item: buildItem(), warnings: [] } as never);
       const res = await request(app)
         .post('/api/v1/inventory/items')
         .set('Authorization', `Bearer ${attendantToken}`)
         .send(validCreateBody);
+      expect(res.status).toBe(201);
+      expect(spy.mock.calls[0]![0]).toMatchObject({ role: 'STORE_ATTENDANT' });
+    });
+
+    it('POST /inventory/items surfaces the attendant’s PREPPED refusal as 403', async () => {
+      vi.spyOn(inventoryService, 'createItem').mockRejectedValue(new ForbiddenError('Store Attendants can add stocked and raw-ingredient items only'));
+      const res = await request(app)
+        .post('/api/v1/inventory/items')
+        .set('Authorization', `Bearer ${attendantToken}`)
+        .send({ ...validCreateBody, type: 'PREPPED' });
+      expect(res.status).toBe(403);
+    });
+
+    it('POST /inventory/items still blocks a waiter (403)', async () => {
+      const res = await request(app)
+        .post('/api/v1/inventory/items')
+        .set('Authorization', `Bearer ${waiterToken}`)
+        .send(validCreateBody);
+      expect(res.status).toBe(403);
+    });
+
+    it('PATCH /inventory/items/:id still blocks the attendant (403)', async () => {
+      const res = await request(app)
+        .patch(`/api/v1/inventory/items/${itemId}`)
+        .set('Authorization', `Bearer ${attendantToken}`)
+        .send({ name: 'Renamed' });
       expect(res.status).toBe(403);
     });
 

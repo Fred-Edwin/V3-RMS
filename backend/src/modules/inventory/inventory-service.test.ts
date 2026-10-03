@@ -30,8 +30,13 @@ vi.mock('./inventory-repository', () => ({
     restore: vi.fn(),
     getCatalogMeta: vi.fn(),
     findSearchMatches: vi.fn(),
+    findNeedsSetupIds: vi.fn(),
+    countCreatedSince: vi.fn(),
   },
+  itemChangeReviewRepository: { counts: vi.fn() },
   restockLevelRepository: {
+    findLiveItemIds: vi.fn(),
+    findUseByItemForLocation: vi.fn(),
     findAllByLocation: vi.fn(),
     findByItemIdsForLocation: vi.fn(),
     findLiveItemsForRestock: vi.fn(),
@@ -142,6 +147,12 @@ beforeEach(() => {
   vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId: 'line1', wasPreferred: false, wasNeedsConfirm: false });
   vi.mocked(supplierItemRepository.listForItem).mockResolvedValue([]);
   vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([]);
+  vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([]);
+  vi.mocked(inventoryItemRepository.countCreatedSince).mockResolvedValue(0);
+  vi.mocked(restockLevelRepository.findUseByItemForLocation).mockResolvedValue(new Map());
+  vi.mocked(restockLevelRepository.findLiveItemIds).mockResolvedValue([]);
+  vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([]);
+  vi.mocked(restockLevelRepository.sumOnHandByItemForLocation).mockResolvedValue(new Map());
 });
 
 describe('inventoryService — D-15 hub scoping', () => {
@@ -171,14 +182,14 @@ describe('inventoryService — listItems Department Head catalog-read carve-out 
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
 
     await expect(
-      inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false }),
+      inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false }),
     ).resolves.toBeDefined();
     expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 
   it('still rejects a non-hub, non-department-head actor (e.g. a plain branch Store Manager)', async () => {
     await expect(
-      inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false }),
+      inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false }),
     ).rejects.toThrow(ForbiddenError);
   });
 });
@@ -475,7 +486,7 @@ describe('inventoryService — bulk restock upsert atomicity and level:null clea
     expect(restockLevelRepository.bulkUpsert).toHaveBeenCalledWith(hubOrgId, centralStoreId, storeManager.id, [
       { inventoryItemId: itemId, level: '50' },
       { inventoryItemId: 'item-2', level: null },
-    ]);
+    ], undefined);
   });
 
   it('rejects when the locationId does not resolve to the Central Store', async () => {
@@ -542,6 +553,7 @@ describe('inventoryService — department head scope rejection', () => {
       departmentLocationId,
       departmentHead.id,
       [{ inventoryItemId: itemId, level: '10' }],
+      undefined,
     );
   });
 });
@@ -624,7 +636,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   const sugar = buildItem({ id: 'item-sugar', name: 'Sugar white 50kg' });
   const milk = buildItem({ id: 'item-milk', name: 'Milk 500ml' });
   const samrat = { id: supplierId, name: 'Samrat Supermarket Ltd' };
-  const listQuery = (search?: string) => ({ page: 1, perPage: 20, includeRetired: false, ...(search ? { search } : {}) });
+  const listQuery = (search?: string) => ({ page: 1, perPage: 20, includeRetired: false, needsSetup: false, ...(search ? { search } : {}) });
 
   beforeEach(() => {
     vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({} as never);

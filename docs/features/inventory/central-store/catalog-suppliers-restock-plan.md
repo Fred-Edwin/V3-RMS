@@ -1,6 +1,6 @@
 # Catalog, suppliers and restock levels — build plan
 
-Status: DRAFT for owner approval (written 2 Oct 2026). No code changes until approved.
+Status: APPROVED. Part A (Session 1) and Part B (Sessions 2 and 3, PR #54) are built; Part C (frontend) is planned as four sessions A to D (§5). Updated 3 Oct 2026.
 Design: approved. Master = Approved designs file, page "Inventory . Catalog, suppliers and restock levels" (+ Purchasing page for cheque and supplier-name changes). Decisions: `../catalog-suppliers-restock-walkthrough-decisions.md`.
 
 ## 0. Assumptions to confirm
@@ -96,14 +96,33 @@ Approved Paper designs are the only target. Each old screen is **replaced in pla
 
 ## 5. Order of work and sessions
 
-0. **Design housekeeping (design agent, ~1 hour):** renumber steps 1b/9b/18b/20b/21b, fix the stale "Payment 2" count, re-paste to the master. Not blocking Part A.
-1. **Session 1 — Part A + seeding unlock.** Migration, schema, `DATA_MODEL.md`. Seeding can run after merge.
-2. **Session 2 — Part B.** Contract first, then services and tests.
-3. **Session 3 — Part C, chapters 0 to 3** (catalog, item, restock).
-4. **Session 4 — Part C, chapters 4 to 5 + Purchasing changes.**
-5. **Session 5 — Part C, chapters 6 to 8, Housekeeping head, integration pass** (real browser, cross-role, Postgres checks).
+Sessions are numbered in the order they run. Part B took two sessions (2 and 3), and Part C takes four (4 to 7).
 
-Each session writes its outcome log in this folder (`session-N-log.md`).
+| # | What | Status |
+|---|---|---|
+| 0 | **Design housekeeping** (design agent, about 1 hour): renumber steps 1b, 9b, 18b, 20b, 21b; fix the stale "Payment 2" count; re-paste to the master. Blocks Session 4 only for the renumbered captions, so Session 4 may start first and read artboards by name. | open |
+| 1 | Part A: migration, schema, `DATA_MODEL.md`, seeding unlock. | done (PRs #50, #51) |
+| 2 | Part B, B1 to B8: cheque, pack lines, receipt price by pack, their names and codes, search, supplier documents, preferred confirm. | done (PR #52, `session-2-log.md`) |
+| 3 | Part B, B9 to B13: Housekeeping, any-department restock levels with a change log, KPI strips, attendant item creation, change review. Contract = `API_CONTRACT.md` §29. | built, PR #54 (`session-3-log.md`) |
+| 4 | **Part C, Session A: catalog and items.** Chapter 0 (type labels), chapter 1 (catalog, Needs setup, add-item drawer, similar-item warning, 1b search match), chapter 2 (item page 3 states, add who sells it, edit item, review a risky change incl. no-history, manage categories). | next |
+| 5 | **Part C, Session B: restock levels.** Chapter 3: all levels with scope switch (Central Store / branch department) and strip, suggestions, review before saving, level history with Put back. First task: a small backend read endpoint for `restock_level_changes` plus the Put-back write (contract first, then code and tests). | planned |
+| 6 | **Part C, Session C: suppliers and Purchasing.** Chapters 4 and 5 (list with strip, new supplier, finish the profile, five tabs, payment details, add payment method with cheque, add several items) and the Purchasing changes (record payment with cheque, payment advice, LPO and WhatsApp with supplier names, ours-first internal screens). Split into suppliers / Purchasing if it runs long. | planned |
+| 7 | **Part C, Session D: phones, cleanup, integration.** Chapters 6 to 8 (attendant phone, department head phone incl. Housekeeping head, retire / restore dialogs, duplicate-supplier warning, archive blocked, audit log), then the real-browser cross-role pass with Postgres checks, then delete every old screen and the deprecated supplier keys and aliases (§4). | planned |
+
+After Session 7: module restructure (`../module-restructure-move-map.md`), production deploy and demo.
+
+Each session writes `session-N-log.md` in this folder, and each Part C session ends by deleting the old screens it replaced.
+
+### Decisions fixed by the owner (3 Oct 2026)
+These are final; frontend sessions must not reopen them.
+
+- Restock scope = `scope` + `branchId` (a department alone is ambiguous across branches).
+- Suggested level = average daily use over the last 30 days x 15 days of cover for every item, needs 14 days of use first, "differs" at more than 20 %. Per-item days of cover is a later change.
+- Needs setup = usage unit equals buy unit, no pack size, no conversion factor.
+- Profile checklist = name, type, phone, address, contact person, payment details, KRA PIN (7).
+- Attendant may set name, type, units, conversion and pack only; no money fields anywhere in their responses.
+- Supplier Catalog tab price alerts = last 90 days.
+Full definitions: `API_CONTRACT.md` §29 and `session-3-log.md`.
 
 ## 6. Risks
 

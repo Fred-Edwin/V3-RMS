@@ -60,6 +60,7 @@ model Organization {
   inventoryItems               InventoryItem[]
   suppliers                    Supplier[]
   restockLevels                RestockLevel[]
+  restockLevelChanges          RestockLevelChange[]
   inventoryTransactions        InventoryTransaction[]
   referenceCounters            ReferenceCounter[]
   expectedDeliveries           ExpectedDelivery[]
@@ -164,6 +165,7 @@ model User {
   staffTransfersAuthorized            StaffTransfer[]               @relation("StaffTransferAuthorizedBy")
   inventoryTransactions               InventoryTransaction[]        @relation("InventoryTransactionUser")
   restockLevelsSet                    RestockLevel[]                @relation("RestockLevelSetBy")
+  restockLevelChanges                 RestockLevelChange[]          @relation("RestockLevelChangedBy")
   wasteLogsLogged                     WasteLog[]                    @relation("WasteLogLoggedBy")
   stockCountsCounted                  StockCount[]                  @relation("StockCountCounter")
   stockCountsVerified                 StockCount[]                  @relation("StockCountVerifier")
@@ -1474,6 +1476,7 @@ model Location {
   organization         Organization           @relation(fields: [organizationId], references: [id])
   transactions         InventoryTransaction[]
   restockLevels        RestockLevel[]
+  restockLevelChanges  RestockLevelChange[]
   goodsReceipts        GoodsReceipt[]
   prepRuns             PrepRun[]
   wasteLogs            WasteLog[]
@@ -1734,6 +1737,7 @@ model InventoryItem {
   category               Category?               @relation(fields: [categoryId], references: [id])
   preferredSupplier      Supplier?               @relation(fields: [preferredSupplierId], references: [id])
   restockLevels          RestockLevel[]
+  restockLevelChanges    RestockLevelChange[]
   transactions           InventoryTransaction[]
   expectedDeliveryLines  ExpectedDeliveryLine[]
   goodsReceiptLines      GoodsReceiptLine[]
@@ -2001,6 +2005,31 @@ model RestockLevel {
   @@index([organizationId])
   @@index([inventoryItemId])
   @@map("restock_levels")
+}
+
+/// Append-only log of every restock-level change (Session 3, B10): who changed
+/// which location's level for which item, from what to what. `locationId` is
+/// "for whom" (a branch department or the Central Store). A null `newLevel`
+/// means the level was cleared; a null `oldLevel` means none was set before.
+model RestockLevelChange {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id") // the location's org (same as restock_levels)
+  locationId      String   @map("location_id")
+  inventoryItemId String   @map("inventory_item_id")
+  oldLevel        Decimal? @map("old_level") @db.Decimal(12, 4)
+  newLevel        Decimal? @map("new_level") @db.Decimal(12, 4)
+  changedById     String   @map("changed_by_id")
+  reason          String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  location      Location      @relation(fields: [locationId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  changedBy     User          @relation("RestockLevelChangedBy", fields: [changedById], references: [id])
+
+  @@index([locationId, inventoryItemId, createdAt])
+  @@index([organizationId])
+  @@map("restock_level_changes")
 }
 
 // Full ledger enum ships now per feature plan §1 — only receive, prep_consume,

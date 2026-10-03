@@ -1866,6 +1866,29 @@ model RestockLevel {
 **Notes:**
 - Set by whoever owns the stock: the Store Manager for the Central Store, each department head for their own department's items.
 - `@@unique([locationId, inventoryItemId])` — a location can only have one restock level per item.
+- Every change is also appended to `RestockLevelChange` (§4.51a). The Store Manager may set any branch department's levels (API_CONTRACT §29.2).
+
+### 4.51a RestockLevelChange
+
+Append-only log of restock-level changes (Session 3, B10): who changed which location's level for which item, from what to what. Written in the same transaction as the `RestockLevel` upsert/delete; a save that changes nothing writes nothing.
+
+```prisma
+model RestockLevelChange {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")   -- the location's org, like restock_levels
+  locationId      String   @map("location_id")       -- "for whom": a branch department or the Central Store
+  inventoryItemId String   @map("inventory_item_id")
+  oldLevel        Decimal? @map("old_level") @db.Decimal(12, 4)  -- null = no level before
+  newLevel        Decimal? @map("new_level") @db.Decimal(12, 4)  -- null = level cleared
+  changedById     String   @map("changed_by_id")     -- "who"
+  reason          String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([locationId, inventoryItemId, createdAt])
+  @@index([organizationId])
+  @@map("restock_level_changes")
+}
+```
 
 ---
 

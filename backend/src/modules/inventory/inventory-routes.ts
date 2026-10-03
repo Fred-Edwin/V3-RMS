@@ -43,7 +43,13 @@ router.get(
   requireRole('STORE_MANAGER', 'STORE_ATTENDANT'),
   inventoryController.getItemById,
 );
-router.post('/inventory/items', requireRole('STORE_MANAGER'), inventoryController.createItem);
+router.get(
+  '/inventory/items/:id/change-review',
+  requireRole('STORE_MANAGER'),
+  inventoryController.getItemChangeReview,
+);
+// The attendant adds stocked / raw items from the phone; the service enforces which types and fields (§29.4).
+router.post('/inventory/items', requireRole('STORE_MANAGER', 'STORE_ATTENDANT'), inventoryController.createItem);
 router.patch('/inventory/items/:id', requireRole('STORE_MANAGER'), inventoryController.updateItem);
 router.delete('/inventory/items/:id', requireRole('STORE_MANAGER'), inventoryController.retireItem);
 router.post('/inventory/items/:id/restore', requireRole('STORE_MANAGER'), inventoryController.restoreItem);
@@ -60,6 +66,7 @@ router.get(
 );
 // Registered before `/:id` so "quick" is never read as an id.
 router.post('/inventory/suppliers/quick', requireRole(SM, 'STORE_ATTENDANT'), supplierController.quickAddSupplier);
+router.get('/inventory/suppliers/summary', requireRole(...READ), supplierController.getListSummary);
 router.get('/inventory/suppliers/:id', requireRole(...READ), supplierController.getSupplierById);
 router.post('/inventory/suppliers', requireRole(SM), supplierController.createSupplier);
 router.patch('/inventory/suppliers/:id', requireRole(SM), supplierController.updateSupplier);
@@ -90,6 +97,7 @@ router.delete(
 
 router.get('/inventory/suppliers/:id/items', requireRole(...READ), supplierController.listItems);
 router.post('/inventory/suppliers/:id/items', requireRole(SM), supplierController.addItem);
+router.get('/inventory/suppliers/:id/catalog-summary', requireRole(...READ), supplierController.getCatalogSummary);
 router.get('/inventory/suppliers/:id/pack-mismatches', requireRole(...READ), supplierController.listPackMismatches);
 router.put('/inventory/suppliers/:id/items/:itemId', requireRole(SM), supplierController.putItem);
 router.delete('/inventory/suppliers/:id/items/:itemId', requireRole(SM), supplierController.deleteItem);
@@ -110,6 +118,12 @@ router.delete('/inventory/suppliers/:id/documents/:docId', requireRole(SM), supp
 
 // ── Restock levels ───────────────────────────────────────────────────────
 
+// Registered before any `/:id`-style route so "summary" is never read as an id.
+router.get(
+  '/inventory/restock-levels/summary',
+  allowDepartmentHead(requireRole('STORE_MANAGER')),
+  inventoryController.getRestockLevelsSummary,
+);
 router.get(
   '/inventory/restock-levels',
   allowDepartmentHead(requireRole('STORE_MANAGER')),

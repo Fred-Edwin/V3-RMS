@@ -238,6 +238,17 @@ export const supplierController = {
 
   // ── Summary ──────────────────────────────────────────────────────────────
 
+  getListSummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    res.status(200).json({ success: true, data: await supplierService.getListSummary(actor) });
+  },
+
+  getCatalogSummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = SupplierIdParamSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await supplierService.getCatalogSummary(actor, id) });
+  },
+
   getSummary: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = SupplierIdParamSchema.parse(req.params);
