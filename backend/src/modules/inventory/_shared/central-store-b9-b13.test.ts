@@ -246,6 +246,23 @@ describe('B10 restock scope', () => {
     await expect(inventoryService.listRestockLevels(storeManager, {})).rejects.toThrow(ValidationError);
   });
 
+  it('a Branch Manager on a branch org can READ the Central Store levels but never change them (D-15 read-only exception)', async () => {
+    const branchManager = { id: 'bm1', role: 'MANAGER' as const, organizationId: townOrgId };
+    vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([]);
+    await expect(inventoryService.listRestockLevels(branchManager, { scope: 'CENTRAL_STORE' })).resolves.toEqual([]);
+    await expect(inventoryService.saveRestockLevels(branchManager, { ...save, scope: 'CENTRAL_STORE' })).rejects.toThrow(ForbiddenError);
+    expect(restockLevelRepository.bulkUpsert).not.toHaveBeenCalled();
+  });
+
+  it('the System Admin has no organization and still reads and writes the Central Store levels', async () => {
+    const admin = { id: 'adm1', role: 'SYSTEM_ADMIN' as const, organizationId: null };
+    vi.mocked(inventoryItemRepository.findLiveByIds).mockResolvedValue([buildItem()] as never);
+    vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([]);
+    await expect(inventoryService.listRestockLevels(admin as never, { scope: 'CENTRAL_STORE' })).resolves.toEqual([]);
+    await inventoryService.saveRestockLevels(admin as never, { ...save, scope: 'CENTRAL_STORE' });
+    expect(restockLevelRepository.bulkUpsert).toHaveBeenCalledWith(hubOrgId, centralStoreId, 'adm1', expect.anything(), undefined);
+  });
+
   it('a department head stays limited to their own department: any scope, branch or location is 403', async () => {
     await expect(inventoryService.listRestockLevels(kitchenHead, { scope: 'KITCHEN', branchId: townOrgId })).rejects.toThrow(ForbiddenError);
     await expect(inventoryService.listRestockLevels(kitchenHead, { scope: 'CENTRAL_STORE' })).rejects.toThrow(ForbiddenError);
@@ -392,8 +409,8 @@ const MONEY_KEYS = ['currentCost', 'centralStoreRestockLevel', 'preferredSupplie
 describe('B12 attendant item creation', () => {
   const base = { name: 'Tin of tomatoes', buyUnit: 'tin', usageUnit: 'g', conversionFactor: '400', packSize: null, departmentTags: [] as never[] };
 
-  it('the route is open to the Store Manager and the attendant only', () => {
-    expect(allowedRoles('post', '/inventory/items')).toEqual(['STORE_ATTENDANT', 'STORE_MANAGER']);
+  it('the route is open to the Store Manager, the System Admin and the attendant only', () => {
+    expect(allowedRoles('post', '/inventory/items')).toEqual(['STORE_ATTENDANT', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
   });
 
   it.each(['RAW_INGREDIENT', 'STOCKED'] as const)('lets the attendant create a %s item and returns a money-blind response', async (type) => {
@@ -509,8 +526,8 @@ describe('B13 review-a-change counts', () => {
     expect(itemChangeReviewRepository.counts).not.toHaveBeenCalled();
   });
 
-  it('the route is Store Manager only', () => {
-    expect(allowedRoles('get', '/inventory/items/:id/change-review')).toEqual(['STORE_MANAGER']);
+  it('the route is for whoever can change the catalog', () => {
+    expect(allowedRoles('get', '/inventory/items/:id/change-review')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN']);
   });
 });
 
@@ -543,15 +560,16 @@ function allowedRoles(method: string, path: string): string[] {
 }
 
 describe('route role matrix', () => {
-  it('new supplier strips are Store Manager, Accountant and Director only; the attendant is out', () => {
-    expect(allowedRoles('get', '/inventory/suppliers/summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER']);
-    expect(allowedRoles('get', '/inventory/suppliers/:id/catalog-summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER']);
+  it('new supplier strips are for every desktop role; the attendant is out', () => {
+    expect(allowedRoles('get', '/inventory/suppliers/summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
+    expect(allowedRoles('get', '/inventory/suppliers/:id/catalog-summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
   });
 
-  it('item history and the restock history / put back are Store Manager routes (a department head passes through allowDepartmentHead)', () => {
-    expect(allowedRoles('get', '/inventory/items/:id/history')).toEqual(['STORE_MANAGER']);
-    expect(allowedRoles('get', '/inventory/restock-levels/history')).toEqual(['STORE_MANAGER']);
-    expect(allowedRoles('post', '/inventory/restock-levels/changes/:id/put-back')).toEqual(['STORE_MANAGER']);
+  it('item history and restock history are for every desktop role; put back is for who can change levels (a department head passes through allowDepartmentHead)', () => {
+    // Item history names prices, so the attendant is out of it.
+    expect(allowedRoles('get', '/inventory/items/:id/history')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
+    expect(allowedRoles('get', '/inventory/restock-levels/history')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']);
+    expect(allowedRoles('post', '/inventory/restock-levels/changes/:id/put-back')).toEqual(['STORE_MANAGER', 'SYSTEM_ADMIN']);
   });
 
   it('"summary" is registered before "/:id" so it is never read as a supplier id', () => {

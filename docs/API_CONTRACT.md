@@ -4963,3 +4963,16 @@ Sources: `inventory_item_changes` (Catalog), `supplier_audit_logs` and supplier 
 `restock_level_changes` (Restock levels: the Central Store, and every branch department the hub's branches own). Every read is filtered by
 organization: the hub for the first three, the hub and its active branches for restock changes.
 
+### 30.13 Central Store access (Session 7 roles pass, owner-approved 3 Oct 2026)
+
+Every role list in §27–§30 and §22 (suppliers, catalog, restock levels, what we owe, the audit log) is now a **capability** check against one table
+(`backend/src/modules/inventory/_shared/central-store-access.ts`). The role lists written in the tables above describe the **old** access; the rule now:
+
+- Every desktop role (Store Manager, Accountant, Director, Branch Manager, System Admin) **reads** every Central Store endpoint above, except supplier payment details, which the Branch Manager does not get (`403` on `…/payment-methods*`; the supplier detail returns `paymentMethods: []` and `paymentMethodCount`).
+- **Writes:** Store Manager and System Admin write the catalog, restock levels and suppliers; the Accountant also records supplier invoices, payments, adjustments, payment methods and documents (`POST /supplier-invoices` is now Accountant, Store Manager, System Admin); the Director and Branch Manager write nothing.
+- The Store Attendant: `GET /items`, `GET /items/:id` (price-free), `POST /items` (§29.4), `GET /suppliers` (stripped), `POST /suppliers/quick`. Nothing else. Item history and the change-review are not theirs.
+- A department head's `GET /items` is price-free, like the attendant's.
+- Hub rule (D-15): reads are open to any role holding `central_store.read_any_org` from outside the hub; writes need the hub organization, except the System Admin (no organization).
+- `GET /inventory/permissions/me` (any signed-in user) → `{role, isDepartmentHead, capabilities[]}`: the capabilities that role holds. The front end uses it for the sidebar, the page gate and every Edit/Add/Record button.
+- Supplier detail gains `paymentMethodCount` (additive).
+

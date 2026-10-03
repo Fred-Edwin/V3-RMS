@@ -52,7 +52,7 @@ const VERDICT_TEXT: Record<SuggestionVerdict, string> = {
  * The suggestion cell. The figure is a button: tapping it puts the suggestion in the level field.
  * The second line names the days of cover the suggestion used: the item's own, or 15 (§30.8).
  */
-function SuggestionCell({ row, typed, onUse }: { row: RestockLevelRow; typed: number | null; onUse: () => void }) {
+function SuggestionCell({ row, typed, onUse, readOnly }: { row: RestockLevelRow; typed: number | null; onUse: () => void; readOnly: boolean }) {
   const suggested = levelNumber(row.suggestedLevel);
   if (suggested === null) {
     return (
@@ -62,7 +62,7 @@ function SuggestionCell({ row, typed, onUse }: { row: RestockLevelRow; typed: nu
     );
   }
   const verdict = suggestionVerdict(levelNumber(row.level), typed, suggested);
-  const usable = verdict !== 'APPLIED' && verdict !== 'MATCHES';
+  const usable = !readOnly && verdict !== 'APPLIED' && verdict !== 'MATCHES';
   const figure = `${formatNumber(suggested)} ${row.usageUnit}`;
   return (
     <span className="flex w-[290px] shrink-0 flex-col gap-0.5 pl-6">
@@ -95,6 +95,8 @@ export interface RestockTableProps {
   onLevelChange: (inventoryItemId: string, text: string) => void;
   /** An item's name opens its change history. */
   onOpenHistory: (row: RestockLevelRow) => void;
+  /** The reader may look but not change: levels show as plain figures and the suggestion is not a button. */
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -102,7 +104,7 @@ export interface RestockTableProps {
  * Restock levels table — Paper step 11. An ink rule under the header, 54px rows. A changed row is tinted
  * and its field carries the saved level ("150 →") and the selected edge, so a change reads at a glance.
  */
-export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, className }: RestockTableProps) {
+export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, readOnly = false, className }: RestockTableProps) {
   return (
     <div role="table" aria-label="Restock levels" className={cn('min-w-[1020px] border border-wds-border bg-white', className)}>
       <div role="row" className="flex h-[34px] items-center border-b border-wds-text-ink px-4">
@@ -162,6 +164,11 @@ export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, classN
               {changed ? (
                 <span className="font-wds-mono text-[12px] leading-4 text-wds-text-faint">{saved === null ? 'none' : formatNumber(saved)} →</span>
               ) : null}
+              {readOnly ? (
+                <span className="flex h-8 w-[84px] shrink-0 items-center justify-center font-wds-mono text-[13px] leading-4 text-wds-text-ink">
+                  {row.level === null ? '—' : formatNumber(row.level)}
+                </span>
+              ) : (
               <input
                 type="text"
                 inputMode="decimal"
@@ -179,6 +186,7 @@ export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, classN
                   invalid ? 'border-wds-error-fg focus-visible:border-wds-error-fg focus-visible:shadow-[0_0_0_1px_var(--wds-error-fg)]' : changed ? 'border-[1.5px] border-wds-selected-edge font-semibold' : 'border-wds-border-strong'
                 )}
               />
+              )}
               {invalid ? (
                 <span id={errorId} className="sr-only">
                   {parsed.message}
@@ -186,7 +194,7 @@ export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, classN
               ) : null}
             </span>
             <span role="cell" className="contents">
-              <SuggestionCell row={row} typed={typed} onUse={() => onLevelChange(id, levelText(row.suggestedLevel))} />
+              <SuggestionCell row={row} typed={typed} readOnly={readOnly} onUse={() => onLevelChange(id, levelText(row.suggestedLevel))} />
             </span>
           </div>
         );

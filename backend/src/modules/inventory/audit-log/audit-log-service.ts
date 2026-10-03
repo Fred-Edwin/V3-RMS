@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { branchRepository } from '../../../repositories/branch-repository';
-import { ForbiddenError, ValidationError } from '../../../utils/errors';
+import { requireHubReader } from '../_shared/central-store-access';
 import { describeItemChange, describeRestockChange, describeSupplierAudit, describeSupplierCreated, auditReason } from './audit-log-describe';
 import { auditLogRepository, type Scope } from './audit-log-repository';
 import type { AuditArea, AuditEntry, AuditLogPage } from './audit-log.types';
@@ -26,11 +26,9 @@ const idOf = (after: Record<string, unknown> | null, before: Record<string, unkn
 };
 
 const requireScope = async (actor: Actor): Promise<Scope> => {
-  const hub = await branchRepository.findHub();
-  if (!hub) throw new ValidationError('No hub organization is configured');
-  if (actor.organizationId !== hub.id) throw new ForbiddenError('Only the hub organization may read the Central Store audit log');
+  const hubId = await requireHubReader(actor);
   const branches = await branchRepository.findActiveBranchOptions();
-  return { hubId: hub.id, restockOrgIds: [hub.id, ...branches.map((b) => b.id)] };
+  return { hubId, restockOrgIds: [hubId, ...branches.map((b) => b.id)] };
 };
 
 /**

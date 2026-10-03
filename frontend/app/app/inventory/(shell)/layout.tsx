@@ -31,6 +31,7 @@ function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/inventory/prep')) return 'prep';
   // Discrepancies live under Dispatch (resolved from the dispatch queue).
   if (pathname.startsWith('/app/inventory/dispatch') || pathname.startsWith('/app/inventory/discrepancies')) return 'dispatch';
+  if (pathname.startsWith('/app/inventory/stock/restock-levels')) return 'restock-levels';
   if (pathname.startsWith('/app/inventory/stock')) return 'stock-counts';
   if (pathname.startsWith('/app/inventory/settings')) return 'settings';
   if (pathname.startsWith('/app/inventory/audit-log')) return 'audit-log';
@@ -39,7 +40,7 @@ function activeKeyFromPathname(pathname: string): string {
 
 /** Stock & counts sub-link for the rail (`1BI5-0`); undefined outside that area. */
 function activeSubKeyFromPathname(pathname: string): string | undefined {
-  if (!pathname.startsWith('/app/inventory/stock')) return undefined;
+  if (!pathname.startsWith('/app/inventory/stock') || pathname.startsWith('/app/inventory/stock/restock-levels')) return undefined;
   if (pathname.startsWith('/app/inventory/stock/items')) return 'items';
   if (pathname.startsWith('/app/inventory/stock/ledger')) return 'ledger';
   if (pathname.startsWith('/app/inventory/stock/daily-count') || pathname.startsWith('/app/inventory/stock/counts')) return 'daily-count';

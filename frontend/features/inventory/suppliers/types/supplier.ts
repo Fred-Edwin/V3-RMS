@@ -85,6 +85,8 @@ export interface SupplierDetail extends Omit<SupplierListRow, 'profileDone' | 'o
   creditLimit: string | null;
   contacts: SupplierContact[];
   paymentMethods: SupplierPayMethod[];
+  /** How many payment methods are on file, even when this reader may not see them (the profile checklist uses it). */
+  paymentMethodCount: number;
   createdBy: { id: string; name: string } | null;
   updatedBy: { id: string; name: string } | null;
 }

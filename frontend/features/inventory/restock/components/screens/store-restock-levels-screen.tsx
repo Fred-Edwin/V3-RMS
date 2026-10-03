@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui2/skeleton';
 import { Topbar } from '@/components/app/shell/topbar';
 import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useAuthStore } from '@/store/authStore';
+import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { useWdsToastStore } from '@/store/wdsToastStore';
 import { useRestockBranches } from '../../hooks/use-restock-branches';
 import { useRestockLevelsPage } from '../../hooks/use-restock-levels-page';
@@ -78,13 +78,15 @@ function emptyCopy(opts: { search: string; strip: StripFilter | null; tab: Resto
  */
 export function StoreRestockLevelsScreen() {
   const { hydrated } = useMediaQuery('(min-width: 1024px)');
-  const role = useAuthStore((s) => s.role);
-  const isManager = role === 'STORE_MANAGER';
+  const { can, ready } = usePermissions();
+  /** Who may look at the levels, and who may change them (the server's permissions table). */
+  const canRead = can('restock.read');
+  const canEdit = can('restock.write');
   const addToast = useWdsToastStore((s) => s.addToast);
 
   const [scope, setScope] = React.useState<RestockScope>('CENTRAL_STORE');
   const [chosenBranchId, setChosenBranchId] = React.useState<string | null>(null);
-  const { branches, status: branchesStatus, reload: reloadBranches } = useRestockBranches(isManager);
+  const { branches, status: branchesStatus, reload: reloadBranches } = useRestockBranches(canRead);
   const branchId = scope === 'CENTRAL_STORE' ? null : (chosenBranchId ?? branches[0]?.id ?? null);
   const whoseLabel =
     scope === 'CENTRAL_STORE' ? 'Central Store' : `${scopeLabel(scope)} · ${branches.find((b) => b.id === branchId)?.name ?? '…'}`;
@@ -95,7 +97,7 @@ export function StoreRestockLevelsScreen() {
   const [tab, setTab] = React.useState<RestockTab>('LOW_OUT_FIRST');
   const [strip, setStrip] = React.useState<StripFilter | null>(null);
 
-  const page = useRestockLevelsPage(whose, search, isManager);
+  const page = useRestockLevelsPage(whose, search, canRead);
   const { rows, summary, status, error, reload, refresh, edits, setLevelText, changes, invalid, dirty, discard, save, saving, saveError } = page;
   const invalidCount = Object.keys(invalid).length;
 
@@ -153,12 +155,20 @@ export function StoreRestockLevelsScreen() {
 
   const breadcrumb = { root: 'Central Store', section: 'Stock & counts', screen: 'Restock levels', sectionHref: '/app/inventory/stock' };
 
-  if (!isManager) {
+  if (!ready) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (!canRead) {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={breadcrumb} hideSearch className="shrink-0" />
         <div className="flex flex-1 items-center justify-center">
-          <PermissionDeniedState description="Restock levels are set by the Store Manager. Department Heads set their own on their phones." />
+          <PermissionDeniedState description="Restock levels are not available for your role. Department Heads set their own on their phones." />
         </div>
       </div>
     );
@@ -206,7 +216,7 @@ export function StoreRestockLevelsScreen() {
         className="mx-auto"
       />
     ) : (
-      <RestockTable rows={rowsShown} edits={edits} onLevelChange={setLevelText} onOpenHistory={openItemHistory} />
+      <RestockTable rows={rowsShown} edits={edits} onLevelChange={setLevelText} onOpenHistory={openItemHistory} readOnly={!canEdit} />
     );
 
   return (
@@ -282,7 +292,7 @@ export function StoreRestockLevelsScreen() {
       ) : null}
 
       <ReviewDialog open={reviewOpen} onOpenChange={setReviewOpen} changes={changes} saving={saving} saveError={saveError} onSave={(note) => void handleSave(note)} />
-      <RestockHistoryDrawer request={history} onClose={() => setHistory(null)} onPutBack={() => void refresh()} />
+      <RestockHistoryDrawer request={history} onClose={() => setHistory(null)} onPutBack={() => void refresh()} readOnly={!canEdit} />
 
       <ConfirmDialog
         open={pendingWhose !== null}

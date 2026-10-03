@@ -253,9 +253,11 @@ const allowedRoles = (method: string, path: string): string[] => {
   }).sort();
 };
 
-const SM = ['STORE_MANAGER'];
-const READ = ['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER'];
-const SM_ACC = ['ACCOUNTANT', 'STORE_MANAGER'];
+// The Central Store permissions table (central-store-access.ts), written out by hand so a change to it shows up here.
+const SM = ['STORE_MANAGER', 'SYSTEM_ADMIN']; // suppliers.write
+const READ = ['ACCOUNTANT', 'DIRECTOR', 'MANAGER', 'STORE_MANAGER', 'SYSTEM_ADMIN']; // suppliers.read: every desktop role
+const PAY_READ = ['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER', 'SYSTEM_ADMIN']; // suppliers.read_payment_details: not the Branch Manager
+const SM_ACC = ['ACCOUNTANT', 'STORE_MANAGER', 'SYSTEM_ADMIN']; // payment methods and document upload
 const P = '/inventory/suppliers';
 
 describe('suppliers contract — route role matrix (plan §4)', () => {
@@ -271,9 +273,9 @@ describe('suppliers contract — route role matrix (plan §4)', () => {
     ['post', `${P}/:id/contacts`, SM],
     ['patch', `${P}/:id/contacts/:cid`, SM],
     ['delete', `${P}/:id/contacts/:cid`, SM],
-    ['get', `${P}/:id/payment-methods`, READ],
-    ['get', `${P}/:id/payment-methods/history`, READ],
-    ['get', `${P}/:id/payment-methods/:pid`, READ],
+    ['get', `${P}/:id/payment-methods`, PAY_READ],
+    ['get', `${P}/:id/payment-methods/history`, PAY_READ],
+    ['get', `${P}/:id/payment-methods/:pid`, PAY_READ],
     ['post', `${P}/:id/payment-methods`, SM_ACC],
     ['patch', `${P}/:id/payment-methods/:pid`, SM_ACC],
     ['delete', `${P}/:id/payment-methods/:pid`, SM_ACC],

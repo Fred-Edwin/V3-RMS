@@ -59,7 +59,15 @@ import type {
   UpdateGoodsReceiptInput,
 } from './receiving.types';
 
+import { actorCan, requireHubActor as requireCentralStoreActor, requireHubReader, type Capability } from '../_shared/central-store-access';
+
 type Actor = NonNullable<Request['user']>;
+
+/** What we owe: the guards for the supplier-AP functions, which the supplier page also uses. Everything else here keeps its own check until Purchasing is rebuilt. */
+const requirePayablesWriter = async (actor: Actor, capability: Capability): Promise<string> => {
+  if (!actorCan(actor, capability)) throw new ForbiddenError('You cannot do this');
+  return requireCentralStoreActor(actor);
+};
 
 /** Same D-15 hub-org guard Milestone One's service uses — Central Store data lives only on the hub org. */
 const requireHubActor = async (actor: Actor): Promise<string> => {
@@ -1203,7 +1211,8 @@ export const receivingService = {
   // ── What we owe (Supplier AP) — S7 ───────────────────────────────────────
 
   getApSummary: async (actor: Actor): Promise<ApSummary> => {
-    const organizationId = await requireHubActor(actor);
+    if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
+    const organizationId = await requireHubReader(actor);
     const invoices = await supplierInvoiceRepository.findAllByOrganization(organizationId);
     const supplierIds = new Set(invoices.map((i) => i.supplierId));
 
@@ -1245,7 +1254,8 @@ export const receivingService = {
    * bare-array list endpoints (`use-purchasing-history-list.ts`).
    */
   listSupplierAp: async (actor: Actor, query: ListSupplierApQuery): Promise<SupplierApRow[]> => {
-    const organizationId = await requireHubActor(actor);
+    if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
+    const organizationId = await requireHubReader(actor);
     const now = new Date();
 
     const suppliers = await supplierApRepository.findSuppliersWithInvoices(organizationId, {
@@ -1291,7 +1301,8 @@ export const receivingService = {
    * — no new query.
    */
   getSupplierApDetail: async (actor: Actor, supplierId: string): Promise<SupplierApDetail> => {
-    const organizationId = await requireHubActor(actor);
+    if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
+    const organizationId = await requireHubReader(actor);
     const supplierRow = await supplierRepository.findById(supplierId, organizationId);
     if (!supplierRow) throw new NotFoundError('Supplier not found');
     const supplierForAp: SupplierForAp = {
@@ -1327,7 +1338,7 @@ export const receivingService = {
     actor: Actor,
     input: CreateSupplierInvoiceContractInput,
   ): Promise<SupplierInvoice> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requirePayablesWriter(actor, 'payables.record_invoice');
 
     const supplier = await supplierRepository.findById(input.supplierId, organizationId);
     if (!supplier) throw new NotFoundError('Supplier not found');
@@ -1393,7 +1404,7 @@ export const receivingService = {
     invoiceId: string,
     input: CreateInvoiceAdjustmentInput,
   ): Promise<SupplierInvoice> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
     const invoice = await supplierInvoiceRepository.findById(invoiceId, organizationId);
     if (!invoice) throw new NotFoundError('Supplier invoice not found');
 
@@ -1422,7 +1433,7 @@ export const receivingService = {
     actor: Actor,
     input: CreateSupplierPaymentContractInput,
   ): Promise<SupplierPaymentCreated> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
 
     const supplier = await supplierRepository.findById(input.supplierId, organizationId);
     if (!supplier) throw new NotFoundError('Supplier not found');
@@ -1491,7 +1502,7 @@ export const receivingService = {
     paymentId: string,
     input: ReverseSupplierPaymentInput,
   ): Promise<SupplierPayment> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
     const payment = await supplierPaymentRepository.findById(paymentId, organizationId);
     if (!payment) throw new NotFoundError('Supplier payment not found');
     if (payment.reversalOfId !== null) {

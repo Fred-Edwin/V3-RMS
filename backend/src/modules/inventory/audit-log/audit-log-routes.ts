@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../../../middleware/authenticate';
-import { requireRole } from '../../../middleware/rbac';
+import { requireCapability } from '../_shared/central-store-access';
 import { auditLogController } from './audit-log-controller';
 
 const router = Router();
 
 router.use(authenticate);
 
-// Read-only. The Store Manager makes the changes; the Accountant and Director read them.
-router.get('/inventory/audit-log', requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'), auditLogController.list);
+// Read-only. Every desktop role reads it (central-store-access.ts).
+router.get('/inventory/audit-log', requireCapability('audit.read'), auditLogController.list);
 
 export default router;

@@ -118,6 +118,8 @@ export const serializeSupplierDetail = (supplier: SupplierDetailRow, includePaym
   creditLimit: supplier.creditLimit ? supplier.creditLimit.toString() : null,
   contacts: supplier.contacts.map(serializeContact),
   paymentMethods: includePaymentMethods ? supplier.payMethods.map(serializePayMethod) : [],
+  /** How many payment methods are on file, for the profile checklist, even when the methods themselves are hidden from this reader. */
+  paymentMethodCount: supplier.payMethods.length,
   createdBy: supplier.createdBy,
   updatedBy: supplier.updatedBy,
 });

@@ -17,7 +17,7 @@ import { useLoader } from '../../_shared/hooks/use-async';
  * page's error); the tabs' data each have their own status, so one failing tab does not take the others down.
  * The counts on the tab labels come from the same data the tabs show.
  */
-export function useSupplierPage(supplierId: string | null) {
+export function useSupplierPage(supplierId: string | null, can: { paymentDetails: boolean; payables: boolean } = { paymentDetails: true, payables: true }) {
   const detail = useLoader(supplierId, () => getSupplierDetail(supplierId as string), 'Could not load this supplier.');
   const ready = detail.status === 'ready' ? supplierId : null;
   const catalog = useLoader(ready, () => listSupplierCatalog(ready as string), 'Could not load what this supplier sells.');
@@ -25,8 +25,9 @@ export function useSupplierPage(supplierId: string | null) {
   const mismatches = useLoader(ready, () => listSupplierPackMismatches(ready as string), 'Could not load the pack check.');
   const documents = useLoader(ready, () => listSupplierDocuments(ready as string), 'Could not load the documents.');
   const summary = useLoader(ready, () => getSupplierSummary(ready as string), 'Could not load the purchase numbers.');
-  const owing = useLoader(ready, () => getSupplierApDetail(ready as string), 'Could not load what we owe.');
-  const history = useLoader(ready, () => listSupplierPayMethodHistory(ready as string), 'Could not load the change history.');
+  // Only the roles that may see them: what we owe, and the history of payment-detail changes.
+  const owing = useLoader(can.payables ? ready : null, () => getSupplierApDetail(ready as string), 'Could not load what we owe.');
+  const history = useLoader(can.paymentDetails ? ready : null, () => listSupplierPayMethodHistory(ready as string), 'Could not load the change history.');
 
   const { reload: reloadDetail } = detail;
   const { reload: reloadCatalog } = catalog;

@@ -250,6 +250,56 @@ describe('supplierService — updating the address', () => {
   });
 });
 
+describe('supplierService — who may do what (the Central Store permissions table)', () => {
+  const branchManager = { id: 'bm1', role: 'MANAGER' as never, organizationId: otherOrgId };
+  const systemAdmin = { id: 'adm1', role: 'SYSTEM_ADMIN' as never, organizationId: null };
+
+  it('lets the Branch Manager read a supplier from a branch, without its payment methods', async () => {
+    const detail = (await supplierService.getSupplierById(branchManager, supplierId)) as { paymentMethods: unknown[]; paymentMethodCount: number; name: string };
+    expect(detail.name).toBe('Samrat Supermarket Ltd');
+    expect(detail.paymentMethods).toEqual([]);
+    // The checklist still knows a method is on file.
+    expect(detail.paymentMethodCount).toBe(1);
+    expect(supplierRepository.findDetailById).toHaveBeenCalledWith(supplierId, hubOrgId);
+  });
+
+  it('keeps payment details, the change history and every write from the Branch Manager', async () => {
+    await expect(supplierService.listPayMethods(branchManager, supplierId)).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.getPayMethod(branchManager, supplierId, methodId)).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.listPayMethodHistory(branchManager, supplierId)).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.updateSupplier(branchManager, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.updateStatus(branchManager, supplierId, { status: 'ON_HOLD' })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.createPayMethod(branchManager, supplierId, { type: 'CASH', reason: 'x' } as never)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('shows the Director payment details but lets the Director change nothing', async () => {
+    vi.mocked(supplierPayMethodRepository.list).mockResolvedValue([buildPayMethod()] as never);
+    await expect(supplierService.listPayMethods(director, supplierId)).resolves.toHaveLength(1);
+    await expect(supplierService.updateSupplier(director, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.createPayMethod(director, supplierId, { type: 'CASH', reason: 'x' } as never)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('keeps the Accountant to the money jobs: payment methods yes, the supplier profile no', async () => {
+    await expect(supplierService.updateSupplier(accountant, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.deleteDocument(accountant, supplierId, 'doc')).rejects.toThrow(ForbiddenError);
+  });
+
+  it('lets the System Admin, who belongs to no organization, change a hub supplier', async () => {
+    await supplierService.updateSupplier(systemAdmin, supplierId, { address: 'Karatina' });
+    expect(supplierRepository.update).toHaveBeenCalledWith(supplierId, hubOrgId, expect.objectContaining({ address: 'Karatina', updatedById: 'adm1' }), tx);
+  });
+
+  it('still refuses a Store Manager standing on a branch organization for a write (D-15)', async () => {
+    await expect(supplierService.updateSupplier({ ...storeManager, organizationId: otherOrgId }, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
+  });
+
+  it('gives the attendant only the stripped list and the quick add', async () => {
+    await expect(supplierService.getSupplierById(attendant, supplierId)).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.listPayMethods(attendant, supplierId)).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.quickAddSupplier(branchManager, { name: 'X', phone: '0700' })).rejects.toThrow(ForbiddenError);
+  });
+});
+
 describe('supplierService — payment methods', () => {
   const bank = { type: 'BANK_TRANSFER' as const, bankName: 'Equity', accountName: 'Samrat', accountNumber: account };
 

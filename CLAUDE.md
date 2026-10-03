@@ -76,6 +76,13 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 11. The owner runs Omarchy Linux; agents here also run Linux. Give the owner
     and run your own tooling with the same POSIX shell commands — no
     PowerShell, no WSL distinction needed anymore.
+12. Edit files with the Edit and Write tools only — never with Python, sed,
+    awk, or heredoc scripts in Bash. Edit fails loudly when the target text
+    is missing; a script's `replace` fails silently, and Bash edits bypass
+    `/rewind` and the owner's review view.
+13. End every task with a short plain-English recap (about 5 lines): what
+    changed, which files, and how the owner can verify it. The owner does not
+    read full diffs.
 
 ## Task Tracking
 
@@ -183,6 +190,15 @@ Key rule — **Central Store hub-org scoping (D-15):** all Central Store data an
 flagged `isHub` — a company-level unit, never a branch/point of sale). Enforced by
 service guards + a one-Central-Store partial unique index. The hub appears in people
 contexts, never sales contexts. Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
+
+Key rule — **Central Store access (3 Oct 2026):** who may do what is ONE table, role by
+capability, in `backend/src/modules/inventory/_shared/central-store-access.ts`. Every
+desktop role (Store Manager, Accountant, Director, Branch Manager, System Admin) reads every
+Central Store screen; write belongs to whoever does the job; the Branch Manager does not see
+supplier payment details. Use `requireCapability(...)` on routes and `requireHubReader` /
+`requireHubActor` in services; the front end reads the table from `GET /inventory/permissions/me`
+(`usePermissions()`). Never add a new `requireRole(...)` list to a rebuilt Central Store route.
+Details: `docs/features/inventory/decisions.md` ("Access").
 
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`

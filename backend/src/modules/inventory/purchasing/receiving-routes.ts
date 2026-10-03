@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../../../middleware/authenticate';
 import { requireRole } from '../../../middleware/rbac';
+import { requireCapability } from '../_shared/central-store-access';
 import { receivingController } from './receiving-controller';
 
 const router = Router();
@@ -116,37 +117,37 @@ router.post(
 
 router.get(
   '/inventory/ap/summary',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  requireCapability('payables.read'),
   receivingController.getApSummary,
 );
 router.get(
   '/inventory/ap/suppliers',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  requireCapability('payables.read'),
   receivingController.listSupplierAp,
 );
 router.get(
   '/inventory/ap/suppliers/:id',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR'),
+  requireCapability('payables.read'),
   receivingController.getSupplierApDetail,
 );
 router.post(
   '/inventory/supplier-invoices',
-  requireRole('STORE_MANAGER'),
+  requireCapability('payables.record_invoice'),
   receivingController.createSupplierInvoice,
 );
 router.post(
   '/inventory/supplier-invoices/:id/adjustments',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  requireCapability('payables.record_payment'),
   receivingController.createInvoiceAdjustment,
 );
 router.post(
   '/inventory/supplier-payments',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  requireCapability('payables.record_payment'),
   receivingController.createSupplierPayment,
 );
 router.post(
   '/inventory/supplier-payments/:id/reverse',
-  requireRole('STORE_MANAGER', 'ACCOUNTANT'),
+  requireCapability('payables.record_payment'),
   receivingController.reverseSupplierPayment,
 );
 

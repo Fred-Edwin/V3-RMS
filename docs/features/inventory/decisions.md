@@ -40,11 +40,24 @@ Cross-cutting decisions that still apply. Sub-module specific rules live in each
 - Out of scope: non-stock purchases (paint, equipment, repairs). Counted in the store and issued to a department = stock.
 - Restock level suggestion: average daily use over recent days × days of cover; new items show "Needs 14 days of use first". Department Heads change their own levels any time; every change is logged and can be put back.
 
+## Access (owner decision, 3 Oct 2026)
+
+The client has **not** approved the role names or the role-to-screen mapping drawn in Paper, so access is not taken from the design's chapter labels. The rule:
+
+- The **desktop roles** (Store Manager, Accountant, Director, Branch Manager, System Admin) can **read every Central Store screen**. Each has a "Central Store" section in their sidebar.
+- **Write belongs to whoever does that job**: Store Manager and System Admin write the catalog, restock levels, suppliers and orders; the **Accountant** writes supplier invoices, payments, payment methods and supplier documents; the **Director** and **Branch Manager** write nothing here. The System Admin reads and writes everything.
+- **Supplier payment details** (the Payment tab: bank/M-Pesa/cheque details, "Show" account number, change history) are hidden from the **Branch Manager**. Everything else on a supplier, including what we owe, they can read.
+- The **Store Attendant** and **department heads** stay narrow and phone-first: no prices, no suppliers, no audit log. A department head's item list carries no costs.
+- **PIN-signed actions** done by the System Admin are signed with the admin's own PIN, so the audit log names them.
+- The **audit log** shows everyone who did what; it is read by every desktop role and edited by nobody.
+- All of it lives in **one table**, `backend/src/modules/inventory/_shared/central-store-access.ts` (role by capability). Route guards, the page gate and the sidebar read it (the screens through `GET /inventory/permissions/me`). A client change to who can do what is an edit to that table. Screens still on the old flow keep their old role lists until their own rebuild moves them onto it.
+- Phone versions for the desktop roles wait until the rest of the inventory feature is built.
+
 ## Process and tenancy
 
 - Every signed document is printable; printing is never a required step. Signature = PIN re-authentication, name in the signature font.
 - eTIMS/KRA integration: **out of scope**.
-- Central Store hub scoping (D-15): see `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
+- Central Store hub scoping (D-15): see `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`. **Exception (3 Oct 2026):** a role holding `central_store.read_any_org` (Branch Manager, and the other desktop roles) may **read** hub data from outside the hub organization, through one shared guard (`requireHubReader`). Every write still needs the hub organization (`requireHubActor`), except the System Admin, who belongs to no organization and may write to the hub.
 
 ## Open owner decisions
 

@@ -52,6 +52,8 @@ export interface ItemDrawersProps {
   onClose: () => void;
   /** A new item was created: the catalog reloads, highlights it and offers "Add who sells it". */
   onItemCreated: (created: CreatedItem) => void;
+  /** Read-only: the item page opens without Edit, Retire, Restore or Add who sells it (the reader may look, not change). */
+  readOnly?: boolean;
   /** Anything about an item changed (edit, retire, restore, supplier added): reload the list behind. */
   onItemChanged: () => void;
   onCategoriesChanged: () => void;
@@ -79,7 +81,7 @@ function LoadingFrame({ title }: { title: string }) {
  * Add item · Item page · Add who sells it · Edit item · Review the change ·
  * Manage categories.
  */
-export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, onCategoriesChanged, totalItems, onOpenRestockLevels }: ItemDrawersProps) {
+export function ItemDrawers({ readOnly = false, request, onClose, onItemCreated, onItemChanged, onCategoriesChanged, totalItems, onOpenRestockLevels }: ItemDrawersProps) {
   const [view, setView] = React.useState<View>({ kind: 'categories' });
   const open = request !== null;
   const requestKey = request?.key;
@@ -92,7 +94,7 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
   }, [requestKey]);
 
   const itemId = viewItemId(view);
-  const detail = useItemDetail(open ? itemId : null);
+  const detail = useItemDetail(open ? itemId : null, !readOnly);
   const { categories } = useCategoryOptions(open && (view.kind === 'add' || view.kind === 'edit'));
   const suppliers = useSupplierOptions(open && view.kind === 'addSeller');
   const [typedName, setTypedName] = React.useState('');
@@ -152,6 +154,7 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
   } else if (item && detail.review && (view.kind === 'item' || view.kind === 'retire')) {
     content = (
       <ItemDetailView
+        readOnly={readOnly}
         item={item}
         history={detail.history}
         onEdit={() => setView({ kind: 'edit', itemId: item.id })}
