@@ -113,5 +113,13 @@ jobs:
           # Reduced from 30m — server no longer builds anything
           command_timeout: 10m
           script: |
+            # Free disk BEFORE pulling: each image is ~200 MB and a full disk failed deploys on 3 Oct 2026.
+            # Only unused images older than 3 days go; running containers and volumes are never touched.
+            docker image prune -af --filter "until=72h" || true
+            docker builder prune -f || true
+            df -h / | tail -1
             cd ~/wendo-rms
             bash deploy.sh "${{ needs.build.outputs.image_tag }}"
+            # And once more after, so the previous image is not kept longer than needed.
+            docker image prune -f || true
+            df -h / | tail -1
