@@ -176,17 +176,21 @@ function remember(record: Record<string, boolean>): void {
   }
 }
 
+const groupStateKey = (groupKey: string): string => `group:${groupKey}`;
+
 /**
- * Which parent items are open. The item you are in is open by default; the chevron closes or opens any of them, and the
- * choice is remembered for the session. Moving into a section opens it again, whatever was chosen before.
+ * Which groups and parent items are open. A group is open by default; a parent item is open while you are in it. The
+ * chevron closes or opens either, and the choice is remembered for the session. Moving into a section opens it (and its
+ * group) again, whatever was chosen before.
  */
-function useExpandedItems(activeKey: string) {
+function useExpandedItems(activeKey: string, activeGroupKey: string | undefined) {
   const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
+  const activeKeys = React.useMemo(() => [activeKey, ...(activeGroupKey ? [groupStateKey(activeGroupKey)] : [])], [activeKey, activeGroupKey]);
 
   React.useEffect(() => {
     try {
       const raw = sessionStorage.getItem(OPEN_STORAGE_KEY);
-      if (raw) setOverrides(without(JSON.parse(raw) as Record<string, boolean>, activeKey));
+      if (raw) setOverrides(activeKeys.reduce((rest, key) => without(rest, key), JSON.parse(raw) as Record<string, boolean>));
     } catch {
       // Nothing remembered, or storage is blocked: start from the default.
     }
@@ -196,25 +200,71 @@ function useExpandedItems(activeKey: string) {
 
   React.useEffect(() => {
     setOverrides((prev) => {
-      if (!(activeKey in prev)) return prev;
-      const next = without(prev, activeKey);
+      if (!activeKeys.some((key) => key in prev)) return prev;
+      const next = activeKeys.reduce((rest, key) => without(rest, key), prev);
       remember(next);
       return next;
     });
-  }, [activeKey]);
+  }, [activeKeys]);
 
-  const isExpanded = React.useCallback((key: string): boolean => overrides[key] ?? key === activeKey, [overrides, activeKey]);
-  const toggle = React.useCallback(
-    (key: string): void => {
-      setOverrides((prev) => {
-        const next = { ...prev, [key]: !(prev[key] ?? key === activeKey) };
-        remember(next);
-        return next;
-      });
-    },
-    [activeKey]
-  );
+  const isExpanded = React.useCallback((key: string, defaultOpen: boolean): boolean => overrides[key] ?? defaultOpen, [overrides]);
+  const toggle = React.useCallback((key: string, defaultOpen: boolean): void => {
+    setOverrides((prev) => {
+      const next = { ...prev, [key]: !(prev[key] ?? defaultOpen) };
+      remember(next);
+      return next;
+    });
+  }, []);
   return { isExpanded, toggle };
+}
+
+/**
+ * The spine of a group and the branch that leaves it for one item (file-tree style, drawn like the Stock & counts rail
+ * `1BI5-0`): a caramel line down the left, a faint tick into every item but the last, and a rounded corner into the last.
+ * The first branch also covers the small gap under the group label so the line starts at the label. It wraps the item and
+ * its own sub-links, so the spine runs past an open parent.
+ */
+function TreeBranch({ first, last, children }: { first: boolean; last: boolean; children: React.ReactNode }) {
+  return (
+    <div className={cn('relative pl-[22px]', first && 'pt-1.5')}>
+      {last ? (
+        <span
+          aria-hidden
+          className={cn('pointer-events-none absolute left-[11px] top-0 w-3.5 rounded-bl-[8px] border-b border-l border-wds-caramel-500', first ? 'h-[22px]' : 'h-4')}
+        />
+      ) : (
+        <>
+          <span aria-hidden className="pointer-events-none absolute bottom-0 left-[11px] top-0 w-px bg-wds-caramel-500" />
+          <span aria-hidden className={cn('pointer-events-none absolute left-3 h-px w-3 bg-wds-caramel-500 opacity-[0.32]', first ? 'top-[22px]' : 'top-4')} />
+        </>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** The group label, which is also the button that opens and closes the whole group. */
+function GroupHeader({ label, expanded, controlsId, onToggle, className }: { label: string; expanded: boolean; controlsId: string; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-controls={controlsId}
+      className={cn('flex w-full items-center justify-between rounded-wds-sm px-wds-2.5 text-left outline-none transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring', className)}
+    >
+      <span className="font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">{label}</span>
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        aria-hidden
+        className={cn('shrink-0 text-wds-sidebar-fg-muted transition-transform duration-200 ease-out motion-reduce:transition-none', expanded && 'rotate-90')}
+      >
+        <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
 }
 
 const SUB_ROW_HEIGHT = 26;
@@ -318,7 +368,8 @@ export function SidebarNav({
   onSignOut,
   className,
 }: SidebarNavProps) {
-  const { isExpanded, toggle } = useExpandedItems(activeKey);
+  const activeGroupKey = groups.find((g) => g.items.some((i) => i.key === activeKey))?.key;
+  const { isExpanded, toggle } = useExpandedItems(activeKey, activeGroupKey);
   return (
     <nav
       className={cn(
@@ -340,49 +391,63 @@ export function SidebarNav({
       </div>
 
       <div className="flex flex-col gap-px overflow-y-auto overflow-x-hidden px-wds-2.5 py-wds-3.5">
-        {groups.map((group, i) => (
-          <React.Fragment key={group.key}>
-            <div className={cn('px-wds-2.5 pb-1.5', i === 0 ? 'pt-2' : 'pt-4')}>
-              <span className="font-wds-mono text-wds-overline text-wds-sidebar-fg-muted">
-                {group.label}
-              </span>
-            </div>
-            {group.items.map((item) => {
-              const hasSubItems = Boolean(item.subItems?.length);
-              const expanded = hasSubItems && isExpanded(item.key);
-              const controlsId = `sidebar-sub-${item.key}`;
-              return (
-                <React.Fragment key={item.key}>
-                  <DesktopNavItem
-                    item={item}
-                    active={item.key === activeKey}
-                    onNavigate={onNavigate}
-                    toggle={hasSubItems ? { expanded, controlsId, onToggle: () => toggle(item.key) } : undefined}
-                  />
-                  {hasSubItems && item.subItems ? (
-                    // Slides open and shut (200ms, ease-out). Shut, it is invisible, so keyboard focus skips its links.
-                    <div
-                      id={controlsId}
-                      aria-hidden={!expanded}
-                      className={cn(
-                        'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
-                        expanded ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
-                      )}
-                    >
-                      <div className="min-h-0 overflow-hidden">
-                        <SubLinkRail
-                          items={item.subItems}
-                          activeSubKey={item.key === activeKey ? activeSubKey : undefined}
-                          onNavigate={onNavigate ? (href, e) => onNavigate({ ...item, href }, e) : undefined}
+        {groups.map((group, i) => {
+          const groupKey = groupStateKey(group.key);
+          const groupOpen = isExpanded(groupKey, true);
+          const groupId = `sidebar-group-${group.key}`;
+          return (
+            <React.Fragment key={group.key}>
+              <div className={i === 0 ? 'pt-2' : 'pt-4'}>
+                <GroupHeader label={group.label} expanded={groupOpen} controlsId={groupId} onToggle={() => toggle(groupKey, true)} className="h-6" />
+              </div>
+              {/* The group: a spine from its label with a branch to each item. Slides open and shut like the sub-links; shut, it is invisible, so keyboard focus skips it. */}
+              <div
+                id={groupId}
+                aria-hidden={!groupOpen}
+                className={cn(
+                  'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+                  groupOpen ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {group.items.map((item, itemIndex) => {
+                    const hasSubItems = Boolean(item.subItems?.length);
+                    const expanded = hasSubItems && isExpanded(item.key, item.key === activeKey);
+                    const controlsId = `sidebar-sub-${item.key}`;
+                    return (
+                      <TreeBranch key={item.key} first={itemIndex === 0} last={itemIndex === group.items.length - 1}>
+                        <DesktopNavItem
+                          item={item}
+                          active={item.key === activeKey}
+                          onNavigate={onNavigate}
+                          toggle={hasSubItems ? { expanded, controlsId, onToggle: () => toggle(item.key, item.key === activeKey) } : undefined}
                         />
-                      </div>
-                    </div>
-                  ) : null}
-                </React.Fragment>
-              );
-            })}
-          </React.Fragment>
-        ))}
+                        {hasSubItems && item.subItems ? (
+                          <div
+                            id={controlsId}
+                            aria-hidden={!expanded}
+                            className={cn(
+                              'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+                              expanded ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
+                            )}
+                          >
+                            <div className="min-h-0 overflow-hidden">
+                              <SubLinkRail
+                                items={item.subItems}
+                                activeSubKey={item.key === activeKey ? activeSubKey : undefined}
+                                onNavigate={onNavigate ? (href, e) => onNavigate({ ...item, href }, e) : undefined}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </TreeBranch>
+                    );
+                  })}
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        })}
       </div>
 
       <div className="mt-auto flex h-[52px] shrink-0 items-center gap-wds-2.5 border-t border-[#38302A] px-wds-4.5">
