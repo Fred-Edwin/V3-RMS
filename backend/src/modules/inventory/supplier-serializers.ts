@@ -139,6 +139,7 @@ export const serializeSupplierItem = (row: SupplierItemRow) => ({
   packSize: row.packSize ? row.packSize.toString() : null,
   lastPrice: row.lastPrice ? row.lastPrice.toString() : null,
   lastPriceAt: row.lastPriceAt ? row.lastPriceAt.toISOString() : null,
+  lastPriceSetBy: row.lastPriceSetBy,
   isPreferred: row.isPreferred,
   preferredNeedsConfirm: row.preferredNeedsConfirm,
 });
@@ -155,6 +156,7 @@ export const serializeItemSupplierLine = (row: SupplierItemWithSupplier) => ({
   packSize: row.packSize ? row.packSize.toString() : null,
   lastPrice: row.lastPrice ? row.lastPrice.toString() : null,
   lastPriceAt: row.lastPriceAt ? row.lastPriceAt.toISOString() : null,
+  lastPriceSetBy: row.lastPriceSetBy,
   isPreferred: row.isPreferred,
   preferredNeedsConfirm: row.preferredNeedsConfirm,
 });

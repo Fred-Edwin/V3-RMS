@@ -73,6 +73,7 @@ export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
   packSize: null,
   lastPrice: new Prisma.Decimal('2025'),
   lastPriceAt: now,
+  lastPriceSetBy: null,
   isPreferred: false,
   preferredNeedsConfirm: false,
   createdAt: now,

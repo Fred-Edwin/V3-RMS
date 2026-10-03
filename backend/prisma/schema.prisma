@@ -186,6 +186,8 @@ model User {
   supplierPayMethodsCreated           SupplierPayMethod[]           @relation("SupplierPayMethodCreatedBy")
   supplierDocumentsUploaded           SupplierDocument[]            @relation("SupplierDocumentUploadedBy")
   supplierAuditEntries                SupplierAuditLog[]            @relation("SupplierAuditActor")
+  inventoryItemChanges                InventoryItemChange[]         @relation("InventoryItemChangedBy")
+  supplierItemPricesSet               SupplierItem[]                @relation("SupplierItemPriceSetBy")
   supplierInvoiceAdjustmentsRecorded  SupplierInvoiceAdjustment[]   @relation("SupplierInvoiceAdjustmentRecordedBy")
   supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
   prepRunsCreated                     PrepRun[]                     @relation("PrepRunCreatedBy")
@@ -1750,6 +1752,7 @@ model InventoryItem {
   branchDayLines         BranchDayLine[]
   departmentOpeningLines DepartmentOpeningLine[]
   supplierItems          SupplierItem[]
+  changes                InventoryItemChange[]
 
   @@index([organizationId])
   @@index([categoryId])
@@ -1807,6 +1810,7 @@ enum SupplierAuditAction {
   STATUS_CHANGED
   PREFERRED_SET
   PREFERRED_CONFIRMED
+  LINE_PRICE_SET
 }
 
 model Supplier {
@@ -1921,13 +1925,16 @@ model SupplierItem {
   packSize              Decimal?  @map("pack_size") @db.Decimal(12, 4)
   lastPrice             Decimal?  @map("last_price") @db.Decimal(12, 4) // per BUY unit
   lastPriceAt           DateTime? @map("last_price_at")
+  // Who set the price by hand (Session 4b). Null = it came from a signed receipt (or is unset); a receipt clears it.
+  lastPriceSetById      String?   @map("last_price_set_by_id")
   isPreferred           Boolean   @default(false) @map("is_preferred")
   preferredNeedsConfirm Boolean   @default(false) @map("preferred_needs_confirm")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  supplier      Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  inventoryItem  InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  lastPriceSetBy User?         @relation("SupplierItemPriceSetBy", fields: [lastPriceSetById], references: [id], onDelete: SetNull)
 
   // Line key (raw SQL, see migration catalog_cheque_and_pack_lines): unique index
   // supplier_items_line_key on (supplier_id, inventory_item_id, COALESCE(buy_unit,''),
@@ -1981,6 +1988,38 @@ model SupplierAuditLog {
 
   @@index([organizationId, supplierId, createdAt])
   @@map("supplier_audit_logs")
+}
+
+enum InventoryItemChangeKind {
+  CREATED
+  UPDATED
+  RETIRED
+  RESTORED
+  SUPPLIER_ADDED
+  SUPPLIER_PRICE_SET
+}
+
+/// Append-only history of what happened to a catalog item (Session 4b): created, edited, retired, restored,
+/// a supplier added, a price set by hand. `summary` is a sentence without the actor ("retired the item").
+/// `before` / `after` hold only the fields that changed. `reason` is optional and never required.
+model InventoryItemChange {
+  id              String                  @id @default(uuid())
+  organizationId  String                  @map("organization_id")
+  inventoryItemId String                  @map("inventory_item_id")
+  kind            InventoryItemChangeKind
+  summary         String
+  before          Json?
+  after           Json?
+  reason          String?
+  changedById     String                  @map("changed_by_id")
+  createdAt       DateTime                @default(now()) @map("created_at")
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  changedBy     User          @relation("InventoryItemChangedBy", fields: [changedById], references: [id])
+
+  @@index([organizationId, inventoryItemId, createdAt])
+  @@index([organizationId, kind, createdAt])
+  @@map("inventory_item_changes")
 }
 
 /// Replaces ParLevel. One per (location, item). Set by whoever owns the stock:

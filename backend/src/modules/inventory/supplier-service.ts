@@ -23,6 +23,8 @@ import { mapPrismaError } from '../../utils/prisma-errors';
 import { socketService } from '../../sockets/socket-service';
 import { fcmService } from '../../services/fcm-service';
 import { goodsReceiptRepository, referenceCounterRepository } from './receiving-repository';
+import { describePriceSet, describeSupplierAdded } from './item-history';
+import { itemChangeRepository } from './item-history-repository';
 import { describePack, matchSupplierLine, sameLineKey } from './supplier-line-key';
 import {
   supplierAuditRepository,
@@ -250,6 +252,92 @@ const applyPreferredChoice = async (
   } else if (isPreferred === false) {
     await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx, lineId);
   }
+};
+
+
+/** What the supplier line history needs to name a line: the supplier, the item, the pack. */
+interface LineContext {
+  organizationId: string;
+  actor: Actor;
+  supplier: { id: string; name: string };
+  item: { id: string; usageUnit: string };
+}
+
+/**
+ * Sets a price by hand on a line (§30.3): the price, when, who; a supplier audit row. Returns false and writes
+ * nothing when the price is unchanged. The item history row is the caller's (a new line says it in
+ * "added … at KES …", an existing line in "set …'s price to …").
+ */
+const setHandPrice = async (
+  ctx: LineContext,
+  line: { id: string; lastPrice: Prisma.Decimal | null },
+  price: string,
+  tx: Prisma.TransactionClient,
+): Promise<boolean> => {
+  if (line.lastPrice && line.lastPrice.equals(price)) return false;
+  await supplierItemRepository.updateLine(
+    line.id,
+    ctx.organizationId,
+    { lastPrice: price, lastPriceAt: new Date(), lastPriceSetById: ctx.actor.id },
+    tx,
+  );
+  await supplierAuditRepository.create(
+    ctx.organizationId,
+    ctx.supplier.id,
+    ctx.actor.id,
+    'LINE_PRICE_SET',
+    line.id,
+    { inventoryItemId: ctx.item.id, lineId: line.id, price: line.lastPrice ? line.lastPrice.toString() : null },
+    { inventoryItemId: ctx.item.id, lineId: line.id, price },
+    tx,
+  );
+  return true;
+};
+
+const lineFacts = (ctx: LineContext, line: { buyUnit: string | null; packSize: Prisma.Decimal | string | null }) => ({
+  supplierName: ctx.supplier.name,
+  buyUnit: line.buyUnit,
+  packSize: line.packSize ? line.packSize.toString() : null,
+  usageUnit: ctx.item.usageUnit,
+});
+
+/** A new line: the optional first price, then one "added …" history row. */
+const recordLineAdded = async (
+  ctx: LineContext,
+  line: { id: string; buyUnit: string | null; packSize: Prisma.Decimal | string | null },
+  price: string | undefined,
+  preferred: boolean,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  if (price !== undefined) await setHandPrice(ctx, { id: line.id, lastPrice: null }, price, tx);
+  await itemChangeRepository.record(tx, {
+    organizationId: ctx.organizationId,
+    inventoryItemId: ctx.item.id,
+    kind: 'SUPPLIER_ADDED',
+    summary: describeSupplierAdded(lineFacts(ctx, line), price ?? null, preferred),
+    after: { supplierId: ctx.supplier.id, lineId: line.id, buyUnit: line.buyUnit, packSize: line.packSize ? line.packSize.toString() : null, price: price ?? null },
+    changedById: ctx.actor.id,
+  });
+};
+
+/** An existing line given a new price by hand. */
+const recordPriceSet = async (
+  ctx: LineContext,
+  line: { id: string; buyUnit: string | null; packSize: Prisma.Decimal | null; lastPrice: Prisma.Decimal | null },
+  price: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> => {
+  if (!(await setHandPrice(ctx, line, price, tx))) return;
+  const previous = line.lastPrice ? line.lastPrice.toString() : null;
+  await itemChangeRepository.record(tx, {
+    organizationId: ctx.organizationId,
+    inventoryItemId: ctx.item.id,
+    kind: 'SUPPLIER_PRICE_SET',
+    summary: describePriceSet(lineFacts(ctx, line), price, previous),
+    before: { lineId: line.id, price: previous },
+    after: { lineId: line.id, price },
+    changedById: ctx.actor.id,
+  });
 };
 
 const createContactRows = async (
@@ -759,6 +847,7 @@ export const supplierService = {
           tx,
         );
         await applyPreferredChoice(organizationId, actor, supplierId, input.inventoryItemId, created.id, input.isPreferred, tx);
+        await recordLineAdded({ organizationId, actor, supplier, item }, created, input.price, input.isPreferred === true, tx);
         return created.id;
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
@@ -787,6 +876,7 @@ export const supplierService = {
     const lineId = await prisma
       .$transaction(async (tx) => {
         let target: SupplierItemRow | null = null;
+        let createdLine = false;
         if (input.lineId) {
           target = await supplierItemRepository.findById(input.lineId, supplierId, inventoryItemId, organizationId, tx);
           if (!target) throw new NotFoundError('Catalog line not found');
@@ -821,6 +911,7 @@ export const supplierService = {
               { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: key.buyUnit, packSize: key.packSize },
               tx,
             );
+            createdLine = true;
           }
         } else {
           const [oldest] = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], organizationId, tx);
@@ -835,9 +926,13 @@ export const supplierService = {
               { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: item.buyUnit, packSize: null },
               tx,
             );
+            createdLine = true;
           }
         }
         if (!target) throw new NotFoundError('Catalog line not found');
+        const lineCtx = { organizationId, actor, supplier, item };
+        if (createdLine) await recordLineAdded(lineCtx, target, input.price, input.isPreferred === true, tx);
+        else if (input.price !== undefined) await recordPriceSet(lineCtx, target, input.price, tx);
         await applyPreferredChoice(organizationId, actor, supplierId, inventoryItemId, target.id, input.isPreferred, tx);
         return target.id;
       })

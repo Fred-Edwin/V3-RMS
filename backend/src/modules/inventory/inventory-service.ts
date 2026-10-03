@@ -4,9 +4,11 @@ import {
   categoryRepository,
   inventoryItemRepository,
   itemChangeReviewRepository,
+  restockChangeRepository,
   restockLevelRepository,
   type CategoryWithItemCount,
   type InventoryItemWithRelations,
+  type RestockChangeRow,
 } from './inventory-repository';
 import {
   supplierAuditRepository,
@@ -14,6 +16,8 @@ import {
   supplierRepository,
 } from './supplier-repository';
 import { serializeItemSupplierLine } from './supplier-serializers';
+import { describeItemUpdate, type ItemFields } from './item-history';
+import { itemChangeRepository } from './item-history-repository';
 import {
   SUGGESTION_WINDOW_DAYS,
   computeSuggestion,
@@ -32,10 +36,14 @@ import type {
   CreateItemInput,
   ItemCatalogListResponse,
   ItemChangeReview,
+  ItemHistoryEntry,
   ItemMutationResponse,
   ListItemsQuery,
   ListRestockLevelsQuery,
   Paginated,
+  PutBackRestockLevelInput,
+  RestockHistoryEntry,
+  RestockHistoryQuery,
   RestockLevelRow,
   RestockLevelsSummary,
   RestockLevelsSummaryQuery,
@@ -129,11 +137,11 @@ const buildMatchedOn = (
   const needle = search.toLowerCase();
   const byCode = lines.find((l) => l.supplierItemCode !== null && l.supplierItemCode.toLowerCase() === needle);
   if (byCode?.supplierItemCode) {
-    return { supplier: byCode.supplier, field: 'supplierItemCode' as const, value: byCode.supplierItemCode };
+    return { supplier: byCode.supplier, field: 'supplierItemCode' as const, value: byCode.supplierItemCode, supplierItemName: byCode.supplierItemName };
   }
   const byName = lines.find((l) => l.supplierItemName !== null && l.supplierItemName.toLowerCase().includes(needle));
   if (byName?.supplierItemName) {
-    return { supplier: byName.supplier, field: 'supplierItemName' as const, value: byName.supplierItemName };
+    return { supplier: byName.supplier, field: 'supplierItemName' as const, value: byName.supplierItemName, supplierItemName: byName.supplierItemName };
   }
   return null;
 };
@@ -156,6 +164,18 @@ const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLeve
   retiredAt: item.deletedAt?.toISOString() ?? null,
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
+});
+
+/** The fields the item history compares (§30.4). */
+const toItemFields = (item: InventoryItemWithRelations): ItemFields => ({
+  name: item.name,
+  type: item.type,
+  buyUnit: item.buyUnit,
+  usageUnit: item.usageUnit,
+  conversionFactor: toDecimalString(item.conversionFactor),
+  packSize: toDecimalString(item.packSize),
+  categoryName: item.category?.name ?? null,
+  departmentTags: item.departmentTags,
 });
 
 /** A Store Attendant (not a department head) is blind to money: prices, levels, preferred supplier (§29.4). */
@@ -189,6 +209,7 @@ const assertAttendantMayCreate = (input: CreateItemInput): void => {
   if (input.preferredSupplierId) managerOnly.push('preferred supplier');
   if (input.departmentTags.length > 0) managerOnly.push('used-by departments');
   if (input.centralStoreRestockLevel != null) managerOnly.push('restock level');
+  if (input.usualPrice != null) managerOnly.push('price');
   if (managerOnly.length > 0) {
     throw new ForbiddenError(`The Store Manager sets ${managerOnly.join(', ')} — leave it blank and it shows under Needs setup`);
   }
@@ -356,13 +377,25 @@ export const inventoryService = {
     const attendant = isAttendant(actor);
     // "Needs setup" is a column-to-column comparison, so the ids come from one raw query (§29.3).
     const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(organizationId);
+    const isManager = actor.role === 'STORE_MANAGER' && !actor.isDepartmentHead;
+    // Restock levels are the Store Manager's: nobody else may filter by them (§30.1).
+    if (query.lowOrOut && !isManager) throw new ForbiddenError('Only the Store Manager can filter by restock level');
+    const lowOrOutIds = isManager ? await findCentralStoreLowOrOutIds(organizationId) : [];
+    // needsSetup and lowOrOut together mean items in both.
+    let onlyIds: string[] | undefined;
+    if (query.needsSetup) onlyIds = needsSetupIds;
+    if (query.lowOrOut) {
+      const low = new Set(lowOrOutIds);
+      onlyIds = onlyIds ? onlyIds.filter((id) => low.has(id)) : lowOrOutIds;
+    }
     const { items, total } = await inventoryItemRepository.findAllByOrganization(organizationId, {
       search: query.search,
       type: query.type,
       categoryId: query.categoryId,
       departmentTag: query.departmentTag,
       includeRetired: query.includeRetired,
-      onlyIds: query.needsSetup ? needsSetupIds : undefined,
+      onlyIds,
+      sort: query.sort,
       page: query.page,
       perPage: query.perPage,
     });
@@ -371,8 +404,16 @@ export const inventoryService = {
       organizationId,
       new Date(Date.now() - 7 * 86_400_000),
     );
-    const lowOrOut = actor.role === 'STORE_MANAGER' && !actor.isDepartmentHead ? await countCentralStoreLowOrOut(organizationId) : null;
-    const meta = { ...catalogMeta, needsSetup: needsSetupIds.length, lowOrOut, addedThisWeek };
+    const lowOrOut = isManager ? lowOrOutIds.length : null;
+    const [typeCounts, addedByAttendant, supplierCounts] = await Promise.all([
+      inventoryItemRepository.countLiveByType(organizationId),
+      itemChangeRepository.countAttendantCreatedSince(organizationId, new Date(Date.now() - 7 * 86_400_000)),
+      inventoryItemRepository.countSuppliersByItem(
+        organizationId,
+        items.map((item) => item.id),
+      ),
+    ]);
+    const meta = { ...catalogMeta, needsSetup: needsSetupIds.length, lowOrOut, addedThisWeek, typeCounts, addedByAttendant };
 
     const restockLevelsByItemId = attendant
       ? new Map<string, Prisma.Decimal>()
@@ -391,9 +432,10 @@ export const inventoryService = {
         const matchedOn = search
           ? buildMatchedOn(item.name, search, matches.filter((m) => m.inventoryItemId === item.id))
           : null;
+        const supplierCount = supplierCounts.get(item.id) ?? 0;
         return attendant
-          ? { ...serializeAttendantItem(item), matchedOn }
-          : { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), matchedOn };
+          ? { ...serializeAttendantItem(item), supplierCount, matchedOn }
+          : { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), supplierCount, matchedOn };
       }),
       pagination: {
         total,
@@ -414,11 +456,39 @@ export const inventoryService = {
       // No prices and no preferred flags: who sells it and under what name, nothing about money.
       return {
         ...serializeAttendantItem(item),
-        suppliers: suppliers.map(({ lastPrice: _lastPrice, lastPriceAt: _lastPriceAt, isPreferred: _p, preferredNeedsConfirm: _c, ...rest }) => rest),
+        suppliers: suppliers.map(
+          ({ lastPrice: _lastPrice, lastPriceAt: _lastPriceAt, lastPriceSetBy: _setBy, isPreferred: _p, preferredNeedsConfirm: _c, ...rest }) => rest,
+        ),
       };
     }
     const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
-    return { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), suppliers };
+    const centralStore = await locationRepository.findCentralStore();
+    const onHand = centralStore
+      ? (await restockLevelRepository.sumOnHandByItemForLocation(organizationId, centralStore.id, [item.id])).get(item.id)
+      : undefined;
+    return {
+      ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
+      centralStoreOnHand: (onHand ?? new Prisma.Decimal(0)).toString(),
+      suppliers,
+    };
+  },
+
+  /** What happened to the item, newest first (§30.4). Store Manager only. */
+  getItemHistory: async (actor: Actor, id: string, limit: number): Promise<ItemHistoryEntry[]> => {
+    const organizationId = await requireHubActor(actor);
+    const item = await inventoryItemRepository.findById(id, organizationId);
+    if (!item) throw new NotFoundError('Inventory item not found');
+    const rows = await itemChangeRepository.list(id, organizationId, limit);
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      summary: row.summary,
+      reason: row.reason,
+      before: (row.before as Record<string, unknown> | null) ?? null,
+      after: (row.after as Record<string, unknown> | null) ?? null,
+      changedBy: row.changedBy,
+      createdAt: row.createdAt.toISOString(),
+    }));
   },
 
   /**
@@ -458,6 +528,11 @@ export const inventoryService = {
     }
 
     const duplicate = await inventoryItemRepository.findLiveByName(organizationId, input.name);
+    // The usual price is per buy unit; the item's cost is kept per usage unit (§30.2).
+    const currentCost =
+      input.usualPrice != null
+        ? new Prisma.Decimal(input.usualPrice).dividedBy(input.conversionFactor ?? 1).toDecimalPlaces(4)
+        : undefined;
 
     const item = await prisma.$transaction(async (tx) => {
       const categoryId = await resolveCategoryId(organizationId, input.categoryId, input.categoryName, tx);
@@ -473,9 +548,18 @@ export const inventoryService = {
           conversionFactor: input.conversionFactor ?? null,
           packSize: input.packSize ?? null,
           departmentTags: input.departmentTags,
+          ...(currentCost !== undefined ? { currentCost } : {}),
         },
         tx,
       );
+      await itemChangeRepository.record(tx, {
+        organizationId,
+        inventoryItemId: created.id,
+        kind: 'CREATED',
+        summary: 'created the item',
+        after: { ...toItemFields(created), ...(input.usualPrice != null ? { usualPrice: input.usualPrice } : {}) },
+        changedById: actor.id,
+      });
       // Keep SupplierItem.isPreferred in step with the legacy pointer.
       if (input.preferredSupplierId) {
         const preferred = await supplierItemRepository.applyPreferred(organizationId, created.id, input.preferredSupplierId, tx);
@@ -548,6 +632,21 @@ export const inventoryService = {
           await logPreferredChange(organizationId, actor.id, input.preferredSupplierId, id, preferred, tx);
         }
       }
+      if (updated) {
+        const change = describeItemUpdate(toItemFields(existing), toItemFields(updated));
+        if (change) {
+          await itemChangeRepository.record(tx, {
+            organizationId,
+            inventoryItemId: id,
+            kind: 'UPDATED',
+            summary: change.summary,
+            before: change.before,
+            after: change.after,
+            reason: input.reason,
+            changedById: actor.id,
+          });
+        }
+      }
       return updated;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));
 
@@ -572,16 +671,42 @@ export const inventoryService = {
     };
   },
 
-  retireItem: async (actor: Actor, id: string) => {
+  retireItem: async (actor: Actor, id: string, reason?: string) => {
     const organizationId = await requireHubActor(actor);
-    const item = await inventoryItemRepository.retire(id, organizationId);
+    const item = await prisma.$transaction(async (tx) => {
+      const retired = await inventoryItemRepository.retire(id, organizationId, tx);
+      if (retired) {
+        await itemChangeRepository.record(tx, {
+          organizationId,
+          inventoryItemId: id,
+          kind: 'RETIRED',
+          summary: 'retired the item',
+          reason,
+          changedById: actor.id,
+        });
+      }
+      return retired;
+    });
     if (!item) throw new NotFoundError('Inventory item not found');
     return serializeItem(item);
   },
 
-  restoreItem: async (actor: Actor, id: string) => {
+  restoreItem: async (actor: Actor, id: string, reason?: string) => {
     const organizationId = await requireHubActor(actor);
-    const item = await inventoryItemRepository.restore(id, organizationId);
+    const item = await prisma.$transaction(async (tx) => {
+      const restored = await inventoryItemRepository.restore(id, organizationId, tx);
+      if (restored) {
+        await itemChangeRepository.record(tx, {
+          organizationId,
+          inventoryItemId: id,
+          kind: 'RESTORED',
+          summary: 'restored the item',
+          reason,
+          changedById: actor.id,
+        });
+      }
+      return restored;
+    });
     if (!item) throw new NotFoundError('Inventory item not found');
     return serializeItem(item);
   },
@@ -644,7 +769,79 @@ export const inventoryService = {
 
     return (await loadRestockRows(actor, input)).rows;
   },
+
+  /**
+   * Who changed which level, newest first (§30.5): one item's history, or the location's recent changes.
+   * Same "whose levels" rules as the list; a Department Head sees only their own department.
+   */
+  listRestockHistory: async (actor: Actor, query: RestockHistoryQuery): Promise<RestockHistoryEntry[]> => {
+    const { organizationId, locationId } = await resolveRestockScope(actor, query);
+    const rows = await restockChangeRepository.list(organizationId, locationId, {
+      inventoryItemId: query.inventoryItemId,
+      limit: query.limit,
+    });
+    return rows.map(serializeRestockChange);
+  },
+
+  /**
+   * Puts a level back to what a change replaced (§30.5). The old entry stays; a new one is added by the same
+   * save path every level change uses, so it shows in the history like any other.
+   */
+  putBackRestockLevel: async (actor: Actor, changeId: string, input: PutBackRestockLevelInput): Promise<RestockHistoryEntry> => {
+    // The route already limits this to a Store Manager or a department head; a put back names only a change id,
+    // so the service does not lean on the route alone.
+    if (!actor.isDepartmentHead && actor.role !== 'STORE_MANAGER') {
+      throw new ForbiddenError('Only the Store Manager or a department head can put a level back');
+    }
+    const change = await restockChangeRepository.findById(changeId);
+    if (!change) throw new NotFoundError('Restock level change not found');
+
+    if (actor.isDepartmentHead) {
+      const own = await resolveRestockScope(actor, {});
+      if (own.locationId !== change.locationId) {
+        throw new ForbiddenError("You can only put back changes to your own department's levels");
+      }
+    } else {
+      await requireHubActor(actor);
+      // A Store Manager reaches the Central Store and branch departments; nothing else holds restock levels.
+      if (change.location.type !== 'CENTRAL_STORE' && change.location.type !== 'BRANCH_DEPARTMENT') {
+        throw new NotFoundError('Restock level change not found');
+      }
+    }
+    if (change.inventoryItem.deletedAt) throw new NotFoundError('Restock level change not found');
+    if (change.oldLevel === null) throw new ValidationError('Nothing to put back: this was the first level set for the item');
+
+    const current = (await restockLevelRepository.findByItemIdsForLocation(change.organizationId, change.locationId, [change.inventoryItemId])).get(
+      change.inventoryItemId,
+    );
+    if (current && current.equals(change.oldLevel)) {
+      throw new ConflictError(`The level is already ${current.toString()} ${change.inventoryItem.usageUnit}`);
+    }
+
+    await restockLevelRepository.bulkUpsert(
+      change.organizationId,
+      change.locationId,
+      actor.id,
+      [{ inventoryItemId: change.inventoryItemId, level: change.oldLevel }],
+      input.reason ?? 'Put back',
+    );
+    const latest = await restockChangeRepository.findLatest(change.organizationId, change.locationId, change.inventoryItemId);
+    if (!latest) throw new NotFoundError('Restock level change not found');
+    return serializeRestockChange(latest);
+  },
 };
+
+const serializeRestockChange = (row: RestockChangeRow): RestockHistoryEntry => ({
+  id: row.id,
+  inventoryItemId: row.inventoryItemId,
+  itemName: row.inventoryItem.name,
+  usageUnit: row.inventoryItem.usageUnit,
+  oldLevel: toDecimalString(row.oldLevel),
+  newLevel: toDecimalString(row.newLevel),
+  reason: row.reason,
+  changedBy: row.changedBy,
+  createdAt: row.createdAt.toISOString(),
+});
 
 type RestockScopeQuery = { locationId?: string; scope?: 'CENTRAL_STORE' | DepartmentTag; branchId?: string };
 
@@ -697,21 +894,23 @@ const loadRestockRows = async (
   return { rows, differs };
 };
 
-/** Catalog strip: Central Store items with a level set and on-hand below it (§29.3). */
-const countCentralStoreLowOrOut = async (hubOrgId: string): Promise<number> => {
+/** Central Store items with a level set and on-hand below it: the strip's count and the `lowOrOut` filter (§29.3, §30.1). */
+const findCentralStoreLowOrOutIds = async (hubOrgId: string): Promise<string[]> => {
   const centralStore = await locationRepository.findCentralStore();
-  if (!centralStore || centralStore.organizationId !== hubOrgId) return 0;
+  if (!centralStore || centralStore.organizationId !== hubOrgId) return [];
   const [levels, onHand, live] = await Promise.all([
     restockLevelRepository.findAllByLocation(hubOrgId, centralStore.id),
     restockLevelRepository.sumOnHandByItemForLocation(hubOrgId, centralStore.id),
     restockLevelRepository.findLiveItemIds(hubOrgId),
   ]);
   const liveIds = new Set(live);
-  return levels.filter((l) => {
-    if (!liveIds.has(l.inventoryItemId)) return false;
-    const status = restockStatus(onHand.get(l.inventoryItemId) ?? new Prisma.Decimal(0), l.level);
-    return status === 'OUT' || status === 'LOW';
-  }).length;
+  return levels
+    .filter((l) => {
+      if (!liveIds.has(l.inventoryItemId)) return false;
+      const status = restockStatus(onHand.get(l.inventoryItemId) ?? new Prisma.Decimal(0), l.level);
+      return status === 'OUT' || status === 'LOW';
+    })
+    .map((l) => l.inventoryItemId);
 };
 
 /**

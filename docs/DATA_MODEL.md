@@ -1890,6 +1890,35 @@ model RestockLevelChange {
 }
 ```
 
+Read back by `GET /inventory/restock-levels/history`; "Put back" restores a row's `oldLevel` by writing a **new** row through the same save path (the old row stays). API_CONTRACT.md §30.5.
+
+### 4.51b InventoryItemChange
+
+Append-only history of what happened to a catalog item (Session 4b): created, edited, retired, restored, a supplier added, a price set by hand. Written in the same transaction as the change; an edit that changes nothing the history tracks writes nothing. `summary` is a sentence **without the actor** ("changed the pack from 1 bag = 25 kg to 1 bag = 24 kg"); the screen shows `"{changedBy.name} {summary}"`. `before` / `after` hold only the fields that changed. `reason` is optional everywhere and never required. API_CONTRACT.md §30.4.
+
+```prisma
+enum InventoryItemChangeKind { CREATED UPDATED RETIRED RESTORED SUPPLIER_ADDED SUPPLIER_PRICE_SET }
+
+model InventoryItemChange {
+  id              String                  @id @default(uuid())
+  organizationId  String                  @map("organization_id")   -- the hub org (the catalog's)
+  inventoryItemId String                  @map("inventory_item_id")
+  kind            InventoryItemChangeKind
+  summary         String
+  before          Json?
+  after           Json?
+  reason          String?
+  changedById     String                  @map("changed_by_id")     -- "who"; for CREATED this is the creator ("added by an attendant")
+  createdAt       DateTime                @default(now()) @map("created_at")
+
+  @@index([organizationId, inventoryItemId, createdAt])
+  @@index([organizationId, kind, createdAt])
+  @@map("inventory_item_changes")
+}
+```
+
+Items made before this table existed have no `CREATED` row; they count as not added by an attendant.
+
 ---
 
 ### 4.52 InventoryTransaction
@@ -2949,7 +2978,7 @@ How Wendo pays a supplier (Prisma model `SupplierPayMethod`, table `supplier_pay
 
 ### 4.81 SupplierItem
 
-The supplier catalog: one row per supplier **line** — (supplier, item, buy unit, pack size), so one supplier can sell the same item in several pack sizes. `organizationId`, `supplierId` (cascade), `inventoryItemId`, `supplierItemName?`, `supplierItemCode?`, `buyUnit?`, `packSize?` (`Decimal(12,4)`), `lastPrice?` (`Decimal(12,4)`, **per buy unit**), `lastPriceAt?`, `isPreferred`, `preferredNeedsConfirm` (`Boolean`, default `false` — the "Preferred · confirm" flag that seeding sets). **Line key (raw SQL, no Prisma compound unique):** unique index `supplier_items_line_key` on `(supplier_id, inventory_item_id, COALESCE(buy_unit, ''), COALESCE(pack_size, 0))` — the COALESCE makes NULL unit / pack compare equal, because Postgres treats NULLs as distinct in a plain unique index; so a row with no unit and no pack is the same line as another with none. Because Prisma has no compound key for it, code finds a line with `findFirst` and then `update`/`create`, never `upsert`. Search indexes (raw SQL): `supplier_items_org_code_idx` on `(organization_id, supplier_item_code)` and `supplier_items_org_lower_name_idx` on `(organization_id, lower(supplier_item_name))`. **Partial unique index** `supplier_items_one_preferred_per_item` on `(inventory_item_id) WHERE is_preferred`. `lastPrice` / `lastPriceAt` are written only by signing a goods receipt (same transaction as the ledger write). `isPreferred` is kept in step with `InventoryItem.preferredSupplierId` (old column retained; retire in a later cleanup).
+The supplier catalog: one row per supplier **line** — (supplier, item, buy unit, pack size), so one supplier can sell the same item in several pack sizes. `organizationId`, `supplierId` (cascade), `inventoryItemId`, `supplierItemName?`, `supplierItemCode?`, `buyUnit?`, `packSize?` (`Decimal(12,4)`), `lastPrice?` (`Decimal(12,4)`, **per buy unit**), `lastPriceAt?`, `lastPriceSetById?`, `isPreferred`, `preferredNeedsConfirm` (`Boolean`, default `false` — the "Preferred · confirm" flag that seeding sets). **Line key (raw SQL, no Prisma compound unique):** unique index `supplier_items_line_key` on `(supplier_id, inventory_item_id, COALESCE(buy_unit, ''), COALESCE(pack_size, 0))` — the COALESCE makes NULL unit / pack compare equal, because Postgres treats NULLs as distinct in a plain unique index; so a row with no unit and no pack is the same line as another with none. Because Prisma has no compound key for it, code finds a line with `findFirst` and then `update`/`create`, never `upsert`. Search indexes (raw SQL): `supplier_items_org_code_idx` on `(organization_id, supplier_item_code)` and `supplier_items_org_lower_name_idx` on `(organization_id, lower(supplier_item_name))`. **Partial unique index** `supplier_items_one_preferred_per_item` on `(inventory_item_id) WHERE is_preferred`. `lastPrice` / `lastPriceAt` are written by signing a goods receipt (same transaction as the ledger write), or by hand (Session 4b, API_CONTRACT.md §30.3): then `lastPriceSetById` (nullable FK → `users`, `ON DELETE SET NULL`) names who set it. `lastPriceSetById` is null when the price came from a receipt or is unset; signing a receipt that prices the line clears it. `isPreferred` is kept in step with `InventoryItem.preferredSupplierId` (old column retained; retire in a later cleanup).
 
 ### 4.82 SupplierDocument
 

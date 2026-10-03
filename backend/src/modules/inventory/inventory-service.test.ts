@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { inventoryService } from './inventory-service';
 import { categoryRepository, inventoryItemRepository, restockLevelRepository } from './inventory-repository';
+import { itemChangeRepository } from './item-history-repository';
 import { supplierAuditRepository, supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
 
+vi.mock('./item-history-repository', () => ({
+  itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
+}));
 vi.mock('./inventory-repository', () => ({
   categoryRepository: {
     findAllByOrganization: vi.fn(),
@@ -20,6 +24,8 @@ vi.mock('./inventory-repository', () => ({
     countLiveItems: vi.fn(),
   },
   inventoryItemRepository: {
+    countLiveByType: vi.fn(),
+    countSuppliersByItem: vi.fn(),
     findAllByOrganization: vi.fn(),
     findById: vi.fn(),
     findLiveByIds: vi.fn(),
@@ -141,6 +147,9 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(inventoryItemRepository.countLiveByType).mockResolvedValue({ STOCKED: 0, RAW_INGREDIENT: 0, PREPPED: 0 });
+  vi.mocked(inventoryItemRepository.countSuppliersByItem).mockResolvedValue(new Map());
+  vi.mocked(itemChangeRepository.countAttendantCreatedSince).mockResolvedValue(0);
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
   vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
@@ -182,14 +191,14 @@ describe('inventoryService — listItems Department Head catalog-read carve-out 
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
 
     await expect(
-      inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false }),
+      inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false }),
     ).resolves.toBeDefined();
     expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 
   it('still rejects a non-hub, non-department-head actor (e.g. a plain branch Store Manager)', async () => {
     await expect(
-      inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false }),
+      inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false }),
     ).rejects.toThrow(ForbiddenError);
   });
 });
@@ -636,7 +645,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   const sugar = buildItem({ id: 'item-sugar', name: 'Sugar white 50kg' });
   const milk = buildItem({ id: 'item-milk', name: 'Milk 500ml' });
   const samrat = { id: supplierId, name: 'Samrat Supermarket Ltd' };
-  const listQuery = (search?: string) => ({ page: 1, perPage: 20, includeRetired: false, needsSetup: false, ...(search ? { search } : {}) });
+  const listQuery = (search?: string) => ({ page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false, ...(search ? { search } : {}) });
 
   beforeEach(() => {
     vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({} as never);
@@ -656,7 +665,8 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
     ] as never);
 
     const { data } = await inventoryService.listItems(storeManager, listQuery('190035'));
-    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemCode', value: '190035' });
+    // The matched line's own name rides along, so a code match can show "Their name: …" (§30.1).
+    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemCode', value: '190035', supplierItemName: 'Kabras sugar 50kg' });
   });
 
   it('matchedOn reports their item name (partial, any case) when only the name matched', async () => {
@@ -666,7 +676,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
     ] as never);
 
     const { data } = await inventoryService.listItems(storeManager, listQuery('KABRAS'));
-    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemName', value: 'Kabras sugar 50kg' });
+    expect(data[0]!.matchedOn).toEqual({ supplier: samrat, field: 'supplierItemName', value: 'Kabras sugar 50kg', supplierItemName: 'Kabras sugar 50kg' });
   });
 
   it('prefers the exact code over a name hit when both match', async () => {

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { inventoryService } from './inventory-service';
 import { inventoryItemRepository, itemChangeReviewRepository, restockLevelRepository } from './inventory-repository';
+import { itemChangeRepository } from './item-history-repository';
 import { supplierItemRepository, supplierRepository } from './supplier-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
@@ -25,9 +26,16 @@ import {
 } from './inventory-validators';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
 
+vi.mock('./item-history-repository', () => ({
+  itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
+}));
 vi.mock('./inventory-repository', () => ({
   categoryRepository: {},
   inventoryItemRepository: {
+    countLiveByType: vi.fn(),
+    countSuppliersByItem: vi.fn(),
+    retire: vi.fn(),
+    restore: vi.fn(),
     findAllByOrganization: vi.fn(),
     findById: vi.fn(),
     findLiveByIds: vi.fn(),
@@ -112,6 +120,9 @@ const buildItem = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(inventoryItemRepository.countLiveByType).mockResolvedValue({ STOCKED: 0, RAW_INGREDIENT: 0, PREPPED: 0 });
+  vi.mocked(inventoryItemRepository.countSuppliersByItem).mockResolvedValue(new Map());
+  vi.mocked(itemChangeRepository.countAttendantCreatedSince).mockResolvedValue(0);
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(branchRepository.findById).mockImplementation(async (id: string) => (id === townOrgId ? (townOrg as never) : id === hubOrgId ? (hubOrg as never) : null));
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
@@ -276,7 +287,7 @@ describe('B11 catalog strip', () => {
     ] as never);
     vi.mocked(restockLevelRepository.sumOnHandByItemForLocation).mockResolvedValue(new Map([[item2Id, new Prisma.Decimal('4')]]));
 
-    const result = await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false });
+    const result = await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
 
     expect(result.meta).toMatchObject({ itemsTracked: 2, needsSetup: 3, lowOrOut: 2, addedThisWeek: 5 });
     expect(() => ItemCatalogMetaSchema.parse(result.meta)).not.toThrow();
@@ -289,16 +300,16 @@ describe('B11 catalog strip', () => {
     vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue(emptyList as never);
     vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([itemId]);
 
-    await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: true });
+    await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: true, lowOrOut: false });
     expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ onlyIds: [itemId] }));
 
-    await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false });
+    await inventoryService.listItems(storeManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
     expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[1]![1].onlyIds).toBeUndefined();
   });
 
   it('lowOrOut is null for the attendant and a department head (restock levels are not theirs)', async () => {
     vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue(emptyList as never);
-    const q = { page: 1, perPage: 20, includeRetired: false, needsSetup: false };
+    const q = { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false };
     expect((await inventoryService.listItems(attendant, q)).meta.lowOrOut).toBeNull();
     expect((await inventoryService.listItems(kitchenHead, q)).meta.lowOrOut).toBeNull();
     expect(restockLevelRepository.findAllByLocation).not.toHaveBeenCalled();
@@ -425,7 +436,7 @@ describe('B12 attendant item creation', () => {
       },
     ] as never);
 
-    const list = await inventoryService.listItems(attendant, { page: 1, perPage: 20, includeRetired: false, needsSetup: false });
+    const list = await inventoryService.listItems(attendant, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
     const one = await inventoryService.getItemById(attendant, itemId);
 
     for (const json of [JSON.stringify(list.data), JSON.stringify(one)]) {
@@ -516,6 +527,12 @@ describe('route role matrix', () => {
   it('new supplier strips are Store Manager, Accountant and Director only; the attendant is out', () => {
     expect(allowedRoles('get', '/inventory/suppliers/summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER']);
     expect(allowedRoles('get', '/inventory/suppliers/:id/catalog-summary')).toEqual(['ACCOUNTANT', 'DIRECTOR', 'STORE_MANAGER']);
+  });
+
+  it('item history and the restock history / put back are Store Manager routes (a department head passes through allowDepartmentHead)', () => {
+    expect(allowedRoles('get', '/inventory/items/:id/history')).toEqual(['STORE_MANAGER']);
+    expect(allowedRoles('get', '/inventory/restock-levels/history')).toEqual(['STORE_MANAGER']);
+    expect(allowedRoles('post', '/inventory/restock-levels/changes/:id/put-back')).toEqual(['STORE_MANAGER']);
   });
 
   it('"summary" is registered before "/:id" so it is never read as a supplier id', () => {

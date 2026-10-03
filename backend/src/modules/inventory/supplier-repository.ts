@@ -348,6 +348,7 @@ export const supplierAuditRepository = {
 
 const supplierItemInclude = {
   inventoryItem: { select: { id: true, name: true, buyUnit: true } },
+  lastPriceSetBy: { select: { id: true, name: true } },
 } satisfies Prisma.SupplierItemInclude;
 
 export type SupplierItemRow = Prisma.SupplierItemGetPayload<{ include: typeof supplierItemInclude }>;
@@ -362,11 +363,16 @@ export type SupplierItemData = {
 export type SupplierItemUpdate = Partial<SupplierItemData> & {
   isPreferred?: boolean;
   preferredNeedsConfirm?: boolean;
+  /** A price set by hand (§30.3): the price, when, and who. */
+  lastPrice?: Prisma.Decimal.Value;
+  lastPriceAt?: Date;
+  lastPriceSetById?: string | null;
 };
 
 /** A line plus the supplier it belongs to, for the item page and search. */
 const supplierItemWithSupplierInclude = {
   supplier: { select: { id: true, code: true, name: true } },
+  lastPriceSetBy: { select: { id: true, name: true } },
 } satisfies Prisma.SupplierItemInclude;
 export type SupplierItemWithSupplier = Prisma.SupplierItemGetPayload<{ include: typeof supplierItemWithSupplierInclude }>;
 
@@ -448,7 +454,7 @@ export const supplierItemRepository = {
     organizationId: string,
     supplierId: string,
     inventoryItemId: string,
-    data: Partial<SupplierItemData> & { lastPrice?: Prisma.Decimal.Value; lastPriceAt?: Date },
+    data: Partial<SupplierItemData> & { lastPrice?: Prisma.Decimal.Value; lastPriceAt?: Date; lastPriceSetById?: string | null },
     tx: TxClient,
   ): Promise<SupplierItemRow> =>
     tx.supplierItem.create({ data: { organizationId, supplierId, inventoryItemId, ...data }, include: supplierItemInclude }),
@@ -559,7 +565,8 @@ export const supplierItemRepository = {
     at: Date,
     tx: TxClient,
   ): Promise<void> => {
-    await tx.supplierItem.updateMany({ where: { id, organizationId }, data: { lastPrice: price, lastPriceAt: at } });
+    // A signed receipt's price wins outright and is no longer "set by" anyone (§30.3).
+    await tx.supplierItem.updateMany({ where: { id, organizationId }, data: { lastPrice: price, lastPriceAt: at, lastPriceSetById: null } });
   },
 };
 
@@ -678,7 +685,7 @@ export const supplierItemLookupRepository = {
   findLiveItem: (inventoryItemId: string, organizationId: string) =>
     prisma.inventoryItem.findFirst({
       where: { id: inventoryItemId, organizationId, deletedAt: null },
-      select: { id: true, name: true, buyUnit: true },
+      select: { id: true, name: true, buyUnit: true, usageUnit: true },
     }),
 };
 

@@ -22,13 +22,20 @@ import type {
   InventoryItemSchema,
   ItemCatalogMetaSchema,
   ItemChangeReviewSchema,
+  ItemHistoryEntrySchema,
+  ItemHistoryQuerySchema,
   ItemMutationResponseSchema,
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
   ListRestockLevelsQuerySchema,
+  PutBackRestockLevelSchema,
+  RestockHistoryEntrySchema,
+  RestockHistoryQuerySchema,
   RestockLevelRowSchema,
   RestockLevelsSummaryQuerySchema,
   RestockLevelsSummarySchema,
+  RestoreItemSchema,
+  RetireItemQuerySchema,
   SaveRestockLevelsSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
@@ -64,9 +71,13 @@ export type CreateItemInput = z.infer<typeof CreateItemSchema>;
 export type UpdateItemInput = z.infer<typeof UpdateItemSchema>;
 export type ItemMutationResponse = z.infer<typeof ItemMutationResponseSchema>;
 export type AttendantInventoryItem = z.infer<typeof AttendantInventoryItemSchema>;
-export type AttendantItemListRow = AttendantInventoryItem & Pick<InventoryItemListRow, 'matchedOn'>;
+export type AttendantItemListRow = AttendantInventoryItem & Pick<InventoryItemListRow, 'matchedOn' | 'supplierCount'>;
 export type AttendantItemMutationResponse = z.infer<typeof AttendantItemMutationResponseSchema>;
 export type ItemChangeReview = z.infer<typeof ItemChangeReviewSchema>;
+export type ItemHistoryEntry = z.infer<typeof ItemHistoryEntrySchema>;
+export type ItemHistoryQuery = z.infer<typeof ItemHistoryQuerySchema>;
+export type RetireItemQuery = z.infer<typeof RetireItemQuerySchema>;
+export type RestoreItemInput = z.infer<typeof RestoreItemSchema>;
 
 // --- Restock levels --------------------------------------------------------
 
@@ -75,6 +86,9 @@ export type ListRestockLevelsQuery = z.infer<typeof ListRestockLevelsQuerySchema
 export type SaveRestockLevelsInput = z.infer<typeof SaveRestockLevelsSchema>;
 export type RestockLevelsSummary = z.infer<typeof RestockLevelsSummarySchema>;
 export type RestockLevelsSummaryQuery = z.infer<typeof RestockLevelsSummaryQuerySchema>;
+export type RestockHistoryQuery = z.infer<typeof RestockHistoryQuerySchema>;
+export type RestockHistoryEntry = z.infer<typeof RestockHistoryEntrySchema>;
+export type PutBackRestockLevelInput = z.infer<typeof PutBackRestockLevelSchema>;
 
 // --- Response envelopes ----------------------------------------------------
 

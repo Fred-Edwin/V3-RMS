@@ -7,8 +7,13 @@ import {
   IdParamSchema,
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
+  ItemHistoryQuerySchema,
   ListRestockLevelsQuerySchema,
+  PutBackRestockLevelSchema,
+  RestockHistoryQuerySchema,
   RestockLevelsSummaryQuerySchema,
+  RestoreItemSchema,
+  RetireItemQuerySchema,
   SaveRestockLevelsSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
@@ -102,17 +107,27 @@ export const inventoryController = {
     res.status(200).json({ success: true, data, message: 'Item updated successfully' });
   },
 
+  getItemHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const { limit } = ItemHistoryQuerySchema.parse(req.query);
+    const data = await inventoryService.getItemHistory(actor, id, limit);
+    res.status(200).json({ success: true, data });
+  },
+
   retireItem: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = IdParamSchema.parse(req.params);
-    const data = await inventoryService.retireItem(actor, id);
+    const { reason } = RetireItemQuerySchema.parse(req.query);
+    const data = await inventoryService.retireItem(actor, id, reason);
     res.status(200).json({ success: true, data, message: 'Item retired successfully' });
   },
 
   restoreItem: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id } = IdParamSchema.parse(req.params);
-    const data = await inventoryService.restoreItem(actor, id);
+    const { reason } = RestoreItemSchema.parse(req.body ?? {});
+    const data = await inventoryService.restoreItem(actor, id, reason);
     res.status(200).json({ success: true, data, message: 'Item restored successfully' });
   },
 
@@ -130,6 +145,21 @@ export const inventoryController = {
     const query = RestockLevelsSummaryQuerySchema.parse(req.query);
     const data = await inventoryService.getRestockLevelsSummary(actor, query);
     res.status(200).json({ success: true, data });
+  },
+
+  listRestockHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = RestockHistoryQuerySchema.parse(req.query);
+    const data = await inventoryService.listRestockHistory(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  putBackRestockLevel: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const input = PutBackRestockLevelSchema.parse(req.body ?? {});
+    const data = await inventoryService.putBackRestockLevel(actor, id, input);
+    res.status(201).json({ success: true, data, message: 'Restock level put back' });
   },
 
   saveRestockLevels: async (req: Request, res: Response): Promise<void> => {

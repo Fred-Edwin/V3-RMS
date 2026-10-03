@@ -198,11 +198,15 @@ export const AttendantInventoryItemSchema = InventoryItemSchema.omit({
 
 /** List rows add why a search matched when it was a supplier's code or name, not ours (§28.5). */
 export const InventoryItemListRowSchema = InventoryItemSchema.extend({
+  /** Suppliers with at least one catalog line for the item (§30.1). */
+  supplierCount: z.number().int().min(0),
   matchedOn: z
     .object({
       supplier: z.object({ id: uuidSchema, name: z.string() }),
       field: z.enum(['supplierItemCode', 'supplierItemName']),
       value: z.string(),
+      /** The matched line's name for the item — lets a code match show "Their name: …" (§30.1). */
+      supplierItemName: z.string().nullable(),
     })
     .nullable(),
 });
@@ -220,6 +224,14 @@ export const ItemCatalogMetaSchema = z.object({
   /** Central Store items with a level set and on-hand below it; null for anyone but the Store Manager. */
   lowOrOut: z.number().int().min(0).nullable(),
   addedThisWeek: z.number().int().min(0),
+  /** Live items per type, regardless of the list's filters — the counts on the type chips (§30.1). */
+  typeCounts: z.object({
+    STOCKED: z.number().int().min(0),
+    RAW_INGREDIENT: z.number().int().min(0),
+    PREPPED: z.number().int().min(0),
+  }),
+  /** Live items created in the last 7 days by a Store Attendant (§30.1). */
+  addedByAttendant: z.number().int().min(0),
 });
 
 export const ListItemsQuerySchema = PaginationQuerySchema.extend({
@@ -230,6 +242,10 @@ export const ListItemsQuerySchema = PaginationQuerySchema.extend({
   includeRetired: booleanQueryParamSchema.default(false),
   /** Only items still on placeholder units, oldest first (§29.3). */
   needsSetup: booleanQueryParamSchema.default(false),
+  /** Only Central Store items below their restock level — Store Manager only (§30.1). */
+  lowOrOut: booleanQueryParamSchema.default(false),
+  /** `name` (default) or `newest`; with `needsSetup` alone the order stays oldest first (§30.1). */
+  sort: z.enum(['name', 'newest']).optional(),
 });
 
 /**
@@ -256,6 +272,15 @@ const exactlyOneCategoryInput = (data: {
   categoryName?: string | null;
 }): boolean => !(data.categoryId && data.categoryName);
 
+/** Why an item was changed — optional everywhere, ≤ 200 characters (§30.4). */
+const itemReasonSchema = z.string().trim().min(1).max(200);
+
+/** `DELETE /items/:id?reason=` */
+export const RetireItemQuerySchema = z.object({ reason: itemReasonSchema.optional() });
+
+/** `POST /items/:id/restore` body */
+export const RestoreItemSchema = z.object({ reason: itemReasonSchema.optional() }).default({});
+
 export const CreateItemSchema = z
   .object({
     name: itemCoreFields.name,
@@ -269,6 +294,8 @@ export const CreateItemSchema = z
     departmentTags: z.array(departmentTagSchema).default([]),
     /** Optional Central Store restock level, set inline from the item form. */
     centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
+    /** Per buy unit, Store Manager only (§30.2). Sets the item's cost per usage unit; creates no supplier line. */
+    usualPrice: positiveDecimalSchema.nullish(),
   })
   .refine(rawIngredientHasNoDepartments, {
     message: RAW_DEPARTMENT_MESSAGE,
@@ -291,8 +318,10 @@ export const UpdateItemSchema = z
     packSize: positiveDecimalSchema.nullish(),
     departmentTags: z.array(departmentTagSchema).optional(),
     centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
+    /** Optional, never required; stored on the history row (§30.4). Not a change on its own. */
+    reason: itemReasonSchema.optional(),
   })
-  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+  .refine(({ reason: _reason, ...fields }) => Object.values(fields).some((v) => v !== undefined), {
     message: 'At least one field must be provided',
   })
   .refine(rawIngredientHasNoDepartments, {
@@ -440,3 +469,52 @@ export const SaveRestockLevelsSchema = z
   })
   .refine(restockScopeIsConsistent, { message: SCOPE_MESSAGE, path: ['scope'] })
   .refine(departmentScopeNeedsBranch, { message: 'branchId is required for a department scope', path: ['branchId'] });
+
+// ---------------------------------------------------------------------------
+// Item history (§30.4)
+// ---------------------------------------------------------------------------
+
+export const itemChangeKindSchema = z.enum(['CREATED', 'UPDATED', 'RETIRED', 'RESTORED', 'SUPPLIER_ADDED', 'SUPPLIER_PRICE_SET']);
+
+export const ItemHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+export const ItemHistoryEntrySchema = z.object({
+  id: uuidSchema,
+  kind: itemChangeKindSchema,
+  /** A sentence without the actor: the screen shows "{changedBy.name} {summary}". */
+  summary: z.string(),
+  reason: z.string().nullable(),
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
+  changedBy: z.object({ id: uuidSchema, name: z.string() }),
+  createdAt: z.string().datetime(),
+});
+
+// ---------------------------------------------------------------------------
+// Restock level history and put back (§30.5)
+// ---------------------------------------------------------------------------
+
+export const RestockHistoryQuerySchema = z
+  .object({
+    ...restockScopeFields,
+    inventoryItemId: uuidSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+  })
+  .refine(restockScopeIsConsistent, { message: SCOPE_MESSAGE, path: ['scope'] })
+  .refine(departmentScopeNeedsBranch, { message: 'branchId is required for a department scope', path: ['branchId'] });
+
+export const RestockHistoryEntrySchema = z.object({
+  id: uuidSchema,
+  inventoryItemId: uuidSchema,
+  itemName: z.string(),
+  usageUnit: z.string(),
+  oldLevel: nonNegativeDecimalSchema.nullable(),
+  newLevel: nonNegativeDecimalSchema.nullable(),
+  reason: z.string().nullable(),
+  changedBy: z.object({ id: uuidSchema, name: z.string() }),
+  createdAt: z.string().datetime(),
+});
+
+export const PutBackRestockLevelSchema = z.object({ reason: itemReasonSchema.optional() }).default({});

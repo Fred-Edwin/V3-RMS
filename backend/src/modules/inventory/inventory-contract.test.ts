@@ -18,6 +18,9 @@ import {
   RestockLevelRowSchema,
 } from './inventory-validators';
 
+vi.mock('./item-history-repository', () => ({
+  itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
+}));
 vi.mock('./inventory-repository', () => ({
   categoryRepository: {
     findAllByOrganization: vi.fn(),
@@ -25,6 +28,10 @@ vi.mock('./inventory-repository', () => ({
     create: vi.fn(),
   },
   inventoryItemRepository: {
+    countLiveByType: vi.fn(),
+    countSuppliersByItem: vi.fn(),
+    retire: vi.fn(),
+    restore: vi.fn(),
     findLiveByName: vi.fn(),
     create: vi.fn(),
   },
