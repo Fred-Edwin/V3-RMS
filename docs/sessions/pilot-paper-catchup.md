@@ -2,6 +2,9 @@
 
 Paste this whole file as the first message of a new agent session. It runs **alongside** the lane tooling session ([pilot-lane-tooling.md](pilot-lane-tooling.md)). This session touches **only the Paper file and docs**. No app code, no servers, no database, so it cannot collide with other lanes. Only one agent edits Paper at a time.
 
+## Step 0: isolate yourself (do this before anything else)
+Work in your own git worktree, never in the owner's main checkout (`~/Projects/V3-RMS`), which holds the owner's uncommitted files and other sessions. Use the EnterWorktree tool, or: `git fetch && git worktree add ~/Projects/V3-RMS-lanes/paper -b docs/paper-catchup origin/main`, then do every repo read and edit from that folder. (Paper itself is not in the repo; the Paper MCP works the same from any folder.) If `docs/ROADMAP.md` or `docs/features/inventory/paper-updates-needed.md` is missing there, stop and tell the owner (the docs PR has not been merged yet). Do not touch the owner's untracked files. Leave the worktree in place until the owner has merged your PR.
+
 ## Read first
 - `CLAUDE.md` (rules 12–14), `docs/ROADMAP.md`, `docs/features/inventory/paper-updates-needed.md` (the checklist for this session), `docs/features/inventory/decisions.md` ("Access"), `backend/src/modules/inventory/purchasing/README.md` and `frontend/features/inventory/purchasing/README.md` (if present).
 - Paper file "Wendo RMS · Approved designs", id `01M3TP8J54R83RHC9FJ7RAHGKG`. Load the Paper guide first (`get_guide`), then use `get_basic_info`, `get_tree_summary`, `get_screenshot`, `get_computed_styles` and `get_jsx` for exact values. Never read sizes or colours off screenshots.

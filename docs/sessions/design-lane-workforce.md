@@ -4,6 +4,9 @@ Paste this whole file as the first message of a new agent session. This is the *
 
 **Start only after the Paper catch-up pilot session ([pilot-paper-catchup.md](pilot-paper-catchup.md)) has finished.** Only one agent edits the Paper file at a time.
 
+## Step 0: isolate yourself (do this before anything else)
+Work in your own git worktree, never in the owner's main checkout (`~/Projects/V3-RMS`), which holds the owner's uncommitted files and other sessions. Use the EnterWorktree tool, or: `git fetch && git worktree add ~/Projects/V3-RMS-lanes/workforce-design -b docs/workforce-design origin/main`, then do every repo read and edit from that folder. (Paper itself is not in the repo; the Paper MCP works the same from any folder.) If `docs/ROADMAP.md` is missing there, stop and tell the owner. Do not touch the owner's untracked files. Leave the worktree in place until the owner has merged your PR.
+
 ## Why Workforce, and what the client asked for
 Priority module (client request, 3 Oct 2026). In the owner's words: the client wants to **manage workforce scheduling and time tracking**. Today the problems are scheduling staff, and recording when they clock in and when their shifts end. They want to **track how many hours each staff member works**, and those hours must **affect pay**: deductions (for example lateness or missed time) and **overtime pay**.
 

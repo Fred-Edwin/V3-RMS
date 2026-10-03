@@ -2,6 +2,9 @@
 
 Paste this whole file as the first message of a new agent session. It runs **alongside** the Paper catch-up session ([pilot-paper-catchup.md](pilot-paper-catchup.md)). This session touches **no app features**: only scripts, docs, CI config, `.gitignore` and the Prisma schema layout.
 
+## Step 0: isolate yourself (do this before anything else)
+Work in your own git worktree, never in the owner's main checkout (`~/Projects/V3-RMS`), which holds the owner's uncommitted files and other sessions. Use the EnterWorktree tool, or: `git fetch && git worktree add ~/Projects/V3-RMS-lanes/tooling -b chore/lane-tooling origin/main`, then do every read, edit and command from that folder. If `docs/ROADMAP.md` or this brief's other files are missing there, stop and tell the owner (the docs PR has not been merged yet). Do not touch the owner's untracked files or any process you did not start. Leave the worktree in place until the owner has merged your PR.
+
 ## Read first
 - `CLAUDE.md` (all of it, especially rules 12–14), `docs/ROADMAP.md` ("How the work runs: parallel lanes", "Rules every module follows").
 - `docs/CODING_STANDARDS.md` §4 (backend module layout).
