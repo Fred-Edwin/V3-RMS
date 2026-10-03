@@ -38,8 +38,9 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 |---|---|---|
 | 0 | **Inventory** (steps 1–9 in [features/inventory/roadmap.md](features/inventory/roadmap.md)) | In progress. Its Dashboard and Reports step moves to Reporting (step 7 below). |
 | 1 | **Company and Branch foundation** (see next section), run right after Inventory step 1 (the Paper catch-up, design-only, so it conflicts with no code) and before the owner's pending local edits are merged, pushed or deployed | Slot confirmed by the owner, 3 Oct 2026 |
+| 1b | **Stock ledger door** (Inventory): one posting function for stock movements, with tests; each Inventory rebuild then moves its own writes onto it | Needed before the Inventory lane starts; today 9 sub-modules write `inventoryTransaction` directly |
 | 2 | **Access & Organisation + Notifications & Audit**: move the auth core with no behaviour change; rebuild the branch, user and settings screens | Then Assistant layer 1 can start |
-| 3 | **Workforce** | Staff and HR first, then scheduling and attendance, then payroll |
+| 3 | **Workforce** (**client priority**, 3 Oct 2026; designs first) | Staff and HR first, then scheduling and attendance, then payroll. Starts as soon as its first designs are approved |
 | 4 | **Menu & Pricing** | Small; Orders depends on it |
 | 5 | **Communications** | Assistant layer 3 delivers through it |
 | 6 | **Finance & Receivables** | Accounts, Other income, Reconciliation |
@@ -50,7 +51,7 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 
 ## How the work runs: parallel lanes
 
-Decided 3 Oct 2026. Up to **three lanes** at once (what the owner can review). A lane is one agent session on its own branch in its own git worktree, with its own ports, database, Redis and browser, so lanes cannot overwrite or disturb each other. The mechanics (`scripts/lane.sh`, port scheme, merge queue, lane brief template) are written in `docs/PARALLEL_WORKFLOW.md` by the tooling session below.
+Decided 3 Oct 2026. At most **three lanes** at once: **one design lane and two code lanes** (what the owner can review). A lane is one agent session on its own branch in its own git worktree, with its own ports, database, Redis and browser, so lanes cannot overwrite or disturb each other. The mechanics (`scripts/lane.sh`, port scheme, merge queue, lane brief template) are written in `docs/PARALLEL_WORKFLOW.md` by the tooling session below.
 
 - **Light setup** because the owner's machine has about 15 GB of RAM (about 6 GB already in use): one shared Postgres server with one database per lane (cloned from a seeded template), one small Redis per lane, and the API, worker and frontend run directly with `pnpm` (no Docker image per lane).
 - **A design lane runs ahead** of the build lanes so builds never wait on Paper. Only one agent edits the Paper file at a time.
@@ -64,7 +65,15 @@ Pilot (now): two lanes at once, neither touching app code, so they cannot collid
 | Tooling | Lane tooling: scripts, per-lane environment, workflow doc, module-import CI check, per-module Prisma schema files | [sessions/pilot-lane-tooling.md](sessions/pilot-lane-tooling.md) |
 | Design | Paper catch-up and Purchasing design check | [sessions/pilot-paper-catchup.md](sessions/pilot-paper-catchup.md) |
 
-After the pilot: Company/Branch rename (alone), then fan out to three lanes (Inventory Purchasing build, Access move, and the design lane running ahead).
+After the pilot: Company/Branch rename (alone), then a short **stock ledger door** session (one agreed way to post a stock movement, with tests, so Inventory lanes do not each invent their own), then fan out:
+
+| Lane | Work |
+|---|---|
+| **Design lane** (Paper, runs ahead) | **Workforce designs first** (client priority, 3 Oct 2026), approved in batches by sub-module: Staff & HR, then Attendance & Scheduling, then Payroll & Payslips. Then Requisitions, Dispatch and Branch day; then Menu & Pricing, Finance and the other modules. |
+| **Code lane A: Inventory** | Purchasing + Receiving, then Prep, then Stock & counts, then Waste, then Requisitions + Dispatch + Branch day once designed. One at a time inside the lane, because Purchasing, Suppliers, Counting and Stock import each other. |
+| **Code lane B: platform, then Workforce** | Access & Organisation + Notifications & Audit first (a move; no design needed, so it does not wait for Workforce designs). Switches to the Workforce build when its first designs are approved. |
+
+Why this shape: the client asked for Workforce to be prioritised, and no Workforce design exists yet, so the designs are the critical path; lane B uses the wait for the Access move, which Workforce builds on. Further lanes (Assistant layer 1 after Access, Menu & Pricing, Communications) start only when a lane frees up.
 
 ## Company and Branch foundation
 
