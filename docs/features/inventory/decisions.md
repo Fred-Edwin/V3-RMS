@@ -59,18 +59,20 @@ The client has **not** approved the role names or the role-to-screen mapping dra
 - eTIMS/KRA integration: **out of scope**.
 - Central Store hub scoping (D-15): see `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`. **Exception (3 Oct 2026):** a role holding `central_store.read_any_org` (Branch Manager, and the other desktop roles) may **read** hub data from outside the hub organization, through one shared guard (`requireHubReader`). Every write still needs the hub organization (`requireHubActor`), except the System Admin, who belongs to no organization and may write to the hub.
 
-## Open owner decisions
+## Owner decisions (settled 3 Oct 2026, unless marked open)
 
-| # | Question | Notes |
+| # | Question | Decision |
 |---|---|---|
-| F1 | `MISCOUNT_CORRECTED` writes the gap at the branch although the note says everything arrived | Recommend a required `correctedQty` and writing `correctedQty − confirmedQty`. Do not demo this outcome until decided |
-| F4 | `GET /dispatch/:id/fulfil` returns on-hand to the Store Attendant | Either accept as a documented exception (fulfil screen needs shortages) or send only an "insufficient stock" flag |
-| Q1 | Suggested restock level: formula and who sets days of cover per item | Default ~15 days dry goods, ~5 days perishables |
-| Q2 | Can an attendant-added item be ordered before the Store Manager finishes setup? | Drawn: usable for receiving, not for ordering |
-| Q3 | Supplier document upload limited to Store Manager and Accountant | Confirm |
-| Q4 | Retire an item with open orders: existing lines stay, new ones blocked | Confirm |
-| Q5 | Prep: run numbers PREP-nnnn on every run; manager's own "New prep run" drawer kept as is; target yield set by manager | Confirm |
-| Q6 | Phone "Check the goods" screen shows our item name only | Settle with owner |
+| F1 | `MISCOUNT_CORRECTED` writes the gap at the branch although the note says everything arrived | **Settled.** Require a `correctedQty` and write `correctedQty − confirmedQty`. Build it with the Dispatch/branch flow; do not demo this outcome until it is built |
+| F4 | `GET /dispatch/:id/fulfil` returns on-hand to the Store Attendant | **Open — decided when the requisitions flow is built.** Recommended: send only an "insufficient stock" flag, no figures |
+| Q1 | Suggested restock level: formula and who sets days of cover per item | **Settled.** The Store Manager sets days of cover per item (built). Default 15 days; 5 days for perishables when an item is marked perishable |
+| Q2 | Can an attendant-added item be ordered before the Store Manager finishes setup? | **Settled: no.** It can be received, not ordered, until setup is finished |
+| Q3 | Supplier document upload | **Settled.** Store Manager, Accountant and System Admin (the permissions table) |
+| Q4 | Retire an item with open orders | **Settled.** Existing order lines stay; new orders cannot use the item |
+| Q5 | Prep: run numbers, manager's drawer, target yield | **Settled.** Number every run PREP-nnnn; keep the manager's own "New prep run" drawer; the manager sets the target yield |
+| Q6 | Phone "Check the goods" screen: item name | **Settled.** Our name large, the supplier's name small beneath it when it differs. No money is shown |
+| N1 | Names in the phone notes ("the Store Manager", "the Accountant") | **Settled.** Keep role names; no name field |
+| N2 | Dashboard and Reports sidebar links (no design) | **Settled.** Hidden until they are designed |
 
 ## Superseded — do not revive
 

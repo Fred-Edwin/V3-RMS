@@ -41,7 +41,7 @@ export interface SidebarNavItem {
   href: string;
   icon: NavIcon;
   count?: number;
-  /** Sub-pages, shown as the curved connector rail under the item while it is active (`1BI5-0`). */
+  /** Sub-pages, shown as the curved connector rail under the item (`1BI5-0`): open while the item is active, and opened or closed with its chevron. */
   subItems?: SidebarNavSubItem[];
 }
 
@@ -80,7 +80,7 @@ export interface SidebarNavProps {
 const navItemInteractiveClass =
   'rounded-wds-sm outline-none transition-colors hover:bg-wds-sidebar-active-bg focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring active:bg-wds-sidebar-active-bg/80';
 
-function DesktopNavItem({
+function NavItemLink({
   item,
   active,
   onNavigate,
@@ -119,6 +119,102 @@ function DesktopNavItem({
       ) : null}
     </Link>
   );
+}
+
+/**
+ * A top-level item. One with sub-links also carries a small chevron that opens and closes its branches (a button next to the
+ * link, never inside it). The link itself still navigates and, when it lands, opens the branches it belongs to.
+ */
+function DesktopNavItem({
+  item,
+  active,
+  onNavigate,
+  toggle,
+}: {
+  item: SidebarNavItem;
+  active: boolean;
+  onNavigate?: (item: SidebarNavItem, event: React.MouseEvent<HTMLAnchorElement>) => void;
+  toggle?: { expanded: boolean; controlsId: string; onToggle: () => void };
+}) {
+  const link = <NavItemLink item={item} active={active} onNavigate={onNavigate} />;
+  if (!toggle) return link;
+  return (
+    <div className="relative">
+      {link}
+      <button
+        type="button"
+        onClick={toggle.onToggle}
+        aria-expanded={toggle.expanded}
+        aria-controls={toggle.controlsId}
+        aria-label={`${toggle.expanded ? 'Collapse' : 'Expand'} ${item.label}`}
+        className="absolute right-1.5 top-1 flex size-6 items-center justify-center rounded-wds-sm text-wds-sidebar-fg-muted outline-none transition-colors hover:bg-wds-sidebar-active-bg hover:text-wds-sidebar-fg-active focus-visible:bg-wds-sidebar-active-bg focus-visible:shadow-wds-ring"
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          aria-hidden
+          className={cn('transition-transform duration-200 ease-out motion-reduce:transition-none', toggle.expanded && 'rotate-90')}
+        >
+          <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+const OPEN_STORAGE_KEY = 'sidebar-nav-open';
+
+const without = (record: Record<string, boolean>, key: string): Record<string, boolean> =>
+  Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+
+function remember(record: Record<string, boolean>): void {
+  try {
+    sessionStorage.setItem(OPEN_STORAGE_KEY, JSON.stringify(record));
+  } catch {
+    // Private windows and blocked storage: the choice just lasts until the page reloads.
+  }
+}
+
+/**
+ * Which parent items are open. The item you are in is open by default; the chevron closes or opens any of them, and the
+ * choice is remembered for the session. Moving into a section opens it again, whatever was chosen before.
+ */
+function useExpandedItems(activeKey: string) {
+  const [overrides, setOverrides] = React.useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(OPEN_STORAGE_KEY);
+      if (raw) setOverrides(without(JSON.parse(raw) as Record<string, boolean>, activeKey));
+    } catch {
+      // Nothing remembered, or storage is blocked: start from the default.
+    }
+    // Read once on mount; later changes of the active item are handled by the next effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  React.useEffect(() => {
+    setOverrides((prev) => {
+      if (!(activeKey in prev)) return prev;
+      const next = without(prev, activeKey);
+      remember(next);
+      return next;
+    });
+  }, [activeKey]);
+
+  const isExpanded = React.useCallback((key: string): boolean => overrides[key] ?? key === activeKey, [overrides, activeKey]);
+  const toggle = React.useCallback(
+    (key: string): void => {
+      setOverrides((prev) => {
+        const next = { ...prev, [key]: !(prev[key] ?? key === activeKey) };
+        remember(next);
+        return next;
+      });
+    },
+    [activeKey]
+  );
+  return { isExpanded, toggle };
 }
 
 const SUB_ROW_HEIGHT = 26;
@@ -222,6 +318,7 @@ export function SidebarNav({
   onSignOut,
   className,
 }: SidebarNavProps) {
+  const { isExpanded, toggle } = useExpandedItems(activeKey);
   return (
     <nav
       className={cn(
@@ -250,18 +347,40 @@ export function SidebarNav({
                 {group.label}
               </span>
             </div>
-            {group.items.map((item) => (
-              <React.Fragment key={item.key}>
-                <DesktopNavItem item={item} active={item.key === activeKey} onNavigate={onNavigate} />
-                {item.key === activeKey && item.subItems?.length ? (
-                  <SubLinkRail
-                    items={item.subItems}
-                    activeSubKey={activeSubKey}
-                    onNavigate={onNavigate ? (href, e) => onNavigate({ ...item, href }, e) : undefined}
+            {group.items.map((item) => {
+              const hasSubItems = Boolean(item.subItems?.length);
+              const expanded = hasSubItems && isExpanded(item.key);
+              const controlsId = `sidebar-sub-${item.key}`;
+              return (
+                <React.Fragment key={item.key}>
+                  <DesktopNavItem
+                    item={item}
+                    active={item.key === activeKey}
+                    onNavigate={onNavigate}
+                    toggle={hasSubItems ? { expanded, controlsId, onToggle: () => toggle(item.key) } : undefined}
                   />
-                ) : null}
-              </React.Fragment>
-            ))}
+                  {hasSubItems && item.subItems ? (
+                    // Slides open and shut (200ms, ease-out). Shut, it is invisible, so keyboard focus skips its links.
+                    <div
+                      id={controlsId}
+                      aria-hidden={!expanded}
+                      className={cn(
+                        'grid transition-[grid-template-rows,opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+                        expanded ? 'visible grid-rows-[1fr] opacity-100' : 'invisible grid-rows-[0fr] opacity-0'
+                      )}
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        <SubLinkRail
+                          items={item.subItems}
+                          activeSubKey={item.key === activeKey ? activeSubKey : undefined}
+                          onNavigate={onNavigate ? (href, e) => onNavigate({ ...item, href }, e) : undefined}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </React.Fragment>
+              );
+            })}
           </React.Fragment>
         ))}
       </div>
