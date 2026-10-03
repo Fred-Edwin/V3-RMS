@@ -20,6 +20,8 @@ export interface ItemFormValues {
   categoryIsNew: boolean;
   departmentTags: DepartmentTag[];
   restockLevel: string;
+  /** Days of cover for the suggested level, as typed. Empty = the default of 15. */
+  daysOfCover: string;
   /** Add only: the usual price per buy unit, as typed ("8,900"). Empty = none. */
   usualPrice: string;
 }
@@ -34,12 +36,13 @@ export const EMPTY_FORM_VALUES: ItemFormValues = {
   categoryIsNew: false,
   departmentTags: [],
   restockLevel: '',
+  daysOfCover: '',
   usualPrice: '',
 };
 
 export type ItemFormSource = Pick<
   InventoryItem,
-  'name' | 'type' | 'buyUnit' | 'usageUnit' | 'conversionFactor' | 'packSize' | 'categoryId' | 'departmentTags' | 'centralStoreRestockLevel'
+  'name' | 'type' | 'buyUnit' | 'usageUnit' | 'conversionFactor' | 'packSize' | 'categoryId' | 'departmentTags' | 'centralStoreRestockLevel' | 'daysOfCover'
 >;
 
 export function itemToFormValues(item: ItemFormSource): ItemFormValues {
@@ -56,6 +59,7 @@ export function itemToFormValues(item: ItemFormSource): ItemFormValues {
     categoryIsNew: false,
     departmentTags: item.departmentTags,
     restockLevel: item.centralStoreRestockLevel ? trimDecimal(item.centralStoreRestockLevel) : '',
+    daysOfCover: item.daysOfCover ? trimDecimal(item.daysOfCover) : '',
     usualPrice: '',
   };
 }
@@ -74,6 +78,7 @@ export function holdsApplies(values: Pick<ItemFormValues, 'type' | 'buyUnit' | '
 export const usesDepartments = (type: InventoryItemType): boolean => type !== 'RAW_INGREDIENT';
 
 const DECIMAL = /^\d{1,8}(\.\d{1,4})?$/;
+const DAYS = /^\d{1,3}(\.\d{1,2})?$/;
 
 export interface ItemFormErrors {
   name?: string;
@@ -81,6 +86,7 @@ export interface ItemFormErrors {
   usageUnit?: string;
   holds?: string;
   restockLevel?: string;
+  daysOfCover?: string;
   usualPrice?: string;
 }
 
@@ -96,6 +102,8 @@ export function validateItemForm(values: ItemFormValues): ItemFormErrors {
   }
   const level = values.restockLevel.trim();
   if (level !== '' && (!DECIMAL.test(level) || Number.parseFloat(level) < 0)) errors.restockLevel = 'Enter a number like 100.';
+  const days = values.daysOfCover.trim();
+  if (days !== '' && (!DAYS.test(days) || Number.parseFloat(days) <= 0 || Number.parseFloat(days) > 365)) errors.daysOfCover = 'Enter days like 5 or 1.5 (up to 365).';
   const priceError = isBought(values.type) ? validateOptionalPrice(values.usualPrice) : null;
   if (priceError) errors.usualPrice = priceError;
   return errors;
@@ -136,6 +144,7 @@ export function toCreateInput(values: ItemFormValues): CreateItemInput {
     ...units,
     departmentTags: usesDepartments(values.type) ? values.departmentTags : [],
     centralStoreRestockLevel: level === '' ? null : level,
+    ...(values.daysOfCover.trim() !== '' ? { daysOfCover: values.daysOfCover.trim() } : {}),
     // A Prepped item is made, not bought, so it has no price to buy it at.
     ...(isBought(values.type) && normalizePriceInput(values.usualPrice) !== '' ? { usualPrice: normalizePriceInput(values.usualPrice) } : {}),
   };
@@ -209,6 +218,10 @@ export function buildEditPlan(item: ItemFormSource, values: ItemFormValues): Ite
   const levelBefore = before.restockLevel;
   if (values.restockLevel.trim() !== levelBefore) {
     input.centralStoreRestockLevel = values.restockLevel.trim() === '' ? null : values.restockLevel.trim();
+  }
+
+  if (values.daysOfCover.trim() !== before.daysOfCover) {
+    input.daysOfCover = values.daysOfCover.trim() === '' ? null : values.daysOfCover.trim();
   }
 
   return { input, risky, after: { type: values.type, buyUnit: units.buyUnit, usageUnit: units.usageUnit, holds: afterHolds } };

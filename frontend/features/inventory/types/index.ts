@@ -77,6 +77,8 @@ export interface InventoryItem {
   currentCost: string;
   /** Null when no restock level has been set for this item at the Central Store. */
   centralStoreRestockLevel: string | null;
+  /** Days the suggested restock level covers; null = the default of 15. Store Manager only (§30.8). */
+  daysOfCover?: string | null;
   retiredAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -224,6 +226,8 @@ export interface CreateItemInput {
   departmentTags: DepartmentTag[];
   /** Optional Central Store restock level, set inline from the item form. */
   centralStoreRestockLevel?: string | null;
+  /** Days of cover for the suggested level; null clears it (back to 15). Store Manager only (§30.8). */
+  daysOfCover?: string | null;
   /** Per buy unit, Store Manager only. Sets the item's cost per usage unit; creates no supplier line (§30.2). */
   usualPrice?: string | null;
 }
@@ -311,6 +315,8 @@ export interface RestockLevelRow {
   inventoryItemId: string;
   itemName: string;
   usageUnit: string;
+  /** Stocked, Raw ingredient or Prepped (§30.7). */
+  itemType: InventoryItemType;
   onHandQty: string;
   level: string | null;
   isBelowLevel: boolean;
@@ -320,6 +326,8 @@ export interface RestockLevelRow {
   suggestedLevel: string | null;
   /** `NEEDS_HISTORY`: under 14 days of use, so no suggestion yet. */
   suggestionNote: 'NEEDS_HISTORY' | null;
+  /** The days of cover the suggestion used: the item's own, or "15" (§30.8). */
+  daysOfCover: string;
 }
 
 /** "Whose levels" (§29.2): the Central Store, or a department at one branch. */

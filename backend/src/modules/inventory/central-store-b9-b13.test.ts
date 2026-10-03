@@ -349,6 +349,23 @@ describe('B11 restock strip', () => {
     expect(result.out + result.low + result.ok + result.noLevel).toBe(result.total);
   });
 
+  it('rows report the days of cover the suggestion used: the item own, or the default 15', async () => {
+    vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([
+      buildItem(),
+      buildItem({ id: item2Id, daysOfCover: new Prisma.Decimal('1.5') }),
+    ] as never);
+    vi.mocked(restockLevelRepository.findUseByItemForLocation).mockResolvedValue(
+      new Map([
+        [itemId, { useInWindow: new Prisma.Decimal('360'), firstUseAt: new Date(Date.now() - 90 * 86_400_000) }],
+        [item2Id, { useInWindow: new Prisma.Decimal('360'), firstUseAt: new Date(Date.now() - 90 * 86_400_000) }],
+      ]),
+    );
+    const rows = await inventoryService.listRestockLevels(storeManager, { scope: 'CENTRAL_STORE' });
+    expect(rows[0]).toMatchObject({ daysOfCover: '15', suggestedLevel: '180.00' });
+    expect(rows[1]).toMatchObject({ daysOfCover: '1.5', suggestedLevel: '18.00' });
+    rows.forEach((r) => expect(() => RestockLevelRowSchema.parse(r)).not.toThrow());
+  });
+
   it('rows carry status and the suggestion, validated against the row schema', async () => {
     vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([buildItem(), buildItem({ id: item2Id })] as never);
     vi.mocked(restockLevelRepository.findUseByItemForLocation).mockResolvedValue(
@@ -357,6 +374,7 @@ describe('B11 restock strip', () => {
     const rows = await inventoryService.listRestockLevels(storeManager, { scope: 'CENTRAL_STORE' });
     rows.forEach((r) => expect(() => RestockLevelRowSchema.parse(r)).not.toThrow());
     expect(rows[0]).toMatchObject({ status: 'NO_LEVEL', suggestedLevel: null, suggestionNote: null });
+    rows.forEach((r) => expect(['RAW_INGREDIENT', 'PREPPED', 'STOCKED']).toContain(r.itemType));
     expect(rows[1]).toMatchObject({ suggestedLevel: null, suggestionNote: 'NEEDS_HISTORY' });
   });
 
@@ -402,6 +420,7 @@ describe('B12 attendant item creation', () => {
     ['preferred supplier', { preferredSupplierId: '66666666-6666-4666-8666-666666666666' }],
     ['used-by departments', { departmentTags: ['KITCHEN'] }],
     ['restock level', { centralStoreRestockLevel: '5' }],
+    ['days of cover', { daysOfCover: '5' }],
   ])('refuses an attendant request that sets %s', async (_label, extra) => {
     await expect(
       inventoryService.createItem(attendant, { ...base, type: 'STOCKED', ...extra } as never),

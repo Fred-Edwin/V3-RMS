@@ -179,7 +179,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
               Central Store · {item.centralStoreRestockLevel ? `${trimDecimal(item.centralStoreRestockLevel)} ${item.usageUnit}` : 'not set'}
             </span>
             <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-              On hand {onHand} {item.usageUnit} · departments set their own
+              On hand {onHand} {item.usageUnit} · suggestions cover {item.daysOfCover ? trimDecimal(item.daysOfCover) : '15'} days · departments set their own
             </span>
           </div>
           <button

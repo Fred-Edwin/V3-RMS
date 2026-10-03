@@ -4911,3 +4911,18 @@ change replaced (`oldLevel`) and writes a **new** history entry; the old entry s
 `GET /inventory/restock-levels/branches` (SM; hub-scoped, a non-hub actor gets `403`) → `[{id, name}]` — active branch organizations, hub excluded,
 oldest first. The Store Manager picks one next to a department chip on the Restock levels page; the chosen `id` is sent as `branchId` with `scope` (§29.2).
 `GET /branches` is not usable for this: it is for Director / Admin / Accountant / HR and returns profile fields (KRA PIN, M-Pesa) a Store Manager has no need for.
+
+### 30.7 Item type on restock rows (Session 5 follow-up)
+
+Every `RestockLevelRow` (§29.2, list and save responses) gains `itemType: "STOCKED" | "RAW_INGREDIENT" | "PREPPED"`, the item's own type. The Restock levels page
+shows "kg · Prepped" under the unit for Prepped items. Additive; no other change.
+
+### 30.8 Days of cover per item (Session 5 follow-up, owner-approved 3 Oct 2026)
+
+Migration `add_item_days_of_cover`: nullable `inventory_items.days_of_cover` `Decimal(6,2)`. Null means the default of 15 (§29.5).
+
+- **Item** (`InventoryItem`, create `POST /inventory/items` and update `PATCH /inventory/items/:id`): `daysOfCover: string | null`, a decimal greater than 0 and at most 365, up to 2 decimals (`"1.5"`, `"5"`). `null` on an update clears it. Store Manager only: omitted from the Store Attendant's item responses, and a Store Attendant who sends it on create gets `403` ("The Store Manager sets … days of cover").
+- **Suggestion** (§29.5): `suggestedLevel = ceil(avgDaily × daysOfCover, 2dp)` using the item's own `daysOfCover`, or 15 when it has none. "Suggestions differ" uses the same suggestion.
+- **Restock row** (§29.2, §30.7): gains `daysOfCover: string`, the days the suggestion used (the item's, or `"15"`), so a screen can write "12 kg a day, 5 days of cover".
+- **Item history** (§30.4): a change is logged as "set the days of cover to 5", "changed the days of cover from 5 to 1.5" or "cleared the days of cover (back to 15)".
+- Not modelled: meal services ("at lunch"). The page says "{n} a day" only.

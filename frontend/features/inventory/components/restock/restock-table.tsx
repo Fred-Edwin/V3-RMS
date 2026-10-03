@@ -4,7 +4,6 @@ import { cn } from '@/lib/cn';
 import type { RestockLevelRow, RestockStatus } from '../../types';
 import { formatNumber } from '../stock/stock-format';
 import {
-  SUGGESTION_COVER_DAYS,
   SUGGESTION_VERDICT_LABEL,
   levelNumber,
   parseLevelInput,
@@ -51,7 +50,7 @@ const VERDICT_TEXT: Record<SuggestionVerdict, string> = {
 
 /**
  * The suggestion cell. The figure is a button: tapping it puts the suggestion in the level field.
- * Only 15 days of cover exists (§29.5), so that is the only cover the second line can name.
+ * The second line names the days of cover the suggestion used: the item's own, or 15 (§30.8).
  */
 function SuggestionCell({ row, typed, onUse }: { row: RestockLevelRow; typed: number | null; onUse: () => void }) {
   const suggested = levelNumber(row.suggestedLevel);
@@ -83,7 +82,7 @@ function SuggestionCell({ row, typed, onUse }: { row: RestockLevelRow; typed: nu
         {verdict ? ` · ${SUGGESTION_VERDICT_LABEL[verdict]}` : null}
       </span>
       <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-        {formatNumber(suggestedPerDay(suggested))} {row.usageUnit} a day, {SUGGESTION_COVER_DAYS} days of cover
+        {formatNumber(suggestedPerDay(suggested, Number.parseFloat(row.daysOfCover)))} {row.usageUnit} a day, {formatNumber(row.daysOfCover)} {Number.parseFloat(row.daysOfCover) === 1 ? 'day' : 'days'} of cover
       </span>
     </span>
   );
@@ -148,7 +147,10 @@ export function RestockTable({ rows, edits, onLevelChange, onOpenHistory, classN
               >
                 {row.itemName}
               </button>
-              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-faint">{row.usageUnit}</span>
+              <span className="font-wds-sans text-[12px] leading-4 text-wds-text-faint">
+                {row.usageUnit}
+                {row.itemType === 'PREPPED' ? ' · Prepped' : ''}
+              </span>
             </span>
             <span role="cell" className="w-[110px] shrink-0 text-right font-wds-mono text-[13px] leading-4 text-wds-text-ink">
               {formatNumber(row.onHandQty)}

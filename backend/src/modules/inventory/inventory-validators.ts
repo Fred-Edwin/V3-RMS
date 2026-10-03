@@ -57,6 +57,12 @@ export const positiveDecimalSchema = z
   .regex(/^\d{1,8}(\.\d{1,4})?$/, 'Must be a valid decimal (e.g. 12 or 12.5)')
   .refine((v) => Number.parseFloat(v) > 0, 'Must be greater than 0');
 
+/** Days of cover for an item's suggested restock level: more than 0, at most a year, up to 2 decimals (e.g. 1.5). */
+export const daysOfCoverSchema = z
+  .string()
+  .regex(/^\d{1,3}(\.\d{1,2})?$/, 'Enter days like 5 or 1.5')
+  .refine((v) => Number.parseFloat(v) > 0 && Number.parseFloat(v) <= 365, 'Days of cover must be between 0 and 365');
+
 /** Decimal(12,4) as a string, zero or greater. A restock level of 0 is valid. */
 export const nonNegativeDecimalSchema = z
   .string()
@@ -164,6 +170,8 @@ const itemCoreFields = {
   conversionFactor: positiveDecimalSchema.nullable(),
   /** Null renders as "—". Supplier invoices price by pack, so this is common. */
   packSize: positiveDecimalSchema.nullable(),
+  /** Days of cover the suggested restock level aims for; null = the default of 15 (§30.8). */
+  daysOfCover: daysOfCoverSchema.nullable(),
   /** MUST be empty when `type` is `RAW_INGREDIENT`. */
   departmentTags: z.array(departmentTagSchema),
 };
@@ -198,6 +206,7 @@ export const InventoryItemSchema = z.object({
 export const AttendantInventoryItemSchema = InventoryItemSchema.omit({
   currentCost: true,
   centralStoreRestockLevel: true,
+  daysOfCover: true,
   preferredSupplier: true,
   preferredSupplierId: true,
 });
@@ -297,6 +306,7 @@ export const CreateItemSchema = z
     usageUnit: itemCoreFields.usageUnit,
     conversionFactor: positiveDecimalSchema.nullish(),
     packSize: positiveDecimalSchema.nullish(),
+    daysOfCover: daysOfCoverSchema.nullish(),
     departmentTags: z.array(departmentTagSchema).default([]),
     /** Optional Central Store restock level, set inline from the item form. */
     centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
@@ -322,6 +332,7 @@ export const UpdateItemSchema = z
     usageUnit: itemCoreFields.usageUnit.optional(),
     conversionFactor: positiveDecimalSchema.nullish(),
     packSize: positiveDecimalSchema.nullish(),
+    daysOfCover: daysOfCoverSchema.nullish(),
     departmentTags: z.array(departmentTagSchema).optional(),
     centralStoreRestockLevel: nonNegativeDecimalSchema.nullish(),
     /** Optional, never required; stored on the history row (§30.4). Not a change on its own. */
@@ -398,6 +409,8 @@ export const RestockLevelRowSchema = z.object({
   inventoryItemId: uuidSchema,
   itemName: z.string(),
   usageUnit: z.string(),
+  /** Stocked, Raw ingredient or Prepped (§30.7): the page marks Prepped items next to the unit. */
+  itemType: inventoryItemTypeSchema,
   onHandQty: z.string(),
   level: nonNegativeDecimalSchema.nullable(),
   isBelowLevel: z.boolean(),
@@ -405,6 +418,8 @@ export const RestockLevelRowSchema = z.object({
   /** Provisional formula, §29.5. Null when there is no history yet or no use at all. */
   suggestedLevel: z.string().nullable(),
   suggestionNote: z.literal('NEEDS_HISTORY').nullable(),
+  /** The days of cover the suggestion used: the item's own, or the default of 15 (§30.8). */
+  daysOfCover: z.string(),
 });
 
 export const RestockLevelsSummarySchema = z.object({

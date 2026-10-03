@@ -18,12 +18,14 @@ const row = (over: Partial<RestockLevelRow>): RestockLevelRow => ({
   inventoryItemId: over.itemName ?? 'x',
   itemName: 'Item',
   usageUnit: 'kg',
+  itemType: 'STOCKED',
   onHandQty: '10',
   level: null,
   isBelowLevel: false,
   status: 'NO_LEVEL',
   suggestedLevel: null,
   suggestionNote: null,
+  daysOfCover: '15',
   ...over,
 });
 
@@ -106,6 +108,8 @@ describe('suggestedPerDay', () => {
   it('divides the fixed 15 days of cover back out', () => {
     expect(suggestedPerDay(180)).toBe(12);
     expect(suggestedPerDay(40)).toBe(2.67);
+    // an item with its own cover: 18 kg over 1.5 days is 12 a day
+    expect(suggestedPerDay(18, 1.5)).toBe(12);
   });
 });
 

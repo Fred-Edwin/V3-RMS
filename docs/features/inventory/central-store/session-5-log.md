@@ -75,11 +75,16 @@ By eye (screenshots of Paper and the live page, same state): spacing rhythm, hai
 - **Backend (owner-approved):** `inventory-routes.ts`, `-controller.ts`, `-service.ts` (`listRestockBranches`), `-validators.ts` (`RestockBranchOptionSchema`), `inventory.types.ts`, `repositories/branch-repository.ts` (`findActiveBranchOptions`), `inventory-contract.test.ts` (+2 tests). **Docs:** `API_CONTRACT.md` §30.6.
 
 ## Deferred to the backend session
-| Need | Waits on it |
+Both items were done in the follow-up below (branch `feat/restock-backend-batch`). Only meal services ("at lunch") remain, by decision: the page says "{n} a day".
+
+## Follow-up: the small backend batch (3 Oct 2026, after #59 merged)
+| What | Detail |
 |---|---|
-| Item **type** on the restock row (`type` or a "Prepped" flag) | Paper's "kg · Prepped" under the unit; hidden for now |
-| **Per-item days of cover** and a "per meal service" figure | Paper's "5 days of cover" and "38 a day at lunch" lines; every row says "15 days of cover", the "at lunch" wording is left out |
-| Nothing else needed from the backend. | |
+| Item type on the restock row | `itemType` on every row (§30.7). The page writes "kg · Prepped" under the unit for Prepped items. |
+| Days of cover per item | Owner answers: an **optional field on the item**; drop "at lunch". Migration `add_item_days_of_cover` (one nullable `Decimal(6,2)` column). Item create/update take `daysOfCover` (Store Manager only; omitted from attendant responses; an attendant sending it gets 403). The suggestion uses the item's cover, else 15. Each restock row returns the cover it used. The history logs set / changed / cleared. Contract §30.8, `DATA_MODEL.md` updated. |
+| Frontend | "Days of cover" field in the Add/Edit item drawer (after the restock level; optional; "days" suffix; 1 to 365, 2 decimals), a "suggestions cover N days" note on the item page, the suggestion line "{n} a day, {cover} days of cover". |
+| Not in Paper | The Days of cover field in the item drawer is not drawn (the owner chose to set it there); needs a design pass or sign-off. |
+| Checked | Backend 1512 tests pass (+4). Frontend 141 pass (+3). In the browser: set 5 days on Sugar, white → history "set the days of cover to 5" → Restock levels reads "17.98 kg a day, 5 days of cover", suggestion 89.9; Prepped rows show "portion · Prepped"; attendant's item response has no `daysOfCover`. |
 
 ## Surprising / for the next session
 - **Two Next dev servers on one `.next` corrupt it** (static chunks 404, login does nothing). One was already running on port 3000 before the session started; I stopped both and started one. Worth remembering when a "can't log in" happens locally.

@@ -8,6 +8,7 @@ const flour: ItemFields = {
   usageUnit: 'kg',
   conversionFactor: '25.0000',
   packSize: '25.0000',
+  daysOfCover: null,
   categoryName: 'Dry goods',
   departmentTags: [],
 };
@@ -19,6 +20,15 @@ describe('formatting', () => {
     expect(trimDecimal('100')).toBe('100');
     expect(formatKes('8900')).toBe('KES 8,900');
     expect(formatKes('178.5')).toBe('KES 178.5');
+  });
+});
+
+describe('days of cover in the history', () => {
+  it('says when it was set, changed and cleared, and ignores 5 vs 5.00', () => {
+    expect(describeItemUpdate(flour, { ...flour, daysOfCover: '5.00' })?.summary).toBe('set the days of cover to 5');
+    expect(describeItemUpdate({ ...flour, daysOfCover: '5.00' }, { ...flour, daysOfCover: '1.50' })?.summary).toBe('changed the days of cover from 5 to 1.5');
+    expect(describeItemUpdate({ ...flour, daysOfCover: '5.00' }, flour)?.summary).toBe('cleared the days of cover (back to 15)');
+    expect(describeItemUpdate({ ...flour, daysOfCover: '5.00' }, { ...flour, daysOfCover: '5' })).toBeNull();
   });
 });
 
