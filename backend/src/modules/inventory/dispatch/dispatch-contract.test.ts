@@ -83,9 +83,9 @@ const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const requisitionLineId = '66666666-6666-4666-8666-666666666666';
 const dispatchId = '77777777-7777-4777-8777-777777777777';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -138,17 +138,17 @@ describe('Dispatch request schemas', () => {
 
 const buildRequisitionForFulfil = (overrides: Record<string, unknown> = {}) => ({
   id: requisitionId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   status: 'APPROVED',
   type: 'MORNING',
   openedAt: new Date('2026-09-17T05:00:00.000Z'),
-  toOrganizationName: 'Nyeri Town',
+  toSiteName: 'Nyeri Town',
   sections: [
     {
       id: 'section-1',
       departmentTag: 'KITCHEN',
       status: 'SUBMITTED',
-      requisition: { id: requisitionId, organizationId: branchOrgId, toOrganizationName: 'Nyeri Town' },
+      requisition: { id: requisitionId, siteId: branchOrgId, toSiteName: 'Nyeri Town' },
       lines: [
         {
           id: requisitionLineId,
@@ -168,10 +168,10 @@ describe('Dispatch response contract shapes', () => {
     vi.mocked(dispatchRepository.findQueueByBranchOrgIds).mockResolvedValue([
       {
         id: requisitionId,
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         type: 'MORNING',
         openedAt: new Date('2026-09-17T05:00:00.000Z'),
-        toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+        toSite: { id: branchOrgId, name: 'Nyeri Town' },
         sections: [
           {
             departmentTag: 'KITCHEN',
@@ -214,7 +214,7 @@ describe('Dispatch response contract shapes', () => {
       sequenceLabel: 'Dispatch 1',
       status: 'IN_TRANSIT',
       departmentTag: 'KITCHEN',
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
       dispatchedBy: { id: storeManager.id, name: 'Store Manager' },
       dispatchedAt: new Date(),
       confirmedBy: null,
@@ -246,7 +246,7 @@ describe('Dispatch response contract shapes', () => {
       sequenceLabel: 'Dispatch 1',
       status: 'CONFIRMED',
       departmentTag: 'KITCHEN',
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
       dispatchedBy: { id: storeManager.id, name: 'Store Manager' },
       dispatchedAt: new Date(),
       confirmedBy: { id: 'head-1', name: 'Kitchen Head' },

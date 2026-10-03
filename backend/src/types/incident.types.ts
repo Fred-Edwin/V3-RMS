@@ -2,7 +2,7 @@ import type { IncidentType } from '@prisma/client';
 
 export interface IncidentLogRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   branchName: string;
   orderId: string | null;
   type: IncidentType;
@@ -12,7 +12,7 @@ export interface IncidentLogRecord {
 }
 
 export interface CreateIncidentDto {
-  organizationId: string;
+  siteId: string;
   orderId?: string;
   type: IncidentType;
   actorId?: string;

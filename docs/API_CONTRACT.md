@@ -22,6 +22,17 @@
 > For those, `backend/src/validators/` + `backend/src/routes/` are the source of
 > truth until the feature is redone.
 
+> **Note (Oct 2026): wire names are unchanged by design.** In the backend code an
+> Organization is now a `Site` and `organizationId` is `siteId`. Everything that leaves or
+> enters the API keeps the old spelling: JSON response and request keys (`organizationId`,
+> `organizationName`, `organization`, `toOrganizationId`, ...), query strings, socket event
+> payloads, validation error `path`s, and the login token claim. The frontend is deployed
+> separately from the API, so a renamed field would break the live app between the two
+> deploys. One translation layer does this (`backend/src/shared/utils/wire-names.ts`,
+> applied in `middleware/wire-names.ts`, `utils/jwt.ts`, `sockets/socket.ts`). The
+> `/branches` responses also keep their original shape: the new `companyId` and `type`
+> columns are not sent. The frontend is renamed module by module as each is rebuilt.
+
 ---
 
 ## Table of Contents

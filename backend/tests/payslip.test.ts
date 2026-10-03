@@ -25,7 +25,7 @@ describe('Payslip Zod schemas', () => {
     it('accepts a valid bulk upsert payload', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [validRow],
       });
       expect(result.success).toBe(true);
@@ -34,7 +34,7 @@ describe('Payslip Zod schemas', () => {
     it('accepts optional fields (advance, overtime, incentives, allowances)', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, advance: '5000', overtime: '2000', incentives: '1500', allowances: '800' }],
       });
       expect(result.success).toBe(true);
@@ -43,7 +43,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects negative allowances', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, allowances: '-500' }],
       });
       expect(result.success).toBe(false);
@@ -52,7 +52,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects otherDeductions with empty label', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, otherDeductions: [{ label: '', amount: '1000' }] }],
       });
       expect(result.success).toBe(false);
@@ -62,7 +62,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects otherDeductions with missing label field', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, otherDeductions: [{ amount: '1000' }] }],
       });
       expect(result.success).toBe(false);
@@ -71,7 +71,7 @@ describe('Payslip Zod schemas', () => {
     it('accepts otherDeductions with a valid label', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, otherDeductions: [{ label: 'Uniform recovery', amount: '500' }] }],
       });
       expect(result.success).toBe(true);
@@ -80,7 +80,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects invalid payPeriod format (DD-MM-YYYY)', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '05-2026',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [validRow],
       });
       expect(result.success).toBe(false);
@@ -89,7 +89,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects payPeriod with day component', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05-31',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [validRow],
       });
       expect(result.success).toBe(false);
@@ -98,7 +98,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects empty rows array', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [],
       });
       expect(result.success).toBe(false);
@@ -107,7 +107,7 @@ describe('Payslip Zod schemas', () => {
     it('rejects negative amounts', () => {
       const result = bulkUpsertSchema.safeParse({
         payPeriod: '2026-05',
-        organizationId: ORG_ID,
+        siteId: ORG_ID,
         rows: [{ ...validRow, grossPay: '-5000' }],
       });
       expect(result.success).toBe(false);

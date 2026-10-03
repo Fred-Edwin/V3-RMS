@@ -11,25 +11,25 @@ const branchOrgId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const managerToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'STORE_MANAGER',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const branchManagerToken = signAccessToken({
   userId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'STORE_MANAGER',
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
 });
 
 const attendantToken = signAccessToken({
   userId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
   role: 'STORE_ATTENDANT',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const waiterToken = signAccessToken({
   userId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
   role: 'WAITER',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const itemId = '11111111-1111-4111-8111-111111111111';

@@ -5,7 +5,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors'
 
 vi.mock('../repositories/department-repository', () => ({
   departmentRepository: {
-    findOrganization: vi.fn(),
+    findSite: vi.fn(),
     findHeadByDepartment: vi.fn(),
     listMembersByDepartment: vi.fn(),
     findEligibleStaff: vi.fn(),
@@ -21,9 +21,9 @@ const hubOrgId = '33333333-3333-4333-8333-333333333333';
 const staffId = '44444444-4444-4444-8444-444444444444';
 const headId = '55555555-5555-4555-8555-555555555555';
 
-const managerActor = { id: 'm1', role: 'MANAGER' as const, organizationId: branchOrgId };
-const directorActor = { id: 'd1', role: 'DIRECTOR' as const, organizationId: null };
-const otherBranchManager = { id: 'm2', role: 'MANAGER' as const, organizationId: otherBranchOrgId };
+const managerActor = { id: 'm1', role: 'MANAGER' as const, siteId: branchOrgId };
+const directorActor = { id: 'd1', role: 'DIRECTOR' as const, siteId: null };
+const otherBranchManager = { id: 'm2', role: 'MANAGER' as const, siteId: otherBranchOrgId };
 
 const branchOrg = { id: branchOrgId, name: 'Branch A', isHub: false, isActive: true };
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
@@ -34,10 +34,10 @@ beforeEach(() => {
 
 describe('departmentService.assignHead', () => {
   it('assigns a department head at the manager\'s own branch', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findStaffById).mockResolvedValue({
       id: staffId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       isActive: true,
       role: 'WAITER',
     } as never);
@@ -64,10 +64,10 @@ describe('departmentService.assignHead', () => {
   });
 
   it('allows a Director to assign a head at any branch', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findStaffById).mockResolvedValue({
       id: staffId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       isActive: true,
       role: 'WAITER',
     } as never);
@@ -79,7 +79,7 @@ describe('departmentService.assignHead', () => {
   });
 
   it('rejects assignment against the hub organization — the hub has no departments', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(hubOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(hubOrg as never);
 
     await expect(
       departmentService.assignHead(directorActor, hubOrgId, 'KITCHEN', staffId),
@@ -88,7 +88,7 @@ describe('departmentService.assignHead', () => {
   });
 
   it('rejects assigning a staff member not found at this branch', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findStaffById).mockResolvedValue(null);
 
     await expect(
@@ -98,10 +98,10 @@ describe('departmentService.assignHead', () => {
   });
 
   it('rejects assigning an inactive staff member', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findStaffById).mockResolvedValue({
       id: staffId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       isActive: false,
       role: 'WAITER',
     } as never);
@@ -114,7 +114,7 @@ describe('departmentService.assignHead', () => {
 
 describe('departmentService.unassignHead — marker cleared (Q3)', () => {
   it('clears the head marker and department tag, leaving the base role intact', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue({
       id: headId,
       role: 'BARISTA',
@@ -137,7 +137,7 @@ describe('departmentService.unassignHead — marker cleared (Q3)', () => {
   });
 
   it('rejects unassigning when no head is currently assigned', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
 
     await expect(
@@ -162,7 +162,7 @@ describe('departmentService.listDepartments', () => {
   });
 
   it('returns all five departments with head and members', async () => {
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
     vi.mocked(departmentRepository.listMembersByDepartment).mockResolvedValue([] as never);
 
@@ -187,7 +187,7 @@ describe('departmentService.listDepartments', () => {
       { id: 'u1', name: 'Ann Njeri', role: 'CHEF' },
       { id: 'u2', name: 'Ben Otieno', role: 'CHEF' },
     ];
-    vi.mocked(departmentRepository.findOrganization).mockResolvedValue(branchOrg as never);
+    vi.mocked(departmentRepository.findSite).mockResolvedValue(branchOrg as never);
     vi.mocked(departmentRepository.findHeadByDepartment).mockResolvedValue(null);
     vi.mocked(departmentRepository.listMembersByDepartment).mockImplementation(
       async (_orgId, tag) => (tag === 'KITCHEN' ? (kitchenMembers as never) : ([] as never)),

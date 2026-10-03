@@ -29,17 +29,17 @@ const getNairobiDateString = (date: Date = new Date()): string => {
 export const precomputeDailyReports = async (): Promise<number> => {
   const dateString = getNairobiDateString();
   const date = parseDateOnly(dateString);
-  const organizations = await reportRepository.listActiveOrganizations();
+  const sites = await reportRepository.listActiveSites();
 
-  if (organizations.length === 0) {
+  if (sites.length === 0) {
     logger.info({ date: dateString }, 'No active organizations found for daily report precomputation');
     return 0;
   }
 
   let completedCount = 0;
-  for (const organization of organizations) {
-    await reportService.precomputeDailySummaryForOrganization(
-      organization.id,
+  for (const site of sites) {
+    await reportService.precomputeDailySummaryForSite(
+      site.id,
       date,
       REPORT_CACHE_TTL_SECONDS,
     );

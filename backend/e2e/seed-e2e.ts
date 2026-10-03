@@ -13,6 +13,7 @@ import { hashPassword } from '../src/utils/password';
 
 const prisma = new PrismaClient();
 
+const COMPANY_ID = 'e2e00000-0000-4000-8000-000000000000';
 const ORG_ID = 'e2e00000-0000-4000-8000-000000000001';
 const HR_USER_ID = 'e2e00000-0000-4000-8000-000000000002';
 const WAITER_ID = 'e2e00000-0000-4000-8000-000000000003';
@@ -21,11 +22,18 @@ export const E2E_PASSWORD = 'E2ePassword123!';
 async function main() {
   const passwordHash = await hashPassword(E2E_PASSWORD);
 
-  await prisma.organization.upsert({
+  await prisma.company.upsert({
+    where: { id: COMPANY_ID },
+    update: {},
+    create: { id: COMPANY_ID, name: 'E2E Test Company' },
+  });
+
+  await prisma.site.upsert({
     where: { id: ORG_ID },
     update: {},
     create: {
       id: ORG_ID,
+      companyId: COMPANY_ID,
       name: 'E2E Test Branch',
       address: '1 Test Street, Nyeri',
       city: 'Nyeri',
@@ -43,7 +51,7 @@ async function main() {
       name: 'E2E HR Manager',
       email: 'e2e-hr-manager@wendo.test',
       role: 'HR_MANAGER',
-      organizationId: null,
+      siteId: null,
       passwordHash,
       isActive: true,
     },
@@ -57,7 +65,7 @@ async function main() {
       name: 'E2E Test Waiter',
       email: 'e2e-waiter@wendo.test',
       role: 'WAITER',
-      organizationId: ORG_ID,
+      siteId: ORG_ID,
       passwordHash,
       isActive: true,
     },

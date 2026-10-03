@@ -21,7 +21,7 @@ import {
 
 vi.mock('./prep-repository', () => ({
   prepRunRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     findRecentForRollingAverage: vi.fn(),
@@ -55,13 +55,13 @@ const inputItemId = '44444444-4444-4444-8444-444444444444';
 const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const prepRunId = '66666666-6666-4666-8666-666666666666';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 const buildPrepRun = (overrides: Record<string, unknown> = {}) => ({
   id: prepRunId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   outputItemId,
   actualYield: new Prisma.Decimal(22),
   outputUnitCost: new Prisma.Decimal(81.8182),
@@ -98,7 +98,7 @@ beforeEach(() => {
 
 describe('Prep contract shapes', () => {
   it('listPrepRuns output satisfies PrepRunSummarySchema', async () => {
-    vi.mocked(prepRunRepository.findAllByOrganization).mockResolvedValue([buildPrepRun()] as never);
+    vi.mocked(prepRunRepository.findAllBySite).mockResolvedValue([buildPrepRun()] as never);
 
     const rows = await prepService.listPrepRuns(storeManager, { limit: 25 });
     for (const row of rows) {

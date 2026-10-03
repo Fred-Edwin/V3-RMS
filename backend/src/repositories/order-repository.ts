@@ -114,9 +114,9 @@ interface OrderFilters {
   perPage: number;
 }
 
-const counterWhere = (organizationId: string, orderDate: Date) => ({
-  organizationId_orderDate: {
-    organizationId,
+const counterWhere = (siteId: string, orderDate: Date) => ({
+  siteId_orderDate: {
+    siteId,
     orderDate,
   },
 });
@@ -127,12 +127,12 @@ const isUniqueConstraintError = (error: unknown): error is Prisma.PrismaClientKn
 
 const getMaxDailyNumber = async (
   tx: Prisma.TransactionClient,
-  organizationId: string,
+  siteId: string,
   orderDate: Date,
 ): Promise<number> => {
   const aggregate = await tx.order.aggregate({
     where: {
-      organizationId,
+      siteId,
       orderDate,
     },
     _max: {
@@ -145,17 +145,17 @@ const getMaxDailyNumber = async (
 
 const ensureOrderCounterInitialized = async (
   tx: Prisma.TransactionClient,
-  organizationId: string,
+  siteId: string,
   orderDate: Date,
 ): Promise<void> => {
   // Always sync counter to MAX(actual orders) to handle seed data or any
   // out-of-band inserts that bypassed the counter. GREATEST ensures we never
   // move the counter backwards.
-  const maxDailyNumber = await getMaxDailyNumber(tx, organizationId, orderDate);
+  const maxDailyNumber = await getMaxDailyNumber(tx, siteId, orderDate);
 
   await tx.$executeRaw`
     INSERT INTO order_counters (id, organization_id, order_date, last_number, created_at, updated_at)
-    VALUES (gen_random_uuid(), ${organizationId}, ${orderDate}::date, ${maxDailyNumber}, NOW(), NOW())
+    VALUES (gen_random_uuid(), ${siteId}, ${orderDate}::date, ${maxDailyNumber}, NOW(), NOW())
     ON CONFLICT (organization_id, order_date)
     DO UPDATE SET
       last_number = GREATEST(order_counters.last_number, ${maxDailyNumber}),
@@ -165,13 +165,13 @@ const ensureOrderCounterInitialized = async (
 
 const allocateNextDailyNumber = async (
   tx: Prisma.TransactionClient,
-  organizationId: string,
+  siteId: string,
   orderDate: Date,
 ): Promise<number> => {
-  await ensureOrderCounterInitialized(tx, organizationId, orderDate);
+  await ensureOrderCounterInitialized(tx, siteId, orderDate);
 
   const counter = await tx.orderCounter.update({
-    where: counterWhere(organizationId, orderDate),
+    where: counterWhere(siteId, orderDate),
     data: {
       lastNumber: {
         increment: 1,
@@ -195,9 +195,9 @@ const toOrderItemCreateManyData = (items: CreateOrderItemWithPriceDto[]): Prisma
   }));
 };
 
-const buildWhere = (organizationId: string, filters: OrderFilters): Prisma.OrderWhereInput => {
+const buildWhere = (siteId: string, filters: OrderFilters): Prisma.OrderWhereInput => {
   return {
-    organizationId,
+    siteId,
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.type ? { type: filters.type } : {}),
     ...(filters.createdById ? { createdById: filters.createdById } : {}),
@@ -222,13 +222,13 @@ export const orderRepository = {
       let order: { id: string } | null = null;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const dailyNumber = await allocateNextDailyNumber(tx, data.organizationId, data.orderDate);
+        const dailyNumber = await allocateNextDailyNumber(tx, data.siteId, data.orderDate);
 
         await tx.$executeRawUnsafe('SAVEPOINT create_order');
         try {
           order = await tx.order.create({
             data: {
-              organizationId: data.organizationId,
+              siteId: data.siteId,
               dailyNumber,
               orderDate: data.orderDate,
               type: data.type,
@@ -273,7 +273,7 @@ export const orderRepository = {
           const seq = (stationSequence.get(ticket.station) ?? 0) + 1;
           stationSequence.set(ticket.station, seq);
           return {
-            organizationId: ticket.organizationId,
+            siteId: ticket.siteId,
             orderId: order.id,
             station: ticket.station,
             sequence: seq,
@@ -286,28 +286,28 @@ export const orderRepository = {
       return tx.order.findFirstOrThrow({
         where: {
           id: order.id,
-          organizationId: data.organizationId,
+          siteId: data.siteId,
         },
         include: orderInclude,
       });
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<FullOrderPrismaRecord | null> => {
+  findById: async (id: string, siteId: string): Promise<FullOrderPrismaRecord | null> => {
     return prisma.order.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       include: orderInclude,
     });
   },
 
   findMany: async (
-    organizationId: string,
+    siteId: string,
     filters: OrderFilters,
   ): Promise<{ orders: FullOrderPrismaRecord[]; total: number; totalValue: number }> => {
-    const where = buildWhere(organizationId, filters);
+    const where = buildWhere(siteId, filters);
     // Revenue total always excludes CANCELLED regardless of the status filter
     const revenueWhere: Prisma.OrderWhereInput = { ...where, status: { not: OrderStatus.CANCELLED } };
 
@@ -333,10 +333,10 @@ export const orderRepository = {
   },
 
   findManySummary: async (
-    organizationId: string,
+    siteId: string,
     filters: OrderFilters,
   ): Promise<{ orders: SummaryOrderPrismaRecord[]; total: number; totalValue: number }> => {
-    const where = buildWhere(organizationId, filters);
+    const where = buildWhere(siteId, filters);
     // Revenue total always excludes CANCELLED regardless of the status filter
     const revenueWhere: Prisma.OrderWhereInput = { ...where, status: { not: OrderStatus.CANCELLED } };
 
@@ -361,10 +361,10 @@ export const orderRepository = {
     };
   },
 
-  findActive: async (organizationId: string, orderDate: Date, createdById?: string): Promise<FullOrderPrismaRecord[]> => {
+  findActive: async (siteId: string, orderDate: Date, createdById?: string): Promise<FullOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
-        organizationId,
+        siteId,
         orderDate,
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
@@ -379,10 +379,10 @@ export const orderRepository = {
     });
   },
 
-  findActiveSummary: async (organizationId: string, orderDate: Date, createdById?: string): Promise<SummaryOrderPrismaRecord[]> => {
+  findActiveSummary: async (siteId: string, orderDate: Date, createdById?: string): Promise<SummaryOrderPrismaRecord[]> => {
     return prisma.order.findMany({
       where: {
-        organizationId,
+        siteId,
         orderDate,
         status: {
           notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED],
@@ -398,12 +398,12 @@ export const orderRepository = {
   },
 
   findStaleOrders: async (
-    organizationId: string,
+    siteId: string,
     beforeDate: Date,
   ): Promise<Array<{ id: string; dailyNumber: number; status: OrderStatus; orderDate: Date; _count: { items: number }; createdBy: { id: string; name: string } }>> => {
     return prisma.order.findMany({
       where: {
-        organizationId,
+        siteId,
         orderDate: { lt: beforeDate },
         status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
       },
@@ -420,13 +420,13 @@ export const orderRepository = {
   },
 
   findIdleReadyOrders: async (
-    organizationId: string,
+    siteId: string,
     idleSince: Date,
     orderDate: Date,
   ): Promise<Array<{ id: string; dailyNumber: number; createdById: string }>> => {
     return prisma.order.findMany({
       where: {
-        organizationId,
+        siteId,
         orderDate,
         status: OrderStatus.READY,
         updatedAt: { lt: idleSince },
@@ -441,7 +441,7 @@ export const orderRepository = {
   },
   updateItems: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     newItems: CreateOrderItemWithPriceDto[],
     newTotals: { subtotal: Prisma.Decimal; total: Prisma.Decimal },
     ticketPlan: {
@@ -463,7 +463,7 @@ export const orderRepository = {
       const existingOrder = await tx.order.findFirst({
         where: {
           id: orderId,
-          organizationId,
+          siteId,
         },
         include: {
           prepTickets: { select: { id: true, station: true, status: true, sequence: true } },
@@ -508,7 +508,7 @@ export const orderRepository = {
         const existingTicket = await tx.prepTicket.findFirst({
           where: {
             id: update.ticketId,
-            organizationId,
+            siteId,
             status: { in: [PrepTicketStatus.PENDING, PrepTicketStatus.REJECTED] },
           },
           select: {
@@ -554,7 +554,7 @@ export const orderRepository = {
         const maxSeq = await tx.prepTicket.aggregate({
           where: {
             orderId,
-            organizationId,
+            siteId,
             station: create.station,
           },
           _max: {
@@ -566,7 +566,7 @@ export const orderRepository = {
 
         await tx.prepTicket.create({
           data: {
-            organizationId,
+            siteId,
             orderId,
             station: create.station,
             sequence,
@@ -579,7 +579,7 @@ export const orderRepository = {
       return tx.order.findFirst({
         where: {
           id: orderId,
-          organizationId,
+          siteId,
         },
         include: orderInclude,
       });
@@ -588,7 +588,7 @@ export const orderRepository = {
 
   recordPayment: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     payment: {
       paymentMethod: PaymentMethod;
       mpesaCode: string | null;
@@ -615,7 +615,7 @@ export const orderRepository = {
         const updated = await tx.order.updateMany({
           where: {
             id: orderId,
-            organizationId,
+            siteId,
             status: { in: [OrderStatus.READY, OrderStatus.AWAITING_AUTHORIZATION] },
           },
           data: {
@@ -671,7 +671,7 @@ export const orderRepository = {
           });
         } else if (payment.customerCreditAccountId) {
           const account = await tx.customerCreditAccount.findFirst({
-            where: { id: payment.customerCreditAccountId, organizationId },
+            where: { id: payment.customerCreditAccountId, siteId },
             select: { currentBalance: true, creditLimit: true },
           });
           if (account) {
@@ -681,13 +681,13 @@ export const orderRepository = {
             }
           }
           await tx.customerCreditAccount.updateMany({
-            where: { id: payment.customerCreditAccountId, organizationId },
+            where: { id: payment.customerCreditAccountId, siteId },
             data: { currentBalance: { increment: orderRecord.total } },
           });
         }
 
         return tx.order.findFirst({
-          where: { id: orderId, organizationId },
+          where: { id: orderId, siteId },
           include: orderInclude,
         });
       });
@@ -697,7 +697,7 @@ export const orderRepository = {
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
         status: OrderStatus.READY,
       },
       data: {
@@ -720,7 +720,7 @@ export const orderRepository = {
     return prisma.order.findFirst({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
       },
       include: orderInclude,
     });
@@ -728,7 +728,7 @@ export const orderRepository = {
 
   accountOrder: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     payment: {
       paymentMethod: PaymentMethod;
       mpesaCode: string | null;
@@ -742,7 +742,7 @@ export const orderRepository = {
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
         status: { notIn: [OrderStatus.CLOSED, OrderStatus.CANCELLED] },
       },
       data: {
@@ -758,12 +758,12 @@ export const orderRepository = {
       },
     });
     if (updated.count === 0) return null;
-    return prisma.order.findFirst({ where: { id: orderId, organizationId }, include: orderInclude });
+    return prisma.order.findFirst({ where: { id: orderId, siteId }, include: orderInclude });
   },
 
   cancel: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     allowedStatuses: OrderStatus[],
     cancelReason: string,
     cancelledById: string,
@@ -772,7 +772,7 @@ export const orderRepository = {
       const updated = await tx.order.updateMany({
         where: {
           id: orderId,
-          organizationId,
+          siteId,
           status: { in: allowedStatuses },
         },
         data: {
@@ -790,7 +790,7 @@ export const orderRepository = {
       await tx.prepTicket.updateMany({
         where: {
           orderId,
-          organizationId,
+          siteId,
           status: { notIn: [PrepTicketStatus.REJECTED] },
         },
         data: {
@@ -801,7 +801,7 @@ export const orderRepository = {
       });
 
       return tx.order.findFirst({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         include: orderInclude,
       });
     });
@@ -816,7 +816,7 @@ export const orderRepository = {
    */
   managerUpdateItems: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     newItems: Array<{
       menuItemId: string;
       quantity: number;
@@ -840,7 +840,7 @@ export const orderRepository = {
   ): Promise<FullOrderPrismaRecord | null> => {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.order.findFirst({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         select: { id: true },
       });
       if (!existing) return null;
@@ -888,7 +888,7 @@ export const orderRepository = {
       }
 
       return tx.order.findFirst({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         include: orderInclude,
       });
     });
@@ -903,7 +903,7 @@ export const orderRepository = {
    */
   applyDiscount: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     discountPercent: string,
     discountAmount: string,
     discountedById: string,
@@ -916,7 +916,7 @@ export const orderRepository = {
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
         status: { in: [OrderStatus.AWAITING_AUTHORIZATION, OrderStatus.READY] },
       },
       data: {
@@ -935,20 +935,20 @@ export const orderRepository = {
     }
 
     return prisma.order.findFirst({
-      where: { id: orderId, organizationId },
+      where: { id: orderId, siteId },
       include: orderInclude,
     });
   },
 
   updateStatus: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     status: OrderStatus,
   ): Promise<FullOrderPrismaRecord | null> => {
     const updated = await prisma.order.updateMany({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
       },
       data: {
         status,
@@ -962,7 +962,7 @@ export const orderRepository = {
     return prisma.order.findFirst({
       where: {
         id: orderId,
-        organizationId,
+        siteId,
       },
       include: orderInclude,
     });

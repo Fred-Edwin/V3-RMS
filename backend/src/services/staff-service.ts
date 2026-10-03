@@ -45,25 +45,25 @@ const storeRoles: UserRole[] = ['STORE_MANAGER', 'STORE_ATTENDANT'];
 const storeManagerManageableRoles: UserRole[] = ['STORE_ATTENDANT'];
 
 interface ActorScope {
-  organizationId?: string;
+  siteId?: string;
   allowedRoles?: UserRole[];
 }
 
 const resolveScope = (actor: Actor): ActorScope => {
   if (actor.role === 'STORE_MANAGER') {
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Store Manager organization is required');
     }
-    return { organizationId: actor.organizationId, allowedRoles: storeManagerManageableRoles };
+    return { siteId: actor.siteId, allowedRoles: storeManagerManageableRoles };
   }
   if (actor.role === 'MANAGER') {
-    return { organizationId: actor.organizationId ?? undefined, allowedRoles: branchStaffRoles };
+    return { siteId: actor.siteId ?? undefined, allowedRoles: branchStaffRoles };
   }
   return {};
 };
 
 interface StaffFiltersInput {
-  organizationId?: string;
+  siteId?: string;
   role?: UserRole;
   isActive?: boolean;
   onShift?: boolean;
@@ -76,20 +76,20 @@ export const staffService = {
       // PIN status. Other filters are ignored — the scope is fixed.
       const scope = resolveScope(actor);
       const team = await staffRepository.findTeamWithPinStatus(
-        scope.organizationId as string,
+        scope.siteId as string,
         scope.allowedRoles as UserRole[],
         filters.isActive,
       );
-      return team.map((item) => ({ ...item, organizationName: item.organization?.name ?? null }));
+      return team.map((item) => ({ ...item, siteName: item.site?.name ?? null }));
     }
 
-    const shouldUseActorOrganization =
+    const shouldUseActorSite =
       actor.role === 'MANAGER' || branchStaffRoles.includes(actor.role);
-    const organizationId = shouldUseActorOrganization
-      ? actor.organizationId ?? undefined
-      : filters.organizationId;
+    const siteId = shouldUseActorSite
+      ? actor.siteId ?? undefined
+      : filters.siteId;
 
-    const allowedRoles = shouldUseActorOrganization ? branchStaffRoles : undefined;
+    const allowedRoles = shouldUseActorSite ? branchStaffRoles : undefined;
 
     // SYSTEM_ADMIN can see deactivated staff (via explicit isActive filter).
     // All other roles default to active-only unless they explicitly pass isActive=false.
@@ -97,7 +97,7 @@ export const staffService = {
       actor.role === 'SYSTEM_ADMIN' ? filters.isActive : (filters.isActive ?? true);
 
     const results = await staffRepository.findMany({
-      organizationId,
+      siteId,
       role: filters.role,
       isActive,
       onShift: filters.onShift,
@@ -106,13 +106,13 @@ export const staffService = {
 
     return results.map((item) => ({
       ...item,
-      organizationName: item.organization?.name ?? null,
+      siteName: item.site?.name ?? null,
     }));
   },
 
   getMessagingContacts: async (actor: Actor) => {
     const crossBranchRoles = ['DIRECTOR', 'HR_MANAGER', 'ACCOUNTANT', 'SYSTEM_ADMIN'];
-    if (!actor.organizationId || crossBranchRoles.includes(actor.role)) {
+    if (!actor.siteId || crossBranchRoles.includes(actor.role)) {
       // Cross-branch roles see all active human staff across all branches
       const results = await staffRepository.findMany({
         isActive: true,
@@ -120,22 +120,22 @@ export const staffService = {
       });
       return results
         .filter((s) => s.id !== actor.id)
-        .map((s) => ({ ...s, organizationName: s.organization?.name ?? null }));
+        .map((s) => ({ ...s, siteName: s.site?.name ?? null }));
     }
-    const results = await staffRepository.findMessagingContacts(actor.organizationId, actor.id);
-    return results.map((s) => ({ ...s, organizationName: s.organization?.name ?? null }));
+    const results = await staffRepository.findMessagingContacts(actor.siteId, actor.id);
+    return results.map((s) => ({ ...s, siteName: s.site?.name ?? null }));
   },
 
   getStaff: async (id: string, actor: Actor) => {
     const scope = resolveScope(actor);
-    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
+    const staff = await staffRepository.findById(id, scope.siteId, scope.allowedRoles);
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
 
     return {
       ...staff,
-      organizationName: staff.organization?.name ?? null,
+      siteName: staff.site?.name ?? null,
     };
   },
 
@@ -146,7 +146,7 @@ export const staffService = {
       phone?: string;
       role: UserRole;
       temporaryPassword: string;
-      organizationId?: string;
+      siteId?: string;
     },
     actor: Actor,
   ) => {
@@ -160,18 +160,18 @@ export const staffService = {
         throw new ForbiddenError('Managers can only create branch staff accounts');
       }
 
-      if (!actor.organizationId) {
+      if (!actor.siteId) {
         throw new ForbiddenError('Manager organization is required');
       }
 
-      if (data.organizationId && data.organizationId !== actor.organizationId) {
+      if (data.siteId && data.siteId !== actor.siteId) {
         throw new ForbiddenError('Managers can only create staff in their own branch');
       }
     } else if (actor.role === 'DIRECTOR') {
       if (data.role !== 'MANAGER') {
         throw new ForbiddenError('Directors can only create managers');
       }
-      if (!data.organizationId) {
+      if (!data.siteId) {
         throw new ValidationError('organizationId is required for manager accounts');
       }
     } else if (actor.role === 'STORE_MANAGER') {
@@ -180,14 +180,14 @@ export const staffService = {
       if (data.role !== 'STORE_ATTENDANT') {
         throw new ForbiddenError('Store Managers can only create Store Attendant accounts');
       }
-      if (!actor.organizationId) {
+      if (!actor.siteId) {
         throw new ForbiddenError('Store Manager organization is required');
       }
-      if (data.organizationId && data.organizationId !== actor.organizationId) {
+      if (data.siteId && data.siteId !== actor.siteId) {
         throw new ForbiddenError('Store Managers can only create staff in the Central Store organization');
       }
     } else if (actor.role === 'SYSTEM_ADMIN') {
-      if (data.role === 'MANAGER' && !data.organizationId) {
+      if (data.role === 'MANAGER' && !data.siteId) {
         throw new ValidationError('organizationId is required for manager accounts');
       }
     } else {
@@ -198,7 +198,7 @@ export const staffService = {
     // caller sent — Central Store data follows the store user's session org,
     // so a store user on a branch org would silently branch-scope the entire
     // inventory (design doc D-15).
-    let storeOrganizationId: string | undefined;
+    let storeSiteId: string | undefined;
     if (storeRoles.includes(data.role)) {
       const hubOrg = await branchRepository.findHub();
       if (!hubOrg) {
@@ -206,10 +206,10 @@ export const staffService = {
           'No hub organization is set. Create the Central Store organization and flag it as hub before adding store staff.',
         );
       }
-      if (data.organizationId && data.organizationId !== hubOrg.id) {
+      if (data.siteId && data.siteId !== hubOrg.id) {
         throw new ValidationError('Store staff must belong to the Central Store (hub) organization');
       }
-      storeOrganizationId = hubOrg.id;
+      storeSiteId = hubOrg.id;
     }
 
     const passwordHash = await hashPassword(data.temporaryPassword);
@@ -223,16 +223,16 @@ export const staffService = {
       email: data.email,
       phone: data.phone,
       role: data.role,
-      organizationId:
-        storeOrganizationId ??
-        (actor.role === 'MANAGER' ? actor.organizationId : isOrgLevelRole ? null : data.organizationId ?? null),
+      siteId:
+        storeSiteId ??
+        (actor.role === 'MANAGER' ? actor.siteId : isOrgLevelRole ? null : data.siteId ?? null),
       passwordHash,
       withEmployeeProfile: !PROFILE_EXCLUDED_ROLES.includes(data.role),
     });
 
     return {
       ...created,
-      organizationName: created.organization?.name ?? null,
+      siteName: created.site?.name ?? null,
     };
   },
 
@@ -245,7 +245,7 @@ export const staffService = {
     },
     actor: Actor,
   ) => {
-    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
+    const orgScope = actor.role === 'MANAGER' ? actor.siteId ?? undefined : undefined;
     const staff = await staffRepository.findById(
       id,
       orgScope,
@@ -268,13 +268,13 @@ export const staffService = {
 
   resetPassword: async (id: string, temporaryPassword: string, actor: Actor) => {
     const scope = resolveScope(actor);
-    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
+    const staff = await staffRepository.findById(id, scope.siteId, scope.allowedRoles);
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
 
     const passwordHash = await hashPassword(temporaryPassword);
-    await staffRepository.updatePassword(id, passwordHash, scope.organizationId, scope.allowedRoles);
+    await staffRepository.updatePassword(id, passwordHash, scope.siteId, scope.allowedRoles);
     await authRepository.deleteAllRefreshTokensByUserId(id);
   },
 
@@ -283,20 +283,20 @@ export const staffService = {
   // Store Manager; System Admin is unscoped.
   resetPin: async (id: string, actor: Actor) => {
     const scope = resolveScope(actor);
-    const staff = await staffRepository.findById(id, scope.organizationId, scope.allowedRoles);
+    const staff = await staffRepository.findById(id, scope.siteId, scope.allowedRoles);
     if (!staff) {
       throw new NotFoundError('Staff account not found');
     }
 
-    const organizationId = scope.organizationId ?? staff.organizationId;
-    if (!organizationId) {
+    const siteId = scope.siteId ?? staff.siteId;
+    if (!siteId) {
       throw new ValidationError('Staff account has no organization to reset a PIN in');
     }
-    await staffRepository.clearPin(id, organizationId, scope.allowedRoles ?? [staff.role]);
+    await staffRepository.clearPin(id, siteId, scope.allowedRoles ?? [staff.role]);
   },
 
   hardDeleteStaff: async (id: string, actor: Actor) => {
-    const orgScope = actor.role === 'MANAGER' ? actor.organizationId ?? undefined : undefined;
+    const orgScope = actor.role === 'MANAGER' ? actor.siteId ?? undefined : undefined;
     const staff = await staffRepository.findById(
       id,
       orgScope,
@@ -326,7 +326,7 @@ export const staffService = {
     const result = await staffRepository.setActive(
       id,
       false,
-      scope.organizationId,
+      scope.siteId,
       scope.allowedRoles,
     );
     if (result.count === 0) {
@@ -341,7 +341,7 @@ export const staffService = {
     const result = await staffRepository.setActive(
       id,
       true,
-      scope.organizationId,
+      scope.siteId,
       scope.allowedRoles,
     );
     if (result.count === 0) {

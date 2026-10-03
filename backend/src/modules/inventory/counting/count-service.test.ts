@@ -45,7 +45,7 @@ vi.mock('./count-repository', () => ({
   },
 }));
 vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('./thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('./thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../repositories/location-repository', () => ({ locationRepository: { findCentralStore: vi.fn() } }));
@@ -74,7 +74,7 @@ beforeEach(() => {
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ name: 'Joseph Mwangi', pinHash: 'h' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(countRepository.listCategories).mockResolvedValue([]);
-  vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue(null); // defaults: 500 / 5,000
+  vi.mocked(thresholdsRepository.findBySite).mockResolvedValue(null); // defaults: 500 / 5,000
   vi.mocked(countRepository.markSubmitted).mockResolvedValue(1);
   vi.mocked(countRepository.markVerified).mockResolvedValue(1);
   vi.mocked(countRepository.markReturned).mockResolvedValue(1);
@@ -224,7 +224,7 @@ describe('approve', () => {
 
   it('REASON_REQUIRED uses the threshold stored on the line, not today\'s threshold', async () => {
     // The threshold has since been raised to KES 1,000,000 — the line was judged at 500.
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue({
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue({
       reasonRequiredKes: 1_000_000,
       directorAlertKes: 5000,
     } as never);
@@ -236,7 +236,7 @@ describe('approve', () => {
     await expect(countService.approve(storeManager, countId, pin)).rejects.toMatchObject({ code: 'REASON_REQUIRED' });
 
     // …and a line judged below the threshold at submit never needs one, even if the threshold is now 0.
-    vi.mocked(thresholdsRepository.findByOrganization).mockResolvedValue({ reasonRequiredKes: 0, directorAlertKes: 5000 } as never);
+    vi.mocked(thresholdsRepository.findBySite).mockResolvedValue({ reasonRequiredKes: 0, directorAlertKes: 5000 } as never);
     vi.mocked(countRepository.findById).mockResolvedValue(
       submitted([
         line(2, { countedQty: D(26), expectedQty: D(27), unitCost: D(90), decision: 'ACCEPTED', reasonRequired: false }),
@@ -439,7 +439,7 @@ describe('org scoping', () => {
 
   it('a non-hub actor is refused', async () => {
     await expect(
-      countService.getForVerifier({ ...storeManager, organizationId: 'branch-org' }, countId),
+      countService.getForVerifier({ ...storeManager, siteId: 'branch-org' }, countId),
     ).rejects.toMatchObject({ statusCode: 403 });
     expect(countRepository.findById).not.toHaveBeenCalled();
   });

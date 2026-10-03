@@ -93,19 +93,19 @@ const run = async (): Promise<void> => {
     throw new Error('Set DEMO_SEED_CONFIRM=YES to run this demo seed.');
   }
 
-  const hub = await prisma.organization.findFirst({ where: { isHub: true }, select: { id: true, name: true } });
+  const hub = await prisma.site.findFirst({ where: { isHub: true }, select: { id: true, name: true } });
   if (!hub) throw new Error('No hub organization found.');
 
   const centralLocation = await prisma.location.findFirst({
-    where: { organizationId: hub.id, type: 'CENTRAL_STORE' },
+    where: { siteId: hub.id, type: 'CENTRAL_STORE' },
     select: { id: true },
   });
   if (!centralLocation) throw new Error('Central Store location not found.');
 
-  const nyeri = await prisma.organization.findFirst({ where: { name: 'Nyeri Town', isHub: false }, select: { id: true } });
+  const nyeri = await prisma.site.findFirst({ where: { name: 'Nyeri Town', isHub: false }, select: { id: true } });
   if (!nyeri) throw new Error('Nyeri Town branch not found.');
   const deptLocations = await prisma.location.findMany({
-    where: { organizationId: nyeri.id, type: 'BRANCH_DEPARTMENT' },
+    where: { siteId: nyeri.id, type: 'BRANCH_DEPARTMENT' },
     select: { id: true, departmentTag: true },
   });
   if (deptLocations.length < 5) {
@@ -118,21 +118,21 @@ const run = async (): Promise<void> => {
   // Categories
   const categoryId = new Map<string, string>();
   for (const name of CATEGORIES) {
-    const found = await prisma.category.findFirst({ where: { organizationId: hub.id, name, deletedAt: null }, select: { id: true } });
-    const row = found ?? (await prisma.category.create({ data: { organizationId: hub.id, name }, select: { id: true } }));
+    const found = await prisma.category.findFirst({ where: { siteId: hub.id, name, deletedAt: null }, select: { id: true } });
+    const row = found ?? (await prisma.category.create({ data: { siteId: hub.id, name }, select: { id: true } }));
     categoryId.set(name, row.id);
   }
-  const coffee = await prisma.category.findFirst({ where: { organizationId: hub.id, name: 'Coffee', deletedAt: null }, select: { id: true } });
+  const coffee = await prisma.category.findFirst({ where: { siteId: hub.id, name: 'Coffee', deletedAt: null }, select: { id: true } });
   if (coffee) categoryId.set('Coffee', coffee.id);
 
   // Suppliers
   const supplierId = new Map<string, string>();
   for (const s of SUPPLIERS) {
-    const found = await prisma.supplier.findFirst({ where: { organizationId: hub.id, name: s.name, deletedAt: null }, select: { id: true } });
+    const found = await prisma.supplier.findFirst({ where: { siteId: hub.id, name: s.name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
       (await createSeedSupplier(prisma, {
-        organizationId: hub.id,
+        siteId: hub.id,
         name: s.name,
         contactName: s.contactName,
         phone: s.phone,
@@ -147,12 +147,12 @@ const run = async (): Promise<void> => {
   const itemId = new Map<string, string>();
   let stockRows = 0;
   for (const spec of ITEMS) {
-    const found = await prisma.inventoryItem.findFirst({ where: { organizationId: hub.id, name: spec.name, deletedAt: null }, select: { id: true } });
+    const found = await prisma.inventoryItem.findFirst({ where: { siteId: hub.id, name: spec.name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
       (await prisma.inventoryItem.create({
         data: {
-          organizationId: hub.id,
+          siteId: hub.id,
           name: spec.name,
           type: spec.type,
           categoryId: categoryId.get(spec.category),
@@ -170,7 +170,7 @@ const run = async (): Promise<void> => {
     if (!found && spec.openingStock > 0) {
       await prisma.inventoryTransaction.create({
         data: {
-          organizationId: hub.id,
+          siteId: hub.id,
           locationId: centralLocation.id,
           inventoryItemId: row.id,
           type: 'RECEIVE',
@@ -192,7 +192,7 @@ const run = async (): Promise<void> => {
     await prisma.restockLevel.upsert({
       where: { locationId_inventoryItemId: { locationId: centralLocation.id, inventoryItemId: id } },
       update: { level: dec(level), setById: actor.id },
-      create: { organizationId: hub.id, locationId: centralLocation.id, inventoryItemId: id, level: dec(level), setById: actor.id },
+      create: { siteId: hub.id, locationId: centralLocation.id, inventoryItemId: id, level: dec(level), setById: actor.id },
     });
     levels++;
   }
@@ -203,7 +203,7 @@ const run = async (): Promise<void> => {
     await prisma.restockLevel.upsert({
       where: { locationId_inventoryItemId: { locationId: loc.id, inventoryItemId: id } },
       update: { level: dec(d.level), setById: actor.id },
-      create: { organizationId: nyeri.id, locationId: loc.id, inventoryItemId: id, level: dec(d.level), setById: actor.id },
+      create: { siteId: nyeri.id, locationId: loc.id, inventoryItemId: id, level: dec(d.level), setById: actor.id },
     });
     levels++;
   }

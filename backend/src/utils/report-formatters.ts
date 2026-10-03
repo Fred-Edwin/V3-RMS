@@ -86,7 +86,7 @@ const toDailySummaryCsv = (data: DailySummaryReport): Buffer => {
     ['WENDO COFFEE BISTRO — DAILY SUMMARY REPORT'],
     [],
     ['Report Date', data.date],
-    ['Branch / Organisation', data.organizationName],
+    ['Branch / Organisation', data.siteName],
     ['Generated On', todayLabel()],
     [],
     ['── KEY PERFORMANCE INDICATORS ──'],
@@ -148,7 +148,7 @@ const toStaffPerformanceCsv = (data: StaffPerformanceReport): Buffer => {
     [],
     ['Period Start', data.period.startDate],
     ['Period End', data.period.endDate],
-    ['Branch / Organisation', data.organizationName],
+    ['Branch / Organisation', data.siteName],
     ['Generated On', todayLabel()],
     ['Staff Members Included', data.staff.length],
     [],
@@ -545,7 +545,7 @@ const drawStatementFooter = (doc: PDFKit.PDFDocument): void => {
 // ── PDF Report Builders ───────────────────────────────────────────────────────
 
 const drawDailySummaryPdf = (doc: PDFKit.PDFDocument, data: DailySummaryReport): void => {
-  drawBrandedHeader(doc, 'Daily Summary Report', `${data.organizationName} · ${data.date}`);
+  drawBrandedHeader(doc, 'Daily Summary Report', `${data.siteName} · ${data.date}`);
   drawPageBorder(doc);
 
   // KPI Cards
@@ -656,7 +656,7 @@ const drawStaffPerformancePdf = (doc: PDFKit.PDFDocument, data: StaffPerformance
   drawBrandedHeader(
     doc,
     'Staff Performance Report',
-    `${data.organizationName} · ${data.period.startDate} to ${data.period.endDate}`,
+    `${data.siteName} · ${data.period.startDate} to ${data.period.endDate}`,
   );
   drawPageBorder(doc);
 
@@ -936,7 +936,7 @@ const drawManagerAnalyticsPdf = (
   drawBrandedHeader(
     doc,
     'Branch Analytics Report',
-    `${data.organizationName} · ${data.period.startDate} to ${data.period.endDate}`,
+    `${data.siteName} · ${data.period.startDate} to ${data.period.endDate}`,
   );
   drawPageBorder(doc);
 
@@ -1040,7 +1040,7 @@ const drawReconciliationPdf = (
   drawBrandedHeader(
     doc,
     'Daily Reconciliation Report',
-    `${data.organizationName} · ${data.date}`,
+    `${data.siteName} · ${data.date}`,
   );
   drawPageBorder(doc);
 

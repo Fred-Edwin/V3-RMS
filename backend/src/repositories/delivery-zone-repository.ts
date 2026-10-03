@@ -2,23 +2,23 @@ import { Prisma, type DeliveryZone } from '@prisma/client';
 import { prisma } from '../config/database';
 
 export const deliveryZoneRepository = {
-  findActiveByIdAndOrganization: async (
+  findActiveByIdAndSite: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<DeliveryZone | null> => {
     return prisma.deliveryZone.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
         isActive: true,
       },
     });
   },
 
-  findAllActiveByOrganization: async (organizationId: string): Promise<DeliveryZone[]> => {
+  findAllActiveBySite: async (siteId: string): Promise<DeliveryZone[]> => {
     return prisma.deliveryZone.findMany({
       where: {
-        organizationId,
+        siteId,
         isActive: true,
       },
       orderBy: {
@@ -27,17 +27,17 @@ export const deliveryZoneRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<DeliveryZone | null> => {
+  findById: async (id: string, siteId: string): Promise<DeliveryZone | null> => {
     return prisma.deliveryZone.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
     });
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     data: {
       name: string;
       fee: string;
@@ -45,7 +45,7 @@ export const deliveryZoneRepository = {
   ): Promise<DeliveryZone> => {
     return prisma.deliveryZone.create({
       data: {
-        organizationId,
+        siteId,
         name: data.name,
         fee: new Prisma.Decimal(data.fee),
       },
@@ -54,7 +54,7 @@ export const deliveryZoneRepository = {
 
   update: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       name?: string;
       fee?: string;
@@ -64,7 +64,7 @@ export const deliveryZoneRepository = {
     const updated = await prisma.deliveryZone.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
@@ -80,15 +80,15 @@ export const deliveryZoneRepository = {
     return prisma.deliveryZone.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
     });
   },
 
-  hasOrders: async (id: string, organizationId: string): Promise<boolean> => {
+  hasOrders: async (id: string, siteId: string): Promise<boolean> => {
     const order = await prisma.order.findFirst({
       where: {
-        organizationId,
+        siteId,
         deliveryZoneId: id,
       },
       select: {

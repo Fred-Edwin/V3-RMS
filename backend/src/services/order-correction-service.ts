@@ -42,9 +42,9 @@ const assertWithinCorrectionWindow = (createdAt: Date, actor: Actor): void => {
 // MANAGER/DIRECTOR may only correct orders belonging to their own organization
 // (branch). SYSTEM_ADMIN is unrestricted. Every method that loads an order by ID
 // must call this before performing any read or write.
-const assertOrderInScope = (orderOrganizationId: string, actor: Actor): void => {
+const assertOrderInScope = (orderSiteId: string, actor: Actor): void => {
   if (actor.role === 'SYSTEM_ADMIN') return;
-  if (orderOrganizationId !== actor.organizationId) {
+  if (orderSiteId !== actor.siteId) {
     throw new ForbiddenError('Cannot access orders for another branch');
   }
 };
@@ -54,7 +54,7 @@ export const orderCorrectionService = {
     const scopedQuery =
       actor.role === 'SYSTEM_ADMIN'
         ? query
-        : { ...query, branchId: actor.organizationId ?? undefined };
+        : { ...query, branchId: actor.siteId ?? undefined };
     const { orders, total } = await orderCorrectionRepository.findMany(scopedQuery);
     return {
       orders: orders.map((o) => ({
@@ -69,8 +69,8 @@ export const orderCorrectionService = {
         total: o.total.toFixed(2),
         createdAt: o.createdAt.toISOString(),
         closedAt: o.closedAt ? o.closedAt.toISOString() : null,
-        organizationId: o.organizationId,
-        organizationName: (o as { organization: { name: string } }).organization.name,
+        siteId: o.siteId,
+        siteName: (o as { site: { name: string } }).site.name,
         createdByName: (o as { createdBy: { name: string } }).createdBy.name,
       })),
       pagination: {
@@ -85,7 +85,7 @@ export const orderCorrectionService = {
   getOrderDetail: async (orderId: string, actor: Actor) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     return {
       id: order.id,
@@ -102,8 +102,8 @@ export const orderCorrectionService = {
       total: order.total.toFixed(2),
       createdAt: order.createdAt.toISOString(),
       closedAt: order.closedAt ? order.closedAt.toISOString() : null,
-      organizationId: order.organizationId,
-      organizationName: order.organization.name,
+      siteId: order.siteId,
+      siteName: order.site.name,
       createdByName: order.createdBy.name,
       items: order.items.map((item) => ({
         id: item.id,
@@ -129,7 +129,7 @@ export const orderCorrectionService = {
   getAuditLog: async (orderId: string, actor: Actor) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     const logs = await orderCorrectionRepository.findAuditLog(orderId);
     return logs.map((log) => ({
@@ -148,7 +148,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -161,7 +161,7 @@ export const orderCorrectionService = {
 
     await orderCorrectionRepository.correctMpesaCode(
       orderId,
-      order.organizationId,
+      order.siteId,
       input.mpesaCode,
       actor.id,
       order.mpesaCode ?? '(none)',
@@ -176,7 +176,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -189,7 +189,7 @@ export const orderCorrectionService = {
 
     await orderCorrectionRepository.correctPaymentMethod(
       orderId,
-      order.organizationId,
+      order.siteId,
       input.paymentMethod,
       actor.id,
       order.paymentMethod ?? '(none)',
@@ -204,7 +204,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -230,7 +230,7 @@ export const orderCorrectionService = {
 
     await orderCorrectionRepository.forceOrderReady(
       orderId,
-      order.organizationId,
+      order.siteId,
       actor.id,
       input.reason,
     );
@@ -243,7 +243,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -258,7 +258,7 @@ export const orderCorrectionService = {
 
     await orderCorrectionRepository.revertAwaitingAuth(
       orderId,
-      order.organizationId,
+      order.siteId,
       pendingAuth.id,
       actor.id,
       input.reason,
@@ -273,7 +273,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -292,7 +292,7 @@ export const orderCorrectionService = {
 
     const result = await orderCorrectionRepository.removeOrderItem(
       orderId,
-      order.organizationId,
+      order.siteId,
       itemId,
       actor.id,
       item.menuItem.name,
@@ -311,7 +311,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -324,7 +324,7 @@ export const orderCorrectionService = {
 
     const result = await orderCorrectionRepository.revertRejectedTicket(
       orderId,
-      order.organizationId,
+      order.siteId,
       ticketId,
       ticket.station,
       actor.id,
@@ -333,7 +333,7 @@ export const orderCorrectionService = {
 
     if (!result) throw new NotFoundError('Prep ticket not found');
 
-    socketService.emitTicketReverted(order.organizationId, {
+    socketService.emitTicketReverted(order.siteId, {
       orderId,
       ticketId,
       station: ticket.station,
@@ -348,7 +348,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -361,7 +361,7 @@ export const orderCorrectionService = {
 
     await orderCorrectionRepository.adjustOrderTotal(
       orderId,
-      order.organizationId,
+      order.siteId,
       newTotal,
       actor.id,
       before,
@@ -377,7 +377,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -394,7 +394,7 @@ export const orderCorrectionService = {
 
     const result = await orderCorrectionRepository.removeSplitLine(
       orderId,
-      order.organizationId,
+      order.siteId,
       lineId,
       actor.id,
       input.reason,
@@ -410,7 +410,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -430,7 +430,7 @@ export const orderCorrectionService = {
 
     return orderCorrectionRepository.addSplitLine(
       orderId,
-      order.organizationId,
+      order.siteId,
       { label: input.label, amount: new Decimal(input.amount), method: input.method, mpesaCode: input.mpesaCode },
       actor.id,
       input.reason,
@@ -444,7 +444,7 @@ export const orderCorrectionService = {
   ) => {
     const order = await orderCorrectionRepository.findById(orderId);
     if (!order) throw new NotFoundError('Order not found');
-    assertOrderInScope(order.organizationId, actor);
+    assertOrderInScope(order.siteId, actor);
 
     assertWithinCorrectionWindow(order.createdAt, actor);
 
@@ -466,7 +466,7 @@ export const orderCorrectionService = {
 
     return orderCorrectionRepository.convertToSplit(
       orderId,
-      order.organizationId,
+      order.siteId,
       input.lines.map((line) => ({
         label: line.label,
         amount: new Decimal(line.amount),

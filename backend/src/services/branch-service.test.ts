@@ -31,7 +31,7 @@ describe('branchService.setHubBranch — hub is locked once the Central Store ex
   it('refuses to move the hub flag while the Central Store lives on the current hub', async () => {
     vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue({
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
     } as never);
 
     await expect(branchService.setHubBranch(otherOrgId)).rejects.toBeInstanceOf(ConflictError);

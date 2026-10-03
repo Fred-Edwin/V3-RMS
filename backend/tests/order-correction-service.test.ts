@@ -19,13 +19,13 @@ const otherBranchId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const managerActor = {
   id: '55555555-5555-4555-8555-555555555555',
   role: 'MANAGER' as const,
-  organizationId: ownBranchId,
+  siteId: ownBranchId,
 };
 
 const systemAdminActor = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'SYSTEM_ADMIN' as const,
-  organizationId: ownBranchId,
+  siteId: ownBranchId,
 };
 
 const itemId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
@@ -34,7 +34,7 @@ const orderId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 const buildOrder = (
   overrides: Partial<{
-    organizationId: string;
+    siteId: string;
     createdAt: Date;
     status: string;
     total: string;
@@ -43,7 +43,7 @@ const buildOrder = (
   }> = {},
 ) => ({
   id: orderId,
-  organizationId: overrides.organizationId ?? ownBranchId,
+  siteId: overrides.siteId ?? ownBranchId,
   createdAt: overrides.createdAt ?? new Date(),
   status: overrides.status ?? 'CLOSED',
   total: overrides.total ?? '900.00',
@@ -88,7 +88,7 @@ describe('orderCorrectionService — branch scoping and correction window', () =
 
   it('MANAGER cannot access an order from another branch', async () => {
     vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
-      buildOrder({ organizationId: otherBranchId }) as never,
+      buildOrder({ siteId: otherBranchId }) as never,
     );
 
     await expect(
@@ -100,7 +100,7 @@ describe('orderCorrectionService — branch scoping and correction window', () =
 
   it('SYSTEM_ADMIN can access orders from any branch', async () => {
     vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
-      buildOrder({ organizationId: otherBranchId }) as never,
+      buildOrder({ siteId: otherBranchId }) as never,
     );
     vi.mocked(orderCorrectionRepository.removeOrderItem).mockResolvedValue({ count: 1 } as never);
 
@@ -194,7 +194,7 @@ describe('orderCorrectionService — split payment line correction', () => {
 
   it('MANAGER cannot remove a split line from another branch order', async () => {
     vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
-      buildOrder({ organizationId: otherBranchId }) as never,
+      buildOrder({ siteId: otherBranchId }) as never,
     );
 
     await expect(
@@ -306,7 +306,7 @@ describe('orderCorrectionService — convert to split payment', () => {
 
   it('MANAGER cannot convert an order from another branch', async () => {
     vi.mocked(orderCorrectionRepository.findById).mockResolvedValue(
-      buildOrder({ organizationId: otherBranchId, paymentMethod: 'CASH' }) as never,
+      buildOrder({ siteId: otherBranchId, paymentMethod: 'CASH' }) as never,
     );
 
     await expect(

@@ -72,12 +72,12 @@ const prepRunInclude = {
 } satisfies Prisma.PrepRunInclude;
 
 export const prepRunRepository = {
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
     filters: ListPrepRunsFilters,
   ): Promise<PrepRunWithRelations[]> => {
     const where: Prisma.PrepRunWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.outputItemId ? { outputItemId: filters.outputItemId } : {}),
       ...(filters.yieldVarianceLabel ? { yieldVarianceLabel: filters.yieldVarianceLabel } : {}),
       ...(filters.search
@@ -102,14 +102,14 @@ export const prepRunRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string, client: Client = prisma): Promise<PrepRunWithRelations | null> => {
-    return client.prepRun.findFirst({ where: { id, organizationId }, include: prepRunInclude });
+  findById: async (id: string, siteId: string, client: Client = prisma): Promise<PrepRunWithRelations | null> => {
+    return client.prepRun.findFirst({ where: { id, siteId }, include: prepRunInclude });
   },
 
-  create: async (organizationId: string, input: CreatePrepRunInput, tx: TxClient): Promise<PrepRunWithRelations> => {
+  create: async (siteId: string, input: CreatePrepRunInput, tx: TxClient): Promise<PrepRunWithRelations> => {
     return tx.prepRun.create({
       data: {
-        organizationId,
+        siteId,
         outputItemId: input.outputItemId,
         actualYield: new Prisma.Decimal(input.actualYield),
         outputUnitCost: new Prisma.Decimal(input.outputUnitCost),
@@ -146,12 +146,12 @@ export const prepRunRepository = {
    * no yieldVarianceLabel condition in this query, ever (plan §6 Q3b).
    */
   findRecentForRollingAverage: async (
-    organizationId: string,
+    siteId: string,
     outputItemId: string,
     maxRuns: number,
   ): Promise<PrepRunForRollingAverage[]> => {
     return prisma.prepRun.findMany({
-      where: { organizationId, outputItemId },
+      where: { siteId, outputItemId },
       select: { id: true, actualYield: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: maxRuns,
@@ -166,12 +166,12 @@ export const prepRunRepository = {
    * second aggregate query.
    */
   findSummaryRows: async (
-    organizationId: string,
+    siteId: string,
     range: { from?: Date; to?: Date },
   ): Promise<{ totalInputCost: Prisma.Decimal; yieldVarianceLabel: string | null }[]> => {
     return prisma.prepRun.findMany({
       where: {
-        organizationId,
+        siteId,
         ...(range.from || range.to
           ? { createdAt: { ...(range.from ? { gte: range.from } : {}), ...(range.to ? { lte: range.to } : {}) } }
           : {}),

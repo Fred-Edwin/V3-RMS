@@ -58,7 +58,7 @@ async function seed(): Promise<void> {
       },
     },
     include: {
-      user: { select: { id: true, name: true, role: true, organizationId: true } },
+      user: { select: { id: true, name: true, role: true, siteId: true } },
       leaveBalances: { where: { leaveType: 'ANNUAL', leaveYear: new Date().getFullYear() } },
     },
     orderBy: { createdAt: 'asc' },
@@ -94,7 +94,7 @@ async function seed(): Promise<void> {
   // ── Leave Request 1: PENDING (submitted 2 days ago, starts next week) ─────
   if (prof0) {
     const leaveBalance0 = prof0.leaveBalances[0];
-    if (leaveBalance0 && prof0.user.organizationId) {
+    if (leaveBalance0 && prof0.user.siteId) {
       const startDate = new Date(now);
       startDate.setDate(startDate.getDate() + 7);
       const endDate = new Date(startDate);
@@ -104,7 +104,7 @@ async function seed(): Promise<void> {
         data: {
           employeeProfileId: prof0.id,
           leaveBalanceId: leaveBalance0.id,
-          organizationId: prof0.user.organizationId,
+          siteId: prof0.user.siteId,
           leaveType: 'ANNUAL',
           startDate,
           endDate,
@@ -123,7 +123,7 @@ async function seed(): Promise<void> {
   // ── Leave Request 2: APPROVED (last month) ────────────────────────────────
   if (prof1) {
     const leaveBalance1 = prof1.leaveBalances[0];
-    if (leaveBalance1 && prof1.user.organizationId) {
+    if (leaveBalance1 && prof1.user.siteId) {
       const startDate = new Date(now);
       startDate.setDate(startDate.getDate() - 20);
       const endDate = new Date(startDate);
@@ -133,7 +133,7 @@ async function seed(): Promise<void> {
         data: {
           employeeProfileId: prof1.id,
           leaveBalanceId: leaveBalance1.id,
-          organizationId: prof1.user.organizationId,
+          siteId: prof1.user.siteId,
           leaveType: 'ANNUAL',
           startDate,
           endDate,
@@ -170,7 +170,7 @@ async function seed(): Promise<void> {
         },
       },
     });
-    if (sickBalance && prof2.user.organizationId) {
+    if (sickBalance && prof2.user.siteId) {
       const startDate = new Date(now);
       startDate.setDate(startDate.getDate() - 10);
       const endDate = new Date(startDate);
@@ -180,7 +180,7 @@ async function seed(): Promise<void> {
         data: {
           employeeProfileId: prof2.id,
           leaveBalanceId: sickBalance.id,
-          organizationId: prof2.user.organizationId,
+          siteId: prof2.user.siteId,
           leaveType: 'SICK',
           startDate,
           endDate,
@@ -201,7 +201,7 @@ async function seed(): Promise<void> {
 
   // ── Disciplinary Record 1: VERBAL_WARNING ─────────────────────────────────
   const pd0 = prof3 ?? prof0;
-  if (pd0?.user.organizationId) {
+  if (pd0?.user.siteId) {
     const incidentDate = new Date(now);
     incidentDate.setDate(incidentDate.getDate() - 14);
     const actionDate = new Date(incidentDate);
@@ -212,7 +212,7 @@ async function seed(): Promise<void> {
     await prisma.disciplinaryRecord.create({
       data: {
         employeeProfileId: pd0.id,
-        organizationId: pd0.user.organizationId,
+        siteId: pd0.user.siteId,
         incidentDate,
         actionDate,
         category: 'ATTENDANCE',
@@ -229,7 +229,7 @@ async function seed(): Promise<void> {
 
   // ── Disciplinary Record 2: WRITTEN_WARNING ────────────────────────────────
   const pd1 = prof4 ?? prof1;
-  if (pd1 && pd1.user.organizationId && pd1.id !== pd0?.id) {
+  if (pd1 && pd1.user.siteId && pd1.id !== pd0?.id) {
     const incidentDate = new Date(now);
     incidentDate.setDate(incidentDate.getDate() - 30);
     const actionDate = new Date(incidentDate);
@@ -240,7 +240,7 @@ async function seed(): Promise<void> {
     await prisma.disciplinaryRecord.create({
       data: {
         employeeProfileId: pd1.id,
-        organizationId: pd1.user.organizationId,
+        siteId: pd1.user.siteId,
         incidentDate,
         actionDate,
         category: 'MISCONDUCT',

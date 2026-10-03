@@ -9,7 +9,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 
 vi.mock('./prep-repository', () => ({
   prepRunRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     findRecentForRollingAverage: vi.fn(),
@@ -53,15 +53,15 @@ const inputItemId = '44444444-4444-4444-8444-444444444444';
 const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const prepRunId = '66666666-6666-4666-8666-666666666666';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const nonHubActor = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: branchOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const nonHubActor = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: branchOrgId };
 
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 const buildOutputItem = (overrides: Record<string, unknown> = {}) => ({
   id: outputItemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Grilled chicken portion',
   usageUnit: 'portion',
   buyUnit: 'kg',
@@ -72,7 +72,7 @@ const buildOutputItem = (overrides: Record<string, unknown> = {}) => ({
 
 const buildInputItem = (overrides: Record<string, unknown> = {}) => ({
   id: inputItemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Raw chicken',
   usageUnit: 'kg',
   buyUnit: 'kg',
@@ -83,7 +83,7 @@ const buildInputItem = (overrides: Record<string, unknown> = {}) => ({
 
 const buildPrepRun = (overrides: Record<string, unknown> = {}) => ({
   id: prepRunId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   outputItemId,
   actualYield: new Prisma.Decimal(22),
   outputUnitCost: new Prisma.Decimal(81.8182),
@@ -391,7 +391,7 @@ describe('prepService — rolling average and yield-variance thresholds', () => 
 
 describe('prepService.listPrepRuns — pagination, filters, org scoping', () => {
   it('applies search, outputItemId, yieldFlag, and date filters', async () => {
-    vi.mocked(prepRunRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(prepRunRepository.findAllBySite).mockResolvedValue([]);
 
     await prepService.listPrepRuns(storeManager, {
       search: 'chicken',
@@ -402,7 +402,7 @@ describe('prepService.listPrepRuns — pagination, filters, org scoping', () => 
       limit: 25,
     });
 
-    expect(prepRunRepository.findAllByOrganization).toHaveBeenCalledWith(
+    expect(prepRunRepository.findAllBySite).toHaveBeenCalledWith(
       hubOrgId,
       expect.objectContaining({
         search: 'chicken',

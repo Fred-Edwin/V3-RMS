@@ -24,7 +24,7 @@ vi.mock('./item-history-repository', () => ({
 }));
 vi.mock('./inventory-repository', () => ({
   categoryRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findByLiveName: vi.fn(),
     create: vi.fn(),
   },
@@ -63,14 +63,14 @@ const itemId = '33333333-3333-4333-8333-333333333333';
 const categoryId = '44444444-4444-4444-8444-444444444444';
 const supplierId = '55555555-5555-4555-8555-555555555555';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId, isHub: true, isActive: true } as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue({
     id: centralStoreId,
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     type: 'CENTRAL_STORE',
   } as never);
   vi.mocked(restockLevelRepository.findByItemIdsForLocation).mockResolvedValue(new Map());
@@ -91,14 +91,14 @@ describe('Inventory contract drift guard', () => {
   });
 
   it('listRestockBranches refuses an actor outside the hub', async () => {
-    await expect(inventoryService.listRestockBranches({ ...storeManager, organizationId: 'other-org' })).rejects.toThrow();
+    await expect(inventoryService.listRestockBranches({ ...storeManager, siteId: 'other-org' })).rejects.toThrow();
   });
 
   it('CategorySchema accepts listCategories output', async () => {
-    vi.mocked(categoryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(categoryRepository.findAllBySite).mockResolvedValue([
       {
         id: categoryId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         name: 'Dry items',
         itemCount: 5,
         deletedAt: null,
@@ -115,7 +115,7 @@ describe('Inventory contract drift guard', () => {
     vi.mocked(inventoryItemRepository.findLiveByName).mockResolvedValue({ id: 'dup-id' } as never);
     vi.mocked(inventoryItemRepository.create).mockResolvedValue({
       id: itemId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
       name: 'Kabras Sugar 1kg',
       type: 'RAW_INGREDIENT',
       categoryId,
@@ -155,7 +155,7 @@ describe('Inventory contract drift guard', () => {
     vi.mocked(restockLevelRepository.findLiveItemsForRestock).mockResolvedValue([
       {
         id: itemId,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         name: 'Kabras Sugar 1kg',
         usageUnit: 'kg',
         type: 'RAW_INGREDIENT',

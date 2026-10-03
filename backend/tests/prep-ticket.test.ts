@@ -10,13 +10,13 @@ const ticketId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const chefToken = signAccessToken({
   userId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   role: 'CHEF',
-  organizationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  siteId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
 });
 
 const waiterToken = signAccessToken({
   userId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'WAITER',
-  organizationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  siteId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
 });
 
 const sampleTicket = {

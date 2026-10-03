@@ -95,7 +95,7 @@ beforeEach(() => {
 
 describe('suppliers contract — response shapes', () => {
   it('list rows satisfy SupplierListRowSchema (profileDone, owedAmount) and carry no deprecated legacy keys', async () => {
-    vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(repos.supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     const row = SupplierListRowSchema.parse(data[0]);
     expect(keys(row)).toEqual(
@@ -110,7 +110,7 @@ describe('suppliers contract — response shapes', () => {
   });
 
   it('an archived supplier is told apart by status alone', async () => {
-    vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({
+    vi.mocked(repos.supplierRepository.findAllBySite).mockResolvedValue({
       suppliers: [buildSupplierRow({ status: 'ARCHIVED', deletedAt: new Date() })],
       total: 1,
     } as never);
@@ -188,7 +188,7 @@ describe('suppliers contract — response shapes', () => {
 
 describe('suppliers contract — attendant blindness', () => {
   it('the attendant list carries only code, name, type and primary phone (serialized scan)', async () => {
-    vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(repos.supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const response = await supplierService.listSuppliers(attendant, { page: 1, perPage: 20, includeRetired: false });
 
     expect(forbiddenKeys(response)).toEqual([]);
@@ -211,13 +211,13 @@ describe('suppliers contract — attendant blindness', () => {
   });
 
   it('control: the same scan does flag the full list (the scan really bites)', async () => {
-    vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(repos.supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const full = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     expect(forbiddenKeys(full).length).toBeGreaterThan(0);
   });
 
   it('the supplier list never carries payment methods, KRA PIN or credit limit for any role', async () => {
-    vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(repos.supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const full = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     const found = forbiddenKeys(full).filter((k) => /pay(?!ment(Terms|Days))|account|bank|kra|credit/i.test(k));
     expect(found).toEqual([]);
@@ -245,7 +245,7 @@ const allowedRoles = (method: string, path: string): string[] => {
   return ALL_ROLES.filter((role) => {
     const next = vi.fn() as unknown as NextFunction;
     try {
-      guard({ user: { id: 'u', role, organizationId: hubOrgId } } as Request, {} as Response, next);
+      guard({ user: { id: 'u', role, siteId: hubOrgId } } as Request, {} as Response, next);
     } catch {
       return false;
     }

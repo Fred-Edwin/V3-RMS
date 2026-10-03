@@ -248,26 +248,33 @@ const run = async (): Promise<void> => {
   assertLocalDatabase();
 
   // 1. Organizations + locations
+  const company =
+    (await prisma.company.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })) ??
+    (await prisma.company.create({ data: { name: 'Wendo Coffee Bistro' } }));
   const orgId = new Map<string, string>();
   for (const spec of ORGS) {
-    const found = await prisma.organization.findFirst({ where: { name: spec.name } });
-    const row = found ?? (await prisma.organization.create({ data: { ...spec, isActive: true } }));
+    const found = await prisma.site.findFirst({ where: { name: spec.name } });
+    const row =
+      found ??
+      (await prisma.site.create({
+        data: { ...spec, companyId: company.id, type: spec.isHub ? 'CENTRAL_STORE' : 'BRANCH', isActive: true },
+      }));
     orgId.set(spec.name, row.id);
   }
   const hubId = orgId.get(HUB)!;
 
-  const centralExisting = await prisma.location.findFirst({ where: { organizationId: hubId, type: 'CENTRAL_STORE' } });
-  const central = centralExisting ?? (await prisma.location.create({ data: { organizationId: hubId, type: 'CENTRAL_STORE', name: 'Central Store' } }));
+  const centralExisting = await prisma.location.findFirst({ where: { siteId: hubId, type: 'CENTRAL_STORE' } });
+  const central = centralExisting ?? (await prisma.location.create({ data: { siteId: hubId, type: 'CENTRAL_STORE', name: 'Central Store' } }));
 
   const deptLoc = new Map<string, string>(); // `${org}|${tag}` → location id
   for (const org of ORGS.filter((o) => !o.isHub)) {
     for (const dept of DEPARTMENTS) {
-      const where = { organizationId_type_departmentTag: { organizationId: orgId.get(org.name)!, type: 'BRANCH_DEPARTMENT' as const, departmentTag: dept.tag } };
+      const where = { siteId_type_departmentTag: { siteId: orgId.get(org.name)!, type: 'BRANCH_DEPARTMENT' as const, departmentTag: dept.tag } };
       const found = await prisma.location.findUnique({ where });
       const row =
         found ??
         (await prisma.location.create({
-          data: { organizationId: orgId.get(org.name)!, type: 'BRANCH_DEPARTMENT', departmentTag: dept.tag, name: `${org.name} — ${dept.name}` },
+          data: { siteId: orgId.get(org.name)!, type: 'BRANCH_DEPARTMENT', departmentTag: dept.tag, name: `${org.name} — ${dept.name}` },
         }));
       deptLoc.set(`${org.name}|${dept.tag}`, row.id);
     }
@@ -286,7 +293,7 @@ const run = async (): Promise<void> => {
           email: p.email,
           name: p.name,
           role: p.role,
-          organizationId: orgId.get(p.org)!,
+          siteId: orgId.get(p.org)!,
           passwordHash,
           pinHash,
           isActive: true,
@@ -303,11 +310,11 @@ const run = async (): Promise<void> => {
   // 3. Categories
   const categoryId = new Map<string, string>();
   for (const [name, parent] of CATEGORIES) {
-    const found = await prisma.category.findFirst({ where: { organizationId: hubId, name, deletedAt: null }, select: { id: true } });
+    const found = await prisma.category.findFirst({ where: { siteId: hubId, name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
       (await prisma.category.create({
-        data: { organizationId: hubId, name, parentCategoryId: parent ? categoryId.get(parent) : undefined },
+        data: { siteId: hubId, name, parentCategoryId: parent ? categoryId.get(parent) : undefined },
         select: { id: true },
       }));
     categoryId.set(name, row.id);
@@ -316,11 +323,11 @@ const run = async (): Promise<void> => {
   // 4. Suppliers
   const supplierId = new Map<string, string>();
   for (const s of SUPPLIERS) {
-    const found = await prisma.supplier.findFirst({ where: { organizationId: hubId, name: s.name, deletedAt: null }, select: { id: true } });
+    const found = await prisma.supplier.findFirst({ where: { siteId: hubId, name: s.name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
       (await createSeedSupplier(prisma, {
-        organizationId: hubId, name: s.name, contactName: s.contactName, phone: s.phone, location: s.location,
+        siteId: hubId, name: s.name, contactName: s.contactName, phone: s.phone, location: s.location,
         defaultPaymentTerms: s.terms, paymentDays: s.paymentDays,
       }));
     supplierId.set(s.name, row.id);
@@ -331,12 +338,12 @@ const run = async (): Promise<void> => {
   let openingRows = 0;
   let levels = 0;
   for (const spec of ITEMS) {
-    const found = await prisma.inventoryItem.findFirst({ where: { organizationId: hubId, name: spec.name, deletedAt: null }, select: { id: true } });
+    const found = await prisma.inventoryItem.findFirst({ where: { siteId: hubId, name: spec.name, deletedAt: null }, select: { id: true } });
     const row =
       found ??
       (await prisma.inventoryItem.create({
         data: {
-          organizationId: hubId,
+          siteId: hubId,
           name: spec.name,
           type: spec.type,
           categoryId: categoryId.get(spec.category),
@@ -354,7 +361,7 @@ const run = async (): Promise<void> => {
     if (!found && spec.open > 0) {
       await prisma.inventoryTransaction.create({
         data: {
-          organizationId: hubId, locationId: central.id, inventoryItemId: row.id, type: 'RECEIVE',
+          siteId: hubId, locationId: central.id, inventoryItemId: row.id, type: 'RECEIVE',
           quantity: dec(spec.open), unitCost: dec(spec.cost), reason: OPENING_REASON, userId: storeManagerId,
         },
       });
@@ -365,7 +372,7 @@ const run = async (): Promise<void> => {
       await prisma.restockLevel.upsert({
         where: { locationId_inventoryItemId: { locationId: central.id, inventoryItemId: row.id } },
         update: {},
-        create: { organizationId: hubId, locationId: central.id, inventoryItemId: row.id, level: dec(spec.level), setById: storeManagerId },
+        create: { siteId: hubId, locationId: central.id, inventoryItemId: row.id, level: dec(spec.level), setById: storeManagerId },
       });
       levels++;
     }
@@ -378,7 +385,7 @@ const run = async (): Promise<void> => {
             where: { locationId_inventoryItemId: { locationId, inventoryItemId: row.id } },
             update: {},
             create: {
-              organizationId: orgId.get(branch)!, locationId, inventoryItemId: row.id,
+              siteId: orgId.get(branch)!, locationId, inventoryItemId: row.id,
               level: dec(Math.max(1, Math.round(spec.deptLevel * factor))), setById: storeManagerId,
             },
           });
@@ -401,7 +408,7 @@ const run = async (): Promise<void> => {
     const spec = ITEMS.find((i) => i.name === o.item)!;
     await prisma.inventoryTransaction.create({
       data: {
-        organizationId: orgId.get('Nyeri Town')!, locationId: townKitchen, inventoryItemId: id, type: 'DISPATCH_IN',
+        siteId: orgId.get('Nyeri Town')!, locationId: townKitchen, inventoryItemId: id, type: 'DISPATCH_IN',
         quantity: dec(o.qty), unitCost: dec(spec.cost), reason: BRANCH_OPENING_REASON, userId: userId.get('bm.town@wendo.test')!,
       },
     });
@@ -412,18 +419,18 @@ const run = async (): Promise<void> => {
   //    Hub row: Store Manager reason threshold + Director company-wide alert.
   //    Branch rows: Branch Manager reason threshold + overnight alert.
   await prisma.countingThresholds.upsert({
-    where: { organizationId: hubId },
+    where: { siteId: hubId },
     update: {},
     create: {
-      organizationId: hubId, reasonRequiredKes: 300, directorAlertKes: 1500,
+      siteId: hubId, reasonRequiredKes: 300, directorAlertKes: 1500,
       updatedById: storeManagerId, directorUpdatedById: directorId, directorUpdatedAt: new Date(),
     },
   });
   for (const [branch, bm] of [['Nyeri Town', 'bm.town@wendo.test'], ['Nyeri Highway', 'bm.highway@wendo.test']] as const) {
     await prisma.countingThresholds.upsert({
-      where: { organizationId: orgId.get(branch)! },
+      where: { siteId: orgId.get(branch)! },
       update: {},
-      create: { organizationId: orgId.get(branch)!, reasonRequiredKes: 400, overnightAlertKes: 300, updatedById: userId.get(bm)! },
+      create: { siteId: orgId.get(branch)!, reasonRequiredKes: 400, overnightAlertKes: 300, updatedById: userId.get(bm)! },
     });
   }
 

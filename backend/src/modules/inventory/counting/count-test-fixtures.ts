@@ -5,11 +5,11 @@ export const hubOrgId = '11111111-1111-4111-8111-111111111111';
 export const centralStoreId = '55555555-5555-4555-8555-555555555555';
 export const countId = 'c0000000-0000-4000-8000-000000000001';
 
-export const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-export const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+export const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+export const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 export const centralStore = {
   id: centralStoreId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   type: 'CENTRAL_STORE',
   departmentTag: null,
   name: 'Central Store',
@@ -48,7 +48,7 @@ export const count = (
   overrides: Partial<CountWithRelations> = {},
 ): CountWithRelations => ({
   id: countId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   locationId: centralStoreId,
   kind: 'DAILY',
   countDate: new Date('2026-09-12T00:00:00Z'),

@@ -75,7 +75,7 @@ export interface SelfServiceProfileData {
 }
 
 export interface CreateContractTypeData {
-  organizationId?: string | null;
+  siteId?: string | null;
   name: string;
   durationMonths?: number | null;
   leavePolicies: Array<{ leaveType: LeaveType; totalDays: number }>;
@@ -92,7 +92,7 @@ export interface UpdateContractTypeData {
 export interface CreateLeaveRequestData {
   employeeProfileId: string;
   leaveBalanceId: string;
-  organizationId: string;
+  siteId: string;
   leaveType: LeaveType;
   startDate: Date;
   endDate: Date;
@@ -102,7 +102,7 @@ export interface CreateLeaveRequestData {
 
 export interface CreateDisciplinaryRecordData {
   employeeProfileId: string;
-  organizationId: string;
+  siteId: string;
   incidentDate: Date;
   actionDate: Date;
   category: DisciplinaryCategory;
@@ -123,9 +123,9 @@ const profileWithUser = {
       name: true,
       email: true,
       role: true,
-      organizationId: true,
+      siteId: true,
       isActive: true,
-      organization: { select: { id: true, name: true } },
+      site: { select: { id: true, name: true } },
     },
   },
   reportingManager: {
@@ -151,10 +151,10 @@ export async function findProfileById(id: string) {
   });
 }
 
-export async function listProfiles(organizationId?: string) {
+export async function listProfiles(siteId?: string) {
   return prisma.employeeProfile.findMany({
-    where: organizationId
-      ? { user: { organizationId } }
+    where: siteId
+      ? { user: { siteId } }
       : undefined,
     include: {
       user: {
@@ -163,9 +163,9 @@ export async function listProfiles(organizationId?: string) {
           name: true,
           email: true,
           role: true,
-          organizationId: true,
+          siteId: true,
           isActive: true,
-          organization: { select: { id: true, name: true } },
+          site: { select: { id: true, name: true } },
         },
       },
       contractType: {
@@ -379,7 +379,7 @@ export async function findContractTypeByName(name: string) {
 export async function createContractType(data: CreateContractTypeData) {
   return prisma.contractType.create({
     data: {
-      organizationId: data.organizationId ?? null,
+      siteId: data.siteId ?? null,
       name: data.name,
       durationMonths: data.durationMonths ?? null,
       leavePolicies: {
@@ -426,7 +426,7 @@ export async function updateContractType(id: string, data: UpdateContractTypeDat
 const leaveRequestInclude = {
   employeeProfile: {
     include: {
-      user: { select: { id: true, name: true, role: true, organizationId: true } },
+      user: { select: { id: true, name: true, role: true, siteId: true } },
     },
   },
   leaveBalance: true,
@@ -439,7 +439,7 @@ export async function createLeaveRequest(data: CreateLeaveRequestData) {
     data: {
       employeeProfileId: data.employeeProfileId,
       leaveBalanceId: data.leaveBalanceId,
-      organizationId: data.organizationId,
+      siteId: data.siteId,
       leaveType: data.leaveType,
       startDate: data.startDate,
       endDate: data.endDate,
@@ -450,15 +450,15 @@ export async function createLeaveRequest(data: CreateLeaveRequestData) {
   });
 }
 
-export async function findLeaveRequestById(id: string, organizationId?: string) {
+export async function findLeaveRequestById(id: string, siteId?: string) {
   return prisma.leaveRequest.findFirst({
-    where: { id, ...(organizationId ? { organizationId } : {}) },
+    where: { id, ...(siteId ? { siteId } : {}) },
     include: leaveRequestInclude,
   });
 }
 
 export async function listLeaveRequests(params: {
-  organizationId?: string;
+  siteId?: string;
   employeeProfileId?: string;
   status?: LeaveStatus;
   page: number;
@@ -469,7 +469,7 @@ export async function listLeaveRequests(params: {
   excludeAcknowledgedBy?: string;
 }) {
   const where = {
-    ...(params.organizationId ? { organizationId: params.organizationId } : {}),
+    ...(params.siteId ? { siteId: params.siteId } : {}),
     ...(params.employeeProfileId ? { employeeProfileId: params.employeeProfileId } : {}),
     ...(params.status ? { status: params.status } : {}),
     ...(params.resolvedSince
@@ -503,13 +503,13 @@ export async function acknowledgeLeaveRequest(leaveRequestId: string, userId: st
 }
 
 export async function acknowledgeAllResolvedLeaveRequests(params: {
-  organizationId?: string;
+  siteId?: string;
   userId: string;
 }) {
   const resolved = await prisma.leaveRequest.findMany({
     where: {
       status: { in: ['APPROVED', 'REJECTED'] },
-      ...(params.organizationId ? { organizationId: params.organizationId } : {}),
+      ...(params.siteId ? { siteId: params.siteId } : {}),
     },
     select: { id: true },
   });
@@ -524,12 +524,12 @@ export async function acknowledgeAllResolvedLeaveRequests(params: {
 
 export async function approveLeaveRequest(
   id: string,
-  organizationId: string,
+  siteId: string,
   reviewedById: string,
   comment?: string,
 ) {
   return prisma.leaveRequest.updateMany({
-    where: { id, organizationId },
+    where: { id, siteId },
     data: {
       status: 'APPROVED',
       reviewedById,
@@ -541,12 +541,12 @@ export async function approveLeaveRequest(
 
 export async function rejectLeaveRequest(
   id: string,
-  organizationId: string,
+  siteId: string,
   reviewedById: string,
   comment?: string,
 ) {
   return prisma.leaveRequest.updateMany({
-    where: { id, organizationId },
+    where: { id, siteId },
     data: {
       status: 'REJECTED',
       reviewedById,
@@ -558,11 +558,11 @@ export async function rejectLeaveRequest(
 
 export async function cancelLeaveRequest(
   id: string,
-  organizationId: string,
+  siteId: string,
   cancelledById: string,
 ) {
   return prisma.leaveRequest.updateMany({
-    where: { id, organizationId },
+    where: { id, siteId },
     data: {
       status: 'CANCELLED',
       cancelledById,
@@ -591,13 +591,13 @@ export async function findOverlappingLeaveRequests(
 }
 
 export async function findApprovedLeaveForCalendar(params: {
-  organizationId?: string;
+  siteId?: string;
   startDate: Date;
   endDate: Date;
 }) {
   return prisma.leaveRequest.findMany({
     where: {
-      ...(params.organizationId ? { organizationId: params.organizationId } : {}),
+      ...(params.siteId ? { siteId: params.siteId } : {}),
       status: 'APPROVED',
       startDate: { lte: params.endDate },
       endDate: { gte: params.startDate },
@@ -652,20 +652,20 @@ export async function listDisciplinaryRecords(employeeProfileId: string) {
   });
 }
 
-export async function acknowledgeDisciplinaryRecord(id: string, organizationId: string) {
+export async function acknowledgeDisciplinaryRecord(id: string, siteId: string) {
   return prisma.disciplinaryRecord.updateMany({
-    where: { id, organizationId },
+    where: { id, siteId },
     data: { acknowledged: true, acknowledgedAt: new Date() },
   });
 }
 
-export async function findDisciplinaryRecordById(id: string, organizationId?: string) {
+export async function findDisciplinaryRecordById(id: string, siteId?: string) {
   return prisma.disciplinaryRecord.findFirst({
-    where: { id, ...(organizationId ? { organizationId } : {}) },
+    where: { id, ...(siteId ? { siteId } : {}) },
     include: {
       issuedBy: { select: { id: true, name: true, role: true } },
       employeeProfile: {
-        include: { user: { select: { id: true, name: true, organizationId: true } } },
+        include: { user: { select: { id: true, name: true, siteId: true } } },
       },
     },
   });
@@ -770,14 +770,14 @@ export async function deleteHrDocument(id: string) {
 
 // ─── HR Dashboard aggregations ────────────────────────────────────────────────
 
-export async function getHrDashboardStats(organizationId?: string) {
+export async function getHrDashboardStats(siteId?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const orgFilter = organizationId ? { organizationId } : {};
-  const userOrgFilter = organizationId ? { user: { organizationId } } : {};
+  const orgFilter = siteId ? { siteId } : {};
+  const userOrgFilter = siteId ? { user: { siteId } } : {};
 
   const [
     activeStaff,
@@ -787,7 +787,7 @@ export async function getHrDashboardStats(organizationId?: string) {
     probationEnding,
   ] = await prisma.$transaction([
     prisma.employeeProfile.count({
-      where: { ...userOrgFilter, user: { isActive: true, ...( organizationId ? { organizationId } : {} ) } },
+      where: { ...userOrgFilter, user: { isActive: true, ...( siteId ? { siteId } : {} ) } },
     }),
     prisma.leaveRequest.count({
       where: {
@@ -816,7 +816,7 @@ export async function getHrDashboardStats(organizationId?: string) {
         },
       },
       include: {
-        user: { select: { id: true, name: true, organizationId: true, organization: { select: { name: true } } } },
+        user: { select: { id: true, name: true, siteId: true, site: { select: { name: true } } } },
       },
       take: 10,
     }),
@@ -825,10 +825,10 @@ export async function getHrDashboardStats(organizationId?: string) {
   return { activeStaff, onLeaveToday, pendingLeave, activeWarnings, probationEnding };
 }
 
-export async function getPendingLeaveRequestsForDashboard(organizationId?: string) {
+export async function getPendingLeaveRequestsForDashboard(siteId?: string) {
   return prisma.leaveRequest.findMany({
     where: {
-      ...(organizationId ? { organizationId } : {}),
+      ...(siteId ? { siteId } : {}),
       status: 'PENDING',
     },
     include: {
@@ -839,7 +839,7 @@ export async function getPendingLeaveRequestsForDashboard(organizationId?: strin
               id: true,
               name: true,
               role: true,
-              organization: { select: { id: true, name: true } },
+              site: { select: { id: true, name: true } },
             },
           },
         },
@@ -851,13 +851,13 @@ export async function getPendingLeaveRequestsForDashboard(organizationId?: strin
   });
 }
 
-export async function getStaffOnLeaveToday(organizationId?: string) {
+export async function getStaffOnLeaveToday(siteId?: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   return prisma.leaveRequest.findMany({
     where: {
-      ...(organizationId ? { organizationId } : {}),
+      ...(siteId ? { siteId } : {}),
       status: 'APPROVED',
       startDate: { lte: today },
       endDate: { gte: today },
@@ -879,8 +879,8 @@ export interface AttendanceStaffRow {
   userId: string;
   name: string;
   role: string;
-  organizationId: string | null;
-  organizationName: string | null;
+  siteId: string | null;
+  siteName: string | null;
   scheduled: number;
   present: number;
   absent: number;
@@ -906,26 +906,26 @@ const LATE_THRESHOLD_MINUTES = 15;
 export async function getAttendanceSummary(
   startDate: Date,
   endDate: Date,
-  organizationId?: string,
+  siteId?: string,
   userId?: string,
 ): Promise<AttendanceStaffRow[]> {
   const assignments = await prisma.shiftAssignment.findMany({
     where: {
-      ...(organizationId ? { organizationId } : {}),
+      ...(siteId ? { siteId } : {}),
       ...(userId ? { userId } : {}),
       date: { gte: startDate, lte: endDate },
       user: { isActive: true },
     },
     select: {
       userId: true,
-      organizationId: true,
+      siteId: true,
       shift: { select: { startTime: true } },
       clockRecord: { select: { clockInAt: true } },
       user: {
         select: {
           name: true,
           role: true,
-          organization: { select: { name: true } },
+          site: { select: { name: true } },
         },
       },
     },
@@ -942,8 +942,8 @@ export async function getAttendanceSummary(
         userId: a.userId,
         name: a.user.name,
         role: a.user.role,
-        organizationId: a.organizationId,
-        organizationName: a.user.organization?.name ?? null,
+        siteId: a.siteId,
+        siteName: a.user.site?.name ?? null,
         scheduled: 0,
         present: 0,
         absent: 0,

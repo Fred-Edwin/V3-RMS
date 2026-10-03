@@ -10,25 +10,25 @@ const hubOrgId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const managerToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'STORE_MANAGER',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const accountantToken = signAccessToken({
   userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   role: 'ACCOUNTANT',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const directorToken = signAccessToken({
   userId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'DIRECTOR',
-  organizationId: null,
+  siteId: null,
 });
 
 const attendantToken = signAccessToken({
   userId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
   role: 'STORE_ATTENDANT',
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
 });
 
 const supplierId = '11111111-1111-4111-8111-111111111111';

@@ -80,7 +80,7 @@ export interface RequisitionNudgePayload {
 }
 
 const emitToStations = (
-  organizationId: string,
+  siteId: string,
   stations: PrepStation[],
   eventName: string,
   payload: unknown,
@@ -89,22 +89,22 @@ const emitToStations = (
   const uniqueStations = [...new Set(stations)];
 
   uniqueStations.forEach((station) => {
-    io.to(stationRoomName(organizationId, station)).emit(eventName, payload);
+    io.to(stationRoomName(siteId, station)).emit(eventName, payload);
   });
 };
 
 export const socketService = {
-  emitNewOrder: (organizationId: string, tickets: PrepTicketRecord[]): void => {
+  emitNewOrder: (siteId: string, tickets: PrepTicketRecord[]): void => {
     const io = getSocketServer();
     tickets.forEach((ticket) => {
-      io.to(stationRoomName(organizationId, ticket.station)).emit('order:new', ticket);
+      io.to(stationRoomName(siteId, ticket.station)).emit('order:new', ticket);
     });
   },
 
-  emitOrderClaimed: (organizationId: string, waiterId: string, payload: OrderClaimedPayload): void => {
+  emitOrderClaimed: (siteId: string, waiterId: string, payload: OrderClaimedPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:claimed', payload);
-    io.to(stationRoomName(organizationId, payload.station)).emit('order:claimed', payload);
+    io.to(stationRoomName(siteId, payload.station)).emit('order:claimed', payload);
   },
 
   emitOrderReady: (waiterId: string, payload: OrderReadyPayload): void => {
@@ -164,39 +164,39 @@ export const socketService = {
     io.to(userRoomName(userId)).emit('requisition:nudge', payload);
   },
 
-  emitOrderClosed: (organizationId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {
-    emitToStations(organizationId, stations, 'order:closed', payload);
+  emitOrderClosed: (siteId: string, stations: PrepStation[], payload: OrderClosedPayload): void => {
+    emitToStations(siteId, stations, 'order:closed', payload);
   },
 
-  emitOrderModified: (organizationId: string, tickets: PrepTicketRecord[]): void => {
+  emitOrderModified: (siteId: string, tickets: PrepTicketRecord[]): void => {
     const io = getSocketServer();
     tickets.forEach((ticket) => {
-      io.to(stationRoomName(organizationId, ticket.station)).emit('order:modified', ticket);
+      io.to(stationRoomName(siteId, ticket.station)).emit('order:modified', ticket);
     });
   },
 
-  emitOrderCancelled: (organizationId: string, stations: PrepStation[], payload: { orderId: string }): void => {
-    emitToStations(organizationId, stations, 'order:cancelled', payload);
+  emitOrderCancelled: (siteId: string, stations: PrepStation[], payload: { orderId: string }): void => {
+    emitToStations(siteId, stations, 'order:cancelled', payload);
   },
 
   emitOrderForceCancelled: (
-    organizationId: string,
+    siteId: string,
     stations: PrepStation[],
     waiterId: string,
     payload: { orderId: string; dailyNumber: number; cancelledBy: string },
   ): void => {
-    emitToStations(organizationId, stations, 'order:force_cancelled', payload);
+    emitToStations(siteId, stations, 'order:force_cancelled', payload);
     const io = getSocketServer();
     // Notify the waiter who owns the order
     io.to(userRoomName(waiterId)).emit('order:force_cancelled', payload);
     // Also broadcast to the branch room so managers (who are not in station rooms)
     // receive the event and can remove the order from their active list
-    io.to(branchRoomName(organizationId)).emit('order:force_cancelled', payload);
+    io.to(branchRoomName(siteId)).emit('order:force_cancelled', payload);
   },
 
   emitOrderCancellationPending: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: {
       orderId: string;
       dailyNumber: number;
@@ -207,12 +207,12 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:cancellation_pending', payload);
-    io.to(branchRoomName(organizationId)).emit('order:cancellation_pending', payload);
+    io.to(branchRoomName(siteId)).emit('order:cancellation_pending', payload);
   },
 
   emitOrderCancellationResolved: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: {
       orderId: string;
       dailyNumber: number;
@@ -223,43 +223,43 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:cancellation_resolved', payload);
-    io.to(branchRoomName(organizationId)).emit('order:cancellation_resolved', payload);
+    io.to(branchRoomName(siteId)).emit('order:cancellation_resolved', payload);
   },
 
   emitTicketRejected: (
-    organizationId: string,
+    siteId: string,
     waiterId: string,
     payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number; reason: string },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('ticket:rejected', payload);
-    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:rejected', payload);
+    io.to(stationRoomName(siteId, payload.station)).emit('ticket:rejected', payload);
   },
 
   emitTicketReverted: (
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number },
   ): void => {
     const io = getSocketServer();
-    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:unclaimed', payload);
+    io.to(stationRoomName(siteId, payload.station)).emit('ticket:unclaimed', payload);
   },
 
   emitTicketUnclaimed: (
-    organizationId: string,
+    siteId: string,
     waiterId: string,
     payload: { orderId: string; ticketId: string; station: PrepStation; dailyNumber: number },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('ticket:unclaimed', payload);
-    io.to(stationRoomName(organizationId, payload.station)).emit('ticket:unclaimed', payload);
+    io.to(stationRoomName(siteId, payload.station)).emit('ticket:unclaimed', payload);
   },
 
   emitModificationRequested: (
-    organizationId: string,
+    siteId: string,
     stations: PrepStation[],
     payload: { requestId: string; orderId: string; dailyNumber: number; description: string; requestedBy: { id: string; name: string } },
   ): void => {
-    emitToStations(organizationId, stations, 'modification:requested', payload);
+    emitToStations(siteId, stations, 'modification:requested', payload);
   },
 
   emitModificationReviewed: (
@@ -270,9 +270,9 @@ export const socketService = {
     io.to(userRoomName(waiterId)).emit('modification:reviewed', payload);
   },
 
-  emitIncident: (organizationId: string, payload: unknown): void => {
+  emitIncident: (siteId: string, payload: unknown): void => {
     const io = getSocketServer();
-    io.to(branchRoomName(organizationId)).emit('incident:new', payload);
+    io.to(branchRoomName(siteId)).emit('incident:new', payload);
   },
 
   /**
@@ -280,34 +280,34 @@ export const socketService = {
    * (account holder has no FCM token). Managers can see this in real time.
    */
   emitAuthBypassed: (
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; houseAccountId: string },
   ): void => {
     const io = getSocketServer();
-    io.to(branchRoomName(organizationId)).emit('order:auth_bypassed', payload);
+    io.to(branchRoomName(siteId)).emit('order:auth_bypassed', payload);
   },
 
   /** Notifies the waiter's session that a house account auth is pending (order locked),
    *  and broadcasts the status change to the branch room so managers/directors update too. */
   emitAuthPending: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; authRequestId: string },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:auth_pending', payload);
-    io.to(branchRoomName(organizationId)).emit('order:auth_pending', payload);
+    io.to(branchRoomName(siteId)).emit('order:auth_pending', payload);
   },
 
   /** Notifies the waiter and all branch members that the authorization was resolved. */
   emitAuthResolved: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; approved: boolean },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:auth_resolved', payload);
-    io.to(branchRoomName(organizationId)).emit('order:auth_resolved', payload);
+    io.to(branchRoomName(siteId)).emit('order:auth_resolved', payload);
   },
 
   /** Notifies the waiter that a staff discount approval is pending, and broadcasts to branch so
@@ -315,7 +315,7 @@ export const socketService = {
    *  only, and directors have no branch room, so we also fan out to every online director. */
   emitStaffDiscountAuthPending: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: {
       orderId: string;
       dailyNumber: number;
@@ -326,7 +326,7 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:staff_discount_pending', payload);
-    io.to(branchRoomName(organizationId)).emit('order:staff_discount_pending', payload);
+    io.to(branchRoomName(siteId)).emit('order:staff_discount_pending', payload);
     // Directors have no branch room — deliver to every online director so the
     // approval card on their dashboard updates in real time.
     void io.fetchSockets().then((sockets) => {
@@ -343,12 +343,12 @@ export const socketService = {
    *  plus every online director so their approval card drops the resolved row. */
   emitStaffDiscountAuthResolved: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; approved: boolean; discountedTotal?: string },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:staff_discount_resolved', payload);
-    io.to(branchRoomName(organizationId)).emit('order:staff_discount_resolved', payload);
+    io.to(branchRoomName(siteId)).emit('order:staff_discount_resolved', payload);
     void io.fetchSockets().then((sockets) => {
       for (const s of sockets) {
         const auth = (s.data as { auth?: { role?: string } }).auth;
@@ -363,7 +363,7 @@ export const socketService = {
    *  so managers see the pending request immediately. */
   emitCustomerDiscountAuthPending: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: {
       orderId: string;
       dailyNumber: number;
@@ -375,18 +375,18 @@ export const socketService = {
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:customer_discount_pending', payload);
-    io.to(branchRoomName(organizationId)).emit('order:customer_discount_pending', payload);
+    io.to(branchRoomName(siteId)).emit('order:customer_discount_pending', payload);
   },
 
   /** Notifies the waiter and all branch members that the customer discount was approved or rejected. */
   emitCustomerDiscountAuthResolved: (
     waiterId: string,
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; approved: boolean; discountedTotal?: string },
   ): void => {
     const io = getSocketServer();
     io.to(userRoomName(waiterId)).emit('order:customer_discount_resolved', payload);
-    io.to(branchRoomName(organizationId)).emit('order:customer_discount_resolved', payload);
+    io.to(branchRoomName(siteId)).emit('order:customer_discount_resolved', payload);
   },
 
   // ─── Internal Communications ─────────────────────────────────────────────
@@ -423,7 +423,7 @@ export const socketService = {
   /** Delivers a new broadcast to all connected staff in a branch room,
    *  plus any system-level users (DIRECTOR, HR_MANAGER) who are online. */
   emitNewBroadcast: (
-    organizationId: string,
+    siteId: string,
     payload: {
       broadcastId: string;
       subject: string;
@@ -433,7 +433,7 @@ export const socketService = {
     },
   ): void => {
     const io = getSocketServer();
-    io.to(branchRoomName(organizationId)).emit('comms:broadcast_received', payload);
+    io.to(branchRoomName(siteId)).emit('comms:broadcast_received', payload);
     // Also deliver to system-level roles (DIRECTOR, HR_MANAGER) who have no branch room
     void io.fetchSockets().then((sockets) => {
       for (const s of sockets) {
@@ -448,7 +448,7 @@ export const socketService = {
   /** Delivers a new formal notice to all connected staff in a branch room,
    *  plus any system-level users (DIRECTOR, HR_MANAGER) who are online. */
   emitNewFormalNotice: (
-    organizationId: string,
+    siteId: string,
     payload: {
       noticeId: string;
       subject: string;
@@ -457,7 +457,7 @@ export const socketService = {
     },
   ): void => {
     const io = getSocketServer();
-    io.to(branchRoomName(organizationId)).emit('comms:notice_received', payload);
+    io.to(branchRoomName(siteId)).emit('comms:notice_received', payload);
     // Also deliver to system-level roles (DIRECTOR, HR_MANAGER) who have no branch room
     void io.fetchSockets().then((sockets) => {
       for (const s of sockets) {

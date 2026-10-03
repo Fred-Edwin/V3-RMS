@@ -16,11 +16,11 @@ export type CustomerCreditDropdownItem = {
 const createdBySelect = { id: true, name: true } as const;
 
 export const customerCreditRepository = {
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
   ): Promise<CustomerCreditAccountWithCreator[]> => {
     return prisma.customerCreditAccount.findMany({
-      where: { organizationId },
+      where: { siteId },
       include: { createdBy: { select: createdBySelect } },
       orderBy: { createdAt: 'desc' },
     });
@@ -28,19 +28,19 @@ export const customerCreditRepository = {
 
   findById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<CustomerCreditAccountWithCreator | null> => {
     return prisma.customerCreditAccount.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: { createdBy: { select: createdBySelect } },
     });
   },
 
-  findActiveByOrganization: async (
-    organizationId: string,
+  findActiveBySite: async (
+    siteId: string,
   ): Promise<CustomerCreditDropdownItem[]> => {
     return prisma.customerCreditAccount.findMany({
-      where: { organizationId, isActive: true },
+      where: { siteId, isActive: true },
       select: {
         id: true,
         customerName: true,
@@ -53,7 +53,7 @@ export const customerCreditRepository = {
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     data: {
       customerName: string;
       customerPhone: string;
@@ -64,7 +64,7 @@ export const customerCreditRepository = {
   ): Promise<CustomerCreditAccountWithCreator> => {
     return prisma.customerCreditAccount.create({
       data: {
-        organizationId,
+        siteId,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         creditLimit: new Prisma.Decimal(data.creditLimit),
@@ -77,7 +77,7 @@ export const customerCreditRepository = {
 
   update: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       customerName?: string;
       customerPhone?: string;
@@ -87,7 +87,7 @@ export const customerCreditRepository = {
     },
   ): Promise<CustomerCreditAccountWithCreator | null> => {
     const updated = await prisma.customerCreditAccount.updateMany({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: {
         ...(data.customerName !== undefined ? { customerName: data.customerName } : {}),
         ...(data.customerPhone !== undefined ? { customerPhone: data.customerPhone } : {}),
@@ -102,44 +102,44 @@ export const customerCreditRepository = {
     if (updated.count === 0) return null;
 
     return prisma.customerCreditAccount.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: { createdBy: { select: createdBySelect } },
     });
   },
 
   incrementBalance: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     amount: Prisma.Decimal,
     tx: Prisma.TransactionClient,
   ): Promise<void> => {
     await tx.customerCreditAccount.updateMany({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: { currentBalance: { increment: amount } },
     });
   },
 
   findOrdersByAccountId: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     page: number,
     perPage: number,
   ) => {
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: { customerCreditAccountId: id, organizationId },
-        select: { id: true, dailyNumber: true, total: true, createdAt: true, organizationId: true },
+        where: { customerCreditAccountId: id, siteId },
+        select: { id: true, dailyNumber: true, total: true, createdAt: true, siteId: true },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage,
         take: perPage,
       }),
-      prisma.order.count({ where: { customerCreditAccountId: id, organizationId } }),
+      prisma.order.count({ where: { customerCreditAccountId: id, siteId } }),
     ]);
     return { orders, total };
   },
 
   createSettlement: async (
-    organizationId: string,
+    siteId: string,
     data: {
       customerCreditAccountId: string;
       amount: string;

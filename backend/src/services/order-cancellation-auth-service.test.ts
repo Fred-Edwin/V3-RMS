@@ -12,7 +12,7 @@ vi.mock('../repositories/order-cancellation-request-repository', () => ({
     createPendingForOrder: vi.fn(),
     findById: vi.fn(),
     findPendingByOrderId: vi.fn(),
-    findPendingByOrganization: vi.fn(),
+    findPendingBySite: vi.fn(),
     resolveIfPending: vi.fn(),
   },
 }));
@@ -38,31 +38,31 @@ vi.mock('./incident-service', () => ({
   },
 }));
 
-const organizationId = '11111111-1111-4111-8111-111111111111';
+const siteId = '11111111-1111-4111-8111-111111111111';
 const orderId = '33333333-3333-4333-8333-333333333333';
 const authRequestId = '77777777-7777-4777-8777-777777777777';
 
 const waiterActor = {
   id: '22222222-2222-4222-8222-222222222222',
   role: 'WAITER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const managerActor = {
   id: '55555555-5555-4555-8555-555555555555',
   role: 'MANAGER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const otherBranchManagerActor = {
   id: '66666666-6666-4666-8666-666666666666',
   role: 'MANAGER',
-  organizationId: '99999999-9999-4999-8999-999999999999',
+  siteId: '99999999-9999-4999-8999-999999999999',
 } as NonNullable<Request['user']>;
 
 const buildOrder = (status: OrderStatus = OrderStatus.IN_PROGRESS): FullOrderPrismaRecord => ({
   id: orderId,
-  organizationId,
+  siteId,
   dailyNumber: 8,
   orderDate: new Date('2026-05-13T00:00:00.000Z'),
   type: 'DINE_IN',
@@ -102,7 +102,7 @@ const buildOrder = (status: OrderStatus = OrderStatus.IN_PROGRESS): FullOrderPri
     {
       id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       orderId,
-      organizationId,
+      siteId,
       station: 'BARISTA',
       sequence: 1,
       status: 'IN_PROGRESS',
@@ -130,7 +130,7 @@ const buildOrder = (status: OrderStatus = OrderStatus.IN_PROGRESS): FullOrderPri
 
 const buildRequest = (status: 'PENDING' | 'APPROVED' | 'REJECTED' = 'PENDING') => ({
   id: authRequestId,
-  organizationId,
+  siteId,
   orderId,
   requestedById: waiterActor.id,
   reason: 'Customer left',
@@ -173,7 +173,7 @@ describe('orderCancellationAuthService.createRequest', () => {
     );
 
     expect(orderCancellationRequestRepository.createPendingForOrder).toHaveBeenCalledWith({
-      organizationId,
+      siteId,
       orderId,
       requestedById: waiterActor.id,
       reason: 'Customer left',
@@ -182,7 +182,7 @@ describe('orderCancellationAuthService.createRequest', () => {
     });
     expect(socketService.emitOrderCancellationPending).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, dailyNumber: 8, authRequestId }),
     );
     expect(result.status).toBe('PENDING');
@@ -233,7 +233,7 @@ describe('orderCancellationAuthService.override', () => {
     expect(orderCancellationRequestRepository.resolveIfPending).toHaveBeenCalledWith(
       expect.objectContaining({
         id: authRequestId,
-        organizationId,
+        siteId,
         decision: 'APPROVED',
         resolvedById: managerActor.id,
       }),
@@ -241,7 +241,7 @@ describe('orderCancellationAuthService.override', () => {
     expect(socketService.emitOrderForceCancelled).toHaveBeenCalled();
     expect(socketService.emitOrderCancellationResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, approved: true }),
     );
     expect(incidentService.log).toHaveBeenCalledWith(
@@ -259,7 +259,7 @@ describe('orderCancellationAuthService.override', () => {
 
     expect(socketService.emitOrderCancellationResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({
         orderId,
         approved: false,

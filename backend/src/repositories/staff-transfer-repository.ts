@@ -3,8 +3,8 @@ import type { Prisma } from '@prisma/client';
 
 export interface CreateTransferData {
   userId: string;
-  fromOrganizationId: string | null;
-  toOrganizationId: string;
+  fromSiteId: string | null;
+  toSiteId: string;
   authorizedById: string;
   notes?: string;
 }
@@ -15,15 +15,15 @@ export const staffTransferRepository = {
       const transfer = await tx.staffTransfer.create({
         data: {
           userId: data.userId,
-          fromOrganizationId: data.fromOrganizationId,
-          toOrganizationId: data.toOrganizationId,
+          fromSiteId: data.fromSiteId,
+          toSiteId: data.toSiteId,
           authorizedById: data.authorizedById,
           notes: data.notes,
         },
         include: {
           user: { select: { id: true, name: true, role: true } },
-          fromOrganization: { select: { id: true, name: true } },
-          toOrganization: { select: { id: true, name: true } },
+          fromSite: { select: { id: true, name: true } },
+          toSite: { select: { id: true, name: true } },
           authorizedBy: { select: { id: true, name: true, role: true } },
         },
       });
@@ -38,7 +38,7 @@ export const staffTransferRepository = {
       await tx.user.update({
         where: { id: data.userId },
         data: {
-          organizationId: data.toOrganizationId,
+          siteId: data.toSiteId,
           ...(currentUser.isDepartmentHead
             ? { isDepartmentHead: false, departmentTag: null }
             : {}),
@@ -54,8 +54,8 @@ export const staffTransferRepository = {
       where: { userId },
       orderBy: { transferredAt: 'desc' },
       include: {
-        fromOrganization: { select: { id: true, name: true } },
-        toOrganization: { select: { id: true, name: true } },
+        fromSite: { select: { id: true, name: true } },
+        toSite: { select: { id: true, name: true } },
         authorizedBy: { select: { id: true, name: true, role: true } },
       },
     });

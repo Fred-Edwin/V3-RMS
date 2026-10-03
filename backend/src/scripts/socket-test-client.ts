@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { io } from 'socket.io-client';
 
 const serverUrl = process.env.SOCKET_TEST_URL ?? 'http://localhost:4000';
-const organizationId =
+const siteId =
   process.env.SOCKET_TEST_ORG_ID ?? '00000000-0000-0000-0000-000000000001';
 
 const socket = io(serverUrl, {
@@ -11,7 +11,7 @@ const socket = io(serverUrl, {
 
 socket.on('connect', () => {
   console.log(`Connected with socket id ${socket.id}`);
-  socket.emit('join:branch', { organizationId });
+  socket.emit('join:branch', { siteId });
 });
 
 socket.on('joined:branch', (payload) => {

@@ -14,7 +14,7 @@ vi.mock('./item-history-repository', () => ({
 }));
 vi.mock('./inventory-repository', () => ({
   categoryRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findByLiveName: vi.fn(),
     create: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('./inventory-repository', () => ({
   inventoryItemRepository: {
     countLiveByType: vi.fn(),
     countSuppliersByItem: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findLiveByIds: vi.fn(),
     findLiveByName: vi.fn(),
@@ -64,7 +64,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: {
     findCentralStore: vi.fn(),
-    findByOrganizationTypeDepartment: vi.fn(),
+    findBySiteTypeDepartment: vi.fn(),
   },
 }));
 
@@ -83,22 +83,22 @@ const categoryId = '55555555-5555-4555-8555-555555555555';
 const supplierId = '66666666-6666-4666-8666-666666666666';
 const departmentLocationId = '77777777-7777-4777-8777-777777777777';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: branchOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: branchOrgId };
 const departmentHead = {
   id: 'dh1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
 
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 const buildCategory = (overrides: Record<string, unknown> = {}) => ({
   id: categoryId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Dry items',
   itemCount: 0,
   deletedAt: null,
@@ -109,7 +109,7 @@ const buildCategory = (overrides: Record<string, unknown> = {}) => ({
 
 const buildItem = (overrides: Record<string, unknown> = {}) => ({
   id: itemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Kabras Sugar 1kg',
   type: 'RAW_INGREDIENT' as const,
   categoryId,
@@ -130,7 +130,7 @@ const buildItem = (overrides: Record<string, unknown> = {}) => ({
 
 const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Samrat Supermarket Ltd',
   contactName: 'Dattu',
   categoryId,
@@ -186,18 +186,18 @@ describe('inventoryService — D-15 hub scoping', () => {
 
 describe('inventoryService — listItems Department Head catalog-read carve-out (Milestone Four Session A)', () => {
   it('resolves to the hub org for a branch-org Department Head (does not throw)', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [], total: 0 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [], total: 0 } as never);
     vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
 
     await expect(
       inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false }),
     ).resolves.toBeDefined();
-    expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
+    expect(inventoryItemRepository.findAllBySite).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 
   it('hands a department head the price-free item (no cost, level or supplier), as it does an attendant', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
     const { data } = await inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
@@ -207,7 +207,7 @@ describe('inventoryService — listItems Department Head catalog-read carve-out 
   });
 
   it('lets a Branch Manager read the catalog from a branch, with costs', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
     const { data } = await inventoryService.listItems({ ...nonHubStoreManager, role: 'MANAGER' as never }, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
@@ -223,7 +223,7 @@ describe('inventoryService — listItems Department Head catalog-read carve-out 
 
 describe('inventoryService — category CRUD unaffected by the additive parentCategoryId column (Milestone Four regression)', () => {
   it('list/create/rename still work when a category carries a null parentCategoryId', async () => {
-    vi.mocked(categoryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(categoryRepository.findAllBySite).mockResolvedValue([
       buildCategory({ parentCategoryId: null }),
     ] as never);
     const list = await inventoryService.listCategories(storeManager, false);
@@ -530,9 +530,9 @@ describe('inventoryService — bulk restock upsert atomicity and level:null clea
 
 describe('inventoryService — department head scope rejection', () => {
   it('rejects a Department Head setting a level for an item outside their department', async () => {
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({
       id: departmentLocationId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'BRANCH_DEPARTMENT',
       departmentTag: 'KITCHEN',
     } as never);
@@ -557,9 +557,9 @@ describe('inventoryService — department head scope rejection', () => {
   });
 
   it('allows a Department Head to set a level for an item scoped to their own department', async () => {
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({
       id: departmentLocationId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'BRANCH_DEPARTMENT',
       departmentTag: 'KITCHEN',
     } as never);
@@ -587,9 +587,9 @@ describe('inventoryService — department head scope rejection', () => {
 
 describe('inventoryService — Department Head restock scope (Milestone Six S1 fix)', () => {
   it('reads items from the hub catalog but levels and on-hand from the branch department', async () => {
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({
       id: departmentLocationId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'BRANCH_DEPARTMENT',
       departmentTag: 'KITCHEN',
     } as never);
@@ -612,9 +612,9 @@ describe('inventoryService — Department Head restock scope (Milestone Six S1 f
   });
 
   it('validates a Department Head save against the hub catalog', async () => {
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue({
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue({
       id: departmentLocationId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       type: 'BRANCH_DEPARTMENT',
       departmentTag: 'KITCHEN',
     } as never);
@@ -638,7 +638,7 @@ describe('inventoryService — onHandQty and isBelowLevel derivation', () => {
     vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([
       {
         id: 'rl1',
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         locationId: centralStoreId,
         inventoryItemId: itemId,
         level: new Prisma.Decimal('100'),
@@ -670,14 +670,14 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   });
 
   it('passes the search to the repository and asks which supplier lines matched, for the hub', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar], total: 1 } as never);
     await inventoryService.listItems(storeManager, listQuery('190035'));
-    expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ search: '190035' }));
+    expect(inventoryItemRepository.findAllBySite).toHaveBeenCalledWith(hubOrgId, expect.objectContaining({ search: '190035' }));
     expect(inventoryItemRepository.findSearchMatches).toHaveBeenCalledWith(hubOrgId, ['item-sugar'], '190035');
   });
 
   it('matchedOn names the supplier, field and value when their code matched', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: 'item-sugar', supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', supplier: samrat },
     ] as never);
@@ -688,7 +688,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   });
 
   it('matchedOn reports their item name (partial, any case) when only the name matched', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: 'item-sugar', supplierItemName: 'Kabras sugar 50kg', supplierItemCode: '190035', supplier: samrat },
     ] as never);
@@ -698,7 +698,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   });
 
   it('prefers the exact code over a name hit when both match', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: 'item-sugar', supplierItemName: 'Code 77 sugar', supplierItemCode: 'X1', supplier: samrat },
       { inventoryItemId: 'item-sugar', supplierItemName: 'Other', supplierItemCode: '77', supplier: { id: 's2', name: 'Other Ltd' } },
@@ -709,7 +709,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   });
 
   it('matchedOn is null when our own item name matched, even if a supplier line matched too', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: 'item-sugar', supplierItemName: 'Sugar 50kg', supplierItemCode: '1', supplier: samrat },
     ] as never);
@@ -719,7 +719,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
   });
 
   it('matchedOn is only set on the rows a supplier line explains, and is null with no search', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [sugar, milk], total: 2 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [sugar, milk], total: 2 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: 'item-sugar', supplierItemName: null, supplierItemCode: '190035', supplier: samrat },
     ] as never);
@@ -734,7 +734,7 @@ describe('inventoryService — catalog search by supplier code or name (B6)', ()
 
   it('rows validate against the list-row contract', async () => {
     const { InventoryItemListRowSchema } = await import('./inventory-validators');
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem({ name: 'Sugar white 50kg' })], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem({ name: 'Sugar white 50kg' })], total: 1 } as never);
     vi.mocked(inventoryItemRepository.findSearchMatches).mockResolvedValue([
       { inventoryItemId: itemId, supplierItemName: null, supplierItemCode: '190035', supplier: { id: supplierId, name: 'Samrat' } },
     ] as never);

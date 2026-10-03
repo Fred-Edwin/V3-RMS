@@ -46,12 +46,12 @@ interface PrepTicketResponse {
 const kitchenRoles: UserRole[] = ['CHEF', 'KITCHEN_DISPLAY'];
 const baristaRoles: UserRole[] = ['BARISTA', 'BARISTA_DISPLAY'];
 
-const resolveOrganizationId = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const resolveSiteId = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const resolveStations = (role: UserRole): PrepStation[] => {
@@ -163,7 +163,7 @@ export const prepTicketService = {
     actor: Actor,
     query: PrepTicketQueryInput,
   ): Promise<{ tickets: PrepTicketResponse[]; pagination: PaginationMeta }> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const stations = resolveStations(actor.role);
     // For history queries (activeOnly=false), personal roles (CHEF/BARISTA) only see
     // tickets they personally claimed. For active/live queries, all pending tickets
@@ -174,7 +174,7 @@ export const prepTicketService = {
         ? actor.id
         : undefined;
 
-    const result = await prepTicketRepository.findByStation(organizationId, stations, {
+    const result = await prepTicketRepository.findByStation(siteId, stations, {
       status: query.status,
       startDate: query.startDate ? parseDateOnlyStart(query.startDate) : undefined,
       endDate: query.endDate ? parseDateOnlyEnd(query.endDate) : undefined,
@@ -200,10 +200,10 @@ export const prepTicketService = {
     data: ClaimPrepTicketInput,
     actor: Actor,
   ): Promise<PrepTicketResponse> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const stations = resolveStations(actor.role);
 
-    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, siteId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
@@ -220,20 +220,20 @@ export const prepTicketService = {
     let claimedByName: string;
 
     if (env.SKIP_SHIFT_VALIDATION) {
-      const claimedBy = await staffRepository.findById(data.claimedById, organizationId, allowedRoles);
+      const claimedBy = await staffRepository.findById(data.claimedById, siteId, allowedRoles);
       if (!claimedBy || !claimedBy.isActive) {
         throw new ValidationError('claimedById must be active and valid for this station');
       }
       claimedByName = claimedBy.name;
     } else {
-      const claimedBy = await staffRepository.findByIdOnShift(data.claimedById, organizationId, allowedRoles);
+      const claimedBy = await staffRepository.findByIdOnShift(data.claimedById, siteId, allowedRoles);
       if (!claimedBy) {
         throw new ValidationError('claimedById must be on shift and valid for this station');
       }
       claimedByName = claimedBy.name;
     }
 
-    const inProgressCount = await prepTicketRepository.countInProgressByStaff(data.claimedById, organizationId);
+    const inProgressCount = await prepTicketRepository.countInProgressByStaff(data.claimedById, siteId);
     if (inProgressCount >= 3) {
       throw new ConflictError(
         `${claimedByName} already has 3 tickets in progress. Mark one ready before claiming another.`,
@@ -242,17 +242,17 @@ export const prepTicketService = {
       );
     }
 
-    const claimedTicket = await prepTicketRepository.claim(ticketId, organizationId, data.claimedById);
+    const claimedTicket = await prepTicketRepository.claim(ticketId, siteId, data.claimedById);
     if (!claimedTicket) {
       throw new ConflictError('This order has already been claimed.');
     }
 
-    const parentOrder = await orderRepository.findById(ticket.orderId, organizationId);
+    const parentOrder = await orderRepository.findById(ticket.orderId, siteId);
     if (parentOrder?.status === OrderStatus.PENDING) {
-      await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.IN_PROGRESS);
+      await orderRepository.updateStatus(ticket.orderId, siteId, OrderStatus.IN_PROGRESS);
     }
 
-    socketService.emitOrderClaimed(organizationId, ticket.order.createdById, {
+    socketService.emitOrderClaimed(siteId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: claimedTicket.id,
       station: claimedTicket.station,
@@ -267,10 +267,10 @@ export const prepTicketService = {
   },
 
   markReady: async (ticketId: string, actor: Actor): Promise<PrepTicketResponse> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const stations = resolveStations(actor.role);
 
-    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, siteId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
@@ -285,7 +285,7 @@ export const prepTicketService = {
 
     assertPersonalActorOwnsTicket(actor, ticket);
 
-    const readyTicket = await prepTicketRepository.markReady(ticketId, organizationId);
+    const readyTicket = await prepTicketRepository.markReady(ticketId, siteId);
     if (!readyTicket) {
       throw new ConflictError('This ticket is not in progress.');
     }
@@ -297,15 +297,15 @@ export const prepTicketService = {
       dailyNumber: ticket.order.dailyNumber,
     });
 
-    const allOrderTickets = await prepTicketRepository.findAllByOrder(readyTicket.orderId, organizationId);
+    const allOrderTickets = await prepTicketRepository.findAllByOrder(readyTicket.orderId, siteId);
     const allReady = allOrderTickets
       .filter((entry) => entry.status !== PrepTicketStatus.REJECTED)
       .every((entry) => entry.status === PrepTicketStatus.READY);
 
     if (allReady) {
-      const parentOrder = await orderRepository.findById(readyTicket.orderId, organizationId);
+      const parentOrder = await orderRepository.findById(readyTicket.orderId, siteId);
       if (parentOrder?.status !== OrderStatus.AWAITING_CANCELLATION_APPROVAL) {
-        await orderRepository.updateStatus(readyTicket.orderId, organizationId, OrderStatus.READY);
+        await orderRepository.updateStatus(readyTicket.orderId, siteId, OrderStatus.READY);
       }
       socketService.emitOrderAllReady(ticket.order.createdById, {
         orderId: readyTicket.orderId,
@@ -321,10 +321,10 @@ export const prepTicketService = {
   },
 
   reject: async (ticketId: string, reason: string, actor: Actor): Promise<PrepTicketResponse> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const stations = resolveStations(actor.role);
 
-    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, siteId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
@@ -337,13 +337,13 @@ export const prepTicketService = {
       throw new ConflictError('This ticket cannot be rejected in its current state.');
     }
 
-    const rejectedTicket = await prepTicketRepository.reject(ticketId, organizationId, actor.id, reason);
+    const rejectedTicket = await prepTicketRepository.reject(ticketId, siteId, actor.id, reason);
     if (!rejectedTicket) {
       throw new ConflictError('This ticket cannot be rejected in its current state.');
     }
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId: ticket.orderId,
       type: 'TICKET_REJECTED',
       actorId: actor.id,
@@ -357,16 +357,16 @@ export const prepTicketService = {
 
     // Revert order to PENDING if all non-rejected tickets are now PENDING.
     // REJECTED tickets are excluded — consistent with the allReady check above.
-    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
+    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, siteId);
     const allPending = allOrderTickets
       .filter((t) => t.status !== PrepTicketStatus.REJECTED)
       .every((t) => t.status === PrepTicketStatus.PENDING);
 
     if (allPending) {
-      await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
+      await orderRepository.updateStatus(ticket.orderId, siteId, OrderStatus.PENDING);
     }
 
-    socketService.emitTicketRejected(organizationId, ticket.order.createdById, {
+    socketService.emitTicketRejected(siteId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: rejectedTicket.id,
       station: rejectedTicket.station,
@@ -378,10 +378,10 @@ export const prepTicketService = {
   },
 
   unclaim: async (ticketId: string, actor: Actor): Promise<PrepTicketResponse> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const stations = resolveStations(actor.role);
 
-    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, organizationId);
+    const ticket = await prepTicketRepository.findByIdAndOrg(ticketId, siteId);
     if (!ticket) {
       throw new NotFoundError('Prep ticket not found');
     }
@@ -402,12 +402,12 @@ export const prepTicketService = {
       }
     }
 
-    const unclaimedTicket = await prepTicketRepository.unclaim(ticketId, organizationId);
+    const unclaimedTicket = await prepTicketRepository.unclaim(ticketId, siteId);
     if (!unclaimedTicket) {
       throw new ConflictError('Only in-progress tickets can be unclaimed.');
     }
 
-    socketService.emitTicketUnclaimed(organizationId, ticket.order.createdById, {
+    socketService.emitTicketUnclaimed(siteId, ticket.order.createdById, {
       orderId: ticket.orderId,
       ticketId: unclaimedTicket.id,
       station: unclaimedTicket.station,
@@ -415,7 +415,7 @@ export const prepTicketService = {
     });
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId: ticket.orderId,
       type: 'TICKET_UNCLAIMED',
       actorId: actor.id,
@@ -426,11 +426,11 @@ export const prepTicketService = {
       },
     });
 
-    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, organizationId);
+    const allOrderTickets = await prepTicketRepository.findAllByOrder(ticket.orderId, siteId);
     const allPending = allOrderTickets.every((t) => t.status === PrepTicketStatus.PENDING);
 
     if (allPending) {
-      await orderRepository.updateStatus(ticket.orderId, organizationId, OrderStatus.PENDING);
+      await orderRepository.updateStatus(ticket.orderId, siteId, OrderStatus.PENDING);
     }
 
     return serializePrepTicket(unclaimedTicket);

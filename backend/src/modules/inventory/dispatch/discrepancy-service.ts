@@ -19,17 +19,17 @@ const toDecimalString = (value: Prisma.Decimal | null): string | null => (value 
 const requireHubActor = async (actor: Actor): Promise<string> => {
   const hub = await branchRepository.findHub();
   if (!hub) throw new ValidationError('No hub organization is configured');
-  if (actor.organizationId !== hub.id) {
+  if (actor.siteId !== hub.id) {
     throw new ForbiddenError('Only the hub organization may resolve discrepancies');
   }
   return hub.id;
 };
 
 const requireBranchOrg = (actor: Actor): string => {
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ValidationError('Branch context missing for this user');
   }
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const serializeRow = (row: DiscrepancyWithDetail): DiscrepancyRow => ({
@@ -41,7 +41,7 @@ const serializeRow = (row: DiscrepancyWithDetail): DiscrepancyRow => ({
   createdAt: row.createdAt.toISOString(),
   resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
   resolvedByName: row.resolvedBy?.name ?? null,
-  branchName: row.dispatchLine.dispatch.toOrganization.name,
+  branchName: row.dispatchLine.dispatch.toSite.name,
   departmentTag: row.dispatchLine.dispatch.departmentTag as DiscrepancyRow['departmentTag'],
   dispatchSequenceLabel: row.dispatchLine.dispatch.sequenceLabel,
   itemName: row.dispatchLine.item.name,
@@ -63,7 +63,7 @@ export const discrepancyService = {
   /** Role-gated response shape, not two endpoints (session-b-plan.md decision #7). */
   listDiscrepancies: async (actor: Actor, query: ListDiscrepanciesQuery): Promise<DiscrepancyRow[]> => {
     const hub = await branchRepository.findHub();
-    if (hub && actor.organizationId === hub.id) {
+    if (hub && actor.siteId === hub.id) {
       const branchOrgIds = await branchRepository.findActiveBranchIds();
       const rows = await discrepancyRepository.findAllForHub(branchOrgIds, query.limit);
       return rows.map(serializeRow);
@@ -75,7 +75,7 @@ export const discrepancyService = {
   getDiscrepancy: async (actor: Actor, id: string): Promise<DiscrepancyDetail> => {
     const hub = await branchRepository.findHub();
     let row: DiscrepancyWithDetail | null;
-    if (hub && actor.organizationId === hub.id) {
+    if (hub && actor.siteId === hub.id) {
       const branchOrgIds = await branchRepository.findActiveBranchIds();
       row = await discrepancyRepository.findByIdForHub(id, branchOrgIds);
     } else {
@@ -125,7 +125,7 @@ export const discrepancyService = {
         const reference = await referenceCounterRepository.nextReference(tx, hubOrgId, 'ADJ');
         await tx.inventoryTransaction.create({
           data: {
-            organizationId: hubOrgId,
+            siteId: hubOrgId,
             locationId: centralStore.id,
             inventoryItemId: discrepancy.dispatchLine.item.id,
             type: 'ADJUSTMENT',
@@ -138,20 +138,20 @@ export const discrepancyService = {
           },
         });
       } else if (input.outcome === 'MISCOUNT_CORRECTED') {
-        const departmentLocation = await locationRepository.findByOrganizationTypeDepartment(
-          discrepancy.dispatchLine.dispatch.toOrganizationId,
+        const departmentLocation = await locationRepository.findBySiteTypeDepartment(
+          discrepancy.dispatchLine.dispatch.toSiteId,
           'BRANCH_DEPARTMENT',
           discrepancy.dispatchLine.dispatch.departmentTag as never,
         );
         if (!departmentLocation) throw new ValidationError('No branch department location is configured for this dispatch');
         const reference = await referenceCounterRepository.nextReference(
           tx,
-          discrepancy.dispatchLine.dispatch.toOrganizationId,
+          discrepancy.dispatchLine.dispatch.toSiteId,
           'ADJ',
         );
         await tx.inventoryTransaction.create({
           data: {
-            organizationId: discrepancy.dispatchLine.dispatch.toOrganizationId,
+            siteId: discrepancy.dispatchLine.dispatch.toSiteId,
             locationId: departmentLocation.id,
             inventoryItemId: discrepancy.dispatchLine.item.id,
             type: 'ADJUSTMENT',
@@ -200,14 +200,14 @@ const createFollowUpDispatch = async (
   tx: Prisma.TransactionClient,
 ): Promise<string> => {
   const dispatch = discrepancy.dispatchLine.dispatch;
-  const todayCount = await dispatchRepository.countDispatchesTodayForBranch(dispatch.toOrganizationId, tx);
-  const sequenceLabel = `Dispatch ${todayCount + 1} · ${dispatch.toOrganization.name} · ${dispatchedAt.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', timeZone: 'Africa/Nairobi' })}`;
+  const todayCount = await dispatchRepository.countDispatchesTodayForBranch(dispatch.toSiteId, tx);
+  const sequenceLabel = `Dispatch ${todayCount + 1} · ${dispatch.toSite.name} · ${dispatchedAt.toLocaleDateString('en-KE', { day: '2-digit', month: 'short', timeZone: 'Africa/Nairobi' })}`;
 
   const gapQty = discrepancy.gapQty.abs();
   const created = await dispatchRepository.create(
     {
-      organizationId: hubOrgId,
-      toOrganizationId: dispatch.toOrganizationId,
+      siteId: hubOrgId,
+      toSiteId: dispatch.toSiteId,
       requisitionId: (await tx.dispatch.findUniqueOrThrow({ where: { id: dispatch.id }, select: { requisitionId: true } })).requisitionId,
       departmentTag: dispatch.departmentTag as never,
       sequenceLabel,
@@ -236,7 +236,7 @@ const createFollowUpDispatch = async (
     if (line.dispatchedQty.lessThanOrEqualTo(0)) continue;
     await tx.inventoryTransaction.create({
       data: {
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
         locationId: centralStore.id,
         inventoryItemId: line.inventoryItemId,
         type: 'DISPATCH_OUT',
@@ -252,7 +252,7 @@ const createFollowUpDispatch = async (
 };
 
 const notifyResolution = async (discrepancy: DiscrepancyWithDetail, actorId: string): Promise<void> => {
-  const managers = await dispatchRepository.findBranchManagers(discrepancy.dispatchLine.dispatch.toOrganizationId);
+  const managers = await dispatchRepository.findBranchManagers(discrepancy.dispatchLine.dispatch.toSiteId);
   for (const manager of managers) {
     if (manager.id === actorId) continue;
     void fcmService.sendDiscrepancyResolvedPush(manager.id, { discrepancyId: discrepancy.id, referenceNumber: discrepancy.referenceNumber });

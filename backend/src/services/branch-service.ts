@@ -5,7 +5,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 
 interface BranchProfileActor {
   role: UserRole;
-  organizationId: string | null;
+  siteId: string | null;
 }
 
 export const branchService = {
@@ -20,7 +20,11 @@ export const branchService = {
     latitude: number;
     longitude: number;
   }) => {
-    return branchRepository.create(data);
+    const companyId = await branchRepository.findDefaultCompanyId();
+    if (!companyId) {
+      throw new NotFoundError('No company is configured to own this branch');
+    }
+    return branchRepository.create({ ...data, companyId });
   },
 
   updateBranch: async (
@@ -55,11 +59,11 @@ export const branchService = {
     actor: BranchProfileActor,
     data: Partial<{ phone: string; mpesaPaybill: string; accountNumber: string; googleReviewUrl: string; kraPIN: string }>,
   ) => {
-    if (actor.role === 'MANAGER' && !actor.organizationId) {
+    if (actor.role === 'MANAGER' && !actor.siteId) {
       throw new ForbiddenError('Branch context required');
     }
 
-    if (actor.role === 'MANAGER' && id !== actor.organizationId) {
+    if (actor.role === 'MANAGER' && id !== actor.siteId) {
       throw new ForbiddenError('You can only edit your own branch');
     }
 
@@ -86,7 +90,7 @@ export const branchService = {
     const currentHub = await branchRepository.findHub();
     if (currentHub && currentHub.id !== id) {
       const centralStore = await locationRepository.findCentralStore();
-      if (centralStore && centralStore.organizationId === currentHub.id) {
+      if (centralStore && centralStore.siteId === currentHub.id) {
         throw new ConflictError(
           'The hub cannot be reassigned: the Central Store and its inventory data belong to the current hub organization',
         );

@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient, SupplierPaymentTerms } from '@prisma/client'
 type Client = PrismaClient | Prisma.TransactionClient;
 
 export interface SeedSupplierInput {
-  organizationId: string;
+  siteId: string;
   name: string;
   contactName?: string | null;
   phone?: string | null;
@@ -17,14 +17,14 @@ export interface SeedSupplierInput {
 /** Creates a supplier the way the service does: SUPPLIER-#### code plus a primary contact. */
 export const createSeedSupplier = async (client: Client, input: SeedSupplierInput): Promise<{ id: string }> => {
   const counter = await client.referenceCounter.upsert({
-    where: { organizationId_prefix: { organizationId: input.organizationId, prefix: 'SUPPLIER' } },
+    where: { siteId_prefix: { siteId: input.siteId, prefix: 'SUPPLIER' } },
     update: { lastNumber: { increment: 1 } },
-    create: { organizationId: input.organizationId, prefix: 'SUPPLIER', lastNumber: 1 },
+    create: { siteId: input.siteId, prefix: 'SUPPLIER', lastNumber: 1 },
     select: { lastNumber: true },
   });
   const supplier = await client.supplier.create({
     data: {
-      organizationId: input.organizationId,
+      siteId: input.siteId,
       code: `SUPPLIER-${String(counter.lastNumber).padStart(4, '0')}`,
       name: input.name,
       address: input.location?.trim() || '—',
@@ -37,7 +37,7 @@ export const createSeedSupplier = async (client: Client, input: SeedSupplierInpu
   if (input.contactName || input.phone || input.email) {
     await client.supplierContact.create({
       data: {
-        organizationId: input.organizationId,
+        siteId: input.siteId,
         supplierId: supplier.id,
         name: input.contactName || input.name,
         phone: input.phone ?? null,

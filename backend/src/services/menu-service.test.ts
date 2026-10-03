@@ -40,13 +40,13 @@ const itemThreeId = '22222222-2222-4222-8222-222222222223';
 const waiterActor = {
   id: 'waiter-1',
   role: 'WAITER',
-  organizationId: branchId,
+  siteId: branchId,
 } as NonNullable<Request['user']>;
 
 const managerActor = {
   id: 'manager-1',
   role: 'MANAGER',
-  organizationId: branchId,
+  siteId: branchId,
 } as NonNullable<Request['user']>;
 
 describe('menuService', () => {
@@ -78,7 +78,7 @@ describe('menuService', () => {
             branchOverrides: [
               {
                 id: 'override-1',
-                organizationId: branchId,
+                siteId: branchId,
                 menuItemId: itemOneId,
                 isAvailable: false,
                 updatedAt: new Date(),
@@ -111,7 +111,7 @@ describe('menuService', () => {
             branchOverrides: [
               {
                 id: 'override-3',
-                organizationId: branchId,
+                siteId: branchId,
                 menuItemId: itemThreeId,
                 isAvailable: true,
                 updatedAt: new Date(),
@@ -204,7 +204,7 @@ describe('menuService', () => {
     } as unknown as Awaited<ReturnType<typeof menuRepository.findItemById>>);
     vi.mocked(menuRepository.upsertBranchMenuItemAvailability).mockResolvedValue({
       id: 'override-1',
-      organizationId: branchId,
+      siteId: branchId,
       menuItemId: itemOneId,
       isAvailable: false,
       updatedAt: new Date(),

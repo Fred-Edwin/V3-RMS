@@ -5,31 +5,31 @@ import { locationService } from '../src/services/location-service';
 import { NotFoundError } from '../src/utils/errors';
 import { signAccessToken } from '../src/utils/jwt';
 
-const organizationId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const siteId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 const managerToken = signAccessToken({
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   role: 'STORE_MANAGER',
-  organizationId,
+  siteId,
 });
 
 const attendantToken = signAccessToken({
   userId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   role: 'STORE_ATTENDANT',
-  organizationId,
+  siteId,
 });
 
 const waiterToken = signAccessToken({
   userId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   role: 'WAITER',
-  organizationId,
+  siteId,
 });
 
 const locationId = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 
 const buildLocation = (overrides: Record<string, unknown> = {}) => ({
   id: locationId,
-  organizationId,
+  siteId,
   type: 'CENTRAL_STORE',
   name: 'Central Store',
   isActive: true,

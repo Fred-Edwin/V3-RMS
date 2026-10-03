@@ -22,7 +22,7 @@ const assignableRoles: UserRole[] = [...SHIFT_ASSIGNABLE_ROLES];
 // roster to schedule, and their own shifts are part of it.
 const selfServiceRoles: UserRole[] = [...SHIFT_ASSIGNABLE_ROLES];
 
-const requiresExplicitOrganizationId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
+const requiresExplicitSiteId = (actor: Actor): boolean => actor.role === 'DIRECTOR' || actor.role === 'HR_MANAGER';
 
 /** True when this actor's scheduling reach is limited to a single department. */
 const isDepartmentScoped = (actor: Actor): boolean => actor.isDepartmentHead === true;
@@ -61,38 +61,38 @@ const assertStaffInScope = (
   }
 };
 
-const resolveReadOrganizationId = (actor: Actor, query: ShiftAssignmentQueryInput): string => {
-  if (requiresExplicitOrganizationId(actor)) {
-    if (!query.organizationId) {
+const resolveReadSiteId = (actor: Actor, query: ShiftAssignmentQueryInput): string => {
+  if (requiresExplicitSiteId(actor)) {
+    if (!query.siteId) {
       throw new ValidationError('organizationId query param is required for organization-level shift access');
     }
-    return query.organizationId;
+    return query.siteId;
   }
 
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
-const resolveWriteOrganizationId = (actor: Actor, organizationId?: string): string => {
-  if (requiresExplicitOrganizationId(actor)) {
-    if (!organizationId) {
+const resolveWriteSiteId = (actor: Actor, siteId?: string): string => {
+  if (requiresExplicitSiteId(actor)) {
+    if (!siteId) {
       throw new ValidationError('organizationId is required for organization-level shift access');
     }
-    return organizationId;
+    return siteId;
   }
 
-  if (!actor.organizationId) {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  if (organizationId && organizationId !== actor.organizationId) {
+  if (siteId && siteId !== actor.siteId) {
     throw new ForbiddenError('Cannot manage shift assignments outside your branch');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const isOverlapping = (
@@ -109,14 +109,14 @@ export const shiftAssignmentService = {
       throw new ValidationError('startDate must be earlier than or equal to endDate');
     }
 
-    const organizationId = resolveReadOrganizationId(actor, query);
+    const siteId = resolveReadSiteId(actor, query);
 
     // A worked-role staffer (but NOT a department head) only ever sees their
     // own shifts.
     if (!isDepartmentScoped(actor) && selfServiceRoles.map(String).includes(actor.role)) {
       const assignments = await shiftAssignmentRepository.findByUserAndDateRange(
         actor.id,
-        organizationId,
+        siteId,
         startDate,
         endDate,
         {
@@ -130,8 +130,8 @@ export const shiftAssignmentService = {
       }));
     }
 
-    const assignments = await shiftAssignmentRepository.findByOrganizationAndDateRange(
-      organizationId,
+    const assignments = await shiftAssignmentRepository.findBySiteAndDateRange(
+      siteId,
       startDate,
       endDate,
       {
@@ -149,7 +149,7 @@ export const shiftAssignmentService = {
   },
 
   createAssignment: async (actor: Actor, input: CreateShiftAssignmentInput) => {
-    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+    const siteId = resolveWriteSiteId(actor, input.siteId);
 
     const assignmentDate = parseDateOnly(input.date);
     const today = getTodayDateOnly();
@@ -157,20 +157,20 @@ export const shiftAssignmentService = {
       throw new ValidationError('Cannot create shift assignments for past dates');
     }
 
-    const staff = await staffRepository.findById(input.userId, organizationId, assignableRoles);
+    const staff = await staffRepository.findById(input.userId, siteId, assignableRoles);
     if (!staff || !staff.isActive) {
       throw new ValidationError('userId must belong to an active staff member in this branch');
     }
     assertStaffInScope(actor, [staff]);
 
-    const shift = await shiftRepository.findById(input.shiftId, organizationId);
+    const shift = await shiftRepository.findById(input.shiftId, siteId);
     if (!shift) {
       throw new ValidationError('shiftId is invalid for this branch');
     }
 
     const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
       input.userId,
-      organizationId,
+      siteId,
       assignmentDate,
       assignmentDate,
     );
@@ -183,7 +183,7 @@ export const shiftAssignmentService = {
     }
 
     try {
-      const created = await shiftAssignmentRepository.create(organizationId, {
+      const created = await shiftAssignmentRepository.create(siteId, {
         userId: input.userId,
         shiftId: input.shiftId,
         date: assignmentDate,
@@ -202,18 +202,18 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: BatchCreateShiftAssignmentInput,
   ): Promise<{ created: number; skipped: number; errors: { userId: string; date: string; reason: string }[] }> => {
-    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+    const siteId = resolveWriteSiteId(actor, input.siteId);
 
     const today = getTodayDateOnly();
 
-    const shift = await shiftRepository.findById(input.shiftId, organizationId);
+    const shift = await shiftRepository.findById(input.shiftId, siteId);
     if (!shift) {
       throw new ValidationError('shiftId is invalid for this branch');
     }
 
     // Validate all userIds belong to active assignable staff in this branch
     const staffList = await Promise.all(
-      input.userIds.map((uid) => staffRepository.findById(uid, organizationId, assignableRoles)),
+      input.userIds.map((uid) => staffRepository.findById(uid, siteId, assignableRoles)),
     );
     for (let i = 0; i < input.userIds.length; i++) {
       const member = staffList[i];
@@ -242,7 +242,7 @@ export const shiftAssignmentService = {
 
         const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
           userId,
-          organizationId,
+          siteId,
           assignmentDate,
           assignmentDate,
         );
@@ -272,7 +272,7 @@ export const shiftAssignmentService = {
           toCreate.map(({ userId, date }) =>
             prisma.shiftAssignment.create({
               data: {
-                organizationId,
+                siteId,
                 userId,
                 shiftId: input.shiftId,
                 date,
@@ -300,7 +300,7 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: CopyWeekInput,
   ): Promise<{ created: number; skipped: number }> => {
-    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+    const siteId = resolveWriteSiteId(actor, input.siteId);
 
     const sourceWeekStart = parseDateOnly(input.sourceWeekStart);
     const targetWeekStart = parseDateOnly(input.targetWeekStart);
@@ -308,8 +308,8 @@ export const shiftAssignmentService = {
     // Offset in milliseconds between the two week starts
     const offsetMs = targetWeekStart.getTime() - sourceWeekStart.getTime();
 
-    const sourceAssignments = await shiftAssignmentRepository.findByOrganizationAndWeek(
-      organizationId,
+    const sourceAssignments = await shiftAssignmentRepository.findBySiteAndWeek(
+      siteId,
       sourceWeekStart,
       // A department head copies only its own department's rows forward.
       { userWhere: actorUserScope(actor) },
@@ -322,7 +322,7 @@ export const shiftAssignmentService = {
     // Guard: skip assignments for inactive shifts
     const shiftIds = [...new Set(sourceAssignments.map((a) => a.shiftId))];
     const shifts = await Promise.all(
-      shiftIds.map((id) => shiftRepository.findById(id, organizationId)),
+      shiftIds.map((id) => shiftRepository.findById(id, siteId)),
     );
     const activeShiftIds = new Set(
       shifts.filter((s) => s !== null && s.isActive).map((s) => s!.id),
@@ -341,7 +341,7 @@ export const shiftAssignmentService = {
       const targetDate = new Date(src.date.getTime() + offsetMs);
 
       try {
-        await shiftAssignmentRepository.create(organizationId, {
+        await shiftAssignmentRepository.create(siteId, {
           userId: src.userId,
           shiftId: src.shiftId,
           date: targetDate,
@@ -363,13 +363,13 @@ export const shiftAssignmentService = {
     actor: Actor,
     input: BatchDeleteShiftAssignmentInput,
   ): Promise<{ deleted: number }> => {
-    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+    const siteId = resolveWriteSiteId(actor, input.siteId);
 
     // A department head may only delete rows for its own department — verify
     // every target assignment's staff member is in scope before deleting anything.
     if (isDepartmentScoped(actor)) {
       const targets = await Promise.all(
-        input.ids.map((id) => shiftAssignmentRepository.findById(id, organizationId)),
+        input.ids.map((id) => shiftAssignmentRepository.findById(id, siteId)),
       );
       assertStaffInScope(
         actor,
@@ -377,7 +377,7 @@ export const shiftAssignmentService = {
       );
     }
 
-    const deleted = await shiftAssignmentRepository.deleteByIds(input.ids, organizationId);
+    const deleted = await shiftAssignmentRepository.deleteByIds(input.ids, siteId);
     return { deleted };
   },
 
@@ -390,7 +390,7 @@ export const shiftAssignmentService = {
     errors: { userId: string; date: string; reason: string }[];
     assignments: SerializedShiftAssignment[];
   }> => {
-    const organizationId = resolveWriteOrganizationId(actor, input.organizationId);
+    const siteId = resolveWriteSiteId(actor, input.siteId);
 
     const weekStart = parseDateOnly(input.weekStart);
     const weekEnd = new Date(weekStart);
@@ -417,7 +417,7 @@ export const shiftAssignmentService = {
         continue;
       }
 
-      const staff = await staffRepository.findById(change.userId, organizationId, assignableRoles);
+      const staff = await staffRepository.findById(change.userId, siteId, assignableRoles);
       if (!staff || !staff.isActive) {
         errors.push({ userId: change.userId, date: change.date, reason: 'Staff member is not active in this branch' });
         continue;
@@ -429,7 +429,7 @@ export const shiftAssignmentService = {
 
       const existingAssignments = await shiftAssignmentRepository.findByUserAndDateRange(
         change.userId,
-        organizationId,
+        siteId,
         assignmentDate,
         assignmentDate,
       );
@@ -449,7 +449,7 @@ export const shiftAssignmentService = {
         continue;
       }
 
-      const shift = await shiftRepository.findById(change.shiftId, organizationId);
+      const shift = await shiftRepository.findById(change.shiftId, siteId);
       if (!shift) {
         errors.push({ userId: change.userId, date: change.date, reason: 'Shift is not active in this branch' });
         continue;
@@ -476,11 +476,11 @@ export const shiftAssignmentService = {
     }
 
     if (operations.length > 0) {
-      await shiftAssignmentRepository.reconcileWeek(organizationId, operations);
+      await shiftAssignmentRepository.reconcileWeek(siteId, operations);
     }
 
     const assignments = await shiftAssignmentService.listAssignments(actor, {
-      organizationId,
+      siteId,
       startDate: toIsoDateOnly(weekStart),
       endDate: toIsoDateOnly(weekEnd),
     });
@@ -494,14 +494,14 @@ export const shiftAssignmentService = {
   },
 
   deleteAssignment: async (actor: Actor, id: string, query: ShiftListQueryInput = {}): Promise<void> => {
-    const organizationId = resolveWriteOrganizationId(actor, query.organizationId);
+    const siteId = resolveWriteSiteId(actor, query.siteId);
 
-    const assignment = await shiftAssignmentRepository.findById(id, organizationId);
+    const assignment = await shiftAssignmentRepository.findById(id, siteId);
     if (!assignment) {
       throw new NotFoundError('Shift assignment not found');
     }
     assertStaffInScope(actor, [assignment.user]);
 
-    await shiftAssignmentRepository.delete(id, organizationId);
+    await shiftAssignmentRepository.delete(id, siteId);
   },
 };

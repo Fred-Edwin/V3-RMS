@@ -16,7 +16,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn(), findById: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
 // Route test: swap JWT auth for a header-driven test user; the role guards
@@ -43,16 +43,16 @@ const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const townKitchenId = '66666666-6666-4666-8666-666666666666';
 const highwayKitchenId = '77777777-7777-4777-8777-777777777777';
 
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
-const townKitchen = { id: townKitchenId, organizationId: nyeriTownId, type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN', name: 'Nyeri Town — Kitchen' };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
+const townKitchen = { id: townKitchenId, siteId: nyeriTownId, type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN', name: 'Nyeri Town — Kitchen' };
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-const townManager = { id: 'm1', role: 'MANAGER' as const, organizationId: nyeriTownId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+const townManager = { id: 'm1', role: 'MANAGER' as const, siteId: nyeriTownId };
 const townKitchenHead = {
   id: 'dh1',
   role: 'CHEF' as const,
-  organizationId: nyeriTownId,
+  siteId: nyeriTownId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
@@ -62,10 +62,10 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
   vi.mocked(branchRepository.findById).mockResolvedValue({ id: nyeriTownId, name: 'Nyeri Town' } as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(townKitchen as never);
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(townKitchen as never);
   // findById is org-scoped: a location on another org is simply not found.
-  vi.mocked(locationRepository.findById).mockImplementation(async (id, organizationId) =>
-    (id === townKitchenId && organizationId === nyeriTownId ? townKitchen : null) as never,
+  vi.mocked(locationRepository.findById).mockImplementation(async (id, siteId) =>
+    (id === townKitchenId && siteId === nyeriTownId ? townKitchen : null) as never,
   );
 });
 
@@ -106,7 +106,7 @@ describe('resolveWasteScope', () => {
   it('department head always writes to their own department', async () => {
     const scope = await resolveWasteScope(townKitchenHead);
     expect(scope).toMatchObject({ locationId: townKitchenId, departmentTag: 'KITCHEN' });
-    expect(locationRepository.findByOrganizationTypeDepartment).toHaveBeenCalledWith(nyeriTownId, 'BRANCH_DEPARTMENT', 'KITCHEN');
+    expect(locationRepository.findBySiteTypeDepartment).toHaveBeenCalledWith(nyeriTownId, 'BRANCH_DEPARTMENT', 'KITCHEN');
   });
 
   it('store roles write to the Central Store', async () => {

@@ -32,7 +32,7 @@ const assertOrderUpdated = (count: number): void => {
 };
 
 const orderWithDetailInclude = {
-  organization: { select: { id: true, name: true } },
+  site: { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } },
   items: {
     select: {
@@ -63,7 +63,7 @@ export const orderCorrectionRepository = {
     const where: Record<string, unknown> = {};
 
     if (query.branchId) {
-      where.organizationId = query.branchId;
+      where.siteId = query.branchId;
     }
     if (query.status) {
       where.status = query.status;
@@ -88,7 +88,7 @@ export const orderCorrectionRepository = {
       prisma.order.findMany({
         where,
         include: {
-          organization: { select: { id: true, name: true } },
+          site: { select: { id: true, name: true } },
           createdBy: { select: { id: true, name: true } },
         },
         orderBy: [{ orderDate: 'desc' }, { dailyNumber: 'desc' }],
@@ -117,7 +117,7 @@ export const orderCorrectionRepository = {
 
   correctMpesaCode: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     mpesaCode: string,
     actorId: string,
     before: string,
@@ -125,13 +125,13 @@ export const orderCorrectionRepository = {
   ) => {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { mpesaCode },
       });
       assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -150,7 +150,7 @@ export const orderCorrectionRepository = {
 
   correctPaymentMethod: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     paymentMethod: PaymentMethod,
     actorId: string,
     before: string,
@@ -158,13 +158,13 @@ export const orderCorrectionRepository = {
   ) => {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { paymentMethod },
       });
       assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -183,19 +183,19 @@ export const orderCorrectionRepository = {
 
   forceOrderReady: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     actorId: string,
     reason: string,
   ) => {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { status: 'READY' },
       });
       assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -214,7 +214,7 @@ export const orderCorrectionRepository = {
 
   revertAwaitingAuth: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     authRequestId: string,
     actorId: string,
     reason: string,
@@ -222,13 +222,13 @@ export const orderCorrectionRepository = {
     return prisma.$transaction(async (tx) => {
       await tx.houseAccountAuthRequest.delete({ where: { id: authRequestId } });
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { status: 'READY' },
       });
       assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -247,7 +247,7 @@ export const orderCorrectionRepository = {
 
   removeOrderItem: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     itemId: string,
     actorId: string,
     itemName: string,
@@ -265,7 +265,7 @@ export const orderCorrectionRepository = {
       const newTotal = new Decimal(order.total).minus(itemSubtotal);
 
       const updated = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: {
           subtotal: newSubtotal,
           total: newTotal,
@@ -275,7 +275,7 @@ export const orderCorrectionRepository = {
 
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -297,7 +297,7 @@ export const orderCorrectionRepository = {
 
   revertRejectedTicket: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     ticketId: string,
     ticketStation: string,
     actorId: string,
@@ -314,7 +314,7 @@ export const orderCorrectionRepository = {
 
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -335,7 +335,7 @@ export const orderCorrectionRepository = {
 
   adjustOrderTotal: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     newTotal: Decimal,
     actorId: string,
     before: string,
@@ -343,13 +343,13 @@ export const orderCorrectionRepository = {
   ) => {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { total: newTotal },
       });
       assertOrderUpdated(order.count);
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -368,7 +368,7 @@ export const orderCorrectionRepository = {
 
   removeSplitLine: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     lineId: string,
     actorId: string,
     reason: string,
@@ -381,7 +381,7 @@ export const orderCorrectionRepository = {
 
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -401,7 +401,7 @@ export const orderCorrectionRepository = {
 
   addSplitLine: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     input: { label: string; amount: Decimal; method: PaymentMethod; mpesaCode?: string },
     actorId: string,
     reason: string,
@@ -419,7 +419,7 @@ export const orderCorrectionRepository = {
 
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,
@@ -439,7 +439,7 @@ export const orderCorrectionRepository = {
 
   convertToSplit: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     lines: Array<{ label: string; amount: Decimal; method: PaymentMethod; mpesaCode?: string }>,
     actorId: string,
     before: string,
@@ -447,7 +447,7 @@ export const orderCorrectionRepository = {
   ): Promise<SplitPaymentLineRecord[]> => {
     return prisma.$transaction(async (tx) => {
       const order = await tx.order.updateMany({
-        where: { id: orderId, organizationId },
+        where: { id: orderId, siteId },
         data: { paymentMethod: 'SPLIT' },
       });
       assertOrderUpdated(order.count);
@@ -468,7 +468,7 @@ export const orderCorrectionRepository = {
 
       await tx.incidentLog.create({
         data: {
-          organizationId,
+          siteId,
           orderId,
           type: 'ORDER_CORRECTION',
           actorId,

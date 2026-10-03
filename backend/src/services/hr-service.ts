@@ -12,18 +12,18 @@ import { logger } from '../utils/logger';
 export interface HrActor {
   id: string;
   role: UserRole;
-  organizationId: string | null;
+  siteId: string | null;
 }
 
 // ─── Access helpers ───────────────────────────────────────────────────────────
 
 /** HR_MANAGER and DIRECTOR have cross-branch access. MANAGER is scoped to own branch. */
-function canManageProfile(actor: HrActor, targetOrganizationId: string | null): boolean {
+function canManageProfile(actor: HrActor, targetSiteId: string | null): boolean {
   if (actor.role === 'HR_MANAGER' || actor.role === 'DIRECTOR' || actor.role === 'SYSTEM_ADMIN') {
     return true;
   }
   if (actor.role === 'MANAGER') {
-    return actor.organizationId === targetOrganizationId;
+    return actor.siteId === targetSiteId;
   }
   return false;
 }
@@ -62,7 +62,7 @@ export async function getEmployeeProfile(actor: HrActor, userId: string) {
   // Self-access: any staff member can view their own profile
   if (actor.id === userId) return profile;
 
-  if (!canManageProfile(actor, profile.user.organizationId)) {
+  if (!canManageProfile(actor, profile.user.siteId)) {
     throw new ForbiddenError('Access denied to this employee profile');
   }
 
@@ -74,8 +74,8 @@ export async function listEmployeeProfiles(actor: HrActor) {
     return hrRepository.listProfiles(); // all branches
   }
   if (actor.role === 'MANAGER') {
-    if (!actor.organizationId) throw new ForbiddenError('Manager has no branch assigned');
-    return hrRepository.listProfiles(actor.organizationId);
+    if (!actor.siteId) throw new ForbiddenError('Manager has no branch assigned');
+    return hrRepository.listProfiles(actor.siteId);
   }
   throw new ForbiddenError('Access denied');
 }
@@ -210,7 +210,7 @@ export async function getLeaveBalances(actor: HrActor, userId: string) {
     // Need to check the actual org
     const profile = await hrRepository.findProfileByUserId(userId);
     if (!profile) throw new NotFoundError('Employee profile not found');
-    if (!canManageProfile(actor, profile.user.organizationId)) {
+    if (!canManageProfile(actor, profile.user.siteId)) {
       throw new ForbiddenError('Access denied');
     }
   }
@@ -310,7 +310,7 @@ export async function submitLeaveRequest(
 
   // organizationId may be null for cross-branch roles (ACCOUNTANT). LeaveRequest.organizationId
   // is nullable to support system-wide employees — HR_MANAGER/DIRECTOR are notified instead.
-  const organizationId = profile.user.organizationId ?? null;
+  const siteId = profile.user.siteId ?? null;
 
   // Create request and increment pending days atomically
   const [request] = await prisma.$transaction([
@@ -318,7 +318,7 @@ export async function submitLeaveRequest(
       data: {
         employeeProfileId: profile.id,
         leaveBalanceId: balance.id,
-        ...(organizationId ? { organizationId } : {}),
+        ...(siteId ? { siteId } : {}),
         leaveType: input.leaveType,
         startDate: input.startDate,
         endDate: input.endDate,
@@ -327,7 +327,7 @@ export async function submitLeaveRequest(
       },
       include: {
         employeeProfile: {
-          include: { user: { select: { id: true, name: true, role: true, organizationId: true } } },
+          include: { user: { select: { id: true, name: true, role: true, siteId: true } } },
         },
         leaveBalance: true,
         reviewedBy: { select: { id: true, name: true, role: true } },
@@ -341,7 +341,7 @@ export async function submitLeaveRequest(
   ]);
 
   // Notify managers of this branch + HR_MANAGER + DIRECTOR
-  void notifyManagementOfLeaveRequest(actor, request, organizationId);
+  void notifyManagementOfLeaveRequest(actor, request, siteId);
 
   logger.info(
     { requestId: request.id, userId: actor.id, leaveType: input.leaveType, totalDays },
@@ -352,16 +352,16 @@ export async function submitLeaveRequest(
 }
 
 export async function approveLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be approved');
   }
 
-  const targetOrgId = request.organizationId;
+  const targetOrgId = request.siteId;
 
   // Branch manager: own branch only. HR_MANAGER/DIRECTOR: any.
-  if (actor.role === 'MANAGER' && actor.organizationId !== targetOrgId) {
+  if (actor.role === 'MANAGER' && actor.siteId !== targetOrgId) {
     throw new ForbiddenError('You can only approve leave for your own branch');
   }
   if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
@@ -387,7 +387,7 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
   // Atomically approve + update balance in one transaction
   await prisma.$transaction([
     prisma.leaveRequest.updateMany({
-      where: { id: requestId, organizationId: targetOrgId },
+      where: { id: requestId, siteId: targetOrgId },
       data: {
         status: 'APPROVED',
         reviewedById: actor.id,
@@ -415,14 +415,14 @@ export async function approveLeaveRequest(actor: HrActor, requestId: string, com
 }
 
 export async function rejectLeaveRequest(actor: HrActor, requestId: string, comment?: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
   if (request.status !== 'PENDING') {
     throw new ConflictError('Only pending leave requests can be rejected');
   }
 
-  const targetOrgId = request.organizationId;
-  if (actor.role === 'MANAGER' && actor.organizationId !== targetOrgId) {
+  const targetOrgId = request.siteId;
+  if (actor.role === 'MANAGER' && actor.siteId !== targetOrgId) {
     throw new ForbiddenError('You can only reject leave for your own branch');
   }
   if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
@@ -435,7 +435,7 @@ export async function rejectLeaveRequest(actor: HrActor, requestId: string, comm
   // Atomically reject + restore pending balance in one transaction
   await prisma.$transaction([
     prisma.leaveRequest.updateMany({
-      where: { id: requestId, organizationId: targetOrgId },
+      where: { id: requestId, siteId: targetOrgId },
       data: {
         status: 'REJECTED',
         reviewedById: actor.id,
@@ -458,7 +458,7 @@ export async function rejectLeaveRequest(actor: HrActor, requestId: string, comm
 }
 
 export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
-  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
 
   const employeeUserId = request.employeeProfile.user.id;
@@ -478,13 +478,13 @@ export async function cancelLeaveRequest(actor: HrActor, requestId: string) {
     throw new ConflictError('Rejected leave requests cannot be cancelled');
   }
 
-  const targetOrgId = request.organizationId;
+  const targetOrgId = request.siteId;
   const balanceField = request.status === 'APPROVED' ? 'usedDays' : 'pendingDays';
 
   // Atomically cancel + restore balance in one transaction
   await prisma.$transaction([
     prisma.leaveRequest.updateMany({
-      where: { id: requestId, organizationId: targetOrgId },
+      where: { id: requestId, siteId: targetOrgId },
       data: { status: 'CANCELLED', cancelledById: actor.id, cancelledAt: new Date() },
     }),
     prisma.leaveBalance.update({
@@ -504,21 +504,21 @@ export async function revertLeaveRequest(actor: HrActor, requestId: string) {
     throw new ForbiddenError('Only HR Manager or Director can revert leave requests');
   }
 
-  const request = await hrRepository.findLeaveRequestById(requestId, actor.organizationId ?? undefined);
+  const request = await hrRepository.findLeaveRequestById(requestId, actor.siteId ?? undefined);
   if (!request) throw new NotFoundError('Leave request not found');
 
   if (request.status !== 'APPROVED' && request.status !== 'REJECTED') {
     throw new ConflictError('Only approved or rejected leave requests can be reverted to pending');
   }
 
-  const targetOrgId = request.organizationId;
+  const targetOrgId = request.siteId;
   const totalDays = Number(request.totalDays);
 
   if (request.status === 'APPROVED') {
     // Move days from usedDays back to pendingDays
     await prisma.$transaction([
       prisma.leaveRequest.updateMany({
-        where: { id: requestId, organizationId: targetOrgId },
+        where: { id: requestId, siteId: targetOrgId },
         data: {
           status: 'PENDING',
           reviewedById: null,
@@ -538,7 +538,7 @@ export async function revertLeaveRequest(actor: HrActor, requestId: string) {
     // REJECTED: just restore pendingDays (they were decremented on rejection)
     await prisma.$transaction([
       prisma.leaveRequest.updateMany({
-        where: { id: requestId, organizationId: targetOrgId },
+        where: { id: requestId, siteId: targetOrgId },
         data: {
           status: 'PENDING',
           reviewedById: null,
@@ -562,7 +562,7 @@ export async function revertLeaveRequest(actor: HrActor, requestId: string) {
 export async function listLeaveRequests(
   actor: HrActor,
   params: {
-    organizationId?: string;
+    siteId?: string;
     status?: import('@prisma/client').LeaveStatus;
     page: number;
     limit: number;
@@ -579,7 +579,7 @@ export async function listLeaveRequests(
   if (actor.role === 'MANAGER') {
     return hrRepository.listLeaveRequests({
       ...rest,
-      organizationId: actor.organizationId ?? undefined,
+      siteId: actor.siteId ?? undefined,
       excludeAcknowledgedBy,
     });
   }
@@ -590,7 +590,7 @@ export async function acknowledgeLeaveRequest(actor: HrActor, id: string) {
   if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
     throw new ForbiddenError('Access denied');
   }
-  const request = await hrRepository.findLeaveRequestById(id, actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined);
+  const request = await hrRepository.findLeaveRequestById(id, actor.role === 'MANAGER' ? (actor.siteId ?? undefined) : undefined);
   if (!request) throw new NotFoundError('Leave request not found');
 
   return hrRepository.acknowledgeLeaveRequest(id, actor.id);
@@ -601,7 +601,7 @@ export async function acknowledgeAllResolvedLeaveRequests(actor: HrActor) {
     throw new ForbiddenError('Access denied');
   }
   return hrRepository.acknowledgeAllResolvedLeaveRequests({
-    organizationId: actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : undefined,
+    siteId: actor.role === 'MANAGER' ? (actor.siteId ?? undefined) : undefined,
     userId: actor.id,
   });
 }
@@ -615,21 +615,21 @@ export async function getMyLeaveRequests(actor: HrActor, page: number, limit: nu
 
 export async function getLeaveCalendar(
   actor: HrActor,
-  params: { organizationId?: string; year: number; month: number },
+  params: { siteId?: string; year: number; month: number },
 ) {
   const startDate = new Date(params.year, params.month - 1, 1);
   const endDate = new Date(params.year, params.month, 0);
 
   let orgId: string | undefined;
   if (isHrAuthority(actor.role)) {
-    orgId = params.organizationId;
+    orgId = params.siteId;
   } else if (actor.role === 'MANAGER') {
-    orgId = actor.organizationId ?? undefined;
+    orgId = actor.siteId ?? undefined;
   } else {
     throw new ForbiddenError('Access denied');
   }
 
-  return hrRepository.findApprovedLeaveForCalendar({ organizationId: orgId, startDate, endDate });
+  return hrRepository.findApprovedLeaveForCalendar({ siteId: orgId, startDate, endDate });
 }
 
 // ─── Disciplinary Records ─────────────────────────────────────────────────────
@@ -645,7 +645,7 @@ export async function createDisciplinaryRecord(
   const profile = await hrRepository.findProfileById(data.employeeProfileId);
   if (!profile) throw new NotFoundError('Employee profile not found');
 
-  if (actor.role === 'MANAGER' && actor.organizationId !== profile.user.organizationId) {
+  if (actor.role === 'MANAGER' && actor.siteId !== profile.user.siteId) {
     throw new ForbiddenError('You can only create disciplinary records for your own branch');
   }
 
@@ -677,7 +677,7 @@ export async function getDisciplinaryRecords(actor: HrActor, userId: string) {
   // Self-access: only own records
   if (actor.id === userId) return hrRepository.listDisciplinaryRecords(profile.id);
 
-  if (!canManageProfile(actor, profile.user.organizationId)) {
+  if (!canManageProfile(actor, profile.user.siteId)) {
     throw new ForbiddenError('Access denied');
   }
 
@@ -685,7 +685,7 @@ export async function getDisciplinaryRecords(actor: HrActor, userId: string) {
 }
 
 export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: string) {
-  const record = await hrRepository.findDisciplinaryRecordById(recordId, actor.organizationId ?? undefined);
+  const record = await hrRepository.findDisciplinaryRecordById(recordId, actor.siteId ?? undefined);
   if (!record) throw new NotFoundError('Disciplinary record not found');
 
   const employeeUserId = record.employeeProfile.user.id;
@@ -693,7 +693,7 @@ export async function acknowledgeDisciplinaryRecord(actor: HrActor, recordId: st
     throw new ForbiddenError('You can only acknowledge your own disciplinary records');
   }
 
-  return hrRepository.acknowledgeDisciplinaryRecord(recordId, record.organizationId);
+  return hrRepository.acknowledgeDisciplinaryRecord(recordId, record.siteId);
 }
 
 // ─── HR Documents ─────────────────────────────────────────────────────────────
@@ -726,7 +726,7 @@ export async function authorizeDocumentUpload(
   const profile = await hrRepository.findProfileByUserId(employeeUserId);
   if (!profile) throw new NotFoundError('Employee profile not found');
 
-  if (actor.role === 'MANAGER' && actor.organizationId !== profile.user.organizationId) {
+  if (actor.role === 'MANAGER' && actor.siteId !== profile.user.siteId) {
     throw new ForbiddenError('You can only upload documents for staff in your own branch');
   }
 
@@ -804,7 +804,7 @@ export async function getAttendanceSummary(
   actor: HrActor,
   startDate: Date,
   endDate: Date,
-  organizationId?: string,
+  siteId?: string,
   userId?: string,
 ) {
   if (!isHrAuthority(actor.role) && actor.role !== 'MANAGER') {
@@ -812,7 +812,7 @@ export async function getAttendanceSummary(
   }
   // MANAGER is scoped to own branch only
   const resolvedOrgId =
-    actor.role === 'MANAGER' ? (actor.organizationId ?? undefined) : organizationId;
+    actor.role === 'MANAGER' ? (actor.siteId ?? undefined) : siteId;
 
   return hrRepository.getAttendanceSummary(startDate, endDate, resolvedOrgId, userId);
 }
@@ -831,13 +831,13 @@ export async function getStaffAttendanceDetail(
 
 // ─── HR Dashboard ─────────────────────────────────────────────────────────────
 
-export async function getHrDashboard(actor: HrActor, organizationId?: string) {
+export async function getHrDashboard(actor: HrActor, siteId?: string) {
   if (!isHrAuthority(actor.role)) throw new ForbiddenError('Access denied to HR dashboard');
 
   const [stats, pendingRequests, onLeaveToday] = await Promise.all([
-    hrRepository.getHrDashboardStats(organizationId),
-    hrRepository.getPendingLeaveRequestsForDashboard(organizationId),
-    hrRepository.getStaffOnLeaveToday(organizationId),
+    hrRepository.getHrDashboardStats(siteId),
+    hrRepository.getPendingLeaveRequestsForDashboard(siteId),
+    hrRepository.getStaffOnLeaveToday(siteId),
   ]);
 
   return { stats, pendingRequests, onLeaveToday };
@@ -848,7 +848,7 @@ export async function getHrDashboard(actor: HrActor, organizationId?: string) {
 async function notifyManagementOfLeaveRequest(
   actor: HrActor,
   request: { id: string; leaveType: string; startDate: Date; endDate: Date; totalDays: unknown },
-  organizationId: string | null,
+  siteId: string | null,
 ) {
   try {
     // Notify branch managers (if branch-scoped) + HR_MANAGER + DIRECTOR (always system-wide)
@@ -857,7 +857,7 @@ async function notifyManagementOfLeaveRequest(
         isActive: true,
         deletedAt: null,
         OR: [
-          ...(organizationId ? [{ role: 'MANAGER' as const, organizationId }] : []),
+          ...(siteId ? [{ role: 'MANAGER' as const, siteId }] : []),
           { role: 'HR_MANAGER' },
           { role: 'DIRECTOR' },
         ],

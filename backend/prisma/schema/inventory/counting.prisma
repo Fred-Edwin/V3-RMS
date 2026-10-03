@@ -33,7 +33,7 @@ enum CountReason {
 
 model StockCount {
   id               String           @id @default(uuid())
-  organizationId   String           @map("organization_id") // hub org (D-15)
+  siteId   String           @map("organization_id") // hub org (D-15)
   locationId       String           @map("location_id") // Central Store
   kind             StockCountKind
   countDate        DateTime         @map("count_date") @db.Date // business date, Africa/Nairobi
@@ -50,14 +50,14 @@ model StockCount {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  organization Organization     @relation(fields: [organizationId], references: [id])
+  site Site     @relation(fields: [siteId], references: [id])
   location     Location         @relation(fields: [locationId], references: [id])
   counter      User             @relation("StockCountCounter", fields: [counterId], references: [id])
   verifier     User?            @relation("StockCountVerifier", fields: [verifierId], references: [id])
   returnedBy   User?            @relation("StockCountReturnedBy", fields: [returnedById], references: [id])
   lines        StockCountLine[]
 
-  @@index([organizationId, kind, status])
+  @@index([siteId, kind, status])
   @@index([locationId, countDate])
   @@map("stock_counts")
 }
@@ -93,7 +93,7 @@ model StockCountLine {
 /// 3): reasonRequiredKes + overnightAlertKes.
 model CountingThresholds {
   id                  String    @id @default(uuid())
-  organizationId      String    @unique @map("organization_id")
+  siteId      String    @unique @map("organization_id")
   reasonRequiredKes   Int       @map("reason_required_kes")
   overnightAlertKes   Int?      @map("overnight_alert_kes")
   directorAlertKes    Int?      @map("director_alert_kes")
@@ -103,7 +103,7 @@ model CountingThresholds {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  site      Site @relation(fields: [siteId], references: [id])
   updatedBy         User?        @relation("CountingThresholdsUpdatedBy", fields: [updatedById], references: [id])
   directorUpdatedBy User?        @relation("CountingThresholdsDirectorUpdatedBy", fields: [directorUpdatedById], references: [id])
 

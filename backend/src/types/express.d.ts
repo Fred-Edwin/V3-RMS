@@ -5,14 +5,14 @@ declare global {
     interface UserContext {
       id: string;
       role: UserRole;
-      organizationId: string | null;
+      siteId: string | null;
       departmentTag?: DepartmentTag | null;
       isDepartmentHead?: boolean;
     }
 
     interface PrintStationContext {
       id: string;
-      organizationId: string;
+      siteId: string;
     }
 
     interface Request {

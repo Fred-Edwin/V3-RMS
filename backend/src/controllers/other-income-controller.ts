@@ -17,7 +17,7 @@ const requireActor = (req: Request) => {
 
 /** Extract optional organizationId from query string (used by Directors). */
 const getRequestedOrgId = (req: Request): string | undefined => {
-  const v = req.query.organizationId;
+  const v = req.query.siteId;
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 };
 

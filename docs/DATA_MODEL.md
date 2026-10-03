@@ -290,6 +290,15 @@ IdempotencyKey (order dedup, global)
 
 ### 4.1 Organization (Branch)
 
+> **Renamed in code (Oct 2026): this is now the `Site` model, with `siteId` fields.**
+> A Site is a branch or the Central Store (`type`: `BRANCH` | `CENTRAL_STORE`) and belongs to a
+> `Company` (`companyId`; one row today, "Wendo Coffee Bistro"). The database did **not** change:
+> the table is still `organizations` and every column is still `organization_id`, via
+> `@@map` / `@map` in the schema. `isHub` and its one-Central-Store unique index are unchanged.
+> The SQL examples and the `Organization` model below show the original shape; read
+> `Organization` as `Site` and `organizationId` as `siteId` in code. The API, socket events and the
+> login token still use the `organization*` names (see `API_CONTRACT.md`).
+
 Represents a single branch of Wendo. This is the **tenant unit** — all branch-scoped data references this table.
 
 ```prisma

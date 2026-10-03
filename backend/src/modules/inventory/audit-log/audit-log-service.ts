@@ -96,7 +96,7 @@ export const auditLogService = {
         const place =
           r.location.type === 'CENTRAL_STORE'
             ? 'Central Store'
-            : `${DEPARTMENT_LABEL[r.location.departmentTag ?? ''] ?? 'Department'} · ${r.location.organization.name}`;
+            : `${DEPARTMENT_LABEL[r.location.departmentTag ?? ''] ?? 'Department'} · ${r.location.site.name}`;
         return {
           id: `restock:${r.id}`,
           at: r.createdAt.toISOString(),

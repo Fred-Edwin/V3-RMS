@@ -190,17 +190,17 @@ export const createDisciplinaryRecordSchema = z.object({
 // ─── HR Dashboard query params ────────────────────────────────────────────────
 
 export const hrDashboardQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const leaveCalendarQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   year: z.coerce.number().int().min(2024).max(2100).optional(),
   month: z.coerce.number().int().min(1).max(12).optional(),
 });
 
 export const leaveRequestsQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
   leaveType: z.enum(['ANNUAL', 'SICK', 'EMERGENCY', 'UNPAID']).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -216,7 +216,7 @@ export const leaveRequestsQuerySchema = z.object({
 export const attendanceSummaryQuerySchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'endDate must be YYYY-MM-DD'),
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
 });
 

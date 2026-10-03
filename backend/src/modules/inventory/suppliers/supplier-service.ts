@@ -98,8 +98,8 @@ const requireWriteAccess = (actor: Actor): void => {
 };
 
 /** The single gate for sub-resources: the supplier must exist in the caller's org. */
-const requireSupplier = async (id: string, organizationId: string) => {
-  const supplier = await supplierRepository.findById(id, organizationId);
+const requireSupplier = async (id: string, siteId: string) => {
+  const supplier = await supplierRepository.findById(id, siteId);
   if (!supplier) throw new NotFoundError('Supplier not found');
   return supplier;
 };
@@ -118,7 +118,7 @@ const nullable = <T>(value: T | null | undefined): T | null => value ?? null;
 // ---------------------------------------------------------------------------
 
 const assertNoDuplicate = async (
-  organizationId: string,
+  siteId: string,
   name: string,
   phones: (string | null | undefined)[],
   confirmDuplicate: boolean | undefined,
@@ -127,7 +127,7 @@ const assertNoDuplicate = async (
   if (confirmDuplicate) return;
   const wanted = normalizeName(name);
   const wantedPhones = phones.map(normalizePhone).filter((p) => p.length > 0);
-  const candidates = await supplierRepository.findLiveWithPhones(organizationId);
+  const candidates = await supplierRepository.findLiveWithPhones(siteId);
   const matches = candidates.filter((c) => {
     if (c.id === excludeId || normalizeName(c.name) !== wanted) return false;
     if (wantedPhones.length === 0) return true;
@@ -175,13 +175,13 @@ const asJson = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringi
  * Same socket + FCM primitives the signed-receipt notice uses; never blocks or fails the request.
  */
 const notifyAccountantsOfChequeMethod = async (
-  organizationId: string,
+  siteId: string,
   actor: Actor,
   supplier: { id: string; name: string },
   reason: string,
 ): Promise<void> => {
   try {
-    const accountants = await supplierPayMethodRepository.findHubAccountants(organizationId);
+    const accountants = await supplierPayMethodRepository.findHubAccountants(siteId);
     const recipientIds = accountants.map((a) => a.id).filter((id) => id !== actor.id);
     if (recipientIds.length === 0) return;
     const addedBy = await authRepository.findUserById(actor.id);
@@ -198,14 +198,14 @@ const notifyAccountantsOfChequeMethod = async (
  * which has its own notice above). Same primitives; never blocks or fails the request.
  */
 const notifyAccountantsOfPayMethodChange = async (
-  organizationId: string,
+  siteId: string,
   actor: Actor,
   supplier: { id: string; name: string },
   summary: string,
   reason: string,
 ): Promise<void> => {
   try {
-    const accountants = await supplierPayMethodRepository.findHubAccountants(organizationId);
+    const accountants = await supplierPayMethodRepository.findHubAccountants(siteId);
     const recipientIds = accountants.map((a) => a.id).filter((id) => id !== actor.id);
     if (recipientIds.length === 0) return;
     const changedBy = await authRepository.findUserById(actor.id);
@@ -218,12 +218,12 @@ const notifyAccountantsOfPayMethodChange = async (
 };
 
 /** The Catalog tab's extras (§30.11): the receipt behind each price and the latest price alert on each pack, last 90 days. */
-const enrichCatalogRows = async (supplierId: string, organizationId: string, rows: SupplierItemRow[]) => {
+const enrichCatalogRows = async (supplierId: string, siteId: string, rows: SupplierItemRow[]) => {
   const since = new Date(Date.now() - 90 * 86_400_000);
   const priceTimes = [...new Map(rows.filter((r) => r.lastPriceAt).map((r) => [r.lastPriceAt!.getTime(), r.lastPriceAt!])).values()];
   const [receipts, alerts] = await Promise.all([
-    goodsReceiptRepository.findReceiptsSignedAt(supplierId, organizationId, priceTimes),
-    goodsReceiptRepository.findPriceAlertLines(supplierId, organizationId, since),
+    goodsReceiptRepository.findReceiptsSignedAt(supplierId, siteId, priceTimes),
+    goodsReceiptRepository.findPriceAlertLines(supplierId, siteId, since),
   ]);
   return Promise.all(
     rows.map(async (row) => {
@@ -231,7 +231,7 @@ const enrichCatalogRows = async (supplierId: string, organizationId: string, row
       const itemLines = rows.filter((r) => r.inventoryItemId === row.inventoryItemId);
       const alert = findPriceAlert(row, itemLines, alerts);
       const previousAt = alert
-        ? await goodsReceiptRepository.findPreviousSignedAt(supplierId, organizationId, row.inventoryItemId, alert.alertAt)
+        ? await goodsReceiptRepository.findPreviousSignedAt(supplierId, siteId, row.inventoryItemId, alert.alertAt)
         : null;
       return {
         ...base,
@@ -261,8 +261,8 @@ const hasOwn = (input: object, key: string): boolean => Object.prototype.hasOwnP
 
 const PACK_LINE_RACE = 'This supplier already has this pack for the item';
 
-const requireLine = async (lineId: string, supplierId: string, inventoryItemId: string, organizationId: string) => {
-  const row = await supplierItemRepository.findById(lineId, supplierId, inventoryItemId, organizationId);
+const requireLine = async (lineId: string, supplierId: string, inventoryItemId: string, siteId: string) => {
+  const row = await supplierItemRepository.findById(lineId, supplierId, inventoryItemId, siteId);
   if (!row) throw new NotFoundError('Catalog row not found');
   return row;
 };
@@ -273,7 +273,7 @@ const requireLine = async (lineId: string, supplierId: string, inventoryItemId: 
  * `false` clears it when it is this line's. Absent: nothing changes.
  */
 const applyPreferredChoice = async (
-  organizationId: string,
+  siteId: string,
   actor: Actor,
   supplierId: string,
   inventoryItemId: string,
@@ -282,10 +282,10 @@ const applyPreferredChoice = async (
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
   if (isPreferred === true) {
-    const result = await supplierItemRepository.applyPreferred(organizationId, inventoryItemId, supplierId, tx, lineId);
+    const result = await supplierItemRepository.applyPreferred(siteId, inventoryItemId, supplierId, tx, lineId);
     if (!result.wasPreferred || result.wasNeedsConfirm) {
       await supplierAuditRepository.create(
-        organizationId,
+        siteId,
         supplierId,
         actor.id,
         result.wasNeedsConfirm ? 'PREFERRED_CONFIRMED' : 'PREFERRED_SET',
@@ -296,14 +296,14 @@ const applyPreferredChoice = async (
       );
     }
   } else if (isPreferred === false) {
-    await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx, lineId);
+    await supplierItemRepository.clearPreferredIfSupplier(siteId, inventoryItemId, supplierId, tx, lineId);
   }
 };
 
 
 /** What the supplier line history needs to name a line: the supplier, the item, the pack. */
 interface LineContext {
-  organizationId: string;
+  siteId: string;
   actor: Actor;
   supplier: { id: string; name: string };
   item: { id: string; usageUnit: string };
@@ -323,12 +323,12 @@ const setHandPrice = async (
   if (line.lastPrice && line.lastPrice.equals(price)) return false;
   await supplierItemRepository.updateLine(
     line.id,
-    ctx.organizationId,
+    ctx.siteId,
     { lastPrice: price, lastPriceAt: new Date(), lastPriceSetById: ctx.actor.id },
     tx,
   );
   await supplierAuditRepository.create(
-    ctx.organizationId,
+    ctx.siteId,
     ctx.supplier.id,
     ctx.actor.id,
     'LINE_PRICE_SET',
@@ -357,7 +357,7 @@ const recordLineAdded = async (
 ): Promise<void> => {
   if (price !== undefined) await setHandPrice(ctx, { id: line.id, lastPrice: null }, price, tx);
   await itemChangeRepository.record(tx, {
-    organizationId: ctx.organizationId,
+    siteId: ctx.siteId,
     inventoryItemId: ctx.item.id,
     kind: 'SUPPLIER_ADDED',
     summary: describeSupplierAdded(lineFacts(ctx, line), price ?? null, preferred),
@@ -376,7 +376,7 @@ const recordPriceSet = async (
   if (!(await setHandPrice(ctx, line, price, tx))) return;
   const previous = line.lastPrice ? line.lastPrice.toString() : null;
   await itemChangeRepository.record(tx, {
-    organizationId: ctx.organizationId,
+    siteId: ctx.siteId,
     inventoryItemId: ctx.item.id,
     kind: 'SUPPLIER_PRICE_SET',
     summary: describePriceSet(lineFacts(ctx, line), price, previous),
@@ -387,7 +387,7 @@ const recordPriceSet = async (
 };
 
 const createContactRows = async (
-  organizationId: string,
+  siteId: string,
   supplierId: string,
   contacts: CreateContactInput[],
   tx: Prisma.TransactionClient,
@@ -396,7 +396,7 @@ const createContactRows = async (
   const primaryIndex = flagged >= 0 ? flagged : 0;
   for (const [index, contact] of contacts.entries()) {
     await supplierContactRepository.create(
-      organizationId,
+      siteId,
       supplierId,
       {
         name: contact.name,
@@ -416,17 +416,17 @@ export const supplierService = {
 
   /** Attendants get a stripped list of ACTIVE suppliers only. */
   listSuppliers: async (actor: Actor, query: ListSuppliersQuery) => {
-    const organizationId = await requireHubReader(actor);
+    const siteId = await requireHubReader(actor);
     const attendant = !actorCan(actor, 'suppliers.read');
     // "Profile not finished" is worked out over every live supplier first, then the list is limited to those ids.
     let ids: string[] | undefined;
     if (!attendant && query.profileNotFinished) {
-      const live = await supplierStripRepository.listForStrip(organizationId);
+      const live = await supplierStripRepository.listForStrip(siteId);
       ids = live
         .filter((s) => profileDoneCount({ ...s, payMethodCount: s._count.payMethods }) < PROFILE_CHECK_COUNT)
         .map((s) => s.id);
     }
-    const { suppliers, total } = await supplierRepository.findAllByOrganization(organizationId, {
+    const { suppliers, total } = await supplierRepository.findAllBySite(siteId, {
       search: query.search,
       status: attendant ? 'ACTIVE' : query.status,
       type: query.type,
@@ -445,7 +445,7 @@ export const supplierService = {
     if (attendant) return { data: suppliers.map(serializeAttendantSupplier), pagination };
 
     const strip = await supplierStripRepository.listForStripByIds(
-      organizationId,
+      siteId,
       suppliers.map((s) => s.id),
     );
     const stripById = new Map(strip.map((s) => [s.id, s]));
@@ -464,20 +464,20 @@ export const supplierService = {
 
   getSupplierById: async (actor: Actor, id: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    const supplier = await supplierRepository.findDetailById(id, organizationId);
+    const siteId = await requireHubReader(actor);
+    const supplier = await supplierRepository.findDetailById(id, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
     return serializeSupplierDetail(supplier, canSeePaymentDetails(actor));
   },
 
   createSupplier: async (actor: Actor, input: CreateSupplierInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
 
     const contacts: CreateContactInput[] = input.contacts ?? [];
 
     await assertNoDuplicate(
-      organizationId,
+      siteId,
       input.name,
       contacts.map((c) => c.phone),
       input.confirmDuplicate,
@@ -485,9 +485,9 @@ export const supplierService = {
 
     const id = await prisma
       .$transaction(async (tx) => {
-        const code = await referenceCounterRepository.nextReference(tx, organizationId, 'SUPPLIER', 4);
+        const code = await referenceCounterRepository.nextReference(tx, siteId, 'SUPPLIER', 4);
         const created = await supplierRepository.create(
-          organizationId,
+          siteId,
           {
             code,
             name: input.name,
@@ -507,7 +507,7 @@ export const supplierService = {
           },
           tx,
         );
-        await createContactRows(organizationId, created.id, contacts, tx);
+        await createContactRows(siteId, created.id, contacts, tx);
         return created.id;
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: NAME_TAKEN }));
@@ -517,13 +517,13 @@ export const supplierService = {
 
   updateSupplier: async (actor: Actor, id: string, input: UpdateSupplierInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    const existing = await supplierRepository.findDetailById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const existing = await supplierRepository.findDetailById(id, siteId);
     if (!existing) throw new NotFoundError('Supplier not found');
 
     if (input.name !== undefined && normalizeName(input.name) !== normalizeName(existing.name)) {
       await assertNoDuplicate(
-        organizationId,
+        siteId,
         input.name,
         existing.contacts.map((c) => c.phone),
         input.confirmDuplicate,
@@ -534,7 +534,7 @@ export const supplierService = {
     await prisma.$transaction(async (tx) => {
       await supplierRepository.update(
         id,
-        organizationId,
+        siteId,
         {
           name: input.name,
           tradingName: input.tradingName,
@@ -560,14 +560,14 @@ export const supplierService = {
   /** Store Manager and Attendant. Name + phone only; complete the record later. */
   quickAddSupplier: async (actor: Actor, input: QuickAddSupplierInput) => {
     if (!actorCan(actor, 'suppliers.quick_add')) throw new ForbiddenError('You cannot add suppliers');
-    const organizationId = await requireHubActor(actor);
-    await assertNoDuplicate(organizationId, input.name, [input.phone], input.confirmDuplicate);
+    const siteId = await requireHubActor(actor);
+    await assertNoDuplicate(siteId, input.name, [input.phone], input.confirmDuplicate);
 
     const id = await prisma
       .$transaction(async (tx) => {
-        const code = await referenceCounterRepository.nextReference(tx, organizationId, 'SUPPLIER', 4);
+        const code = await referenceCounterRepository.nextReference(tx, siteId, 'SUPPLIER', 4);
         const created = await supplierRepository.create(
-          organizationId,
+          siteId,
           {
             code,
             name: input.name,
@@ -587,7 +587,7 @@ export const supplierService = {
           tx,
         );
         await supplierContactRepository.create(
-          organizationId,
+          siteId,
           created.id,
           { name: input.name, role: 'OTHER', phone: input.phone, whatsapp: null, email: null, isPrimary: true },
           tx,
@@ -596,20 +596,20 @@ export const supplierService = {
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: NAME_TAKEN }));
 
-    const created = await requireSupplier(id, organizationId);
+    const created = await requireSupplier(id, siteId);
     return !actorCan(actor, 'suppliers.read') ? serializeAttendantSupplier(created) : serializeSupplierBase(created);
   },
 
   updateStatus: async (actor: Actor, id: string, input: UpdateSupplierStatusInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    const existing = await requireSupplier(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const existing = await requireSupplier(id, siteId);
     if (existing.status === input.status) {
       throw new ConflictError(`This supplier is already ${input.status}`, 'STATUS_UNCHANGED');
     }
 
     if (input.status === 'ARCHIVED') {
-      const open = await supplierRepository.countOpenInvoices(id, organizationId);
+      const open = await supplierRepository.countOpenInvoices(id, siteId);
       if (open > 0) {
         throw new ConflictError(
           'This supplier still has unpaid invoices and cannot be archived',
@@ -620,10 +620,10 @@ export const supplierService = {
     }
 
     await prisma.$transaction(async (tx) => {
-      await supplierRepository.setStatus(id, organizationId, input.status, actor.id, tx);
-      if (input.status === 'ARCHIVED') await supplierRepository.clearPreferred(id, organizationId, tx);
+      await supplierRepository.setStatus(id, siteId, input.status, actor.id, tx);
+      if (input.status === 'ARCHIVED') await supplierRepository.clearPreferred(id, siteId, tx);
       await supplierAuditRepository.create(
-        organizationId,
+        siteId,
         id,
         actor.id,
         'STATUS_CHANGED',
@@ -634,28 +634,28 @@ export const supplierService = {
       );
     }).catch((error: unknown) => mapPrismaError(error, { conflict: NAME_TAKEN }));
 
-    return serializeSupplierBase(await requireSupplier(id, organizationId));
+    return serializeSupplierBase(await requireSupplier(id, siteId));
   },
 
   // ── Contacts ─────────────────────────────────────────────────────────────
 
   listContacts: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    return (await supplierContactRepository.list(supplierId, organizationId)).map(serializeContact);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    return (await supplierContactRepository.list(supplierId, siteId)).map(serializeContact);
   },
 
   createContact: async (actor: Actor, supplierId: string, input: CreateContactInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
     const created = await prisma.$transaction(async (tx) => {
-      const count = await supplierContactRepository.count(supplierId, organizationId, tx);
+      const count = await supplierContactRepository.count(supplierId, siteId, tx);
       const makePrimary = count === 0 || input.isPrimary === true;
-      if (makePrimary) await supplierContactRepository.unsetPrimary(supplierId, organizationId, tx);
+      if (makePrimary) await supplierContactRepository.unsetPrimary(supplierId, siteId, tx);
       return supplierContactRepository.create(
-        organizationId,
+        siteId,
         supplierId,
         {
           name: input.name,
@@ -673,21 +673,21 @@ export const supplierService = {
 
   updateContact: async (actor: Actor, supplierId: string, contactId: string, input: UpdateContactInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
     const updated = await prisma.$transaction(async (tx) => {
-      const existing = await supplierContactRepository.findById(contactId, supplierId, organizationId, tx);
+      const existing = await supplierContactRepository.findById(contactId, supplierId, siteId, tx);
       if (!existing) throw new NotFoundError('Contact not found');
       if (input.isPrimary === false && existing.isPrimary) {
         throw new ConflictError('Make another contact primary instead', 'PRIMARY_CONTACT_REQUIRED');
       }
       if (input.isPrimary === true && !existing.isPrimary) {
-        await supplierContactRepository.unsetPrimary(supplierId, organizationId, tx);
+        await supplierContactRepository.unsetPrimary(supplierId, siteId, tx);
       }
       await supplierContactRepository.update(
         contactId,
         supplierId,
-        organizationId,
+        siteId,
         {
           ...(input.name !== undefined ? { name: input.name } : {}),
           ...(input.role !== undefined ? { role: input.role } : {}),
@@ -698,7 +698,7 @@ export const supplierService = {
         },
         tx,
       );
-      return supplierContactRepository.findById(contactId, supplierId, organizationId, tx);
+      return supplierContactRepository.findById(contactId, supplierId, siteId, tx);
     });
     if (!updated) throw new NotFoundError('Contact not found');
     return serializeContact(updated);
@@ -706,31 +706,31 @@ export const supplierService = {
 
   deleteContact: async (actor: Actor, supplierId: string, contactId: string): Promise<void> => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
-    const existing = await supplierContactRepository.findById(contactId, supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
+    const existing = await supplierContactRepository.findById(contactId, supplierId, siteId);
     if (!existing) throw new NotFoundError('Contact not found');
-    if (existing.isPrimary && (await supplierContactRepository.count(supplierId, organizationId)) > 1) {
+    if (existing.isPrimary && (await supplierContactRepository.count(supplierId, siteId)) > 1) {
       throw new ConflictError('Make another contact primary before deleting this one', 'PRIMARY_CONTACT_REQUIRED');
     }
-    await supplierContactRepository.delete(contactId, supplierId, organizationId);
+    await supplierContactRepository.delete(contactId, supplierId, siteId);
   },
 
   // ── Payment methods (audited) ────────────────────────────────────────────
 
   listPayMethods: async (actor: Actor, supplierId: string) => {
     if (!canSeePaymentDetails(actor)) throw new ForbiddenError('You cannot view supplier payment details');
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    return (await supplierPayMethodRepository.list(supplierId, organizationId)).map(serializePayMethod);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    return (await supplierPayMethodRepository.list(supplierId, siteId)).map(serializePayMethod);
   },
 
   /** The only response that carries the full account number. */
   getPayMethod: async (actor: Actor, supplierId: string, methodId: string) => {
     if (!canSeePaymentDetails(actor)) throw new ForbiddenError('You cannot view supplier payment details');
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    const method = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    const method = await supplierPayMethodRepository.findById(methodId, supplierId, siteId);
     if (!method) throw new NotFoundError('Payment method not found');
     return serializePayMethodDetail(method);
   },
@@ -739,41 +739,41 @@ export const supplierService = {
     if (!actorCan(actor, 'suppliers.write_payment_methods')) {
       throw new ForbiddenError('You cannot edit supplier payment details');
     }
-    const organizationId = await requireHubActor(actor);
-    const supplier = await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, siteId);
     const { isDefault, reason, ...fields } = input;
     const data = toPayData(PayMethodFieldsSchema.parse(fields));
     const isCheque = data.type === 'CHEQUE';
 
     const created = await prisma.$transaction(async (tx) => {
-      const count = await supplierPayMethodRepository.count(supplierId, organizationId, tx);
+      const count = await supplierPayMethodRepository.count(supplierId, siteId, tx);
       const makeDefault = count === 0 || isDefault === true;
       const previousDefault = makeDefault && count > 0
-        ? await supplierPayMethodRepository.findDefault(supplierId, organizationId, tx)
+        ? await supplierPayMethodRepository.findDefault(supplierId, siteId, tx)
         : null;
-      if (makeDefault) await supplierPayMethodRepository.unsetDefault(supplierId, organizationId, tx);
+      if (makeDefault) await supplierPayMethodRepository.unsetDefault(supplierId, siteId, tx);
       const row = await supplierPayMethodRepository.create(
-        organizationId,
+        siteId,
         supplierId,
         actor.id,
         { ...data, isDefault: makeDefault },
         tx,
       );
       await supplierAuditRepository.create(
-        organizationId, supplierId, actor.id, 'PAY_METHOD_CREATED', row.id, null,
+        siteId, supplierId, actor.id, 'PAY_METHOD_CREATED', row.id, null,
         asJson(isCheque ? { ...auditSnapshot(row), summary: 'cheque method added', reason } : { ...auditSnapshot(row), reason }),
         tx,
       );
       if (previousDefault) {
         await supplierAuditRepository.create(
-          organizationId, supplierId, actor.id, 'PAY_METHOD_DEFAULT_CHANGED', row.id,
+          siteId, supplierId, actor.id, 'PAY_METHOD_DEFAULT_CHANGED', row.id,
           { defaultMethodId: previousDefault.id }, { defaultMethodId: row.id }, tx,
         );
       }
       return row;
     });
-    if (isCheque) void notifyAccountantsOfChequeMethod(organizationId, actor, supplier, reason ?? '');
-    else void notifyAccountantsOfPayMethodChange(organizationId, actor, supplier, describePayMethodChange('PAY_METHOD_CREATED', null, auditSnapshot(created)), reason ?? '');
+    if (isCheque) void notifyAccountantsOfChequeMethod(siteId, actor, supplier, reason ?? '');
+    else void notifyAccountantsOfPayMethodChange(siteId, actor, supplier, describePayMethodChange('PAY_METHOD_CREATED', null, auditSnapshot(created)), reason ?? '');
     return serializePayMethod(created);
   },
 
@@ -781,12 +781,12 @@ export const supplierService = {
     if (!actorCan(actor, 'suppliers.write_payment_methods')) {
       throw new ForbiddenError('You cannot edit supplier payment details');
     }
-    const organizationId = await requireHubActor(actor);
-    const supplier = await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, siteId);
 
     let detailsChanged: { summary: string; reason: string } | null = null;
     const updated = await prisma.$transaction(async (tx) => {
-      const existing = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId, tx);
+      const existing = await supplierPayMethodRepository.findById(methodId, supplierId, siteId, tx);
       if (!existing) throw new NotFoundError('Payment method not found');
       if (input.isDefault === false && existing.isDefault) {
         throw new ConflictError('Make another payment method the default instead', 'DEFAULT_METHOD_REQUIRED');
@@ -798,25 +798,25 @@ export const supplierService = {
 
       let previousDefaultId: string | null = null;
       if (isDefault === true && !existing.isDefault) {
-        previousDefaultId = (await supplierPayMethodRepository.findDefault(supplierId, organizationId, tx))?.id ?? null;
-        await supplierPayMethodRepository.unsetDefault(supplierId, organizationId, tx);
+        previousDefaultId = (await supplierPayMethodRepository.findDefault(supplierId, siteId, tx))?.id ?? null;
+        await supplierPayMethodRepository.unsetDefault(supplierId, siteId, tx);
       }
       await supplierPayMethodRepository.update(
-        methodId, supplierId, organizationId, { ...data, ...(isDefault === true ? { isDefault: true } : {}) }, tx,
+        methodId, supplierId, siteId, { ...data, ...(isDefault === true ? { isDefault: true } : {}) }, tx,
       );
-      const after = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId, tx);
+      const after = await supplierPayMethodRepository.findById(methodId, supplierId, siteId, tx);
       if (!after) throw new NotFoundError('Payment method not found');
 
       const summary = describePayMethodChange('PAY_METHOD_UPDATED', auditSnapshot(existing), auditSnapshot(after));
       const detailFieldsSent = Object.values(patch).some((v) => v !== undefined);
       await supplierAuditRepository.create(
-        organizationId, supplierId, actor.id, 'PAY_METHOD_UPDATED', methodId,
+        siteId, supplierId, actor.id, 'PAY_METHOD_UPDATED', methodId,
         asJson(auditSnapshot(existing)), asJson({ ...auditSnapshot(after), ...(reason ? { reason } : {}) }), tx,
       );
       if (detailFieldsSent) detailsChanged = { summary, reason: reason ?? '' };
       if (isDefault === true && !existing.isDefault) {
         await supplierAuditRepository.create(
-          organizationId, supplierId, actor.id, 'PAY_METHOD_DEFAULT_CHANGED', methodId,
+          siteId, supplierId, actor.id, 'PAY_METHOD_DEFAULT_CHANGED', methodId,
           { defaultMethodId: previousDefaultId }, { defaultMethodId: methodId }, tx,
         );
       }
@@ -824,7 +824,7 @@ export const supplierService = {
     });
     if (detailsChanged) {
       const { summary, reason } = detailsChanged as { summary: string; reason: string };
-      void notifyAccountantsOfPayMethodChange(organizationId, actor, supplier, summary, reason);
+      void notifyAccountantsOfPayMethodChange(siteId, actor, supplier, summary, reason);
     }
     return serializePayMethod(updated);
   },
@@ -833,17 +833,17 @@ export const supplierService = {
     if (!actorCan(actor, 'suppliers.write_payment_methods')) {
       throw new ForbiddenError('You cannot edit supplier payment details');
     }
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
     await prisma.$transaction(async (tx) => {
-      const existing = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId, tx);
+      const existing = await supplierPayMethodRepository.findById(methodId, supplierId, siteId, tx);
       if (!existing) throw new NotFoundError('Payment method not found');
-      if (existing.isDefault && (await supplierPayMethodRepository.count(supplierId, organizationId, tx)) > 1) {
+      if (existing.isDefault && (await supplierPayMethodRepository.count(supplierId, siteId, tx)) > 1) {
         throw new ConflictError('Make another payment method the default before deleting this one', 'DEFAULT_METHOD_REQUIRED');
       }
-      await supplierPayMethodRepository.delete(methodId, supplierId, organizationId, tx);
+      await supplierPayMethodRepository.delete(methodId, supplierId, siteId, tx);
       await supplierAuditRepository.create(
-        organizationId, supplierId, actor.id, 'PAY_METHOD_DELETED', methodId, asJson(auditSnapshot(existing)), null, tx,
+        siteId, supplierId, actor.id, 'PAY_METHOD_DELETED', methodId, asJson(auditSnapshot(existing)), null, tx,
       );
     });
   },
@@ -851,9 +851,9 @@ export const supplierService = {
   /** "Who changed these, and when": the payment-method rows of the audit log in plain words, newest first (§30.10). */
   listPayMethodHistory: async (actor: Actor, supplierId: string) => {
     if (!canSeePaymentDetails(actor)) throw new ForbiddenError('You cannot view supplier payment details');
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    const rows = await supplierAuditRepository.listPayMethodChanges(supplierId, organizationId, 50);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    const rows = await supplierAuditRepository.listPayMethodChanges(supplierId, siteId, 50);
     return rows.map((row) => {
       const before = (row.before ?? null) as Record<string, unknown> | null;
       const after = (row.after ?? null) as Record<string, unknown> | null;
@@ -877,27 +877,27 @@ export const supplierService = {
 
   listItems: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    const rows = await supplierItemRepository.list(supplierId, organizationId);
-    return enrichCatalogRows(supplierId, organizationId, rows);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    const rows = await supplierItemRepository.list(supplierId, siteId);
+    return enrichCatalogRows(supplierId, siteId, rows);
   },
 
   /** Add one pack line. The key (supplier, item, buy unit, pack size) must be new — a clash is a 409. */
   addItem: async (actor: Actor, supplierId: string, input: CreateSupplierItemInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    const supplier = await requireSupplier(supplierId, organizationId);
-    const item = await supplierItemLookupRepository.findLiveItem(input.inventoryItemId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, siteId);
+    const item = await supplierItemLookupRepository.findLiveItem(input.inventoryItemId, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
 
     const key = { buyUnit: nullable(input.buyUnit) ?? item.buyUnit, packSize: nullable(input.packSize) };
     const lineId = await prisma
       .$transaction(async (tx) => {
-        const clash = await supplierItemRepository.findByKey(supplierId, input.inventoryItemId, organizationId, key, tx);
+        const clash = await supplierItemRepository.findByKey(supplierId, input.inventoryItemId, siteId, key, tx);
         if (clash) throw packLineExists(supplier.name, clash);
         const created = await supplierItemRepository.createLine(
-          organizationId,
+          siteId,
           supplierId,
           input.inventoryItemId,
           {
@@ -908,12 +908,12 @@ export const supplierService = {
           },
           tx,
         );
-        await applyPreferredChoice(organizationId, actor, supplierId, input.inventoryItemId, created.id, input.isPreferred, tx);
-        await recordLineAdded({ organizationId, actor, supplier, item }, created, input.price, input.isPreferred === true, tx);
+        await applyPreferredChoice(siteId, actor, supplierId, input.inventoryItemId, created.id, input.isPreferred, tx);
+        await recordLineAdded({ siteId, actor, supplier, item }, created, input.price, input.isPreferred === true, tx);
         return created.id;
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
-    return serializeSupplierItem(await requireLine(lineId, supplierId, input.inventoryItemId, organizationId));
+    return serializeSupplierItem(await requireLine(lineId, supplierId, input.inventoryItemId, siteId));
   },
 
   /**
@@ -924,9 +924,9 @@ export const supplierService = {
    */
   putItem: async (actor: Actor, supplierId: string, inventoryItemId: string, input: PutSupplierItemInput) => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    const supplier = await requireSupplier(supplierId, organizationId);
-    const item = await supplierItemLookupRepository.findLiveItem(inventoryItemId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const supplier = await requireSupplier(supplierId, siteId);
+    const item = await supplierItemLookupRepository.findLiveItem(inventoryItemId, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
 
     const namedPack = hasOwn(input, 'buyUnit') || hasOwn(input, 'packSize');
@@ -940,19 +940,19 @@ export const supplierService = {
         let target: SupplierItemRow | null = null;
         let createdLine = false;
         if (input.lineId) {
-          target = await supplierItemRepository.findById(input.lineId, supplierId, inventoryItemId, organizationId, tx);
+          target = await supplierItemRepository.findById(input.lineId, supplierId, inventoryItemId, siteId, tx);
           if (!target) throw new NotFoundError('Catalog line not found');
           const nextKey = {
             buyUnit: input.buyUnit !== undefined ? nullable(input.buyUnit) : target.buyUnit,
             packSize: input.packSize !== undefined ? nullable(input.packSize) : target.packSize,
           };
           if (!sameLineKey(target, nextKey)) {
-            const clash = await supplierItemRepository.findByKey(supplierId, inventoryItemId, organizationId, nextKey, tx);
+            const clash = await supplierItemRepository.findByKey(supplierId, inventoryItemId, siteId, nextKey, tx);
             if (clash && clash.id !== target.id) throw packLineExists(supplier.name, clash);
           }
           await supplierItemRepository.updateLine(
             target.id,
-            organizationId,
+            siteId,
             {
               ...fields,
               ...(input.buyUnit !== undefined ? { buyUnit: nullable(input.buyUnit) } : {}),
@@ -962,12 +962,12 @@ export const supplierService = {
           );
         } else if (namedPack) {
           const key = { buyUnit: nullable(input.buyUnit) ?? item.buyUnit, packSize: nullable(input.packSize) };
-          target = await supplierItemRepository.findByKey(supplierId, inventoryItemId, organizationId, key, tx);
+          target = await supplierItemRepository.findByKey(supplierId, inventoryItemId, siteId, key, tx);
           if (target) {
-            await supplierItemRepository.updateLine(target.id, organizationId, fields, tx);
+            await supplierItemRepository.updateLine(target.id, siteId, fields, tx);
           } else {
             target = await supplierItemRepository.createLine(
-              organizationId,
+              siteId,
               supplierId,
               inventoryItemId,
               { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: key.buyUnit, packSize: key.packSize },
@@ -976,13 +976,13 @@ export const supplierService = {
             createdLine = true;
           }
         } else {
-          const [oldest] = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], organizationId, tx);
+          const [oldest] = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], siteId, tx);
           if (oldest) {
-            target = await supplierItemRepository.findById(oldest.id, supplierId, inventoryItemId, organizationId, tx);
-            if (Object.keys(fields).length > 0) await supplierItemRepository.updateLine(oldest.id, organizationId, fields, tx);
+            target = await supplierItemRepository.findById(oldest.id, supplierId, inventoryItemId, siteId, tx);
+            if (Object.keys(fields).length > 0) await supplierItemRepository.updateLine(oldest.id, siteId, fields, tx);
           } else {
             target = await supplierItemRepository.createLine(
-              organizationId,
+              siteId,
               supplierId,
               inventoryItemId,
               { supplierItemName: null, supplierItemCode: null, ...fields, buyUnit: item.buyUnit, packSize: null },
@@ -992,22 +992,22 @@ export const supplierService = {
           }
         }
         if (!target) throw new NotFoundError('Catalog line not found');
-        const lineCtx = { organizationId, actor, supplier, item };
+        const lineCtx = { siteId, actor, supplier, item };
         if (createdLine) await recordLineAdded(lineCtx, target, input.price, input.isPreferred === true, tx);
         else if (input.price !== undefined) await recordPriceSet(lineCtx, target, input.price, tx);
-        await applyPreferredChoice(organizationId, actor, supplierId, inventoryItemId, target.id, input.isPreferred, tx);
+        await applyPreferredChoice(siteId, actor, supplierId, inventoryItemId, target.id, input.isPreferred, tx);
         return target.id;
       })
       .catch((error: unknown) => mapPrismaError(error, { conflict: PACK_LINE_RACE }));
-    return serializeSupplierItem(await requireLine(lineId, supplierId, inventoryItemId, organizationId));
+    return serializeSupplierItem(await requireLine(lineId, supplierId, inventoryItemId, siteId));
   },
 
   deleteItem: async (actor: Actor, supplierId: string, inventoryItemId: string, lineId?: string): Promise<void> => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
     await prisma.$transaction(async (tx) => {
-      const lines = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], organizationId, tx);
+      const lines = await supplierItemRepository.listBySupplierItems(supplierId, [inventoryItemId], siteId, tx);
       if (lines.length === 0 || (lineId && !lines.some((l) => l.id === lineId))) {
         throw new NotFoundError('Catalog row not found');
       }
@@ -1018,8 +1018,8 @@ export const supplierService = {
           { lineIds: lines.map((l) => l.id) },
         );
       }
-      await supplierItemRepository.clearPreferredIfSupplier(organizationId, inventoryItemId, supplierId, tx, lineId);
-      await supplierItemRepository.delete(supplierId, inventoryItemId, organizationId, tx, lineId);
+      await supplierItemRepository.clearPreferredIfSupplier(siteId, inventoryItemId, supplierId, tx, lineId);
+      await supplierItemRepository.delete(supplierId, inventoryItemId, siteId, tx, lineId);
     });
   },
 
@@ -1029,14 +1029,14 @@ export const supplierService = {
    */
   listPackMismatches: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    const flagged = await goodsReceiptRepository.findPackNotOnFileLines(supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    const flagged = await goodsReceiptRepository.findPackNotOnFileLines(supplierId, siteId);
     if (flagged.length === 0) return [];
     const lines = await supplierItemRepository.listBySupplierItems(
       supplierId,
       [...new Set(flagged.map((f) => f.inventoryItemId))],
-      organizationId,
+      siteId,
     );
     return flagged
       .filter((f) => !matchSupplierLine(lines.filter((l) => l.inventoryItemId === f.inventoryItemId), { buyUnit: f.packBuyUnit, packSize: f.packSize }))
@@ -1058,13 +1058,13 @@ export const supplierService = {
   /** Timeline (receipts, invoices, payments, disputes) mixed with uploads, newest first. */
   listDocuments: async (actor: Actor, supplierId: string, limit: number) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
     const [receipts, invoices, payments, uploads] = await Promise.all([
-      supplierHistoryRepository.signedReceipts(supplierId, organizationId, limit),
-      supplierHistoryRepository.invoices(supplierId, organizationId, limit),
-      supplierHistoryRepository.payments(supplierId, organizationId, limit),
-      supplierDocumentRepository.list(supplierId, organizationId, limit),
+      supplierHistoryRepository.signedReceipts(supplierId, siteId, limit),
+      supplierHistoryRepository.invoices(supplierId, siteId, limit),
+      supplierHistoryRepository.payments(supplierId, siteId, limit),
+      supplierDocumentRepository.list(supplierId, siteId, limit),
     ]);
 
     const entries = [
@@ -1091,8 +1091,8 @@ export const supplierService = {
     if (!actorCan(actor, 'suppliers.upload_documents')) {
       throw new ForbiddenError('You cannot upload supplier documents');
     }
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
 
     if (!file) throw new ValidationError('A file is required');
     if (file.size > MAX_SUPPLIER_DOCUMENT_BYTES || file.buffer.length > MAX_SUPPLIER_DOCUMENT_BYTES) {
@@ -1102,19 +1102,19 @@ export const supplierService = {
     if (!detected) {
       throw new UnprocessableEntityError('Only images (JPEG, PNG, WebP) and PDFs are accepted', 'FILE_TYPE_NOT_ALLOWED');
     }
-    if (input.goodsReceiptId && !(await supplierDocumentRepository.receiptBelongs(input.goodsReceiptId, supplierId, organizationId))) {
+    if (input.goodsReceiptId && !(await supplierDocumentRepository.receiptBelongs(input.goodsReceiptId, supplierId, siteId))) {
       throw new NotFoundError('Goods receipt not found for this supplier');
     }
-    if (input.supplierInvoiceId && !(await supplierDocumentRepository.invoiceBelongs(input.supplierInvoiceId, supplierId, organizationId))) {
+    if (input.supplierInvoiceId && !(await supplierDocumentRepository.invoiceBelongs(input.supplierInvoiceId, supplierId, siteId))) {
       throw new NotFoundError('Supplier invoice not found for this supplier');
     }
 
     const storage = getDocumentStorage();
     const id = randomUUID();
-    const objectKey = `org/${organizationId}/suppliers/${supplierId}/${randomUUID()}`;
+    const objectKey = `org/${siteId}/suppliers/${supplierId}/${randomUUID()}`;
     await storage.putObject(objectKey, file.buffer, detected);
     try {
-      const created = await supplierDocumentRepository.create(organizationId, supplierId, {
+      const created = await supplierDocumentRepository.create(siteId, supplierId, {
         id,
         objectKey,
         fileName: sanitizeFileName(file.originalname),
@@ -1137,9 +1137,9 @@ export const supplierService = {
   /** Signed URL only — same org and supplier check as the supplier itself. */
   getDocumentDownload: async (actor: Actor, supplierId: string, docId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
-    const doc = await supplierDocumentRepository.findById(docId, supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
+    const doc = await supplierDocumentRepository.findById(docId, supplierId, siteId);
     if (!doc) throw new NotFoundError('Document not found');
     const signed = await getDocumentStorage().getSignedUrl(doc.objectKey, {
       expiresInSeconds: SIGNED_URL_TTL_SECONDS,
@@ -1150,11 +1150,11 @@ export const supplierService = {
 
   deleteDocument: async (actor: Actor, supplierId: string, docId: string): Promise<void> => {
     requireWriteAccess(actor);
-    const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
-    const doc = await supplierDocumentRepository.findById(docId, supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    await requireSupplier(supplierId, siteId);
+    const doc = await supplierDocumentRepository.findById(docId, supplierId, siteId);
     if (!doc) throw new NotFoundError('Document not found');
-    await supplierDocumentRepository.delete(docId, supplierId, organizationId);
+    await supplierDocumentRepository.delete(docId, supplierId, siteId);
     await getDocumentStorage()
       .deleteObject(doc.objectKey)
       .catch((error: unknown) => logger.error({ err: error, docId }, 'Failed to delete supplier document object'));
@@ -1165,8 +1165,8 @@ export const supplierService = {
   /** The strip above the suppliers list: active, on hold, profile not finished, owed (§29.3). */
   getListSummary: async (actor: Actor) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    const suppliers = await supplierStripRepository.listForStrip(organizationId);
+    const siteId = await requireHubReader(actor);
+    const suppliers = await supplierStripRepository.listForStrip(siteId);
     let owed = new Prisma.Decimal(0);
     let suppliersOwed = 0;
     for (const supplier of suppliers) {
@@ -1188,10 +1188,10 @@ export const supplierService = {
   /** The strip on a supplier's Catalog tab: items they sell, price alerts, last receipt, spend over 90 days (§29.3). */
   getCatalogSummary: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
     const since = new Date(Date.now() - 90 * 86_400_000);
-    const strip = await supplierStripRepository.catalogStrip(supplierId, organizationId, since);
+    const strip = await supplierStripRepository.catalogStrip(supplierId, siteId, since);
     return {
       itemsTheySell: strip.itemsTheySell,
       priceAlerts: strip.recent.reduce((n, r) => n + r.lines.filter((l) => l.priceAlertPct !== null).length, 0),
@@ -1202,11 +1202,11 @@ export const supplierService = {
 
   getSummary: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);
-    const organizationId = await requireHubReader(actor);
-    await requireSupplier(supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    await requireSupplier(supplierId, siteId);
     const [receipts, invoices] = await Promise.all([
-      supplierHistoryRepository.summaryReceipts(supplierId, organizationId),
-      supplierHistoryRepository.summaryInvoices(supplierId, organizationId),
+      supplierHistoryRepository.summaryReceipts(supplierId, siteId),
+      supplierHistoryRepository.summaryInvoices(supplierId, siteId),
     ]);
 
     let totalSpend = new Prisma.Decimal(0);

@@ -90,6 +90,8 @@ Why this shape: the client asked for Workforce to be prioritised, and no Workfor
 
 ## Company and Branch foundation
 
+**Status: built on branch `chore/company-site-foundation`, awaiting the owner's "merge" and a fresh production backup (Oct 2026).** Done: the `Company` table (one row, "Wendo Coffee Bistro"), `SiteType` (`BRANCH` | `CENTRAL_STORE`, kept in step with `isHub`), and the in-code rename `Organization` → `Site`, `organizationId` → `siteId` (database names unchanged; API, socket and token names unchanged through one translation layer, `backend/src/shared/utils/wire-names.ts`). Also fixed on the way: Prisma could not see `prisma/migrations` after the schema split, so migrations now live in `backend/prisma/schema/migrations/`. Still open for the multi-company readiness pass: everything under "What it does and does not give you" below, plus renaming the frontend names module by module as each is rebuilt, and finance's `branchId` fields (kept as `branchId`; they mean a branch, not the owning site).
+
 Brief for the session: [sessions/foundation-company-site-rename.md](sessions/foundation-company-site-rename.md). The recommended names are `Site` / `siteId` (the Central Store is never a branch), with API and frontend names unchanged until each module is rebuilt; the owner confirms the names at the start of that session.
 
 Today the database table `Organization` is really a branch (it holds a branch's address, coordinates and M-Pesa paybill, plus an `isHub` flag for the Central Store). Nothing represents Wendo Coffee Bistro as one company. `organizationId` appears about 3,050 times in 197 backend files and in 186 places in the schema.

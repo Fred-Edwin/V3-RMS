@@ -9,6 +9,38 @@ describe('Branch routes', () => {
     vi.restoreAllMocks();
   });
 
+  it('GET /api/v1/branches keeps the original shape: no companyId or type on the wire', async () => {
+    vi.spyOn(branchService, 'listBranches').mockResolvedValue([
+      {
+        id: 'branch-1',
+        companyId: 'company-1',
+        type: 'BRANCH',
+        name: 'Wendo Town',
+        address: 'Town',
+        city: 'Nyeri',
+        latitude: '0' as unknown as never,
+        longitude: '0' as unknown as never,
+        phone: null,
+        mpesaPaybill: null,
+        accountNumber: null,
+        googleReviewUrl: null,
+        kraPIN: null,
+        isHub: false,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    const token = signAccessToken({ userId: 'dir-1', role: 'DIRECTOR', siteId: 'org-1' });
+
+    const response = await request(app).get('/api/v1/branches').set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0]).not.toHaveProperty('companyId');
+    expect(response.body.data[0]).not.toHaveProperty('type');
+    expect(response.body.data[0].name).toBe('Wendo Town');
+  });
+
   it('POST /api/v1/branches allows SYSTEM_ADMIN', async () => {
     vi.spyOn(branchService, 'createBranch').mockResolvedValue({
       id: 'branch-1',
@@ -25,7 +57,7 @@ describe('Branch routes', () => {
     const token = signAccessToken({
       userId: 'sa-1',
       role: 'SYSTEM_ADMIN',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -46,7 +78,7 @@ describe('Branch routes', () => {
     const token = signAccessToken({
       userId: 'waiter-1',
       role: 'WAITER',
-      organizationId: 'org-1',
+      siteId: 'org-1',
     });
 
     const response = await request(app)
@@ -79,7 +111,7 @@ describe('Branch routes', () => {
     const token = signAccessToken({
       userId: 'director-1',
       role: 'DIRECTOR',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -108,7 +140,7 @@ describe('Branch routes', () => {
     const token = signAccessToken({
       userId: 'director-1',
       role: 'DIRECTOR',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app).get('/api/v1/branches').set('Authorization', `Bearer ${token}`);
@@ -139,7 +171,7 @@ describe('Branch routes', () => {
     const token = signAccessToken({
       userId: 'director-1',
       role: 'DIRECTOR',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -157,7 +189,7 @@ describe('Branch routes', () => {
     expect(response.body.data.kraPIN).toBe('P051234567A');
     expect(updateSpy).toHaveBeenCalledWith(
       branchId,
-      expect.objectContaining({ role: 'DIRECTOR', organizationId: null }),
+      expect.objectContaining({ role: 'DIRECTOR', siteId: null }),
       {
         phone: '0707242987',
         mpesaPaybill: '522522',

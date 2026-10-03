@@ -8,7 +8,7 @@ const changeInclude = { changedBy: { select: { id: true, name: true } } } satisf
 export type ItemChangeRow = Prisma.InventoryItemChangeGetPayload<{ include: typeof changeInclude }>;
 
 export interface RecordItemChange {
-  organizationId: string;
+  siteId: string;
   inventoryItemId: string;
   kind: InventoryItemChangeKind;
   summary: string;
@@ -26,7 +26,7 @@ export const itemChangeRepository = {
   record: (client: Client, data: RecordItemChange): Promise<{ id: string }> =>
     client.inventoryItemChange.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         inventoryItemId: data.inventoryItemId,
         kind: data.kind,
         summary: data.summary,
@@ -39,19 +39,19 @@ export const itemChangeRepository = {
     }),
 
   /** Newest first. */
-  list: (inventoryItemId: string, organizationId: string, limit: number): Promise<ItemChangeRow[]> =>
+  list: (inventoryItemId: string, siteId: string, limit: number): Promise<ItemChangeRow[]> =>
     prisma.inventoryItemChange.findMany({
-      where: { inventoryItemId, organizationId },
+      where: { inventoryItemId, siteId },
       include: changeInclude,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit,
     }),
 
   /** Live items created since `since` whose creator was a Store Attendant ("1 added by an attendant"). */
-  countAttendantCreatedSince: (organizationId: string, since: Date): Promise<number> =>
+  countAttendantCreatedSince: (siteId: string, since: Date): Promise<number> =>
     prisma.inventoryItemChange.count({
       where: {
-        organizationId,
+        siteId,
         kind: 'CREATED',
         changedBy: { role: 'STORE_ATTENDANT' },
         inventoryItem: { deletedAt: null, createdAt: { gte: since } },

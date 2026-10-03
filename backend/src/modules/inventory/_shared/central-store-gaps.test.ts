@@ -24,7 +24,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 vi.mock('../catalog/inventory-repository', () => ({
   categoryRepository: {},
   inventoryItemRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findLiveByName: vi.fn(),
     create: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock('../suppliers/supplier-repository', () => ({
 }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn() },
 }));
 const tx = { marker: 'tx' };
 vi.mock('../../../config/database', () => ({
@@ -78,18 +78,18 @@ const userId = '99999999-9999-4999-8999-999999999991';
 const catId = '55555555-5555-4555-8555-555555555555';
 const newEntryId = '88888888-8888-4888-8888-888888888889';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'att1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-const kitchenHead = { id: 'dh1', role: 'CHEF' as const, organizationId: townOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'att1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+const kitchenHead = { id: 'dh1', role: 'CHEF' as const, siteId: townOrgId, isDepartmentHead: true, departmentTag: 'KITCHEN' as const };
 
 const hubOrg = { id: hubOrgId, name: 'Wendo Central Kitchen', isHub: true, isActive: true };
 const townOrg = { id: townOrgId, name: 'Nyeri Town', isHub: false, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
-const townKitchen = { id: townKitchenId, organizationId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'KITCHEN' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const townKitchen = { id: townKitchenId, siteId: townOrgId, type: 'BRANCH_DEPARTMENT' as const, departmentTag: 'KITCHEN' as const };
 
 const buildItem = (overrides: Record<string, unknown> = {}) => ({
   id: itemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Brown sugar',
   type: 'STOCKED' as const,
   categoryId: catId,
@@ -115,10 +115,10 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(branchRepository.findById).mockImplementation(async (id: string) => (id === townOrgId ? (townOrg as never) : id === hubOrgId ? (hubOrg as never) : null));
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockImplementation(async (org: string, _t: unknown, tag: string) =>
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockImplementation(async (org: string, _t: unknown, tag: string) =>
     org === townOrgId && tag === 'KITCHEN' ? (townKitchen as never) : org === townOrgId && tag === 'PASTRY' ? ({ ...townKitchen, id: townPastryId, departmentTag: 'PASTRY' } as never) : null,
   );
-  vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [], total: 0 } as never);
+  vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [], total: 0 } as never);
   vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([]);
   vi.mocked(inventoryItemRepository.countCreatedSince).mockResolvedValue(0);
   vi.mocked(inventoryItemRepository.countLiveByType).mockResolvedValue({ STOCKED: 0, RAW_INGREDIENT: 0, PREPPED: 0 });
@@ -150,34 +150,34 @@ describe('catalog list: filters, sort and counts (§30.1)', () => {
   it('lowOrOut=true lists only the Central Store items below their level', async () => {
     lowAndOutSetup();
     await inventoryService.listItems(storeManager, { ...listQuery, lowOrOut: true });
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[0]![1]).toMatchObject({ onlyIds: [itemId] });
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[0]![1]).toMatchObject({ onlyIds: [itemId] });
   });
 
   it('lowOrOut with needsSetup lists items in both, and none when they do not overlap', async () => {
     lowAndOutSetup();
     vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([itemId, itemC]);
     await inventoryService.listItems(storeManager, { ...listQuery, lowOrOut: true, needsSetup: true });
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[0]![1]).toMatchObject({ onlyIds: [itemId] });
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[0]![1]).toMatchObject({ onlyIds: [itemId] });
 
     vi.mocked(inventoryItemRepository.findNeedsSetupIds).mockResolvedValue([itemC]);
     await inventoryService.listItems(storeManager, { ...listQuery, lowOrOut: true, needsSetup: true });
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[1]![1]).toMatchObject({ onlyIds: [] });
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[1]![1]).toMatchObject({ onlyIds: [] });
   });
 
   it('only the Store Manager may filter by restock level', async () => {
     await expect(inventoryService.listItems(attendant, { ...listQuery, lowOrOut: true })).rejects.toThrow(ForbiddenError);
-    expect(inventoryItemRepository.findAllByOrganization).not.toHaveBeenCalled();
+    expect(inventoryItemRepository.findAllBySite).not.toHaveBeenCalled();
   });
 
   it('passes the sort through, and leaves it unset when none was asked for', async () => {
     await inventoryService.listItems(storeManager, { ...listQuery, sort: 'newest' });
     await inventoryService.listItems(storeManager, listQuery);
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[0]![1]).toMatchObject({ sort: 'newest' });
-    expect(vi.mocked(inventoryItemRepository.findAllByOrganization).mock.calls[1]![1].sort).toBeUndefined();
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[0]![1]).toMatchObject({ sort: 'newest' });
+    expect(vi.mocked(inventoryItemRepository.findAllBySite).mock.calls[1]![1].sort).toBeUndefined();
   });
 
   it('rows carry their supplier count, and meta carries the type counts and the attendant count', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem(), buildItem({ id: itemB, name: 'Flour' })], total: 2 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem(), buildItem({ id: itemB, name: 'Flour' })], total: 2 } as never);
     vi.mocked(inventoryItemRepository.countSuppliersByItem).mockResolvedValue(new Map([[itemId, 2]]));
     vi.mocked(inventoryItemRepository.countLiveByType).mockResolvedValue({ STOCKED: 61, RAW_INGREDIENT: 54, PREPPED: 33 });
     vi.mocked(itemChangeRepository.countAttendantCreatedSince).mockResolvedValue(1);
@@ -190,7 +190,7 @@ describe('catalog list: filters, sort and counts (§30.1)', () => {
   });
 
   it('the attendant sees the supplier count and the type counts, but still no money', async () => {
-    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.findAllBySite).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
     vi.mocked(inventoryItemRepository.countSuppliersByItem).mockResolvedValue(new Map([[itemId, 3]]));
     const { data, meta } = await inventoryService.listItems(attendant, listQuery);
     expect(data[0]).toMatchObject({ supplierCount: 3 });
@@ -287,7 +287,7 @@ describe('usual price on create (§30.2)', () => {
     expect(itemChangeRepository.record).toHaveBeenCalledTimes(1);
     const [client, row] = vi.mocked(itemChangeRepository.record).mock.calls[0]!;
     expect(client).toBe(tx);
-    expect(row).toMatchObject({ kind: 'CREATED', summary: 'created the item', inventoryItemId: itemId, changedById: 'sm1', organizationId: hubOrgId });
+    expect(row).toMatchObject({ kind: 'CREATED', summary: 'created the item', inventoryItemId: itemId, changedById: 'sm1', siteId: hubOrgId });
     expect(row.after).toMatchObject({ name: 'Brown sugar', usualPrice: '8900' });
   });
 
@@ -376,7 +376,7 @@ describe('GET /items/:id/history (§30.4)', () => {
 describe('restock level history and put back (§30.5)', () => {
   const changeRow = (overrides: Record<string, unknown> = {}) => ({
     id: changeId,
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     locationId: centralStoreId,
     inventoryItemId: itemId,
     oldLevel: new Prisma.Decimal('150'),
@@ -385,7 +385,7 @@ describe('restock level history and put back (§30.5)', () => {
     createdAt: new Date('2026-10-12T10:20:00Z'),
     changedBy: { id: userId, name: 'Isabel Njoki' },
     inventoryItem: { id: itemId, name: 'Sugar, white', usageUnit: 'kg', deletedAt: null },
-    location: { id: centralStoreId, type: 'CENTRAL_STORE', organizationId: hubOrgId },
+    location: { id: centralStoreId, type: 'CENTRAL_STORE', siteId: hubOrgId },
     ...overrides,
   });
 
@@ -473,7 +473,7 @@ describe('restock level history and put back (§30.5)', () => {
 
       // Their own department's change works, at their branch org.
       vi.mocked(restockChangeRepository.findById).mockResolvedValue(
-        changeRow({ organizationId: townOrgId, locationId: townKitchenId, location: { id: townKitchenId, type: 'BRANCH_DEPARTMENT', organizationId: townOrgId } }) as never,
+        changeRow({ siteId: townOrgId, locationId: townKitchenId, location: { id: townKitchenId, type: 'BRANCH_DEPARTMENT', siteId: townOrgId } }) as never,
       );
       await inventoryService.putBackRestockLevel(kitchenHead, changeId, {});
       expect(vi.mocked(restockLevelRepository.bulkUpsert).mock.calls[0]!.slice(0, 3)).toEqual([townOrgId, townKitchenId, 'dh1']);
@@ -483,7 +483,7 @@ describe('restock level history and put back (§30.5)', () => {
 
     it('a Store Manager may put back at a branch department', async () => {
       vi.mocked(restockChangeRepository.findById).mockResolvedValue(
-        changeRow({ organizationId: townOrgId, locationId: townKitchenId, location: { id: townKitchenId, type: 'BRANCH_DEPARTMENT', organizationId: townOrgId } }) as never,
+        changeRow({ siteId: townOrgId, locationId: townKitchenId, location: { id: townKitchenId, type: 'BRANCH_DEPARTMENT', siteId: townOrgId } }) as never,
       );
       await inventoryService.putBackRestockLevel(storeManager, changeId, {});
       expect(vi.mocked(restockLevelRepository.bulkUpsert).mock.calls[0]!.slice(0, 3)).toEqual([townOrgId, townKitchenId, 'sm1']);

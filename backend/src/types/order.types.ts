@@ -98,7 +98,7 @@ export interface SplitPaymentLineRecord {
 
 export interface OrderRecord {
   id: string;
-  organizationId: string;
+  siteId: string;
   dailyNumber: number;
   orderDate: string;
   type: OrderType;
@@ -146,14 +146,14 @@ export interface CreateOrderItemWithPriceDto {
 }
 
 export interface CreatePrepTicketDto {
-  organizationId: string;
+  siteId: string;
   station: PrepStation;
   status: PrepTicketStatus;
   items: PrepTicketItemSnapshot[];
 }
 
 export interface CreateOrderWithTicketsDto {
-  organizationId: string;
+  siteId: string;
   orderDate: Date;
   type: OrderType;
   status: OrderStatus;

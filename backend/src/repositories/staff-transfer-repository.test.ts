@@ -41,15 +41,15 @@ describe('staffTransferRepository.create — Q4 (department head transferred bet
 
     await staffTransferRepository.create({
       userId: 'user-1',
-      fromOrganizationId: 'org-a',
-      toOrganizationId: 'org-b',
+      fromSiteId: 'org-a',
+      toSiteId: 'org-b',
       authorizedById: 'director-1',
     });
 
     expect(mocks.userUpdate).toHaveBeenCalledWith({
       where: { id: 'user-1' },
       data: {
-        organizationId: 'org-b',
+        siteId: 'org-b',
         isDepartmentHead: false,
         departmentTag: null,
       },
@@ -66,14 +66,14 @@ describe('staffTransferRepository.create — Q4 (department head transferred bet
 
     await staffTransferRepository.create({
       userId: 'user-2',
-      fromOrganizationId: 'org-a',
-      toOrganizationId: 'org-b',
+      fromSiteId: 'org-a',
+      toSiteId: 'org-b',
       authorizedById: 'director-1',
     });
 
     expect(mocks.userUpdate).toHaveBeenCalledWith({
       where: { id: 'user-2' },
-      data: { organizationId: 'org-b' },
+      data: { siteId: 'org-b' },
     });
   });
 });

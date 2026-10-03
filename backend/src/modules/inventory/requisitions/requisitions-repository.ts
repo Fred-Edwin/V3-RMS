@@ -64,7 +64,7 @@ export type RequisitionHistoryRowData = Requisition & {
 };
 
 export type CreateRequisitionInput = {
-  organizationId: string;
+  siteId: string;
   type: string;
   note?: string;
   openedById: string;
@@ -79,7 +79,7 @@ export const requisitionRepository = {
     return prisma.$transaction(async (tx) => {
       return tx.requisition.create({
         data: {
-          organizationId: input.organizationId,
+          siteId: input.siteId,
           type: input.type as never,
           note: input.note ?? null,
           openedById: input.openedById,
@@ -101,18 +101,18 @@ export const requisitionRepository = {
    * enough section data for the service to derive `mySectionStatus` — never
    * other departments' full section detail.
    */
-  findAllByOrganization: async (organizationId: string, limit: number): Promise<RequisitionWithMySection[]> => {
+  findAllBySite: async (siteId: string, limit: number): Promise<RequisitionWithMySection[]> => {
     const { start, end } = getTodayNairobiRangeUtc();
     return prisma.requisition.findMany({
-      where: { organizationId, openedAt: { gte: start, lt: end } },
+      where: { siteId, openedAt: { gte: start, lt: end } },
       include: { sections: { select: { departmentTag: true, status: true } } },
       orderBy: { openedAt: 'desc' },
       take: limit,
     });
   },
 
-  findById: async (id: string, organizationId: string, client: Client = prisma): Promise<Requisition | null> => {
-    return client.requisition.findFirst({ where: { id, organizationId } });
+  findById: async (id: string, siteId: string, client: Client = prisma): Promise<Requisition | null> => {
+    return client.requisition.findFirst({ where: { id, siteId } });
   },
 
   /**
@@ -125,10 +125,10 @@ export const requisitionRepository = {
    * FKs are `ON DELETE RESTRICT` throughout (lines -> sections ->
    * requisition), so deletion order matters here.
    */
-  cancel: async (id: string, organizationId: string): Promise<boolean> => {
+  cancel: async (id: string, siteId: string): Promise<boolean> => {
     return prisma.$transaction(async (tx) => {
       const requisition = await tx.requisition.findFirst({
-        where: { id, organizationId },
+        where: { id, siteId },
         include: { sections: { select: { id: true, status: true } } },
       });
       if (!requisition) return false;
@@ -158,11 +158,11 @@ export const requisitionRepository = {
   findSectionWithLines: async (
     requisitionId: string,
     departmentTag: DepartmentTag,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<RequisitionSectionWithLines | null> => {
     return client.requisitionSection.findFirst({
-      where: { requisitionId, departmentTag, requisition: { organizationId } },
+      where: { requisitionId, departmentTag, requisition: { siteId } },
       include: {
         requisition: { select: { id: true, status: true } },
         lines: {
@@ -186,11 +186,11 @@ export const requisitionRepository = {
   findSectionById: async (
     requisitionId: string,
     departmentTag: DepartmentTag,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<RequisitionSection | null> => {
     return client.requisitionSection.findFirst({
-      where: { requisitionId, departmentTag, requisition: { organizationId } },
+      where: { requisitionId, departmentTag, requisition: { siteId } },
     });
   },
 
@@ -248,11 +248,11 @@ export const requisitionRepository = {
    */
   findByIdWithAllSections: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     client: Client = prisma,
   ): Promise<RequisitionWithAllSections | null> => {
     return client.requisition.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: {
         approvedBy: { select: { id: true, name: true } },
         sections: { include: approvalSectionInclude, orderBy: { departmentTag: 'asc' } },
@@ -261,10 +261,10 @@ export const requisitionRepository = {
   },
 
   /** Manager's needs-approval list: today's requisitions, section+line shape only (totals/counts derived by the service). */
-  findAllByOrganizationForManager: async (organizationId: string, limit: number): Promise<RequisitionForManagerList[]> => {
+  findAllBySiteForManager: async (siteId: string, limit: number): Promise<RequisitionForManagerList[]> => {
     const { start, end } = getTodayNairobiRangeUtc();
     return prisma.requisition.findMany({
-      where: { organizationId, openedAt: { gte: start, lt: end } },
+      where: { siteId, openedAt: { gte: start, lt: end } },
       include: {
         sections: {
           select: { status: true, lines: { where: { deletedAt: null }, select: { requestedQty: true, approvedQty: true } } },
@@ -331,11 +331,11 @@ export const requisitionRepository = {
    * `receiving-repository.ts` `findHistoryRows`.
    */
   findHistoryRows: async (
-    organizationId: string,
+    siteId: string,
     filters: { from?: Date; to?: Date; status?: RequisitionDisplayStatus; limit: number; cursor?: string },
   ): Promise<RequisitionHistoryRowData[]> => {
     const where: Prisma.RequisitionWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.from || filters.to
         ? { openedAt: { ...(filters.from ? { gte: filters.from } : {}), ...(filters.to ? { lte: filters.to } : {}) } }
         : {}),
@@ -365,9 +365,9 @@ export const requisitionRepository = {
     });
   },
 
-  findBranchManagers: async (organizationId: string): Promise<{ id: string; name: string }[]> => {
+  findBranchManagers: async (siteId: string): Promise<{ id: string; name: string }[]> => {
     return prisma.user.findMany({
-      where: { organizationId, role: 'MANAGER', isActive: true },
+      where: { siteId, role: 'MANAGER', isActive: true },
       select: { id: true, name: true },
     });
   },
@@ -378,7 +378,7 @@ export const requisitionRepository = {
    * DRAFT section has no submitter yet).
    */
   findSectionHeads: async (
-    organizationId: string,
+    siteId: string,
     departmentTag: DepartmentTag,
     submittedById: string | null,
   ): Promise<{ id: string; name: string }[]> => {
@@ -387,7 +387,7 @@ export const requisitionRepository = {
       return submitter ? [submitter] : [];
     }
     return prisma.user.findMany({
-      where: { organizationId, departmentTag, isDepartmentHead: true, isActive: true },
+      where: { siteId, departmentTag, isDepartmentHead: true, isActive: true },
       select: { id: true, name: true },
     });
   },

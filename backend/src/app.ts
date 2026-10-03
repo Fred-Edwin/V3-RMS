@@ -7,6 +7,7 @@ import { env } from './config/env';
 import { requestLogger } from './middleware/request-logger';
 import { notFound } from './middleware/not-found';
 import { errorHandler } from './middleware/error-handler';
+import { wireNames } from './middleware/wire-names';
 
 export const app = express();
 
@@ -28,6 +29,7 @@ app.use(
   }),
 );
 
+app.use(wireNames);
 app.use(env.API_PREFIX, apiRouter);
 app.use(notFound);
 app.use(errorHandler);

@@ -8,15 +8,15 @@ import { prisma } from '../config/database';
  * this repository will grow filters (e.g. by department) then, not before.
  */
 export const locationRepository = {
-  findAllByOrganization: async (organizationId: string): Promise<Location[]> => {
+  findAllBySite: async (siteId: string): Promise<Location[]> => {
     return prisma.location.findMany({
-      where: { organizationId, isActive: true },
+      where: { siteId, isActive: true },
       orderBy: { name: 'asc' },
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<Location | null> => {
-    return prisma.location.findFirst({ where: { id, organizationId } });
+  findById: async (id: string, siteId: string): Promise<Location | null> => {
+    return prisma.location.findFirst({ where: { id, siteId } });
   },
 
   // Deliberately unscoped: the single-Central-Store invariant is system-wide,
@@ -26,18 +26,18 @@ export const locationRepository = {
     return prisma.location.findFirst({ where: { type: 'CENTRAL_STORE' } });
   },
 
-  createCentralStore: async (organizationId: string, name: string): Promise<Location> => {
+  createCentralStore: async (siteId: string, name: string): Promise<Location> => {
     return prisma.location.create({
-      data: { organizationId, type: 'CENTRAL_STORE', name },
+      data: { siteId, type: 'CENTRAL_STORE', name },
     });
   },
 
   /** Phase 2: the single BRANCH_DEPARTMENT location for a (branch org, department). */
-  findByOrganizationTypeDepartment: async (
-    organizationId: string,
+  findBySiteTypeDepartment: async (
+    siteId: string,
     type: LocationType,
     departmentTag: DepartmentTag,
   ): Promise<Location | null> => {
-    return prisma.location.findFirst({ where: { organizationId, type, departmentTag } });
+    return prisma.location.findFirst({ where: { siteId, type, departmentTag } });
   },
 };

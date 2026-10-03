@@ -251,8 +251,8 @@ describe('supplierService — updating the address', () => {
 });
 
 describe('supplierService — who may do what (the Central Store permissions table)', () => {
-  const branchManager = { id: 'bm1', role: 'MANAGER' as never, organizationId: otherOrgId };
-  const systemAdmin = { id: 'adm1', role: 'SYSTEM_ADMIN' as never, organizationId: null };
+  const branchManager = { id: 'bm1', role: 'MANAGER' as never, siteId: otherOrgId };
+  const systemAdmin = { id: 'adm1', role: 'SYSTEM_ADMIN' as never, siteId: null };
 
   it('lets the Branch Manager read a supplier from a branch, without its payment methods', async () => {
     const detail = (await supplierService.getSupplierById(branchManager, supplierId)) as { paymentMethods: unknown[]; paymentMethodCount: number; name: string };
@@ -290,7 +290,7 @@ describe('supplierService — who may do what (the Central Store permissions tab
   });
 
   it('still refuses a Store Manager standing on a branch organization for a write (D-15)', async () => {
-    await expect(supplierService.updateSupplier({ ...storeManager, organizationId: otherOrgId }, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
+    await expect(supplierService.updateSupplier({ ...storeManager, siteId: otherOrgId }, supplierId, { address: 'x' })).rejects.toThrow(ForbiddenError);
   });
 
   it('gives the attendant only the stripped list and the quick add', async () => {
@@ -593,7 +593,7 @@ describe('supplierService — catalog, pack lines and preferred sync', () => {
   it('add-one is an owner-hub, Store Manager action', async () => {
     await expect(supplierService.addItem(attendant, supplierId, { inventoryItemId: itemId })).rejects.toThrow(ForbiddenError);
     await expect(
-      supplierService.addItem({ ...storeManager, organizationId: otherOrgId }, supplierId, { inventoryItemId: itemId }),
+      supplierService.addItem({ ...storeManager, siteId: otherOrgId }, supplierId, { inventoryItemId: itemId }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -788,16 +788,16 @@ describe('supplierService — pack mismatches (B4 surface)', () => {
   it('is closed to attendants and other organisations', async () => {
     await expect(supplierService.listPackMismatches(attendant, supplierId)).rejects.toThrow(ForbiddenError);
     await expect(
-      supplierService.listPackMismatches({ ...storeManager, organizationId: otherOrgId }, supplierId),
+      supplierService.listPackMismatches({ ...storeManager, siteId: otherOrgId }, supplierId),
     ).rejects.toThrow(ForbiddenError);
   });
 });
 
 describe('supplierService — roles and scope', () => {
   it('attendants get the stripped list, limited to ACTIVE suppliers', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(attendant, { page: 1, perPage: 20, includeRetired: true, status: 'ARCHIVED' });
-    expect(vi.mocked(supplierRepository.findAllByOrganization).mock.calls[0]![1].status).toBe('ACTIVE');
+    expect(vi.mocked(supplierRepository.findAllBySite).mock.calls[0]![1].status).toBe('ACTIVE');
     expect(Object.keys(data[0]!).sort()).toEqual(['code', 'id', 'name', 'primaryPhone', 'type']);
   });
 
@@ -825,7 +825,7 @@ describe('supplierService — roles and scope', () => {
 
   it('non-hub actors are refused', async () => {
     await expect(
-      supplierService.getSupplierById({ ...storeManager, organizationId: otherOrgId }, supplierId),
+      supplierService.getSupplierById({ ...storeManager, siteId: otherOrgId }, supplierId),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -844,7 +844,7 @@ describe('supplierService — roles and scope', () => {
   });
 
   it('every repository call is scoped by the hub organizationId', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     vi.mocked(supplierContactRepository.list).mockResolvedValue([buildContact()] as never);
     vi.mocked(supplierPayMethodRepository.list).mockResolvedValue([buildPayMethod()] as never);
     vi.mocked(supplierPayMethodRepository.findById).mockResolvedValue(buildPayMethod() as never);
@@ -949,7 +949,7 @@ describe('supplierService — hand-set price and item history (§30.3, §30.4)',
     );
     expect(itemChangeRepository.record).toHaveBeenCalledTimes(1);
     const record = vi.mocked(itemChangeRepository.record).mock.calls[0]![1];
-    expect(record).toMatchObject({ kind: 'SUPPLIER_ADDED', inventoryItemId: itemId, changedById: 'sm1', organizationId: hubOrgId });
+    expect(record).toMatchObject({ kind: 'SUPPLIER_ADDED', inventoryItemId: itemId, changedById: 'sm1', siteId: hubOrgId });
     expect(record.summary).toMatch(/^added .+ \(bag of 50 kg\) at KES 8,900 per bag, preferred$/);
   });
 
@@ -1017,7 +1017,7 @@ describe('supplierService.listSuppliers — profile and owed on each row', () =>
   });
 
   it('adds profileDone and owedAmount, counting only invoices with a balance', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     vi.mocked(supplierStripRepository.listForStripByIds).mockResolvedValue([stripFor(buildSupplierRow().id)] as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     // name, type, phone, address, contact person pass; no payment details, no KRA PIN.
@@ -1030,24 +1030,24 @@ describe('supplierService.listSuppliers — profile and owed on each row', () =>
       stripFor('unfinished'),
       stripFor('finished', { kraPin: 'P1', _count: { payMethods: 1 } }),
     ] as never);
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [], total: 0 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [], total: 0 } as never);
     await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false, profileNotFinished: true });
-    expect(vi.mocked(supplierRepository.findAllByOrganization).mock.calls[0]![1].ids).toEqual(['unfinished']);
+    expect(vi.mocked(supplierRepository.findAllBySite).mock.calls[0]![1].ids).toEqual(['unfinished']);
   });
 
   it('a supplier with no strip row reads 0 of 7 and nothing owed rather than failing the list', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     expect(data[0]).toMatchObject({ profileDone: 0, owedAmount: '0.00' });
   });
 
   it('attendants get neither figure and never trigger the profile lookup', async () => {
-    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierRepository.findAllBySite).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(attendant, { page: 1, perPage: 20, includeRetired: false, profileNotFinished: true });
     expect(JSON.stringify(data)).not.toMatch(/profileDone|owedAmount/);
     expect(supplierStripRepository.listForStrip).not.toHaveBeenCalled();
     expect(supplierStripRepository.listForStripByIds).not.toHaveBeenCalled();
-    expect(vi.mocked(supplierRepository.findAllByOrganization).mock.calls[0]![1].ids).toBeUndefined();
+    expect(vi.mocked(supplierRepository.findAllBySite).mock.calls[0]![1].ids).toBeUndefined();
   });
 });
 

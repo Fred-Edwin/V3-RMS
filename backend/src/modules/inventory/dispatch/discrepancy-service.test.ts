@@ -39,7 +39,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn() },
 }));
 
 vi.mock('../../../repositories/auth-repository', () => ({
@@ -85,12 +85,12 @@ const dispatchId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const departmentLocationId = '99999999-9999-4999-8999-999999999999';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const branchManager = { id: 'bm1', role: 'MANAGER' as const, organizationId: branchOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const branchManager = { id: 'bm1', role: 'MANAGER' as const, siteId: branchOrgId };
 
 const hubOrg = { id: hubOrgId, name: 'Central Kitchen', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
-const departmentLocation = { id: departmentLocationId, organizationId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const departmentLocation = { id: departmentLocationId, siteId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
 
 const buildDiscrepancy = (overrides: Record<string, unknown> = {}) => ({
   id: discrepancyId,
@@ -114,9 +114,9 @@ const buildDiscrepancy = (overrides: Record<string, unknown> = {}) => ({
       id: dispatchId,
       sequenceLabel: 'Dispatch 1 · Nyeri Town · 22 Sep',
       departmentTag: 'KITCHEN',
-      organizationId: hubOrgId,
-      toOrganizationId: branchOrgId,
-      toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+      siteId: hubOrgId,
+      toSiteId: branchOrgId,
+      toSite: { id: branchOrgId, name: 'Nyeri Town' },
     },
   },
   resolvedBy: null,
@@ -128,7 +128,7 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(branchRepository.findActiveBranchIds).mockResolvedValue([branchOrgId]);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(departmentLocation as never);
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(departmentLocation as never);
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: storeManager.id, pinHash: 'hash' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(discrepancyRepository.findByIdForHub).mockResolvedValue(buildDiscrepancy() as never);
@@ -189,7 +189,7 @@ describe('discrepancyService.resolveDiscrepancy — TRANSIT_LOSS_WRITEOFF', () =
 
     expect(txInventoryTransactionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ type: 'ADJUSTMENT', locationId: centralStoreId, organizationId: hubOrgId }),
+        data: expect.objectContaining({ type: 'ADJUSTMENT', locationId: centralStoreId, siteId: hubOrgId }),
       }),
     );
     const call = txInventoryTransactionCreate.mock.calls[0]![0].data;
@@ -238,7 +238,7 @@ describe('discrepancyService.resolveDiscrepancy — MISCOUNT_CORRECTED', () => {
 
     expect(txInventoryTransactionCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ type: 'ADJUSTMENT', locationId: departmentLocationId, organizationId: branchOrgId }),
+        data: expect.objectContaining({ type: 'ADJUSTMENT', locationId: departmentLocationId, siteId: branchOrgId }),
       }),
     );
     const call = txInventoryTransactionCreate.mock.calls[0]![0].data;
@@ -269,7 +269,7 @@ describe('discrepancyService.resolveDiscrepancy — MISCOUNT_CORRECTED', () => {
   });
 
   it('no branch department location configured throws ValidationError', async () => {
-    vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(null);
+    vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(null);
     await expect(
       discrepancyService.resolveDiscrepancy(storeManager, discrepancyId, { outcome: 'MISCOUNT_CORRECTED', resolutionNote: 'note', pin: '1234' }),
     ).rejects.toThrow(ValidationError);

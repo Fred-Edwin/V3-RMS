@@ -25,11 +25,11 @@ export const customerDiscountAuthController = {
   /** GET /orders/:orderId/customer-discount-auth — fetch pending request for an order */
   getPendingByOrderId: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError('Authentication required');
-    if (!req.user.organizationId) throw new UnauthorizedError('Branch context required');
+    if (!req.user.siteId) throw new UnauthorizedError('Branch context required');
     const { orderId } = orderIdParamSchema.parse(req.params);
     const result = await customerDiscountAuthService.getPendingByOrderId(
       orderId,
-      req.user.organizationId,
+      req.user.siteId,
     );
     res.status(200).json({ success: true, data: result });
   },

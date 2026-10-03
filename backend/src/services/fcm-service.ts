@@ -32,7 +32,7 @@ export const fcmService = {
    * Runs fire-and-forget — does not block order creation.
    */
   sendNewOrderPush: async (
-    organizationId: string,
+    siteId: string,
     payload: NewOrderPushPayload,
   ): Promise<void> => {
     try {
@@ -40,7 +40,7 @@ export const fcmService = {
         return;
       }
 
-      const tokens = await authRepository.findFcmTokensByStation(organizationId, payload.station);
+      const tokens = await authRepository.findFcmTokensByStation(siteId, payload.station);
       if (tokens.length === 0) {
         return;
       }
@@ -76,7 +76,7 @@ export const fcmService = {
         },
       });
     } catch (error) {
-      logger.warn({ error, organizationId, orderId: payload.orderId }, 'Failed to send new order FCM push');
+      logger.warn({ error, siteId, orderId: payload.orderId }, 'Failed to send new order FCM push');
     }
   },
 
@@ -164,7 +164,7 @@ export const fcmService = {
    * Runs fire-and-forget — does not block the background job.
    */
   sendStaleOrdersPush: async (
-    organizationId: string,
+    siteId: string,
     staleCount: number,
   ): Promise<void> => {
     try {
@@ -172,7 +172,7 @@ export const fcmService = {
         return;
       }
 
-      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER', 'DIRECTOR']);
+      const tokens = await authRepository.findFcmTokensByRole(siteId, ['MANAGER', 'DIRECTOR']);
       if (tokens.length === 0) {
         return;
       }
@@ -186,7 +186,7 @@ export const fcmService = {
             body: `${staleCount} order${staleCount > 1 ? 's were' : ' was'} left open from yesterday`,
             icon: '/android-chrome-192x192.png',
             badge: '/android-chrome-192x192.png',
-            tag: `stale-orders-${organizationId}`,
+            tag: `stale-orders-${siteId}`,
           },
           fcmOptions: {
             link: '/app/orders',
@@ -194,7 +194,7 @@ export const fcmService = {
         },
       });
     } catch (error) {
-      logger.warn({ error, organizationId }, 'Failed to send stale orders FCM push');
+      logger.warn({ error, siteId }, 'Failed to send stale orders FCM push');
     }
   },
 
@@ -234,7 +234,7 @@ export const fcmService = {
    * Used so managers are notified even when the app is in the background.
    */
   sendHouseAccountAuthPushToManagers: async (
-    organizationId: string,
+    siteId: string,
     payload: { orderId: string; dailyNumber: number; amount: string },
   ): Promise<void> => {
     try {
@@ -242,7 +242,7 @@ export const fcmService = {
         return;
       }
 
-      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      const tokens = await authRepository.findFcmTokensByRole(siteId, ['MANAGER']);
       if (tokens.length === 0) {
         return;
       }
@@ -268,7 +268,7 @@ export const fcmService = {
         ),
       );
     } catch (error) {
-      logger.warn({ error, organizationId }, 'Failed to send house account auth push to managers');
+      logger.warn({ error, siteId }, 'Failed to send house account auth push to managers');
     }
   },
 
@@ -773,12 +773,12 @@ export const fcmService = {
 
   /** Notifies the branch's Managers a requisition is awaiting their approval. Fire-and-forget. */
   sendRequisitionSubmittedPush: async (
-    organizationId: string,
+    siteId: string,
     payload: { requisitionId: string; departmentTag: string },
   ): Promise<void> => {
     try {
       if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      const tokens = await authRepository.findFcmTokensByRole(siteId, ['MANAGER']);
       if (tokens.length === 0) return;
 
       await firebaseMessaging.sendEachForMulticast({
@@ -924,12 +924,12 @@ export const fcmService = {
 
   /** Notifies the Central Store roles a delivery was received with a variance. Fire-and-forget. */
   sendReceiptVariancePush: async (
-    hubOrganizationId: string,
+    hubSiteId: string,
     payload: { dispatchId: string; itemCount: number },
   ): Promise<void> => {
     try {
       if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findFcmTokensByRole(hubOrganizationId, [
+      const tokens = await authRepository.findFcmTokensByRole(hubSiteId, [
         'STORE_MANAGER',
         'STORE_ATTENDANT',
       ]);
@@ -986,12 +986,12 @@ export const fcmService = {
 
   /** Notifies the Central Store's Store Manager(s) a daily count awaits verification. Fire-and-forget. */
   sendCountSubmittedPush: async (
-    hubOrganizationId: string,
+    hubSiteId: string,
     payload: { countId: string; reference: string; counterName: string; countedLines: number },
   ): Promise<void> => {
     try {
       if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findFcmTokensByRole(hubOrganizationId, ['STORE_MANAGER']);
+      const tokens = await authRepository.findFcmTokensByRole(hubSiteId, ['STORE_MANAGER']);
       if (tokens.length === 0) return;
 
       await firebaseMessaging.sendEachForMulticast({
@@ -1089,12 +1089,12 @@ export const fcmService = {
 
   /** Next-morning opening — an overnight variance at or above the branch's alert amount (plan §3). */
   sendOvernightVarianceAlertPush: async (
-    organizationId: string,
+    siteId: string,
     payload: { dayId: string; departmentName: string; alertLineCount: number; largestValueKes: string },
   ): Promise<void> => {
     try {
       if (!firebaseMessaging || !env.VAPID_KEY) return;
-      const tokens = await authRepository.findFcmTokensByRole(organizationId, ['MANAGER']);
+      const tokens = await authRepository.findFcmTokensByRole(siteId, ['MANAGER']);
       if (tokens.length === 0) return;
 
       await firebaseMessaging.sendEachForMulticast({

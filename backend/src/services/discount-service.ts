@@ -12,7 +12,7 @@ const serialize = (
   if (!raw) throw new NotFoundError('Discount not found');
   return {
     id: raw.id,
-    organizationId: raw.organizationId,
+    siteId: raw.siteId,
     name: raw.name,
     type: raw.type,
     value: raw.value.toString(),
@@ -36,9 +36,9 @@ export const discountService = {
       const records = await discountRepository.findAll(false);
       return records.map(serialize);
     }
-    if (!actor.organizationId) return [];
+    if (!actor.siteId) return [];
     const activeOnly = actor.role !== 'MANAGER';
-    const records = await discountRepository.findByBranch(actor.organizationId, activeOnly);
+    const records = await discountRepository.findByBranch(actor.siteId, activeOnly);
     return records.map(serialize);
   },
 
@@ -48,7 +48,7 @@ export const discountService = {
    */
   create: async (
     data: {
-      organizationId: string | null | undefined;
+      siteId: string | null | undefined;
       name: string;
       type: 'PERCENTAGE' | 'FIXED_AMOUNT';
       value: number;
@@ -63,7 +63,7 @@ export const discountService = {
     // When organizationId is provided, verify it's the actor's hub or a branch under their org
     // For now we trust the Director to pass a valid branch UUID or null for all-branches
     const discount = await discountRepository.create({
-      organizationId: data.organizationId ?? null,
+      siteId: data.siteId ?? null,
       name: data.name,
       type: data.type,
       value: data.value.toString(),
@@ -81,7 +81,7 @@ export const discountService = {
   update: async (
     discountId: string,
     data: {
-      organizationId?: string | null;
+      siteId?: string | null;
       name?: string;
       type?: 'PERCENTAGE' | 'FIXED_AMOUNT';
       value?: number;
@@ -101,7 +101,7 @@ export const discountService = {
     const updated = await discountRepository.update(discountId, {
       ...rest,
       ...(rawValue !== undefined ? { value: rawValue.toString() } : {}),
-    }, actor.organizationId);
+    }, actor.siteId);
 
     logger.info({ discountId, actorId: actor.id }, 'Discount updated');
     return serialize(updated);
@@ -118,7 +118,7 @@ export const discountService = {
     const existing = await discountRepository.findById(discountId);
     if (!existing) throw new NotFoundError('Discount not found');
 
-    const updated = await discountRepository.deactivate(discountId, actor.organizationId);
+    const updated = await discountRepository.deactivate(discountId, actor.siteId);
     logger.info({ discountId, actorId: actor.id }, 'Discount deactivated');
     return serialize(updated);
   },

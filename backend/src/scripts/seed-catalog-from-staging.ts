@@ -124,11 +124,11 @@ const maskAccount = (n: string | null | undefined): string | null => (n ? `â€¢â€
 const dec = (n: number | null | undefined): Prisma.Decimal | null =>
   n === null || n === undefined ? null : new Prisma.Decimal(n);
 
-const nextSupplierCode = async (tx: Prisma.TransactionClient, organizationId: string): Promise<string> => {
+const nextSupplierCode = async (tx: Prisma.TransactionClient, siteId: string): Promise<string> => {
   const counter = await tx.referenceCounter.upsert({
-    where: { organizationId_prefix: { organizationId, prefix: 'SUPPLIER' } },
+    where: { siteId_prefix: { siteId, prefix: 'SUPPLIER' } },
     update: { lastNumber: { increment: 1 } },
-    create: { organizationId, prefix: 'SUPPLIER', lastNumber: 1 },
+    create: { siteId, prefix: 'SUPPLIER', lastNumber: 1 },
     select: { lastNumber: true },
   });
   return `SUPPLIER-${String(counter.lastNumber).padStart(4, '0')}`;
@@ -137,16 +137,16 @@ const nextSupplierCode = async (tx: Prisma.TransactionClient, organizationId: st
 const load = async (data: Staging): Promise<void> => {
   await prisma.$transaction(
     async (tx) => {
-      const hub = await tx.organization.findFirst({ where: { isHub: true }, select: { id: true, name: true } });
+      const hub = await tx.site.findFirst({ where: { isHub: true }, select: { id: true, name: true } });
       if (!hub) throw new Error('No hub organization found. Run seed-dev.ts / the org seed first.');
-      const organizationId = hub.id;
+      const siteId = hub.id;
 
       const actorEmail = process.env['SEED_ACTOR_EMAIL'];
       const actor = actorEmail
-        ? await tx.user.findUnique({ where: { email: actorEmail }, select: { id: true, email: true, organizationId: true } })
+        ? await tx.user.findUnique({ where: { email: actorEmail }, select: { id: true, email: true, siteId: true } })
         : await tx.user.findFirst({
-            where: { organizationId, role: 'STORE_MANAGER', isActive: true },
-            select: { id: true, email: true, organizationId: true },
+            where: { siteId, role: 'STORE_MANAGER', isActive: true },
+            select: { id: true, email: true, siteId: true },
           });
       if (!actor) throw new Error('No Store Manager on the hub org. Set SEED_ACTOR_EMAIL to an existing user.');
       console.log(`Hub org: ${hub.name}\nActor (created-by): ${actor.email}\n`);
@@ -155,7 +155,7 @@ const load = async (data: Staging): Promise<void> => {
       const categoryId = new Map<string, string>();
       const ensureCategory = async (name: string, parentId: string | null): Promise<string> => {
         const found = await tx.category.findFirst({
-          where: { organizationId, name: { equals: name, mode: 'insensitive' }, deletedAt: null },
+          where: { siteId, name: { equals: name, mode: 'insensitive' }, deletedAt: null },
           select: { id: true },
         });
         if (found) {
@@ -164,7 +164,7 @@ const load = async (data: Staging): Promise<void> => {
           return found.id;
         }
         const created = await tx.category.create({
-          data: { organizationId, name, parentCategoryId: parentId },
+          data: { siteId, name, parentCategoryId: parentId },
           select: { id: true },
         });
         report.created.categories += 1;
@@ -180,7 +180,7 @@ const load = async (data: Staging): Promise<void> => {
       const supplierId = new Map<string, string>();
       for (const [key, s] of Object.entries(data.suppliers)) {
         const found = await tx.supplier.findFirst({
-          where: { organizationId, name: { equals: s.name, mode: 'insensitive' }, deletedAt: null },
+          where: { siteId, name: { equals: s.name, mode: 'insensitive' }, deletedAt: null },
           select: { id: true },
         });
         if (found) {
@@ -192,8 +192,8 @@ const load = async (data: Staging): Promise<void> => {
         if (!catId) report.warnings.push(`Supplier ${s.name}: category "${s.category}" not found`);
         const created = await tx.supplier.create({
           data: {
-            organizationId,
-            code: await nextSupplierCode(tx, organizationId),
+            siteId,
+            code: await nextSupplierCode(tx, siteId),
             name: s.name,
             tradingName: s.tradingName ?? null,
             type: s.type,
@@ -215,14 +215,14 @@ const load = async (data: Staging): Promise<void> => {
         if (s.phone || s.email) {
           // No named person appears on any document, so the contact carries the business name.
           await tx.supplierContact.create({
-            data: { organizationId, supplierId: created.id, name: s.name, role: 'OTHER', phone: s.phone, email: s.email, isPrimary: true },
+            data: { siteId, supplierId: created.id, name: s.name, role: 'OTHER', phone: s.phone, email: s.email, isPrimary: true },
           });
           report.created.contacts += 1;
         }
         for (const m of s.payMethods) {
           const pm = await tx.supplierPayMethod.create({
             data: {
-              organizationId,
+              siteId,
               supplierId: created.id,
               type: m.type,
               bankName: m.bankName ?? null,
@@ -238,7 +238,7 @@ const load = async (data: Staging): Promise<void> => {
           });
           await tx.supplierAuditLog.create({
             data: {
-              organizationId,
+              siteId,
               supplierId: created.id,
               action: 'PAY_METHOD_CREATED',
               entityId: pm.id,
@@ -254,7 +254,7 @@ const load = async (data: Staging): Promise<void> => {
       // ---- items and supplier lines ----
       for (const it of data.items) {
         const found = await tx.inventoryItem.findFirst({
-          where: { organizationId, name: { equals: it.name, mode: 'insensitive' }, deletedAt: null },
+          where: { siteId, name: { equals: it.name, mode: 'insensitive' }, deletedAt: null },
           select: { id: true },
         });
         let itemId: string;
@@ -267,7 +267,7 @@ const load = async (data: Staging): Promise<void> => {
           const preferred = it.lines.find((l) => l.preferred);
           const created = await tx.inventoryItem.create({
             data: {
-              organizationId,
+              siteId,
               name: it.name,
               type: it.type,
               categoryId: catId ?? null,
@@ -294,7 +294,7 @@ const load = async (data: Staging): Promise<void> => {
           // A line is (supplier, item, buy unit, pack size); matches the supplier_items_line_key index.
           const existing = await tx.supplierItem.findFirst({
             where: {
-              organizationId,
+              siteId,
               supplierId: sId,
               inventoryItemId: itemId,
               buyUnit: l.buyUnit,
@@ -310,7 +310,7 @@ const load = async (data: Staging): Promise<void> => {
           let isPreferred = l.preferred;
           if (isPreferred) {
             const already = await tx.supplierItem.findFirst({
-              where: { organizationId, inventoryItemId: itemId, isPreferred: true },
+              where: { siteId, inventoryItemId: itemId, isPreferred: true },
               select: { id: true },
             });
             if (already) {
@@ -320,7 +320,7 @@ const load = async (data: Staging): Promise<void> => {
           }
           await tx.supplierItem.create({
             data: {
-              organizationId,
+              siteId,
               supplierId: sId,
               inventoryItemId: itemId,
               supplierItemName: l.theirName,

@@ -17,7 +17,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
   req.user = {
     id: payload.userId,
     role: payload.role,
-    organizationId: payload.organizationId,
+    siteId: payload.siteId,
     departmentTag: payload.departmentTag,
     isDepartmentHead: payload.isDepartmentHead ?? false,
   };

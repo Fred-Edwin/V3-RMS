@@ -48,8 +48,8 @@ const ZERO = new Prisma.Decimal(0);
 
 const requireBranchManager = (actor: Actor): string => {
   if (actor.role !== 'MANAGER' || actor.isDepartmentHead) throw new ForbiddenError('Only the Branch Manager works the branch day');
-  if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
-  return actor.organizationId;
+  if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
+  return actor.siteId;
 };
 
 /** Verifies the actor's PIN and returns their display name (Actor carries no name). */
@@ -72,8 +72,8 @@ const endOfBusinessDay = (businessDate: Date): Date | undefined => {
 
 const requireDepartmentHead = (actor: Actor): { branchOrgId: string; tag: DepartmentTag } => {
   if (!actor.isDepartmentHead || !actor.departmentTag) throw new ForbiddenError('Only a department head opens their department');
-  if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
-  return { branchOrgId: actor.organizationId, tag: actor.departmentTag };
+  if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
+  return { branchOrgId: actor.siteId, tag: actor.departmentTag };
 };
 
 /** Everything needed to derive a department's view, loaded once per request. */
@@ -90,8 +90,8 @@ type Context = {
 const buildContext = async (day: BranchDayFull): Promise<Context> => {
   const [hubOrgId, thresholds, dispatches] = await Promise.all([
     requireHubOrgId(),
-    getBranchThresholdsInForce(day.organizationId),
-    branchDayRepository.inTransitDispatches(day.organizationId),
+    getBranchThresholdsInForce(day.siteId),
+    branchDayRepository.inTransitDispatches(day.siteId),
   ]);
   const blocking = new Map<DepartmentTag, { id: string; sequenceLabel: string }[]>();
   for (const d of dispatches) {
@@ -101,7 +101,7 @@ const buildContext = async (day: BranchDayFull): Promise<Context> => {
   }
   return {
     hubOrgId,
-    branchOrgId: day.organizationId,
+    branchOrgId: day.siteId,
     reasonRequiredKes: thresholds.reasonRequiredKes,
     blocking,
     dayLineIds: day.departments.flatMap((d) => d.lines.map((l) => l.id)),
@@ -241,7 +241,7 @@ const getOrCreateToday = async (branchOrgId: string): Promise<BranchDayFull> => 
     await prisma.$transaction(async (tx) => {
       const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'DAY');
       await branchDayRepository.createDay(tx, {
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         businessDate: today,
         reference,
         locations: locations.map((l) => ({ id: l.id, tag: l.departmentTag! })),
@@ -293,7 +293,7 @@ const buildOverview = async (day: BranchDayFull, branchOrgId: string): Promise<B
     reference: day.reference,
     date: formatDateOnly(day.businessDate),
     status: day.status,
-    branchName: day.organization.name,
+    branchName: day.site.name,
     closedAt: day.closedAt?.toISOString() ?? null,
     closedBy: day.closedBy,
     reopenCount: day.reopenCount,
@@ -400,7 +400,7 @@ const recomputeNextMorningOpenings = async (
     for (const original of standing) {
       const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
       await branchDayRepository.writeAdjustment(tx, {
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         locationId: original.locationId,
         inventoryItemId: original.inventoryItemId,
         quantity: original.quantity.negated(),
@@ -420,7 +420,7 @@ const recomputeNextMorningOpenings = async (
       if (variance.isZero()) continue;
       const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
       await branchDayRepository.writeAdjustment(tx, {
-        organizationId: branchOrgId,
+        siteId: branchOrgId,
         locationId: opening.locationId,
         inventoryItemId: line.inventoryItemId,
         quantity: variance,
@@ -540,7 +540,7 @@ export const branchDayService = {
       for (const original of active) {
         const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
         await branchDayRepository.writeAdjustment(tx, {
-          organizationId: branchOrgId,
+          siteId: branchOrgId,
           locationId: original.locationId,
           inventoryItemId: original.inventoryItemId,
           quantity: original.quantity.negated(),
@@ -561,7 +561,7 @@ export const branchDayService = {
           const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
           const label = line.reason ? GAP_REASON_LABEL[line.reason] : 'End-of-day count';
           await branchDayRepository.writeAdjustment(tx, {
-            organizationId: branchOrgId,
+            siteId: branchOrgId,
             locationId: dept.locationId,
             inventoryItemId: line.inventoryItemId,
             quantity: variance,
@@ -589,7 +589,7 @@ export const branchDayService = {
       void fcmService.sendBranchDayDirectorAlertPush({
         dayId: day.id,
         reference: day.reference,
-        branchName: day.organization.name,
+        branchName: day.site.name,
         alertLineCount: alertValues.length,
         largestValueKes: toMoney(largest.abs()),
       });
@@ -633,9 +633,9 @@ export const branchDayService = {
       id: day.id,
       reference: day.reference,
       date: formatDateOnly(day.businessDate),
-      branchName: day.organization.name,
-      branchAddress: `${day.organization.address}, ${day.organization.city}`,
-      branchPhone: day.organization.phone,
+      branchName: day.site.name,
+      branchAddress: `${day.site.address}, ${day.site.city}`,
+      branchPhone: day.site.phone,
       openedAt: day.createdAt.toISOString(),
       closedAt: day.closedAt.toISOString(),
       closedBy: day.closedBy,
@@ -695,7 +695,7 @@ export const branchDayService = {
       reference: day.reference,
       date: formatDateOnly(day.businessDate),
       status: day.status,
-      branchName: day.organization.name,
+      branchName: day.site.name,
       closedAt: day.closedAt?.toISOString() ?? null,
       closedBy: day.closedBy,
       reopenCount: day.reopenCount,
@@ -772,7 +772,7 @@ export const branchDayService = {
           if (w.overnightVariance.isZero()) continue;
           const reference = await referenceCounterRepository.nextReference(tx, branchOrgId, 'ADJ');
           await branchDayRepository.writeAdjustment(tx, {
-            organizationId: branchOrgId,
+            siteId: branchOrgId,
             locationId: dept.locationId,
             inventoryItemId: w.inventoryItemId,
             quantity: w.overnightVariance,

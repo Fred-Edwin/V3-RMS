@@ -24,7 +24,7 @@ import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, Valida
 
 vi.mock('./receiving-repository', () => ({
   expectedDeliveryRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     cancel: vi.fn(),
@@ -33,7 +33,7 @@ vi.mock('./receiving-repository', () => ({
     findHistoryRows: vi.fn(),
   },
   goodsReceiptRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
@@ -61,7 +61,7 @@ vi.mock('./receiving-repository', () => ({
     createAdjustment: vi.fn(),
     updateStatus: vi.fn(),
     findAllBySupplier: vi.fn(),
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
   },
   supplierPaymentRepository: {
     findById: vi.fn(),
@@ -139,15 +139,15 @@ const supplierId = '66666666-6666-4666-8666-666666666666';
 const itemId = '44444444-4444-4444-8444-444444444444';
 const deliveryId = '88888888-8888-4888-8888-888888888888';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: branchOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const storeAttendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+const nonHubStoreManager = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: branchOrgId };
 
 const hubOrg = { id: hubOrgId, name: 'Central Store', isHub: true, isActive: true };
 
 const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Samrat Supermarket Ltd',
   code: 'SUPPLIER-0001',
   tradingName: null,
@@ -168,7 +168,7 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
 
 const buildItem = (overrides: Record<string, unknown> = {}) => ({
   id: itemId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   name: 'Milk 500ml',
   buyUnit: 'crate',
   usageUnit: 'unit',
@@ -202,7 +202,7 @@ const buildGoodsReceiptLine = (overrides: Record<string, unknown> = {}) => ({
 
 const buildGoodsReceipt = (overrides: Record<string, unknown> = {}) => ({
   id: goodsReceiptId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   reference: 'GRN-0001',
   supplierId,
   supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -225,13 +225,13 @@ const buildGoodsReceipt = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const centralStore = { id: 'central-store-1', organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const centralStore = { id: 'central-store-1', siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
 
 const actorWithPin = (overrides: Record<string, unknown> = {}) => ({
   id: 'sm1',
   name: 'Joseph Mwangi',
   role: 'STORE_MANAGER' as const,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   passwordHash: 'hashed-password',
   pinHash: 'hashed-pin',
   ...overrides,
@@ -239,7 +239,7 @@ const actorWithPin = (overrides: Record<string, unknown> = {}) => ({
 
 const buildDelivery = (overrides: Record<string, unknown> = {}) => ({
   id: deliveryId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   reference: 'EXP-0001',
   supplierId,
   supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
@@ -279,9 +279,9 @@ describe('receivingService — D-15 hub scoping', () => {
   });
 
   it('rejects cross-org access even when the id exists at another org', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([]);
     await receivingService.listExpectedDeliveries(storeManager, { limit: 25 });
-    expect(expectedDeliveryRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
+    expect(expectedDeliveryRepository.findAllBySite).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 });
 
@@ -361,7 +361,7 @@ describe('receivingService.createExpectedDelivery — optional supplier (AMENDME
 
 describe('receivingService — "No supplier" rendering (AMENDMENT 2026-09-17)', () => {
   it('ExpectedDeliverySummary carries null supplierId/supplierName/paymentTerms when unassigned', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([
       buildDelivery({ supplierId: null, supplier: null, paymentTerms: null }),
     ] as never);
 
@@ -403,7 +403,7 @@ describe('receivingService — "No supplier" rendering (AMENDMENT 2026-09-17)', 
 
 describe('receivingService — STORE_ATTENDANT money omission', () => {
   it('omits estimatedTotal for STORE_ATTENDANT but not STORE_MANAGER', async () => {
-    vi.mocked(expectedDeliveryRepository.findAllByOrganization).mockResolvedValue([buildDelivery()] as never);
+    vi.mocked(expectedDeliveryRepository.findAllBySite).mockResolvedValue([buildDelivery()] as never);
 
     const managerView = await receivingService.listExpectedDeliveries(storeManager, { limit: 25 });
     const attendantView = await receivingService.listExpectedDeliveries(storeAttendant, { limit: 25 });
@@ -415,8 +415,8 @@ describe('receivingService — STORE_ATTENDANT money omission', () => {
 
 describe('receivingService.getPurchasingSummary', () => {
   beforeEach(() => {
-    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([]);
-    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findAllBySite).mockResolvedValue([]);
+    vi.mocked(supplierInvoiceRepository.findAllBySite).mockResolvedValue([]);
   });
 
   it('computes the expected tile for real; awaitingInvoice/owed are real derivations by S7', async () => {
@@ -444,7 +444,7 @@ describe('receivingService.getPurchasingSummary', () => {
     vi.mocked(expectedDeliveryRepository.countOverdue).mockResolvedValue(0);
     const now = new Date();
     const oldDueDate = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
-    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([
+    vi.mocked(supplierInvoiceRepository.findAllBySite).mockResolvedValue([
       {
         id: 'inv1',
         supplierId,
@@ -798,7 +798,7 @@ describe('receivingService.signGoodsReceipt', () => {
         unitCost: expect.anything(),
         goodsReceiptLineId: 'grline1',
         userId: storeManager.id,
-        organizationId: hubOrgId,
+        siteId: hubOrgId,
       }),
     });
     expect(txInventoryItemUpdate).toHaveBeenCalledTimes(1);
@@ -1031,10 +1031,10 @@ describe('receivingService.signGoodsReceipt', () => {
 
 describe('receivingService.listGoodsReceipts / getGoodsReceipt', () => {
   it('lists receipts scoped to the hub org', async () => {
-    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([buildGoodsReceipt()] as never);
+    vi.mocked(goodsReceiptRepository.findAllBySite).mockResolvedValue([buildGoodsReceipt()] as never);
     const result = await receivingService.listGoodsReceipts(storeManager, { limit: 25 });
     expect(result).toHaveLength(1);
-    expect(goodsReceiptRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
+    expect(goodsReceiptRepository.findAllBySite).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 
   it('404s on an unknown id', async () => {
@@ -1047,7 +1047,7 @@ describe('receivingService.listGoodsReceipts / getGoodsReceipt', () => {
 // S7 — Supplier invoices, payments, what-we-owe reads.
 // ---------------------------------------------------------------------------
 
-const accountant = { id: 'acc1', role: 'ACCOUNTANT' as const, organizationId: hubOrgId };
+const accountant = { id: 'acc1', role: 'ACCOUNTANT' as const, siteId: hubOrgId };
 const otherSupplierId = '99999999-9999-4999-8999-999999999999';
 const receiptA = 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const receiptB = 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -1072,7 +1072,7 @@ const daysFromNow = (n: number): Date => new Date(Date.now() + n * 24 * 60 * 60 
 
 const buildInvoice = (overrides: Record<string, unknown> = {}) => ({
   id: invoiceId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   supplierId,
   supplier: { id: supplierId, name: 'Samrat Supermarket Ltd' },
   invoiceNumber: 'INV-001',
@@ -1093,7 +1093,7 @@ const buildInvoice = (overrides: Record<string, unknown> = {}) => ({
 
 const buildPayment = (overrides: Record<string, unknown> = {}) => ({
   id: paymentId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   supplierId,
   amount: new Prisma.Decimal('5000'),
   paidAt: new Date(),
@@ -1474,7 +1474,7 @@ describe('receivingService — the three what-we-owe views reconcile (plan §1.5
     vi.mocked(supplierInvoiceRepository.findAllBySupplier).mockResolvedValue(invoices as never);
     vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplierWithPaymentDays() as never);
     vi.mocked(supplierPaymentRepository.findAllBySupplier).mockResolvedValue([]);
-    vi.mocked(goodsReceiptRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findAllBySite).mockResolvedValue([]);
 
     const [listRow] = await receivingService.listSupplierAp(storeManager, { limit: 25 } as never);
     const detail = await receivingService.getSupplierApDetail(storeManager, supplierId);
@@ -1496,7 +1496,7 @@ describe('receivingService — RBAC (S7)', () => {
     // has no STORE_ATTENDANT-specific branch to test here, matching contract
     // behaviour: excluded, not filtered. This test documents that omission is
     // intentional rather than asserting nonexistent service-level logic.
-    vi.mocked(supplierInvoiceRepository.findAllByOrganization).mockResolvedValue([]);
+    vi.mocked(supplierInvoiceRepository.findAllBySite).mockResolvedValue([]);
     const summary = await receivingService.getApSummary(storeManager);
     expect(summary).toBeDefined();
   });
@@ -1541,7 +1541,7 @@ describe('supplier prices follow the pack (B4)', () => {
 
   const supplierLine = (overrides: Record<string, unknown> = {}) => ({
     id: 'sl1',
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     supplierId,
     inventoryItemId: itemId,
     supplierItemName: null,
@@ -1849,7 +1849,7 @@ describe('cheque payments (B2)', () => {
 describe('supplier-facing documents and names (B5, B7)', () => {
   const line = (id: string, supplierItemName: string | null, supplierItemCode: string | null) => ({
     id,
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     supplierId,
     inventoryItemId: itemId,
     supplierItemName,

@@ -6,7 +6,7 @@ const discountInclude = {
 
 export const discountRepository = {
   create: async (data: {
-    organizationId: string | null;
+    siteId: string | null;
     name: string;
     type: 'PERCENTAGE' | 'FIXED_AMOUNT';
     value: string;
@@ -15,7 +15,7 @@ export const discountRepository = {
   }) => {
     return prisma.discount.create({
       data: {
-        organizationId: data.organizationId ?? null,
+        siteId: data.siteId ?? null,
         name: data.name,
         type: data.type,
         value: data.value,
@@ -44,12 +44,12 @@ export const discountRepository = {
    * Includes: discounts scoped to this branch + all-branch discounts (organizationId = null).
    * Optionally filters by isActive.
    */
-  findByBranch: async (organizationId: string, activeOnly = false) => {
+  findByBranch: async (siteId: string, activeOnly = false) => {
     return prisma.discount.findMany({
       where: {
         OR: [
-          { organizationId },
-          { organizationId: null },
+          { siteId },
+          { siteId: null },
         ],
         ...(activeOnly ? { isActive: true } : {}),
       },
@@ -61,19 +61,19 @@ export const discountRepository = {
   update: async (
     id: string,
     data: {
-      organizationId?: string | null;
+      siteId?: string | null;
       name?: string;
       type?: 'PERCENTAGE' | 'FIXED_AMOUNT';
       value?: string;
       requiresApproval?: boolean;
       isActive?: boolean;
     },
-    actorOrganizationId?: string | null,
+    actorSiteId?: string | null,
   ) => {
     // Directors (null organizationId) can update any discount.
     // Branch-scoped actors can only update discounts belonging to their org.
-    const where = actorOrganizationId
-      ? { id, OR: [{ organizationId: actorOrganizationId }, { organizationId: null }] }
+    const where = actorSiteId
+      ? { id, OR: [{ siteId: actorSiteId }, { siteId: null }] }
       : { id };
     return prisma.discount.update({
       where,
@@ -85,9 +85,9 @@ export const discountRepository = {
   /**
    * Soft-delete — sets isActive = false. Preserves audit history.
    */
-  deactivate: async (id: string, actorOrganizationId?: string | null) => {
-    const where = actorOrganizationId
-      ? { id, OR: [{ organizationId: actorOrganizationId }, { organizationId: null }] }
+  deactivate: async (id: string, actorSiteId?: string | null) => {
+    const where = actorSiteId
+      ? { id, OR: [{ siteId: actorSiteId }, { siteId: null }] }
       : { id };
     return prisma.discount.update({
       where,

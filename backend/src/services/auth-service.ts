@@ -62,7 +62,7 @@ export const authService = {
     const accessToken = signAccessToken({
       userId: user.id,
       role: user.role,
-      organizationId: user.organizationId,
+      siteId: user.siteId,
       departmentTag: user.departmentTag,
       isDepartmentHead: user.isDepartmentHead,
     });
@@ -83,8 +83,8 @@ export const authService = {
         name: user.name,
         email: user.email,
         role: user.role,
-        organizationId: user.organizationId,
-        organizationName: user.organization?.name ?? null,
+        siteId: user.siteId,
+        siteName: user.site?.name ?? null,
         departmentTag: user.departmentTag,
         isDepartmentHead: user.isDepartmentHead,
       },
@@ -126,7 +126,7 @@ export const authService = {
     const accessToken = signAccessToken({
       userId: user.id,
       role: user.role,
-      organizationId: user.organizationId,
+      siteId: user.siteId,
       departmentTag: user.departmentTag,
       isDepartmentHead: user.isDepartmentHead,
     });
@@ -139,8 +139,8 @@ export const authService = {
         name: user.name,
         email: user.email,
         role: user.role,
-        organizationId: user.organizationId,
-        organizationName: user.organization?.name ?? null,
+        siteId: user.siteId,
+        siteName: user.site?.name ?? null,
         departmentTag: user.departmentTag,
         isDepartmentHead: user.isDepartmentHead,
       },

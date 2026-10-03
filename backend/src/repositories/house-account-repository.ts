@@ -140,7 +140,7 @@ export const houseAccountRepository = {
       dailyNumber: number;
       total: Prisma.Decimal;
       createdAt: Date;
-      organizationId: string;
+      siteId: string;
       createdBy: { name: string };
       items: Array<{ id: string; quantity: number; unitPrice: Prisma.Decimal; subtotal: Prisma.Decimal; notes: string | null; menuItem: { name: string } }>;
     }>;
@@ -161,7 +161,7 @@ export const houseAccountRepository = {
           dailyNumber: true,
           total: true,
           createdAt: true,
-          organizationId: true,
+          siteId: true,
           createdBy: { select: { name: true } },
           items: {
             select: {

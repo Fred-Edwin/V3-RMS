@@ -38,7 +38,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn(), findById: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
 vi.mock('../../../config/database', () => ({
@@ -54,20 +54,20 @@ const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const kitchenLocationId = '66666666-6666-4666-8666-666666666666';
 const wasteLogId = '77777777-7777-4777-8777-777777777777';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
 const kitchenHead = {
   id: 'dh1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   isDepartmentHead: true,
   departmentTag: 'KITCHEN' as const,
 };
 
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
 const kitchen = {
   id: kitchenLocationId,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   type: 'BRANCH_DEPARTMENT',
   departmentTag: 'KITCHEN',
   name: 'Nyeri Town — Kitchen',
@@ -84,7 +84,7 @@ const item = {
 
 const buildLog = (overrides: Record<string, unknown> = {}) => ({
   id: wasteLogId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   locationId: centralStoreId,
   inventoryItemId: itemId,
   quantity: new Prisma.Decimal(3),
@@ -103,7 +103,7 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
   vi.mocked(branchRepository.findById).mockResolvedValue({ id: branchOrgId, name: 'Nyeri Town' } as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(kitchen as never);
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(kitchen as never);
   vi.mocked(inventoryItemRepository.findById).mockResolvedValue(item as never);
   vi.mocked(wasteRepository.create).mockImplementation(async (input) => buildLog(input as never) as never);
   vi.mocked(stockRepository.onHandForItem).mockResolvedValue(new Prisma.Decimal(10));
@@ -120,7 +120,7 @@ describe('wasteService.createWaste', () => {
     expect(data.quantity.toString()).toBe('-3');
     expect(data.wasteLogId).toBe(wasteLogId);
     expect(data.locationId).toBe(centralStoreId);
-    expect(data.organizationId).toBe(hubOrgId);
+    expect(data.siteId).toBe(hubOrgId);
   });
 
   it('allows the entry to take stock negative and flags it', async () => {
@@ -150,7 +150,7 @@ describe('wasteService.createWaste', () => {
     const input = vi.mocked(wasteRepository.create).mock.calls[0]![0];
     expect(input.unitCost.toString()).toBe('85');
     expect(input.locationId).toBe(kitchenLocationId);
-    expect(input.organizationId).toBe(branchOrgId);
+    expect(input.siteId).toBe(branchOrgId);
   });
 
   it('falls back to the item’s current cost when a department never received it', async () => {
@@ -202,7 +202,7 @@ describe('wasteService.createWaste', () => {
   });
 
   it('forbids roles that do not log waste (Branch Manager)', async () => {
-    const manager = { id: 'm1', role: 'MANAGER' as const, organizationId: branchOrgId };
+    const manager = { id: 'm1', role: 'MANAGER' as const, siteId: branchOrgId };
     await expect(
       wasteService.createWaste(manager, { inventoryItemId: itemId, quantity: '1', reason: 'SPOILAGE' }),
     ).rejects.toThrow(/may not log waste/);
@@ -211,7 +211,7 @@ describe('wasteService.createWaste', () => {
   it('forbids a store role on a non-hub org (D-15)', async () => {
     await expect(
       wasteService.createWaste(
-        { ...storeManager, organizationId: branchOrgId },
+        { ...storeManager, siteId: branchOrgId },
         { inventoryItemId: itemId, quantity: '1', reason: 'SPOILAGE' },
       ),
     ).rejects.toThrow(/hub organization/);

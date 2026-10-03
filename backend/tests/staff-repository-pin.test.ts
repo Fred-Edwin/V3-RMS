@@ -28,7 +28,7 @@ describe('staffRepository — PIN status and reset (org + role scoped)', () => {
     const team = await staffRepository.findTeamWithPinStatus('hub-1', ['STORE_ATTENDANT']);
 
     expect(findManyMock.mock.calls[0]![0].where).toMatchObject({
-      organizationId: 'hub-1',
+      siteId: 'hub-1',
       role: { in: ['STORE_ATTENDANT'] },
     });
     expect(team).toEqual([
@@ -45,7 +45,7 @@ describe('staffRepository — PIN status and reset (org + role scoped)', () => {
     await staffRepository.clearPin('att-1', 'hub-1', ['STORE_ATTENDANT']);
 
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { id: 'att-1', organizationId: 'hub-1', role: { in: ['STORE_ATTENDANT'] } },
+      where: { id: 'att-1', siteId: 'hub-1', role: { in: ['STORE_ATTENDANT'] } },
       data: { pinHash: null },
     });
   });

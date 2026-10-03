@@ -12,13 +12,13 @@ export const incidentController = {
     const isDirector = req.user.role === 'DIRECTOR';
 
     // Directors may query across all branches (organizationId = null) or filter by branchId
-    if (!isDirector && !req.user.organizationId) {
+    if (!isDirector && !req.user.siteId) {
       throw new ForbiddenError('Branch context required');
     }
 
     const query = IncidentQuerySchema.parse(req.query);
-    const organizationId = isDirector ? null : (req.user.organizationId ?? null);
-    const result = await incidentService.getMany(organizationId, query);
+    const siteId = isDirector ? null : (req.user.siteId ?? null);
+    const result = await incidentService.getMany(siteId, query);
 
     res.status(200).json({
       success: true,

@@ -6,7 +6,7 @@ import { ConflictError, ValidationError } from '../utils/errors';
 
 vi.mock('../repositories/location-repository', () => ({
   locationRepository: {
-    findAllByOrganization: vi.fn(),
+    findAllBySite: vi.fn(),
     findById: vi.fn(),
     findCentralStore: vi.fn(),
     createCentralStore: vi.fn(),
@@ -33,13 +33,13 @@ describe('locationService.createCentralStore (design doc D-15)', () => {
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
     vi.mocked(locationRepository.createCentralStore).mockResolvedValue({
       id: locationId,
-      organizationId: hubOrgId,
+      siteId: hubOrgId,
     } as never);
 
     const created = await locationService.createCentralStore('Central Store');
 
     expect(locationRepository.createCentralStore).toHaveBeenCalledWith(hubOrgId, 'Central Store');
-    expect(created.organizationId).toBe(hubOrgId);
+    expect(created.siteId).toBe(hubOrgId);
   });
 
   it('rejects when no hub organization is flagged', async () => {
@@ -55,7 +55,7 @@ describe('locationService.createCentralStore (design doc D-15)', () => {
     vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
     vi.mocked(locationRepository.findCentralStore).mockResolvedValue({
       id: locationId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
     } as never);
 
     await expect(locationService.createCentralStore('Central Store')).rejects.toBeInstanceOf(

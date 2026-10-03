@@ -21,9 +21,9 @@ export type DiscrepancyWithDetail = Discrepancy & {
       id: string;
       sequenceLabel: string;
       departmentTag: string;
-      organizationId: string;
-      toOrganizationId: string;
-      toOrganization: { id: string; name: string };
+      siteId: string;
+      toSiteId: string;
+      toSite: { id: string; name: string };
       confirmedAt: Date | null;
       confirmedBy: { id: string; name: string } | null;
     };
@@ -51,7 +51,7 @@ export const discrepancyRepository = {
   findAllForHub: async (branchOrgIds: string[], limit: number): Promise<DiscrepancyWithDetail[]> => {
     if (branchOrgIds.length === 0) return [];
     return prisma.discrepancy.findMany({
-      where: { dispatchLine: { dispatch: { toOrganizationId: { in: branchOrgIds } } } },
+      where: { dispatchLine: { dispatch: { toSiteId: { in: branchOrgIds } } } },
       include: discrepancyDetailInclude,
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -59,9 +59,9 @@ export const discrepancyRepository = {
   },
 
   /** Branch Manager scope: this branch's discrepancies only, read-only. */
-  findAllForBranch: async (toOrganizationId: string, limit: number): Promise<DiscrepancyWithDetail[]> => {
+  findAllForBranch: async (toSiteId: string, limit: number): Promise<DiscrepancyWithDetail[]> => {
     return prisma.discrepancy.findMany({
-      where: { dispatchLine: { dispatch: { toOrganizationId } } },
+      where: { dispatchLine: { dispatch: { toSiteId } } },
       include: discrepancyDetailInclude,
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -71,14 +71,14 @@ export const discrepancyRepository = {
   findByIdForHub: async (id: string, branchOrgIds: string[]): Promise<DiscrepancyWithDetail | null> => {
     if (branchOrgIds.length === 0) return null;
     return prisma.discrepancy.findFirst({
-      where: { id, dispatchLine: { dispatch: { toOrganizationId: { in: branchOrgIds } } } },
+      where: { id, dispatchLine: { dispatch: { toSiteId: { in: branchOrgIds } } } },
       include: discrepancyDetailInclude,
     });
   },
 
-  findByIdForBranch: async (id: string, toOrganizationId: string): Promise<DiscrepancyWithDetail | null> => {
+  findByIdForBranch: async (id: string, toSiteId: string): Promise<DiscrepancyWithDetail | null> => {
     return prisma.discrepancy.findFirst({
-      where: { id, dispatchLine: { dispatch: { toOrganizationId } } },
+      where: { id, dispatchLine: { dispatch: { toSiteId } } },
       include: discrepancyDetailInclude,
     });
   },
@@ -135,9 +135,9 @@ const discrepancyDetailInclude = {
           id: true,
           sequenceLabel: true,
           departmentTag: true,
-          organizationId: true,
-          toOrganizationId: true,
-          toOrganization: { select: { id: true, name: true } },
+          siteId: true,
+          toSiteId: true,
+          toSite: { select: { id: true, name: true } },
           confirmedAt: true,
           confirmedBy: { select: { id: true, name: true } },
         },

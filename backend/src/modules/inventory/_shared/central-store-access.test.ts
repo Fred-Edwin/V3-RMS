@@ -17,7 +17,7 @@ import {
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 
 const hubId = '11111111-1111-4111-8111-111111111111';
-const actor = (role: string, organizationId: string | null = hubId) => ({ id: 'u', role, organizationId }) as never;
+const actor = (role: string, siteId: string | null = hubId) => ({ id: 'u', role, siteId }) as never;
 
 beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubId } as never);

@@ -38,20 +38,20 @@ vi.mock('../utils/logger', () => ({
 const actor = {
   id: '11111111-1111-4111-8111-111111111111',
   role: 'WAITER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 } as NonNullable<Request['user']>;
 
-const organizationId = '22222222-2222-4222-8222-222222222222';
+const siteId = '22222222-2222-4222-8222-222222222222';
 
 const managerActor = {
   id: '99999999-9999-4999-8999-999999999999',
   role: 'MANAGER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const todayAssignment = {
   id: '33333333-3333-4333-8333-333333333333',
-  organizationId,
+  siteId,
   userId: actor.id,
   shiftId: '44444444-4444-4444-8444-444444444444',
   date: new Date('2026-03-06T00:00:00.000Z'),
@@ -81,7 +81,9 @@ describe('clockService', () => {
     vi.setSystemTime(new Date('2026-03-06T08:00:00.000Z'));
     vi.mocked(shiftAssignmentRepository.findById).mockResolvedValue(todayAssignment);
     vi.mocked(branchRepository.findById).mockResolvedValue({
-      id: organizationId,
+      id: siteId,
+      companyId: 'company-1',
+      type: 'BRANCH',
       name: 'Wendo Branch',
       address: 'Nyeri',
       city: 'Nyeri',
@@ -122,7 +124,7 @@ describe('clockService', () => {
     vi.mocked(clockRecordRepository.findByAssignmentId).mockResolvedValue(null);
     vi.mocked(clockRecordRepository.findOpenByUserId).mockResolvedValue({
       id: 'open-record',
-      organizationId,
+      siteId,
       shiftAssignmentId: 'another-assignment',
       userId: actor.id,
       clockInAt: new Date('2026-03-06T05:00:00.000Z'),
@@ -154,7 +156,7 @@ describe('clockService', () => {
   it('returns a stale-state conflict when clock-out was already completed by another request', async () => {
     vi.mocked(clockRecordRepository.findByAssignmentId).mockResolvedValue({
       id: 'clock-record',
-      organizationId,
+      siteId,
       shiftAssignmentId: todayAssignment.id,
       userId: actor.id,
       clockInAt: new Date('2026-03-06T05:58:00.000Z'),

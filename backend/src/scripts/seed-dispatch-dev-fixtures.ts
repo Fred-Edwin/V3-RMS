@@ -49,10 +49,10 @@ const run = async (): Promise<void> => {
   }
 
   // --- 2/3. Per-branch Kitchen head + Manager PINs ---
-  const branches = await prisma.organization.findMany({ where: { isHub: false, isActive: true } });
+  const branches = await prisma.site.findMany({ where: { isHub: false, isActive: true } });
   for (const branch of branches) {
     const kitchenChef = await prisma.user.findFirst({
-      where: { organizationId: branch.id, role: 'CHEF' },
+      where: { siteId: branch.id, role: 'CHEF' },
       orderBy: { email: 'asc' },
     });
     if (kitchenChef) {
@@ -65,7 +65,7 @@ const run = async (): Promise<void> => {
       console.log(`SKIP  no CHEF found for ${branch.name}`);
     }
 
-    const manager = await prisma.user.findFirst({ where: { organizationId: branch.id, role: 'MANAGER' } });
+    const manager = await prisma.user.findFirst({ where: { siteId: branch.id, role: 'MANAGER' } });
     if (manager) {
       await prisma.user.update({ where: { id: manager.id }, data: { pinHash } });
       console.log(`OK    ${manager.email} — PIN set (${branch.name})`);
@@ -82,7 +82,7 @@ const run = async (): Promise<void> => {
     console.log('SKIP  No store manager found to attribute RECEIVE transactions to');
   } else {
     const items = await prisma.inventoryItem.findMany({
-      where: { organizationId: centralStore.organizationId, deletedAt: null },
+      where: { siteId: centralStore.siteId, deletedAt: null },
       select: { id: true, name: true, currentCost: true },
     });
 
@@ -98,7 +98,7 @@ const run = async (): Promise<void> => {
       }
       await prisma.inventoryTransaction.create({
         data: {
-          organizationId: centralStore.organizationId,
+          siteId: centralStore.siteId,
           locationId: centralStore.id,
           inventoryItemId: item.id,
           type: 'RECEIVE',

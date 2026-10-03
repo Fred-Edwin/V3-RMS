@@ -14,7 +14,7 @@ const authRequestInclude = {
 
 export const customerDiscountAuthRepository = {
   create: async (data: {
-    organizationId: string;
+    siteId: string;
     orderId: string;
     discountId: string;
     requestedById: string;
@@ -25,7 +25,7 @@ export const customerDiscountAuthRepository = {
   }) => {
     return prisma.customerDiscountAuthRequest.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         orderId: data.orderId,
         discountId: data.discountId,
         requestedById: data.requestedById,
@@ -38,23 +38,23 @@ export const customerDiscountAuthRepository = {
     });
   },
 
-  findById: async (id: string, organizationId?: string) => {
+  findById: async (id: string, siteId?: string) => {
     return prisma.customerDiscountAuthRequest.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrderId: async (orderId: string, organizationId?: string) => {
+  findPendingByOrderId: async (orderId: string, siteId?: string) => {
     return prisma.customerDiscountAuthRequest.findFirst({
-      where: { orderId, status: 'PENDING', ...(organizationId ? { organizationId } : {}) },
+      where: { orderId, status: 'PENDING', ...(siteId ? { siteId } : {}) },
       include: authRequestInclude,
     });
   },
 
-  findPendingByOrganization: async (organizationId: string) => {
+  findPendingBySite: async (siteId: string) => {
     return prisma.customerDiscountAuthRequest.findMany({
-      where: { organizationId, status: 'PENDING' },
+      where: { siteId, status: 'PENDING' },
       include: authRequestInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -66,12 +66,12 @@ export const customerDiscountAuthRepository = {
    */
   resolveIfPending: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     status: Exclude<CustomerDiscountAuthStatus, 'PENDING'>,
     resolvedById: string,
   ) => {
     const result = await prisma.customerDiscountAuthRequest.updateMany({
-      where: { id, organizationId, status: 'PENDING' },
+      where: { id, siteId, status: 'PENDING' },
       data: {
         status,
         resolvedById,
@@ -82,7 +82,7 @@ export const customerDiscountAuthRepository = {
     if (result.count === 0) return null;
 
     return prisma.customerDiscountAuthRequest.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: authRequestInclude,
     });
   },

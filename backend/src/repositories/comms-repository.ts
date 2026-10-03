@@ -23,19 +23,19 @@ const messageSelect = {
 export const commsRepository = {
   // Upsert conversation — caller must ensure aId < bId lexicographically
   findOrCreateConversation: async (
-    organizationId: string,
+    siteId: string,
     participantAId: string,
     participantBId: string,
   ) => {
     return prisma.directConversation.upsert({
       where: {
-        organizationId_participantAId_participantBId: {
-          organizationId,
+        siteId_participantAId_participantBId: {
+          siteId,
           participantAId,
           participantBId,
         },
       },
-      create: { organizationId, participantAId, participantBId },
+      create: { siteId, participantAId, participantBId },
       update: {},
       include: {
         participantA: { select: participantSelect },
@@ -44,9 +44,9 @@ export const commsRepository = {
     });
   },
 
-  findConversationById: async (id: string, organizationId?: string | null) => {
+  findConversationById: async (id: string, siteId?: string | null) => {
     return prisma.directConversation.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: {
         participantA: { select: participantSelect },
         participantB: { select: participantSelect },
@@ -81,28 +81,28 @@ export const commsRepository = {
   },
 
   // Look up a user's organizationId — used when DIRECTOR creates a conversation
-  findUserOrganizationId: async (userId: string): Promise<string | null> => {
+  findUserSiteId: async (userId: string): Promise<string | null> => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { organizationId: true },
+      select: { siteId: true },
     });
-    return user?.organizationId ?? null;
+    return user?.siteId ?? null;
   },
 
-  findFirstOrganizationId: async (): Promise<string | null> => {
-    const org = await prisma.organization.findFirst({ select: { id: true } });
+  findFirstSiteId: async (): Promise<string | null> => {
+    const org = await prisma.site.findFirst({ select: { id: true } });
     return org?.id ?? null;
   },
 
   findConversationsByUser: async (
     userId: string,
-    organizationId: string,
+    siteId: string,
     limit: number,
     cursor?: string,
   ) => {
     return prisma.directConversation.findMany({
       where: {
-        organizationId,
+        siteId,
         OR: [{ participantAId: userId }, { participantBId: userId }],
       },
       include: {
@@ -121,11 +121,11 @@ export const commsRepository = {
     });
   },
 
-  countUnreadInConversation: async (conversationId: string, userId: string, organizationId: string) => {
+  countUnreadInConversation: async (conversationId: string, userId: string, siteId: string) => {
     return prisma.directMessage.count({
       where: {
         conversationId,
-        organizationId,
+        siteId,
         senderId: { not: userId },
         readAt: null,
         deletedAt: null,
@@ -135,7 +135,7 @@ export const commsRepository = {
 
   createDirectMessage: async (data: {
     conversationId: string;
-    organizationId: string;
+    siteId: string;
     senderId: string;
     bodyHtml: string;
     attachmentUrl?: string;
@@ -145,7 +145,7 @@ export const commsRepository = {
       prisma.directMessage.create({
         data: {
           conversationId: data.conversationId,
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           senderId: data.senderId,
           bodyHtml: data.bodyHtml,
           attachmentUrl: data.attachmentUrl ?? null,
@@ -163,7 +163,7 @@ export const commsRepository = {
 
   findMessagesByConversation: async (
     conversationId: string,
-    organizationId: string,
+    siteId: string,
     limit: number,
     beforeId?: string,
   ) => {
@@ -172,7 +172,7 @@ export const commsRepository = {
       cursor = { id: beforeId };
     }
     return prisma.directMessage.findMany({
-      where: { conversationId, organizationId },
+      where: { conversationId, siteId },
       include: { sender: { select: participantSelect } },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -206,14 +206,14 @@ export const commsRepository = {
 
   findUsersForBroadcastScope: async (
     scope: 'COMPANY' | 'BRANCH' | 'ROLE_GROUP',
-    organizationId: string,
+    siteId: string,
     targetRole?: UserRole,
-    hubOrganizationIds?: string[],
+    hubSiteIds?: string[],
   ): Promise<Array<{ id: string; fcmToken: string | null }>> => {
-    if (scope === 'COMPANY' && hubOrganizationIds && hubOrganizationIds.length > 0) {
+    if (scope === 'COMPANY' && hubSiteIds && hubSiteIds.length > 0) {
       return prisma.user.findMany({
         where: {
-          organizationId: { in: hubOrganizationIds },
+          siteId: { in: hubSiteIds },
           isActive: true,
           deletedAt: null,
         },
@@ -222,14 +222,14 @@ export const commsRepository = {
     }
     if (scope === 'BRANCH') {
       return prisma.user.findMany({
-        where: { organizationId, isActive: true, deletedAt: null },
+        where: { siteId, isActive: true, deletedAt: null },
         select: { id: true, fcmToken: true },
       });
     }
     // ROLE_GROUP
     return prisma.user.findMany({
       where: {
-        organizationId,
+        siteId,
         isActive: true,
         deletedAt: null,
         ...(targetRole ? { role: targetRole } : {}),
@@ -240,7 +240,7 @@ export const commsRepository = {
 
   createBroadcast: async (
     data: {
-      organizationId: string;
+      siteId: string;
       senderId: string;
       scope: 'COMPANY' | 'BRANCH' | 'ROLE_GROUP';
       targetRole?: UserRole;
@@ -255,7 +255,7 @@ export const commsRepository = {
     const broadcast = await prisma.$transaction(async (tx) => {
       const b = await tx.broadcast.create({
         data: {
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           senderId: data.senderId,
           scope: data.scope,
           targetRole: data.targetRole ?? null,
@@ -271,7 +271,7 @@ export const commsRepository = {
         await tx.broadcastRecipient.createMany({
           data: recipientIds.map((userId) => ({
             broadcastId: b.id,
-            organizationId: data.organizationId,
+            siteId: data.siteId,
             userId,
           })),
           skipDuplicates: true,
@@ -282,14 +282,14 @@ export const commsRepository = {
     return broadcast;
   },
 
-  findBroadcastById: async (id: string, organizationId: string | null | undefined, viewerId?: string) => {
+  findBroadcastById: async (id: string, siteId: string | null | undefined, viewerId?: string) => {
     // No org filter for Director (null org) — they can view any broadcast by id.
     // For org-scoped users: allow own org's broadcasts OR COMPANY-scoped broadcasts
     // where viewer is sender or recipient.
-    const orgFilter = organizationId
+    const orgFilter = siteId
       ? {
           OR: [
-            { organizationId },
+            { siteId },
             {
               scope: 'COMPANY' as const,
               OR: viewerId
@@ -323,8 +323,8 @@ export const commsRepository = {
     return { broadcast, readCount, ackCount, myRecipient };
   },
 
-  findBroadcastsByOrganization: async (
-    organizationId: string,
+  findBroadcastsBySite: async (
+    siteId: string,
     page: number,
     perPage: number,
     viewerId?: string,
@@ -335,14 +335,14 @@ export const commsRepository = {
     const where = viewerId
       ? {
           OR: [
-            { organizationId },
+            { siteId },
             {
               scope: 'COMPANY' as const,
               recipients: { some: { userId: viewerId } },
             },
           ],
         }
-      : { organizationId };
+      : { siteId };
 
     const [total, broadcasts] = await Promise.all([
       prisma.broadcast.count({ where }),
@@ -469,7 +469,7 @@ export const commsRepository = {
 
   createFormalNotice: async (
     data: {
-      organizationId: string;
+      siteId: string;
       issuerId: string;
       subject: string;
       bodyHtml: string;
@@ -481,7 +481,7 @@ export const commsRepository = {
     return prisma.$transaction(async (tx) => {
       const notice = await tx.formalNotice.create({
         data: {
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           issuerId: data.issuerId,
           subject: data.subject,
           bodyHtml: data.bodyHtml,
@@ -494,7 +494,7 @@ export const commsRepository = {
         await tx.formalNoticeRecipient.createMany({
           data: recipientIds.map((userId) => ({
             noticeId: notice.id,
-            organizationId: data.organizationId,
+            siteId: data.siteId,
             userId,
           })),
           skipDuplicates: true,
@@ -504,9 +504,9 @@ export const commsRepository = {
     });
   },
 
-  findNoticeById: async (id: string, organizationId: string | null | undefined, viewerId?: string) => {
+  findNoticeById: async (id: string, siteId: string | null | undefined, viewerId?: string) => {
     const notice = await prisma.formalNotice.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: {
         issuer: { select: participantSelect },
         _count: { select: { recipients: true } },
@@ -526,8 +526,8 @@ export const commsRepository = {
     return { notice, ackCount, myRecipient };
   },
 
-  findNoticesByOrganization: async (
-    organizationId: string,
+  findNoticesBySite: async (
+    siteId: string,
     page: number,
     perPage: number,
     viewerId?: string,
@@ -536,13 +536,13 @@ export const commsRepository = {
     // A staff member should only see notices where they are the issuer OR an explicit recipient.
     const where = viewerId
       ? {
-          organizationId,
+          siteId,
           OR: [
             { issuerId: viewerId },
             { recipients: { some: { userId: viewerId } } },
           ],
         }
-      : { organizationId };
+      : { siteId };
 
     const [total, notices] = await Promise.all([
       prisma.formalNotice.count({ where }),
@@ -593,7 +593,7 @@ export const commsRepository = {
         createdAt: { lt: cutoff },
       },
       include: {
-        notice: { select: { id: true, subject: true, organizationId: true } },
+        notice: { select: { id: true, subject: true, siteId: true } },
         user: { select: { id: true, fcmToken: true } },
       },
     });
@@ -608,7 +608,7 @@ export const commsRepository = {
         createdAt: { lt: cutoff },
       },
       include: {
-        notice: { select: { id: true, subject: true, organizationId: true } },
+        notice: { select: { id: true, subject: true, siteId: true } },
         user: { select: { id: true } },
       },
     });
@@ -637,7 +637,7 @@ export const commsRepository = {
   },
 
   findDirectorsForOrg: async (
-    organizationId: string,
+    siteId: string,
   ): Promise<Array<{ id: string; fcmToken: string | null }>> => {
     // Directors have nullable organizationId or match this org's hub
     return prisma.user.findMany({
@@ -645,7 +645,7 @@ export const commsRepository = {
         role: 'DIRECTOR',
         isActive: true,
         deletedAt: null,
-        OR: [{ organizationId }, { organizationId: null }],
+        OR: [{ siteId }, { siteId: null }],
       },
       select: { id: true, fcmToken: true },
     });
@@ -678,19 +678,19 @@ export const commsRepository = {
   findBroadcastSender: async (broadcastId: string) => {
     return prisma.broadcast.findUnique({
       where: { id: broadcastId },
-      select: { senderId: true, organizationId: true },
+      select: { senderId: true, siteId: true },
     });
   },
 
   findNoticeSender: async (noticeId: string) => {
     return prisma.formalNotice.findUnique({
       where: { id: noticeId },
-      select: { issuerId: true, organizationId: true },
+      select: { issuerId: true, siteId: true },
     });
   },
 
-  findAllActiveOrganizationIds: async (): Promise<string[]> => {
-    const orgs = await prisma.organization.findMany({
+  findAllActiveSiteIds: async (): Promise<string[]> => {
+    const orgs = await prisma.site.findMany({
       where: { isActive: true },
       select: { id: true },
     });

@@ -22,7 +22,7 @@ const serializeCancellationRequest = (
 
   return {
     id: raw.id,
-    organizationId: raw.organizationId,
+    siteId: raw.siteId,
     orderId: raw.orderId,
     requestedById: raw.requestedById,
     reason: raw.reason,
@@ -45,17 +45,17 @@ const serializeCancellationRequest = (
   };
 };
 
-const resolveOrganizationId = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const resolveSiteId = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 export const orderCancellationAuthService = {
   listPending: async (actor: Actor): Promise<OrderCancellationAuthRequestRecord[]> => {
-    const organizationId = resolveOrganizationId(actor);
-    const records = await orderCancellationRequestRepository.findPendingByOrganization(organizationId);
+    const siteId = resolveSiteId(actor);
+    const records = await orderCancellationRequestRepository.findPendingBySite(siteId);
     return records.map(serializeCancellationRequest);
   },
 
@@ -73,7 +73,7 @@ export const orderCancellationAuthService = {
     if (!isRequester && !isApprover) {
       throw new ForbiddenError('Access denied');
     }
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
+    if (actor.siteId && authRequest.siteId !== actor.siteId) {
       throw new ForbiddenError('Access denied');
     }
 
@@ -84,8 +84,8 @@ export const orderCancellationAuthService = {
     orderId: string,
     actor: Actor,
   ): Promise<OrderCancellationAuthRequestRecord> => {
-    const organizationId = resolveOrganizationId(actor);
-    const authRequest = await orderCancellationRequestRepository.findPendingByOrderId(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const authRequest = await orderCancellationRequestRepository.findPendingByOrderId(orderId, siteId);
     if (!authRequest) {
       throw new NotFoundError('No pending cancellation request found for this order');
     }
@@ -105,8 +105,8 @@ export const orderCancellationAuthService = {
     reasonDetail: string | null,
     actor: Actor,
   ): Promise<OrderCancellationAuthRequestRecord> => {
-    const organizationId = resolveOrganizationId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -118,13 +118,13 @@ export const orderCancellationAuthService = {
       throw new ConflictError('Order cannot be cancelled in its current state.');
     }
 
-    const existing = await orderCancellationRequestRepository.findPendingByOrderId(orderId, organizationId);
+    const existing = await orderCancellationRequestRepository.findPendingByOrderId(orderId, siteId);
     if (existing) {
       throw new ConflictError('A cancellation approval request is already pending for this order');
     }
 
     const authRequest = await orderCancellationRequestRepository.createPendingForOrder({
-      organizationId,
+      siteId,
       orderId,
       requestedById: actor.id,
       reason,
@@ -135,7 +135,7 @@ export const orderCancellationAuthService = {
       throw new ConflictError('Order cannot be cancelled in its current state.');
     }
 
-    socketService.emitOrderCancellationPending(actor.id, organizationId, {
+    socketService.emitOrderCancellationPending(actor.id, siteId, {
       orderId,
       dailyNumber: order.dailyNumber,
       authRequestId: authRequest.id,
@@ -165,14 +165,14 @@ export const orderCancellationAuthService = {
     if (!authRequest) {
       throw new NotFoundError('Order cancellation request not found');
     }
-    if (actor.organizationId && authRequest.organizationId !== actor.organizationId) {
+    if (actor.siteId && authRequest.siteId !== actor.siteId) {
       throw new ForbiddenError('Access denied');
     }
 
     const cancelReason = `${authRequest.reason}${authRequest.reasonDetail ? `: ${authRequest.reasonDetail}` : ''}`;
     const resolved = await orderCancellationRequestRepository.resolveIfPending({
       id: authRequestId,
-      organizationId: authRequest.organizationId,
+      siteId: authRequest.siteId,
       decision,
       resolvedById: actor.id,
       resolutionNote,
@@ -180,7 +180,7 @@ export const orderCancellationAuthService = {
     });
 
     if (!resolved) {
-      const current = await orderCancellationRequestRepository.findById(authRequestId, authRequest.organizationId);
+      const current = await orderCancellationRequestRepository.findById(authRequestId, authRequest.siteId);
       if (!current) {
         throw new NotFoundError('Order cancellation request not found');
       }
@@ -189,14 +189,14 @@ export const orderCancellationAuthService = {
     }
 
     const stations = authRequest.order
-      ? ((await orderRepository.findById(authRequest.orderId, authRequest.organizationId))?.prepTickets.map((ticket) => ticket.station) ?? [])
+      ? ((await orderRepository.findById(authRequest.orderId, authRequest.siteId))?.prepTickets.map((ticket) => ticket.station) ?? [])
       : [];
 
     if (decision === CancellationRequestStatus.APPROVED) {
       const wasForceCancelled = authRequest.previousStatus !== OrderStatus.PENDING;
       if (wasForceCancelled) {
         socketService.emitOrderForceCancelled(
-          authRequest.organizationId,
+          authRequest.siteId,
           stations as PrepStation[],
           authRequest.requestedById,
           {
@@ -206,13 +206,13 @@ export const orderCancellationAuthService = {
           },
         );
       } else {
-        socketService.emitOrderCancelled(authRequest.organizationId, stations as PrepStation[], {
+        socketService.emitOrderCancelled(authRequest.siteId, stations as PrepStation[], {
           orderId: authRequest.orderId,
         });
       }
 
       incidentService.log({
-        organizationId: authRequest.organizationId,
+        siteId: authRequest.siteId,
         orderId: authRequest.orderId,
         type: 'ORDER_CANCELLED',
         actorId: actor.id,
@@ -227,7 +227,7 @@ export const orderCancellationAuthService = {
       });
     } else {
       incidentService.log({
-        organizationId: authRequest.organizationId,
+        siteId: authRequest.siteId,
         orderId: authRequest.orderId,
         type: 'ORDER_CANCELLATION_REJECTED',
         actorId: actor.id,
@@ -244,7 +244,7 @@ export const orderCancellationAuthService = {
 
     socketService.emitOrderCancellationResolved(
       authRequest.requestedById,
-      authRequest.organizationId,
+      authRequest.siteId,
       {
         orderId: authRequest.orderId,
         dailyNumber: authRequest.order.dailyNumber,

@@ -1,5 +1,26 @@
-model Organization {
+/// The business that owns every site. One row today ("Wendo Coffee Bistro").
+model Company {
+  id            String         @id @default(uuid())
+  name          String
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  sites Site[]
+
+  @@map("companies")
+}
+
+/// What kind of place an Organization row is. The Central Store is never a branch.
+enum SiteType {
+  BRANCH
+  CENTRAL_STORE
+}
+
+model Site {
   id                           String                        @id @default(uuid())
+  companyId                    String                        @map("company_id")
+  type                         SiteType                      @default(BRANCH)
+  company                      Company                       @relation(fields: [companyId], references: [id])
   name                         String
   address                      String
   city                         String
@@ -67,26 +88,27 @@ model Organization {
   countingThresholds           CountingThresholds?
   branchDays                   BranchDay[]
 
+  @@index([companyId])
   @@map("organizations")
 }
 
 model OrderCounter {
   id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
+  siteId String       @map("organization_id")
   orderDate      DateTime     @map("order_date") @db.Date
   lastNumber     Int          @default(0) @map("last_number")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  site   Site @relation(fields: [siteId], references: [id])
 
-  @@unique([organizationId, orderDate])
-  @@index([organizationId])
+  @@unique([siteId, orderDate])
+  @@index([siteId])
   @@map("order_counters")
 }
 
 model User {
   id                                  String                        @id @default(uuid())
-  organizationId                      String?                       @map("organization_id")
+  siteId                      String?                       @map("organization_id")
   name                                String
   email                               String                        @unique
   phone                               String?
@@ -105,7 +127,7 @@ model User {
   createdAt                           DateTime                      @default(now()) @map("created_at")
   updatedAt                           DateTime                      @updatedAt @map("updated_at")
   deletedAt                           DateTime?                     @map("deleted_at")
-  organization                        Organization?                 @relation(fields: [organizationId], references: [id])
+  site                        Site?                 @relation(fields: [siteId], references: [id])
   ordersCreated                       Order[]                       @relation("OrderCreatedBy")
   ordersCancelled                     Order[]                       @relation("OrderCancelledBy")
   orderCancellationRequestsRequested  OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")
@@ -190,7 +212,7 @@ model User {
   requisitionSectionsSubmitted        RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
   requisitionLinesEdited              RequisitionLine[]             @relation("RequisitionLineEditedBy")
 
-  @@index([organizationId])
+  @@index([siteId])
   @@index([email])
   @@index([role])
   @@map("users")
@@ -199,20 +221,20 @@ model User {
 model StaffTransfer {
   id                 String   @id @default(uuid())
   userId             String   @map("user_id")
-  fromOrganizationId String?  @map("from_organization_id")
-  toOrganizationId   String   @map("to_organization_id")
+  fromSiteId String?  @map("from_organization_id")
+  toSiteId   String   @map("to_organization_id")
   notes              String?
   transferredAt      DateTime @default(now()) @map("transferred_at")
   authorizedById     String   @map("authorized_by_id")
 
   user             User          @relation("StaffTransferUser", fields: [userId], references: [id])
-  fromOrganization Organization? @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
-  toOrganization   Organization  @relation("StaffTransferTo", fields: [toOrganizationId], references: [id])
+  fromSite Site? @relation("StaffTransferFrom", fields: [fromSiteId], references: [id])
+  toSite   Site  @relation("StaffTransferTo", fields: [toSiteId], references: [id])
   authorizedBy     User          @relation("StaffTransferAuthorizedBy", fields: [authorizedById], references: [id])
 
   @@index([userId])
-  @@index([fromOrganizationId])
-  @@index([toOrganizationId])
+  @@index([fromSiteId])
+  @@index([toSiteId])
   @@map("staff_transfers")
 }
 

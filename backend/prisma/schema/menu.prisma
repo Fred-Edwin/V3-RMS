@@ -34,16 +34,16 @@ model MenuItem {
 
 model BranchMenuItem {
   id             String       @id @default(uuid())
-  organizationId String       @map("organization_id")
+  siteId String       @map("organization_id")
   menuItemId     String       @map("menu_item_id")
   isAvailable    Boolean      @default(true) @map("is_available")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   updatedBy      String       @map("updated_by")
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  site   Site @relation(fields: [siteId], references: [id])
   menuItem       MenuItem     @relation(fields: [menuItemId], references: [id])
 
-  @@unique([organizationId, menuItemId])
-  @@index([organizationId])
+  @@unique([siteId, menuItemId])
+  @@index([siteId])
   @@index([menuItemId])
   @@map("branch_menu_items")
 }

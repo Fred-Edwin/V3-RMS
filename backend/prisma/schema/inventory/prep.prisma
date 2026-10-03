@@ -16,7 +16,7 @@
 /// ledger append-only"); there is no PATCH/DELETE endpoint, ever.
 model PrepRun {
   id                    String   @id @default(uuid())
-  organizationId        String   @map("organization_id")
+  siteId        String   @map("organization_id")
   outputItemId          String   @map("output_item_id")
   actualYield           Decimal  @map("actual_yield") @db.Decimal(12, 4)
   /// Snapshot: totalInputCost / actualYield. Becomes InventoryItem.currentCost
@@ -47,15 +47,15 @@ model PrepRun {
   createdById           String   @map("created_by_id") // the Attendant (or SM, desktop) who recorded it
   createdAt             DateTime @default(now()) @map("created_at")
 
-  organization Organization           @relation(fields: [organizationId], references: [id])
+  site Site           @relation(fields: [siteId], references: [id])
   outputItem   InventoryItem          @relation("PrepRunOutput", fields: [outputItemId], references: [id])
   location     Location               @relation(fields: [locationId], references: [id])
   createdBy    User                   @relation("PrepRunCreatedBy", fields: [createdById], references: [id])
   inputLines   PrepRunInputLine[]
   transactions InventoryTransaction[] @relation("PrepRunTransactions")
 
-  @@index([organizationId])
-  @@index([organizationId, outputItemId]) // rolling-average query, History "Output" filter
+  @@index([siteId])
+  @@index([siteId, outputItemId]) // rolling-average query, History "Output" filter
   @@index([locationId])
   @@map("prep_runs")
 }

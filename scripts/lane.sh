@@ -92,7 +92,9 @@ cmd_template() {
     status)
       if db_exists "$TEMPLATE_DB"; then
         local n; n="$(docker exec -i "$PG_CONTAINER" psql -U "$PG_USER" -d "$TEMPLATE_DB" -Atqc 'select count(*) from _prisma_migrations')"
-        local have; have="$(find "$MAIN_REPO/backend/prisma/migrations" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+        local mdir="$MAIN_REPO/backend/prisma/schema/migrations"
+        [ -d "$mdir" ] || mdir="$MAIN_REPO/backend/prisma/migrations" # before the folder move reaches the main checkout
+        local have; have="$(find "$mdir" -mindepth 1 -maxdepth 1 -type d | wc -l)"
         say "template '$TEMPLATE_DB' exists: $n migrations applied (this repo has $have migration folders)"
       else
         say "template '$TEMPLATE_DB' does not exist. Build it with: scripts/lane.sh template build"

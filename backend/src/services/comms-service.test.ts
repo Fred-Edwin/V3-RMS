@@ -20,13 +20,13 @@ vi.mock('../repositories/comms-repository', () => ({
     markMessageRead: vi.fn(),
     softDeleteMessage: vi.fn(),
     countUnreadInConversation: vi.fn(),
-    findUserOrganizationId: vi.fn(),
-    findFirstOrganizationId: vi.fn(),
-    findAllActiveOrganizationIds: vi.fn().mockResolvedValue(['org-1']),
+    findUserSiteId: vi.fn(),
+    findFirstSiteId: vi.fn(),
+    findAllActiveSiteIds: vi.fn().mockResolvedValue(['org-1']),
     findUsersForBroadcastScope: vi.fn(),
     createBroadcast: vi.fn(),
     findBroadcastById: vi.fn(),
-    findBroadcastsByOrganization: vi.fn(),
+    findBroadcastsBySite: vi.fn(),
     markBroadcastRead: vi.fn(),
     acknowledgeBroadcast: vi.fn(),
     findBroadcastRecipient: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock('../repositories/comms-repository', () => ({
     findBroadcastRecipientStatuses: vi.fn(),
     createFormalNotice: vi.fn(),
     findNoticeById: vi.fn(),
-    findNoticesByOrganization: vi.fn(),
+    findNoticesBySite: vi.fn(),
     acknowledgeNotice: vi.fn(),
     findNoticeRecipient: vi.fn(),
     findNoticeSender: vi.fn(),
@@ -66,35 +66,35 @@ const waiterActor = {
   id: 'waiter-1',
   name: 'Alice Waiter',
   role: 'WAITER',
-  organizationId: 'org-1',
+  siteId: 'org-1',
 } as NonNullable<Request['user']>;
 
 const managerActor = {
   id: 'manager-1',
   name: 'Bob Manager',
   role: 'MANAGER',
-  organizationId: 'org-1',
+  siteId: 'org-1',
 } as NonNullable<Request['user']>;
 
 const directorActor = {
   id: 'director-1',
   name: 'Carol Director',
   role: 'DIRECTOR',
-  organizationId: null,
+  siteId: null,
 } as NonNullable<Request['user']>;
 
 const directorWithOrgActor = {
   id: 'director-2',
   name: 'Dave Director',
   role: 'DIRECTOR',
-  organizationId: 'org-1',
+  siteId: 'org-1',
 } as NonNullable<Request['user']>;
 
 const NOW = new Date('2026-04-11T10:00:00.000Z');
 
 const makeConversation = (overrides = {}) => ({
   id: 'conv-1',
-  organizationId: 'org-1',
+  siteId: 'org-1',
   participantAId: 'manager-1',
   participantBId: 'waiter-1',
   createdAt: NOW,
@@ -107,7 +107,7 @@ const makeConversation = (overrides = {}) => ({
 const makeMessage = (overrides = {}) => ({
   id: 'msg-1',
   conversationId: 'conv-1',
-  organizationId: 'org-1',
+  siteId: 'org-1',
   senderId: 'manager-1',
   sender: { id: 'manager-1', name: 'Bob Manager', role: 'MANAGER' as UserRole },
   bodyHtml: '<p>Hello</p>',
@@ -151,8 +151,8 @@ describe('getOrCreateConversation', () => {
   });
 
   it('throws ForbiddenError when actor has no organizationId and none can be resolved', async () => {
-    vi.mocked(commsRepository.findUserOrganizationId).mockResolvedValue(null);
-    vi.mocked(commsRepository.findFirstOrganizationId).mockResolvedValue(null);
+    vi.mocked(commsRepository.findUserSiteId).mockResolvedValue(null);
+    vi.mocked(commsRepository.findFirstSiteId).mockResolvedValue(null);
     await expect(
       commsService.getOrCreateConversation(directorActor, { recipientId: 'other-user' }),
     ).rejects.toThrow(ForbiddenError);
@@ -197,7 +197,7 @@ describe('sendDirectMessage', () => {
 describe('sendBroadcast', () => {
   const makeBroadcast = () => ({
     id: 'bc-1',
-    organizationId: 'org-1',
+    siteId: 'org-1',
     senderId: 'manager-1',
     scope: 'BRANCH' as const,
     targetRole: null,
@@ -288,7 +288,7 @@ describe('acknowledgeNotice', () => {
     vi.mocked(commsRepository.findNoticeRecipient).mockResolvedValue({
       id: 'fnr-1',
       noticeId: 'notice-1',
-      organizationId: 'org-1',
+      siteId: 'org-1',
       userId: 'waiter-1',
       acknowledgedAt: null,
       reminder24SentAt: null,

@@ -13,28 +13,28 @@ export type CategoryWithItemCount = Category & { itemCount: number };
 
 const categoryFindByLiveName = async (
   client: Client,
-  organizationId: string,
+  siteId: string,
   name: string,
 ): Promise<Category | null> => {
   return client.category.findFirst({
-    where: { organizationId, deletedAt: null, name: { equals: name, mode: 'insensitive' } },
+    where: { siteId, deletedAt: null, name: { equals: name, mode: 'insensitive' } },
   });
 };
 
 export const categoryRepository = {
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
     includeRetired: boolean,
   ): Promise<CategoryWithItemCount[]> => {
     const categories = await prisma.category.findMany({
-      where: { organizationId, ...(includeRetired ? {} : { deletedAt: null }) },
+      where: { siteId, ...(includeRetired ? {} : { deletedAt: null }) },
       orderBy: { name: 'asc' },
     });
     if (categories.length === 0) return [];
 
     const counts = await prisma.inventoryItem.groupBy({
       by: ['categoryId'],
-      where: { organizationId, deletedAt: null, categoryId: { in: categories.map((c) => c.id) } },
+      where: { siteId, deletedAt: null, categoryId: { in: categories.map((c) => c.id) } },
       _count: { _all: true },
     });
     const countByCategoryId = new Map(counts.map((c) => [c.categoryId, c._count._all]));
@@ -42,48 +42,48 @@ export const categoryRepository = {
     return categories.map((c) => ({ ...c, itemCount: countByCategoryId.get(c.id) ?? 0 }));
   },
 
-  findById: async (id: string, organizationId: string): Promise<Category | null> => {
-    return prisma.category.findFirst({ where: { id, organizationId } });
+  findById: async (id: string, siteId: string): Promise<Category | null> => {
+    return prisma.category.findFirst({ where: { id, siteId } });
   },
 
   findByLiveName: async (
-    organizationId: string,
+    siteId: string,
     name: string,
     tx: TxClient = prisma,
   ): Promise<Category | null> => {
-    return categoryFindByLiveName(tx, organizationId, name);
+    return categoryFindByLiveName(tx, siteId, name);
   },
 
-  create: async (organizationId: string, name: string, tx: TxClient = prisma): Promise<Category> => {
-    return tx.category.create({ data: { organizationId, name } });
+  create: async (siteId: string, name: string, tx: TxClient = prisma): Promise<Category> => {
+    return tx.category.create({ data: { siteId, name } });
   },
 
-  rename: async (id: string, organizationId: string, name: string): Promise<Category | null> => {
-    const updated = await prisma.category.updateMany({ where: { id, organizationId }, data: { name } });
+  rename: async (id: string, siteId: string, name: string): Promise<Category | null> => {
+    const updated = await prisma.category.updateMany({ where: { id, siteId }, data: { name } });
     if (updated.count === 0) return null;
-    return prisma.category.findFirst({ where: { id, organizationId } });
+    return prisma.category.findFirst({ where: { id, siteId } });
   },
 
-  retire: async (id: string, organizationId: string): Promise<Category | null> => {
+  retire: async (id: string, siteId: string): Promise<Category | null> => {
     const updated = await prisma.category.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: { id, siteId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
     if (updated.count === 0) return null;
-    return prisma.category.findFirst({ where: { id, organizationId } });
+    return prisma.category.findFirst({ where: { id, siteId } });
   },
 
-  restore: async (id: string, organizationId: string): Promise<Category | null> => {
+  restore: async (id: string, siteId: string): Promise<Category | null> => {
     const updated = await prisma.category.updateMany({
-      where: { id, organizationId, deletedAt: { not: null } },
+      where: { id, siteId, deletedAt: { not: null } },
       data: { deletedAt: null },
     });
     if (updated.count === 0) return null;
-    return prisma.category.findFirst({ where: { id, organizationId } });
+    return prisma.category.findFirst({ where: { id, siteId } });
   },
 
-  countLiveItems: async (id: string, organizationId: string): Promise<number> => {
-    return prisma.inventoryItem.count({ where: { organizationId, categoryId: id, deletedAt: null } });
+  countLiveItems: async (id: string, siteId: string): Promise<number> => {
+    return prisma.inventoryItem.count({ where: { siteId, categoryId: id, deletedAt: null } });
   },
 };
 
@@ -139,24 +139,24 @@ const itemInclude = {
  * indexes on supplier_items; at catalog scale (hundreds of rows) that is a sequential scan of a
  * small table, not a problem.
  */
-const supplierLineSearch = (organizationId: string, search: string): Prisma.SupplierItemWhereInput => ({
-  organizationId,
+const supplierLineSearch = (siteId: string, search: string): Prisma.SupplierItemWhereInput => ({
+  siteId,
   OR: [
     { supplierItemCode: { equals: search, mode: 'insensitive' } },
     { supplierItemName: { contains: search, mode: 'insensitive' } },
   ],
 });
 
-const searchWhere = (organizationId: string, search: string): Prisma.InventoryItemWhereInput[] => [
+const searchWhere = (siteId: string, search: string): Prisma.InventoryItemWhereInput[] => [
   { name: { contains: search, mode: 'insensitive' } },
-  { supplierItems: { some: supplierLineSearch(organizationId, search) } },
+  { supplierItems: { some: supplierLineSearch(siteId, search) } },
 ];
 
 export const inventoryItemRepository = {
   /** The supplier lines that matched a search, for the "Matched Samrat code 190035" caption. */
-  findSearchMatches: async (organizationId: string, inventoryItemIds: string[], search: string) =>
+  findSearchMatches: async (siteId: string, inventoryItemIds: string[], search: string) =>
     prisma.supplierItem.findMany({
-      where: { inventoryItemId: { in: inventoryItemIds }, ...supplierLineSearch(organizationId, search) },
+      where: { inventoryItemId: { in: inventoryItemIds }, ...supplierLineSearch(siteId, search) },
       select: {
         inventoryItemId: true,
         supplierItemName: true,
@@ -166,17 +166,17 @@ export const inventoryItemRepository = {
       orderBy: { createdAt: 'asc' },
     }),
 
-  findAllByOrganization: async (
-    organizationId: string,
+  findAllBySite: async (
+    siteId: string,
     filters: ListItemsFilters,
   ): Promise<{ items: InventoryItemWithRelations[]; total: number }> => {
     const where: Prisma.InventoryItemWhereInput = {
-      organizationId,
+      siteId,
       ...(filters.includeRetired ? {} : { deletedAt: null }),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters.departmentTag ? { departmentTags: { has: filters.departmentTag } } : {}),
-      ...(filters.search ? { OR: searchWhere(organizationId, filters.search) } : {}),
+      ...(filters.search ? { OR: searchWhere(siteId, filters.search) } : {}),
       ...(filters.onlyIds ? { id: { in: filters.onlyIds } } : {}),
     };
 
@@ -203,27 +203,27 @@ export const inventoryItemRepository = {
 
   findById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     tx: TxClient = prisma,
   ): Promise<InventoryItemWithRelations | null> => {
-    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, siteId }, include: itemInclude });
   },
 
   /** Live items only, for the raw-ingredient-on-hand check (§5.4 rule 2). */
-  findLiveByIds: async (ids: string[], organizationId: string): Promise<InventoryItem[]> => {
+  findLiveByIds: async (ids: string[], siteId: string): Promise<InventoryItem[]> => {
     if (ids.length === 0) return [];
-    return prisma.inventoryItem.findMany({ where: { id: { in: ids }, organizationId, deletedAt: null } });
+    return prisma.inventoryItem.findMany({ where: { id: { in: ids }, siteId, deletedAt: null } });
   },
 
   /** Case-insensitive match among LIVE items only — duplicate-name warning (§5.4 rule 3). */
   findLiveByName: async (
-    organizationId: string,
+    siteId: string,
     name: string,
     excludeId?: string,
   ): Promise<InventoryItem | null> => {
     return prisma.inventoryItem.findFirst({
       where: {
-        organizationId,
+        siteId,
         deletedAt: null,
         name: { equals: name, mode: 'insensitive' },
         ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -232,13 +232,13 @@ export const inventoryItemRepository = {
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     data: CreateInventoryItemInput,
     tx: TxClient = prisma,
   ): Promise<InventoryItemWithRelations> => {
     return tx.inventoryItem.create({
       data: {
-        organizationId,
+        siteId,
         name: data.name,
         type: data.type,
         categoryId: data.categoryId,
@@ -257,12 +257,12 @@ export const inventoryItemRepository = {
 
   update: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: UpdateInventoryItemInput,
     tx: TxClient = prisma,
   ): Promise<InventoryItemWithRelations | null> => {
     const updated = await tx.inventoryItem.updateMany({
-      where: { id, organizationId },
+      where: { id, siteId },
       data: {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.type !== undefined ? { type: data.type } : {}),
@@ -284,34 +284,34 @@ export const inventoryItemRepository = {
     });
 
     if (updated.count === 0) return null;
-    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, siteId }, include: itemInclude });
   },
 
   /** Soft delete (retire) — never a hard delete; the ledger references items. */
-  retire: async (id: string, organizationId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
+  retire: async (id: string, siteId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
     const updated = await tx.inventoryItem.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: { id, siteId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
     if (updated.count === 0) return null;
-    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, siteId }, include: itemInclude });
   },
 
-  restore: async (id: string, organizationId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
+  restore: async (id: string, siteId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
     const updated = await tx.inventoryItem.updateMany({
-      where: { id, organizationId, deletedAt: { not: null } },
+      where: { id, siteId, deletedAt: { not: null } },
       data: { deletedAt: null },
     });
     if (updated.count === 0) return null;
-    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, siteId }, include: itemInclude });
   },
 
   /** Distinct suppliers with at least one catalog line, per item — the list's Suppliers column (§30.1). */
-  countSuppliersByItem: async (organizationId: string, inventoryItemIds: string[]): Promise<Map<string, number>> => {
+  countSuppliersByItem: async (siteId: string, inventoryItemIds: string[]): Promise<Map<string, number>> => {
     if (inventoryItemIds.length === 0) return new Map();
     const pairs = await prisma.supplierItem.groupBy({
       by: ['inventoryItemId', 'supplierId'],
-      where: { organizationId, inventoryItemId: { in: inventoryItemIds } },
+      where: { siteId, inventoryItemId: { in: inventoryItemIds } },
     });
     const counts = new Map<string, number>();
     for (const pair of pairs) counts.set(pair.inventoryItemId, (counts.get(pair.inventoryItemId) ?? 0) + 1);
@@ -319,8 +319,8 @@ export const inventoryItemRepository = {
   },
 
   /** Live items per type — the counts on the catalog's type chips (§30.1). */
-  countLiveByType: async (organizationId: string): Promise<Record<InventoryItemType, number>> => {
-    const groups = await prisma.inventoryItem.groupBy({ by: ['type'], where: { organizationId, deletedAt: null }, _count: { _all: true } });
+  countLiveByType: async (siteId: string): Promise<Record<InventoryItemType, number>> => {
+    const groups = await prisma.inventoryItem.groupBy({ by: ['type'], where: { siteId, deletedAt: null }, _count: { _all: true } });
     const counts: Record<InventoryItemType, number> = { STOCKED: 0, RAW_INGREDIENT: 0, PREPPED: 0 };
     for (const group of groups) counts[group.type] = group._count._all;
     return counts;
@@ -331,10 +331,10 @@ export const inventoryItemRepository = {
    * buy unit (case- and space-insensitive) and neither a pack size nor a conversion factor was entered.
    * A column-to-column comparison, which Prisma's filter API cannot express, so it is raw SQL.
    */
-  findNeedsSetupIds: async (organizationId: string): Promise<string[]> => {
+  findNeedsSetupIds: async (siteId: string): Promise<string[]> => {
     const rows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id FROM inventory_items
-      WHERE organization_id = ${organizationId}
+      WHERE organization_id = ${siteId}
         AND deleted_at IS NULL
         AND pack_size IS NULL
         AND conversion_factor IS NULL
@@ -344,12 +344,12 @@ export const inventoryItemRepository = {
   },
 
   /** Live items created at or after `since` — "added this week". */
-  countCreatedSince: async (organizationId: string, since: Date): Promise<number> =>
-    prisma.inventoryItem.count({ where: { organizationId, deletedAt: null, createdAt: { gte: since } } }),
+  countCreatedSince: async (siteId: string, since: Date): Promise<number> =>
+    prisma.inventoryItem.count({ where: { siteId, deletedAt: null, createdAt: { gte: since } } }),
 
   /** KPI strip counts (F1's four figures) — plan §5.3 `ItemCatalogMetaSchema`. */
   getCatalogMeta: async (
-    organizationId: string,
+    siteId: string,
   ): Promise<{
     itemsTracked: number;
     typesRepresented: number;
@@ -360,15 +360,15 @@ export const inventoryItemRepository = {
   }> => {
     const [itemsTracked, typeGroups, categoryCount, retiredCategoryCount, liveItemsWithTags, supplierCount] =
       await Promise.all([
-        prisma.inventoryItem.count({ where: { organizationId, deletedAt: null } }),
-        prisma.inventoryItem.groupBy({ by: ['type'], where: { organizationId, deletedAt: null } }),
-        prisma.category.count({ where: { organizationId, deletedAt: null } }),
-        prisma.category.count({ where: { organizationId, deletedAt: { not: null } } }),
+        prisma.inventoryItem.count({ where: { siteId, deletedAt: null } }),
+        prisma.inventoryItem.groupBy({ by: ['type'], where: { siteId, deletedAt: null } }),
+        prisma.category.count({ where: { siteId, deletedAt: null } }),
+        prisma.category.count({ where: { siteId, deletedAt: { not: null } } }),
         prisma.inventoryItem.findMany({
-          where: { organizationId, deletedAt: null },
+          where: { siteId, deletedAt: null },
           select: { departmentTags: true },
         }),
-        prisma.supplier.count({ where: { organizationId, deletedAt: null } }),
+        prisma.supplier.count({ where: { siteId, deletedAt: null } }),
       ]);
 
     const departmentTagsSeen = new Set<DepartmentTag>();
@@ -393,40 +393,40 @@ export const inventoryItemRepository = {
 
 export const restockLevelRepository = {
   findAllByLocation: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
   ): Promise<RestockLevel[]> => {
-    return prisma.restockLevel.findMany({ where: { organizationId, locationId } });
+    return prisma.restockLevel.findMany({ where: { siteId, locationId } });
   },
 
   /** Levels for a specific set of items at one location — joined into the items read path. */
   findByItemIdsForLocation: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     inventoryItemIds: string[],
   ): Promise<Map<string, Prisma.Decimal>> => {
     if (inventoryItemIds.length === 0) return new Map();
     const rows = await prisma.restockLevel.findMany({
-      where: { organizationId, locationId, inventoryItemId: { in: inventoryItemIds } },
+      where: { siteId, locationId, inventoryItemId: { in: inventoryItemIds } },
       select: { inventoryItemId: true, level: true },
     });
     return new Map(rows.map((r) => [r.inventoryItemId, r.level]));
   },
 
   /** Ids of the org's live items, for counting levels that belong to retired items out of a strip. */
-  findLiveItemIds: async (organizationId: string): Promise<string[]> => {
-    const rows = await prisma.inventoryItem.findMany({ where: { organizationId, deletedAt: null }, select: { id: true } });
+  findLiveItemIds: async (siteId: string): Promise<string[]> => {
+    const rows = await prisma.inventoryItem.findMany({ where: { siteId, deletedAt: null }, select: { id: true } });
     return rows.map((r) => r.id);
   },
 
   /** Items live at this org, optionally filtered by search — the restock grid's row set. */
   findLiveItemsForRestock: async (
-    organizationId: string,
+    siteId: string,
     filters: { departmentTag?: DepartmentTag; search?: string },
   ): Promise<InventoryItem[]> => {
     return prisma.inventoryItem.findMany({
       where: {
-        organizationId,
+        siteId,
         deletedAt: null,
         ...(filters.departmentTag ? { departmentTags: { has: filters.departmentTag } } : {}),
         ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
@@ -441,7 +441,7 @@ export const restockLevelRepository = {
    * for which location, from what to what. A save that changes nothing logs nothing.
    */
   bulkUpsert: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     setById: string,
     levels: { inventoryItemId: string; level: Prisma.Decimal.Value | null }[],
@@ -449,7 +449,7 @@ export const restockLevelRepository = {
   ): Promise<void> => {
     await prisma.$transaction(async (tx) => {
       const existing = await tx.restockLevel.findMany({
-        where: { organizationId, locationId, inventoryItemId: { in: levels.map((l) => l.inventoryItemId) } },
+        where: { siteId, locationId, inventoryItemId: { in: levels.map((l) => l.inventoryItemId) } },
         select: { inventoryItemId: true, level: true },
       });
       const before = new Map(existing.map((r) => [r.inventoryItemId, r.level]));
@@ -460,12 +460,12 @@ export const restockLevelRepository = {
 
       if (toClear.length > 0) {
         await tx.restockLevel.deleteMany({
-          where: { organizationId, locationId, inventoryItemId: { in: toClear } },
+          where: { siteId, locationId, inventoryItemId: { in: toClear } },
         });
         for (const inventoryItemId of toClear) {
           const old = before.get(inventoryItemId);
           if (old === undefined) continue; // clearing a level that was never set changes nothing
-          changes.push({ organizationId, locationId, inventoryItemId, oldLevel: old, newLevel: null, changedById: setById, reason });
+          changes.push({ siteId, locationId, inventoryItemId, oldLevel: old, newLevel: null, changedById: setById, reason });
         }
       }
 
@@ -475,7 +475,7 @@ export const restockLevelRepository = {
           where: { locationId_inventoryItemId: { locationId, inventoryItemId: l.inventoryItemId } },
           update: { level: next, setById },
           create: {
-            organizationId,
+            siteId,
             locationId,
             inventoryItemId: l.inventoryItemId,
             level: next,
@@ -485,7 +485,7 @@ export const restockLevelRepository = {
         const old = before.get(l.inventoryItemId);
         if (old !== undefined && old.equals(next)) continue;
         changes.push({
-          organizationId,
+          siteId,
           locationId,
           inventoryItemId: l.inventoryItemId,
           oldLevel: old ?? null,
@@ -504,11 +504,11 @@ export const restockLevelRepository = {
    * `since…now` window and the first use row ever written. Only items with at least one use row appear.
    */
   findUseByItemForLocation: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     since: Date,
   ): Promise<Map<string, ItemUse>> => {
-    const base = { organizationId, locationId, type: { in: USE_TRANSACTION_TYPES } };
+    const base = { siteId, locationId, type: { in: USE_TRANSACTION_TYPES } };
     const [inWindow, first] = await Promise.all([
       prisma.inventoryTransaction.groupBy({
         by: ['inventoryItemId'],
@@ -536,13 +536,13 @@ export const restockLevelRepository = {
 
   /** Sum of ledger quantity per item at one location — onHandQty, derived live, never stored. */
   sumOnHandByItemForLocation: async (
-    organizationId: string,
+    siteId: string,
     locationId: string,
     inventoryItemIds?: string[],
   ): Promise<Map<string, Prisma.Decimal>> => {
     const rows = await prisma.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
-      where: { organizationId, locationId, ...(inventoryItemIds ? { inventoryItemId: { in: inventoryItemIds } } : {}) },
+      where: { siteId, locationId, ...(inventoryItemIds ? { inventoryItemId: { in: inventoryItemIds } } : {}) },
       _sum: { quantity: true },
     });
     return new Map(rows.map((r) => [r.inventoryItemId, r._sum.quantity ?? new Prisma.Decimal(0)]));
@@ -556,15 +556,15 @@ export const restockLevelRepository = {
 const restockChangeInclude = {
   changedBy: { select: { id: true, name: true } },
   inventoryItem: { select: { id: true, name: true, usageUnit: true, deletedAt: true } },
-  location: { select: { id: true, type: true, organizationId: true } },
+  location: { select: { id: true, type: true, siteId: true } },
 } satisfies Prisma.RestockLevelChangeInclude;
 export type RestockChangeRow = Prisma.RestockLevelChangeGetPayload<{ include: typeof restockChangeInclude }>;
 
 export const restockChangeRepository = {
   /** Newest first. One item, or the location's recent changes across items. */
-  list: (organizationId: string, locationId: string, filters: { inventoryItemId?: string; limit: number }): Promise<RestockChangeRow[]> =>
+  list: (siteId: string, locationId: string, filters: { inventoryItemId?: string; limit: number }): Promise<RestockChangeRow[]> =>
     prisma.restockLevelChange.findMany({
-      where: { organizationId, locationId, ...(filters.inventoryItemId ? { inventoryItemId: filters.inventoryItemId } : {}) },
+      where: { siteId, locationId, ...(filters.inventoryItemId ? { inventoryItemId: filters.inventoryItemId } : {}) },
       include: restockChangeInclude,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: filters.limit,
@@ -574,9 +574,9 @@ export const restockChangeRepository = {
     prisma.restockLevelChange.findFirst({ where: { id }, include: restockChangeInclude }),
 
   /** The newest entry for one (location, item) — read back after a put back writes its own. */
-  findLatest: (organizationId: string, locationId: string, inventoryItemId: string): Promise<RestockChangeRow | null> =>
+  findLatest: (siteId: string, locationId: string, inventoryItemId: string): Promise<RestockChangeRow | null> =>
     prisma.restockLevelChange.findFirst({
-      where: { organizationId, locationId, inventoryItemId },
+      where: { siteId, locationId, inventoryItemId },
       include: restockChangeInclude,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     }),
@@ -590,7 +590,7 @@ export const itemChangeReviewRepository = {
   /** Every count is a plain count, so an item with no history yields zeros — never null. */
   counts: async (
     inventoryItemId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<{
     onHandQty: Prisma.Decimal;
     locationsHoldingStock: number;
@@ -599,19 +599,19 @@ export const itemChangeReviewRepository = {
     receiptLines: number;
     openOrders: number;
   }> => {
-    const receiptWhere = { inventoryItemId, goodsReceipt: { organizationId, status: { not: 'CANCELLED' as const } } };
+    const receiptWhere = { inventoryItemId, goodsReceipt: { siteId, status: { not: 'CANCELLED' as const } } };
     const [perLocation, stockEntries, receiptLines, receiptGroups, openOrderGroups] = await Promise.all([
       prisma.inventoryTransaction.groupBy({
         by: ['locationId'],
-        where: { organizationId, inventoryItemId },
+        where: { siteId, inventoryItemId },
         _sum: { quantity: true },
       }),
-      prisma.inventoryTransaction.count({ where: { organizationId, inventoryItemId } }),
+      prisma.inventoryTransaction.count({ where: { siteId, inventoryItemId } }),
       prisma.goodsReceiptLine.count({ where: receiptWhere }),
       prisma.goodsReceiptLine.groupBy({ by: ['goodsReceiptId'], where: receiptWhere }),
       prisma.expectedDeliveryLine.groupBy({
         by: ['expectedDeliveryId'],
-        where: { inventoryItemId, expectedDelivery: { organizationId, status: 'AWAITING' } },
+        where: { inventoryItemId, expectedDelivery: { siteId, status: 'AWAITING' } },
       }),
     ]);
     const zero = new Prisma.Decimal(0);

@@ -65,7 +65,7 @@ type Actor = NonNullable<Request['user']>;
  * DESIGN.md §4). Every catalog/category/supplier/Central-Store-restock entry
  * point resolves through this, never through `actor.organizationId` directly.
  */
-const requireHubOrganization = async (): Promise<string> => {
+const requireHubSite = async (): Promise<string> => {
   const hub = await branchRepository.findHub();
   if (!hub) {
     throw new ValidationError('No hub organization is configured');
@@ -83,8 +83,8 @@ const requireHubOrganization = async (): Promise<string> => {
  * org id regardless of the actor's own `organizationId`.
  */
 const requireHubOrgForCatalogRead = async (actor: Actor): Promise<string> => {
-  const hubOrgId = await requireHubOrganization();
-  if (actor.organizationId === hubOrgId || actor.isDepartmentHead || actorCan(actor, 'central_store.read_any_org')) {
+  const hubOrgId = await requireHubSite();
+  if (actor.siteId === hubOrgId || actor.isDepartmentHead || actorCan(actor, 'central_store.read_any_org')) {
     return hubOrgId;
   }
   throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
@@ -103,7 +103,7 @@ const serializeCategory = (category: CategoryWithItemCount) => ({
 
 /** Writes PREFERRED_SET / PREFERRED_CONFIRMED when an item-level preferred-supplier change moved a line. */
 const logPreferredChange = async (
-  organizationId: string,
+  siteId: string,
   actorId: string,
   supplierId: string,
   inventoryItemId: string,
@@ -112,7 +112,7 @@ const logPreferredChange = async (
 ): Promise<void> => {
   if (!result.lineId || (result.wasPreferred && !result.wasNeedsConfirm)) return;
   await supplierAuditRepository.create(
-    organizationId,
+    siteId,
     supplierId,
     actorId,
     result.wasNeedsConfirm ? 'PREFERRED_CONFIRMED' : 'PREFERRED_SET',
@@ -245,7 +245,7 @@ const assertRawIngredientHasNoDepartments = (
  */
 const assertTypeChangeDoesNotStrandDepartmentStock = async (
   itemId: string,
-  organizationId: string,
+  siteId: string,
   currentType: 'RAW_INGREDIENT' | 'PREPPED' | 'STOCKED',
   nextType: 'RAW_INGREDIENT' | 'PREPPED' | 'STOCKED' | undefined,
 ): Promise<void> => {
@@ -255,7 +255,7 @@ const assertTypeChangeDoesNotStrandDepartmentStock = async (
   const departmentSums = await prisma.inventoryTransaction.groupBy({
     by: ['locationId'],
     where: {
-      organizationId,
+      siteId,
       inventoryItemId: itemId,
       location: { type: 'BRANCH_DEPARTMENT' },
     },
@@ -271,16 +271,16 @@ const assertTypeChangeDoesNotStrandDepartmentStock = async (
 
 /** Resolves categoryId/categoryName into a concrete categoryId, creating inline when a name is given. */
 const resolveCategoryId = async (
-  organizationId: string,
+  siteId: string,
   categoryId: string | null | undefined,
   categoryName: string | null | undefined,
   tx: Prisma.TransactionClient,
 ): Promise<string | null | undefined> => {
   if (categoryId !== undefined && categoryId !== null) return categoryId;
   if (categoryName) {
-    const existing = await categoryRepository.findByLiveName(organizationId, categoryName, tx);
+    const existing = await categoryRepository.findByLiveName(siteId, categoryName, tx);
     if (existing) return existing.id;
-    const created = await categoryRepository.create(organizationId, categoryName, tx);
+    const created = await categoryRepository.create(siteId, categoryName, tx);
     return created.id;
   }
   if (categoryId === null) return null;
@@ -295,12 +295,12 @@ const resolveCategoryId = async (
  * the item-write paths' own "if (centralStore)" guard.
  */
 const getCentralStoreRestockLevelsByItemId = async (
-  organizationId: string,
+  siteId: string,
   inventoryItemIds: string[],
 ): Promise<Map<string, Prisma.Decimal>> => {
   const centralStore = await locationRepository.findCentralStore();
   if (!centralStore) return new Map();
-  return restockLevelRepository.findByItemIdsForLocation(organizationId, centralStore.id, inventoryItemIds);
+  return restockLevelRepository.findByItemIdsForLocation(siteId, centralStore.id, inventoryItemIds);
 };
 
 export const inventoryService = {
@@ -314,9 +314,9 @@ export const inventoryService = {
    * Minimal and read-only; does not touch the restock-levels contract itself.
    */
   getCentralStoreLocation: async (actor: Actor): Promise<CentralStoreLocation> => {
-    const organizationId = await requireHubReader(actor);
+    const siteId = await requireHubReader(actor);
     const centralStore = await locationRepository.findCentralStore();
-    if (!centralStore || centralStore.organizationId !== organizationId) {
+    if (!centralStore || centralStore.siteId !== siteId) {
       throw new NotFoundError('No Central Store is configured for this organization');
     }
     return { id: centralStore.id };
@@ -335,49 +335,49 @@ export const inventoryService = {
   // ── Categories ───────────────────────────────────────────────────────────
 
   listCategories: async (actor: Actor, includeRetired: boolean) => {
-    const organizationId = await requireHubReader(actor);
-    const categories = await categoryRepository.findAllByOrganization(organizationId, includeRetired);
+    const siteId = await requireHubReader(actor);
+    const categories = await categoryRepository.findAllBySite(siteId, includeRetired);
     return categories.map(serializeCategory);
   },
 
   createCategory: async (actor: Actor, input: CreateCategoryInput) => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await categoryRepository.findByLiveName(organizationId, input.name);
+    const siteId = await requireHubActor(actor);
+    const existing = await categoryRepository.findByLiveName(siteId, input.name);
     if (existing) {
       throw new ConflictError('A category with this name already exists');
     }
-    const category = await categoryRepository.create(organizationId, input.name);
+    const category = await categoryRepository.create(siteId, input.name);
     return serializeCategory({ ...category, itemCount: 0 });
   },
 
   renameCategory: async (actor: Actor, id: string, input: UpdateCategoryInput) => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await categoryRepository.findByLiveName(organizationId, input.name);
+    const siteId = await requireHubActor(actor);
+    const existing = await categoryRepository.findByLiveName(siteId, input.name);
     if (existing && existing.id !== id) {
       throw new ConflictError('A category with this name already exists');
     }
-    const category = await categoryRepository.rename(id, organizationId, input.name);
+    const category = await categoryRepository.rename(id, siteId, input.name);
     if (!category) throw new NotFoundError('Category not found');
-    const itemCount = await categoryRepository.countLiveItems(id, organizationId);
+    const itemCount = await categoryRepository.countLiveItems(id, siteId);
     return serializeCategory({ ...category, itemCount });
   },
 
   retireCategory: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const category = await categoryRepository.retire(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const category = await categoryRepository.retire(id, siteId);
     if (!category) throw new NotFoundError('Category not found');
     return serializeCategory({ ...category, itemCount: 0 });
   },
 
   restoreCategory: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const target = await categoryRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const target = await categoryRepository.findById(id, siteId);
     if (!target) throw new NotFoundError('Category not found');
-    const existing = await categoryRepository.findByLiveName(organizationId, target.name);
+    const existing = await categoryRepository.findByLiveName(siteId, target.name);
     if (existing) {
       throw new ConflictError('A live category already holds this name');
     }
-    const category = await categoryRepository.restore(id, organizationId);
+    const category = await categoryRepository.restore(id, siteId);
     if (!category) throw new NotFoundError('Category not found');
     return serializeCategory({ ...category, itemCount: 0 });
   },
@@ -385,14 +385,14 @@ export const inventoryService = {
   // ── Items ────────────────────────────────────────────────────────────────
 
   listItems: async (actor: Actor, query: ListItemsQuery): Promise<ItemCatalogListResponse> => {
-    const organizationId = await requireHubOrgForCatalogRead(actor);
+    const siteId = await requireHubOrgForCatalogRead(actor);
     const attendant = isBlindToMoney(actor);
     // "Needs setup" is a column-to-column comparison, so the ids come from one raw query (§29.3).
-    const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(organizationId);
+    const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(siteId);
     const isManager = actorCan(actor, 'restock.read');
     // Restock levels are for the roles that may read them: nobody else may filter by them (§30.1).
     if (query.lowOrOut && !isManager) throw new ForbiddenError('You cannot filter by restock level');
-    const lowOrOutIds = isManager ? await findCentralStoreLowOrOutIds(organizationId) : [];
+    const lowOrOutIds = isManager ? await findCentralStoreLowOrOutIds(siteId) : [];
     // needsSetup and lowOrOut together mean items in both.
     let onlyIds: string[] | undefined;
     if (query.needsSetup) onlyIds = needsSetupIds;
@@ -400,7 +400,7 @@ export const inventoryService = {
       const low = new Set(lowOrOutIds);
       onlyIds = onlyIds ? onlyIds.filter((id) => low.has(id)) : lowOrOutIds;
     }
-    const { items, total } = await inventoryItemRepository.findAllByOrganization(organizationId, {
+    const { items, total } = await inventoryItemRepository.findAllBySite(siteId, {
       search: query.search,
       type: query.type,
       categoryId: query.categoryId,
@@ -411,17 +411,17 @@ export const inventoryService = {
       page: query.page,
       perPage: query.perPage,
     });
-    const catalogMeta = await inventoryItemRepository.getCatalogMeta(organizationId);
+    const catalogMeta = await inventoryItemRepository.getCatalogMeta(siteId);
     const addedThisWeek = await inventoryItemRepository.countCreatedSince(
-      organizationId,
+      siteId,
       new Date(Date.now() - 7 * 86_400_000),
     );
     const lowOrOut = isManager ? lowOrOutIds.length : null;
     const [typeCounts, addedByAttendant, supplierCounts] = await Promise.all([
-      inventoryItemRepository.countLiveByType(organizationId),
-      itemChangeRepository.countAttendantCreatedSince(organizationId, new Date(Date.now() - 7 * 86_400_000)),
+      inventoryItemRepository.countLiveByType(siteId),
+      itemChangeRepository.countAttendantCreatedSince(siteId, new Date(Date.now() - 7 * 86_400_000)),
       inventoryItemRepository.countSuppliersByItem(
-        organizationId,
+        siteId,
         items.map((item) => item.id),
       ),
     ]);
@@ -430,13 +430,13 @@ export const inventoryService = {
     const restockLevelsByItemId = attendant
       ? new Map<string, Prisma.Decimal>()
       : await getCentralStoreRestockLevelsByItemId(
-          organizationId,
+          siteId,
           items.map((item) => item.id),
         );
     const search = query.search?.trim();
     const matches =
       search && items.length > 0
-        ? await inventoryItemRepository.findSearchMatches(organizationId, items.map((i) => i.id), search)
+        ? await inventoryItemRepository.findSearchMatches(siteId, items.map((i) => i.id), search)
         : [];
 
     return {
@@ -460,10 +460,10 @@ export const inventoryService = {
   },
 
   getItemById: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubReader(actor);
-    const item = await inventoryItemRepository.findById(id, organizationId);
+    const siteId = await requireHubReader(actor);
+    const item = await inventoryItemRepository.findById(id, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
-    const suppliers = (await supplierItemRepository.listForItem(item.id, organizationId)).map(serializeItemSupplierLine);
+    const suppliers = (await supplierItemRepository.listForItem(item.id, siteId)).map(serializeItemSupplierLine);
     if (isBlindToMoney(actor)) {
       // No prices and no preferred flags: who sells it and under what name, nothing about money.
       return {
@@ -473,10 +473,10 @@ export const inventoryService = {
         ),
       };
     }
-    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(siteId, [item.id]);
     const centralStore = await locationRepository.findCentralStore();
     const onHand = centralStore
-      ? (await restockLevelRepository.sumOnHandByItemForLocation(organizationId, centralStore.id, [item.id])).get(item.id)
+      ? (await restockLevelRepository.sumOnHandByItemForLocation(siteId, centralStore.id, [item.id])).get(item.id)
       : undefined;
     return {
       ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
@@ -487,10 +487,10 @@ export const inventoryService = {
 
   /** What happened to the item, newest first (§30.4). Store Manager only. */
   getItemHistory: async (actor: Actor, id: string, limit: number): Promise<ItemHistoryEntry[]> => {
-    const organizationId = await requireHubReader(actor);
-    const item = await inventoryItemRepository.findById(id, organizationId);
+    const siteId = await requireHubReader(actor);
+    const item = await inventoryItemRepository.findById(id, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
-    const rows = await itemChangeRepository.list(id, organizationId, limit);
+    const rows = await itemChangeRepository.list(id, siteId, limit);
     return rows.map((row) => ({
       id: row.id,
       kind: row.kind,
@@ -509,10 +509,10 @@ export const inventoryService = {
    * "No stock has been counted yet, so no figures change".
    */
   getItemChangeReview: async (actor: Actor, id: string): Promise<ItemChangeReview> => {
-    const organizationId = await requireHubActor(actor);
-    const item = await inventoryItemRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const item = await inventoryItemRepository.findById(id, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
-    const counts = await itemChangeReviewRepository.counts(id, organizationId);
+    const counts = await itemChangeReviewRepository.counts(id, siteId);
     return {
       inventoryItemId: item.id,
       itemName: item.name,
@@ -527,19 +527,19 @@ export const inventoryService = {
   },
 
   createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse | AttendantItemMutationResponse> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const attendant = !actorCan(actor, 'catalog.write');
     if (attendant) assertAttendantMayCreate(input);
     assertRawIngredientHasNoDepartments(input.type, input.departmentTags);
 
     if (input.preferredSupplierId) {
-      const supplier = await supplierRepository.findById(input.preferredSupplierId, organizationId);
+      const supplier = await supplierRepository.findById(input.preferredSupplierId, siteId);
       if (!supplier) {
         throw new ValidationError('preferredSupplierId does not reference a known supplier');
       }
     }
 
-    const duplicate = await inventoryItemRepository.findLiveByName(organizationId, input.name);
+    const duplicate = await inventoryItemRepository.findLiveByName(siteId, input.name);
     // The usual price is per buy unit; the item's cost is kept per usage unit (§30.2).
     const currentCost =
       input.usualPrice != null
@@ -547,9 +547,9 @@ export const inventoryService = {
         : undefined;
 
     const item = await prisma.$transaction(async (tx) => {
-      const categoryId = await resolveCategoryId(organizationId, input.categoryId, input.categoryName, tx);
+      const categoryId = await resolveCategoryId(siteId, input.categoryId, input.categoryName, tx);
       const created = await inventoryItemRepository.create(
-        organizationId,
+        siteId,
         {
           name: input.name,
           type: input.type,
@@ -566,7 +566,7 @@ export const inventoryService = {
         tx,
       );
       await itemChangeRepository.record(tx, {
-        organizationId,
+        siteId,
         inventoryItemId: created.id,
         kind: 'CREATED',
         summary: 'created the item',
@@ -575,8 +575,8 @@ export const inventoryService = {
       });
       // Keep SupplierItem.isPreferred in step with the legacy pointer.
       if (input.preferredSupplierId) {
-        const preferred = await supplierItemRepository.applyPreferred(organizationId, created.id, input.preferredSupplierId, tx);
-        await logPreferredChange(organizationId, actor.id, input.preferredSupplierId, created.id, preferred, tx);
+        const preferred = await supplierItemRepository.applyPreferred(siteId, created.id, input.preferredSupplierId, tx);
+        await logPreferredChange(siteId, actor.id, input.preferredSupplierId, created.id, preferred, tx);
       }
       return created;
     }).catch((error: unknown) => mapPrismaError(error, { conflict: 'An item with this name already exists' }));
@@ -584,7 +584,7 @@ export const inventoryService = {
     if (input.centralStoreRestockLevel != null) {
       const centralStore = await locationRepository.findCentralStore();
       if (centralStore) {
-        await restockLevelRepository.bulkUpsert(organizationId, centralStore.id, actor.id, [
+        await restockLevelRepository.bulkUpsert(siteId, centralStore.id, actor.id, [
           { inventoryItemId: item.id, level: input.centralStoreRestockLevel },
         ]);
       }
@@ -595,22 +595,22 @@ export const inventoryService = {
       : [];
     if (attendant) return { item: serializeAttendantItem(item), warnings };
 
-    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(siteId, [item.id]);
     return { item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), warnings };
   },
 
   updateItem: async (actor: Actor, id: string, input: UpdateItemInput): Promise<ItemMutationResponse> => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await inventoryItemRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const existing = await inventoryItemRepository.findById(id, siteId);
     if (!existing) throw new NotFoundError('Inventory item not found');
 
     const nextType = input.type ?? existing.type;
     const nextDepartmentTags = input.departmentTags ?? existing.departmentTags;
     assertRawIngredientHasNoDepartments(nextType, nextDepartmentTags);
-    await assertTypeChangeDoesNotStrandDepartmentStock(id, organizationId, existing.type, input.type);
+    await assertTypeChangeDoesNotStrandDepartmentStock(id, siteId, existing.type, input.type);
 
     if (input.preferredSupplierId) {
-      const supplier = await supplierRepository.findById(input.preferredSupplierId, organizationId);
+      const supplier = await supplierRepository.findById(input.preferredSupplierId, siteId);
       if (!supplier) {
         throw new ValidationError('preferredSupplierId does not reference a known supplier');
       }
@@ -618,14 +618,14 @@ export const inventoryService = {
 
     const duplicate =
       input.name !== undefined
-        ? await inventoryItemRepository.findLiveByName(organizationId, input.name, id)
+        ? await inventoryItemRepository.findLiveByName(siteId, input.name, id)
         : null;
 
     const item = await prisma.$transaction(async (tx) => {
-      const categoryId = await resolveCategoryId(organizationId, input.categoryId, input.categoryName, tx);
+      const categoryId = await resolveCategoryId(siteId, input.categoryId, input.categoryName, tx);
       const updated = await inventoryItemRepository.update(
         id,
-        organizationId,
+        siteId,
         {
           ...(input.name !== undefined ? { name: input.name } : {}),
           ...(input.type !== undefined ? { type: input.type } : {}),
@@ -641,16 +641,16 @@ export const inventoryService = {
         tx,
       );
       if (updated && input.preferredSupplierId !== undefined) {
-        const preferred = await supplierItemRepository.applyPreferred(organizationId, id, input.preferredSupplierId ?? null, tx);
+        const preferred = await supplierItemRepository.applyPreferred(siteId, id, input.preferredSupplierId ?? null, tx);
         if (input.preferredSupplierId) {
-          await logPreferredChange(organizationId, actor.id, input.preferredSupplierId, id, preferred, tx);
+          await logPreferredChange(siteId, actor.id, input.preferredSupplierId, id, preferred, tx);
         }
       }
       if (updated) {
         const change = describeItemUpdate(toItemFields(existing), toItemFields(updated));
         if (change) {
           await itemChangeRepository.record(tx, {
-            organizationId,
+            siteId,
             inventoryItemId: id,
             kind: 'UPDATED',
             summary: change.summary,
@@ -669,13 +669,13 @@ export const inventoryService = {
     if (input.centralStoreRestockLevel !== undefined) {
       const centralStore = await locationRepository.findCentralStore();
       if (centralStore) {
-        await restockLevelRepository.bulkUpsert(organizationId, centralStore.id, actor.id, [
+        await restockLevelRepository.bulkUpsert(siteId, centralStore.id, actor.id, [
           { inventoryItemId: item.id, level: input.centralStoreRestockLevel },
         ]);
       }
     }
 
-    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(siteId, [item.id]);
 
     return {
       item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
@@ -686,12 +686,12 @@ export const inventoryService = {
   },
 
   retireItem: async (actor: Actor, id: string, reason?: string) => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const item = await prisma.$transaction(async (tx) => {
-      const retired = await inventoryItemRepository.retire(id, organizationId, tx);
+      const retired = await inventoryItemRepository.retire(id, siteId, tx);
       if (retired) {
         await itemChangeRepository.record(tx, {
-          organizationId,
+          siteId,
           inventoryItemId: id,
           kind: 'RETIRED',
           summary: 'retired the item',
@@ -706,12 +706,12 @@ export const inventoryService = {
   },
 
   restoreItem: async (actor: Actor, id: string, reason?: string) => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const item = await prisma.$transaction(async (tx) => {
-      const restored = await inventoryItemRepository.restore(id, organizationId, tx);
+      const restored = await inventoryItemRepository.restore(id, siteId, tx);
       if (restored) {
         await itemChangeRepository.record(tx, {
-          organizationId,
+          siteId,
           inventoryItemId: id,
           kind: 'RESTORED',
           summary: 'restored the item',
@@ -751,10 +751,10 @@ export const inventoryService = {
   },
 
   saveRestockLevels: async (actor: Actor, input: SaveRestockLevelsInput): Promise<RestockLevelRow[]> => {
-    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, input, 'write');
+    const { siteId, catalogSiteId, locationId, departmentTag } = await resolveRestockScope(actor, input, 'write');
 
     const itemIds = input.levels.map((l) => l.inventoryItemId);
-    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, catalogOrganizationId);
+    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, catalogSiteId);
     const liveItemIds = new Set(liveItems.map((i) => i.id));
     if (liveItemIds.size !== itemIds.length) {
       throw new NotFoundError('One or more items were not found');
@@ -774,7 +774,7 @@ export const inventoryService = {
     }
 
     await restockLevelRepository.bulkUpsert(
-      organizationId,
+      siteId,
       locationId,
       actor.id,
       input.levels.map((l) => ({ inventoryItemId: l.inventoryItemId, level: l.level })),
@@ -789,8 +789,8 @@ export const inventoryService = {
    * Same "whose levels" rules as the list; a Department Head sees only their own department.
    */
   listRestockHistory: async (actor: Actor, query: RestockHistoryQuery): Promise<RestockHistoryEntry[]> => {
-    const { organizationId, locationId } = await resolveRestockScope(actor, query, 'read');
-    const rows = await restockChangeRepository.list(organizationId, locationId, {
+    const { siteId, locationId } = await resolveRestockScope(actor, query, 'read');
+    const rows = await restockChangeRepository.list(siteId, locationId, {
       inventoryItemId: query.inventoryItemId,
       limit: query.limit,
     });
@@ -825,7 +825,7 @@ export const inventoryService = {
     if (change.inventoryItem.deletedAt) throw new NotFoundError('Restock level change not found');
     if (change.oldLevel === null) throw new ValidationError('Nothing to put back: this was the first level set for the item');
 
-    const current = (await restockLevelRepository.findByItemIdsForLocation(change.organizationId, change.locationId, [change.inventoryItemId])).get(
+    const current = (await restockLevelRepository.findByItemIdsForLocation(change.siteId, change.locationId, [change.inventoryItemId])).get(
       change.inventoryItemId,
     );
     if (current && current.equals(change.oldLevel)) {
@@ -833,13 +833,13 @@ export const inventoryService = {
     }
 
     await restockLevelRepository.bulkUpsert(
-      change.organizationId,
+      change.siteId,
       change.locationId,
       actor.id,
       [{ inventoryItemId: change.inventoryItemId, level: change.oldLevel }],
       input.reason ?? 'Put back',
     );
-    const latest = await restockChangeRepository.findLatest(change.organizationId, change.locationId, change.inventoryItemId);
+    const latest = await restockChangeRepository.findLatest(change.siteId, change.locationId, change.inventoryItemId);
     if (!latest) throw new NotFoundError('Restock level change not found');
     return serializeRestockChange(latest);
   },
@@ -864,11 +864,11 @@ const loadRestockRows = async (
   actor: Actor,
   query: RestockScopeQuery & { search?: string },
 ): Promise<{ rows: RestockLevelRow[]; differs: number }> => {
-  const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query, 'read');
+  const { siteId, catalogSiteId, locationId, departmentTag } = await resolveRestockScope(actor, query, 'read');
 
   // Items are catalog rows on the hub (D-15); levels + on-hand live on the
   // location's own org (a branch department's, or the hub's Central Store).
-  const items = await restockLevelRepository.findLiveItemsForRestock(catalogOrganizationId, {
+  const items = await restockLevelRepository.findLiveItemsForRestock(catalogSiteId, {
     departmentTag,
     search: query.search,
   });
@@ -876,10 +876,10 @@ const loadRestockRows = async (
 
   const now = new Date();
   const [levels, onHandByItemId, useByItemId] = await Promise.all([
-    restockLevelRepository.findAllByLocation(organizationId, locationId),
-    restockLevelRepository.sumOnHandByItemForLocation(organizationId, locationId),
+    restockLevelRepository.findAllByLocation(siteId, locationId),
+    restockLevelRepository.sumOnHandByItemForLocation(siteId, locationId),
     restockLevelRepository.findUseByItemForLocation(
-      organizationId,
+      siteId,
       locationId,
       new Date(now.getTime() - SUGGESTION_WINDOW_DAYS * 86_400_000),
     ),
@@ -914,7 +914,7 @@ const loadRestockRows = async (
 /** Central Store items with a level set and on-hand below it: the strip's count and the `lowOrOut` filter (§29.3, §30.1). */
 const findCentralStoreLowOrOutIds = async (hubOrgId: string): Promise<string[]> => {
   const centralStore = await locationRepository.findCentralStore();
-  if (!centralStore || centralStore.organizationId !== hubOrgId) return [];
+  if (!centralStore || centralStore.siteId !== hubOrgId) return [];
   const [levels, onHand, live] = await Promise.all([
     restockLevelRepository.findAllByLocation(hubOrgId, centralStore.id),
     restockLevelRepository.sumOnHandByItemForLocation(hubOrgId, centralStore.id),
@@ -947,34 +947,34 @@ const resolveRestockScope = async (
   actor: Actor,
   query: RestockScopeQuery,
   mode: 'read' | 'write',
-): Promise<{ organizationId: string; catalogOrganizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
+): Promise<{ siteId: string; catalogSiteId: string; locationId: string; departmentTag?: DepartmentTag }> => {
   if (actor.isDepartmentHead) {
     if (query.locationId || query.scope || query.branchId) {
       throw new ForbiddenError('Department Heads set restock levels for their own department only');
     }
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ValidationError('Branch context missing for this user');
     }
     if (!actor.departmentTag) {
       throw new ValidationError('This user has no department assigned');
     }
-    const location = await locationRepository.findByOrganizationTypeDepartment(
-      actor.organizationId,
+    const location = await locationRepository.findBySiteTypeDepartment(
+      actor.siteId,
       'BRANCH_DEPARTMENT',
       actor.departmentTag,
     );
     if (!location) {
       throw new NotFoundError('No location found for your department');
     }
-    const catalogOrganizationId = await requireHubOrgForCatalogRead(actor);
-    return { organizationId: actor.organizationId, catalogOrganizationId, locationId: location.id, departmentTag: actor.departmentTag };
+    const catalogSiteId = await requireHubOrgForCatalogRead(actor);
+    return { siteId: actor.siteId, catalogSiteId, locationId: location.id, departmentTag: actor.departmentTag };
   }
 
   // A desktop role naming whose levels. Reading may come from outside the hub; writing needs the right to write.
   if (mode === 'write' && !actorCan(actor, 'restock.write')) {
     throw new ForbiddenError('You cannot change restock levels');
   }
-  const organizationId = mode === 'write' ? await requireHubActor(actor) : await requireHubReader(actor);
+  const siteId = mode === 'write' ? await requireHubActor(actor) : await requireHubReader(actor);
   if (!query.locationId && !query.scope) {
     throw new ValidationError('locationId or scope is required');
   }
@@ -982,22 +982,22 @@ const resolveRestockScope = async (
   if (query.scope && query.scope !== 'CENTRAL_STORE') {
     if (!query.branchId) throw new ValidationError('branchId is required for a department scope');
     const branch = await branchRepository.findById(query.branchId);
-    if (!branch || branch.id === organizationId) {
+    if (!branch || branch.id === siteId) {
       throw new ValidationError('branchId must be a branch, not the hub');
     }
-    const location = await locationRepository.findByOrganizationTypeDepartment(branch.id, 'BRANCH_DEPARTMENT', query.scope);
+    const location = await locationRepository.findBySiteTypeDepartment(branch.id, 'BRANCH_DEPARTMENT', query.scope);
     if (!location) {
       throw new NotFoundError(`${branch.name} has no ${query.scope.toLowerCase()} department`);
     }
-    return { organizationId: branch.id, catalogOrganizationId: organizationId, locationId: location.id, departmentTag: query.scope };
+    return { siteId: branch.id, catalogSiteId: siteId, locationId: location.id, departmentTag: query.scope };
   }
 
   const centralStore = await locationRepository.findCentralStore();
-  if (!centralStore || centralStore.organizationId !== organizationId) {
+  if (!centralStore || centralStore.siteId !== siteId) {
     throw new ValidationError('No Central Store is configured for this organization');
   }
   if (query.locationId && centralStore.id !== query.locationId) {
     throw new ValidationError('locationId must be the Central Store');
   }
-  return { organizationId, catalogOrganizationId: organizationId, locationId: centralStore.id };
+  return { siteId, catalogSiteId: siteId, locationId: centralStore.id };
 };

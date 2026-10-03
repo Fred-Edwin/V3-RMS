@@ -13,7 +13,7 @@ vi.mock('../repositories/customer-discount-auth-repository', () => ({
     create: vi.fn(),
     findById: vi.fn(),
     findPendingByOrderId: vi.fn(),
-    findPendingByOrganization: vi.fn(),
+    findPendingBySite: vi.fn(),
     resolveIfPending: vi.fn(),
   },
 }));
@@ -39,7 +39,7 @@ vi.mock('../sockets/socket-service', () => ({
   },
 }));
 
-const organizationId = '11111111-1111-4111-8111-111111111111';
+const siteId = '11111111-1111-4111-8111-111111111111';
 const orderId = '33333333-3333-4333-8333-333333333333';
 const discountId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const authRequestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -47,18 +47,18 @@ const authRequestId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const waiterActor = {
   id: '22222222-2222-4222-8222-222222222222',
   role: 'WAITER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const managerActor = {
   id: '55555555-5555-4555-8555-555555555555',
   role: 'MANAGER',
-  organizationId,
+  siteId,
 } as NonNullable<Request['user']>;
 
 const buildReadyOrder = (): FullOrderPrismaRecord => ({
   id: orderId,
-  organizationId,
+  siteId,
   dailyNumber: 7,
   orderDate: new Date('2026-04-10T00:00:00.000Z'),
   type: 'DINE_IN',
@@ -87,7 +87,7 @@ const buildReadyOrder = (): FullOrderPrismaRecord => ({
 
 const buildPercentageDiscount = (requiresApproval = true) => ({
   id: discountId,
-  organizationId,
+  siteId,
   name: 'Senior Citizen',
   type: 'PERCENTAGE' as const,
   value: new Prisma.Decimal('15.00'),
@@ -101,7 +101,7 @@ const buildPercentageDiscount = (requiresApproval = true) => ({
 
 const buildPendingAuthRequest = () => ({
   id: authRequestId,
-  organizationId,
+  siteId,
   orderId,
   discountId,
   requestedById: waiterActor.id,
@@ -131,17 +131,17 @@ describe('customerDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.updateStatus).mockResolvedValue(buildReadyOrder());
 
     const result = await customerDiscountAuthService.createAuthRequest(
-      orderId, discountId, organizationId, waiterActor,
+      orderId, discountId, siteId, waiterActor,
     );
 
     expect(result.requiresApproval).toBe(true);
     expect(customerDiscountAuthRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ orderId, discountId, organizationId, discountPercent: '15' }),
+      expect.objectContaining({ orderId, discountId, siteId, discountPercent: '15' }),
     );
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'AWAITING_AUTHORIZATION');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'AWAITING_AUTHORIZATION');
     expect(socketService.emitCustomerDiscountAuthPending).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ orderId, discountName: 'Senior Citizen' }),
     );
   });
@@ -153,12 +153,12 @@ describe('customerDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.applyDiscount).mockResolvedValue(buildReadyOrder());
 
     const result = await customerDiscountAuthService.createAuthRequest(
-      orderId, discountId, organizationId, waiterActor,
+      orderId, discountId, siteId, waiterActor,
     );
 
     expect(result.requiresApproval).toBe(false);
     expect(orderRepository.applyDiscount).toHaveBeenCalledWith(
-      orderId, organizationId, '15', expect.any(String), waiterActor.id, discountId,
+      orderId, siteId, '15', expect.any(String), waiterActor.id, discountId,
     );
     expect(orderRepository.updateStatus).not.toHaveBeenCalled();
     expect(customerDiscountAuthRepository.create).not.toHaveBeenCalled();
@@ -167,7 +167,7 @@ describe('customerDiscountAuthService.createAuthRequest', () => {
   it('throws NotFoundError when order does not exist', async () => {
     vi.mocked(orderRepository.findById).mockResolvedValue(null);
     await expect(
-      customerDiscountAuthService.createAuthRequest(orderId, discountId, organizationId, waiterActor),
+      customerDiscountAuthService.createAuthRequest(orderId, discountId, siteId, waiterActor),
     ).rejects.toThrow('Order not found');
   });
 
@@ -175,7 +175,7 @@ describe('customerDiscountAuthService.createAuthRequest', () => {
     vi.mocked(orderRepository.findById).mockResolvedValue(buildReadyOrder());
     vi.mocked(discountRepository.findById).mockResolvedValue({ ...buildPercentageDiscount(), isActive: false });
     await expect(
-      customerDiscountAuthService.createAuthRequest(orderId, discountId, organizationId, waiterActor),
+      customerDiscountAuthService.createAuthRequest(orderId, discountId, siteId, waiterActor),
     ).rejects.toThrow('Discount not found or inactive');
   });
 
@@ -186,7 +186,7 @@ describe('customerDiscountAuthService.createAuthRequest', () => {
       buildPendingAuthRequest(),
     );
     await expect(
-      customerDiscountAuthService.createAuthRequest(orderId, discountId, organizationId, waiterActor),
+      customerDiscountAuthService.createAuthRequest(orderId, discountId, siteId, waiterActor),
     ).rejects.toThrow('A discount approval request is already pending');
   });
 });
@@ -214,10 +214,10 @@ describe('customerDiscountAuthService.managerApprove', () => {
     );
 
     expect(orderRepository.applyDiscount).toHaveBeenCalled();
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'READY');
     expect(socketService.emitCustomerDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ approved: true }),
     );
     expect(result.status).toBe('APPROVED');
@@ -234,10 +234,10 @@ describe('customerDiscountAuthService.managerApprove', () => {
     await customerDiscountAuthService.managerApprove(authRequestId, 'REJECTED', managerActor);
 
     expect(orderRepository.applyDiscount).not.toHaveBeenCalled();
-    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, organizationId, 'READY');
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith(orderId, siteId, 'READY');
     expect(socketService.emitCustomerDiscountAuthResolved).toHaveBeenCalledWith(
       waiterActor.id,
-      organizationId,
+      siteId,
       expect.objectContaining({ approved: false }),
     );
   });

@@ -4,7 +4,7 @@ import { getTodayDateOnly } from '../utils/date-only';
 
 const shiftSelect = {
   id: true,
-  organizationId: true,
+  siteId: true,
   name: true,
   startTime: true,
   endTime: true,
@@ -16,10 +16,10 @@ const shiftSelect = {
 export type ShiftRecord = Prisma.ShiftGetPayload<{ select: typeof shiftSelect }>;
 
 export const shiftRepository = {
-  findAllByOrganization: async (organizationId: string): Promise<ShiftRecord[]> => {
+  findAllBySite: async (siteId: string): Promise<ShiftRecord[]> => {
     return prisma.shift.findMany({
       where: {
-        organizationId,
+        siteId,
         isActive: true,
       },
       select: shiftSelect,
@@ -27,11 +27,11 @@ export const shiftRepository = {
     });
   },
 
-  findById: async (id: string, organizationId: string): Promise<ShiftRecord | null> => {
+  findById: async (id: string, siteId: string): Promise<ShiftRecord | null> => {
     return prisma.shift.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
         isActive: true,
       },
       select: shiftSelect,
@@ -39,7 +39,7 @@ export const shiftRepository = {
   },
 
   create: async (
-    organizationId: string,
+    siteId: string,
     data: {
       name: string;
       startTime: string;
@@ -48,7 +48,7 @@ export const shiftRepository = {
   ): Promise<ShiftRecord> => {
     return prisma.shift.create({
       data: {
-        organizationId,
+        siteId,
         name: data.name,
         startTime: data.startTime,
         endTime: data.endTime,
@@ -59,7 +59,7 @@ export const shiftRepository = {
 
   update: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       name?: string;
       startTime?: string;
@@ -69,7 +69,7 @@ export const shiftRepository = {
     const result = await prisma.shift.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         isActive: true,
       },
       data,
@@ -82,19 +82,19 @@ export const shiftRepository = {
     return prisma.shift.findFirst({
       where: {
         id,
-        organizationId,
+        siteId,
       },
       select: shiftSelect,
     });
   },
 
-  hasFutureAssignments: async (id: string, organizationId: string): Promise<boolean> => {
+  hasFutureAssignments: async (id: string, siteId: string): Promise<boolean> => {
     const nextDayStart = getTodayDateOnly();
     nextDayStart.setUTCDate(nextDayStart.getUTCDate() + 1);
 
     const assignment = await prisma.shiftAssignment.findFirst({
       where: {
-        organizationId,
+        siteId,
         shiftId: id,
         date: {
           gte: nextDayStart,
@@ -108,11 +108,11 @@ export const shiftRepository = {
     return Boolean(assignment);
   },
 
-  softDelete: async (id: string, organizationId: string): Promise<boolean> => {
+  softDelete: async (id: string, siteId: string): Promise<boolean> => {
     const result = await prisma.shift.updateMany({
       where: {
         id,
-        organizationId,
+        siteId,
         isActive: true,
       },
       data: {

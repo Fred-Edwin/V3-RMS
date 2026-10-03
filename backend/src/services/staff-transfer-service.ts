@@ -5,12 +5,12 @@ import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors'
 interface Actor {
   id: string;
   role: string;
-  organizationId: string | null;
+  siteId: string | null;
 }
 
 interface CreateTransferInput {
   userId: string;
-  toOrganizationId: string;
+  toSiteId: string;
   notes?: string;
 }
 
@@ -30,14 +30,14 @@ export const staffTransferService = {
       throw new ValidationError('Cannot transfer an inactive staff member');
     }
 
-    if (staff.organizationId === input.toOrganizationId) {
+    if (staff.siteId === input.toSiteId) {
       throw new ValidationError('Staff member is already assigned to this branch');
     }
 
     return staffTransferRepository.create({
       userId: input.userId,
-      fromOrganizationId: staff.organizationId,
-      toOrganizationId: input.toOrganizationId,
+      fromSiteId: staff.siteId,
+      toSiteId: input.toSiteId,
       authorizedById: actor.id,
       notes: input.notes,
     });

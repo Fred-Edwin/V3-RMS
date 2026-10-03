@@ -8,19 +8,19 @@ import { ValidationError } from '../src/utils/errors';
 const managerToken = signAccessToken({
   userId: '11111111-1111-4111-8111-111111111111',
   role: 'MANAGER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const directorToken = signAccessToken({
   userId: '33333333-3333-4333-8333-333333333333',
   role: 'DIRECTOR',
-  organizationId: null,
+  siteId: null,
 });
 
 const waiterToken = signAccessToken({
   userId: '44444444-4444-4444-8444-444444444444',
   role: 'WAITER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 describe('Report routes', () => {
@@ -31,8 +31,8 @@ describe('Report routes', () => {
   it('GET /api/v1/reports/daily-summary returns summary totals', async () => {
     vi.spyOn(reportService, 'getDailySummary').mockResolvedValue({
       date: '2026-02-24',
-      organizationId: '22222222-2222-4222-8222-222222222222',
-      organizationName: 'Wendo Kingz',
+      siteId: '22222222-2222-4222-8222-222222222222',
+      siteName: 'Wendo Kingz',
       totalRevenue: '48500.00',
       orderCount: 43,
       ordersByType: {
@@ -64,8 +64,8 @@ describe('Report routes', () => {
   it('GET /api/v1/reports/daily-summary allows director scoped branch query', async () => {
     vi.spyOn(reportService, 'getDailySummary').mockResolvedValue({
       date: '2026-02-24',
-      organizationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      organizationName: 'Wendo Town',
+      siteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      siteName: 'Wendo Town',
       totalRevenue: '1200.00',
       orderCount: 2,
       ordersByType: {
@@ -138,8 +138,8 @@ describe('Report routes', () => {
         startDate: '2026-02-01',
         endDate: '2026-02-24',
       },
-      organizationId: '22222222-2222-4222-8222-222222222222',
-      organizationName: 'Wendo Kingz',
+      siteId: '22222222-2222-4222-8222-222222222222',
+      siteName: 'Wendo Kingz',
       staff: [
         {
           id: 'staff-1',
@@ -190,7 +190,7 @@ describe('Report routes', () => {
 
   it('GET /api/v1/reports/branch-trends enforces director organizationId and allows manager scope', async () => {
     vi.spyOn(reportService, 'getBranchTrends').mockImplementation(async (actor, query) => {
-      if (actor.role === 'DIRECTOR' && !query.organizationId) {
+      if (actor.role === 'DIRECTOR' && !query.siteId) {
         throw new ValidationError('organizationId query param is required for directors');
       }
 
@@ -199,8 +199,8 @@ describe('Report routes', () => {
           startDate: '2026-02-01',
           endDate: '2026-02-24',
         },
-        organizationId: '22222222-2222-4222-8222-222222222222',
-        organizationName: 'Wendo Kingz',
+        siteId: '22222222-2222-4222-8222-222222222222',
+        siteName: 'Wendo Kingz',
         points: [],
       };
     });

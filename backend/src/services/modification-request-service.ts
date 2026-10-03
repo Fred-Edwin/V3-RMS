@@ -14,7 +14,7 @@ type Actor = NonNullable<Request['user']>;
 
 const serialize = (req: ModRequestWithRelations): ModificationRequestRecord => ({
   id: req.id,
-  organizationId: req.organizationId,
+  siteId: req.siteId,
   orderId: req.orderId,
   requestedBy: { id: req.requestedBy.id, name: req.requestedBy.name },
   description: req.description,
@@ -31,12 +31,12 @@ export const modificationRequestService = {
     description: string,
     actor: Actor,
   ): Promise<ModificationRequestRecord> => {
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new ForbiddenError('Branch context required');
     }
 
-    const order = await orderRepository.findById(orderId, organizationId);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -49,20 +49,20 @@ export const modificationRequestService = {
       throw new ConflictError('Modification requests can only be made for in-progress orders');
     }
 
-    const existingPending = await modificationRequestRepository.findPendingByOrder(orderId, organizationId);
+    const existingPending = await modificationRequestRepository.findPendingByOrder(orderId, siteId);
     if (existingPending) {
       throw new ConflictError('There is already a pending modification request for this order');
     }
 
     const created = await modificationRequestRepository.create({
-      organizationId,
+      siteId,
       orderId,
       requestedById: actor.id,
       description,
     });
 
     const stations = [...new Set(order.prepTickets.map((t) => t.station))];
-    socketService.emitModificationRequested(organizationId, stations, {
+    socketService.emitModificationRequested(siteId, stations, {
       requestId: created.id,
       orderId,
       dailyNumber: order.dailyNumber,
@@ -71,7 +71,7 @@ export const modificationRequestService = {
     });
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId,
       type: 'MODIFICATION_REQUESTED',
       actorId: actor.id,
@@ -85,12 +85,12 @@ export const modificationRequestService = {
     orderId: string,
     actor: Actor,
   ): Promise<ModificationRequestRecord[]> => {
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new ForbiddenError('Branch context required');
     }
 
-    const requests = await modificationRequestRepository.findByOrder(orderId, organizationId);
+    const requests = await modificationRequestRepository.findByOrder(orderId, siteId);
     return requests.map(serialize);
   },
 
@@ -100,17 +100,17 @@ export const modificationRequestService = {
     reviewNote: string | undefined,
     actor: Actor,
   ): Promise<ModificationRequestRecord> => {
-    const organizationId = actor.organizationId;
-    if (!organizationId) {
+    const siteId = actor.siteId;
+    if (!siteId) {
       throw new ForbiddenError('Branch context required');
     }
 
-    const request = await modificationRequestRepository.findById(requestId, organizationId);
+    const request = await modificationRequestRepository.findById(requestId, siteId);
     if (!request) {
       throw new NotFoundError('Modification request not found');
     }
 
-    const reviewed = await modificationRequestRepository.review(requestId, organizationId, {
+    const reviewed = await modificationRequestRepository.review(requestId, siteId, {
       status,
       reviewedById: actor.id,
       reviewNote,
@@ -128,7 +128,7 @@ export const modificationRequestService = {
     });
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId: reviewed.orderId,
       type: status === 'APPROVED' ? 'MODIFICATION_APPROVED' : 'MODIFICATION_REJECTED',
       actorId: actor.id,

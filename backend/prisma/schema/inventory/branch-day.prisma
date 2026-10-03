@@ -24,7 +24,7 @@ enum GapReason {
 
 model BranchDay {
   id             String          @id @default(uuid())
-  organizationId String          @map("organization_id") // branch org
+  siteId String          @map("organization_id") // branch org
   businessDate   DateTime        @map("business_date") @db.Date // Africa/Nairobi
   status         BranchDayStatus @default(OPEN)
   reference      String // DAY-#### (ReferenceCounter)
@@ -34,14 +34,14 @@ model BranchDay {
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  organization Organization          @relation(fields: [organizationId], references: [id])
+  site Site          @relation(fields: [siteId], references: [id])
   closedBy     User?                 @relation("BranchDayClosedBy", fields: [closedById], references: [id])
   departments  BranchDayDepartment[]
   reopens      BranchDayReopen[]
   openings     DepartmentOpening[]
 
-  @@unique([organizationId, businessDate])
-  @@index([organizationId, status])
+  @@unique([siteId, businessDate])
+  @@index([siteId, status])
   @@map("branch_days")
 }
 

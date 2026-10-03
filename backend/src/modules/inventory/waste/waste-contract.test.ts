@@ -49,7 +49,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn(), findById: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
 vi.mock('../../../config/database', () => ({
@@ -63,12 +63,12 @@ const itemId = '33333333-3333-4333-8333-333333333333';
 const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const wasteLogId = '77777777-7777-4777-8777-777777777777';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
 
 const log = {
   id: wasteLogId,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   locationId: centralStoreId,
   inventoryItemId: itemId,
   quantity: new Prisma.Decimal(3),
@@ -95,7 +95,7 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue({ id: hubOrgId } as never);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue({
     id: centralStoreId,
-    organizationId: hubOrgId,
+    siteId: hubOrgId,
     type: 'CENTRAL_STORE',
     departmentTag: null,
     name: 'Central Store',

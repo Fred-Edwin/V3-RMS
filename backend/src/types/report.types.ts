@@ -15,8 +15,8 @@ export interface OtherIncomeCategoryTotal {
 
 export interface DailySummaryReport {
   date: string;
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   totalRevenue: string;
   orderCount: number;
   ordersByType: {
@@ -74,8 +74,8 @@ export interface StaffPerformanceReport {
     startDate: string;
     endDate: string;
   };
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   staff: StaffPerformanceRow[];
 }
 
@@ -127,8 +127,8 @@ export interface AccountantReconciliationWaiterRow {
 
 export interface AccountantReconciliationReport {
   date: string;
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   summary: WaiterPaymentBreakdown;
   waiters: AccountantReconciliationWaiterRow[];
   orders: AccountantReconciliationOrder[];
@@ -155,7 +155,7 @@ export interface StaleOrder {
 }
 
 export interface StaleOrdersReport {
-  organizationId: string | null;
+  siteId: string | null;
   totalOrders: number;
   totalAtRisk: string;
   orders: StaleOrder[];
@@ -224,8 +224,8 @@ export interface BranchTrendsReport {
     startDate: string;
     endDate: string;
   };
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   points: BranchTrendPoint[];
 }
 
@@ -348,8 +348,8 @@ export interface OutstandingCorporateAccountRow {
 
 export interface OutstandingCustomerCreditRow {
   id: string;
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   customerName: string;
   customerPhone: string;
   currentBalance: string;
@@ -392,8 +392,8 @@ export interface HourlyHeatmapReport {
     startDate: string;
     endDate: string;
   };
-  organizationId: string;
-  organizationName: string;
+  siteId: string;
+  siteName: string;
   hourlyPoints: HourlyHeatmapPoint[];
   dowPoints: DowHeatmapPoint[];
 }
@@ -411,8 +411,8 @@ export interface ItemsPerformanceReport {
     startDate: string;
     endDate: string;
   };
-  organizationId: string | null;
-  organizationName: string;
+  siteId: string | null;
+  siteName: string;
   topItems: ItemPerformanceRow[];
   bottomItems: ItemPerformanceRow[];
   limit: number;
@@ -428,7 +428,7 @@ export interface DiscountUsageByDiscount {
 }
 
 export interface DiscountUsageByBranch {
-  organizationId: string;
+  siteId: string;
   name: string;
   orderCount: number;
   totalDiscounted: string;

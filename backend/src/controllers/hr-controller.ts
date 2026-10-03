@@ -31,7 +31,7 @@ function getActor(req: Request): hrService.HrActor {
   return {
     id: req.user!.id,
     role: req.user!.role as UserRole,
-    organizationId: req.user!.organizationId ?? null,
+    siteId: req.user!.siteId ?? null,
   };
 }
 
@@ -288,7 +288,7 @@ export async function getLeaveCalendar(req: Request, res: Response): Promise<voi
   const query = leaveCalendarQuerySchema.parse(req.query);
   const now = new Date();
   const entries = await hrService.getLeaveCalendar(actor, {
-    organizationId: query.organizationId,
+    siteId: query.siteId,
     year: query.year ?? now.getFullYear(),
     month: query.month ?? now.getMonth() + 1,
   });
@@ -310,7 +310,7 @@ export async function createDisciplinaryRecord(req: Request, res: Response): Pro
 
   const record = await hrService.createDisciplinaryRecord(actor, {
     employeeProfileId: profile.id,
-    organizationId: profile.user.organizationId!,
+    siteId: profile.user.siteId!,
     incidentDate: new Date(body.incidentDate),
     actionDate: new Date(body.actionDate),
     category: body.category,
@@ -387,7 +387,7 @@ export async function getHrDocuments(req: Request, res: Response): Promise<void>
 
   // Self-access or management
   if (actor.id !== userId) {
-    const isSameBranch = actor.role === 'MANAGER' && actor.organizationId === profile.user.organizationId;
+    const isSameBranch = actor.role === 'MANAGER' && actor.siteId === profile.user.siteId;
     const isHrAuth = actor.role === 'HR_MANAGER' || actor.role === 'DIRECTOR' || actor.role === 'SYSTEM_ADMIN';
     if (!isSameBranch && !isHrAuth) {
       res.status(403).json({ error: 'Access denied' });
@@ -414,7 +414,7 @@ export async function getAttendanceSummary(req: Request, res: Response): Promise
     actor,
     new Date(query.startDate),
     new Date(query.endDate),
-    query.organizationId,
+    query.siteId,
     query.userId,
   );
   res.json({ success: true, data: { rows } });
@@ -438,6 +438,6 @@ export async function getStaffAttendanceDetail(req: Request, res: Response): Pro
 export async function getHrDashboard(req: Request, res: Response): Promise<void> {
   const actor = getActor(req);
   const query = hrDashboardQuerySchema.parse(req.query);
-  const data = await hrService.getHrDashboard(actor, query.organizationId);
+  const data = await hrService.getHrDashboard(actor, query.siteId);
   res.json({ success: true, data });
 }

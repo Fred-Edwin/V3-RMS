@@ -20,7 +20,7 @@ const serializeAuthRequest = (
   if (!raw) throw new NotFoundError('Staff discount auth request not found');
   return {
     id: raw.id,
-    organizationId: raw.organizationId,
+    siteId: raw.siteId,
     orderId: raw.orderId,
     requestedById: raw.requestedById,
     discountPercent: raw.discountPercent.toString(),
@@ -60,10 +60,10 @@ export const staffDiscountAuthService = {
    */
   getPendingByOrderId: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<StaffDiscountAuthRequestRecord> => {
-    const authRequest = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
-    if (!authRequest || authRequest.organizationId !== organizationId) {
+    const authRequest = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, siteId);
+    if (!authRequest || authRequest.siteId !== siteId) {
       throw new NotFoundError('No pending staff discount request found for this order');
     }
     return serializeAuthRequest(authRequest);
@@ -92,10 +92,10 @@ export const staffDiscountAuthService = {
    */
   createAuthRequest: async (
     orderId: string,
-    organizationId: string,
+    siteId: string,
     actor: Actor,
   ): Promise<StaffDiscountAuthRequestRecord> => {
-    const order = await orderRepository.findById(orderId, organizationId);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (order.status !== 'READY') {
@@ -107,7 +107,7 @@ export const staffDiscountAuthService = {
     }
 
     // Prevent duplicate pending requests
-    const existing = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, organizationId);
+    const existing = await staffDiscountAuthRequestRepository.findPendingByOrderId(orderId, siteId);
     if (existing) {
       throw new ConflictError('A staff discount approval request is already pending for this order');
     }
@@ -118,7 +118,7 @@ export const staffDiscountAuthService = {
     const discountAmount = originalAmount.mul(discountPercent).div(100).toDecimalPlaces(2);
 
     const authRequest = await staffDiscountAuthRequestRepository.create({
-      organizationId,
+      siteId,
       orderId,
       requestedById: actor.id,
       discountPercent: discountPercent.toString(),
@@ -126,9 +126,9 @@ export const staffDiscountAuthService = {
       discountAmount: discountAmount.toString(),
     });
 
-    await orderRepository.updateStatus(orderId, organizationId, 'AWAITING_AUTHORIZATION');
+    await orderRepository.updateStatus(orderId, siteId, 'AWAITING_AUTHORIZATION');
 
-    socketService.emitStaffDiscountAuthPending(actor.id, organizationId, {
+    socketService.emitStaffDiscountAuthPending(actor.id, siteId, {
       orderId,
       dailyNumber: order.dailyNumber,
       authRequestId: authRequest.id,
@@ -214,11 +214,11 @@ export const staffDiscountAuthService = {
     }
 
     // Return the order to READY at full price.
-    await orderRepository.updateStatus(cancelled.orderId, cancelled.organizationId, 'READY');
+    await orderRepository.updateStatus(cancelled.orderId, cancelled.siteId, 'READY');
 
     // Reuse the resolved event so the director dashboard drops the pending card
     // and the waiter's order card unlocks. approved:false, no discountedTotal.
-    socketService.emitStaffDiscountAuthResolved(actor.id, cancelled.organizationId, {
+    socketService.emitStaffDiscountAuthResolved(actor.id, cancelled.siteId, {
       orderId: cancelled.orderId,
       dailyNumber: cancelled.order.dailyNumber,
       approved: false,
@@ -240,18 +240,18 @@ export const staffDiscountAuthService = {
     decision: StaffDiscountDecision,
     resolvedById: string,
   ): Promise<StaffDiscountAuthRequestRecord> => {
-    const { organizationId, orderId, requestedById } = authRequest;
+    const { siteId, orderId, requestedById } = authRequest;
 
     const resolved = await staffDiscountAuthRequestRepository.resolveIfPending(
       authRequest.id,
-      organizationId,
+      siteId,
       decision,
       resolvedById,
     );
 
     if (!resolved) {
       // Race condition: already resolved by another path
-      const current = await staffDiscountAuthRequestRepository.findById(authRequest.id, organizationId);
+      const current = await staffDiscountAuthRequestRepository.findById(authRequest.id, siteId);
       if (!current) throw new NotFoundError('Staff discount auth request not found');
       logger.info({ authRequestId: authRequest.id }, 'Staff discount resolution race: already resolved');
       return serializeAuthRequest(current);
@@ -263,7 +263,7 @@ export const staffDiscountAuthService = {
       // Apply the discount to the order total atomically
       const discountedOrder = await orderRepository.applyDiscount(
         orderId,
-        organizationId,
+        siteId,
         authRequest.discountPercent.toString(),
         authRequest.discountAmount.toString(),
         resolvedById,
@@ -280,13 +280,13 @@ export const staffDiscountAuthService = {
       }
 
       // Return order to READY so waiter can proceed with payment at discounted total
-      await orderRepository.updateStatus(orderId, organizationId, 'READY');
+      await orderRepository.updateStatus(orderId, siteId, 'READY');
     } else {
       // Rejected — return order to READY at full price
-      await orderRepository.updateStatus(orderId, organizationId, 'READY');
+      await orderRepository.updateStatus(orderId, siteId, 'READY');
     }
 
-    socketService.emitStaffDiscountAuthResolved(requestedById, organizationId, {
+    socketService.emitStaffDiscountAuthResolved(requestedById, siteId, {
       orderId,
       dailyNumber: authRequest.order.dailyNumber,
       approved: decision === 'APPROVED',

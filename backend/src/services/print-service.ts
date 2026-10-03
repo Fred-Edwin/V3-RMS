@@ -79,7 +79,7 @@ interface PrintStationWithStatus extends PrintStationRecord {
 
 interface CreatedPrintStation {
   id: string;
-  organizationId: string;
+  siteId: string;
   name: string;
   token: string; // raw token — shown once
   isActive: boolean;
@@ -97,11 +97,11 @@ export const printService = {
   createPrintJob: async (
     orderId: string,
     requestedById: string,
-    organizationId: string,
+    siteId: string,
     receiptType: ReceiptType = 'RECEIPT',
     targetStationId?: string | null,
   ): Promise<PrintJobSummaryRecord> => {
-    const order = await printRepository.findOrderForReceipt(orderId, organizationId);
+    const order = await printRepository.findOrderForReceipt(orderId, siteId);
 
     if (!order) {
       throw new NotFoundError('Order not found');
@@ -115,7 +115,7 @@ export const printService = {
     // A targeted job is pinned to one station; null = any station in the branch.
     // findPrintStationById is org-scoped, so this also rejects another branch's station.
     if (targetStationId) {
-      const station = await printRepository.findPrintStationById(targetStationId, organizationId);
+      const station = await printRepository.findPrintStationById(targetStationId, siteId);
       if (!station) {
         throw new ValidationError('Selected print station does not belong to this branch');
       }
@@ -125,7 +125,7 @@ export const printService = {
     }
 
     // Idempotency: return existing PENDING/PRINTING job of the same type rather than creating a duplicate
-    const existing = await printRepository.findActiveJobForOrder(orderId, organizationId, receiptType);
+    const existing = await printRepository.findActiveJobForOrder(orderId, siteId, receiptType);
     if (existing) {
       return existing;
     }
@@ -134,11 +134,11 @@ export const printService = {
     const timestampRef = order.paidAt ?? order.createdAt;
 
     const receiptData: ReceiptData = {
-      branchName: order.organization.name,
-      branchPhone: order.organization.phone ?? null,
-      mpesaPaybill: order.organization.mpesaPaybill ?? null,
-      accountNumber: order.organization.accountNumber ?? null,
-      googleReviewUrl: order.organization.googleReviewUrl ?? null,
+      branchName: order.site.name,
+      branchPhone: order.site.phone ?? null,
+      mpesaPaybill: order.site.mpesaPaybill ?? null,
+      accountNumber: order.site.accountNumber ?? null,
+      googleReviewUrl: order.site.googleReviewUrl ?? null,
       orderNumber: `WCB-${String(order.dailyNumber).padStart(4, '0')}`,
       dailyNumber: order.dailyNumber,
       orderDate: formatDate(orderDate),
@@ -191,7 +191,7 @@ export const printService = {
 
     try {
       return await printRepository.createPrintJob({
-        organizationId,
+        siteId,
         orderId,
         requestedById,
         receiptType,
@@ -202,7 +202,7 @@ export const printService = {
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-        const existingActive = await printRepository.findActiveJobForOrder(orderId, organizationId, receiptType);
+        const existingActive = await printRepository.findActiveJobForOrder(orderId, siteId, receiptType);
         if (existingActive) {
           return existingActive;
         }
@@ -213,28 +213,28 @@ export const printService = {
 
   createOtherIncomePrintJob: async (
     entryId: string,
-    organizationId: string,
+    siteId: string,
     requestedById: string,
   ): Promise<PrintJobSummaryRecord> => {
-    const entry = await otherIncomeRepository.findEntryForReceipt(entryId, organizationId);
+    const entry = await otherIncomeRepository.findEntryForReceipt(entryId, siteId);
     if (!entry) {
       throw new NotFoundError('Other income entry not found');
     }
 
     // Idempotency: return existing PENDING/PRINTING job rather than creating a duplicate
     const activeKey = `other-income:${entryId}`;
-    const existing = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+    const existing = await printRepository.findActiveJobByActiveKey(activeKey, siteId);
     if (existing) {
       return existing;
     }
 
     const entryDate = new Date(entry.entryDate);
     const receiptData: ReceiptData = {
-      branchName: entry.organization.name,
-      branchPhone: entry.organization.phone ?? null,
-      mpesaPaybill: entry.organization.mpesaPaybill ?? null,
-      accountNumber: entry.organization.accountNumber ?? null,
-      googleReviewUrl: entry.organization.googleReviewUrl ?? null,
+      branchName: entry.site.name,
+      branchPhone: entry.site.phone ?? null,
+      mpesaPaybill: entry.site.mpesaPaybill ?? null,
+      accountNumber: entry.site.accountNumber ?? null,
+      googleReviewUrl: entry.site.googleReviewUrl ?? null,
       orderNumber: entry.id.slice(0, 8).toUpperCase(),
       dailyNumber: 0,
       orderDate: formatDate(entryDate),
@@ -269,7 +269,7 @@ export const printService = {
 
     try {
       return await printRepository.createPrintJob({
-        organizationId,
+        siteId,
         requestedById,
         receiptType: 'RECEIPT',
         copies: 1,
@@ -278,7 +278,7 @@ export const printService = {
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, siteId);
         if (existingActive) {
           return existingActive;
         }
@@ -289,7 +289,7 @@ export const printService = {
 
   createCorporateSettlementPrintJob: async (
     settlementId: string,
-    organizationId: string,
+    siteId: string,
     requestedById: string,
     targetStationId?: string | null,
   ): Promise<PrintJobSummaryRecord> => {
@@ -301,13 +301,13 @@ export const printService = {
     // The branch printing the receipt (chosen by the settling user) is not
     // necessarily related to the settlement — CorporateAccount is branch-agnostic
     // by design (FR-CRD-02). We only use this branch for its printer/letterhead.
-    const targetBranch = await branchRepository.findById(organizationId);
+    const targetBranch = await branchRepository.findById(siteId);
     if (!targetBranch) {
       throw new NotFoundError('Selected branch not found');
     }
 
     if (targetStationId) {
-      const station = await printRepository.findPrintStationById(targetStationId, organizationId);
+      const station = await printRepository.findPrintStationById(targetStationId, siteId);
       if (!station) {
         throw new ValidationError('Selected print station does not belong to this branch');
       }
@@ -318,7 +318,7 @@ export const printService = {
 
     // Idempotency: return existing PENDING/PRINTING job for this settlement rather than duplicating
     const activeKey = `settlement:${settlementId}`;
-    const existing = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+    const existing = await printRepository.findActiveJobByActiveKey(activeKey, siteId);
     if (existing) {
       return existing;
     }
@@ -354,7 +354,7 @@ export const printService = {
 
     try {
       return await printRepository.createPrintJob({
-        organizationId,
+        siteId,
         corporateAccountSettlementId: settlementId,
         requestedById,
         receiptType: 'SETTLEMENT',
@@ -365,7 +365,7 @@ export const printService = {
       });
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, organizationId);
+        const existingActive = await printRepository.findActiveJobByActiveKey(activeKey, siteId);
         if (existingActive) {
           return existingActive;
         }
@@ -381,10 +381,10 @@ export const printService = {
    */
   createTestPrintJob: async (
     stationId: string,
-    organizationId: string,
+    siteId: string,
     requestedById: string,
   ): Promise<PrintJobSummaryRecord> => {
-    const station = await printRepository.findPrintStationById(stationId, organizationId);
+    const station = await printRepository.findPrintStationById(stationId, siteId);
     if (!station) {
       throw new NotFoundError('Print station not found');
     }
@@ -417,7 +417,7 @@ export const printService = {
     const activeKey = `test-print:${stationId}:${now.getTime()}`;
 
     return printRepository.createPrintJob({
-      organizationId,
+      siteId,
       requestedById,
       receiptType: 'BILL',
       copies: 1,
@@ -428,10 +428,10 @@ export const printService = {
   },
 
   getPrintJobs: async (
-    organizationId: string,
+    siteId: string,
     filters: { status?: PrintJobStatus; page: number; perPage: number },
   ): Promise<PrintJobListResult> => {
-    const { jobs, total } = await printRepository.listPrintJobs(organizationId, filters);
+    const { jobs, total } = await printRepository.listPrintJobs(siteId, filters);
 
     return {
       jobs,
@@ -446,9 +446,9 @@ export const printService = {
 
   getPrintJobById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<PrintJobRecord> => {
-    const job = await printRepository.findPrintJobById(id, organizationId);
+    const job = await printRepository.findPrintJobById(id, siteId);
     if (!job) {
       throw new NotFoundError('Print job not found');
     }
@@ -456,17 +456,17 @@ export const printService = {
   },
 
   claimJobsForStation: async (
-    organizationId: string,
+    siteId: string,
     stationId: string,
     limit: number,
   ): Promise<PrintJobRecord[]> => {
     // Auto-expire jobs older than 24 hours before returning results
     const expireBefore = new Date(Date.now() - JOB_MAX_AGE_HOURS * 60 * 60 * 1000);
-    await printRepository.expireOldPendingJobs(organizationId, expireBefore);
+    await printRepository.expireOldPendingJobs(siteId, expireBefore);
 
     const now = new Date();
     return printRepository.claimPendingJobsForStation(
-      organizationId,
+      siteId,
       stationId,
       limit,
       CLAIM_LEASE_SECONDS,
@@ -476,7 +476,7 @@ export const printService = {
 
   updateJobStatus: async (
     jobId: string,
-    organizationId: string,
+    siteId: string,
     data: {
       status: PrintJobStatus;
       printedAt?: string;
@@ -484,7 +484,7 @@ export const printService = {
     },
     stationId?: string,
   ): Promise<PrintJobRecord> => {
-    const existing = await printRepository.findPrintJobById(jobId, organizationId);
+    const existing = await printRepository.findPrintJobById(jobId, siteId);
     if (!existing) {
       throw new NotFoundError('Print job not found');
     }
@@ -520,19 +520,19 @@ export const printService = {
       update.leaseExpiresAt = null;
     }
 
-    return printRepository.updatePrintJobStatus(jobId, organizationId, update);
+    return printRepository.updatePrintJobStatus(jobId, siteId, update);
   },
 
   createPrintStation: async (
     name: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<CreatedPrintStation> => {
     // Generate a cryptographically random token
     const rawToken = PRINT_STATION_TOKEN_PREFIX + randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
 
     const station = await printRepository.createPrintStation({
-      organizationId,
+      siteId,
       name,
       tokenHash,
     });
@@ -540,7 +540,7 @@ export const printService = {
     // Return the raw token — shown only once
     return {
       id: station.id,
-      organizationId: station.organizationId,
+      siteId: station.siteId,
       name: station.name,
       token: rawToken,
       isActive: station.isActive,
@@ -549,8 +549,8 @@ export const printService = {
     };
   },
 
-  listPrintStations: async (organizationId: string): Promise<PrintStationWithStatus[]> => {
-    const stations = await printRepository.listPrintStations(organizationId);
+  listPrintStations: async (siteId: string): Promise<PrintStationWithStatus[]> => {
+    const stations = await printRepository.listPrintStations(siteId);
     const onlineThreshold = new Date(Date.now() - STATION_ONLINE_THRESHOLD_SECONDS * 1000);
 
     return stations.map((station) => ({
@@ -559,12 +559,12 @@ export const printService = {
     }));
   },
 
-  deactivatePrintStation: async (stationId: string, organizationId: string): Promise<void> => {
-    const station = await printRepository.findPrintStationById(stationId, organizationId);
+  deactivatePrintStation: async (stationId: string, siteId: string): Promise<void> => {
+    const station = await printRepository.findPrintStationById(stationId, siteId);
     if (!station) {
       throw new NotFoundError('Print station not found');
     }
-    await printRepository.deactivatePrintStation(stationId, organizationId);
+    await printRepository.deactivatePrintStation(stationId, siteId);
   },
 
   heartbeat: async (
@@ -575,11 +575,11 @@ export const printService = {
       throw new NotFoundError('Print station not found');
     }
 
-    const { lastSeenAt } = await printRepository.updateHeartbeat(stationId, station.organization.id);
+    const { lastSeenAt } = await printRepository.updateHeartbeat(stationId, station.site.id);
 
     return {
       stationId: station.id,
-      branchName: station.organization.name,
+      branchName: station.site.name,
       lastSeenAt: lastSeenAt ?? new Date(),
     };
   },

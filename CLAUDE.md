@@ -63,7 +63,10 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 
 1. TypeScript strict mode is always on. No `any` types.
 2. Every API route has `authenticate` and `requireRole` middleware.
-3. Every repository query includes `organizationId` in the where clause.
+3. Every repository query includes `siteId` in the where clause. (A Site is a
+   branch or the Central Store; it was called Organization/`organizationId`. The
+   database columns and the API, socket and token names still say `organization`
+   on purpose, see `backend/src/shared/utils/wire-names.ts`.)
 4. Business logic lives in services only — never controllers or repositories.
 5. Database queries live in repositories only — never services or controllers.
    A `prisma.$transaction` in a service is allowed; plain reads/writes are not.
@@ -105,7 +108,7 @@ back to the slower manual path unless the MCP is unavailable.
 - **Postgres MCP** — run read-only SQL directly against the local `wendo_rms` DB
   (localhost:5433) instead of `docker compose exec postgres psql`. Use it to inspect
   data, verify a migration actually changed what you expect, or double-check
-  `organizationId` scoping (Non-Negotiable #3) while debugging.
+  `siteId` scoping (Non-Negotiable #3; the column is `organization_id`) while debugging.
 - **Playwright MCP / chrome-devtools MCP** — drive a real browser to verify frontend
   changes: navigate, click through the flow, read console errors, inspect network
   requests. This is how to satisfy the "use the feature in a browser before reporting
@@ -192,8 +195,9 @@ table), then the README of the sub-module you are touching. Do not use
 "Phase 1/2/3" language for Inventory.
 
 Key rule — **Central Store hub-org scoping (D-15):** all Central Store data and
-`STORE_MANAGER` / `STORE_ATTENDANT` users live on the hub Organization (the org
-flagged `isHub` — a company-level unit, never a branch/point of sale). Enforced by
+`STORE_MANAGER` / `STORE_ATTENDANT` users live on the hub Site (the site
+flagged `isHub`, type `CENTRAL_STORE` — a company-level unit, never a branch/point
+of sale; every Site belongs to a `Company`). Enforced by
 service guards + a one-Central-Store partial unique index. The hub appears in people
 contexts, never sales contexts. Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
 
@@ -266,7 +270,8 @@ pnpm build
    cd ~/Projects/V3-RMS/backend
    npx prisma migrate dev --name describe_your_change
    ```
-3. Commit the generated migration file in `backend/prisma/migrations/`
+3. Commit the generated migration file in `backend/prisma/schema/migrations/`
+   (it must sit beside the schema folder, or `migrate deploy` finds nothing)
 4. Push to GitHub
 5. On production server, apply with:
    ```bash

@@ -24,15 +24,15 @@ describe('Staff routes', () => {
       phone: '+254700000001',
       role: 'WAITER',
       isActive: true,
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
       createdAt: new Date(),
-      organization: { name: 'Wendo Kingz' },
-      organizationName: 'Wendo Kingz',
+      site: { name: 'Wendo Kingz' },
+      siteName: 'Wendo Kingz',
     });
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -56,7 +56,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -78,7 +78,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -103,16 +103,16 @@ describe('Staff routes', () => {
         phone: '+254700000001',
         role: 'WAITER',
         isActive: true,
-        organizationId: ORG_UUID,
+        siteId: ORG_UUID,
         createdAt: new Date(),
-        organization: { name: 'Wendo Kingz' },
-        organizationName: 'Wendo Kingz',
+        site: { name: 'Wendo Kingz' },
+        siteName: 'Wendo Kingz',
       },
     ]);
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app).get('/api/v1/staff').set('Authorization', `Bearer ${token}`);
@@ -131,10 +131,10 @@ describe('Staff routes', () => {
         phone: '+254700000001',
         role: 'WAITER',
         isActive: true,
-        organizationId: ORG_UUID,
+        siteId: ORG_UUID,
         createdAt: new Date(),
-        organization: { name: 'Wendo Kingz' },
-        organizationName: 'Wendo Kingz',
+        site: { name: 'Wendo Kingz' },
+        siteName: 'Wendo Kingz',
       },
       {
         id: '44444444-4444-4444-8444-000000000001',
@@ -143,16 +143,16 @@ describe('Staff routes', () => {
         phone: '+254700000002',
         role: 'CHEF',
         isActive: true,
-        organizationId: '55555555-5555-4555-8555-111111111111',
+        siteId: '55555555-5555-4555-8555-111111111111',
         createdAt: new Date(),
-        organization: { name: 'Wendo Branch 2' },
-        organizationName: 'Wendo Branch 2',
+        site: { name: 'Wendo Branch 2' },
+        siteName: 'Wendo Branch 2',
       },
     ]);
     const token = signAccessToken({
       userId: '66666666-6666-4666-8666-000000000001',
       role: 'DIRECTOR',
-      organizationId: null,
+      siteId: null,
     });
 
     const response = await request(app)
@@ -172,16 +172,16 @@ describe('Staff routes', () => {
       phone: '+254700000001',
       role: 'WAITER',
       isActive: false,
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
       createdAt: new Date(),
-      organization: { name: 'Wendo Kingz' },
-      organizationName: 'Wendo Kingz',
+      site: { name: 'Wendo Kingz' },
+      siteName: 'Wendo Kingz',
     });
     vi.spyOn(authService, 'login').mockRejectedValue(new UnauthorizedError('Account deactivated'));
     const managerToken = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const deactivateResponse = await request(app)
@@ -206,15 +206,15 @@ describe('Staff routes', () => {
       phone: '+254700000001',
       role: 'WAITER',
       isActive: true,
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
       createdAt: new Date(),
-      organization: { name: 'Wendo Kingz' },
-      organizationName: 'Wendo Kingz',
+      site: { name: 'Wendo Kingz' },
+      siteName: 'Wendo Kingz',
     });
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -233,7 +233,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -249,7 +249,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -269,7 +269,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: WAITER_UUID,
       role: 'WAITER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -285,7 +285,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)
@@ -302,7 +302,7 @@ describe('Staff routes', () => {
     const token = signAccessToken({
       userId: MANAGER_UUID,
       role: 'MANAGER',
-      organizationId: ORG_UUID,
+      siteId: ORG_UUID,
     });
 
     const response = await request(app)

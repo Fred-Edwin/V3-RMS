@@ -36,7 +36,7 @@ vi.mock('../../../repositories/branch-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn(), findById: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn(), findById: vi.fn() },
 }));
 
 const hubOrgId = '11111111-1111-4111-8111-111111111111';
@@ -44,9 +44,9 @@ const itemId = '33333333-3333-4333-8333-333333333333';
 const centralStoreId = '55555555-5555-4555-8555-555555555555';
 const categoryId = '44444444-4444-4444-8444-444444444444';
 
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
-const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, organizationId: hubOrgId };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
+const attendant = { id: 'sa1', role: 'STORE_ATTENDANT' as const, siteId: hubOrgId };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE', departmentTag: null, name: 'Central Store' };
 
 const rawLedgerRow = (overrides: Partial<LedgerRawRow> = {}): LedgerRawRow => ({
   id: '99999999-9999-4999-8999-999999999999',

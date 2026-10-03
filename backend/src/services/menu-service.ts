@@ -88,15 +88,15 @@ const buildMenuCacheKey = (
 
 const resolveBranchId = (actor: Actor, requestedBranchId?: string): string => {
   if (BRANCH_SCOPED_ROLES.includes(actor.role)) {
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
 
-    if (requestedBranchId && requestedBranchId !== actor.organizationId) {
+    if (requestedBranchId && requestedBranchId !== actor.siteId) {
       throw new ForbiddenError('Cannot access menu for another branch');
     }
 
-    return actor.organizationId;
+    return actor.siteId;
   }
 
   if (!requestedBranchId) {
@@ -299,11 +299,11 @@ export const menuService = {
       throw new ForbiddenError('Only managers can toggle menu availability');
     }
 
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Manager branch context is required');
     }
 
-    if (branchIdQuery && branchIdQuery !== actor.organizationId) {
+    if (branchIdQuery && branchIdQuery !== actor.siteId) {
       throw new ForbiddenError('Managers can only update availability for their own branch');
     }
 
@@ -314,12 +314,12 @@ export const menuService = {
 
     const availability = await menuRepository.upsertBranchMenuItemAvailability(
       menuItemId,
-      actor.organizationId,
+      actor.siteId,
       actor.id,
       isAvailable,
     );
 
-    await invalidateMenuCache(actor.organizationId);
+    await invalidateMenuCache(actor.siteId);
     return availability;
   },
 };

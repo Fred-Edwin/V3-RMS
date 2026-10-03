@@ -38,18 +38,18 @@ export const bulkUpsertRowSchema = z.object({
 
 export const bulkUpsertSchema = z.object({
   payPeriod: payPeriodSchema,
-  organizationId: z.string().uuid('organizationId must be a valid UUID'),
+  siteId: z.string().uuid('organizationId must be a valid UUID'),
   rows: z.array(bulkUpsertRowSchema).min(1).max(500),
 });
 
 export const publishSchema = z.object({
   payPeriod: payPeriodSchema,
-  organizationId: z.string().uuid('organizationId must be a valid UUID'),
+  siteId: z.string().uuid('organizationId must be a valid UUID'),
 });
 
 export const revertSchema = z.object({
   payPeriod: payPeriodSchema,
-  organizationId: z.string().uuid('organizationId must be a valid UUID'),
+  siteId: z.string().uuid('organizationId must be a valid UUID'),
 });
 
 export const payslipIdParamSchema = z.object({
@@ -63,7 +63,7 @@ export const payslipBranchIdParamSchema = z.object({
 export const payslipListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(500).default(20),
-  organizationId: z.string().uuid('organizationId must be a valid UUID').optional(),
+  siteId: z.string().uuid('organizationId must be a valid UUID').optional(),
   userId: z.string().uuid('userId must be a valid UUID').optional(),
   payPeriod: payPeriodSchema.optional(),
   status: z.enum(['DRAFT', 'PUBLISHED']).optional(),

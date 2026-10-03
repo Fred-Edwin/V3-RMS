@@ -9,7 +9,7 @@ import { shiftAssignmentService } from './shift-assignment-service';
 
 vi.mock('../repositories/shift-assignment-repository', () => ({
   shiftAssignmentRepository: {
-    findByOrganizationAndDateRange: vi.fn(),
+    findBySiteAndDateRange: vi.fn(),
     findByUserAndDateRange: vi.fn(),
     findById: vi.fn(),
     create: vi.fn(),
@@ -33,17 +33,17 @@ vi.mock('../repositories/staff-repository', () => ({
 const actor = {
   id: '11111111-1111-4111-8111-111111111111',
   role: 'MANAGER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 } as NonNullable<Request['user']>;
 
-const organizationId = '22222222-2222-4222-8222-222222222222';
+const siteId = '22222222-2222-4222-8222-222222222222';
 const userId = '33333333-3333-4333-8333-333333333333';
 const shiftId = '44444444-4444-4444-8444-444444444444';
 const shiftId2 = '66666666-6666-4666-8666-666666666666';
 
 const makeAssignment = (overrides: Partial<Awaited<ReturnType<typeof shiftAssignmentRepository.findByUserAndDateRange>>[number]> = {}) => ({
   id: '55555555-5555-4555-8555-555555555555',
-  organizationId,
+  siteId,
   userId,
   shiftId,
   date: parseDateOnly(formatDateOnly(getTodayDateOnly())),
@@ -78,16 +78,16 @@ describe('shiftAssignmentService.createAssignment', () => {
       phone: null,
       role: 'WAITER',
       isActive: true,
-      organizationId,
+      siteId,
       createdAt: new Date('2026-02-24T10:00:00.000Z'),
-      organization: {
+      site: {
         name: 'Wendo Kingz',
       },
     });
 
     vi.mocked(shiftRepository.findById).mockResolvedValue({
       id: shiftId,
-      organizationId,
+      siteId,
       name: 'Morning',
       startTime: '06:00',
       endTime: '14:00',
@@ -117,7 +117,7 @@ describe('shiftAssignmentService.createAssignment', () => {
     vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([]);
     vi.mocked(shiftAssignmentRepository.create).mockResolvedValue({
       id: '55555555-5555-4555-8555-555555555555',
-      organizationId,
+      siteId,
       userId,
       shiftId,
       date: parseDateOnly(today),
@@ -133,7 +133,7 @@ describe('shiftAssignmentService.createAssignment', () => {
 
     expect(result!.date).toBe(today);
     expect(shiftAssignmentRepository.create).toHaveBeenCalledWith(
-      organizationId,
+      siteId,
       expect.objectContaining({
         userId,
         shiftId,
@@ -153,16 +153,16 @@ describe('shiftAssignmentService.reconcileWeek', () => {
       phone: null,
       role: 'WAITER',
       isActive: true,
-      organizationId,
+      siteId,
       createdAt: new Date('2026-02-24T10:00:00.000Z'),
-      organization: {
+      site: {
         name: 'Wendo Kingz',
       },
     });
 
     vi.mocked(shiftRepository.findById).mockResolvedValue({
       id: shiftId,
-      organizationId,
+      siteId,
       name: 'Morning',
       startTime: '06:00',
       endTime: '14:00',
@@ -171,7 +171,7 @@ describe('shiftAssignmentService.reconcileWeek', () => {
       updatedAt: new Date('2026-02-24T10:00:00.000Z'),
     });
 
-    vi.mocked(shiftAssignmentRepository.findByOrganizationAndDateRange).mockResolvedValue([]);
+    vi.mocked(shiftAssignmentRepository.findBySiteAndDateRange).mockResolvedValue([]);
   });
 
   it('creates a new assignment from an empty roster cell', async () => {
@@ -185,7 +185,7 @@ describe('shiftAssignmentService.reconcileWeek', () => {
 
     expect(result.saved).toBe(1);
     expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
-      organizationId,
+      siteId,
       [expect.objectContaining({ userId, shiftId, deleteIds: [] })],
     );
   });
@@ -195,7 +195,7 @@ describe('shiftAssignmentService.reconcileWeek', () => {
     vi.mocked(shiftAssignmentRepository.findByUserAndDateRange).mockResolvedValue([makeAssignment()]);
     vi.mocked(shiftRepository.findById).mockResolvedValue({
       id: shiftId2,
-      organizationId,
+      siteId,
       name: 'Evening',
       startTime: '14:00',
       endTime: '22:00',
@@ -211,7 +211,7 @@ describe('shiftAssignmentService.reconcileWeek', () => {
 
     expect(result.saved).toBe(1);
     expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
-      organizationId,
+      siteId,
       [expect.objectContaining({ userId, shiftId: shiftId2, deleteIds: ['55555555-5555-4555-8555-555555555555'] })],
     );
   });
@@ -227,7 +227,7 @@ describe('shiftAssignmentService.reconcileWeek', () => {
 
     expect(result.saved).toBe(1);
     expect(shiftAssignmentRepository.reconcileWeek).toHaveBeenCalledWith(
-      organizationId,
+      siteId,
       [expect.objectContaining({ userId, shiftId: null, deleteIds: ['55555555-5555-4555-8555-555555555555'] })],
     );
   });
@@ -268,7 +268,7 @@ describe('shiftAssignmentService — department-head scoping (isDepartmentHead m
     role: 'CHEF',
     isDepartmentHead: true,
     departmentTag: 'KITCHEN',
-    organizationId: branchOrgId,
+    siteId: branchOrgId,
   } as NonNullable<Request['user']>;
 
   const chef = {
@@ -278,16 +278,16 @@ describe('shiftAssignmentService — department-head scoping (isDepartmentHead m
     phone: null,
     role: 'CHEF' as UserRole,
     isActive: true,
-    organizationId: branchOrgId,
+    siteId: branchOrgId,
     createdAt: new Date('2026-02-24T10:00:00.000Z'),
-    organization: { name: 'Wendo Kingz' },
+    site: { name: 'Wendo Kingz' },
   };
   const waiter = { ...chef, role: 'WAITER' as UserRole, name: 'Waiter Ben' };
 
   const today = () => formatDateOnly(getTodayDateOnly());
   const createdRow = {
     id: '55555555-5555-4555-8555-555555555555',
-    organizationId: branchOrgId,
+    siteId: branchOrgId,
     userId,
     shiftId,
     date: parseDateOnly(formatDateOnly(getTodayDateOnly())),
@@ -299,7 +299,7 @@ describe('shiftAssignmentService — department-head scoping (isDepartmentHead m
     vi.clearAllMocks();
     vi.mocked(shiftRepository.findById).mockResolvedValue({
       id: shiftId,
-      organizationId: branchOrgId,
+      siteId: branchOrgId,
       name: 'Morning',
       startTime: '06:00',
       endTime: '14:00',
@@ -337,20 +337,20 @@ describe('shiftAssignmentService — department-head scoping (isDepartmentHead m
         userId,
         shiftId,
         date: today(),
-        organizationId: otherOrgId,
+        siteId: otherOrgId,
       }),
     ).rejects.toThrow('outside your branch');
   });
 
   it('scopes the head’s roster read to its department’s worked roles', async () => {
-    vi.mocked(shiftAssignmentRepository.findByOrganizationAndDateRange).mockResolvedValue([]);
+    vi.mocked(shiftAssignmentRepository.findBySiteAndDateRange).mockResolvedValue([]);
 
     await shiftAssignmentService.listAssignments(kitchenHead, {
       startDate: '2026-03-01',
       endDate: '2026-03-07',
     });
 
-    const call = vi.mocked(shiftAssignmentRepository.findByOrganizationAndDateRange).mock.calls[0];
+    const call = vi.mocked(shiftAssignmentRepository.findBySiteAndDateRange).mock.calls[0];
     expect(call?.[0]).toBe(branchOrgId);
     expect(call?.[3]?.userWhere).toEqual({ role: { in: ['CHEF'] } });
   });

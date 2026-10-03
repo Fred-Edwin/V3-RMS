@@ -218,8 +218,8 @@ const buildVerifierView = (
   lines: count.lines.map((l) => serializeVerifierLine(l, categories, thresholds.directorAlertKes)),
 });
 
-const toCategoryMap = async (organizationId: string): Promise<CategoryMap> =>
-  new Map((await countRepository.listCategories(organizationId)).map((c) => [c.id, c]));
+const toCategoryMap = async (siteId: string): Promise<CategoryMap> =>
+  new Map((await countRepository.listCategories(siteId)).map((c) => [c.id, c]));
 
 const reasonText = (reason: keyof typeof COUNT_REASON_LABEL | null, note: string | null): string | null => {
   if (!reason) return null;
@@ -277,7 +277,7 @@ const writeAdjustments = async (
     const reference = await referenceCounterRepository.nextReference(tx, scope.locationOrgId, 'ADJ');
     await tx.inventoryTransaction.create({
       data: {
-        organizationId: scope.locationOrgId,
+        siteId: scope.locationOrgId,
         locationId: scope.locationId,
         inventoryItemId: line.inventoryItemId,
         type: 'ADJUSTMENT',
@@ -345,7 +345,7 @@ export const countService = {
         const id = await prisma.$transaction((tx) =>
           countRepository.createDraft(
             {
-              organizationId: scope.locationOrgId,
+              siteId: scope.locationOrgId,
               locationId: scope.locationId,
               countDate,
               reference: dailyReference(countDate),
@@ -679,7 +679,7 @@ export const countService = {
       const reference = await referenceCounterRepository.nextReference(tx, scope.locationOrgId, 'SPT');
       const created = await countRepository.createVerifiedSpot(
         {
-          organizationId: scope.locationOrgId,
+          siteId: scope.locationOrgId,
           locationId: scope.locationId,
           countDate: getTodayDateOnly(),
           reference,

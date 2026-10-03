@@ -9,13 +9,13 @@ import { signAccessToken } from '../src/utils/jwt';
 const managerToken = signAccessToken({
   userId: '11111111-1111-4111-8111-111111111111',
   role: 'MANAGER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const waiterToken = signAccessToken({
   userId: '33333333-3333-4333-8333-333333333333',
   role: 'WAITER',
-  organizationId: '22222222-2222-4222-8222-222222222222',
+  siteId: '22222222-2222-4222-8222-222222222222',
 });
 
 const zoneId = '44444444-4444-4444-8444-444444444444';
@@ -28,7 +28,7 @@ describe('Delivery zone routes', () => {
   it('POST /api/v1/delivery-zones lets manager create a zone', async () => {
     vi.spyOn(deliveryZoneService, 'createZone').mockResolvedValue({
       id: zoneId,
-      organizationId: '22222222-2222-4222-8222-222222222222',
+      siteId: '22222222-2222-4222-8222-222222222222',
       name: 'Kiganjo',
       fee: new Prisma.Decimal('200.00'),
       isActive: true,
@@ -64,7 +64,7 @@ describe('Delivery zone routes', () => {
     vi.spyOn(deliveryZoneService, 'listZones').mockResolvedValue([
       {
         id: zoneId,
-        organizationId: '22222222-2222-4222-8222-222222222222',
+        siteId: '22222222-2222-4222-8222-222222222222',
         name: 'Kiganjo',
         fee: new Prisma.Decimal('200.00'),
         isActive: true,
@@ -85,7 +85,7 @@ describe('Delivery zone routes', () => {
   it('PATCH /api/v1/delivery-zones/:id updates zone', async () => {
     vi.spyOn(deliveryZoneService, 'updateZone').mockResolvedValue({
       id: zoneId,
-      organizationId: '22222222-2222-4222-8222-222222222222',
+      siteId: '22222222-2222-4222-8222-222222222222',
       name: 'Kiganjo Town',
       fee: new Prisma.Decimal('250.00'),
       isActive: true,

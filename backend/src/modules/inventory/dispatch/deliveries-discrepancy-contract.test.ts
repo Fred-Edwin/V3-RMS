@@ -48,7 +48,7 @@ vi.mock('../purchasing/receiving-repository', () => ({
 }));
 
 vi.mock('../../../repositories/location-repository', () => ({
-  locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
+  locationRepository: { findCentralStore: vi.fn(), findBySiteTypeDepartment: vi.fn() },
 }));
 
 vi.mock('../../../repositories/branch-repository', () => ({
@@ -106,24 +106,24 @@ const discrepancyId = '99999999-9999-4999-8999-999999999999';
 const departmentHead = {
   id: 'dh1',
   role: 'CHEF' as const,
-  organizationId: branchOrgId,
+  siteId: branchOrgId,
   departmentTag: 'KITCHEN' as const,
   isDepartmentHead: true,
 };
-const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+const storeManager = { id: 'sm1', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 
 const hubOrg = { id: hubOrgId, name: 'Central Kitchen', isHub: true, isActive: true };
-const centralStore = { id: centralStoreId, organizationId: hubOrgId, type: 'CENTRAL_STORE' as const };
-const departmentLocation = { id: departmentLocationId, organizationId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
+const centralStore = { id: centralStoreId, siteId: hubOrgId, type: 'CENTRAL_STORE' as const };
+const departmentLocation = { id: departmentLocationId, siteId: branchOrgId, type: 'BRANCH_DEPARTMENT' as const };
 
 const buildDispatchWithLines = (overrides: Record<string, unknown> = {}) => ({
   id: dispatchId,
-  toOrganizationId: branchOrgId,
-  organizationId: hubOrgId,
+  toSiteId: branchOrgId,
+  siteId: hubOrgId,
   departmentTag: 'KITCHEN',
   status: 'IN_TRANSIT',
   sequenceLabel: 'Dispatch 1 · Nyeri Town · 22 Sep',
-  toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+  toSite: { id: branchOrgId, name: 'Nyeri Town' },
   dispatchedBy: { id: 'sm1', name: 'Store Manager' },
   confirmedBy: null,
   dispatchedAt: new Date('2026-09-22T05:00:00.000Z'),
@@ -150,7 +150,7 @@ beforeEach(() => {
   vi.mocked(branchRepository.findHub).mockResolvedValue(hubOrg as never);
   vi.mocked(branchRepository.findActiveBranchIds).mockResolvedValue([branchOrgId]);
   vi.mocked(locationRepository.findCentralStore).mockResolvedValue(centralStore as never);
-  vi.mocked(locationRepository.findByOrganizationTypeDepartment).mockResolvedValue(departmentLocation as never);
+  vi.mocked(locationRepository.findBySiteTypeDepartment).mockResolvedValue(departmentLocation as never);
   vi.mocked(authRepository.findUserByIdWithPassword).mockResolvedValue({ id: departmentHead.id, pinHash: 'hash' } as never);
   vi.mocked(comparePin).mockResolvedValue(true);
   vi.mocked(dispatchRepository.markConfirmed).mockResolvedValue(1);
@@ -243,9 +243,9 @@ describe('Deliveries / Discrepancy response contract shapes', () => {
             id: dispatchId,
             sequenceLabel: 'Dispatch 1 · Nyeri Town · 22 Sep',
             departmentTag: 'KITCHEN',
-            organizationId: hubOrgId,
-            toOrganizationId: branchOrgId,
-            toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+            siteId: hubOrgId,
+            toSiteId: branchOrgId,
+            toSite: { id: branchOrgId, name: 'Nyeri Town' },
           },
         },
         resolvedBy: null,
@@ -280,9 +280,9 @@ describe('Deliveries / Discrepancy response contract shapes', () => {
           id: dispatchId,
           sequenceLabel: 'Dispatch 1 · Nyeri Town · 22 Sep',
           departmentTag: 'KITCHEN',
-          organizationId: hubOrgId,
-          toOrganizationId: branchOrgId,
-          toOrganization: { id: branchOrgId, name: 'Nyeri Town' },
+          siteId: hubOrgId,
+          toSiteId: branchOrgId,
+          toSite: { id: branchOrgId, name: 'Nyeri Town' },
         },
       },
       resolvedBy: null,

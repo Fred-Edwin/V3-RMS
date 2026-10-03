@@ -75,7 +75,7 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
   if (!hub) {
     throw new ValidationError('No hub organization is configured');
   }
-  if (actor.organizationId !== hub.id) {
+  if (actor.siteId !== hub.id) {
     throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
   }
   return hub.id;
@@ -140,20 +140,20 @@ const noNames: NameLookup = () => ({ supplierItemName: null, supplierItemCode: n
 const NO_PACK: LineKey = { buyUnit: null, packSize: null };
 
 const buildNameLookup = async (
-  organizationId: string,
+  siteId: string,
   supplierId: string | null,
   itemIds: string[],
 ): Promise<NameLookup> => {
   if (!supplierId || itemIds.length === 0) return noNames;
-  const lines = await supplierItemRepository.listBySupplierItems(supplierId, [...new Set(itemIds)], organizationId);
+  const lines = await supplierItemRepository.listBySupplierItems(supplierId, [...new Set(itemIds)], siteId);
   return (inventoryItemId, key) => {
     const line = matchSupplierLine(lines.filter((l) => l.inventoryItemId === inventoryItemId), key);
     return { supplierItemName: line?.supplierItemName ?? null, supplierItemCode: line?.supplierItemCode ?? null };
   };
 };
 
-const receiptNames = (organizationId: string, receipt: GoodsReceiptWithRelations): Promise<NameLookup> =>
-  buildNameLookup(organizationId, receipt.supplierId, receipt.lines.map((l) => l.inventoryItemId));
+const receiptNames = (siteId: string, receipt: GoodsReceiptWithRelations): Promise<NameLookup> =>
+  buildNameLookup(siteId, receipt.supplierId, receipt.lines.map((l) => l.inventoryItemId));
 
 /** Detail variant of `serializeExpectedDelivery` — adds the full line array for the New Goods Receipt prefill. */
 const serializeExpectedDeliveryDetail = (
@@ -301,10 +301,10 @@ const mergeHistoryRows = (
 };
 
 /** Resolves a History row's `id` (either table) to its `createdAt`, for cursor pagination across the merged union. */
-const findHistoryCursorDate = async (organizationId: string, id: string): Promise<Date | undefined> => {
+const findHistoryCursorDate = async (siteId: string, id: string): Promise<Date | undefined> => {
   const [delivery, receipt] = await Promise.all([
-    prisma.expectedDelivery.findFirst({ where: { id, organizationId }, select: { createdAt: true } }),
-    prisma.goodsReceipt.findFirst({ where: { id, organizationId }, select: { createdAt: true } }),
+    prisma.expectedDelivery.findFirst({ where: { id, siteId }, select: { createdAt: true } }),
+    prisma.goodsReceipt.findFirst({ where: { id, siteId }, select: { createdAt: true } }),
   ]);
   return delivery?.createdAt ?? receipt?.createdAt ?? undefined;
 };
@@ -382,12 +382,12 @@ const assertSupplierReceivable = (status: 'ACTIVE' | 'ON_HOLD' | 'ARCHIVED'): vo
  * per-buy-unit receipt price, so it is deliberately not the fallback.)
  */
 const findComparisonPrices = async (
-  organizationId: string,
+  siteId: string,
   supplierId: string,
   lines: { inventoryItemId: string; packBuyUnit?: string; packSize?: string }[],
 ): Promise<(Prisma.Decimal | null)[]> => {
   const supplierLines = await supplierItemRepository.findLinesWithPrices(
-    organizationId,
+    siteId,
     supplierId,
     [...new Set(lines.map((l) => l.inventoryItemId))],
   );
@@ -397,7 +397,7 @@ const findComparisonPrices = async (
       const match = matchSupplierLine(forItem, { buyUnit: line.packBuyUnit, packSize: line.packSize });
       if (match?.lastPrice) return match.lastPrice;
       if (forItem.length > 0 && !match) return null;
-      const last = await lastPriceRepository.findLastReceiptLine(line.inventoryItemId, organizationId);
+      const last = await lastPriceRepository.findLastReceiptLine(line.inventoryItemId, siteId);
       return last ? last.unitPrice : null;
     }),
   );
@@ -452,7 +452,7 @@ const buildLineInput = (
  *   a single line. No match writes NO price and stamps the receipt line "Pack not on file".
  */
 const recordCatalogPrice = async (
-  organizationId: string,
+  siteId: string,
   supplierId: string,
   line: GoodsReceiptWithRelations['lines'][number],
   signedAt: Date,
@@ -460,16 +460,16 @@ const recordCatalogPrice = async (
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
   const key: LineKey = { buyUnit: line.packBuyUnit, packSize: line.packSize };
-  const current = await supplierItemRepository.listBySupplierItems(supplierId, [line.inventoryItemId], organizationId, tx);
+  const current = await supplierItemRepository.listBySupplierItems(supplierId, [line.inventoryItemId], siteId, tx);
   const match = matchSupplierLine(current, key);
 
   if (!hadLines.has(line.inventoryItemId)) {
     const found = match ?? (hasPackKey(key) ? null : (current[0] ?? null));
     if (found) {
-      await supplierItemRepository.setLinePrice(found.id, organizationId, line.unitPrice, signedAt, tx);
+      await supplierItemRepository.setLinePrice(found.id, siteId, line.unitPrice, signedAt, tx);
     } else {
       await supplierItemRepository.createLine(
-        organizationId,
+        siteId,
         supplierId,
         line.inventoryItemId,
         {
@@ -485,7 +485,7 @@ const recordCatalogPrice = async (
   }
 
   if (match) {
-    await supplierItemRepository.setLinePrice(match.id, organizationId, line.unitPrice, signedAt, tx);
+    await supplierItemRepository.setLinePrice(match.id, siteId, line.unitPrice, signedAt, tx);
   } else {
     await goodsReceiptRepository.markPackNotOnFile(line.id, tx);
   }
@@ -498,12 +498,12 @@ const recordCatalogPrice = async (
  * codebase; every service wires its own call site the same way.
  */
 const notifyHubStoreManagersOfSignedReceipt = async (
-  hubOrganizationId: string,
+  hubSiteId: string,
   receipt: GoodsReceiptWithRelations,
   signerId: string,
   signerName: string,
 ): Promise<void> => {
-  const managers = await goodsReceiptRepository.findHubStoreManagers(hubOrganizationId);
+  const managers = await goodsReceiptRepository.findHubStoreManagers(hubSiteId);
   const recipientIds = managers.map((m) => m.id).filter((recipientId) => recipientId !== signerId);
   if (recipientIds.length === 0) return;
 
@@ -667,8 +667,8 @@ export const receivingService = {
     actor: Actor,
     query: ListExpectedDeliveriesQuery,
   ): Promise<ExpectedDeliverySummary[]> => {
-    const organizationId = await requireHubActor(actor);
-    const deliveries = await expectedDeliveryRepository.findAllByOrganization(organizationId, {
+    const siteId = await requireHubActor(actor);
+    const deliveries = await expectedDeliveryRepository.findAllBySite(siteId, {
       status: query.status,
       supplierId: query.supplierId,
       search: query.search,
@@ -681,10 +681,10 @@ export const receivingService = {
   },
 
   getExpectedDelivery: async (actor: Actor, id: string): Promise<ExpectedDeliveryDetail> => {
-    const organizationId = await requireHubActor(actor);
-    const delivery = await expectedDeliveryRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const delivery = await expectedDeliveryRepository.findById(id, siteId);
     if (!delivery) throw new NotFoundError('Expected delivery not found');
-    const names = await buildNameLookup(organizationId, delivery.supplierId, delivery.lines.map((l) => l.inventoryItemId));
+    const names = await buildNameLookup(siteId, delivery.supplierId, delivery.lines.map((l) => l.inventoryItemId));
     return serializeExpectedDeliveryDetail(delivery, canSeeMoney(actor), new Date(), names);
   },
 
@@ -693,13 +693,13 @@ export const receivingService = {
    * "Our item: …" second, ours alone when the supplier has no name for the line.
    */
   getSupplierDocument: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
-    const delivery = await expectedDeliveryRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const delivery = await expectedDeliveryRepository.findById(id, siteId);
     if (!delivery) throw new NotFoundError('Expected delivery not found');
     if (!delivery.supplierId) throw new ConflictError('Pick a supplier before preparing the order document');
-    const supplier = await supplierRepository.findById(delivery.supplierId, organizationId);
+    const supplier = await supplierRepository.findById(delivery.supplierId, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
-    const names = await buildNameLookup(organizationId, supplier.id, delivery.lines.map((l) => l.inventoryItemId));
+    const names = await buildNameLookup(siteId, supplier.id, delivery.lines.map((l) => l.inventoryItemId));
     const primary = supplier.contacts.find((c) => c.isPrimary) ?? null;
     return buildPurchaseDocument({
       reference: delivery.reference,
@@ -729,19 +729,19 @@ export const receivingService = {
     actor: Actor,
     input: CreateExpectedDeliveryContractInput,
   ): Promise<ExpectedDeliverySummary> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
 
     // AMENDMENT 2026-09-17: supplierId is optional — a pure shopping list has
     // no supplier to validate against. Only look one up (and 404/409 on it)
     // when the caller actually supplied one.
     if (input.supplierId) {
-      const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+      const supplier = await supplierRepository.findById(input.supplierId, siteId);
       if (!supplier) throw new NotFoundError('Supplier not found');
       assertSupplierReceivable(supplier.status);
     }
 
     const itemIds = input.lines.map((l) => l.inventoryItemId);
-    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, siteId);
     const liveItemIds = new Set(liveItems.map((i) => i.id));
     for (const line of input.lines) {
       if (!liveItemIds.has(line.inventoryItemId)) {
@@ -755,9 +755,9 @@ export const receivingService = {
     // counter and the ExpectedDelivery/-Line rows themselves are written.
     const created = await prisma
       .$transaction(async (tx) => {
-        const reference = await referenceCounterRepository.nextReference(tx, organizationId, 'EXP');
+        const reference = await referenceCounterRepository.nextReference(tx, siteId, 'EXP');
         return expectedDeliveryRepository.create(
-          organizationId,
+          siteId,
           reference,
           {
             supplierId: input.supplierId,
@@ -779,13 +779,13 @@ export const receivingService = {
   },
 
   cancelExpectedDelivery: async (actor: Actor, id: string): Promise<ExpectedDeliverySummary> => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await expectedDeliveryRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const existing = await expectedDeliveryRepository.findById(id, siteId);
     if (!existing) throw new NotFoundError('Expected delivery not found');
     if (existing.status !== 'AWAITING') {
       throw new ConflictError('Only an awaiting delivery can be cancelled');
     }
-    const cancelled = await expectedDeliveryRepository.cancel(id, organizationId);
+    const cancelled = await expectedDeliveryRepository.cancel(id, siteId);
     if (!cancelled) throw new ConflictError('Only an awaiting delivery can be cancelled');
     return serializeExpectedDelivery(cancelled, canSeeMoney(actor), new Date());
   },
@@ -801,16 +801,16 @@ export const receivingService = {
    * called out explicitly here per this session's own scope note.
    */
   getPurchasingSummary: async (actor: Actor): Promise<PurchasingSummary> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const now = new Date();
     const [expectedCount, overdueCount, awaitingInvoiceReceipts, invoices] = await Promise.all([
-      expectedDeliveryRepository.countByStatus(organizationId, 'AWAITING'),
-      expectedDeliveryRepository.countOverdue(organizationId, now),
-      goodsReceiptRepository.findAllByOrganization(organizationId, {
+      expectedDeliveryRepository.countByStatus(siteId, 'AWAITING'),
+      expectedDeliveryRepository.countOverdue(siteId, now),
+      goodsReceiptRepository.findAllBySite(siteId, {
         status: 'RECEIVED_INVOICE_PENDING',
         limit: 100,
       }),
-      supplierInvoiceRepository.findAllByOrganization(organizationId),
+      supplierInvoiceRepository.findAllBySite(siteId),
     ]);
 
     const oldestAwaitingInvoiceDays =
@@ -852,12 +852,12 @@ export const receivingService = {
     actor: Actor,
     query: { search?: string; supplierId?: string; status?: string; from?: string; to?: string; limit: number },
   ): Promise<PurchasingHistoryRow[]> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const includeMoney = canSeeMoney(actor);
     const now = new Date();
 
     const [deliveries, receipts] = await Promise.all([
-      expectedDeliveryRepository.findHistoryRows(organizationId, {
+      expectedDeliveryRepository.findHistoryRows(siteId, {
         search: query.search,
         supplierId: query.supplierId,
         status: query.status as never,
@@ -865,7 +865,7 @@ export const receivingService = {
         to: query.to ? new Date(query.to) : undefined,
         limit: query.limit,
       }),
-      goodsReceiptRepository.findHistoryRows(organizationId, {
+      goodsReceiptRepository.findHistoryRows(siteId, {
         search: query.search,
         supplierId: query.supplierId,
         status: query.status as never,
@@ -899,20 +899,20 @@ export const receivingService = {
       cursor?: string;
     },
   ): Promise<PurchasingHistoryRow[]> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
     const includeMoney = canSeeMoney(actor);
     const now = new Date();
 
     let to = query.to ? new Date(query.to) : undefined;
     if (query.cursor) {
-      const cursorDate = await findHistoryCursorDate(organizationId, query.cursor);
+      const cursorDate = await findHistoryCursorDate(siteId, query.cursor);
       if (cursorDate) {
         to = to && to < cursorDate ? to : cursorDate;
       }
     }
 
     const [deliveries, receipts] = await Promise.all([
-      expectedDeliveryRepository.findHistoryRows(organizationId, {
+      expectedDeliveryRepository.findHistoryRows(siteId, {
         search: query.search,
         supplierId: query.supplierId,
         status: query.status as never,
@@ -920,7 +920,7 @@ export const receivingService = {
         to,
         limit: query.limit,
       }),
-      goodsReceiptRepository.findHistoryRows(organizationId, {
+      goodsReceiptRepository.findHistoryRows(siteId, {
         search: query.search,
         supplierId: query.supplierId,
         status: query.status as never,
@@ -945,11 +945,11 @@ export const receivingService = {
   // ── Recent items by supplier ─────────────────────────────────────────────
 
   getRecentSupplierItems: async (actor: Actor, supplierId: string, limit: number): Promise<RecentSupplierItem[]> => {
-    const organizationId = await requireHubActor(actor);
-    const supplier = await supplierRepository.findById(supplierId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const supplier = await supplierRepository.findById(supplierId, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
 
-    const rows = await recentSupplierItemsRepository.findRecentBySupplier(organizationId, supplierId, limit);
+    const rows = await recentSupplierItemsRepository.findRecentBySupplier(siteId, supplierId, limit);
     return rows.map((row) => ({
       inventoryItemId: row.inventoryItemId,
       itemName: row.itemName,
@@ -965,11 +965,11 @@ export const receivingService = {
     actor: Actor,
     itemId: string,
   ): Promise<{ unitPrice: string; asOf: string } | null> => {
-    const organizationId = await requireHubActor(actor);
-    const item = await inventoryItemRepository.findById(itemId, organizationId);
+    const siteId = await requireHubActor(actor);
+    const item = await inventoryItemRepository.findById(itemId, siteId);
     if (!item) throw new NotFoundError('Inventory item not found');
 
-    const lastLine = await lastPriceRepository.findLastReceiptLine(itemId, organizationId);
+    const lastLine = await lastPriceRepository.findLastReceiptLine(itemId, siteId);
     if (!lastLine) return null;
     return { unitPrice: toDecimalString(lastLine.unitPrice), asOf: lastLine.signedAt.toISOString() };
   },
@@ -977,8 +977,8 @@ export const receivingService = {
   // ── Goods receipts (S4) ──────────────────────────────────────────────────
 
   listGoodsReceipts: async (actor: Actor, query: ListGoodsReceiptsQuery): Promise<GoodsReceiptDetail[]> => {
-    const organizationId = await requireHubActor(actor);
-    const receipts = await goodsReceiptRepository.findAllByOrganization(organizationId, {
+    const siteId = await requireHubActor(actor);
+    const receipts = await goodsReceiptRepository.findAllBySite(siteId, {
       status: query.status,
       supplierId: query.supplierId,
       limit: query.limit,
@@ -989,7 +989,7 @@ export const receivingService = {
       lookups.set(
         supplierId,
         await buildNameLookup(
-          organizationId,
+          siteId,
           supplierId,
           receipts.filter((r) => r.supplierId === supplierId).flatMap((r) => r.lines.map((l) => l.inventoryItemId)),
         ),
@@ -999,26 +999,26 @@ export const receivingService = {
   },
 
   getGoodsReceipt: async (actor: Actor, id: string): Promise<GoodsReceiptDetail> => {
-    const organizationId = await requireHubActor(actor);
-    const receipt = await goodsReceiptRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const receipt = await goodsReceiptRepository.findById(id, siteId);
     if (!receipt) throw new NotFoundError('Goods receipt not found');
-    return serializeGoodsReceipt(receipt, await receiptNames(organizationId, receipt));
+    return serializeGoodsReceipt(receipt, await receiptNames(siteId, receipt));
   },
 
   createGoodsReceipt: async (actor: Actor, input: CreateGoodsReceiptContractInput): Promise<GoodsReceiptDetail> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
 
-    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    const supplier = await supplierRepository.findById(input.supplierId, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
     assertSupplierReceivable(supplier.status);
 
     const centralStore = await locationRepository.findCentralStore();
-    if (!centralStore || centralStore.organizationId !== organizationId) {
+    if (!centralStore || centralStore.siteId !== siteId) {
       throw new NotFoundError('No Central Store is configured for this organization');
     }
 
     const itemIds = input.lines.map((l) => l.inventoryItemId);
-    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+    const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, siteId);
     const itemsById = new Map(liveItems.map((i) => [i.id, i]));
     for (const line of input.lines) {
       if (!itemsById.has(line.inventoryItemId)) {
@@ -1029,7 +1029,7 @@ export const receivingService = {
     // Price-alert comparison price per line, fetched before the transaction
     // — read-only, same lastPriceRepository the GET /items/:id/last-price
     // endpoint uses (S3), not a live join against InventoryItem.currentCost.
-    const comparisonPrices = await findComparisonPrices(organizationId, input.supplierId, input.lines);
+    const comparisonPrices = await findComparisonPrices(siteId, input.supplierId, input.lines);
 
     const lines: GoodsReceiptLineInput[] = input.lines.map((line, index) => {
       const item = itemsById.get(line.inventoryItemId)!;
@@ -1042,9 +1042,9 @@ export const receivingService = {
     // GoodsReceipt/-Line rows themselves are written.
     const created = await prisma
       .$transaction(async (tx) => {
-        const reference = await referenceCounterRepository.nextReference(tx, organizationId, 'GRN');
+        const reference = await referenceCounterRepository.nextReference(tx, siteId, 'GRN');
         return goodsReceiptRepository.create(
-          organizationId,
+          siteId,
           reference,
           {
             supplierId: input.supplierId,
@@ -1061,7 +1061,7 @@ export const receivingService = {
       })
       .catch((error: unknown) => mapPrismaError(error));
 
-    return serializeGoodsReceipt(created, await receiptNames(organizationId, created));
+    return serializeGoodsReceipt(created, await receiptNames(siteId, created));
   },
 
   updateGoodsReceipt: async (
@@ -1069,29 +1069,29 @@ export const receivingService = {
     id: string,
     input: UpdateGoodsReceiptInput,
   ): Promise<GoodsReceiptDetail> => {
-    const organizationId = await requireHubActor(actor);
-    const existing = await goodsReceiptRepository.findById(id, organizationId);
+    const siteId = await requireHubActor(actor);
+    const existing = await goodsReceiptRepository.findById(id, siteId);
     if (!existing) throw new NotFoundError('Goods receipt not found');
     if (existing.status !== 'DRAFT') throw new ConflictError('Only a draft receipt can be edited');
 
     let lines: GoodsReceiptLineInput[] | undefined;
     if (input.lines) {
       const itemIds = input.lines.map((l) => l.inventoryItemId);
-      const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, organizationId);
+      const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, siteId);
       const itemsById = new Map(liveItems.map((i) => [i.id, i]));
       for (const line of input.lines) {
         if (!itemsById.has(line.inventoryItemId)) {
           throw new ValidationError('One or more items were not found');
         }
       }
-      const comparisonPrices = await findComparisonPrices(organizationId, existing.supplierId, input.lines);
+      const comparisonPrices = await findComparisonPrices(siteId, existing.supplierId, input.lines);
       lines = input.lines.map((line, index) => {
         const item = itemsById.get(line.inventoryItemId)!;
         return buildLineInput(line, item, comparisonPrices[index] ?? null);
       });
     }
 
-    const updated = await goodsReceiptRepository.update(id, organizationId, {
+    const updated = await goodsReceiptRepository.update(id, siteId, {
       expectedDeliveryId: input.expectedDeliveryId,
       paymentTerms: input.paymentTerms,
       supplierDocNumber: input.supplierDocNumber,
@@ -1104,7 +1104,7 @@ export const receivingService = {
     // in between.
     if (!updated) throw new ConflictError('Only a draft receipt can be edited');
 
-    return serializeGoodsReceipt(updated, await receiptNames(organizationId, updated));
+    return serializeGoodsReceipt(updated, await receiptNames(siteId, updated));
   },
 
   /**
@@ -1117,7 +1117,7 @@ export const receivingService = {
     id: string,
     input: SignGoodsReceiptInput,
   ): Promise<GoodsReceiptDetail> => {
-    const organizationId = await requireHubActor(actor);
+    const siteId = await requireHubActor(actor);
 
     const actorWithPin = await authRepository.findUserByIdWithPassword(actor.id);
     if (!actorWithPin || !actorWithPin.pinHash) {
@@ -1126,13 +1126,13 @@ export const receivingService = {
     const pinValid = await comparePin(input.pin, actorWithPin.pinHash);
     if (!pinValid) throw new UnauthorizedError('Incorrect PIN');
 
-    const receipt = await goodsReceiptRepository.findById(id, organizationId);
+    const receipt = await goodsReceiptRepository.findById(id, siteId);
     if (!receipt) throw new NotFoundError('Goods receipt not found');
     if (receipt.status !== 'DRAFT') throw new ConflictError('This receipt has already been signed');
     if (receipt.lines.length === 0) throw new ConflictError('A receipt with no lines cannot be signed');
 
     const centralStore = await locationRepository.findCentralStore();
-    if (!centralStore || centralStore.organizationId !== organizationId) {
+    if (!centralStore || centralStore.siteId !== siteId) {
       throw new NotFoundError('No Central Store is configured for this organization');
     }
 
@@ -1140,7 +1140,7 @@ export const receivingService = {
     const newStatus = receipt.paymentTerms === 'PAY_NOW' ? 'RECEIVED_PAID' : 'RECEIVED_INVOICE_PENDING';
 
     await prisma.$transaction(async (tx) => {
-      const signedCount = await goodsReceiptRepository.markSigned(id, organizationId, tx, {
+      const signedCount = await goodsReceiptRepository.markSigned(id, siteId, tx, {
         status: newStatus,
         signedById: actor.id,
         signedAt,
@@ -1157,7 +1157,7 @@ export const receivingService = {
           await supplierItemRepository.listBySupplierItems(
             receipt.supplierId,
             [...new Set(receipt.lines.map((l) => l.inventoryItemId))],
-            organizationId,
+            siteId,
             tx,
           )
         ).map((l) => l.inventoryItemId),
@@ -1166,7 +1166,7 @@ export const receivingService = {
       for (const line of receipt.lines) {
         await tx.inventoryTransaction.create({
           data: {
-            organizationId,
+            siteId,
             locationId: centralStore.id,
             inventoryItemId: line.inventoryItemId,
             type: 'RECEIVE',
@@ -1186,34 +1186,34 @@ export const receivingService = {
           data: { currentCost: costPerUsageUnit(line.unitPrice, line.quantityBuyUnit, line.quantityUsageUnit) },
         });
         // Supplier catalog: the matching pack line's last price (per buy unit) moves with the receipt.
-        await recordCatalogPrice(organizationId, receipt.supplierId, line, signedAt, hadLines, tx);
+        await recordCatalogPrice(siteId, receipt.supplierId, line, signedAt, hadLines, tx);
       }
 
       await goodsReceiptRepository.markPriceAlertsAccepted(input.acceptedPriceAlerts, actor.id, tx);
 
       if (receipt.expectedDeliveryId) {
-        await expectedDeliveryRepository.markFulfilled(receipt.expectedDeliveryId, organizationId, tx);
+        await expectedDeliveryRepository.markFulfilled(receipt.expectedDeliveryId, siteId, tx);
       }
     });
 
-    const signed = await goodsReceiptRepository.findById(id, organizationId);
+    const signed = await goodsReceiptRepository.findById(id, siteId);
     if (!signed) throw new NotFoundError('Goods receipt not found');
 
     // Fire-and-forget notification (plan §3.3) — composed inline from the
     // existing socket/FCM primitives (no generic notifyRole() helper exists
     // in this codebase; every service wires its own call site the same way).
     // Never blocks or fails the sign response.
-    void notifyHubStoreManagersOfSignedReceipt(organizationId, signed, actor.id, actorWithPin.name);
+    void notifyHubStoreManagersOfSignedReceipt(siteId, signed, actor.id, actorWithPin.name);
 
-    return serializeGoodsReceipt(signed, await receiptNames(organizationId, signed));
+    return serializeGoodsReceipt(signed, await receiptNames(siteId, signed));
   },
 
   // ── What we owe (Supplier AP) — S7 ───────────────────────────────────────
 
   getApSummary: async (actor: Actor): Promise<ApSummary> => {
     if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
-    const organizationId = await requireHubReader(actor);
-    const invoices = await supplierInvoiceRepository.findAllByOrganization(organizationId);
+    const siteId = await requireHubReader(actor);
+    const invoices = await supplierInvoiceRepository.findAllBySite(siteId);
     const supplierIds = new Set(invoices.map((i) => i.supplierId));
 
     let totalInvoiced = new Prisma.Decimal(0);
@@ -1255,17 +1255,17 @@ export const receivingService = {
    */
   listSupplierAp: async (actor: Actor, query: ListSupplierApQuery): Promise<SupplierApRow[]> => {
     if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
-    const organizationId = await requireHubReader(actor);
+    const siteId = await requireHubReader(actor);
     const now = new Date();
 
-    const suppliers = await supplierApRepository.findSuppliersWithInvoices(organizationId, {
+    const suppliers = await supplierApRepository.findSuppliersWithInvoices(siteId, {
       search: query.search,
       terms: query.terms,
     });
 
     const rows = await Promise.all(
       suppliers.map(async (supplier) => {
-        const invoices = await supplierInvoiceRepository.findAllBySupplier(supplier.id, organizationId);
+        const invoices = await supplierInvoiceRepository.findAllBySupplier(supplier.id, siteId);
         return buildSupplierApRow(supplier, invoices, now);
       }),
     );
@@ -1302,8 +1302,8 @@ export const receivingService = {
    */
   getSupplierApDetail: async (actor: Actor, supplierId: string): Promise<SupplierApDetail> => {
     if (!actorCan(actor, 'payables.read')) throw new ForbiddenError('You cannot see what we owe');
-    const organizationId = await requireHubReader(actor);
-    const supplierRow = await supplierRepository.findById(supplierId, organizationId);
+    const siteId = await requireHubReader(actor);
+    const supplierRow = await supplierRepository.findById(supplierId, siteId);
     if (!supplierRow) throw new NotFoundError('Supplier not found');
     const supplierForAp: SupplierForAp = {
       id: supplierRow.id,
@@ -1312,9 +1312,9 @@ export const receivingService = {
     };
 
     const [invoices, payments, purchaseHistory] = await Promise.all([
-      supplierInvoiceRepository.findAllBySupplier(supplierId, organizationId),
-      supplierPaymentRepository.findAllBySupplier(supplierId, organizationId),
-      goodsReceiptRepository.findAllByOrganization(organizationId, {
+      supplierInvoiceRepository.findAllBySupplier(supplierId, siteId),
+      supplierPaymentRepository.findAllBySupplier(supplierId, siteId),
+      goodsReceiptRepository.findAllBySite(siteId, {
         supplierId,
         limit: 100,
       }),
@@ -1338,14 +1338,14 @@ export const receivingService = {
     actor: Actor,
     input: CreateSupplierInvoiceContractInput,
   ): Promise<SupplierInvoice> => {
-    const organizationId = await requirePayablesWriter(actor, 'payables.record_invoice');
+    const siteId = await requirePayablesWriter(actor, 'payables.record_invoice');
 
-    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    const supplier = await supplierRepository.findById(input.supplierId, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
     if (supplier.deletedAt) throw new ConflictError('This supplier is retired');
 
     const receipts = await Promise.all(
-      input.goodsReceiptIds.map((id) => goodsReceiptRepository.findById(id, organizationId)),
+      input.goodsReceiptIds.map((id) => goodsReceiptRepository.findById(id, siteId)),
     );
     for (const [index, receipt] of receipts.entries()) {
       if (!receipt) throw new NotFoundError(`Goods receipt ${input.goodsReceiptIds[index]} not found`);
@@ -1371,7 +1371,7 @@ export const receivingService = {
     const created = await prisma
       .$transaction(async (tx) => {
         const invoice = await supplierInvoiceRepository.create(
-          organizationId,
+          siteId,
           {
             supplierId: input.supplierId,
             goodsReceiptIds: input.goodsReceiptIds,
@@ -1404,8 +1404,8 @@ export const receivingService = {
     invoiceId: string,
     input: CreateInvoiceAdjustmentInput,
   ): Promise<SupplierInvoice> => {
-    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
-    const invoice = await supplierInvoiceRepository.findById(invoiceId, organizationId);
+    const siteId = await requirePayablesWriter(actor, 'payables.record_payment');
+    const invoice = await supplierInvoiceRepository.findById(invoiceId, siteId);
     if (!invoice) throw new NotFoundError('Supplier invoice not found');
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -1414,10 +1414,10 @@ export const receivingService = {
         { amount: input.amount, reason: input.reason, recordedById: actor.id },
         tx,
       );
-      const refreshed = await supplierInvoiceRepository.findById(invoiceId, organizationId, tx);
+      const refreshed = await supplierInvoiceRepository.findById(invoiceId, siteId, tx);
       if (!refreshed) throw new NotFoundError('Supplier invoice not found');
       await supplierInvoiceRepository.updateStatus(invoiceId, deriveInvoiceStatus(refreshed), tx);
-      return supplierInvoiceRepository.findById(invoiceId, organizationId, tx);
+      return supplierInvoiceRepository.findById(invoiceId, siteId, tx);
     });
     if (!updated) throw new NotFoundError('Supplier invoice not found');
 
@@ -1433,19 +1433,19 @@ export const receivingService = {
     actor: Actor,
     input: CreateSupplierPaymentContractInput,
   ): Promise<SupplierPaymentCreated> => {
-    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
+    const siteId = await requirePayablesWriter(actor, 'payables.record_payment');
 
-    const supplier = await supplierRepository.findById(input.supplierId, organizationId);
+    const supplier = await supplierRepository.findById(input.supplierId, siteId);
     if (!supplier) throw new NotFoundError('Supplier not found');
 
     // A repeated cheque number is a warning on the response, never a refusal (§28.2).
     const duplicateChequeNumber =
       input.method === 'CHEQUE' && input.reference !== undefined
-        ? (await supplierPaymentRepository.countChequeNumber(input.supplierId, organizationId, input.reference)) > 0
+        ? (await supplierPaymentRepository.countChequeNumber(input.supplierId, siteId, input.reference)) > 0
         : false;
 
     const invoices = await Promise.all(
-      input.allocations.map((a) => supplierInvoiceRepository.findById(a.supplierInvoiceId, organizationId)),
+      input.allocations.map((a) => supplierInvoiceRepository.findById(a.supplierInvoiceId, siteId)),
     );
     for (const [index, invoice] of invoices.entries()) {
       if (!invoice) throw new NotFoundError(`Invoice ${input.allocations[index]!.supplierInvoiceId} not found`);
@@ -1467,7 +1467,7 @@ export const receivingService = {
     const created = await prisma
       .$transaction(async (tx) => {
         const payment = await supplierPaymentRepository.create(
-          organizationId,
+          siteId,
           {
             supplierId: input.supplierId,
             amount: input.amount,
@@ -1480,7 +1480,7 @@ export const receivingService = {
           tx,
         );
         for (const invoice of foundInvoices) {
-          const refreshed = await supplierInvoiceRepository.findById(invoice.id, organizationId, tx);
+          const refreshed = await supplierInvoiceRepository.findById(invoice.id, siteId, tx);
           if (refreshed) {
             await supplierInvoiceRepository.updateStatus(invoice.id, deriveInvoiceStatus(refreshed), tx);
           }
@@ -1502,8 +1502,8 @@ export const receivingService = {
     paymentId: string,
     input: ReverseSupplierPaymentInput,
   ): Promise<SupplierPayment> => {
-    const organizationId = await requirePayablesWriter(actor, 'payables.record_payment');
-    const payment = await supplierPaymentRepository.findById(paymentId, organizationId);
+    const siteId = await requirePayablesWriter(actor, 'payables.record_payment');
+    const payment = await supplierPaymentRepository.findById(paymentId, siteId);
     if (!payment) throw new NotFoundError('Supplier payment not found');
     if (payment.reversalOfId !== null) {
       throw new ConflictError('A reversal payment cannot itself be reversed');
@@ -1511,7 +1511,7 @@ export const receivingService = {
 
     const reversal = await prisma.$transaction(async (tx) => {
       const created = await supplierPaymentRepository.createReversal(
-        organizationId,
+        siteId,
         {
           supplierId: payment.supplierId,
           reversalOfId: payment.id,
@@ -1522,7 +1522,7 @@ export const receivingService = {
         tx,
       );
       for (const allocation of payment.allocations) {
-        const refreshed = await supplierInvoiceRepository.findById(allocation.supplierInvoiceId, organizationId, tx);
+        const refreshed = await supplierInvoiceRepository.findById(allocation.supplierInvoiceId, siteId, tx);
         if (refreshed) {
           await supplierInvoiceRepository.updateStatus(
             allocation.supplierInvoiceId,

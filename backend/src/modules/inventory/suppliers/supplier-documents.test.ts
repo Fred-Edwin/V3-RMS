@@ -170,7 +170,7 @@ describe('getDocumentDownload', () => {
 
   it('a non-hub actor is refused before any lookup', async () => {
     await expect(
-      supplierService.getDocumentDownload({ ...storeManager, organizationId: 'other-org' }, supplierId, docId),
+      supplierService.getDocumentDownload({ ...storeManager, siteId: 'other-org' }, supplierId, docId),
     ).rejects.toThrow(ForbiddenError);
     expect(supplierRepository.findById).not.toHaveBeenCalled();
   });

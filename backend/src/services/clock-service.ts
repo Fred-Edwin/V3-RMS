@@ -16,21 +16,21 @@ type ClockActionName = 'clock in' | 'clock out';
 
 const CLOCK_GEOFENCE_RADIUS_METRES = env.CLOCK_GEOFENCE_RADIUS_METRES;
 
-const requireOrganizationId = (actor: Actor): string => {
-  if (!actor.organizationId) {
+const requireSiteId = (actor: Actor): string => {
+  if (!actor.siteId) {
     throw new ForbiddenError('Branch context missing for this user');
   }
 
-  return actor.organizationId;
+  return actor.siteId;
 };
 
 const assertWithinGeofence = async (
-  organizationId: string,
+  siteId: string,
   latitude: number,
   longitude: number,
   action: ClockActionName,
 ): Promise<void> => {
-  const branch = await branchRepository.findById(organizationId);
+  const branch = await branchRepository.findById(siteId);
   if (!branch) {
     throw new NotFoundError('Branch not found');
   }
@@ -40,7 +40,7 @@ const assertWithinGeofence = async (
     const roundedDistance = Math.round(distance);
     logger.warn(
       {
-        organizationId,
+        siteId,
         branchId: branch.id,
         action,
         distanceMetres: roundedDistance,
@@ -61,8 +61,8 @@ const assertWithinGeofence = async (
 };
 
 const assertTodayAssignmentForActor = async (actor: Actor, shiftAssignmentId: string) => {
-  const organizationId = requireOrganizationId(actor);
-  const assignment = await shiftAssignmentRepository.findById(shiftAssignmentId, organizationId);
+  const siteId = requireSiteId(actor);
+  const assignment = await shiftAssignmentRepository.findById(shiftAssignmentId, siteId);
   if (
     !assignment ||
     assignment.userId !== actor.id ||
@@ -71,12 +71,12 @@ const assertTodayAssignmentForActor = async (actor: Actor, shiftAssignmentId: st
     throw new NotFoundError('This shift is not available for clocking today.', 'CLOCK_ASSIGNMENT_INVALID');
   }
 
-  return { assignment, organizationId };
+  return { assignment, siteId };
 };
 
 const assertTodayAssignmentForOverride = async (actor: Actor, input: ClockOverrideInput) => {
-  const organizationId = requireOrganizationId(actor);
-  const assignment = await shiftAssignmentRepository.findById(input.shiftAssignmentId, organizationId);
+  const siteId = requireSiteId(actor);
+  const assignment = await shiftAssignmentRepository.findById(input.shiftAssignmentId, siteId);
   if (!assignment || assignment.userId !== input.userId) {
     throw new NotFoundError('Shift assignment not found for this staff member.', 'CLOCK_ASSIGNMENT_INVALID');
   }
@@ -85,7 +85,7 @@ const assertTodayAssignmentForOverride = async (actor: Actor, input: ClockOverri
     throw new ConflictError('Overrides are only allowed for today assignments.', 'CLOCK_OVERRIDE_NOT_ALLOWED');
   }
 
-  return { assignment, organizationId };
+  return { assignment, siteId };
 };
 
 const throwAlreadyClockedInConflict = (
@@ -156,9 +156,9 @@ const requireUpdatedClockRecord = (record: ClockRecord | null, assignmentId: str
 
 export const clockService = {
   clockIn: async (actor: Actor, input: ClockInOutInput) => {
-    const { assignment, organizationId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
+    const { assignment, siteId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
 
-    const existingRecord = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+    const existingRecord = await clockRecordRepository.findByAssignmentId(assignment.id, siteId);
     if (existingRecord) {
       if (existingRecord.clockOutAt === null) {
         throwAlreadyClockedInConflict('You are already clocked in for this shift.', assignment.id, actor.id);
@@ -173,9 +173,9 @@ export const clockService = {
 
     // Auto-close any stale open records from a previous day before checking for conflicts.
     // This prevents yesterday's forgotten clock-out from permanently blocking today's clock-in.
-    await clockRecordRepository.closeStaleOpenRecords(organizationId, getTodayDateOnly());
+    await clockRecordRepository.closeStaleOpenRecords(siteId, getTodayDateOnly());
 
-    const openRecord = await clockRecordRepository.findOpenByUserId(actor.id, organizationId);
+    const openRecord = await clockRecordRepository.findOpenByUserId(actor.id, siteId);
     if (openRecord) {
       throwAlreadyClockedInConflict(
         'You already have an open clock-in for another shift.',
@@ -185,10 +185,10 @@ export const clockService = {
       );
     }
 
-    await assertWithinGeofence(organizationId, input.latitude, input.longitude, 'clock in');
+    await assertWithinGeofence(siteId, input.latitude, input.longitude, 'clock in');
 
     try {
-      return await clockRecordRepository.createClockIn(organizationId, {
+      return await clockRecordRepository.createClockIn(siteId, {
         shiftAssignmentId: assignment.id,
         userId: actor.id,
         method: ClockMethod.GPS,
@@ -202,19 +202,19 @@ export const clockService = {
   },
 
   clockOut: async (actor: Actor, input: ClockInOutInput) => {
-    const { assignment, organizationId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
+    const { assignment, siteId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
 
     const record = requireActiveClockRecord(
-      await clockRecordRepository.findByAssignmentId(assignment.id, organizationId),
+      await clockRecordRepository.findByAssignmentId(assignment.id, siteId),
       assignment.id,
       actor.id,
       'You are not currently clocked in for this shift.',
     );
 
-    await assertWithinGeofence(organizationId, input.latitude, input.longitude, 'clock out');
+    await assertWithinGeofence(siteId, input.latitude, input.longitude, 'clock out');
 
     return requireUpdatedClockRecord(
-      await clockRecordRepository.updateClockOut(record.id, organizationId, {
+      await clockRecordRepository.updateClockOut(record.id, siteId, {
         clockOutAt: new Date(),
         clockOutMethod: ClockMethod.GPS,
       }),
@@ -227,10 +227,10 @@ export const clockService = {
     actor: Actor,
     input: ClockOverrideInput,
   ): Promise<{ record: ClockRecord; message: string }> => {
-    const { assignment, organizationId } = await assertTodayAssignmentForOverride(actor, input);
+    const { assignment, siteId } = await assertTodayAssignmentForOverride(actor, input);
 
     if (input.action === 'CLOCK_IN') {
-      const existingRecord = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+      const existingRecord = await clockRecordRepository.findByAssignmentId(assignment.id, siteId);
       if (existingRecord) {
         if (existingRecord.clockOutAt === null) {
           throwAlreadyClockedInConflict('Staff member is already clocked in for this shift.', assignment.id, input.userId);
@@ -243,7 +243,7 @@ export const clockService = {
         );
       }
 
-      const openRecord = await clockRecordRepository.findOpenByUserId(input.userId, organizationId);
+      const openRecord = await clockRecordRepository.findOpenByUserId(input.userId, siteId);
       if (openRecord) {
         throwAlreadyClockedInConflict(
           'Staff member already has an open clock-in for another shift.',
@@ -254,7 +254,7 @@ export const clockService = {
       }
 
       try {
-        const record = await clockRecordRepository.createClockIn(organizationId, {
+        const record = await clockRecordRepository.createClockIn(siteId, {
           shiftAssignmentId: assignment.id,
           userId: input.userId,
           method: ClockMethod.OVERRIDE,
@@ -264,7 +264,7 @@ export const clockService = {
 
         logger.info(
           {
-            organizationId,
+            siteId,
             managerId: actor.id,
             staffUserId: input.userId,
             shiftAssignmentId: assignment.id,
@@ -287,7 +287,7 @@ export const clockService = {
     }
 
     if (input.action === 'VOID_CLOCK_OUT') {
-      const existing = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+      const existing = await clockRecordRepository.findByAssignmentId(assignment.id, siteId);
       if (!existing || !existing.clockOutAt) {
         throw new ConflictError('This shift does not have a clock-out to void.', 'CLOCK_NOT_OUT', {
           assignmentId: assignment.id,
@@ -295,7 +295,7 @@ export const clockService = {
         });
       }
 
-      const voided = await clockRecordRepository.voidClockOut(existing.id, organizationId, actor.id, input.reason);
+      const voided = await clockRecordRepository.voidClockOut(existing.id, siteId, actor.id, input.reason);
       if (!voided) {
         throw new ConflictError('Attendance changed just now. Refresh and try again.', 'CLOCK_STALE_STATE', {
           assignmentId: assignment.id,
@@ -304,7 +304,7 @@ export const clockService = {
       }
 
       logger.info(
-        { organizationId, managerId: actor.id, staffUserId: input.userId, shiftAssignmentId: assignment.id, reason: input.reason },
+        { siteId, managerId: actor.id, staffUserId: input.userId, shiftAssignmentId: assignment.id, reason: input.reason },
         'Clock-out voided by manager',
       );
 
@@ -315,14 +315,14 @@ export const clockService = {
     }
 
     const record = requireActiveClockRecord(
-      await clockRecordRepository.findByAssignmentId(assignment.id, organizationId),
+      await clockRecordRepository.findByAssignmentId(assignment.id, siteId),
       assignment.id,
       input.userId,
       'Staff member is not currently clocked in for this shift.',
     );
 
     const updated = requireUpdatedClockRecord(
-      await clockRecordRepository.updateClockOut(record.id, organizationId, {
+      await clockRecordRepository.updateClockOut(record.id, siteId, {
         clockOutAt: new Date(),
         clockOutMethod: ClockMethod.OVERRIDE,
         overrideById: actor.id,
@@ -334,7 +334,7 @@ export const clockService = {
 
     logger.info(
       {
-        organizationId,
+        siteId,
         managerId: actor.id,
         staffUserId: input.userId,
         shiftAssignmentId: assignment.id,
@@ -351,9 +351,9 @@ export const clockService = {
   },
 
   undoClockOut: async (actor: Actor, input: UndoClockOutInput): Promise<ClockRecord> => {
-    const { assignment, organizationId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
+    const { assignment, siteId } = await assertTodayAssignmentForActor(actor, input.shiftAssignmentId);
 
-    const record = await clockRecordRepository.findByAssignmentId(assignment.id, organizationId);
+    const record = await clockRecordRepository.findByAssignmentId(assignment.id, siteId);
     if (!record || !record.clockOutAt) {
       throw new ConflictError('This shift does not have a clock-out to undo.', 'CLOCK_NOT_OUT', {
         assignmentId: assignment.id,
@@ -373,7 +373,7 @@ export const clockService = {
 
     const voided = await clockRecordRepository.voidClockOut(
       record.id,
-      organizationId,
+      siteId,
       actor.id,
       'Self-undo within 60-second grace period',
     );
@@ -386,7 +386,7 @@ export const clockService = {
     }
 
     logger.info(
-      { organizationId, userId: actor.id, shiftAssignmentId: assignment.id },
+      { siteId, userId: actor.id, shiftAssignmentId: assignment.id },
       'Clock-out undone within grace period',
     );
 

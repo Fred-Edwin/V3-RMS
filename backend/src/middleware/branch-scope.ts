@@ -6,6 +6,6 @@ export const branchScope = (req: Request, _res: Response, next: NextFunction): v
     throw new UnauthorizedError('Authentication required');
   }
 
-  req.user.organizationId = req.user.organizationId ?? null;
+  req.user.siteId = req.user.siteId ?? null;
   next();
 };

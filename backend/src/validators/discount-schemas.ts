@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const CreateDiscountSchema = z.object({
   // null = all branches; a UUID = scoped to one branch
-  organizationId: z.string().uuid().nullable().optional(),
+  siteId: z.string().uuid().nullable().optional(),
   name: z.string().min(1).max(100),
   type: z.enum(['PERCENTAGE', 'FIXED_AMOUNT']),
   // percentage: 0.01–100; fixed: positive amount
@@ -17,7 +17,7 @@ export const UpdateDiscountSchema = z.object({
   requiresApproval: z.boolean().optional(),
   isActive: z.boolean().optional(),
   // Allow rescoping to a different branch or all-branches (null)
-  organizationId: z.string().uuid().nullable().optional(),
+  siteId: z.string().uuid().nullable().optional(),
 });
 
 export const DiscountDecisionSchema = z.object({

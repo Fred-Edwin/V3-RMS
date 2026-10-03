@@ -23,8 +23,8 @@ vi.mock('./audit-log-repository', () => ({
 
 const hubId = '11111111-1111-4111-8111-111111111111';
 const branchId = '22222222-2222-4222-8222-222222222222';
-const sm = { id: 'u1', role: 'STORE_MANAGER', organizationId: hubId } as never;
-const outsider = { id: 'u2', role: 'STORE_MANAGER', organizationId: branchId } as never;
+const sm = { id: 'u1', role: 'STORE_MANAGER', siteId: hubId } as never;
+const outsider = { id: 'u2', role: 'STORE_MANAGER', siteId: branchId } as never;
 const query = (over: Record<string, unknown> = {}) => AuditLogQuerySchema.parse({ ...over });
 
 const at = (hh: string) => new Date(`2026-10-03T${hh}:00.000Z`);
@@ -44,7 +44,7 @@ beforeEach(() => {
     {
       id: 'r1', oldLevel: { toString: () => '12.0000' }, newLevel: { toString: () => '14.0000' }, reason: null, createdAt: at('10:48'),
       changedBy: { id: 'u3', name: 'Frederick' }, inventoryItem: { name: 'Chapati dough', usageUnit: 'kg' },
-      location: { type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN', organization: { name: 'Nyeri Town' } },
+      location: { type: 'BRANCH_DEPARTMENT', departmentTag: 'KITCHEN', site: { name: 'Nyeri Town' } },
     },
   ] as never);
   vi.mocked(auditLogRepository.countItemChanges).mockResolvedValue(1);

@@ -36,9 +36,9 @@ vi.mock('../utils/password', () => ({
 const hubOrgId = '11111111-1111-4111-8111-111111111111';
 const branchOrgId = '22222222-2222-4222-8222-222222222222';
 
-const admin = { id: 'admin', role: 'SYSTEM_ADMIN' as const, organizationId: null };
-const branchManager = { id: 'mgr', role: 'MANAGER' as const, organizationId: branchOrgId };
-const storeManager = { id: 'sm', role: 'STORE_MANAGER' as const, organizationId: hubOrgId };
+const admin = { id: 'admin', role: 'SYSTEM_ADMIN' as const, siteId: null };
+const branchManager = { id: 'mgr', role: 'MANAGER' as const, siteId: branchOrgId };
+const storeManager = { id: 'sm', role: 'STORE_MANAGER' as const, siteId: hubOrgId };
 
 const baseInput = {
   name: 'Test User',
@@ -54,7 +54,7 @@ beforeEach(() => {
       ({
         ...data,
         id: 'created',
-        organization: { name: 'Central Store' },
+        site: { name: 'Central Store' },
       }) as never,
   );
 });
@@ -66,7 +66,7 @@ describe('staffService.createStaff — store roles are hub-org only (design doc 
     await staffService.createStaff({ ...baseInput, role: 'STORE_ATTENDANT' }, admin);
 
     expect(staffRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: hubOrgId, role: 'STORE_ATTENDANT' }),
+      expect.objectContaining({ siteId: hubOrgId, role: 'STORE_ATTENDANT' }),
     );
   });
 
@@ -75,7 +75,7 @@ describe('staffService.createStaff — store roles are hub-org only (design doc 
 
     await expect(
       staffService.createStaff(
-        { ...baseInput, role: 'STORE_MANAGER', organizationId: branchOrgId },
+        { ...baseInput, role: 'STORE_MANAGER', siteId: branchOrgId },
         admin,
       ),
     ).rejects.toBeInstanceOf(ValidationError);
@@ -104,7 +104,7 @@ describe('staffService.createStaff — Store Manager creates attendants', () => 
     await staffService.createStaff({ ...baseInput, role: 'STORE_ATTENDANT' }, storeManager);
 
     expect(staffRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: hubOrgId, role: 'STORE_ATTENDANT' }),
+      expect.objectContaining({ siteId: hubOrgId, role: 'STORE_ATTENDANT' }),
     );
   });
 
@@ -125,9 +125,9 @@ const attendantRow = {
   phone: null,
   role: 'STORE_ATTENDANT' as const,
   isActive: true,
-  organizationId: hubOrgId,
+  siteId: hubOrgId,
   createdAt: new Date(),
-  organization: { name: 'Central Store' },
+  site: { name: 'Central Store' },
 };
 
 describe('staffService — Store Manager team scope', () => {
@@ -136,7 +136,7 @@ describe('staffService — Store Manager team scope', () => {
       { ...attendantRow, hasPin: false },
     ] as never);
 
-    const team = await staffService.listStaff(storeManager, { role: 'WAITER', organizationId: branchOrgId });
+    const team = await staffService.listStaff(storeManager, { role: 'WAITER', siteId: branchOrgId });
 
     // Caller-supplied role/org filters are ignored — scope is fixed.
     expect(staffRepository.findTeamWithPinStatus).toHaveBeenCalledWith(hubOrgId, ['STORE_ATTENDANT'], undefined);
@@ -181,7 +181,7 @@ describe('staffService — Store Manager team scope', () => {
   });
 
   it('refuses a Store Manager with no organization', async () => {
-    const orphan = { id: 'sm2', role: 'STORE_MANAGER' as const, organizationId: null };
+    const orphan = { id: 'sm2', role: 'STORE_MANAGER' as const, siteId: null };
 
     await expect(staffService.listStaff(orphan)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(staffService.resetPin('att-1', orphan)).rejects.toBeInstanceOf(ForbiddenError);

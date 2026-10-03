@@ -23,7 +23,7 @@ export type OtherIncomeEntryWithRelations = OtherIncomeEntry & {
 
 export interface OtherIncomeEntryForReceipt {
   id: string;
-  organizationId: string;
+  siteId: string;
   amount: Prisma.Decimal;
   paymentMethod: string;
   mpesaCode: string | null;
@@ -36,7 +36,7 @@ export interface OtherIncomeEntryForReceipt {
   category: { name: string };
   branch: { name: string };
   recordedBy: { name: string };
-  organization: {
+  site: {
     name: string;
     phone: string | null;
     mpesaPaybill: string | null;
@@ -109,10 +109,10 @@ export const otherIncomeRepository = {
   // Categories ─────────────────────────────────────────────────────────────────
 
   findAllCategories: async (
-    organizationId: string,
+    siteId: string,
   ): Promise<OtherIncomeCategoryWithBranch[]> => {
     return prisma.otherIncomeCategory.findMany({
-      where: { organizationId },
+      where: { siteId },
       include: categoryInclude,
       orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
@@ -120,10 +120,10 @@ export const otherIncomeRepository = {
 
   /** All active categories for org-level roles (no branch filter) */
   findAllActiveCategories: async (
-    organizationId: string,
+    siteId: string,
   ): Promise<OtherIncomeCategoryDropdownItem[]> => {
     const rows = await prisma.otherIncomeCategory.findMany({
-      where: { organizationId, isActive: true },
+      where: { siteId, isActive: true },
       select: {
         id: true,
         name: true,
@@ -162,12 +162,12 @@ export const otherIncomeRepository = {
 
   /** Active categories visible to the given branch (branch-scoped + org-wide) */
   findActiveCategories: async (
-    organizationId: string,
+    siteId: string,
     branchId: string,
   ): Promise<OtherIncomeCategoryDropdownItem[]> => {
     const rows = await prisma.otherIncomeCategory.findMany({
       where: {
-        organizationId,
+        siteId,
         isActive: true,
         OR: [
           { branchId: null },      // org-wide
@@ -202,22 +202,22 @@ export const otherIncomeRepository = {
 
   findCategoryById: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<OtherIncomeCategoryWithBranch | null> => {
     return prisma.otherIncomeCategory.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       include: categoryInclude,
     });
   },
 
   createCategory: async (data: {
-    organizationId: string;
+    siteId: string;
     branchId: string | null;
     name: string;
   }): Promise<OtherIncomeCategoryWithBranch> => {
     return prisma.otherIncomeCategory.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         branchId: data.branchId ?? null,
         name: data.name,
       },
@@ -227,12 +227,12 @@ export const otherIncomeRepository = {
 
   updateCategory: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: { name?: string; isActive?: boolean; branchId?: string | null },
   ): Promise<OtherIncomeCategoryWithBranch | null> => {
     try {
       return await prisma.otherIncomeCategory.update({
-        where: { id, organizationId },
+        where: { id, siteId },
         data,
         include: categoryInclude,
       });
@@ -247,7 +247,7 @@ export const otherIncomeRepository = {
   // Entries ─────────────────────────────────────────────────────────────────────
 
   createEntry: async (data: {
-    organizationId: string;
+    siteId: string;
     branchId: string;
     categoryId: string;
     amount: string;
@@ -263,7 +263,7 @@ export const otherIncomeRepository = {
   }): Promise<OtherIncomeEntryWithRelations> => {
     const created = await prisma.otherIncomeEntry.create({
       data: {
-        organizationId: data.organizationId,
+        siteId: data.siteId,
         branchId: data.branchId,
         categoryId: data.categoryId,
         amount: new Prisma.Decimal(data.amount),
@@ -289,7 +289,7 @@ export const otherIncomeRepository = {
    */
   updateEntry: async (
     id: string,
-    organizationId: string,
+    siteId: string,
     data: {
       categoryId?: string;
       amount?: string;
@@ -313,7 +313,7 @@ export const otherIncomeRepository = {
     try {
       const updated = await prisma.$transaction(async (tx) => {
         const row = await tx.otherIncomeEntry.update({
-          where: { id, organizationId },
+          where: { id, siteId },
           data: {
             categoryId: data.categoryId,
             amount: data.amount !== undefined ? new Prisma.Decimal(data.amount) : undefined,
@@ -351,7 +351,7 @@ export const otherIncomeRepository = {
   },
 
   findEntries: async (
-    organizationId: string | undefined,
+    siteId: string | undefined,
     filters: {
       branchId?: string;
       recordedById?: string;
@@ -364,7 +364,7 @@ export const otherIncomeRepository = {
       perPage: number;
     },
   ): Promise<PaginatedOtherIncomeEntries> => {
-    const where: Prisma.OtherIncomeEntryWhereInput = organizationId ? { organizationId } : {};
+    const where: Prisma.OtherIncomeEntryWhereInput = siteId ? { siteId } : {};
 
     if (filters.branchId) where.branchId = filters.branchId;
     if (filters.recordedById) where.recordedById = filters.recordedById;
@@ -392,10 +392,10 @@ export const otherIncomeRepository = {
 
   findEntryById: async (
     id: string,
-    organizationId?: string,
+    siteId?: string,
   ): Promise<OtherIncomeEntryWithRelations | null> => {
     const row = await prisma.otherIncomeEntry.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: entryInclude,
     });
     return row ? mapEntry(row) : null;
@@ -403,13 +403,13 @@ export const otherIncomeRepository = {
 
   findEntryForReceipt: async (
     id: string,
-    organizationId: string,
+    siteId: string,
   ): Promise<OtherIncomeEntryForReceipt | null> => {
     return prisma.otherIncomeEntry.findFirst({
-      where: { id, organizationId },
+      where: { id, siteId },
       select: {
         id: true,
-        organizationId: true,
+        siteId: true,
         amount: true,
         paymentMethod: true,
         mpesaCode: true,
@@ -422,7 +422,7 @@ export const otherIncomeRepository = {
         category: { select: { name: true } },
         branch: { select: { name: true } },
         recordedBy: { select: { name: true } },
-        organization: {
+        site: {
           select: {
             name: true,
             phone: true,
@@ -435,19 +435,19 @@ export const otherIncomeRepository = {
     });
   },
 
-  deleteEntry: async (id: string, organizationId: string): Promise<void> => {
-    await prisma.otherIncomeEntry.deleteMany({ where: { id, organizationId } });
+  deleteEntry: async (id: string, siteId: string): Promise<void> => {
+    await prisma.otherIncomeEntry.deleteMany({ where: { id, siteId } });
   },
 
   /** Sum other income for a given org + date range (used by report repository) */
   sumByCategory: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<Array<{ categoryId: string; categoryName: string; total: Prisma.Decimal }>> => {
     const rows = await prisma.otherIncomeEntry.findMany({
       where: {
-        organizationId,
+        siteId,
         entryDate: { gte: startDate, lte: endDate },
       },
       select: {
@@ -471,13 +471,13 @@ export const otherIncomeRepository = {
 
   /** Fetch all entries for a date range with entryDate included — caller groups by date */
   findByDateRange: async (
-    organizationId: string,
+    siteId: string,
     startDate: Date,
     endDate: Date,
   ): Promise<Array<{ entryDate: Date; amount: Prisma.Decimal; category: { id: string; name: string } }>> => {
     return prisma.otherIncomeEntry.findMany({
       where: {
-        organizationId,
+        siteId,
         entryDate: { gte: startDate, lte: endDate },
       },
       select: {

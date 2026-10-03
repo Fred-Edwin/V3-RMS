@@ -94,15 +94,15 @@ const parseDateOnly = (date: string): Date => {
 };
 
 
-const resolveOrganizationId = (actor: Actor, requestedBranchId?: string): string => {
+const resolveSiteId = (actor: Actor, requestedBranchId?: string): string => {
   if (branchScopedRoles.includes(actor.role)) {
-    if (!actor.organizationId) {
+    if (!actor.siteId) {
       throw new ForbiddenError('Branch context missing for this user');
     }
-    if (requestedBranchId && requestedBranchId !== actor.organizationId) {
+    if (requestedBranchId && requestedBranchId !== actor.siteId) {
       throw new ForbiddenError('Cannot access orders for another branch');
     }
-    return actor.organizationId;
+    return actor.siteId;
   }
 
   if (!requestedBranchId) {
@@ -199,7 +199,7 @@ const serializePrepTicketSummary = (
 const serializeOrder = (order: FullOrderPrismaRecord): OrderRecord => {
   return {
     id: order.id,
-    organizationId: order.organizationId,
+    siteId: order.siteId,
     dailyNumber: order.dailyNumber,
     orderDate: formatDateOnly(order.orderDate),
     type: order.type,
@@ -293,11 +293,11 @@ const getMenuItemsMap = (menuItems: MenuItemWithCategoryRecord[]): Map<string, M
 };
 
 const resolveOrderItems = async (
-  organizationId: string,
+  siteId: string,
   items: CreateOrderInput['items'] | UpdateOrderItemsInput['items'],
 ): Promise<ResolvedOrderItem[]> => {
   const menuItemIds = [...new Set(items.map((item) => item.menuItemId))];
-  const menuItems = await menuRepository.findItemsWithCategoriesByIds(menuItemIds, organizationId);
+  const menuItems = await menuRepository.findItemsWithCategoriesByIds(menuItemIds, siteId);
   const menuItemsMap = getMenuItemsMap(menuItems);
 
   if (menuItems.length !== menuItemIds.length) {
@@ -353,12 +353,12 @@ const serializeTicketsForSocket = (order: OrderRecord): PrepTicketRecord[] => or
 export const orderService = {
   create: async (data: CreateOrderInput, actor: Actor, idempotencyKey?: string): Promise<OrderRecord> => {
     const startedAt = Date.now();
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
 
     if (idempotencyKey) {
       const existing = await idempotencyRepository.findByKey(idempotencyKey);
       if (existing) {
-        const existingOrder = await orderRepository.findById(existing.orderId, organizationId);
+        const existingOrder = await orderRepository.findById(existing.orderId, siteId);
         if (existingOrder) {
           return serializeOrder(existingOrder);
         }
@@ -366,14 +366,14 @@ export const orderService = {
     }
 
     const resolvedItemsStart = Date.now();
-    const resolvedItems = await resolveOrderItems(organizationId, data.items);
+    const resolvedItems = await resolveOrderItems(siteId, data.items);
     const resolveItemsMs = Date.now() - resolvedItemsStart;
 
     const deliveryFeeLookupStart = Date.now();
     const deliveryFee =
       data.type === OrderType.DELIVERY
         ? (
-            await deliveryZoneRepository.findActiveByIdAndOrganization(data.deliveryZoneId, organizationId)
+            await deliveryZoneRepository.findActiveByIdAndSite(data.deliveryZoneId, siteId)
           )?.fee
         : new Prisma.Decimal(0);
     const resolveDeliveryZoneMs = Date.now() - deliveryFeeLookupStart;
@@ -388,7 +388,7 @@ export const orderService = {
 
     const createOrderStart = Date.now();
     const created = await orderRepository.createWithItemsAndTickets({
-      organizationId,
+      siteId,
       orderDate: getTodayDateOnly(),
       type: data.type,
       status: OrderStatus.PENDING,
@@ -407,7 +407,7 @@ export const orderService = {
         notes: item.notes,
       })),
       prepTickets: ticketDescriptors.map((descriptor) => ({
-        organizationId,
+        siteId,
         station: descriptor.station,
         status: PrepTicketStatus.PENDING,
         items: descriptor.items,
@@ -425,13 +425,13 @@ export const orderService = {
 
     const socketEmitStart = Date.now();
     const ticketsForSocket = serializeTicketsForSocket(serialized);
-    socketService.emitNewOrder(organizationId, ticketsForSocket);
+    socketService.emitNewOrder(siteId, ticketsForSocket);
     const emitSocketMs = Date.now() - socketEmitStart;
 
     // Fire-and-forget FCM push to kitchen/barista staff for each ticket station.
     // Runs after the response is sent â€” does not block order creation latency.
     for (const ticket of ticketsForSocket) {
-      void fcmService.sendNewOrderPush(organizationId, {
+      void fcmService.sendNewOrderPush(siteId, {
         orderId: created.id,
         dailyNumber: serialized.dailyNumber,
         station: ticket.station,
@@ -441,7 +441,7 @@ export const orderService = {
     logger.debug(
       {
         actorId: actor.id,
-        organizationId,
+        siteId,
         orderType: data.type,
         itemCount: data.items.length,
         timingsMs: {
@@ -459,7 +459,7 @@ export const orderService = {
   },
 
   getMany: async (actor: Actor, query: OrderQueryInput): Promise<OrderListResult> => {
-    const organizationId = resolveOrganizationId(actor, query.branchId);
+    const siteId = resolveSiteId(actor, query.branchId);
     const isManagerOrDirector = actor.role === 'MANAGER' || actor.role === 'DIRECTOR';
     const createdById = actor.role === 'WAITER'
       ? actor.id
@@ -486,7 +486,7 @@ export const orderService = {
     };
 
     if (query.view === 'summary') {
-      const result = await orderRepository.findManySummary(organizationId, filters);
+      const result = await orderRepository.findManySummary(siteId, filters);
       return {
         orders: result.orders.map(serializeOrderSummary),
         pagination: {
@@ -499,7 +499,7 @@ export const orderService = {
       };
     }
 
-    const result = await orderRepository.findMany(organizationId, filters);
+    const result = await orderRepository.findMany(siteId, filters);
     return {
       orders: result.orders.map(serializeOrder),
       pagination: {
@@ -516,21 +516,21 @@ export const orderService = {
     actor: Actor,
     query: ActiveOrderQueryInput = { view: 'full' },
   ): Promise<Array<OrderRecord | OrderSummaryRecord>> => {
-    const organizationId = resolveOrganizationId(actor);
+    const siteId = resolveSiteId(actor);
     const today = getTodayDateOnly();
     const createdById = actor.role === 'WAITER' ? actor.id : undefined;
     if (query.view === 'summary') {
-      const orders = await orderRepository.findActiveSummary(organizationId, today, createdById);
+      const orders = await orderRepository.findActiveSummary(siteId, today, createdById);
       return orders.map(serializeOrderSummary);
     }
 
-    const orders = await orderRepository.findActive(organizationId, today, createdById);
+    const orders = await orderRepository.findActive(siteId, today, createdById);
     return orders.map(serializeOrder);
   },
 
   getById: async (id: string, actor: Actor, branchId?: string): Promise<OrderRecord> => {
-    const organizationId = resolveOrganizationId(actor, branchId);
-    const order = await orderRepository.findById(id, organizationId);
+    const siteId = resolveSiteId(actor, branchId);
+    const order = await orderRepository.findById(id, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -538,8 +538,8 @@ export const orderService = {
     return serializeOrder(order);
   },
   updateItems: async (orderId: string, data: UpdateOrderItemsInput, actor: Actor): Promise<OrderRecord> => {
-    const organizationId = resolveOrganizationId(actor);
-    const existingOrder = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const existingOrder = await orderRepository.findById(orderId, siteId);
     if (!existingOrder) {
       throw new NotFoundError('Order not found');
     }
@@ -554,7 +554,7 @@ export const orderService = {
       throw new ConflictError('This order is locked and cannot be modified.');
     }
 
-    const resolvedItems = await resolveOrderItems(organizationId, data.items);
+    const resolvedItems = await resolveOrderItems(siteId, data.items);
 
     // Group requested items by station
     const requestedByStation = new Map<PrepStation, ResolvedOrderItem[]>();
@@ -763,7 +763,7 @@ export const orderService = {
 
     const updatedOrder = await orderRepository.updateItems(
       orderId,
-      organizationId,
+      siteId,
       resolvedItems.map((item) => ({
         menuItemId: item.menuItemId,
         quantity: item.quantity,
@@ -789,13 +789,13 @@ export const orderService = {
 
     const newTickets = serialized.prepTickets.filter((ticket) => !existingTicketIds.has(ticket.id));
     if (newTickets.length > 0) {
-      socketService.emitNewOrder(organizationId, newTickets);
+      socketService.emitNewOrder(siteId, newTickets);
     }
 
     const updatedTicketIds = new Set(ticketUpdates.map((update) => update.ticketId));
     const modifiedTickets = serialized.prepTickets.filter((ticket) => updatedTicketIds.has(ticket.id));
     if (modifiedTickets.length > 0) {
-      socketService.emitOrderModified(organizationId, modifiedTickets);
+      socketService.emitOrderModified(siteId, modifiedTickets);
     }
 
     return serialized;
@@ -806,8 +806,8 @@ export const orderService = {
     data: RecordPaymentInput,
     actor: Actor,
   ): Promise<OrderRecord> => {
-    const organizationId = resolveOrganizationId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -822,8 +822,8 @@ export const orderService = {
     // been chosen yet at request time (the waiter re-submits payment after approval), so
     // this must run before the DELIVERY/MPESA-only check below, which doesn't apply here.
     if (data.applyStaffDiscount === true) {
-      await staffDiscountAuthService.createAuthRequest(orderId, organizationId, actor);
-      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      await staffDiscountAuthService.createAuthRequest(orderId, siteId, actor);
+      const pendingOrder = await orderRepository.findById(orderId, siteId);
       if (!pendingOrder) throw new NotFoundError('Order not found');
       return serializeOrder(pendingOrder);
     }
@@ -835,10 +835,10 @@ export const orderService = {
       const result = await customerDiscountAuthService.createAuthRequest(
         orderId,
         data.applyDiscountId,
-        organizationId,
+        siteId,
         actor,
       );
-      const updatedOrder = await orderRepository.findById(orderId, organizationId);
+      const updatedOrder = await orderRepository.findById(orderId, siteId);
       if (!updatedOrder) throw new NotFoundError('Order not found');
       // If approval required, order is now AWAITING_AUTHORIZATION — return early
       if (result.requiresApproval) {
@@ -846,7 +846,7 @@ export const orderService = {
       }
       // Auto-applied — order is still READY with discount written, fall through to normal payment
       // Re-read the updated order (total is now discounted)
-      const discountedOrder = await orderRepository.findById(orderId, organizationId);
+      const discountedOrder = await orderRepository.findById(orderId, siteId);
       if (!discountedOrder) throw new NotFoundError('Order not found');
       // Continue with normal payment collection at the discounted total
       // by replacing `order` reference — done by reassigning data flow below
@@ -878,7 +878,7 @@ export const orderService = {
       const holderFcmToken = await authRepository.findFcmToken(account.userId);
       if (!holderFcmToken) {
         // Warn managers that the holder won't receive a push — they must approve manually.
-        socketService.emitAuthBypassed(organizationId, {
+        socketService.emitAuthBypassed(siteId, {
           orderId,
           dailyNumber: order.dailyNumber,
           houseAccountId: data.houseAccountId!,
@@ -888,11 +888,11 @@ export const orderService = {
       await houseAccountAuthService.createAuthRequest(
         orderId,
         data.houseAccountId!,
-        organizationId,
+        siteId,
         actor,
       );
       // Return the order in AWAITING_AUTHORIZATION status — not yet closed
-      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      const pendingOrder = await orderRepository.findById(orderId, siteId);
       if (!pendingOrder) throw new NotFoundError('Order not found');
       return serializeOrder(pendingOrder);
     }
@@ -911,7 +911,7 @@ export const orderService = {
     }
 
     if (data.paymentMethod === PaymentMethod.CUSTOMER_CREDIT) {
-      const account = await customerCreditRepository.findById(data.customerCreditAccountId!, organizationId);
+      const account = await customerCreditRepository.findById(data.customerCreditAccountId!, siteId);
       if (!account || !account.isActive) {
         throw new NotFoundError('Customer credit account not found or inactive');
       }
@@ -946,7 +946,7 @@ export const orderService = {
 
     let updated;
     try {
-      updated = await orderRepository.recordPayment(orderId, organizationId, {
+      updated = await orderRepository.recordPayment(orderId, siteId, {
         paymentMethod: data.paymentMethod,
         mpesaCode: data.mpesaCode ?? null,
         mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
@@ -976,7 +976,7 @@ export const orderService = {
     });
 
     const stations = [...new Set(order.prepTickets.map((t) => t.station))] as PrepStation[];
-    socketService.emitOrderClosed(organizationId, stations, {
+    socketService.emitOrderClosed(siteId, stations, {
       orderId: serialized.id,
       dailyNumber: serialized.dailyNumber,
     });
@@ -985,8 +985,8 @@ export const orderService = {
   },
 
   cancel: async (orderId: string, reason: string, actor: Actor): Promise<OrderRecord> => {
-    const organizationId = resolveOrganizationId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -997,14 +997,14 @@ export const orderService = {
 
     if (actor.role === 'WAITER') {
       await orderCancellationAuthService.createRequest(orderId, reason, null, actor);
-      const pendingOrder = await orderRepository.findById(orderId, organizationId);
+      const pendingOrder = await orderRepository.findById(orderId, siteId);
       if (!pendingOrder) {
         throw new NotFoundError('Order not found');
       }
       return serializeOrder(pendingOrder);
     }
 
-    const cancelled = await orderRepository.cancel(orderId, organizationId, allowedStatuses, reason, actor.id);
+    const cancelled = await orderRepository.cancel(orderId, siteId, allowedStatuses, reason, actor.id);
     if (!cancelled) {
       throw new ConflictError('Order cannot be cancelled in its current state.');
     }
@@ -1016,7 +1016,7 @@ export const orderService = {
     const wasForceCancelled = isManager && order.status !== OrderStatus.PENDING;
 
     if (wasForceCancelled) {
-      socketService.emitOrderForceCancelled(organizationId, stations, order.createdById, {
+      socketService.emitOrderForceCancelled(siteId, stations, order.createdById, {
         orderId: serialized.id,
         dailyNumber: serialized.dailyNumber,
         cancelledBy: actor.id,
@@ -1026,11 +1026,11 @@ export const orderService = {
         dailyNumber: serialized.dailyNumber,
       });
     } else {
-      socketService.emitOrderCancelled(organizationId, stations, { orderId: serialized.id });
+      socketService.emitOrderCancelled(siteId, stations, { orderId: serialized.id });
     }
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId,
       type: 'ORDER_CANCELLED',
       actorId: actor.id,
@@ -1066,8 +1066,8 @@ export const orderService = {
       throw new ForbiddenError('Only managers can use this endpoint');
     }
 
-    const organizationId = resolveOrganizationId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -1096,7 +1096,7 @@ export const orderService = {
       const cancelReason = `Manager edit: all items removed — ${data.reason}`;
       const cancelled = await orderRepository.cancel(
         orderId,
-        organizationId,
+        siteId,
         [OrderStatus.PENDING, OrderStatus.IN_PROGRESS, OrderStatus.READY],
         cancelReason,
         actor.id,
@@ -1107,7 +1107,7 @@ export const orderService = {
 
       const serialized = serializeOrder(cancelled);
       const stations = order.prepTickets.map((t) => t.station);
-      socketService.emitOrderForceCancelled(organizationId, stations, order.createdById, {
+      socketService.emitOrderForceCancelled(siteId, stations, order.createdById, {
         orderId: serialized.id,
         dailyNumber: serialized.dailyNumber,
         cancelledBy: actor.id,
@@ -1118,7 +1118,7 @@ export const orderService = {
       });
 
       incidentService.log({
-        organizationId,
+        siteId,
         orderId,
         type: 'ORDER_ITEM_REMOVED',
         actorId: actor.id,
@@ -1219,7 +1219,7 @@ export const orderService = {
 
     const updatedOrder = await orderRepository.managerUpdateItems(
       orderId,
-      organizationId,
+      siteId,
       newItemDtos,
       { subtotal: newSubtotal, total: newTotal },
       { voidTicketUpdates: ticketUpdates, actorId: actor.id, targetStatus },
@@ -1235,7 +1235,7 @@ export const orderService = {
     if (ticketUpdates.length > 0) {
       const voidedSerialised = serialized.prepTickets.filter((t) => voidedTicketIds.has(t.id));
       if (voidedSerialised.length > 0) {
-        socketService.emitOrderModified(organizationId, voidedSerialised);
+        socketService.emitOrderModified(siteId, voidedSerialised);
       }
     }
 
@@ -1249,7 +1249,7 @@ export const orderService = {
     }
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId,
       type: 'ORDER_ITEM_REMOVED',
       actorId: actor.id,
@@ -1275,8 +1275,8 @@ export const orderService = {
       throw new ForbiddenError('Only accountants can account for orders');
     }
 
-    const organizationId = resolveOrganizationId(actor, branchId);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor, branchId);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (
@@ -1287,7 +1287,7 @@ export const orderService = {
       throw new ConflictError('Order is locked, closed, or cancelled');
     }
 
-    const accounted = await orderRepository.accountOrder(orderId, organizationId, {
+    const accounted = await orderRepository.accountOrder(orderId, siteId, {
       paymentMethod: data.paymentMethod,
       mpesaCode: data.mpesaCode ?? null,
       mpesaAmount: data.paymentMethod === PaymentMethod.SPLIT ? (data.mpesaAmount ?? null) : null,
@@ -1301,7 +1301,7 @@ export const orderService = {
     const serialized = serializeOrder(accounted);
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId,
       type: 'ORDER_STALE',
       actorId: actor.id,
@@ -1322,8 +1322,8 @@ export const orderService = {
     if (actor.role !== 'MANAGER') {
       throw new ForbiddenError('Only managers can view branch stale orders');
     }
-    const organizationId = resolveOrganizationId(actor);
-    const rows = await reportRepository.getWaiterStaleLiabilities([organizationId]);
+    const siteId = resolveSiteId(actor);
+    const rows = await reportRepository.getWaiterStaleLiabilities([siteId]);
     const total = rows.reduce((sum, row) => sum.add(row.total), new Prisma.Decimal(0));
 
     return {
@@ -1353,8 +1353,8 @@ export const orderService = {
     if (actor.role !== 'MANAGER') {
       throw new ForbiddenError('Only managers can force an order ready');
     }
-    const organizationId = resolveOrganizationId(actor);
-    const order = await orderRepository.findById(orderId, organizationId);
+    const siteId = resolveSiteId(actor);
+    const order = await orderRepository.findById(orderId, siteId);
     if (!order) throw new NotFoundError('Order not found');
 
     if (
@@ -1368,13 +1368,13 @@ export const orderService = {
       throw new ConflictError('Order is already ready');
     }
 
-    const updated = await orderRepository.updateStatus(orderId, organizationId, OrderStatus.READY);
+    const updated = await orderRepository.updateStatus(orderId, siteId, OrderStatus.READY);
     if (!updated) throw new ConflictError('Order could not be updated. Please refresh and try again.');
 
     const serialized = serializeOrder(updated);
 
     incidentService.log({
-      organizationId,
+      siteId,
       orderId,
       type: 'ORDER_STALE',
       actorId: actor.id,

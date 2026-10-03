@@ -16,7 +16,7 @@ export type OrderCancellationRequestPrismaRecord = Prisma.OrderCancellationReque
 
 export const orderCancellationRequestRepository = {
   createPendingForOrder: async (data: {
-    organizationId: string;
+    siteId: string;
     orderId: string;
     requestedById: string;
     reason: string;
@@ -27,7 +27,7 @@ export const orderCancellationRequestRepository = {
       const updated = await tx.order.updateMany({
         where: {
           id: data.orderId,
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           status: data.previousStatus,
         },
         data: {
@@ -41,7 +41,7 @@ export const orderCancellationRequestRepository = {
 
       return tx.orderCancellationRequest.create({
         data: {
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           orderId: data.orderId,
           requestedById: data.requestedById,
           reason: data.reason,
@@ -55,33 +55,33 @@ export const orderCancellationRequestRepository = {
 
   findById: async (
     id: string,
-    organizationId?: string,
+    siteId?: string,
   ): Promise<OrderCancellationRequestPrismaRecord | null> => {
     return prisma.orderCancellationRequest.findFirst({
-      where: { id, ...(organizationId ? { organizationId } : {}) },
+      where: { id, ...(siteId ? { siteId } : {}) },
       include: cancellationRequestInclude,
     });
   },
 
   findPendingByOrderId: async (
     orderId: string,
-    organizationId?: string,
+    siteId?: string,
   ): Promise<OrderCancellationRequestPrismaRecord | null> => {
     return prisma.orderCancellationRequest.findFirst({
       where: {
         orderId,
         status: CancellationRequestStatus.PENDING,
-        ...(organizationId ? { organizationId } : {}),
+        ...(siteId ? { siteId } : {}),
       },
       include: cancellationRequestInclude,
     });
   },
 
-  findPendingByOrganization: async (
-    organizationId: string,
+  findPendingBySite: async (
+    siteId: string,
   ): Promise<OrderCancellationRequestPrismaRecord[]> => {
     return prisma.orderCancellationRequest.findMany({
-      where: { organizationId, status: CancellationRequestStatus.PENDING },
+      where: { siteId, status: CancellationRequestStatus.PENDING },
       include: cancellationRequestInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -89,7 +89,7 @@ export const orderCancellationRequestRepository = {
 
   resolveIfPending: async (data: {
     id: string;
-    organizationId: string;
+    siteId: string;
     decision: OrderCancellationDecision;
     resolvedById: string;
     resolutionNote: string | null;
@@ -99,7 +99,7 @@ export const orderCancellationRequestRepository = {
       const request = await tx.orderCancellationRequest.findFirst({
         where: {
           id: data.id,
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           status: CancellationRequestStatus.PENDING,
         },
         include: cancellationRequestInclude,
@@ -114,7 +114,7 @@ export const orderCancellationRequestRepository = {
       await tx.orderCancellationRequest.updateMany({
         where: {
           id: data.id,
-          organizationId: data.organizationId,
+          siteId: data.siteId,
           status: CancellationRequestStatus.PENDING,
         },
         data: {
@@ -129,7 +129,7 @@ export const orderCancellationRequestRepository = {
         await tx.order.updateMany({
           where: {
             id: request.orderId,
-            organizationId: data.organizationId,
+            siteId: data.siteId,
             status: OrderStatus.AWAITING_CANCELLATION_APPROVAL,
           },
           data: {
@@ -142,7 +142,7 @@ export const orderCancellationRequestRepository = {
         await tx.prepTicket.updateMany({
           where: {
             orderId: request.orderId,
-            organizationId: data.organizationId,
+            siteId: data.siteId,
             status: { notIn: [PrepTicketStatus.REJECTED] },
           },
           data: {
@@ -155,7 +155,7 @@ export const orderCancellationRequestRepository = {
         await tx.order.updateMany({
           where: {
             id: request.orderId,
-            organizationId: data.organizationId,
+            siteId: data.siteId,
             status: OrderStatus.AWAITING_CANCELLATION_APPROVAL,
           },
           data: {
@@ -165,7 +165,7 @@ export const orderCancellationRequestRepository = {
       }
 
       return tx.orderCancellationRequest.findFirst({
-        where: { id: data.id, organizationId: data.organizationId },
+        where: { id: data.id, siteId: data.siteId },
         include: cancellationRequestInclude,
       });
     });

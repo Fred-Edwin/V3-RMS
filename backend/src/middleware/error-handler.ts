@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AppError } from '../utils/errors';
 import { Sentry } from '../config/sentry';
+import { keyToWire } from '../shared/utils/wire-names';
 
 interface ErrorWithStatus extends Error {
   statusCode?: number;
@@ -21,7 +22,10 @@ export const errorHandler = (
       error: {
         code: 'VALIDATION_ERROR',
         message: 'Validation failed',
-        details: error.issues,
+        details: error.issues.map((issue) => ({
+          ...issue,
+          path: issue.path.map((segment) => (typeof segment === 'string' ? keyToWire(segment) : segment)),
+        })),
       },
     });
     return;

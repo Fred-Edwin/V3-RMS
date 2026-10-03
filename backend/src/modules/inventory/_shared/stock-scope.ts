@@ -31,22 +31,22 @@ export const requireHubOrgId = async (): Promise<string> => {
 
 const centralStoreScope = async (actor: Actor): Promise<StockScope> => {
   const hubOrgId = await requireHubOrgId();
-  if (actor.organizationId !== hubOrgId) {
+  if (actor.siteId !== hubOrgId) {
     throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
   }
   const centralStore = await locationRepository.findCentralStore();
-  if (!centralStore || centralStore.organizationId !== hubOrgId) {
+  if (!centralStore || centralStore.siteId !== hubOrgId) {
     throw new NotFoundError('No Central Store is configured for this organization');
   }
   return { itemOrgId: hubOrgId, locationOrgId: hubOrgId, locationId: centralStore.id, location: centralStore, branchName: null };
 };
 
-const departmentScope = async (organizationId: string, location: Location): Promise<StockScope> => {
+const departmentScope = async (siteId: string, location: Location): Promise<StockScope> => {
   const hubOrgId = await requireHubOrgId();
-  const branch = await branchRepository.findById(organizationId);
+  const branch = await branchRepository.findById(siteId);
   return {
     itemOrgId: hubOrgId,
-    locationOrgId: organizationId,
+    locationOrgId: siteId,
     locationId: location.id,
     location,
     departmentTag: location.departmentTag ?? undefined,
@@ -55,15 +55,15 @@ const departmentScope = async (organizationId: string, location: Location): Prom
 };
 
 const ownDepartmentScope = async (actor: Actor): Promise<StockScope> => {
-  if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
+  if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
   if (!actor.departmentTag) throw new ValidationError('This user has no department assigned');
-  const location = await locationRepository.findByOrganizationTypeDepartment(
-    actor.organizationId,
+  const location = await locationRepository.findBySiteTypeDepartment(
+    actor.siteId,
     'BRANCH_DEPARTMENT',
     actor.departmentTag,
   );
   if (!location) throw new NotFoundError('No location found for your department');
-  return departmentScope(actor.organizationId, location);
+  return departmentScope(actor.siteId, location);
 };
 
 /** Stock list / summary: the Central Store only. */
@@ -103,13 +103,13 @@ export const resolveLedgerScope = async (actor: Actor, requestedLocationId: stri
   }
 
   if (actor.role === 'MANAGER') {
-    if (!actor.organizationId) throw new ValidationError('Branch context missing for this user');
+    if (!actor.siteId) throw new ValidationError('Branch context missing for this user');
     if (!requestedLocationId) throw new ValidationError('locationId is required');
-    const location = await locationRepository.findById(requestedLocationId, actor.organizationId);
+    const location = await locationRepository.findById(requestedLocationId, actor.siteId);
     if (!location || location.type !== 'BRANCH_DEPARTMENT') {
       throw new ForbiddenError('You may only view your own branch’s department ledgers');
     }
-    return departmentScope(actor.organizationId, location);
+    return departmentScope(actor.siteId, location);
   }
 
   throw new ForbiddenError('You may not view the stock ledger');

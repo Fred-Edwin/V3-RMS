@@ -25,7 +25,7 @@ describe('staffRepository.findMessagingContacts', () => {
     await staffRepository.findMessagingContacts('org-1', 'user-1');
 
     const branchStaffCall = findManyMock.mock.calls.find(
-      (call) => call[0]?.where?.organizationId === 'org-1',
+      (call) => call[0]?.where?.siteId === 'org-1',
     );
     expect(branchStaffCall).toBeDefined();
     expect(branchStaffCall![0].where.role.in).toEqual(expect.arrayContaining(['STORE_MANAGER', 'STORE_ATTENDANT']));

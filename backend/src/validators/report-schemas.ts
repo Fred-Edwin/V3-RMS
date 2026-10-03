@@ -15,18 +15,18 @@ const dateRangeSchema = z
 
 export const DailySummaryQuerySchema = z.object({
   date: isoDateSchema.optional(),
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const StaffPerformanceQuerySchema = dateRangeSchema.extend({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   role: reportRoleSchema.optional(),
 });
 
 export const BranchOverviewQuerySchema = dateRangeSchema;
 
 export const BranchTrendsQuerySchema = dateRangeSchema.extend({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const DirectorTrendsQuerySchema = dateRangeSchema;
@@ -45,7 +45,7 @@ export const ExportQuerySchema = dateRangeSchema
       'corporate_account_statement',
     ]),
     format: z.enum(['csv', 'pdf']),
-    organizationId: z.string().uuid().optional(),
+    siteId: z.string().uuid().optional(),
     corporateAccountId: z.string().uuid().optional(),
   })
   .refine((value) => value.reportType !== 'daily_summary' || value.startDate === value.endDate, {
@@ -58,17 +58,17 @@ export const ExportQuerySchema = dateRangeSchema
   });
 
 export const HourlyHeatmapQuerySchema = dateRangeSchema.extend({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const DirectorPulseQuerySchema = z.object({});
 
 export const DiscountUsageQuerySchema = dateRangeSchema.extend({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export const ItemsPerformanceQuerySchema = dateRangeSchema.extend({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   // limit=0 is the sentinel for "return all items"
   limit: z.coerce.number().int().min(0).max(999).optional().default(10),
 });
@@ -79,11 +79,11 @@ export type ItemsPerformanceQueryInput = z.infer<typeof ItemsPerformanceQuerySch
 
 export const AccountantReconciliationQuerySchema = z.object({
   date: isoDateSchema,
-  organizationId: z.string().uuid(),
+  siteId: z.string().uuid(),
 });
 
 export const StaleOrdersQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
   startDate: isoDateSchema.optional(),
   endDate: isoDateSchema.optional(),
 });
@@ -91,7 +91,7 @@ export const StaleOrdersQuerySchema = z.object({
 // HR per-waiter stale-order liability rollup. organizationId optional:
 // when omitted, cross-branch roles (HR_MANAGER/DIRECTOR/SYSTEM_ADMIN) get all active branches.
 export const WaiterLiabilitySummaryQuerySchema = z.object({
-  organizationId: z.string().uuid().optional(),
+  siteId: z.string().uuid().optional(),
 });
 
 export type DailySummaryQueryInput = z.infer<typeof DailySummaryQuerySchema>;
