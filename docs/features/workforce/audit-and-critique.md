@@ -4,7 +4,7 @@ Phase 2 of the design lane (`docs/sessions/design-lane-workforce.md`). Written 4
 
 **How this was checked.** Code was read (services, routes, schema, repositories, page sizes). Screens were walked in a real browser as the **Branch Manager (Town)**, **HR Manager** and **Waiter (phone-size)**. Statements marked *(code)* come from reading code, *(seen)* from using the screen, *(estimated)* from the navigation structure.
 
-**What I did not walk, and why it matters.** Department head scheduler, leave request and approval, discipline, transfers, Director/Accountant views, Barista/Chef phone views. These are covered by code reading only. The clock-in tap did not complete in my test (see §3), so the clock-out and undo flows were checked in code, not on screen. Please say if you want a second pass on these before Phase 3.
+**Second pass (4 Oct, at the owner's request).** After Stop 1 I also walked: the waiter's leave request on a phone, the HR employee profile (Overview, Leave, Disciplinary, Documents, Transfers tabs), and the department head's scheduler (Kitchen head, Town). Findings are in §8. Still covered by code reading only: leave approval screens, Director and Accountant views, Barista/Chef phone views. The clock-in tap did not complete in my test (see §4), so clock-out and undo were checked in code, not on screen.
 
 ---
 
@@ -97,6 +97,18 @@ Counts are taps/clicks to finish the task from the sidebar or home screen, assum
 ## 7. Verdict
 
 The pieces for a sound module exist (clock records tied to assignments, geofence, overrides, locked pay periods, the payslip gate), but they were built as separate features. Time tracking stops at "clocked in or not"; payroll starts from blank typed numbers; nothing joins them. The screens are Excel look-alikes that are error-prone for money (hand-typed statutory figures, no confirmation of totals against hours) and unusable on a phone for managers. Fixing the client's problem (scheduling and time tracking that drive overtime and deductions) means designing the **hours layer** first, then letting payroll read from it.
+
+## 8. Second-pass findings
+
+| Flow | What I saw | Verdict |
+|---|---|---|
+| **Waiter requests leave (phone)** | More, Leave, Request, pick type, two date pickers, free-text reason (required), Submit: **about 6 taps plus typing**. The sheet itself is clean. But the balances card says "No leave balances set up yet. Contact HR to get your profile created", and the request form shows no balance, so the staff member cannot see what they have. | Form is a good base; the dead end is upstream (no contract, so no balance). |
+| **Contract types do not exist on a fresh branch** | The profile says "No contract types defined yet, create one". The Staff Profiles banner says profiles are created automatically, yet leave, "Leave Left" and "Details Filled" are all empty. | Setup order is invisible. A new staff member is half-created: an account without a usable employee record. |
+| **Employee profile** | Five tabs (Overview, Leave, Disciplinary, Documents, Transfers). Overview is long label/value rows with "—" everywhere. **There is no pay information on it**: no salary, no rate, no overtime eligibility, no weekly hours. Statutory and bank details sit at the bottom. | Good tab idea; the record lacks the one thing payroll needs. |
+| **Discipline** | A written, free-text record ("arrived 45 minutes late on three separate occasions") with category and action. It is typed from memory; **it is not linked to the attendance records that would prove it**. | Evidence should come from time data, not recollection. |
+| **Transfers** | History tab is a bare list with a transfer icon in the staff table. Transfer is Director/HR only. A transfer does not carry or close the rota, so future shifts at the old branch remain *(code)*. | Needs a rule for open shifts, leave balance and pay period on transfer. |
+| **Department head scheduler (phone width)** | A **day-at-a-time** screen: scrollable day strip, "Start with Sunday", then "Add to Morning" with a checklist of eligible chefs. Plain-language scope line ("You schedule chefs only. You can't change other departments or shift times") and "HR sees what you save here". 2 taps plus one tap per person. | **Best screen in the module.** The model (one day, one shift, a checklist, scope stated) is worth carrying into the new design. Weaknesses: no week overview, no hours per person, the day strip opens on last Monday so today is at the far right. |
+| **Accountant** *(code)* | The Accountant can read only their own payslip (`HUMAN_ROLES`), not branch payroll, although they are the person who must confirm statutory figures. | A gap to settle in the access table. |
 
 ## Open for your reaction before Phase 3
 
