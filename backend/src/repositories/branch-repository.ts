@@ -30,6 +30,15 @@ export const branchRepository = {
     return rows.map((row) => row.id);
   },
 
+  /** Active branch orgs (hub excluded) as id + name, oldest first — the "Whose levels" branch select. */
+  findActiveBranchOptions: async (): Promise<Array<{ id: string; name: string }>> => {
+    return prisma.organization.findMany({
+      where: { isActive: true, isHub: false },
+      select: { id: true, name: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
+
   findById: async (id: string) => {
     return prisma.organization.findUnique({
       where: { id },

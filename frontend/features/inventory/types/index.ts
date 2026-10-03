@@ -301,6 +301,8 @@ export interface UpdateSupplierInput {
 
 // ─── Restock levels ─────────────────────────────────────────────────────────
 
+export type RestockStatus = 'OUT' | 'LOW' | 'OK' | 'NO_LEVEL';
+
 /**
  * `onHandQty` is derived live from the ledger on every read, never stored. It
  * can be negative — negative stock is allowed and flagged, never blocked.
@@ -312,15 +314,26 @@ export interface RestockLevelRow {
   onHandQty: string;
   level: string | null;
   isBelowLevel: boolean;
+  /** `NO_LEVEL` when none is set; `OUT` when a level is set and on hand is 0 or less; `LOW` when below the level (§29.2). */
+  status: RestockStatus;
+  /** Average daily use × 15 days of cover (§29.5). Null with no history or no use at all. */
+  suggestedLevel: string | null;
+  /** `NEEDS_HISTORY`: under 14 days of use, so no suggestion yet. */
+  suggestionNote: 'NEEDS_HISTORY' | null;
 }
 
-export interface ListRestockLevelsQuery {
-  /**
-   * Store Manager passes the Central Store location explicitly. A Department
-   * Head omits it — the server resolves their own department and rejects any
-   * other location with 403.
-   */
+/** "Whose levels" (§29.2): the Central Store, or a department at one branch. */
+export type RestockScope = 'CENTRAL_STORE' | DepartmentTag;
+
+export interface RestockScopeQuery {
+  /** The older form, kept for the Department Head screens and the stock screens' Central Store id. */
   locationId?: string;
+  scope?: RestockScope;
+  /** Required with a department scope, rejected with `CENTRAL_STORE`. */
+  branchId?: string;
+}
+
+export interface ListRestockLevelsQuery extends RestockScopeQuery {
   search?: string;
 }
 
@@ -329,9 +342,45 @@ export interface ListRestockLevelsQuery {
  * single "Save restock levels" button over many edited rows, so the write is
  * one atomic request, not one per row. `level: null` clears that item's level.
  */
-export interface SaveRestockLevelsInput {
-  locationId?: string;
+export interface SaveRestockLevelsInput extends RestockScopeQuery {
+  /** Stored on each change row; 200 characters at most. */
+  reason?: string;
   levels: Array<{ inventoryItemId: string; level: string | null }>;
+}
+
+/** The strip above the list (§29.3). The four statuses add up to `total`. */
+export interface RestockLevelsSummary {
+  total: number;
+  out: number;
+  low: number;
+  ok: number;
+  noLevel: number;
+  suggestionsDiffer: number;
+}
+
+/** A branch the Store Manager can pick next to a department chip (§30.6). */
+export interface RestockBranchOption {
+  id: string;
+  name: string;
+}
+
+export interface RestockHistoryQuery extends RestockScopeQuery {
+  /** One item; without it, the location's recent changes across items. */
+  inventoryItemId?: string;
+  limit?: number;
+}
+
+/** One change to a level (§30.5). `oldLevel` null = it was the first level; `newLevel` null = cleared. */
+export interface RestockHistoryEntry {
+  id: string;
+  inventoryItemId: string;
+  itemName: string;
+  usageUnit: string;
+  oldLevel: string | null;
+  newLevel: string | null;
+  reason: string | null;
+  changedBy: { id: string; name: string };
+  createdAt: string;
 }
 
 // ─── Response envelopes ─────────────────────────────────────────────────────

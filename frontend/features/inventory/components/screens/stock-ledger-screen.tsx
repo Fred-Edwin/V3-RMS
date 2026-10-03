@@ -12,11 +12,9 @@ import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useDebouncedValue, useStockLedger, useStockList, useStockSummary } from '../../hooks/use-stock';
 import { listItems } from '../../services';
 import type { InventoryTransactionTypeValue, LedgerQuery, LedgerRow, LedgerSummary, StockSummary } from '../../types/stock';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 import { StockTopbar } from '../stock/stock-topbar';
 import { LogWasteDrawer } from '../stock/log-waste-drawer';
 import { DropdownFilter } from '../stock/stock-table';
@@ -412,8 +410,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
   const highlightRow = state.highlight ? rows.find((r) => r.id === state.highlight) : undefined;
   const highlightRef = useHighlightScroll(highlightRow?.id);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
-  const { locationId: centralStoreId } = useCentralStoreLocation(scope === 'store');
 
   // Recently viewed (per viewer, per scope) — written when a ledger opens.
   const recentStorageKey = recentKey(scope, dept.user?.id);
@@ -561,7 +557,7 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
       <StockTopbar
         screen={summary ? `${itemName} · ledger` : 'Stock ledger'}
         showHubCrumb
-        onRestockLevels={() => setRestockOpen(true)}
+       
         onLogWaste={() => setWasteOpen(true)}
       />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-10 [&>*]:shrink-0">
@@ -726,13 +722,6 @@ export function StockLedgerScreen({ itemId, scope }: { itemId: string; scope: Le
       </main>
 
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={() => void reload()} />
-      <RestockLevelsDrawer
-        open={restockOpen}
-        onOpenChange={setRestockOpen}
-        variant="desktop"
-        locationId={centralStoreId ?? undefined}
-        actor={{ role: 'STORE_MANAGER' }}
-      />
     </div>
   );
 }
@@ -830,8 +819,6 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
   const storeSummary = scope === 'store' && rawSummary && 'onHandValue' in rawSummary ? (rawSummary as StockSummary) : null;
   const [recent, setRecent] = React.useState<RecentItem[] | null>(null);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
-  const { locationId: centralStoreId } = useCentralStoreLocation(scope === 'store');
   const inputRef = React.useRef<HTMLInputElement>(null);
   const recentStorageKey = recentKey(scope, dept.user?.id);
 
@@ -930,7 +917,7 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Stock ledger" showHubCrumb onRestockLevels={() => setRestockOpen(true)} onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Stock ledger" showHubCrumb onLogWaste={() => setWasteOpen(true)} />
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto [&>*]:shrink-0">
         <div className="flex flex-col gap-1 px-8 pb-4 pt-6">
           <h1 className="font-wds-sans text-[24px]/[30px] font-semibold text-wds-text-ink">Stock ledger</h1>
@@ -946,13 +933,6 @@ export function StockLedgerPickerScreen({ scope }: { scope: LedgerScope }) {
         </div>
       </main>
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" />
-      <RestockLevelsDrawer
-        open={restockOpen}
-        onOpenChange={setRestockOpen}
-        variant="desktop"
-        locationId={centralStoreId ?? undefined}
-        actor={{ role: 'STORE_MANAGER' }}
-      />
     </div>
   );
 }

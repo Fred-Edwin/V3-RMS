@@ -10,7 +10,6 @@ import { Button } from '@/components/ui2/button';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { HintTooltip } from '@/components/app/shell/hint-tooltip';
 import { useWdsToastStore } from '@/store/wdsToastStore';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useCountList, useThresholds } from '../../hooks/use-counts';
 import { useDebouncedValue, useStockList } from '../../hooks/use-stock';
 import { spotNeedsReason, spotVariance, useSpotCount, type SpotRow } from '../../hooks/use-spot-count';
@@ -25,7 +24,6 @@ import { PinSheet } from '../stock/pin-sheet';
 import { StockMobileHeader } from '../stock/stock-mobile-header';
 import { StockTopbar } from '../stock/stock-topbar';
 import { FormErrorBanner, ListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard } from '../stock/stock-states';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 import { formatCountDateShort, formatKes, formatNumber, formatQty, formatSignedKes, formatVariance, shortName } from '../stock/stock-format';
 
 /**
@@ -288,9 +286,7 @@ export function SpotCountScreen() {
   const { list: recent, status: recentStatus, reload: reloadRecent } = useCountList('SPOT', 3);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [pinOpen, setPinOpen] = React.useState(false);
-  const { locationId: centralStoreId } = useCentralStoreLocation(true);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
 
   React.useEffect(() => {
     let alive = true;
@@ -467,7 +463,7 @@ export function SpotCountScreen() {
   /* ---------------- desktop ---------------- */
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Spot count" showHubCrumb onRestockLevels={() => setRestockOpen(true)} onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Spot count" showHubCrumb onLogWaste={() => setWasteOpen(true)} />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <Link href={HUB_HREF} className="w-fit rounded-wds-sm font-wds-sans text-[13px]/4 text-wds-text-copy-muted outline-none hover:text-wds-text-ink focus-visible:shadow-wds-ring">
@@ -519,7 +515,6 @@ export function SpotCountScreen() {
       </main>
       {pin}
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" />
-      <RestockLevelsDrawer open={restockOpen} onOpenChange={setRestockOpen} variant="desktop" locationId={centralStoreId ?? undefined} actor={{ role: 'STORE_MANAGER' }} />
     </div>
   );
 }

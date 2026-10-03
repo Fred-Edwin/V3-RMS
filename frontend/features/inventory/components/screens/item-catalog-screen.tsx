@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
@@ -11,7 +12,6 @@ import { PermissionDeniedState, LoadingState } from '@/components/app/shell/shel
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useItemCatalog, type ItemCatalogFilters } from '../../hooks/use-item-catalog';
 import type { DepartmentTag, InventoryItemListRow, InventoryItemType } from '../../types';
 import { DEPARTMENT_ORDER, ITEM_TYPE_DOT_CLASS, ITEM_TYPE_LABEL_SHORT } from '../../lib/item-labels';
@@ -25,7 +25,6 @@ import { ItemDrawers, type DrawerRequest } from '../catalog/item-drawers';
 import type { CreatedItem } from '../catalog/item-form-view';
 import { DEPARTMENT_LABEL } from '../stock/stock-format';
 import { MobileListRowSkeleton, SkeletonRows, StockEmptyCard, StockErrorCard, TableRowSkeleton } from '../stock/stock-states';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 
 const SEARCH_DEBOUNCE_MS = 250;
 const ADDED_BAR_MS = 12_000;
@@ -112,10 +111,9 @@ export function ItemCatalogScreen() {
   }, []);
   const closeDrawer = React.useCallback(() => setRequest(null), []);
 
-  const [restockOpen, setRestockOpen] = React.useState(false);
   const [added, setAdded] = React.useState<CreatedItem | null>(null);
   const { open: openMobileNav } = useMobileNavDrawer();
-  const { locationId: centralStoreLocationId } = useCentralStoreLocation(isManager);
+  const router = useRouter();
 
   const filters: ItemCatalogFilters = React.useMemo(
     () => ({
@@ -285,17 +283,8 @@ export function ItemCatalogScreen() {
         onItemChanged={() => void reload()}
         onCategoriesChanged={() => void reload()}
         totalItems={total}
-        onOpenRestockLevels={() => setRestockOpen(true)}
+        onOpenRestockLevels={() => router.push('/app/inventory/stock/restock-levels')}
       />
-      {centralStoreLocationId ? (
-        <RestockLevelsDrawer
-          open={restockOpen}
-          onOpenChange={setRestockOpen}
-          variant={isDesktop ? 'desktop' : 'mobile'}
-          locationId={centralStoreLocationId}
-          actor={{ role: 'STORE_MANAGER' }}
-        />
-      ) : null}
       {added ? (
         <ItemAddedBar
           message={`${added.itemName} added.${userName ? ` Logged for ${userName}.` : ''}`}

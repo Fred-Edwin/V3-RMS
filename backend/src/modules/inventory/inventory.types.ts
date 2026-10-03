@@ -16,6 +16,7 @@ import type {
   AttendantItemMutationResponseSchema,
   CategorySchema,
   CentralStoreLocationSchema,
+  RestockBranchOptionSchema,
   CreateCategorySchema,
   CreateItemSchema,
   InventoryItemListRowSchema,
@@ -53,6 +54,7 @@ export type SupplierPaymentTerms = z.infer<typeof supplierPaymentTermsSchema>;
 // --- Central Store lookup ---------------------------------------------------
 
 export type CentralStoreLocation = z.infer<typeof CentralStoreLocationSchema>;
+export type RestockBranchOption = z.infer<typeof RestockBranchOptionSchema>;
 
 // --- Categories ------------------------------------------------------------
 
