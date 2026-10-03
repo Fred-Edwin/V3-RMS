@@ -4538,7 +4538,7 @@ Contact: `{id, name, role, phone, whatsapp, email, isPrimary, createdAt, updated
 Payment method: `{id, type, isDefault, bankName, bankBranch, accountName,
 accountNumberMasked, paybillNumber, accountReference, tillNumber, phone,
 registeredName, createdAt, updatedAt}`; the single-method GET adds `accountNumber`.
-Catalog row: `{id, inventoryItemId, itemName, itemBuyUnit, supplierItemName, supplierItemCode,
+Catalog row: `{id, inventoryItemId, itemName, itemBuyUnit, itemUsageUnit, itemConversionFactor|null, lastReceipt|null, priceAlert|null (§30.11), supplierItemName, supplierItemCode,
 buyUnit, packSize, lastPrice, lastPriceAt, isPreferred, preferredNeedsConfirm}` (`lastPrice` is per **buy** unit;
 `id` is the pack line's id — a supplier may have several lines for one item, §28.3).
 
@@ -4947,4 +4947,15 @@ Migration `add_item_days_of_cover`: nullable `inventory_items.days_of_cover` `De
   newest first: `[{id, at, action, summary, reason|null, actor{id,name}}]`. `summary` is built from the masked audit snapshots in plain words
   ("Added cheque, payable to Samrat Supermarket Ltd", "Changed the account number on the bank transfer"); no account number or digit of one appears.
   `reason` is null for rows written before this change. Attendant: `403`.
+
+### 30.11 Catalog tab extras (Session 6, owner-approved 3 Oct 2026)
+
+Every supplier catalog row (`GET/POST/PUT …/suppliers/:id/items`) gains:
+- `itemUsageUnit` (the item's usage unit, "kg") and `itemConversionFactor` (decimal string or null): so the pack reads "50 kg bag" and the price "per kg".
+- `lastReceipt: {id, reference} | null`: the signed receipt that set the current price (`lastPriceAt` equals its `signedAt`). Null when the price was set by hand or is unset.
+- `priceAlert: {pct, previousPrice|null, previousAt|null} | null`: the newest price alert fired on this pack by a signed receipt in the last 90 days (`pct` is the rise
+  as a percentage, `previousAt` the date of the supplier's earlier receipt for the item). A receipt line that names a pack belongs to the line with exactly that key;
+  one that names none belongs to the item's only line, never guessed between two.
+
+`lastReceipt` and `priceAlert` are filled in by the list (`GET …/items`) only; the add and edit responses return them as `null`.
 

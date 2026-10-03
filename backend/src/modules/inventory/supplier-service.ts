@@ -50,6 +50,7 @@ import {
   serializeSupplierDetail,
   serializeSupplierItem,
 } from './supplier-serializers';
+import { findLastReceipt, findPriceAlert } from './supplier-catalog-extras';
 import { describePayMethodChange } from './supplier-pay-history';
 import { getDocumentStorage } from './supplier-storage';
 import { PROFILE_CHECK_COUNT, profileDoneCount, supplierOwed } from './supplier-summary';
@@ -219,6 +220,31 @@ const notifyAccountantsOfPayMethodChange = async (
   } catch (error) {
     logger.warn({ err: error, supplierId: supplier.id }, 'Failed to notify Accountants of a payment-details change');
   }
+};
+
+/** The Catalog tab's extras (§30.11): the receipt behind each price and the latest price alert on each pack, last 90 days. */
+const enrichCatalogRows = async (supplierId: string, organizationId: string, rows: SupplierItemRow[]) => {
+  const since = new Date(Date.now() - 90 * 86_400_000);
+  const priceTimes = [...new Map(rows.filter((r) => r.lastPriceAt).map((r) => [r.lastPriceAt!.getTime(), r.lastPriceAt!])).values()];
+  const [receipts, alerts] = await Promise.all([
+    goodsReceiptRepository.findReceiptsSignedAt(supplierId, organizationId, priceTimes),
+    goodsReceiptRepository.findPriceAlertLines(supplierId, organizationId, since),
+  ]);
+  return Promise.all(
+    rows.map(async (row) => {
+      const base = serializeSupplierItem(row);
+      const itemLines = rows.filter((r) => r.inventoryItemId === row.inventoryItemId);
+      const alert = findPriceAlert(row, itemLines, alerts);
+      const previousAt = alert
+        ? await goodsReceiptRepository.findPreviousSignedAt(supplierId, organizationId, row.inventoryItemId, alert.alertAt)
+        : null;
+      return {
+        ...base,
+        lastReceipt: findLastReceipt(row, receipts),
+        priceAlert: alert ? { pct: alert.pct, previousPrice: alert.previousPrice, previousAt: previousAt ? previousAt.toISOString() : null } : null,
+      };
+    }),
+  );
 };
 
 /** "Sugar white · bag · 50 (their code 190035)" — names the clashing line in the 409 message. */
@@ -901,7 +927,8 @@ export const supplierService = {
     requireReadAccess(actor);
     const organizationId = await requireHubActor(actor);
     await requireSupplier(supplierId, organizationId);
-    return (await supplierItemRepository.list(supplierId, organizationId)).map(serializeSupplierItem);
+    const rows = await supplierItemRepository.list(supplierId, organizationId);
+    return enrichCatalogRows(supplierId, organizationId, rows);
   },
 
   /** Add one pack line. The key (supplier, item, buy unit, pack size) must be new — a clash is a 409. */

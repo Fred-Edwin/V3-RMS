@@ -133,6 +133,8 @@ export const serializeSupplierItem = (row: SupplierItemRow) => ({
   inventoryItemId: row.inventoryItemId,
   itemName: row.inventoryItem.name,
   itemBuyUnit: row.inventoryItem.buyUnit,
+  itemUsageUnit: row.inventoryItem.usageUnit,
+  itemConversionFactor: row.inventoryItem.conversionFactor ? row.inventoryItem.conversionFactor.toString() : null,
   supplierItemName: row.supplierItemName,
   supplierItemCode: row.supplierItemCode,
   buyUnit: row.buyUnit,
@@ -142,6 +144,9 @@ export const serializeSupplierItem = (row: SupplierItemRow) => ({
   lastPriceSetBy: row.lastPriceSetBy,
   isPreferred: row.isPreferred,
   preferredNeedsConfirm: row.preferredNeedsConfirm,
+  // Filled in by the Catalog tab's list only (§30.11); null everywhere else a line is returned.
+  lastReceipt: null as { id: string; reference: string } | null,
+  priceAlert: null as { pct: string; previousPrice: string | null; previousAt: string | null } | null,
 });
 
 /** The item page's "who sells it" row: their name and code beside the supplier, ours stays the page title. */

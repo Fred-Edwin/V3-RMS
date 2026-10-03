@@ -43,7 +43,12 @@ vi.mock('./item-history-repository', () => ({
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+  goodsReceiptRepository: {
+    findPackNotOnFileLines: vi.fn(),
+    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
+    findPriceAlertLines: vi.fn().mockResolvedValue([]),
+    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
+  },
 }));
 vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
@@ -138,7 +143,7 @@ describe('suppliers contract — response shapes', () => {
         inventoryItemId: itemId, supplierItemName: 'Fresh milk', supplierItemCode: 'M1', buyUnit: 'crate',
         packSize: new Prisma.Decimal('12'), lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), lastPriceSetBy: null, isPreferred: true,
         preferredNeedsConfirm: true,
-        inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
+        inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate', usageUnit: 'L', conversionFactor: null },
       },
     ] as never);
     const [item] = SupplierItemSchema.array().parse(await supplierService.listItems(storeManager, supplierId));

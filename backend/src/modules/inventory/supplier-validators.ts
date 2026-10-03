@@ -175,6 +175,10 @@ export const SupplierItemSchema = z.object({
   inventoryItemId: uuidSchema,
   itemName: z.string(),
   itemBuyUnit: z.string(),
+  /** The item's usage unit ("kg"), for "50 kg bag" and "per kg" (§30.11). */
+  itemUsageUnit: z.string(),
+  /** Usage units in one of the item's own buy unit; null when none is set. */
+  itemConversionFactor: z.string().nullable(),
   supplierItemName: z.string().nullable(),
   supplierItemCode: z.string().nullable(),
   buyUnit: z.string().nullable(),
@@ -186,6 +190,12 @@ export const SupplierItemSchema = z.object({
   isPreferred: z.boolean(),
   /** Seeded as "Preferred · confirm"; cleared by setting or confirming it. */
   preferredNeedsConfirm: z.boolean(),
+  /** The signed receipt that set the current price; null when set by hand, unset, or outside the Catalog tab's list (§30.11). */
+  lastReceipt: z.object({ id: uuidSchema, reference: z.string() }).nullable(),
+  /** The latest price alert on this pack in the last 90 days, Catalog tab list only (§30.11). `pct` is the rise as a percentage. */
+  priceAlert: z
+    .object({ pct: z.string(), previousPrice: z.string().nullable(), previousAt: z.string().datetime().nullable() })
+    .nullable(),
 });
 
 /** One supplier line on the item page. */

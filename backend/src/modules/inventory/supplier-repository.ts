@@ -363,7 +363,7 @@ export const supplierAuditRepository = {
 // ---------------------------------------------------------------------------
 
 const supplierItemInclude = {
-  inventoryItem: { select: { id: true, name: true, buyUnit: true } },
+  inventoryItem: { select: { id: true, name: true, buyUnit: true, usageUnit: true, conversionFactor: true } },
   lastPriceSetBy: { select: { id: true, name: true } },
 } satisfies Prisma.SupplierItemInclude;
 

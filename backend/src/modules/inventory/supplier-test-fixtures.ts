@@ -78,7 +78,7 @@ export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
   preferredNeedsConfirm: false,
   createdAt: now,
   updatedAt: now,
-  inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
+  inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate', usageUnit: 'L', conversionFactor: null },
   ...overrides,
 });
 

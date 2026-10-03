@@ -48,7 +48,12 @@ vi.mock('./item-history-repository', () => ({
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+  goodsReceiptRepository: {
+    findPackNotOnFileLines: vi.fn(),
+    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
+    findPriceAlertLines: vi.fn().mockResolvedValue([]),
+    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
+  },
 }));
 vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn(), emitPayMethodChanged: vi.fn() } }));
@@ -1055,5 +1060,38 @@ describe('supplierService.listPayMethodHistory', () => {
   it('is closed to the attendant and anyone outside the hub', async () => {
     await expect(supplierService.listPayMethodHistory(attendant, supplierId)).rejects.toThrow(ForbiddenError);
     expect(supplierAuditRepository.listPayMethodChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('supplierService.listItems — the Catalog tab extras (§30.11)', () => {
+  it('adds the usage unit, the receipt behind the price and the price alert with the date it compares with', async () => {
+    const signedAt = new Date('2026-10-08T09:00:00Z');
+    vi.mocked(supplierItemRepository.list).mockResolvedValue([
+      buildCatalogLine({
+        buyUnit: 'bag', packSize: new Prisma.Decimal('50'), lastPriceAt: signedAt,
+        inventoryItem: { id: itemId, name: 'Sugar, white', buyUnit: 'bag', usageUnit: 'kg', conversionFactor: new Prisma.Decimal('50') },
+      }),
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([{ id: 'r1', reference: 'GRN-1042', signedAt, itemIds: [itemId] }] as never);
+    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([
+      { inventoryItemId: itemId, packBuyUnit: 'bag', packSize: new Prisma.Decimal('50'), priceAlertPct: new Prisma.Decimal('6'), priceAlertPrevPrice: new Prisma.Decimal('8630'), signedAt },
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findPreviousSignedAt).mockResolvedValue(new Date('2026-09-28T09:00:00Z'));
+
+    const [row] = await supplierService.listItems(storeManager, supplierId);
+    expect(row).toMatchObject({
+      itemUsageUnit: 'kg', itemConversionFactor: '50',
+      lastReceipt: { id: 'r1', reference: 'GRN-1042' },
+      priceAlert: { pct: '6', previousPrice: '8630', previousAt: '2026-09-28T09:00:00.000Z' },
+    });
+    expect(goodsReceiptRepository.findPriceAlertLines).toHaveBeenCalledWith(supplierId, hubOrgId, expect.any(Date));
+  });
+
+  it('a line with no receipts and no alerts reads null for both', async () => {
+    vi.mocked(supplierItemRepository.list).mockResolvedValue([buildCatalogLine()] as never);
+    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([]);
+    const [row] = await supplierService.listItems(storeManager, supplierId);
+    expect(row).toMatchObject({ lastReceipt: null, priceAlert: null });
   });
 });
