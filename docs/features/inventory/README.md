@@ -15,6 +15,8 @@ first feature of the redo and the template for the others
 | Central Store hub-org scoping (D-15) | [../../inventory/CENTRAL_STORE_SCOPING_DESIGN.md](../../inventory/CENTRAL_STORE_SCOPING_DESIGN.md) |
 | Domain research, the client's paper records | `docs/inventory/central_kitchen_inventory_model.md`, `docs/inventory/reference-photos/`, `docs/Item Catalog/` |
 | Designed-not-built Director/Accountant reports | [reports-spec.md](reports-spec.md) |
+| Client demo script (rehearsed 2026-09-30; a few steps are stale, see its notes) | [demo-run-sheet.md](demo-run-sheet.md) |
+| Full approved wording for not-yet-rebuilt areas | `prep/DESIGN-NOTES.md`, `counting/DESIGN-NOTES.md` (delete when the redo merges) |
 
 If sources disagree: **Paper approved page > sub-module README > decisions.md > code**.
 When code and README disagree, the README's "Built today" section says so; fix

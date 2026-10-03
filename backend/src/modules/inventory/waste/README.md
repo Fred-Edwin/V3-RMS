@@ -2,6 +2,8 @@
 
 **Design:** approved (Paper: *Stock and Counting*, chapter 5 "Waste during the day") · **Code:** built to the old flow, **pending redo**.
 
+Full approved wording: [../counting/DESIGN-NOTES.md](../counting/DESIGN-NOTES.md).
+
 ## Who can do what
 - **Store Attendant**: log waste for several items, review, confirm; reverse **their own** entry the same day with a reason. Sees no costs or stock.
 - **Store Manager**: log waste with values; reverse any entry.

@@ -2,6 +2,8 @@
 
 **Design:** approved (Paper: *Stock and Counting*, chapters 5–6) · **Code:** built to the old flow, **pending redo**.
 
+Full approved wording: [../counting/DESIGN-NOTES.md](../counting/DESIGN-NOTES.md).
+
 Where stock is and where it went: the stock position, the **Stock ledger** (one row per item with opening, in, sent out, Prep use, waste, adjusted, closing) and the **Stock card** per item.
 
 ## Who can do what

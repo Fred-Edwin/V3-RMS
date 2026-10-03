@@ -2,6 +2,8 @@
 
 **Design:** approved (Paper: *Prep*) · **Code:** built to the old flow (Milestone Three), **pending redo**.
 
+Full approved wording, running example and mistake/fix tables: [DESIGN-NOTES.md](DESIGN-NOTES.md). **Delete that file when the redo merges.**
+
 Prep turns raw ingredients into the portions branches order. Recorded **after the fact**, never planned: output item, inputs actually used, actual yield.
 
 ## Who can do what

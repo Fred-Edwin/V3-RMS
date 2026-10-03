@@ -2,6 +2,8 @@
 
 **Design:** approved (Paper: *Stock and Counting*, chapters 1–4, 6–7) · **Code:** built to the old flow (Milestone Six S2), **pending redo**.
 
+Full approved wording for counting, stock, waste and the stock ledger, with the running example (Tue 13 Oct 2026) and mistake/fix tables: [DESIGN-NOTES.md](DESIGN-NOTES.md). It also covers [stock](../stock/README.md) and [waste](../waste/README.md). **Delete it when the last of those redos merges.**
+
 Central Store counting: the Attendant counts, the Manager verifies. (The branch count is [branch-day](../branch-day/README.md).)
 
 ## Who can do what
