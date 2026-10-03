@@ -94,7 +94,8 @@ describe('Order websocket events', () => {
     });
 
     try {
-      socket.emit('join:station', { siteId, station: 'KITCHEN' });
+      // The real client still sends the wire name "organizationId".
+      socket.emit('join:station', { organizationId: siteId, station: 'KITCHEN' });
       const joined = await waitForEvent<{ room: string; station: 'KITCHEN' | 'BARISTA' }>(
         socket,
         'joined:station',
@@ -122,6 +123,29 @@ describe('Order websocket events', () => {
       const payload = await newOrderEvent;
       expect(payload.id).toBe(ticket.id);
       expect(payload.station).toBe('KITCHEN');
+    } finally {
+      socket.disconnect();
+    }
+  });
+
+  it('joins a branch room with organizationId and receives payloads with the wire names', async () => {
+    const socket = await connectAuthenticatedSocket({
+      userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      role: 'MANAGER',
+      siteId,
+    });
+
+    try {
+      socket.emit('join:branch', { organizationId: siteId });
+      await waitForEvent(socket, 'joined:branch');
+
+      const incident = waitForEvent<Record<string, unknown>>(socket, 'incident:new');
+      socketService.emitIncident(siteId, { siteId, site: { name: 'Nyeri Town' }, note: 'x' });
+
+      const payload = await incident;
+      expect(payload['organizationId']).toBe(siteId);
+      expect(payload['organization']).toEqual({ name: 'Nyeri Town' });
+      expect(payload).not.toHaveProperty('siteId');
     } finally {
       socket.disconnect();
     }
