@@ -145,8 +145,8 @@ export const supplierRepositoryMocks = () => ({
     unsetDefault: vi.fn(),
     findHubAccountants: vi.fn(),
   },
-  supplierAuditRepository: { create: vi.fn() },
-  supplierStripRepository: { listForStrip: vi.fn(), catalogStrip: vi.fn() },
+  supplierAuditRepository: { create: vi.fn(), listPayMethodChanges: vi.fn() },
+  supplierStripRepository: { listForStrip: vi.fn(), listForStripByIds: vi.fn(), catalogStrip: vi.fn() },
   supplierItemRepository: {
     list: vi.fn(),
     listForItem: vi.fn(),

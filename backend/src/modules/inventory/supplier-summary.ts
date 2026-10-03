@@ -44,3 +44,16 @@ export const invoiceOutstanding = (invoice: {
   const adjusted = invoice.adjustments.reduce((sum, a) => sum.plus(a.amount), invoice.amountBilled);
   return invoice.allocations.reduce((sum, a) => sum.minus(a.amount), adjusted);
 };
+
+/** What we owe one supplier: the sum of its invoices that still have a positive balance (the strip's rule, §29.3). */
+export const supplierOwed = (
+  invoices: {
+    amountBilled: Prisma.Decimal;
+    adjustments: { amount: Prisma.Decimal }[];
+    allocations: { amount: Prisma.Decimal }[];
+  }[],
+): Prisma.Decimal =>
+  invoices
+    .map(invoiceOutstanding)
+    .filter((outstanding) => outstanding.greaterThan(0))
+    .reduce((sum, outstanding) => sum.plus(outstanding), new Prisma.Decimal(0));

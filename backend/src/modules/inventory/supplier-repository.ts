@@ -47,6 +47,8 @@ export type SupplierListFilters = {
   categoryId?: string;
   /** Exclude ARCHIVED unless a `status` filter says otherwise. */
   includeArchived: boolean;
+  /** Only these suppliers (the "profile not finished" filter resolves to ids first). */
+  ids?: string[];
   page: number;
   perPage: number;
 };
@@ -83,6 +85,7 @@ export const supplierRepository = {
       ...(filters.status ? { status: filters.status } : filters.includeArchived ? {} : { deletedAt: null }),
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+      ...(filters.ids ? { id: { in: filters.ids } } : {}),
       ...(filters.search
         ? {
             OR: [
@@ -339,6 +342,19 @@ export const supplierAuditRepository = {
         before: before ?? Prisma.JsonNull,
         after: after ?? Prisma.JsonNull,
       },
+    }),
+
+  /** The payment-method rows of the audit log, newest first (snapshots are already masked). */
+  listPayMethodChanges: (supplierId: string, organizationId: string, limit: number) =>
+    prisma.supplierAuditLog.findMany({
+      where: {
+        supplierId,
+        organizationId,
+        action: { in: ['PAY_METHOD_CREATED', 'PAY_METHOD_UPDATED', 'PAY_METHOD_DELETED', 'PAY_METHOD_DEFAULT_CHANGED'] },
+      },
+      include: { actor: { select: { id: true, name: true } } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
     }),
 };
 
@@ -693,29 +709,35 @@ export const supplierItemLookupRepository = {
 // Summary strips (B11, API_CONTRACT.md §29.3)
 // ---------------------------------------------------------------------------
 
+const stripSelect = {
+  id: true,
+  name: true,
+  type: true,
+  status: true,
+  address: true,
+  kraPin: true,
+  contacts: { select: { name: true, phone: true, isPrimary: true } },
+  _count: { select: { payMethods: true } },
+  supplierInvoices: {
+    select: {
+      amountBilled: true,
+      adjustments: { select: { amount: true } },
+      allocations: { select: { amount: true } },
+    },
+  },
+} satisfies Prisma.SupplierSelect;
+
 export const supplierStripRepository = {
   /** Every non-archived supplier with just what the profile checks and the owed figure need. */
   listForStrip: (organizationId: string) =>
     prisma.supplier.findMany({
       where: { organizationId, deletedAt: null, status: { not: 'ARCHIVED' } },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        status: true,
-        address: true,
-        kraPin: true,
-        contacts: { select: { name: true, phone: true, isPrimary: true } },
-        _count: { select: { payMethods: true } },
-        supplierInvoices: {
-          select: {
-            amountBilled: true,
-            adjustments: { select: { amount: true } },
-            allocations: { select: { amount: true } },
-          },
-        },
-      },
+      select: stripSelect,
     }),
+
+  /** The same data for exactly these suppliers, whatever their status (the list rows' profile and owed figures). */
+  listForStripByIds: (organizationId: string, ids: string[]) =>
+    prisma.supplier.findMany({ where: { organizationId, id: { in: ids } }, select: stripSelect }),
 
   /** The supplier Catalog tab's four numbers: lines, receipts since `since`, and the latest signed receipt. */
   catalogStrip: async (supplierId: string, organizationId: string, since: Date) => {

@@ -112,6 +112,14 @@ export const SupplierSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/** A list row for SM, ACC and DIR: the base plus how much of the profile is filled in and what we owe (§27.2). */
+export const SupplierListRowSchema = SupplierSchema.extend({
+  /** How many of the 7 profile checks pass (0 to 7). */
+  profileDone: z.number().int().min(0).max(7),
+  /** KES, a decimal string: the sum of the supplier's invoices with a positive balance. */
+  owedAmount: z.string(),
+});
+
 /** Attendant-safe list row: no payment data, KRA PIN, credit limit, terms or documents. */
 export const AttendantSupplierSchema = z.object({
   id: uuidSchema,
@@ -286,6 +294,8 @@ export const ListSuppliersQuerySchema = PaginationQuerySchema.extend({
   categoryId: uuidSchema.optional(),
   /** Legacy: with no `status`, false (default) hides ARCHIVED suppliers. */
   includeRetired: booleanQueryParamSchema.default(false),
+  /** Only non-archived suppliers missing at least one of the 7 profile checks (§29.3). Ignored for attendants. */
+  profileNotFinished: booleanQueryParamSchema.optional(),
 });
 
 const contactFields = {
@@ -428,20 +438,23 @@ export const PayMethodFieldsSchema = z.discriminatedUnion('type', [
 ]);
 
 /**
- * `reason` is only read for CHEQUE (required there): it goes to the audit row and the Accountant's
- * notice, never onto the method. Other types ignore it, so the current screens keep working.
+ * Adding any kind of method needs a reason (§30.10): it goes to the audit row and the Accountant's notice,
+ * never onto the method.
  */
 export const CreatePayMethodSchema = z
   .intersection(
     PayMethodFieldsSchema,
     z.object({ isDefault: z.boolean().optional(), reason: z.string().trim().max(300).optional() }),
   )
-  .refine((d) => d.type !== 'CHEQUE' || (d.reason !== undefined && d.reason.length > 0), {
-    message: 'A reason is required to add a cheque method',
+  .refine((d) => d.reason !== undefined && d.reason.length > 0, {
+    message: 'A reason is required to add a payment method',
     path: ['reason'],
   });
 
-/** `type` cannot change; the merged record is re-validated against its type in the service. */
+/**
+ * `type` cannot change; the merged record is re-validated against its type in the service.
+ * Changing any detail needs a `reason` (§30.10); toggling only `isDefault` does not.
+ */
 export const UpdatePayMethodSchema = z
   .object({
     bankName: z.string().trim().max(100).nullish(),
@@ -455,8 +468,28 @@ export const UpdatePayMethodSchema = z
     registeredName: z.string().trim().max(100).nullish(),
     note: z.string().trim().max(300).nullish(),
     isDefault: z.boolean().optional(),
+    reason: z.string().trim().max(300).optional(),
   })
-  .refine((d) => Object.values(d).some((v) => v !== undefined), { message: 'At least one field must be provided' });
+  .refine((d) => Object.entries(d).some(([key, v]) => key !== 'reason' && v !== undefined), {
+    message: 'At least one field must be provided',
+  })
+  .refine(
+    (d) =>
+      (d.reason !== undefined && d.reason.length > 0) ||
+      Object.entries(d).every(([key, v]) => v === undefined || key === 'isDefault' || key === 'reason'),
+    { message: 'A reason is required to change payment details', path: ['reason'] },
+  );
+
+/** One row of "Who changed these, and when": what happened, who did it, and why (§30.10). */
+export const SupplierPayMethodChangeSchema = z.object({
+  id: uuidSchema,
+  at: z.string().datetime(),
+  action: z.enum(['PAY_METHOD_CREATED', 'PAY_METHOD_UPDATED', 'PAY_METHOD_DELETED', 'PAY_METHOD_DEFAULT_CHANGED']),
+  /** Plain words, never an account number ("Changed the account number on the bank transfer"). */
+  summary: z.string(),
+  reason: z.string().nullable(),
+  actor: actorRefSchema,
+});
 
 // ---------------------------------------------------------------------------
 // Catalog + documents — requests

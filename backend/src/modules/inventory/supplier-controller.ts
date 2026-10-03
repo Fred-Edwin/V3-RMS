@@ -139,6 +139,12 @@ export const supplierController = {
     res.status(200).json({ success: true, data: await supplierService.listPayMethods(actor, id) });
   },
 
+  listPayMethodHistory: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = SupplierIdParamSchema.parse(req.params);
+    res.status(200).json({ success: true, data: await supplierService.listPayMethodHistory(actor, id) });
+  },
+
   getPayMethod: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const { id, pid } = SupplierPayMethodParamSchema.parse(req.params);

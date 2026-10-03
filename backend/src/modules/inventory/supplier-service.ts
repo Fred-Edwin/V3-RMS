@@ -50,8 +50,9 @@ import {
   serializeSupplierDetail,
   serializeSupplierItem,
 } from './supplier-serializers';
+import { describePayMethodChange } from './supplier-pay-history';
 import { getDocumentStorage } from './supplier-storage';
-import { PROFILE_CHECK_COUNT, invoiceOutstanding, profileDoneCount } from './supplier-summary';
+import { PROFILE_CHECK_COUNT, profileDoneCount, supplierOwed } from './supplier-summary';
 import {
   MAX_SUPPLIER_DOCUMENT_BYTES,
   SIGNED_URL_TTL_SECONDS,
@@ -193,6 +194,30 @@ const notifyAccountantsOfChequeMethod = async (
     await fcmService.sendChequeMethodAddedPush(recipientIds, payload);
   } catch (error) {
     logger.warn({ err: error, supplierId: supplier.id }, 'Failed to notify Accountants of a cheque method');
+  }
+};
+
+/**
+ * Tells the hub's Accountant(s) that payment details were added or changed (any kind of method but a cheque add,
+ * which has its own notice above). Same primitives; never blocks or fails the request.
+ */
+const notifyAccountantsOfPayMethodChange = async (
+  organizationId: string,
+  actor: Actor,
+  supplier: { id: string; name: string },
+  summary: string,
+  reason: string,
+): Promise<void> => {
+  try {
+    const accountants = await supplierPayMethodRepository.findHubAccountants(organizationId);
+    const recipientIds = accountants.map((a) => a.id).filter((id) => id !== actor.id);
+    if (recipientIds.length === 0) return;
+    const changedBy = await authRepository.findUserById(actor.id);
+    const payload = { supplierId: supplier.id, supplierName: supplier.name, changedByName: changedBy?.name ?? 'A colleague', summary, reason };
+    recipientIds.forEach((id) => socketService.emitPayMethodChanged(id, payload));
+    await fcmService.sendPayMethodChangedPush(recipientIds, payload);
+  } catch (error) {
+    logger.warn({ err: error, supplierId: supplier.id }, 'Failed to notify Accountants of a payment-details change');
   }
 };
 
@@ -372,12 +397,21 @@ export const supplierService = {
   listSuppliers: async (actor: Actor, query: ListSuppliersQuery) => {
     const organizationId = await requireHubActor(actor);
     const attendant = isAttendant(actor);
+    // "Profile not finished" is worked out over every live supplier first, then the list is limited to those ids.
+    let ids: string[] | undefined;
+    if (!attendant && query.profileNotFinished) {
+      const live = await supplierStripRepository.listForStrip(organizationId);
+      ids = live
+        .filter((s) => profileDoneCount({ ...s, payMethodCount: s._count.payMethods }) < PROFILE_CHECK_COUNT)
+        .map((s) => s.id);
+    }
     const { suppliers, total } = await supplierRepository.findAllByOrganization(organizationId, {
       search: query.search,
       status: attendant ? 'ACTIVE' : query.status,
       type: query.type,
       categoryId: query.categoryId,
       includeArchived: query.includeRetired,
+      ids,
       page: query.page,
       perPage: query.perPage,
     });
@@ -387,9 +421,24 @@ export const supplierService = {
       perPage: query.perPage,
       totalPages: Math.max(1, Math.ceil(total / query.perPage)),
     };
-    return attendant
-      ? { data: suppliers.map(serializeAttendantSupplier), pagination }
-      : { data: suppliers.map(serializeSupplierBase), pagination };
+    if (attendant) return { data: suppliers.map(serializeAttendantSupplier), pagination };
+
+    const strip = await supplierStripRepository.listForStripByIds(
+      organizationId,
+      suppliers.map((s) => s.id),
+    );
+    const stripById = new Map(strip.map((s) => [s.id, s]));
+    return {
+      data: suppliers.map((supplier) => {
+        const row = stripById.get(supplier.id);
+        return {
+          ...serializeSupplierBase(supplier),
+          profileDone: row ? profileDoneCount({ ...row, payMethodCount: row._count.payMethods }) : 0,
+          owedAmount: (row ? supplierOwed(row.supplierInvoices) : new Prisma.Decimal(0)).toFixed(2),
+        };
+      }),
+      pagination,
+    };
   },
 
   getSupplierById: async (actor: Actor, id: string) => {
@@ -734,7 +783,7 @@ export const supplierService = {
       );
       await supplierAuditRepository.create(
         organizationId, supplierId, actor.id, 'PAY_METHOD_CREATED', row.id, null,
-        asJson(isCheque ? { ...auditSnapshot(row), summary: 'cheque method added', reason } : auditSnapshot(row)),
+        asJson(isCheque ? { ...auditSnapshot(row), summary: 'cheque method added', reason } : { ...auditSnapshot(row), reason }),
         tx,
       );
       if (previousDefault) {
@@ -746,6 +795,7 @@ export const supplierService = {
       return row;
     });
     if (isCheque) void notifyAccountantsOfChequeMethod(organizationId, actor, supplier, reason ?? '');
+    else void notifyAccountantsOfPayMethodChange(organizationId, actor, supplier, describePayMethodChange('PAY_METHOD_CREATED', null, auditSnapshot(created)), reason ?? '');
     return serializePayMethod(created);
   },
 
@@ -754,8 +804,9 @@ export const supplierService = {
       throw new ForbiddenError('You cannot edit supplier payment details');
     }
     const organizationId = await requireHubActor(actor);
-    await requireSupplier(supplierId, organizationId);
+    const supplier = await requireSupplier(supplierId, organizationId);
 
+    let detailsChanged: { summary: string; reason: string } | null = null;
     const updated = await prisma.$transaction(async (tx) => {
       const existing = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId, tx);
       if (!existing) throw new NotFoundError('Payment method not found');
@@ -763,7 +814,7 @@ export const supplierService = {
         throw new ConflictError('Make another payment method the default instead', 'DEFAULT_METHOD_REQUIRED');
       }
 
-      const { isDefault, ...patch } = input;
+      const { isDefault, reason, ...patch } = input;
       const merged = { ...existing, ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) };
       const data = toPayData(PayMethodFieldsSchema.parse(merged));
 
@@ -778,10 +829,13 @@ export const supplierService = {
       const after = await supplierPayMethodRepository.findById(methodId, supplierId, organizationId, tx);
       if (!after) throw new NotFoundError('Payment method not found');
 
+      const summary = describePayMethodChange('PAY_METHOD_UPDATED', auditSnapshot(existing), auditSnapshot(after));
+      const detailFieldsSent = Object.values(patch).some((v) => v !== undefined);
       await supplierAuditRepository.create(
         organizationId, supplierId, actor.id, 'PAY_METHOD_UPDATED', methodId,
-        asJson(auditSnapshot(existing)), asJson(auditSnapshot(after)), tx,
+        asJson(auditSnapshot(existing)), asJson({ ...auditSnapshot(after), ...(reason ? { reason } : {}) }), tx,
       );
+      if (detailFieldsSent) detailsChanged = { summary, reason: reason ?? '' };
       if (isDefault === true && !existing.isDefault) {
         await supplierAuditRepository.create(
           organizationId, supplierId, actor.id, 'PAY_METHOD_DEFAULT_CHANGED', methodId,
@@ -790,6 +844,10 @@ export const supplierService = {
       }
       return after;
     });
+    if (detailsChanged) {
+      const { summary, reason } = detailsChanged as { summary: string; reason: string };
+      void notifyAccountantsOfPayMethodChange(organizationId, actor, supplier, summary, reason);
+    }
     return serializePayMethod(updated);
   },
 
@@ -809,6 +867,31 @@ export const supplierService = {
       await supplierAuditRepository.create(
         organizationId, supplierId, actor.id, 'PAY_METHOD_DELETED', methodId, asJson(auditSnapshot(existing)), null, tx,
       );
+    });
+  },
+
+  /** "Who changed these, and when": the payment-method rows of the audit log in plain words, newest first (§30.10). */
+  listPayMethodHistory: async (actor: Actor, supplierId: string) => {
+    if (!canSeePaymentDetails(actor)) throw new ForbiddenError('You cannot view supplier payment details');
+    const organizationId = await requireHubActor(actor);
+    await requireSupplier(supplierId, organizationId);
+    const rows = await supplierAuditRepository.listPayMethodChanges(supplierId, organizationId, 50);
+    return rows.map((row) => {
+      const before = (row.before ?? null) as Record<string, unknown> | null;
+      const after = (row.after ?? null) as Record<string, unknown> | null;
+      const reason = typeof after?.reason === 'string' && after.reason.length > 0 ? after.reason : null;
+      return {
+        id: row.id,
+        at: row.createdAt.toISOString(),
+        action: row.action as 'PAY_METHOD_CREATED' | 'PAY_METHOD_UPDATED' | 'PAY_METHOD_DELETED' | 'PAY_METHOD_DEFAULT_CHANGED',
+        summary: describePayMethodChange(
+          row.action as 'PAY_METHOD_CREATED' | 'PAY_METHOD_UPDATED' | 'PAY_METHOD_DELETED' | 'PAY_METHOD_DEFAULT_CHANGED',
+          before,
+          after,
+        ),
+        reason,
+        actor: row.actor,
+      };
     });
   },
 
@@ -1108,10 +1191,7 @@ export const supplierService = {
     let owed = new Prisma.Decimal(0);
     let suppliersOwed = 0;
     for (const supplier of suppliers) {
-      const balance = supplier.supplierInvoices
-        .map(invoiceOutstanding)
-        .filter((outstanding) => outstanding.greaterThan(0))
-        .reduce((sum, outstanding) => sum.plus(outstanding), new Prisma.Decimal(0));
+      const balance = supplierOwed(supplier.supplierInvoices);
       if (balance.greaterThan(0)) suppliersOwed += 1;
       owed = owed.plus(balance);
     }
