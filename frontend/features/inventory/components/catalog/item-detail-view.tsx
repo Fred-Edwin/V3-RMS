@@ -4,12 +4,13 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
-import type { InventoryItemDetail, ItemChangeReview, ItemSupplierLine } from '../../types';
+import type { InventoryItemDetail, ItemHistoryEntry, ItemSupplierLine } from '../../types';
 import { ITEM_TYPE_DOT_CLASS, ITEM_TYPE_LABEL } from '../../lib/item-labels';
 import { formatDayMonthShort, formatPackLine, formatUsedBy, itemNeedsSetup, trimDecimal } from '../../lib/item-format';
+import { formatHistoryEntry, formatHistoryWhen, formatMoney } from '../../lib/item-price';
 import { DangerLink, DrawerError, DrawerFrame, FactRow, SectionLabel, SecondaryFooterButton, Tag } from './drawer-parts';
 
-const kes = (value: string): string => `KES ${Number.parseFloat(value).toLocaleString('en-KE', { maximumFractionDigits: 2 })}`;
+const kes = formatMoney;
 
 /** Price per usage unit for a supplier line: the line's pack if it names one, else the item's. */
 function pricePerUsageUnit(line: ItemSupplierLine, item: InventoryItemDetail): string | null {
@@ -43,7 +44,9 @@ function SupplierLineRow({ line, item }: { line: ItemSupplierLine; item: Invento
           {pack ? ` · ${pack}` : ''}
           <br />
           {priced
-            ? `Price from a signed receipt${line.lastPriceAt ? ` on ${formatDayMonthShort(line.lastPriceAt)}` : ''}. Updates from each signed receipt.`
+            ? line.lastPriceSetBy
+              ? `Price set by ${line.lastPriceSetBy.name}${line.lastPriceAt ? ` on ${formatDayMonthShort(line.lastPriceAt)}` : ''}. Updates from signed receipts.`
+              : `Price from a signed receipt${line.lastPriceAt ? ` on ${formatDayMonthShort(line.lastPriceAt)}` : ''}. Updates from each signed receipt.`
             : 'Not priced yet. The first signed receipt fills the price.'}
         </span>
       </div>
@@ -61,7 +64,8 @@ function SupplierLineRow({ line, item }: { line: ItemSupplierLine; item: Invento
 
 export interface ItemDetailViewProps {
   item: InventoryItemDetail;
-  review: ItemChangeReview | null;
+  /** What happened to the item, newest first; `null` when it could not be read (the panel is then left out). */
+  history: ItemHistoryEntry[] | null;
   onEdit: () => void;
   onAddSeller: () => void;
   onRetire: () => void;
@@ -72,11 +76,10 @@ export interface ItemDetailViewProps {
 }
 
 /**
- * The item page (Paper steps 05 and 07): pack and units, restock level, and
- * who sells it with their name and code under each supplier. A change history
- * is not shown: no item-change history exists yet to read from.
+ * The item page (Paper steps 05 and 07): pack and units, restock level, who sells
+ * it with their name and code under each supplier, and a history of every change.
  */
-export function ItemDetailView({ item, review, onEdit, onAddSeller, onRetire, onRestore, restoreBusy, actionError, onOpenRestockLevels }: ItemDetailViewProps) {
+export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, onRestore, restoreBusy, actionError, onOpenRestockLevels }: ItemDetailViewProps) {
   const retired = item.retiredAt !== null;
   const bought = item.type !== 'PREPPED';
   const todo: string[] = [];
@@ -85,7 +88,7 @@ export function ItemDetailView({ item, review, onEdit, onAddSeller, onRetire, on
     if (bought && item.suppliers.length === 0) todo.push(`Add who sells it, so ${item.name} can go on an order.`);
     if (!item.category) todo.push('Choose a category.');
   }
-  const onHand = review ? trimDecimal(review.onHandQty) : null;
+  const onHand = trimDecimal(item.centralStoreOnHand);
 
   return (
     <DrawerFrame
@@ -176,7 +179,7 @@ export function ItemDetailView({ item, review, onEdit, onAddSeller, onRetire, on
               Central Store · {item.centralStoreRestockLevel ? `${trimDecimal(item.centralStoreRestockLevel)} ${item.usageUnit}` : 'not set'}
             </span>
             <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">
-              {onHand !== null ? `On hand ${onHand} ${item.usageUnit} · ` : ''}departments set their own
+              On hand {onHand} {item.usageUnit} · departments set their own
             </span>
           </div>
           <button
@@ -219,6 +222,27 @@ export function ItemDetailView({ item, review, onEdit, onAddSeller, onRetire, on
               ))}
             </div>
           )}
+        </div>
+      ) : null}
+
+      {history !== null ? (
+        <div className="flex flex-col gap-2">
+          <SectionLabel>History</SectionLabel>
+          <div className="flex flex-col border-t border-wds-text-ink">
+            {history.length === 0 ? (
+              <p className="py-[9px] font-wds-sans text-[13px] leading-4 text-wds-text-secondary">Nothing recorded yet. Changes from now on are kept here.</p>
+            ) : (
+              history.map((entry) => (
+                <div key={entry.id} className="flex gap-3.5 border-b border-wds-neutral-100 py-[9px]">
+                  <span className="w-[92px] shrink-0 font-wds-mono text-[11px] leading-[14px] text-wds-text-secondary">{formatHistoryWhen(entry.createdAt)}</span>
+                  <span className="flex min-w-0 grow flex-col gap-0.5">
+                    <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-ink">{formatHistoryEntry(entry)}</span>
+                    {entry.reason ? <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Reason: {entry.reason}</span> : null}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       ) : null}
     </DrawerFrame>

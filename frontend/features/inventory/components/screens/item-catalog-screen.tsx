@@ -76,6 +76,7 @@ function MobileItemRow({ row, onClick }: { row: InventoryItemListRow; onClick?: 
 export function ItemCatalogScreen() {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
   const role = useAuthStore((s) => s.role);
+  const userName = useAuthStore((s) => s.user?.name);
   const isManager = role === 'STORE_MANAGER';
   const canRead = isManager || role === 'STORE_ATTENDANT';
 
@@ -86,6 +87,22 @@ export function ItemCatalogScreen() {
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [showRetired, setShowRetired] = React.useState(false);
   const [needsSetup, setNeedsSetup] = React.useState(false);
+  const [lowOrOut, setLowOrOut] = React.useState(false);
+  // Newest first, set only right after an item is added so its row is on top; any filter the user changes ends it.
+  const [sort, setSort] = React.useState<'newest' | undefined>(undefined);
+  const withNaturalOrder =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      set(value);
+      setSort(undefined);
+    };
+  const changeSearch = withNaturalOrder(setSearchInput);
+  const changeType = withNaturalOrder(setType);
+  const changeDepartment = withNaturalOrder(setDepartmentTag);
+  const changeCategory = withNaturalOrder(setCategoryId);
+  const changeShowRetired = withNaturalOrder(setShowRetired);
+  const changeNeedsSetup = withNaturalOrder(setNeedsSetup);
+  const changeLowOrOut = withNaturalOrder(setLowOrOut);
 
   const [request, setRequest] = React.useState<DrawerRequest | null>(null);
   const requestCount = React.useRef(0);
@@ -108,8 +125,10 @@ export function ItemCatalogScreen() {
       categoryId: categoryId ?? undefined,
       includeRetired: showRetired,
       needsSetup,
+      lowOrOut,
+      sort,
     }),
-    [search, type, departmentTag, categoryId, showRetired, needsSetup]
+    [search, type, departmentTag, categoryId, showRetired, needsSetup, lowOrOut, sort]
   );
   const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
 
@@ -117,7 +136,7 @@ export function ItemCatalogScreen() {
   const listRef = React.useRef<HTMLElement>(null);
   React.useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
-  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, page]);
+  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, lowOrOut, sort, page]);
 
   // The "Item added" bar goes by itself; the row's tag stays until the list is reloaded for another reason.
   React.useEffect(() => {
@@ -126,7 +145,7 @@ export function ItemCatalogScreen() {
     return () => clearTimeout(timer);
   }, [added]);
 
-  const anyFilter = Boolean(search) || type !== null || departmentTag !== null || categoryId !== null || showRetired || needsSetup;
+  const anyFilter = Boolean(search) || type !== null || departmentTag !== null || categoryId !== null || showRetired || needsSetup || lowOrOut;
   const clearFilters = () => {
     setSearchInput('');
     setType(null);
@@ -134,6 +153,8 @@ export function ItemCatalogScreen() {
     setCategoryId(null);
     setShowRetired(false);
     setNeedsSetup(false);
+    setLowOrOut(false);
+    setSort(undefined);
   };
 
   if (!hydrated) {
@@ -173,7 +194,7 @@ export function ItemCatalogScreen() {
       value: String(meta.needsSetup),
       sub: 'pack or units not set yet',
       attention: meta.needsSetup > 0,
-      onSelect: () => setNeedsSetup((on) => !on),
+      onSelect: () => changeNeedsSetup(!needsSetup),
       active: needsSetup,
     });
     if (meta.lowOrOut !== null) {
@@ -183,10 +204,16 @@ export function ItemCatalogScreen() {
         value: String(meta.lowOrOut),
         sub: 'below their restock level',
         attention: meta.lowOrOut > 0,
-        onSelect: centralStoreLocationId ? () => setRestockOpen(true) : undefined,
+        onSelect: () => changeLowOrOut(!lowOrOut),
+        active: lowOrOut,
       });
     }
-    cells.push({ key: 'added', label: 'Added this week', value: String(meta.addedThisWeek), sub: 'in the last 7 days' });
+    cells.push({
+      key: 'added',
+      label: 'Added this week',
+      value: String(meta.addedThisWeek),
+      sub: meta.addedByAttendant > 0 ? `${meta.addedByAttendant} added by an attendant` : 'in the last 7 days',
+    });
   }
 
   const openItem = isManager ? (row: InventoryItemListRow) => openDrawer({ kind: 'item', itemId: row.id }) : undefined;
@@ -203,6 +230,13 @@ export function ItemCatalogScreen() {
     </div>
   );
 
+  const showAll = () => {
+    setType(null);
+    setNeedsSetup(false);
+    setLowOrOut(false);
+    setSort(undefined);
+  };
+
   const emptyBody = anyFilter ? (
     <StockEmptyCard title="No items match" description="Nothing in the catalog fits these filters. Clear them to see every item." actionLabel="Clear filters" onAction={clearFilters} />
   ) : (
@@ -213,13 +247,14 @@ export function ItemCatalogScreen() {
       onAction={isManager ? () => openDrawer({ kind: 'add' }) : undefined}
     />
   );
+  const emptyCard = <div className="flex justify-center px-4 py-8">{emptyBody}</div>;
 
   const dataBody = (() => {
     if (status === 'idle' || (status === 'loading' && items.length === 0)) return loadingBody;
     if (status === 'error') {
       return <StockErrorCard title="Couldn’t load the item catalog" description={error ?? 'Check your connection and try again.'} onRetry={() => void reload()} />;
     }
-    if (items.length === 0) return emptyBody;
+    if (items.length === 0) return emptyCard;
     return <CatalogTable rows={items} showRestockLevel={isManager} onRowClick={openItem} highlightId={added && added.itemType !== 'PREPPED' ? added.itemId : null} />;
   })();
 
@@ -241,9 +276,9 @@ export function ItemCatalogScreen() {
         request={request}
         onClose={closeDrawer}
         onItemCreated={(created) => {
-          // The list is sorted by name, so the new row may be pages away: narrow to it so it shows, tinted.
+          // The list is by name, so the new row may be pages away: show newest first so it is on top, tinted.
           clearFilters();
-          setSearchInput(created.itemName);
+          setSort('newest');
           setAdded(created);
           void reload();
         }}
@@ -263,7 +298,7 @@ export function ItemCatalogScreen() {
       ) : null}
       {added ? (
         <ItemAddedBar
-          message={`${added.itemName} added.`}
+          message={`${added.itemName} added.${userName ? ` Logged for ${userName}.` : ''}`}
           // A Prepped item is made in Prep, not bought: nobody sells it, so the next step is just to open it.
           actionLabel={added.itemType === 'PREPPED' ? 'Open item →' : 'Add who sells it →'}
           onAction={() => {
@@ -290,10 +325,10 @@ export function ItemCatalogScreen() {
             aria-label="Search items"
             placeholder="Search items"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => changeSearch(e.target.value)}
             className="h-11 w-full rounded-wds-md border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-wds-body text-wds-text-ink placeholder:text-wds-text-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
           />
-          {pills.length > 0 ? <CategoryPills categories={pills} selectedId={categoryId} onSelect={setCategoryId} /> : null}
+          {pills.length > 0 ? <CategoryPills categories={pills} selectedId={categoryId} onSelect={changeCategory} /> : null}
         </div>
         <main ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4 [&>*]:shrink-0">
           {status === 'error' ? (
@@ -303,7 +338,7 @@ export function ItemCatalogScreen() {
               {(i) => <MobileListRowSkeleton key={i} />}
             </SkeletonRows>
           ) : items.length === 0 ? (
-            emptyBody
+            emptyCard
           ) : (
             <>
               <div className="flex flex-col rounded-wds-md border border-wds-border bg-wds-surface">
@@ -346,7 +381,7 @@ export function ItemCatalogScreen() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <Topbar
         breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}
-        searchProps={{ placeholder: 'Search items', value: searchInput, onChange: (e) => setSearchInput(e.target.value), className: 'w-[380px]', 'aria-label': 'Search items' }}
+        searchProps={{ placeholder: 'Search items', value: searchInput, onChange: (e) => changeSearch(e.target.value), className: 'w-[380px]', 'aria-label': 'Search items' }}
         actions={isManager ? <Button onClick={() => openDrawer({ kind: 'add' })}>New item</Button> : null}
         className="shrink-0"
       />
@@ -361,19 +396,22 @@ export function ItemCatalogScreen() {
         <CatalogFilters
           className="shrink-0"
           total={total}
+          typeCounts={meta?.typeCounts}
+          otherFilterOn={lowOrOut}
           type={type}
-          onTypeChange={setType}
+          onTypeChange={changeType}
           needsSetup={needsSetup}
           needsSetupCount={meta?.needsSetup ?? null}
-          onNeedsSetupChange={setNeedsSetup}
+          onShowAll={showAll}
+          onNeedsSetupChange={changeNeedsSetup}
           categoryOptions={categoryOptions}
           categoryId={categoryId}
-          onCategoryChange={setCategoryId}
+          onCategoryChange={changeCategory}
           departmentOptions={DEPARTMENT_OPTIONS}
           departmentTag={departmentTag}
-          onDepartmentChange={(tag) => setDepartmentTag(tag as DepartmentTag | null)}
+          onDepartmentChange={(tag) => changeDepartment(tag as DepartmentTag | null)}
           showRetired={showRetired}
-          onShowRetiredChange={setShowRetired}
+          onShowRetiredChange={changeShowRetired}
           onManageCategories={isManager ? () => openDrawer({ kind: 'categories' }) : undefined}
         />
         <div className="shrink-0 overflow-x-auto">{dataBody}</div>

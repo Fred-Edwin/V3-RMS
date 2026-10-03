@@ -8,6 +8,7 @@ import type { Category, DepartmentTag, InventoryItemDetail, InventoryItemListRow
 import { useSaveItem } from '../../hooks/use-item-form';
 import { COMMON_UNITS, DEPARTMENT_ORDER, ITEM_TYPE_EXPLAINER, ITEM_TYPE_LABEL, ITEM_TYPE_ORDER } from '../../lib/item-labels';
 import { formatHowWeBuy, trimDecimal } from '../../lib/item-format';
+import { pricePerUsageUnit } from '../../lib/item-price';
 import {
   EMPTY_FORM_VALUES,
   buildEditPlan,
@@ -32,6 +33,7 @@ import {
   SecondaryFooterButton,
   fieldClass,
 } from './drawer-parts';
+import { PriceField } from './price-field';
 
 /** What the catalog needs to know about a just-created item. */
 export interface CreatedItem {
@@ -87,8 +89,8 @@ function FieldError({ children }: { children: React.ReactNode }) {
  * pack and conversion as one entry. Prepped hides the buying fields; Raw
  * ingredient hides Used by. A similar name warns inside the drawer.
  *
- * Usual price is not here: the item create call takes no price yet (it is
- * entered under Add who sells it).
+ * Usual price (add only) is the price per buy unit; the price per usage unit is
+ * worked out beside it. It sets the item's cost and creates no supplier line.
  */
 export function ItemFormView({
   item,
@@ -371,6 +373,27 @@ export function ItemFormView({
           </div>
         ) : null}
       </div>
+
+      {bought && !editing ? (
+        <PriceField
+          id="item-usual-price"
+          name="usualPrice"
+          label="Usual price"
+          hint="optional"
+          value={values.usualPrice}
+          onChange={(v) => set('usualPrice', v)}
+          unitText={`per ${values.buyUnit.trim() || 'unit'}`}
+          perUsageUnit={
+            showHolds && usage !== ''
+              ? (() => {
+                  const amount = pricePerUsageUnit(values.usualPrice, values.holds);
+                  return amount === null ? null : { amount, unit: usage };
+                })()
+              : null
+          }
+          error={errors.usualPrice}
+        />
+      ) : null}
 
       <div className="flex flex-col gap-2">
         <FieldLabel>Category</FieldLabel>
