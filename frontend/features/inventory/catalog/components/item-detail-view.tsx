@@ -62,6 +62,21 @@ function SupplierLineRow({ line, item }: { line: ItemSupplierLine; item: Invento
   );
 }
 
+/** "Retired on 12 Oct 11:02 by Isabel Njoki" + "Reason: …" (Paper step 32), from the newest RETIRED history row. */
+function RetiredBanner({ history, retiredAt }: { history: ItemHistoryEntry[] | null; retiredAt: string }) {
+  const entry = history?.find((h) => h.kind === 'RETIRED') ?? null;
+  return (
+    <div className="flex flex-col gap-1.5 border border-wds-border bg-wds-neutral-50 px-4 py-3.5">
+      <span className="font-wds-sans text-[14px] font-semibold leading-[18px] text-wds-text-ink">
+        {entry ? `Retired on ${formatHistoryWhen(entry.createdAt)} by ${entry.changedBy.name}` : `Retired on ${formatDayMonthShort(retiredAt)}`}
+      </span>
+      <span className="font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">
+        {entry?.reason ? `Reason: ${entry.reason} ` : ''}All its history is kept.
+      </span>
+    </div>
+  );
+}
+
 export interface ItemDetailViewProps {
   item: InventoryItemDetail;
   /** What happened to the item, newest first; `null` when it could not be read (the panel is then left out). */
@@ -101,6 +116,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
             <span aria-hidden className={cn('size-1.5 shrink-0 rounded-[3px]', ITEM_TYPE_DOT_CLASS[item.type])} />
             {ITEM_TYPE_LABEL[item.type]}
           </span>
+          {retired ? <span className="border border-wds-border-strong bg-wds-neutral-100 px-2 py-0.5 text-[12px] leading-4 text-wds-text-secondary">Retired</span> : null}
           {item.category ? (
             <>
               <span aria-hidden className="text-wds-text-muted">
@@ -109,37 +125,27 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
               <span className="text-wds-text-secondary">{item.category.name}</span>
             </>
           ) : null}
-          {retired ? (
-            <>
-              <span aria-hidden className="text-wds-text-muted">
-                ·
-              </span>
-              <span className="text-wds-text-muted">Retired {formatDayMonthShort(item.retiredAt ?? '')}</span>
-            </>
-          ) : null}
         </span>
       }
       footer={
         <>
           {retired ? (
-            <button
-              type="button"
-              onClick={onRestore}
-              disabled={restoreBusy}
-              className="rounded-wds-sm font-wds-sans text-[14px] leading-[18px] text-wds-espresso-700 hover:underline focus-visible:outline-none focus-visible:shadow-wds-ring disabled:opacity-60"
-            >
-              Restore item
-            </button>
+            <Button className="ml-auto h-9 px-[22px] text-[14px]" onClick={onRestore} disabled={restoreBusy}>
+              {restoreBusy ? 'Restoring…' : 'Restore item'}
+            </Button>
           ) : (
-            <DangerLink onClick={onRetire}>Retire item</DangerLink>
+            <>
+              <DangerLink onClick={onRetire}>Retire item</DangerLink>
+              <SecondaryFooterButton onClick={onEdit} className="!px-5 font-medium">
+                Edit item
+              </SecondaryFooterButton>
+            </>
           )}
-          <SecondaryFooterButton onClick={onEdit} className="!px-5 font-medium">
-            Edit item
-          </SecondaryFooterButton>
         </>
       }
     >
       {actionError ? <DrawerError>{actionError}</DrawerError> : null}
+      {retired ? <RetiredBanner history={history} retiredAt={item.retiredAt ?? ''} /> : null}
       {todo.length > 0 ? (
         <div className="flex gap-2.5 border border-wds-warning-border bg-wds-warning-bg px-3.5 py-3">
           <span aria-hidden className="mt-[5px] size-1.5 shrink-0 rounded-[3px] bg-wds-warning-fg" />

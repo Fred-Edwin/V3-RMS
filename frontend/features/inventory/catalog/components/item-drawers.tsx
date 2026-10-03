@@ -5,7 +5,8 @@ import * as React from 'react';
 import { Skeleton } from '@/components/ui2/skeleton';
 import type { Category, InventoryItemListRow } from '../../types';
 import { useCategoryOptions, useItemDetail, useRetireRestoreItem, useSaveItem, useSimilarItem, useSupplierOptions } from '../hooks/use-item-form';
-import { editReviewBullets, retireReviewBullets } from '../lib/item-review';
+import { editReviewBullets } from '../lib/item-review';
+import { RetireItemDialog } from './retire-item-dialog';
 import type { ItemEditPlan } from '../lib/item-form-model';
 import { StockErrorCard } from '../../_shared/components/stock-states';
 import { AddSellerView } from './add-seller-view';
@@ -148,7 +149,7 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
     );
   } else if (needsItem && (!item || item.id !== itemId || detail.status === 'loading' || !detail.review)) {
     content = <LoadingFrame title="Item" />;
-  } else if (item && detail.review && view.kind === 'item') {
+  } else if (item && detail.review && (view.kind === 'item' || view.kind === 'retire')) {
     content = (
       <ItemDetailView
         item={item}
@@ -213,23 +214,6 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
         }}
       />
     );
-  } else if (item && detail.review && view.kind === 'retire') {
-    content = (
-      <ItemReviewView
-        itemName={item.name}
-        action="Retire item"
-        rows={[{ what: 'Status', now: 'Live', after: 'Retired' }]}
-        bullets={retireReviewBullets(detail.review)}
-        review={detail.review}
-        confirmLabel="Retire item"
-        confirming={itemMutations.busy}
-        error={itemMutations.error}
-        onBack={() => goItem(item.id)}
-        onConfirm={async () => {
-          if (await itemMutations.retire(item.id)) await reloadAndShowItem(item.id);
-        }}
-      />
-    );
   } else if (item && detail.review && view.kind === 'addSeller') {
     content = (
       <AddSellerView
@@ -250,6 +234,21 @@ export function ItemDrawers({ request, onClose, onItemCreated, onItemChanged, on
   return (
     <DrawerHost open={open} onOpenChange={(next) => (next ? undefined : close())} label="Catalog">
       {content}
+      {item && detail.review && view.kind === 'retire' ? (
+        <RetireItemDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) goItem(item.id);
+          }}
+          item={item}
+          review={detail.review}
+          busy={itemMutations.busy}
+          error={itemMutations.error}
+          onConfirm={async (reason) => {
+            if (await itemMutations.retire(item.id, reason)) await reloadAndShowItem(item.id);
+          }}
+        />
+      ) : null}
     </DrawerHost>
   );
 }
