@@ -228,7 +228,13 @@ export const docDate = (entry: SupplierTimelineEntry): string => (entry.kind ===
 export const isAutomatic = (entry: SupplierTimelineEntry): boolean => entry.kind !== 'UPLOAD';
 
 /** "Isabel Njoki · uploaded" or "Automatic". */
-export const docAddedBy = (entry: SupplierTimelineEntry): string => (entry.kind === 'UPLOAD' ? `${entry.document.uploadedBy.name} · uploaded` : 'Automatic');
+const AUTOMATIC_VERB: Record<'RECEIPT' | 'INVOICE' | 'PAYMENT' | 'DISPUTE', string> = { RECEIPT: 'signed by', INVOICE: 'recorded by', PAYMENT: 'recorded by', DISPUTE: '' };
+
+/** "Sarah Achieng · uploaded", "Automatic · signed by Sarah Achieng", or plain "Automatic" when no one is named. */
+export const docAddedBy = (entry: SupplierTimelineEntry): string => {
+  if (entry.kind === 'UPLOAD') return `${entry.document.uploadedBy.name} · uploaded`;
+  return entry.actor && AUTOMATIC_VERB[entry.kind] ? `Automatic · ${AUTOMATIC_VERB[entry.kind]} ${entry.actor.name}` : 'Automatic';
+};
 
 export type DocRange = 'ALL' | '12M' | '6M' | '3M' | '30D';
 export const DOC_RANGE_LABEL: Record<DocRange, string> = { ALL: 'Any time', '12M': 'Last 12 months', '6M': 'Last 6 months', '3M': 'Last 3 months', '30D': 'Last 30 days' };

@@ -151,6 +151,8 @@ interface TimelineBase {
   title: string;
   reference: string | null;
   amount: string | null;
+  /** Who signed the receipt or recorded the invoice or payment; null for uploads (see `document.uploadedBy`) and disputes. */
+  actor: { id: string; name: string } | null;
 }
 
 export type SupplierTimelineEntry =

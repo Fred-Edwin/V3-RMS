@@ -644,7 +644,7 @@ export const supplierHistoryRepository = {
       where: { supplierId, organizationId, signedAt: { not: null }, status: { not: 'CANCELLED' } },
       orderBy: { signedAt: 'desc' },
       ...(limit ? { take: limit } : {}),
-      select: { id: true, reference: true, signedAt: true, receiptTotal: true },
+      select: { id: true, reference: true, signedAt: true, receiptTotal: true, signedBy: { select: { id: true, name: true } } },
     }),
 
   invoices: (supplierId: string, organizationId: string, limit: number) =>
@@ -660,6 +660,7 @@ export const supplierHistoryRepository = {
         disputeStatus: true,
         disputeReason: true,
         updatedAt: true,
+        recordedBy: { select: { id: true, name: true } },
       },
     }),
 
@@ -668,7 +669,7 @@ export const supplierHistoryRepository = {
       where: { supplierId, organizationId },
       orderBy: { paidAt: 'desc' },
       take: limit,
-      select: { id: true, paidAt: true, amount: true, method: true, reference: true, reversalOfId: true },
+      select: { id: true, paidAt: true, amount: true, method: true, reference: true, reversalOfId: true, recordedBy: { select: { id: true, name: true } } },
     }),
 
   /** Everything the summary aggregates, in three bounded reads. */

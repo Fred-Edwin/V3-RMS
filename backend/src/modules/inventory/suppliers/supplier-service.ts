@@ -1118,17 +1118,17 @@ export const supplierService = {
     const entries = [
       ...receipts.flatMap((r) =>
         r.signedAt
-          ? [{ kind: 'RECEIPT' as const, id: r.id, occurredAt: r.signedAt.toISOString(), title: 'Goods receipt signed', reference: r.reference, amount: r.receiptTotal.toString() }]
+          ? [{ kind: 'RECEIPT' as const, id: r.id, occurredAt: r.signedAt.toISOString(), title: 'Goods receipt signed', reference: r.reference, amount: r.receiptTotal.toString(), actor: r.signedBy ?? null }]
           : [],
       ),
-      ...invoices.map((i) => ({ kind: 'INVOICE' as const, id: i.id, occurredAt: i.invoiceDate.toISOString(), title: 'Invoice recorded', reference: i.invoiceNumber, amount: i.amountBilled.toString() })),
+      ...invoices.map((i) => ({ kind: 'INVOICE' as const, id: i.id, occurredAt: i.invoiceDate.toISOString(), title: 'Invoice recorded', reference: i.invoiceNumber, amount: i.amountBilled.toString(), actor: i.recordedBy })),
       ...invoices.flatMap((i) =>
         i.disputeStatus
-          ? [{ kind: 'DISPUTE' as const, id: i.id, occurredAt: i.updatedAt.toISOString(), title: i.disputeStatus === 'OPEN' ? 'Invoice disputed' : 'Dispute resolved', reference: i.invoiceNumber, amount: null }]
+          ? [{ kind: 'DISPUTE' as const, id: i.id, occurredAt: i.updatedAt.toISOString(), title: i.disputeStatus === 'OPEN' ? 'Invoice disputed' : 'Dispute resolved', reference: i.invoiceNumber, amount: null, actor: null }]
           : [],
       ),
-      ...payments.map((p) => ({ kind: 'PAYMENT' as const, id: p.id, occurredAt: p.paidAt.toISOString(), title: p.reversalOfId ? 'Payment reversed' : 'Payment made', reference: p.reference, amount: p.amount.toString() })),
-      ...uploads.map((d) => ({ kind: 'UPLOAD' as const, id: d.id, occurredAt: d.createdAt.toISOString(), title: d.fileName, reference: null, amount: null, document: serializeDocument(d) })),
+      ...payments.map((p) => ({ kind: 'PAYMENT' as const, id: p.id, occurredAt: p.paidAt.toISOString(), title: p.reversalOfId ? 'Payment reversed' : 'Payment made', reference: p.reference, amount: p.amount.toString(), actor: p.recordedBy })),
+      ...uploads.map((d) => ({ kind: 'UPLOAD' as const, id: d.id, occurredAt: d.createdAt.toISOString(), title: d.fileName, reference: null, amount: null, actor: null, document: serializeDocument(d) })),
     ];
     entries.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
     return entries.slice(0, limit);
