@@ -78,9 +78,6 @@ router.get('/inventory/suppliers/:id', requireRole(...READ), supplierController.
 router.post('/inventory/suppliers', requireRole(SM), supplierController.createSupplier);
 router.patch('/inventory/suppliers/:id', requireRole(SM), supplierController.updateSupplier);
 router.patch('/inventory/suppliers/:id/status', requireRole(SM), supplierController.updateStatus);
-// Legacy Milestone One aliases for archive / restore.
-router.delete('/inventory/suppliers/:id', requireRole(SM), supplierController.retireSupplier);
-router.post('/inventory/suppliers/:id/restore', requireRole(SM), supplierController.restoreSupplier);
 router.get('/inventory/suppliers/:id/summary', requireRole(...READ), supplierController.getSummary);
 
 router.get('/inventory/suppliers/:id/contacts', requireRole(...READ), supplierController.listContacts);

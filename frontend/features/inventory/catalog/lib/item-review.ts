@@ -53,22 +53,3 @@ export function editReviewBullets(plan: ItemEditPlan, review: ItemChangeReview):
   }
   return bullets;
 }
-
-export function retireReviewBullets(review: ItemChangeReview): ReviewBullet[] {
-  return [
-    {
-      tone: 'safe',
-      text: review.hasHistory
-        ? `History stays: ${plural(review.stockEntries, 'stock entry', 'stock entries')} and ${plural(review.receipts, 'receipt', 'receipts')}.`
-        : 'No stock or receipts yet, so there is no history to keep.',
-    },
-    { tone: 'safe', text: 'Restore it any time from Show retired.' },
-    {
-      tone: 'change',
-      text:
-        review.openOrders > 0
-          ? `${plural(review.openOrders, 'open order', 'open orders')} keep ${review.openOrders === 1 ? 'its' : 'their'} lines. No new order can include it.`
-          : 'No open order uses this item. New orders will not offer it.',
-    },
-  ];
-}

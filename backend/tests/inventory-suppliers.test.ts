@@ -38,13 +38,11 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
   id: supplierId,
   name: 'Samrat Supermarket Ltd',
   code: 'SUPPLIER-0001',
-  contactName: 'Dattu',
+  status: 'ACTIVE',
   category: { id: categoryId, name: 'Dry items' },
-  phone: '+254722160400',
-  email: 'samratnyeri@gmail.com',
-  location: 'Nyeri town',
+  address: 'Nyeri town',
+  primaryContact: { id: '33333333-3333-4333-8333-333333333333', name: 'Dattu', role: 'OTHER', phone: '+254722160400', whatsapp: null, email: 'samratnyeri@gmail.com' },
   defaultPaymentTerms: 'INVOICE_TO_FOLLOW',
-  retiredAt: null,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   ...overrides,
@@ -52,10 +50,8 @@ const buildSupplier = (overrides: Record<string, unknown> = {}) => ({
 
 const validCreateBody = {
   name: 'Samrat Supermarket Ltd',
-  contactName: 'Dattu',
-  phone: '+254722160400',
-  email: 'samratnyeri@gmail.com',
-  location: 'Nyeri town',
+  address: 'Nyeri town',
+  contacts: [{ name: 'Dattu', role: 'OTHER', phone: '+254722160400', email: 'samratnyeri@gmail.com', isPrimary: true }],
 };
 
 describe('Inventory supplier routes', () => {
@@ -152,11 +148,19 @@ describe('Inventory supplier routes', () => {
       expect(res.status).toBe(403);
     });
 
-    it('DELETE /inventory/suppliers/:id blocks the Attendant (403)', async () => {
+    it('PATCH /inventory/suppliers/:id/status blocks the Attendant (403)', async () => {
       const res = await request(app)
-        .delete(`/api/v1/inventory/suppliers/${supplierId}`)
-        .set('Authorization', `Bearer ${attendantToken}`);
+        .patch(`/api/v1/inventory/suppliers/${supplierId}/status`)
+        .set('Authorization', `Bearer ${attendantToken}`)
+        .send({ status: 'ON_HOLD' });
       expect(res.status).toBe(403);
+    });
+
+    it('the old archive and restore aliases are gone (404)', async () => {
+      const del = await request(app).delete(`/api/v1/inventory/suppliers/${supplierId}`).set('Authorization', `Bearer ${managerToken}`);
+      const restore = await request(app).post(`/api/v1/inventory/suppliers/${supplierId}/restore`).set('Authorization', `Bearer ${managerToken}`);
+      expect(del.status).toBe(404);
+      expect(restore.status).toBe(404);
     });
   });
 
@@ -169,30 +173,19 @@ describe('Inventory supplier routes', () => {
         .send(validCreateBody);
       expect(res.status).toBe(201);
       expect(res.body.data.name).toBe('Samrat Supermarket Ltd');
-      expect(res.body.data.location).toBe('Nyeri town');
+      expect(res.body.data.address).toBe('Nyeri town');
     });
 
     it('PATCH /inventory/suppliers/:id updates a supplier', async () => {
       vi.spyOn(supplierService, 'updateSupplier').mockResolvedValue(
-        buildSupplier({ phone: '+254700000000' }) as never,
+        buildSupplier({ address: 'Karatina' }) as never,
       );
       const res = await request(app)
         .patch(`/api/v1/inventory/suppliers/${supplierId}`)
         .set('Authorization', `Bearer ${managerToken}`)
-        .send({ phone: '+254700000000' });
+        .send({ address: 'Karatina' });
       expect(res.status).toBe(200);
-      expect(res.body.data.phone).toBe('+254700000000');
-    });
-
-    it('DELETE /inventory/suppliers/:id retires a supplier with no live preferring items', async () => {
-      vi.spyOn(supplierService, 'retireSupplier').mockResolvedValue(
-        buildSupplier({ retiredAt: new Date().toISOString() }) as never,
-      );
-      const res = await request(app)
-        .delete(`/api/v1/inventory/suppliers/${supplierId}`)
-        .set('Authorization', `Bearer ${managerToken}`);
-      expect(res.status).toBe(200);
-      expect(res.body.data.retiredAt).not.toBeNull();
+      expect(res.body.data.address).toBe('Karatina');
     });
 
     it('PATCH /inventory/suppliers/:id/status returns 409 with the open-invoice count when archiving is blocked', async () => {
@@ -218,13 +211,15 @@ describe('Inventory supplier routes', () => {
       expect(res.status).toBe(400);
     });
 
-    it('POST /inventory/suppliers/:id/restore restores a retired supplier', async () => {
-      vi.spyOn(supplierService, 'restoreSupplier').mockResolvedValue(buildSupplier({ retiredAt: null }) as never);
-      const res = await request(app)
-        .post(`/api/v1/inventory/suppliers/${supplierId}/restore`)
-        .set('Authorization', `Bearer ${managerToken}`);
-      expect(res.status).toBe(200);
-      expect(res.body.data.retiredAt).toBeNull();
+    it('PATCH /inventory/suppliers/:id/status archives and restores', async () => {
+      const spy = vi.spyOn(supplierService, 'updateStatus').mockResolvedValue(buildSupplier({ status: 'ARCHIVED' }) as never);
+      const archived = await request(app)
+        .patch(`/api/v1/inventory/suppliers/${supplierId}/status`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ status: 'ARCHIVED', reason: 'Closed down.' });
+      expect(archived.status).toBe(200);
+      expect(archived.body.data.status).toBe('ARCHIVED');
+      expect(spy).toHaveBeenCalledWith(expect.anything(), supplierId, { status: 'ARCHIVED', reason: 'Closed down.' });
     });
 
     it('GET /inventory/suppliers/:id returns the profile only (no AP/invoice panel this milestone)', async () => {
@@ -267,11 +262,19 @@ describe('Inventory supplier routes', () => {
       expect(res.status).toBe(400);
     });
 
-    it('POST /inventory/suppliers rejects an invalid email', async () => {
+    it('POST /inventory/suppliers rejects an invalid contact email', async () => {
       const res = await request(app)
         .post('/api/v1/inventory/suppliers')
         .set('Authorization', `Bearer ${managerToken}`)
-        .send({ ...validCreateBody, email: 'not-an-email' });
+        .send({ ...validCreateBody, contacts: [{ name: 'Dattu', role: 'OTHER', email: 'not-an-email', isPrimary: true }] });
+      expect(res.status).toBe(400);
+    });
+
+    it('POST /inventory/suppliers needs an address', async () => {
+      const res = await request(app)
+        .post('/api/v1/inventory/suppliers')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ name: 'Roadside', phone: '0700000000' });
       expect(res.status).toBe(400);
     });
 

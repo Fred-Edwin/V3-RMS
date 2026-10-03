@@ -33,6 +33,7 @@ function activeKeyFromPathname(pathname: string): string {
   if (pathname.startsWith('/app/inventory/dispatch') || pathname.startsWith('/app/inventory/discrepancies')) return 'dispatch';
   if (pathname.startsWith('/app/inventory/stock')) return 'stock-counts';
   if (pathname.startsWith('/app/inventory/settings')) return 'settings';
+  if (pathname.startsWith('/app/inventory/audit-log')) return 'audit-log';
   return 'catalog';
 }
 

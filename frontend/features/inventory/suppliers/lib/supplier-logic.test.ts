@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SupplierCatalogLine, SupplierTimelineEntry } from '../types/supplier';
 import {
+  docAddedBy,
   DEFAULT_DOC_FILTERS,
   applyDocFilters,
   contactLine,
@@ -114,9 +115,9 @@ describe('small formats', () => {
 
 describe('documents filters', () => {
   const now = new Date('2026-10-12T08:00:00Z').getTime();
-  const auto = (id: string, kind: 'RECEIPT' | 'INVOICE', at: string, title: string, reference: string): SupplierTimelineEntry => ({ id, kind, occurredAt: at, title, reference, amount: null });
+  const auto = (id: string, kind: 'RECEIPT' | 'INVOICE', at: string, title: string, reference: string): SupplierTimelineEntry => ({ id, kind, occurredAt: at, title, reference, amount: null, actor: { id: 'u9', name: 'Sarah Achieng' } });
   const upload = (id: string, docType: 'PRICE_LIST' | 'CONTRACT', at: string, title: string, who = 'u1'): SupplierTimelineEntry => ({
-    id, kind: 'UPLOAD', occurredAt: at, title, reference: null, amount: null,
+    id, kind: 'UPLOAD', occurredAt: at, title, reference: null, amount: null, actor: null,
     document: { id, fileName: title, mimeType: 'application/pdf', sizeBytes: 1, docType, docDate: null, note: null, goodsReceiptId: null, supplierInvoiceId: null, uploadedBy: { id: who, name: who === 'u1' ? 'Isabel Njoki' : 'Margaret' }, createdAt: at },
   });
   const entries = [
@@ -152,5 +153,15 @@ describe('lateSentence', () => {
     expect(lateSentence({ days1To30: '16000.00', days31To60: '0.00', days61To90: '0.00', days90Plus: '0.00' })).toBe('KES 16,000 is 1 to 30 days late.');
     expect(lateSentence({ days1To30: '16000', days31To60: '500', days61To90: '0', days90Plus: '0' })).toBe('KES 16,000 is 1 to 30 days late, KES 500 is 31 to 60 days late.');
     expect(lateSentence({ days1To30: '0', days31To60: '0', days61To90: '0', days90Plus: '0' })).toBe('Nothing is late.');
+  });
+});
+
+describe('docAddedBy', () => {
+  it('names who signed or recorded an automatic row, and who uploaded a file', () => {
+    const base = { id: 'x', occurredAt: '2026-10-08T06:00:00Z', title: 't', reference: null, amount: null };
+    expect(docAddedBy({ ...base, kind: 'RECEIPT', actor: { id: 'u', name: 'Sarah Achieng' } })).toBe('Automatic · signed by Sarah Achieng');
+    expect(docAddedBy({ ...base, kind: 'PAYMENT', actor: { id: 'u', name: 'Margaret' } })).toBe('Automatic · recorded by Margaret');
+    expect(docAddedBy({ ...base, kind: 'DISPUTE', actor: null })).toBe('Automatic');
+    expect(docAddedBy({ ...base, kind: 'INVOICE', actor: null })).toBe('Automatic');
   });
 });

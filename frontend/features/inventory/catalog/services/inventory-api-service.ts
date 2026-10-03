@@ -117,8 +117,10 @@ export async function updateItem(id: string, input: UpdateItemInput): Promise<It
   return apiClient.patch<ItemMutationResponse>(`/inventory/items/${id}`, input, token());
 }
 
-export async function retireItem(id: string): Promise<void> {
-  await apiClient.delete<void>(`/inventory/items/${id}`, token());
+/** `reason` is kept on the history row (≤ 200 characters, §30.4). */
+export async function retireItem(id: string, reason?: string): Promise<void> {
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+  await apiClient.delete<void>(`/inventory/items/${id}${query}`, token());
 }
 
 export async function restoreItem(id: string): Promise<InventoryItem> {

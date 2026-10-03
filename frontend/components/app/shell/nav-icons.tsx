@@ -100,6 +100,15 @@ export const ReportsIcon: NavIcon = (props) => (
   </svg>
 );
 
+/** Audit log — a page with ruled lines and a tick: the record that cannot be edited. */
+export const AuditLogIcon: NavIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5" />
+    <path d="M9 13h6M9 17h4" />
+  </svg>
+);
+
 /** Settings — lucide-style gear-less "sun" glyph matching Paper artboard 1 (Pre-Demo · Team & PIN): a centre ring with eight spokes. */
 export const SettingsIcon: NavIcon = (props) => (
   <svg {...base} {...props}>

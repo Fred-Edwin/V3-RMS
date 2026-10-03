@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ItemChangeReview } from '../../types';
 import { buildEditPlan, itemToFormValues, type ItemFormSource } from './item-form-model';
-import { editReviewBullets, retireReviewBullets } from './item-review';
+import { editReviewBullets } from './item-review';
 
 const flour: ItemFormSource = {
   name: 'Wheat flour',
@@ -44,13 +44,5 @@ describe('editReviewBullets', () => {
     expect(bullets[0].text).toBe('No stock has been counted for this item yet, so no figures change.');
     expect(bullets[1].text).toBe('No receipts yet. Nothing in the item history is affected.');
     expect(bullets[2].text).toContain('No open order uses this item.');
-  });
-});
-
-describe('retireReviewBullets', () => {
-  it('keeps open orders and says history stays', () => {
-    const bullets = retireReviewBullets(review({ hasHistory: true, stockEntries: 4, receipts: 1, openOrders: 2 }));
-    expect(bullets[0].text).toBe('History stays: 4 stock entries and 1 receipt.');
-    expect(bullets[2].text).toBe('2 open orders keep their lines. No new order can include it.');
   });
 });

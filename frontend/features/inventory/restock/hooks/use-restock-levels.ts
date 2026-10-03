@@ -45,6 +45,16 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
     setEdits((prev) => ({ ...prev, [inventoryItemId]: value }));
   }, []);
 
+  /** Drops one typed level so the row shows what is on file again. */
+  const revert = useCallback((inventoryItemId: string) => {
+    setEdits((prev) => {
+      if (!(inventoryItemId in prev)) return prev;
+      const rest = { ...prev };
+      delete rest[inventoryItemId];
+      return rest;
+    });
+  }, []);
+
   const displayRows = useMemo(
     () =>
       rows.map((row) =>
@@ -77,5 +87,5 @@ export function useRestockLevels(locationId: string | undefined, actor: RestockL
 
   const discard = useCallback(() => setEdits({}), []);
 
-  return { rows: displayRows, changedIds, isDirty, setLevel, save, saving, saveError, discard, status, error, reload: load };
+  return { rows: displayRows, savedRows: rows, changedIds, isDirty, setLevel, revert, save, saving, saveError, discard, status, error, reload: load };
 }

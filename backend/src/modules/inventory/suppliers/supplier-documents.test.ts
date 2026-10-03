@@ -203,20 +203,22 @@ describe('deleteDocument', () => {
 describe('listDocuments', () => {
   it('mixes the automatic history with uploads, newest first', async () => {
     vi.mocked(supplierHistoryRepository.signedReceipts).mockResolvedValue([
-      { id: 'r1', reference: 'GRN-0001', signedAt: new Date('2026-09-02T00:00:00Z'), receiptTotal: { toString: () => '900' } },
+      { id: 'r1', reference: 'GRN-0001', signedAt: new Date('2026-09-02T00:00:00Z'), receiptTotal: { toString: () => '900' }, signedBy: { id: 'u-sign', name: 'Sarah Achieng' } },
     ] as never);
     vi.mocked(supplierHistoryRepository.invoices).mockResolvedValue([
       {
         id: 'i1', invoiceNumber: 'INV-1', invoiceDate: new Date('2026-09-03T00:00:00Z'), amountBilled: { toString: () => '900' },
-        disputeStatus: 'OPEN', disputeReason: 'short', updatedAt: new Date('2026-09-05T00:00:00Z'),
+        disputeStatus: 'OPEN', disputeReason: 'short', updatedAt: new Date('2026-09-05T00:00:00Z'), recordedBy: { id: 'u-inv', name: 'Isabel Njoki' },
       },
     ] as never);
     vi.mocked(supplierHistoryRepository.payments).mockResolvedValue([
-      { id: 'p1', paidAt: new Date('2026-09-04T00:00:00Z'), amount: { toString: () => '900' }, method: 'BANK', reference: 'EFT-1', reversalOfId: null },
+      { id: 'p1', paidAt: new Date('2026-09-04T00:00:00Z'), amount: { toString: () => '900' }, method: 'BANK', reference: 'EFT-1', reversalOfId: null, recordedBy: { id: 'u-pay', name: 'Margaret Wambui' } },
     ] as never);
     vi.mocked(supplierDocumentRepository.list).mockResolvedValue([docRow({ createdAt: new Date('2026-09-06T00:00:00Z') })] as never);
 
     const entries = await supplierService.listDocuments(storeManager, supplierId, 100);
     expect(entries.map((e) => e.kind)).toEqual(['UPLOAD', 'DISPUTE', 'PAYMENT', 'INVOICE', 'RECEIPT']);
+    // Who signed or recorded each automatic row (Session 7); an upload names its uploader on the document, a dispute has no single actor.
+    expect(entries.map((e) => e.actor?.name ?? null)).toEqual([null, null, 'Margaret Wambui', 'Isabel Njoki', 'Sarah Achieng']);
   });
 });

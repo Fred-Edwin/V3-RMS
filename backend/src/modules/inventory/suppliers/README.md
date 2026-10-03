@@ -15,7 +15,9 @@ Suppliers, contacts, payment methods, the catalog lines they sell, and their doc
 - Payment methods: bank, M-Pesa, Cheque (payable to, bank, note), Cash. A change needs a reason, is logged, tells the Accountant, no PIN.
 - Catalog lines: their name and code, their pack, their price; several lines per item allowed. Prices update from signed receipts; a hand-set price is logged. A seeded preferred supplier shows "Preferred · confirm" until confirmed. Add several items at once.
 - Documents tab: search, date range, Added by, All/Uploaded/Automatic, type chips with counts, "Showing x of y". Upload by Store Manager and Accountant only.
-- Archive is blocked while invoices are unpaid; use Put on hold.
+- Put on hold, Archive and Make active are buttons on the supplier page (`PATCH …/status`, the old DELETE/restore aliases are gone). Archive is blocked while invoices are unpaid (409 `SUPPLIER_HAS_OPEN_INVOICES`, with the count); the dialog then offers Put on hold. Archive needs a reason; a hold's note is optional. Both are kept in the audit log.
+- A possible duplicate (409 `DUPLICATE_SUPPLIER`) opens a dialog naming the match: open the existing supplier, or "It is a different business".
+- Documents tab: automatic rows say who signed the receipt or recorded the invoice or payment (`actor` on each timeline entry).
 - Strips: active, on hold, profile not finished, owed; and on Catalog tab: items sold, price alerts, last receipt, 90-day spend.
 
 ## Built today
@@ -33,8 +35,6 @@ Matches the approved design including payment-method history, supplier list summ
 | POST | `/inventory/suppliers` | SM |
 | PATCH | `/inventory/suppliers/:id` | SM |
 | PATCH | `/inventory/suppliers/:id/status` | SM |
-| DELETE | `/inventory/suppliers/:id` | SM |
-| POST | `/inventory/suppliers/:id/restore` | SM |
 | GET | `/inventory/suppliers/:id/summary` | ...READ |
 | GET | `/inventory/suppliers/:id/contacts` | ...READ |
 | POST | `/inventory/suppliers/:id/contacts` | SM |

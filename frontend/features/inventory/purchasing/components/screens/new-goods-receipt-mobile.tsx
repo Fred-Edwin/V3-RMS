@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Combobox } from '@/components/ui2/combobox';
+import { AddMissingItemFlow } from '../../../catalog/components/phone/add-missing-item-flow';
 import { SignSheetDialog } from '../../../_shared/components/sign-sheet';
 import type { ReceiptLineRow } from '../receipt-line-grid';
 import type { ClassifiedSignError } from '../../hooks/use-goods-receipt-form';
@@ -35,7 +36,7 @@ export interface NewGoodsReceiptMobileProps {
   onQtyChange: (id: string, value: string) => void;
   onUnitPriceChange: (id: string, value: string) => void;
   items: InventoryItem[];
-  onAddItem: (item: InventoryItem) => void;
+  onAddItem: (item: InventoryItem, quantity?: string) => void;
   alertedRows: ReceiptLineRow[];
   acknowledgedAlertIds: Set<string>;
   onToggleAcknowledged: (id: string) => void;
@@ -97,7 +98,6 @@ export function NewGoodsReceiptMobile({
   onUnitPriceChange,
   items,
   onAddItem,
-  alertedRows,
   acknowledgedAlertIds,
   onToggleAcknowledged,
   receiptTotal,
@@ -121,7 +121,6 @@ export function NewGoodsReceiptMobile({
   const [addingItem, setAddingItem] = React.useState(false);
   const supplierOptions = React.useMemo(() => suppliers.map((s) => ({ value: s.id, label: s.name })), [suppliers]);
   const supplierLabel = supplierOptions.find((o) => o.value === supplierId)?.label ?? '';
-  const itemOptions = React.useMemo(() => items.map((i) => ({ value: i.id, label: i.name })), [items]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
@@ -226,33 +225,24 @@ export function NewGoodsReceiptMobile({
           );
         })}
 
+        <button
+          type="button"
+          onClick={() => setAddingItem(true)}
+          className="flex items-center justify-center px-4 py-3.5 text-center font-wds-sans text-wds-body-sm text-wds-caramel-600"
+        >
+          + Add item not on the delivery
+        </button>
         {addingItem ? (
-          <div className="flex items-center gap-wds-2 px-4 py-3">
-            <Combobox
-              value=""
-              onValueChange={(value) => {
-                const item = items.find((i) => i.id === value);
-                if (item) onAddItem(item);
-                setAddingItem(false);
-              }}
-              options={itemOptions}
-              placeholder="Search items to add…"
-              aria-label="Item to add"
-              className="h-9"
-            />
-            <button type="button" onClick={() => setAddingItem(false)} className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAddingItem(true)}
-            className="flex items-center justify-center px-4 py-3.5 text-center font-wds-sans text-wds-body-sm text-wds-caramel-600"
-          >
-            + Add item not on the delivery
-          </button>
-        )}
+          <AddMissingItemFlow
+            items={items}
+            supplierName={supplierName}
+            onClose={() => setAddingItem(false)}
+            onDone={(item, quantity) => {
+              onAddItem(item, quantity);
+              setAddingItem(false);
+            }}
+          />
+        ) : null}
 
         <div className="flex flex-col gap-3.5 border-t border-wds-border px-4 py-4.5">
           <div className="flex flex-col gap-1.5">

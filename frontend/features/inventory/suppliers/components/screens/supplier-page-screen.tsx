@@ -25,6 +25,8 @@ import { DetailsCards, NothingBoughtCard, OverviewStrip, OwedCard, ProfileCard }
 import { AddPayMethodView, ChangePayMethodView } from '../pay-method-views';
 import { PaymentTab } from '../payment-tab';
 import { SupplierFormView } from '../supplier-form-view';
+import { SupplierStatusDialogs } from '../supplier-status-dialogs';
+import { MOVE_LABEL, movesFor, type StatusMove } from '../../lib/supplier-status';
 import { SupplierTabs, SupplierTitle, type SupplierTab } from '../supplier-page-header';
 import { InlineNotice } from '../supplier-ui';
 import { UploadView } from '../upload-view';
@@ -70,7 +72,7 @@ function PageSkeleton() {
  * One supplier — Paper "Chapter 5 · Keep a supplier current". Overview, Contacts, Payment, Catalog and Documents are the
  * five tabs; the drawers (edit, payment details, add items, contacts, upload) open over whichever tab asked. The Store
  * Manager reads and writes; the Accountant also changes payment details, uploads documents and records payments;
- * Directors read. Put on hold and Archive come with the retire and restore dialogs (Session 7).
+ * Directors read. Put on hold, Archive and Make active open the chapter 8 dialogs.
  */
 export function SupplierPageScreen({ id }: { id: string }) {
   const role = useAuthStore((s) => s.role);
@@ -83,6 +85,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
   const [invoiceOpen, setInvoiceOpen] = React.useState(false);
   const [paymentOpen, setPaymentOpen] = React.useState(false);
   const [flash, setFlash] = React.useState<string | null>(null);
+  const [statusMove, setStatusMove] = React.useState<StatusMove | null>(null);
   const [problem, setProblem] = React.useState<string | null>(null);
   const [makingPrimaryId, setMakingPrimaryId] = React.useState<string | null>(null);
   const [savingPreferredId, setSavingPreferredId] = React.useState<string | null>(null);
@@ -278,9 +281,16 @@ export function SupplierPageScreen({ id }: { id: string }) {
         hideSearch
         actions={
           isManager && supplier ? (
-            <Button variant="secondary" className="px-3.5" onClick={() => setDrawer({ kind: 'edit' })}>
-              Edit supplier
-            </Button>
+            <div className="flex items-center gap-2">
+              {movesFor(supplier.status).map((move) => (
+                <Button key={move} variant="secondary" className="px-3.5" onClick={() => setStatusMove(move)}>
+                  {MOVE_LABEL[move]}
+                </Button>
+              ))}
+              <Button variant="secondary" className="px-3.5" onClick={() => setDrawer({ kind: 'edit' })}>
+                Edit supplier
+              </Button>
+            </div>
           ) : null
         }
         className="shrink-0"
@@ -396,6 +406,17 @@ export function SupplierPageScreen({ id }: { id: string }) {
             onOpenChange={setPaymentOpen}
             onRecorded={() => void page.reloadMoney()}
             variant="desktop"
+          />
+          <SupplierStatusDialogs
+            move={statusMove}
+            supplier={supplier}
+            invoices={page.owing.data?.invoices ?? null}
+            onClose={() => setStatusMove(null)}
+            onChanged={(status) => {
+              setFlash(status === 'ACTIVE' ? `${supplier.name} is active.` : status === 'ON_HOLD' ? `${supplier.name} is on hold.` : `${supplier.name} is archived.`);
+              void page.reloadMoney();
+            }}
+            onSeeOwed={() => setTab('overview')}
           />
         </>
       ) : null}

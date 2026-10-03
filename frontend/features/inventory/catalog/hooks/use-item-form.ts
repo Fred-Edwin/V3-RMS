@@ -219,7 +219,7 @@ export function useRetireRestoreItem() {
     }
   }, []);
 
-  const retire = useCallback((id: string) => run(() => retireItem(id), 'Could not retire this item.'), [run]);
+  const retire = useCallback((id: string, reason?: string) => run(() => retireItem(id, reason), 'Could not retire this item.'), [run]);
   const restore = useCallback((id: string) => run(() => restoreItem(id), 'Could not restore this item.'), [run]);
   const clearError = useCallback(() => setError(null), []);
   return { retire, restore, busy, error, clearError };

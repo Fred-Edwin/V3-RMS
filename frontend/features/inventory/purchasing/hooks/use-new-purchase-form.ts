@@ -49,9 +49,9 @@ export function useNewPurchaseOptions(open: boolean) {
 
 /**
  * Inline supplier quick-create from the New Purchase item picker's supplier
- * field (2026-09-17 UI refinement) — minimum viable fields only (name,
- * phone, payment terms); the full supplier form remains the place to fill in
- * category/contact/email/location later. Reuses the existing
+ * field (2026-09-17 UI refinement) — minimum viable fields only (name and payment terms,
+ * with "—" as the address); the full supplier form remains the place to fill in
+ * category, contacts and the address later. Reuses the existing
  * `POST /inventory/suppliers` endpoint, no new backend work.
  */
 export function useCreateSupplierInline() {

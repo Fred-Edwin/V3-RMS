@@ -12,6 +12,8 @@ import { branchRepository } from '../../../repositories/branch-repository';
 import inventoryRouter from '../catalog/inventory-routes';
 import {
   AttendantSupplierSchema,
+  CreateSupplierSchema,
+  UpdateSupplierSchema,
   SupplierContactSchema,
   SupplierDetailSchema,
   SupplierDocumentSchema,
@@ -92,29 +94,41 @@ beforeEach(() => {
 });
 
 describe('suppliers contract — response shapes', () => {
-  it('list rows satisfy SupplierListRowSchema (profileDone, owedAmount) and keep the deprecated legacy keys', async () => {
+  it('list rows satisfy SupplierListRowSchema (profileDone, owedAmount) and carry no deprecated legacy keys', async () => {
     vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
     const row = SupplierListRowSchema.parse(data[0]);
     expect(keys(row)).toEqual(
       [
-        'address', 'category', 'code', 'contactName', 'createdAt', 'defaultPaymentTerms', 'email', 'id', 'location',
-        'mapUrl', 'name', 'owedAmount', 'paymentDays', 'phone', 'primaryContact', 'profileDone', 'retiredAt', 'status',
+        'address', 'category', 'code', 'createdAt', 'defaultPaymentTerms', 'id',
+        'mapUrl', 'name', 'owedAmount', 'paymentDays', 'primaryContact', 'profileDone', 'status',
         'tradingName', 'type', 'updatedAt',
       ].sort(),
     );
     expect(SupplierSchema.safeParse(data[0]).success).toBe(true);
-    // Legacy aliases derive from the primary contact / address.
-    expect(row).toMatchObject({ contactName: 'Dattu', phone: '0722160400', email: 'dattu@example.com', location: 'Nyeri town', retiredAt: null });
+    expect(row).toMatchObject({ primaryContact: { name: 'Dattu', phone: '0722160400', email: 'dattu@example.com' }, address: 'Nyeri town' });
   });
 
-  it('an archived supplier reports retiredAt for the legacy UI', async () => {
+  it('an archived supplier is told apart by status alone', async () => {
     vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({
       suppliers: [buildSupplierRow({ status: 'ARCHIVED', deletedAt: new Date() })],
       total: 1,
     } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: true });
-    expect((data[0] as { retiredAt: string | null }).retiredAt).not.toBeNull();
+    expect(data[0]).toMatchObject({ status: 'ARCHIVED' });
+    expect(data[0]).not.toHaveProperty('retiredAt');
+  });
+
+  it('create and update no longer accept the old contactName / phone / email / location keys', () => {
+    const created = CreateSupplierSchema.parse({ name: 'X', address: 'Nyeri', location: 'Old', contactName: 'Old', phone: '0700', email: 'a@b.co' });
+    expect(created).not.toHaveProperty('location');
+    expect(created).not.toHaveProperty('contactName');
+    expect(created).not.toHaveProperty('phone');
+    expect(created).not.toHaveProperty('email');
+    // A body that only used the old keys now fails on the missing address.
+    expect(CreateSupplierSchema.safeParse({ name: 'X', phone: '0700' }).success).toBe(false);
+    // And an update that only used an old key has nothing left to change.
+    expect(UpdateSupplierSchema.safeParse({ location: 'Karatina' }).success).toBe(false);
   });
 
   it('detail satisfies SupplierDetailSchema with the extended keys', async () => {
@@ -252,8 +266,6 @@ describe('suppliers contract — route role matrix (plan §4)', () => {
     ['post', P, SM],
     ['patch', `${P}/:id`, SM],
     ['patch', `${P}/:id/status`, SM],
-    ['delete', `${P}/:id`, SM],
-    ['post', `${P}/:id/restore`, SM],
     ['get', `${P}/:id/summary`, READ],
     ['get', `${P}/:id/contacts`, READ],
     ['post', `${P}/:id/contacts`, SM],
@@ -274,6 +286,11 @@ describe('suppliers contract — route role matrix (plan §4)', () => {
     ['delete', `${P}/:id/documents/:docId`, SM],
   ])('%s %s', (method, path, expected) => {
     expect(allowedRoles(method, path)).toEqual([...expected].sort());
+  });
+
+  it('has no DELETE /:id or POST /:id/restore: archive and restore are PATCH /:id/status', () => {
+    expect(() => allowedRoles('delete', `${P}/:id`)).toThrow('route not found');
+    expect(() => allowedRoles('post', `${P}/:id/restore`)).toThrow('route not found');
   });
 
   it('registers /quick before /:id so it is never read as an id', () => {
