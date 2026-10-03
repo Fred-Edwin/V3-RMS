@@ -97,12 +97,6 @@ export const serializeSupplierBase = (supplier: SupplierBaseSource) => {
       : null,
     defaultPaymentTerms: supplier.defaultPaymentTerms,
     paymentDays: supplier.paymentDays,
-    // Deprecated aliases — remove once the frontend reads the fields above.
-    contactName: primary?.name ?? null,
-    phone: primary?.phone ?? null,
-    email: primary?.email ?? null,
-    location: supplier.address,
-    retiredAt: supplier.deletedAt?.toISOString() ?? null,
     createdAt: supplier.createdAt.toISOString(),
     updatedAt: supplier.updatedAt.toISOString(),
   };

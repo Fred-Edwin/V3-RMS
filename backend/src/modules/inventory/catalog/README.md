@@ -47,3 +47,7 @@ Matches the approved design for items/categories. `Category.parentCategoryId` (o
 
 ## Coupling
 `inventory-repository` is imported by dispatch, prep, purchasing, requisitions, stock, waste; `item-history` by suppliers. Catalog itself imports `suppliers/supplier-repository` and `supplier-serializers`.
+
+## Session 7 additions
+- Retire is a dialog (Paper step 31): what it touches, a required reason (Added twice, No longer sold, Other), and an optional replacement. The reason and replacement go into one sentence on the history row (`DELETE …?reason=`); no schema change. A retired item's page shows who retired it, when and why, with Restore item.
+- The attendant's "Not found? Add it now" (Paper chapter 6) lives in `frontend/features/inventory/catalog/components/phone/`; it posts the attendant's short form to `POST /inventory/items` (§29.4) from the mobile receipt screen.

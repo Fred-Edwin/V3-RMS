@@ -86,20 +86,6 @@ export const supplierController = {
     res.status(200).json({ success: true, data, message: 'Supplier status updated successfully' });
   },
 
-  retireSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = SupplierIdParamSchema.parse(req.params);
-    const data = await supplierService.retireSupplier(actor, id);
-    res.status(200).json({ success: true, data, message: 'Supplier retired successfully' });
-  },
-
-  restoreSupplier: async (req: Request, res: Response): Promise<void> => {
-    const actor = requireActor(req);
-    const { id } = SupplierIdParamSchema.parse(req.params);
-    const data = await supplierService.restoreSupplier(actor, id);
-    res.status(200).json({ success: true, data, message: 'Supplier restored successfully' });
-  },
-
   // ── Contacts ─────────────────────────────────────────────────────────────
 
   listContacts: async (req: Request, res: Response): Promise<void> => {

@@ -3,9 +3,8 @@
  * Plan: docs/features/inventory/suppliers-plan.md. Endpoints: docs/API_CONTRACT.md §27.
  *
  * Supersedes the Milestone One supplier schemas that lived in
- * `inventory-validators.ts` (moved here; the legacy read keys `contactName`,
- * `phone`, `email`, `location` and `retiredAt` are kept on `SupplierSchema`
- * as DEPRECATED aliases until the frontend session replaces the old screens).
+ * `inventory-validators.ts` (moved here; the deprecated read and write keys `contactName`,
+ * `phone`, `email`, `location` and `retiredAt` were removed in Session 7).
  *
  * Wire-format rule (unchanged): every decimal crosses the wire as a string.
  */
@@ -98,16 +97,6 @@ export const SupplierSchema = z.object({
     .nullable(),
   defaultPaymentTerms: supplierPaymentTermsSchema,
   paymentDays: z.number().int(),
-  /** @deprecated derived from `primaryContact.name` — use `primaryContact`. */
-  contactName: z.string().nullable(),
-  /** @deprecated derived from `primaryContact.phone` — use `primaryContact`. */
-  phone: z.string().nullable(),
-  /** @deprecated derived from `primaryContact.email` — use `primaryContact`. */
-  email: z.string().nullable(),
-  /** @deprecated alias of `address`. */
-  location: z.string().nullable(),
-  /** @deprecated set when `status` is ARCHIVED — use `status`. */
-  retiredAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -247,6 +236,8 @@ const timelineBase = {
   title: z.string(),
   reference: z.string().nullable(),
   amount: z.string().nullable(),
+  /** Who signed the receipt or recorded the invoice or payment; null for uploads (the document names its uploader) and disputes. */
+  actor: z.object({ id: z.string(), name: z.string() }).nullable(),
 };
 
 /** Receipts, invoices, payments and disputes (automatic) mixed with uploads, newest first. */
@@ -342,22 +333,10 @@ const supplierWriteFields = {
   creditLimit: nonNegativeDecimalSchema.nullish(),
 };
 
-/**
- * DEPRECATED write aliases so the current UI keeps working: `location` → `address`,
- * `contactName` / `phone` / `email` → the primary contact.
- */
-const legacyWriteFields = {
-  location: optionalText(200),
-  contactName: optionalText(200),
-  phone: optionalText(40),
-  email: z.string().trim().email('Must be a valid email address').max(200).nullish(),
-};
-
 export const CreateSupplierSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required').max(200),
-    address: z.string().trim().min(1).max(300).optional(),
-    ...legacyWriteFields,
+    address: z.string().trim().min(1, 'Address is required').max(300),
     ...supplierWriteFields,
     type: supplierWriteFields.type.default('REGULAR'),
     vatRegistered: supplierWriteFields.vatRegistered.default(false),
@@ -367,23 +346,13 @@ export const CreateSupplierSchema = z
     contacts: z.array(CreateContactSchema).max(20).optional(),
     /** Proceed even though a supplier with the same name and phone exists. */
     confirmDuplicate: z.boolean().optional(),
-  })
-  .refine(
-    (d) =>
-      d.address !== undefined ||
-      d.location !== undefined ||
-      d.contactName !== undefined ||
-      d.phone !== undefined ||
-      d.email !== undefined,
-    { message: 'Address is required', path: ['address'] },
-  );
+  });
 
 /** Field-by-field (never `.partial()`): defaults must not overwrite stored values on PATCH. */
 export const UpdateSupplierSchema = z
   .object({
     name: z.string().trim().min(1, 'Name is required').max(200).optional(),
     address: z.string().trim().min(1).max(300).optional(),
-    ...legacyWriteFields,
     tradingName: supplierWriteFields.tradingName,
     type: supplierWriteFields.type.optional(),
     categoryId: supplierWriteFields.categoryId,

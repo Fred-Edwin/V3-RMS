@@ -248,12 +248,12 @@ export interface ItemMutationResponse {
 export interface Supplier {
   id: string;
   name: string;
-  contactName: string | null;
+  /** SUPPLIER-0001 */
+  code: string;
   category: { id: string; name: string } | null;
-  phone: string | null;
-  email: string | null;
-  /** Free text, e.g. "Nyeri town" — shown on the supplier detail header. */
-  location: string | null;
+  status: 'ACTIVE' | 'ON_HOLD' | 'ARCHIVED';
+  /** Free text; "—" when unknown. */
+  address: string;
   defaultPaymentTerms: SupplierPaymentTerms;
   /**
    * AMENDMENT 2026-09-18 (Milestone Two S8): a real `Supplier` column
@@ -261,7 +261,6 @@ export interface Supplier {
    * exposed until now. Editable on the supplier form (`VU2-0`/`X6B-0`).
    */
   paymentDays: number;
-  retiredAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -273,16 +272,15 @@ export interface ListSuppliersQuery {
   includeRetired?: boolean;
 }
 
+/** New purchase's quick-add: a name, and "—" as the address until the supplier page is filled in. */
 export interface CreateSupplierInput {
   name: string;
-  contactName?: string | null;
+  address: string;
   categoryId?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  location?: string | null;
   defaultPaymentTerms?: SupplierPaymentTerms;
   /** Optional — the backend's Prisma column default (30) applies when omitted. */
   paymentDays?: number;
+  contacts?: Array<{ name: string; role: 'OTHER'; phone?: string | null; isPrimary: true }>;
 }
 
 // ─── Restock levels ─────────────────────────────────────────────────────────

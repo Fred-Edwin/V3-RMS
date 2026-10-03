@@ -112,7 +112,7 @@ describe('supplierService — code generation', () => {
   it('a rolled-back create surfaces the error and does not create contacts', async () => {
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('SUPPLIER-0009');
     vi.mocked(supplierRepository.create).mockRejectedValue(new Error('boom'));
-    await expect(supplierService.createSupplier(storeManager, { ...validCreate, contactName: 'X' })).rejects.toThrow('boom');
+    await expect(supplierService.createSupplier(storeManager, { ...validCreate, contacts: [{ name: 'X', role: 'OTHER', isPrimary: true }] })).rejects.toThrow('boom');
     expect(supplierContactRepository.create).not.toHaveBeenCalled();
   });
 
@@ -129,7 +129,7 @@ describe('supplierService — duplicate detection', () => {
   it('409s on the same normalized name and phone (formatting differences ignored)', async () => {
     vi.mocked(supplierRepository.findLiveWithPhones).mockResolvedValue([existing]);
     await expect(
-      supplierService.createSupplier(storeManager, { ...validCreate, name: 'KAGUMO poultry  farm.', phone: '+254722410552' }),
+      supplierService.createSupplier(storeManager, { ...validCreate, name: 'KAGUMO poultry  farm.', contacts: [{ name: 'Kagumo', role: 'OTHER', phone: '+254722410552', isPrimary: true }] }),
     ).rejects.toMatchObject({ statusCode: 409, code: 'DUPLICATE_SUPPLIER' });
     expect(supplierRepository.create).not.toHaveBeenCalled();
   });
@@ -140,7 +140,7 @@ describe('supplierService — duplicate detection', () => {
     await supplierService.createSupplier(storeManager, {
       ...validCreate,
       name: 'Kagumo Poultry Farm',
-      phone: '0722410552',
+      contacts: [{ name: 'Kagumo', role: 'OTHER', phone: '0722410552', isPrimary: true }],
       confirmDuplicate: true,
     });
     expect(supplierRepository.create).toHaveBeenCalled();
@@ -149,7 +149,7 @@ describe('supplierService — duplicate detection', () => {
   it('allows the same name with a different phone', async () => {
     vi.mocked(supplierRepository.findLiveWithPhones).mockResolvedValue([existing]);
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('SUPPLIER-0012');
-    await supplierService.createSupplier(storeManager, { ...validCreate, name: 'Kagumo Poultry Farm', phone: '0799000111' });
+    await supplierService.createSupplier(storeManager, { ...validCreate, name: 'Kagumo Poultry Farm', contacts: [{ name: 'Kagumo', role: 'OTHER', phone: '0799000111', isPrimary: true }] });
     expect(supplierRepository.create).toHaveBeenCalled();
   });
 
@@ -239,15 +239,14 @@ describe('supplierService — primary contact rule', () => {
   });
 });
 
-describe('supplierService — legacy write aliases', () => {
-  it('PATCH contactName/phone/email edits the primary contact; location edits the address', async () => {
-    await supplierService.updateSupplier(storeManager, supplierId, { location: 'Karatina', phone: '0711000000' });
+describe('supplierService — updating the address', () => {
+  it('PATCH address edits the address and leaves the contacts alone', async () => {
+    await supplierService.updateSupplier(storeManager, supplierId, { address: 'Karatina' });
     expect(supplierRepository.update).toHaveBeenCalledWith(
       supplierId, hubOrgId, expect.objectContaining({ address: 'Karatina', updatedById: 'sm1' }), tx,
     );
-    expect(supplierContactRepository.update).toHaveBeenCalledWith(
-      contactId, supplierId, hubOrgId, { phone: '0711000000' }, tx,
-    );
+    expect(supplierContactRepository.update).not.toHaveBeenCalled();
+    expect(supplierContactRepository.create).not.toHaveBeenCalled();
   });
 });
 
@@ -372,13 +371,16 @@ describe('supplierService — status', () => {
     expect(supplierRepository.clearPreferred).toHaveBeenCalledWith(supplierId, hubOrgId, tx);
 
     vi.mocked(supplierRepository.findById).mockResolvedValue(buildSupplierRow({ status: 'ARCHIVED', deletedAt: new Date() }) as never);
-    await supplierService.restoreSupplier(storeManager, supplierId);
+    await supplierService.updateStatus(storeManager, supplierId, { status: 'ACTIVE' });
     expect(supplierRepository.setStatus).toHaveBeenLastCalledWith(supplierId, hubOrgId, 'ACTIVE', 'sm1', tx);
   });
 
-  it('legacy retire is the archive path (open-invoice block applies)', async () => {
+  it('archiving is refused while an invoice is unpaid, and says how many', async () => {
     vi.mocked(supplierRepository.countOpenInvoices).mockResolvedValue(1);
-    await expect(supplierService.retireSupplier(storeManager, supplierId)).rejects.toMatchObject({ code: 'SUPPLIER_HAS_OPEN_INVOICES' });
+    await expect(supplierService.updateStatus(storeManager, supplierId, { status: 'ARCHIVED' })).rejects.toMatchObject({
+      code: 'SUPPLIER_HAS_OPEN_INVOICES',
+      details: { openInvoices: 1 },
+    });
   });
 });
 

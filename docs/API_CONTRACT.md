@@ -4499,8 +4499,6 @@ re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
 | `PATCH` | `/inventory/suppliers/:id` | SM | Partial; `code` and `status` are not editable here. |
 | `POST` | `/inventory/suppliers/quick` | SM, SA | `{name, phone, confirmDuplicate?}` → ONE_OFF supplier, address `—`, one primary contact. SA gets the stripped row, SM the list row. |
 | `PATCH` | `/inventory/suppliers/:id/status` | SM | `{status, reason?}` (§27.4). |
-| `DELETE` | `/inventory/suppliers/:id` | SM | **Legacy alias** of `PATCH …/status {status:"ARCHIVED"}` (same open-invoice block). |
-| `POST` | `/inventory/suppliers/:id/restore` | SM | **Legacy alias** of `PATCH …/status {status:"ACTIVE"}`. |
 | `GET` | `/inventory/suppliers/:id/summary` | SM, ACC, DIR | §27.7. |
 | `GET` `POST` | `/inventory/suppliers/:id/contacts` | read SM, ACC, DIR · write SM | |
 | `PATCH` `DELETE` | `/inventory/suppliers/:id/contacts/:cid` | SM | |
@@ -4520,19 +4518,13 @@ re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
 
 **List row (`SupplierListRowSchema` = `SupplierSchema` + `profileDone`, `owedAmount`, §30.9)** — `id, code, name, tradingName, status, type,
 category{id,name}|null, address, mapUrl, primaryContact{id,name,role,phone,whatsapp,email}|null,
-defaultPaymentTerms, paymentDays, createdAt, updatedAt`, plus the **deprecated
-legacy keys** below.
+defaultPaymentTerms, paymentDays, createdAt, updatedAt`. (The deprecated keys
+`contactName`, `phone`, `email`, `location` and `retiredAt` were **removed in Session 7**, 3 Oct 2026: read
+`primaryContact`, `address` and `status`.)
 
 **Detail (`SupplierDetailSchema`)** = list row + `kraPin, vatRegistered, notes,
 creditLimit (string|null), contacts[], paymentMethods[] (masked), createdBy{id,name}|null,
 updatedBy{id,name}|null`.
-
-> **DEPRECATED keys** (kept only so the current Milestone One screens keep
-> working; remove once the new screens ship): `contactName`, `phone`, `email`
-> (derived from the primary contact), `location` (= `address`), `retiredAt`
-> (set when `status` is ARCHIVED). New code must read `primaryContact`,
-> `address` and `status`. The same deprecated keys appear in the Supplier AP
-> detail (`§22`, `supplier`).
 
 Contact: `{id, name, role, phone, whatsapp, email, isPrimary, createdAt, updatedAt}`.
 Payment method: `{id, type, isDefault, bankName, bankBranch, accountName,
@@ -4544,18 +4536,14 @@ buyUnit, packSize, lastPrice, lastPriceAt, isPreferred, preferredNeedsConfirm}` 
 
 ### 27.3 Create / update bodies
 
-`POST /inventory/suppliers`: `name` (required), `address` (required — see legacy
-alias), `tradingName?, type` (default `REGULAR`), `categoryId?, kraPin?,
+`POST /inventory/suppliers`: `name` (required), `address` (required; send `—` when unknown), `tradingName?, type` (default `REGULAR`), `categoryId?, kraPin?,
 vatRegistered` (default false), `notes?, mapUrl?, defaultPaymentTerms` (default
 `INVOICE_TO_FOLLOW`), `paymentDays?, creditLimit?` (decimal string), `contacts?`
 (array of `{name, role, phone?, whatsapp?, email?, isPrimary?}`; first, or the one
 flagged, is primary), `confirmDuplicate?`. `PATCH` accepts the same fields, all
 optional, at least one required.
 
-**Legacy write aliases (deprecated):** `location` is accepted as `address`;
-`contactName` / `phone` / `email` create or edit the primary contact. A create with
-none of `address`/`location`/legacy contact keys is a 400; a legacy-shaped create
-without a location stores address `—`.
+The old write aliases (`location`, `contactName`, `phone`, `email`) are gone (Session 7): the keys are ignored, and a create with no `address` is a `400`. The archive and restore aliases `DELETE /suppliers/:id` and `POST /suppliers/:id/restore` are gone too; use `PATCH …/status`.
 
 Enums — status `ACTIVE | ON_HOLD | ARCHIVED`; type `REGULAR | OCCASIONAL | ONE_OFF | MARKET`;
 contact role `SALES_REP | ACCOUNTS | DELIVERY | OWNER | OTHER`; payment method type
@@ -4587,7 +4575,7 @@ cannot be changed on PATCH (delete and re-add).
 ### 27.6 Documents
 
 `GET …/documents` returns one array of entries, newest first, each
-`{kind, id, occurredAt, title, reference, amount}` where `kind` is `RECEIPT`
+`{kind, id, occurredAt, title, reference, amount, actor}` (`actor{id,name}|null`: who signed the receipt or recorded the invoice or payment; `null` for an upload, which names its uploader on `document`, and for a dispute) where `kind` is `RECEIPT`
 (signed goods receipt), `INVOICE`, `PAYMENT`, `DISPUTE` (an invoice with a dispute) or
 `UPLOAD` (which adds `document{id, fileName, mimeType, sizeBytes, docType, docDate, note,
 goodsReceiptId, supplierInvoiceId, uploadedBy{id,name}, createdAt}`). The storage object key
@@ -4958,4 +4946,20 @@ Every supplier catalog row (`GET/POST/PUT …/suppliers/:id/items`) gains:
   one that names none belongs to the item's only line, never guessed between two.
 
 `lastReceipt` and `priceAlert` are filled in by the list (`GET …/items`) only; the add and edit responses return them as `null`.
+
+### 30.12 Audit log (Session 7, owner-approved 3 Oct 2026)
+
+`GET /inventory/audit-log` (SM, ACC, DIR; hub only, `403` otherwise). One read-only list of what changed in the **Catalog**, **Suppliers**
+and **Restock levels**, newest first, with who, when and why. Query: `area` (`CATALOG | SUPPLIERS | RESTOCK_LEVELS`; omit for all),
+`actorId`, `from` (ISO timestamp, inclusive), `to` (exclusive; `from` must be before it), `page` (default 1), `perPage` (1–100, default 50).
+
+Response `data`: `{entries[], actors[], pagination{total, page, perPage, totalPages}}`.
+- `entries[]`: `{id, at, actor{id,name}, area, what, reason|null}`. `id` is prefixed by its source (`item:`, `supplier:`, `created:`, `restock:`).
+  `what` is a plain sentence ("Retired Sugar, brown", "Samrat: put on hold", "Kitchen · Nyeri Town: Chapati dough 12 → 14 kg"); no account number can appear in it.
+  `reason` is the reason stored on the source row (item history reason, supplier status or payment-detail reason, restock change reason).
+- `actors[]`: everyone who changed something in the period (ignoring `actorId`), for the "Who" filter.
+
+Sources: `inventory_item_changes` (Catalog), `supplier_audit_logs` and supplier creation (`suppliers.created_by_id`) (Suppliers),
+`restock_level_changes` (Restock levels: the Central Store, and every branch department the hub's branches own). Every read is filtered by
+organization: the hub for the first three, the hub and its active branches for restock changes.
 

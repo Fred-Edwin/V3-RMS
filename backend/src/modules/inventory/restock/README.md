@@ -38,3 +38,6 @@ Logic is in `catalog/inventory-service|repository`; `restock-suggestion` is impo
 
 ## Open questions
 See decisions.md Q1.
+
+## Session 7 additions
+- The Department Head's phone screen (Paper chapter 7) is rebuilt in place: big −/+ steppers, the suggestion under each item, a review sheet, a saved state with "Your recent changes" and Put back. It reuses the same endpoints as the Store Manager's page (`PUT /inventory/restock-levels`, `GET …/history`, put-back). The Housekeeping head uses the same screens.

@@ -98,7 +98,6 @@ export function NewGoodsReceiptMobile({
   onUnitPriceChange,
   items,
   onAddItem,
-  alertedRows,
   acknowledgedAlertIds,
   onToggleAcknowledged,
   receiptTotal,

@@ -151,7 +151,7 @@ export function NewPurchaseScreen() {
   };
 
   const handleCreateSupplier = async (name: string) => {
-    const created = await createSupplierInline({ name, phone: null, defaultPaymentTerms: 'INVOICE_TO_FOLLOW' });
+    const created = await createSupplierInline({ name, address: '—', defaultPaymentTerms: 'INVOICE_TO_FOLLOW' });
     if (created) {
       addSupplier(created);
       setSupplierId(created.id);

@@ -479,13 +479,7 @@ export const supplierService = {
     requireReadAccess(actor);
     const organizationId = await requireHubActor(actor);
 
-    const legacyName = input.contactName ?? null;
-    const contacts: CreateContactInput[] =
-      input.contacts && input.contacts.length > 0
-        ? input.contacts
-        : input.contactName || input.phone || input.email
-          ? [{ name: legacyName || input.name, role: 'OTHER', phone: input.phone, email: input.email, isPrimary: true }]
-          : [];
+    const contacts: CreateContactInput[] = input.contacts ?? [];
 
     await assertNoDuplicate(
       organizationId,
@@ -509,7 +503,7 @@ export const supplierService = {
             kraPin: nullable(input.kraPin),
             vatRegistered: input.vatRegistered,
             notes: nullable(input.notes),
-            address: input.address ?? input.location ?? '—',
+            address: input.address,
             mapUrl: nullable(input.mapUrl),
             defaultPaymentTerms: input.defaultPaymentTerms,
             paymentDays: input.paymentDays,
@@ -542,9 +536,6 @@ export const supplierService = {
       );
     }
 
-    const legacyContactTouched =
-      input.contactName !== undefined || input.phone !== undefined || input.email !== undefined;
-
     await prisma.$transaction(async (tx) => {
       await supplierRepository.update(
         id,
@@ -557,7 +548,7 @@ export const supplierService = {
           kraPin: input.kraPin,
           vatRegistered: input.vatRegistered,
           notes: input.notes,
-          address: input.address ?? input.location ?? undefined,
+          address: input.address,
           mapUrl: input.mapUrl,
           defaultPaymentTerms: input.defaultPaymentTerms,
           paymentDays: input.paymentDays,
@@ -566,37 +557,6 @@ export const supplierService = {
         },
         tx,
       );
-
-      if (legacyContactTouched) {
-        const primary = existing.contacts.find((c) => c.isPrimary);
-        if (primary) {
-          await supplierContactRepository.update(
-            primary.id,
-            id,
-            organizationId,
-            {
-              ...(input.contactName ? { name: input.contactName } : {}),
-              ...(input.phone !== undefined ? { phone: input.phone } : {}),
-              ...(input.email !== undefined ? { email: input.email } : {}),
-            },
-            tx,
-          );
-        } else if (input.contactName || input.phone || input.email) {
-          await supplierContactRepository.create(
-            organizationId,
-            id,
-            {
-              name: input.contactName || input.name || existing.name,
-              role: 'OTHER',
-              phone: nullable(input.phone),
-              whatsapp: null,
-              email: nullable(input.email),
-              isPrimary: true,
-            },
-            tx,
-          );
-        }
-      }
     }).catch((error: unknown) => mapPrismaError(error, { conflict: NAME_TAKEN }));
 
     return supplierService.getSupplierById(actor, id);
@@ -680,10 +640,6 @@ export const supplierService = {
 
     return serializeSupplierBase(await requireSupplier(id, organizationId));
   },
-
-  /** Legacy `DELETE /suppliers/:id` and `POST /suppliers/:id/restore`, as status changes. */
-  retireSupplier: (actor: Actor, id: string) => supplierService.updateStatus(actor, id, { status: 'ARCHIVED' }),
-  restoreSupplier: (actor: Actor, id: string) => supplierService.updateStatus(actor, id, { status: 'ACTIVE' }),
 
   // ── Contacts ─────────────────────────────────────────────────────────────
 

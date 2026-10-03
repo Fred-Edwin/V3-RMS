@@ -171,7 +171,7 @@ export const supplierRepository = {
     return count;
   },
 
-  /** Keeps `deletedAt` in step with ARCHIVED so the legacy `retiredAt` key stays truthful. */
+  /** Keeps `deletedAt` in step with ARCHIVED, so other reads that hide deleted rows also hide archived suppliers. */
   setStatus: async (
     id: string,
     organizationId: string,
