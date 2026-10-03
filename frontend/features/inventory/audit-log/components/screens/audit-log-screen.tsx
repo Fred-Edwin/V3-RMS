@@ -6,15 +6,14 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { Topbar } from '@/components/app/shell/topbar';
-import { PermissionDeniedState } from '@/components/app/shell/shell-states';
-import { useAuthStore } from '@/store/authStore';
+import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
+import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { StockEmptyCard, StockErrorCard } from '../../../_shared/components/stock-states';
 import { FilterMenu, PageHeading } from '../../../suppliers/components/supplier-ui';
 import { useAuditLog } from '../../hooks/use-audit-log';
 import { AREA_LABEL, AREA_ORDER, PERIOD_LABEL, PERIOD_ORDER, periodSentence, whenLabel, type AuditPeriod } from '../../lib/audit-log-logic';
 import type { AuditArea } from '../../types/audit-log';
 
-const ROLES_THAT_READ = new Set(['STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR']);
 
 const head = 'font-wds-mono text-[10px] uppercase leading-3 tracking-[0.06em] text-wds-text-ink';
 const cols = {
@@ -63,8 +62,8 @@ function RowSkeleton() {
  * Read-only; the Store Manager, Accountant and Director read it.
  */
 export function AuditLogScreen() {
-  const role = useAuthStore((s) => s.role);
-  const canRead = role !== null && ROLES_THAT_READ.has(role);
+  const { can, ready } = usePermissions();
+  const canRead = can('audit.read');
   const [area, setArea] = React.useState<AuditArea | null>(null);
   const [actorId, setActorId] = React.useState<string | null>(null);
   const [period, setPeriod] = React.useState<AuditPeriod>('TODAY');
@@ -85,7 +84,11 @@ export function AuditLogScreen() {
       <Topbar breadcrumb={{ section: 'Central Store', screen: 'Audit log' }} hideSearch className="shrink-0" />
       <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-8 py-7">
         <PageHeading title="Audit log">Every change and every fix, with who, when and why. Nothing here can be edited or removed.</PageHeading>
-        {!canRead ? (
+        {!ready ? (
+          <div className="flex justify-center py-10">
+            <LoadingState />
+          </div>
+        ) : !canRead ? (
           <PermissionDeniedState description="This page is not available for your role." />
         ) : (
           <>

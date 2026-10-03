@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { AlertTriangle, Building2, CreditCard, FileText, GitBranch, LayoutDashboard, LineChart, MessageSquare, Percent, Settings2, ShieldAlert, Tags, UserCircle } from 'lucide-react';
 import { env } from '@/lib/env';
+import { CENTRAL_STORE_NAV_ITEMS, CENTRAL_STORE_NAV_LABEL } from '@/lib/central-store-nav';
 import { branchService, type BranchDto } from '@/services/branchService';
 import { useAuthStore } from '@/store/authStore';
 import { SidebarNav } from './SidebarNav';
@@ -80,6 +81,7 @@ export function DirectorSidebarNav({ collapsed }: DirectorSidebarNavProps): JSX.
           { label: 'My Tab', href: '/app/manage/my-tab', icon: CreditCard },
         ],
       },
+      { label: CENTRAL_STORE_NAV_LABEL, items: CENTRAL_STORE_NAV_ITEMS },
       {
         label: 'Account',
         items: [{ label: 'Profile', href: '/app/profile', icon: UserCircle }],

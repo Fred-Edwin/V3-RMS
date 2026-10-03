@@ -196,6 +196,24 @@ describe('inventoryService — listItems Department Head catalog-read carve-out 
     expect(inventoryItemRepository.findAllByOrganization).toHaveBeenCalledWith(hubOrgId, expect.anything());
   });
 
+  it('hands a department head the price-free item (no cost, level or supplier), as it does an attendant', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
+    const { data } = await inventoryService.listItems(departmentHead, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
+    const json = JSON.stringify(data);
+    for (const key of ['currentCost', 'centralStoreRestockLevel', 'preferredSupplier', 'preferredSupplierId']) expect(json, `leaked ${key}`).not.toContain(`"${key}"`);
+    expect(json).toContain('"name"');
+  });
+
+  it('lets a Branch Manager read the catalog from a branch, with costs', async () => {
+    vi.mocked(inventoryItemRepository.findAllByOrganization).mockResolvedValue({ items: [buildItem()], total: 1 } as never);
+    vi.mocked(inventoryItemRepository.getCatalogMeta).mockResolvedValue({ categories: [], types: [] } as never);
+    vi.mocked(locationRepository.findCentralStore).mockResolvedValue(null);
+    const { data } = await inventoryService.listItems({ ...nonHubStoreManager, role: 'MANAGER' as never }, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false });
+    expect(JSON.stringify(data)).toContain('"currentCost"');
+  });
+
   it('still rejects a non-hub, non-department-head actor (e.g. a plain branch Store Manager)', async () => {
     await expect(
       inventoryService.listItems(nonHubStoreManager, { page: 1, perPage: 20, includeRetired: false, needsSetup: false, lowOrOut: false }),

@@ -40,10 +40,10 @@ export function SupplierTitle({ supplier }: { supplier: SupplierDetail }) {
  * The five tabs. A count beside a label is how many rows its tab holds; `null` shows none (still loading).
  * The active tab has the 2px primary underline.
  */
-export function SupplierTabs({ active, counts, onChange }: { active: SupplierTab; counts: Partial<Record<SupplierTab, number | null>>; onChange: (tab: SupplierTab) => void }) {
+export function SupplierTabs({ active, counts, onChange, hidden = [] }: { active: SupplierTab; counts: Partial<Record<SupplierTab, number | null>>; onChange: (tab: SupplierTab) => void; hidden?: readonly SupplierTab[] }) {
   return (
     <div role="tablist" aria-label="Supplier" className="flex shrink-0 gap-7 border-b border-wds-border">
-      {TAB_ORDER.map((tab) => {
+      {TAB_ORDER.filter((tab) => !hidden.includes(tab)).map((tab) => {
         const selected = tab === active;
         const count = counts[tab];
         return (

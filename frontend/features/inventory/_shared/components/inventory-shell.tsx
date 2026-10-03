@@ -2,12 +2,8 @@
 
 import * as React from 'react';
 
-import {
-  SidebarNav,
-  SidebarRail,
-  type SidebarNavGroup,
-  type SidebarNavSubItem,
-} from '@/components/app/shell/sidebar-nav';
+import { SidebarNav, SidebarRail, type SidebarNavGroup, type SidebarNavItem } from '@/components/app/shell/sidebar-nav';
+import type { NavIcon } from '@/components/app/shell/nav-icons';
 import { Topbar, type TopbarBreadcrumb } from '@/components/app/shell/topbar';
 import type { SearchInputProps } from '@/components/ui2/search-input';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
@@ -20,6 +16,7 @@ import {
   PurchasingIcon,
   ReceivingIcon,
   ReportsIcon,
+  RestockLevelsIcon,
   SettingsIcon,
   StockCountsIcon,
   SuppliersIcon,
@@ -27,6 +24,8 @@ import {
 import { roleLabel } from '@/components/app/shell/role-label';
 import { useAuthStore } from '@/store/authStore';
 import { performLogout } from '@/lib/logout';
+import { navGroupsFor, type NavIconKey } from '../lib/nav-groups';
+import { usePermissions } from '../hooks/use-permissions';
 
 const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
 
@@ -39,89 +38,40 @@ const WENDO_LOGO_SRC = '/images/wendo-logo.jpg';
  * areas so the nav reads complete rather than emptied out around this
  * milestone's two screens.
  */
-/**
- * Stock & counts sub-pages (Milestone Six, `1BI5-0`). "Daily count" is the
- * Store Manager's verify screen; the Store Attendant's own link goes to the
- * blind count sheet (see `navGroupsForRole`).
- */
-const STOCK_SUB_ITEMS: SidebarNavSubItem[] = [
-  { key: 'overview', label: 'Overview', href: '/app/inventory/stock' },
-  { key: 'items', label: 'All items', href: '/app/inventory/stock/items' },
-  { key: 'daily-count', label: 'Daily count', href: '/app/inventory/stock/counts' },
-  { key: 'spot-count', label: 'Spot count', href: '/app/inventory/stock/spot-count' },
-  { key: 'ledger', label: 'Stock ledger', href: '/app/inventory/stock/ledger' },
-];
-
-/** Blind count: the attendant has no All items / Stock ledger (both 403), and no spot count. */
-const ATTENDANT_STOCK_SUB_KEYS = new Set(['overview', 'daily-count']);
-
-const NAV_GROUPS: SidebarNavGroup[] = [
-  {
-    key: 'central-store',
-    label: 'CENTRAL STORE',
-    items: [
-      { key: 'dashboard', label: 'Dashboard', href: '#', icon: DashboardIcon },
-      { key: 'receiving', label: 'Receiving', href: '/app/inventory/receiving', icon: ReceivingIcon },
-      { key: 'purchasing', label: 'Purchasing', href: '/app/inventory/purchasing', icon: PurchasingIcon },
-      { key: 'prep', label: 'Prep', href: '/app/inventory/prep', icon: PrepIcon },
-      { key: 'dispatch', label: 'Dispatch', href: '/app/inventory/dispatch', icon: DispatchIcon },
-      {
-        key: 'stock-counts',
-        label: 'Stock & counts',
-        href: '/app/inventory/stock',
-        icon: StockCountsIcon,
-        subItems: STOCK_SUB_ITEMS,
-      },
-    ],
-  },
-  {
-    key: 'procurement',
-    label: 'PROCUREMENT',
-    items: [
-      { key: 'suppliers', label: 'Suppliers', href: '/app/inventory/suppliers', icon: SuppliersIcon },
-      { key: 'catalog', label: 'Catalog', href: '/app/inventory/catalog', icon: CatalogIcon },
-      { key: 'reports', label: 'Reports', href: '#', icon: ReportsIcon },
-      // Store Manager, Accountant and Director read it; `navGroupsForRole` drops it for the Store Attendant.
-      { key: 'audit-log', label: 'Audit log', href: '/app/inventory/audit-log', icon: AuditLogIcon },
-      // STORE_MANAGER only — `navGroupsForRole` drops it for every other role.
-      { key: 'settings', label: 'Settings', href: '/app/inventory/settings', icon: SettingsIcon },
-    ],
-  },
-];
-
-/** Settings (Team + My PIN) is the Store Manager's alone — hidden from every other role that reaches this shell. */
-function withoutSettings(groups: SidebarNavGroup[]): SidebarNavGroup[] {
-  return groups.map((group) => ({ ...group, items: group.items.filter((item) => item.key !== 'settings') }));
-}
+const NAV_ICONS: Record<NavIconKey, NavIcon> = {
+  dashboard: DashboardIcon,
+  receiving: ReceivingIcon,
+  purchasing: PurchasingIcon,
+  prep: PrepIcon,
+  dispatch: DispatchIcon,
+  'stock-counts': StockCountsIcon,
+  'restock-levels': RestockLevelsIcon,
+  suppliers: SuppliersIcon,
+  catalog: CatalogIcon,
+  reports: ReportsIcon,
+  'audit-log': AuditLogIcon,
+  settings: SettingsIcon,
+};
 
 /**
- * STORE_ATTENDANT is 403'd outright (not just filtered server-side) on
- * Purchasing and Suppliers — see `receiving-routes.ts` /
- * `inventory-routes.ts` comments ("STORE_ATTENDANT has zero access — not
- * even read"). The sidebar must hide these links for that role so it never
- * offers a route that always fails.
+ * The sidebar groups for the signed-in person: their role and the server's permissions table decide what shows
+ * (`navGroupsFor`, in `../lib/nav-groups.ts`), and this gives each item its icon. It waits for the permissions table, so nothing
+ * flashes in and out.
  */
-function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
-  if (role !== 'STORE_MANAGER' && role !== 'STORE_ATTENDANT') return withoutSettings(NAV_GROUPS);
-  if (role === 'STORE_MANAGER') return NAV_GROUPS;
-  return NAV_GROUPS.map((group) => {
-    if (group.key !== 'central-store' && group.key !== 'procurement') return group;
-    return {
-      ...group,
-      items: group.items
-        .filter((item) => item.key !== 'purchasing' && item.key !== 'suppliers' && item.key !== 'settings' && item.key !== 'audit-log')
-        .map((item) =>
-          item.subItems
-            ? {
-                ...item,
-                subItems: item.subItems
-                  .filter((sub) => ATTENDANT_STOCK_SUB_KEYS.has(sub.key))
-                  .map((sub) => (sub.key === 'daily-count' ? { ...sub, href: '/app/inventory/stock/daily-count' } : sub)),
-              }
-            : item,
-        ),
-    };
-  });
+function useNavGroups(): SidebarNavGroup[] {
+  const role = useAuthStore((s) => s.user?.role);
+  const { can } = usePermissions();
+  return React.useMemo(
+    () =>
+      navGroupsFor(role, can).map(
+        (group): SidebarNavGroup => ({
+          key: group.key,
+          label: group.label,
+          items: group.items.map((item): SidebarNavItem => ({ key: item.key, label: item.label, href: item.href, icon: NAV_ICONS[item.iconKey], subItems: item.subItems })),
+        })
+      ),
+    [role, can]
+  );
 }
 
 function useSidebarUser() {
@@ -171,12 +121,12 @@ export function InventoryDesktopShell({
   children,
 }: InventoryDesktopShellProps) {
   const user = useSidebarUser();
-  const authRole = useAuthStore((s) => s.user?.role);
+  const groups = useNavGroups();
 
   return (
     <div className="flex h-screen min-h-0 w-full bg-wds-canvas">
       <SidebarNav
-        groups={navGroupsForRole(authRole)}
+        groups={groups}
         activeKey={activeKey}
         user={user}
         orgLabel="HUB"
@@ -195,10 +145,10 @@ export function InventoryDesktopShell({
 /** Just the 236px sidebar rail, no Topbar/content column — what `(shell)/layout.tsx` mounts once so it survives Catalog ⇄ Suppliers navigation. */
 export function InventorySidebar({ activeKey, activeSubKey }: { activeKey: string; activeSubKey?: string }) {
   const user = useSidebarUser();
-  const authRole = useAuthStore((s) => s.user?.role);
+  const groups = useNavGroups();
   return (
     <SidebarNav
-      groups={navGroupsForRole(authRole)}
+      groups={groups}
       activeKey={activeKey}
       activeSubKey={activeSubKey}
       user={user}
@@ -217,10 +167,10 @@ export interface InventoryMobileRailProps {
 /** Icon-only mobile rail — used only where a screen needs the persistent nav, not the full-screen tasks. */
 export function InventoryMobileRail({ activeKey, onNavigate }: InventoryMobileRailProps) {
   const user = useSidebarUser();
-  const authRole = useAuthStore((s) => s.user?.role);
+  const groups = useNavGroups();
   return (
     <SidebarRail
-      groups={navGroupsForRole(authRole)}
+      groups={groups}
       activeKey={activeKey}
       user={user}
       logoSrc={WENDO_LOGO_SRC}
@@ -252,7 +202,7 @@ export interface InventoryMobileNavDrawerProps {
  */
 export function InventoryMobileNavDrawer({ activeKey, activeSubKey, open, onOpenChange, onNavigate }: InventoryMobileNavDrawerProps) {
   const user = useSidebarUser();
-  const authRole = useAuthStore((s) => s.user?.role);
+  const groups = useNavGroups();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -261,7 +211,7 @@ export function InventoryMobileNavDrawer({ activeKey, activeSubKey, open, onOpen
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SidebarNav
-          groups={navGroupsForRole(authRole)}
+          groups={groups}
           activeKey={activeKey}
           activeSubKey={activeSubKey}
           user={user}

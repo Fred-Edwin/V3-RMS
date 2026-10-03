@@ -1,0 +1,27 @@
+/**
+ * The names of the Central Store capabilities. The table that says WHICH role holds which lives in ONE place, the backend
+ * (`backend/src/modules/inventory/_shared/central-store-access.ts`), and reaches the screens through
+ * `GET /inventory/permissions/me`. Only the names are repeated here, for type safety; a backend test fails if the two lists differ.
+ */
+export const CAPABILITIES = [
+  'catalog.read',
+  'catalog.see_costs',
+  'catalog.write',
+  'catalog.add_missing',
+  'restock.read',
+  'restock.write',
+  'suppliers.read_basic',
+  'suppliers.read',
+  'suppliers.read_payment_details',
+  'suppliers.write',
+  'suppliers.write_payment_methods',
+  'suppliers.upload_documents',
+  'suppliers.quick_add',
+  'payables.read',
+  'payables.record_invoice',
+  'payables.record_payment',
+  'audit.read',
+  'central_store.read_any_org',
+] as const;
+
+export type Capability = (typeof CAPABILITIES)[number];

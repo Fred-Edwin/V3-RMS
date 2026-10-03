@@ -34,6 +34,7 @@ import {
 import { BottomNav, ConfirmDialog, DirectorSidebarNav, MobileLayout, SidebarLayout, SidebarNav, type NavSection, type NavTab } from '@/components/ui';
 import { PourReveal } from '@/components/app/shell/pour-reveal';
 import { env } from '@/lib/env';
+import { CENTRAL_STORE_NAV_ITEMS, CENTRAL_STORE_NAV_LABEL } from '@/lib/central-store-nav';
 import { ShellProvider } from '@/lib/shell-context';
 
 // Paths that belong to the Phase 7 credit accounts feature.
@@ -515,7 +516,12 @@ export default function AppLayout({ children }: AppShellLayoutProps): JSX.Elemen
   const isDesktopPreviewEnabled = env.roleDesktopPreview && process.env.NODE_ENV !== 'production';
 
   const sidebarSections = useMemo(() => {
-    const baseSections = role ? (sidebarSectionsByRole[role] ?? []) : [];
+    const roleSections = role ? (sidebarSectionsByRole[role] ?? []) : [];
+    // The desktop roles from other parts of the app reach every Central Store screen from their own sidebar.
+    const baseSections: NavSection[] =
+      role === 'MANAGER' || role === 'ACCOUNTANT' || role === 'SYSTEM_ADMIN'
+        ? [...roleSections, { label: CENTRAL_STORE_NAV_LABEL, items: CENTRAL_STORE_NAV_ITEMS }]
+        : roleSections;
     // A department head keeps their full base-role nav and gains entries for
     // the department shift scheduler (marker model, 2026-09-03) and, since
     // Milestone Four Session A, Requisitions.

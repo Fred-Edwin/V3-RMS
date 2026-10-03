@@ -82,7 +82,21 @@ export function useSupplierOptions(enabled: boolean) {
  * receipts, open orders) the item page and the review step both read.
  * `null` id = nothing to load. Only the latest request writes state.
  */
-export function useItemDetail(itemId: string | null) {
+/** What the "review a change" step reads when it is not asked for (a read-only page never reaches that step). */
+const EMPTY_REVIEW = (itemId: string): ItemChangeReview => ({
+  inventoryItemId: itemId,
+  itemName: '',
+  onHandQty: '0',
+  locationsHoldingStock: 0,
+  stockEntries: 0,
+  receipts: 0,
+  receiptLines: 0,
+  openOrders: 0,
+  hasHistory: false,
+});
+
+/** `withReview: false` for a reader who cannot edit: the change-review counts are for the edit and retire steps and are refused to them. */
+export function useItemDetail(itemId: string | null, withReview = true) {
   const [item, setItem] = useState<InventoryItemDetail | null>(null);
   const [review, setReview] = useState<ItemChangeReview | null>(null);
   // `null` = the history could not be read; the page then simply leaves the panel out.
@@ -108,7 +122,7 @@ export function useItemDetail(itemId: string | null) {
     try {
       const [found, counts, changes] = await Promise.all([
         getItem(itemId),
-        getItemChangeReview(itemId),
+        withReview ? getItemChangeReview(itemId) : Promise.resolve(EMPTY_REVIEW(itemId)),
         getItemHistory(itemId).catch(() => null),
       ]);
       if (requestId !== latest.current) return;
@@ -122,7 +136,7 @@ export function useItemDetail(itemId: string | null) {
       setError(formatApiErrorMessage(err, 'Could not load this item.'));
       setStatus('error');
     }
-  }, [itemId]);
+  }, [itemId, withReview]);
 
   useEffect(() => {
     void load();

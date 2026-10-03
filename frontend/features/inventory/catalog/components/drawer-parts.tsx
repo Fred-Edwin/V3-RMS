@@ -62,7 +62,8 @@ export interface DrawerFrameProps {
   titleSize?: 'form' | 'page';
   /** Line under the title: a caption, or the type · category line on the item page. */
   subtitle?: React.ReactNode;
-  footer: React.ReactNode;
+  /** Omit for a read-only page: no footer bar at all. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
   /** Gap between body sections. Forms 18, the item page 22. */
   bodyGap?: 'form' | 'page';
@@ -92,7 +93,7 @@ export function DrawerFrame({ eyebrow, title, titleSize = 'form', subtitle, foot
         </DialogPrimitive.Close>
       </div>
       <div className={cn('flex min-h-0 grow flex-col overflow-y-auto px-6 py-[22px]', bodyGap === 'page' ? 'gap-[22px]' : 'gap-[18px]')}>{children}</div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-wds-border px-6 py-4">{footer}</div>
+      {footer ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-wds-border px-6 py-4">{footer}</div> : null}
     </>
   );
 }

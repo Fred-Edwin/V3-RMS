@@ -33,15 +33,17 @@ function HistoryRow({
   showItem,
   busy,
   anyBusy,
+  readOnly,
   onPutBack,
 }: {
   entry: RestockHistoryEntry;
   showItem: boolean;
   busy: boolean;
   anyBusy: boolean;
+  readOnly: boolean;
   onPutBack: () => void;
 }) {
-  const canPutBack = entry.oldLevel !== null;
+  const canPutBack = entry.oldLevel !== null && !readOnly;
   return (
     <li className="flex items-center gap-2 border-b border-wds-neutral-100 py-3">
       <span className="flex w-[92px] shrink-0 flex-col gap-0.5">
@@ -75,13 +77,15 @@ export interface RestockHistoryDrawerProps {
   onClose: () => void;
   /** A level was put back: the page behind reloads its rows and strip. */
   onPutBack: () => void;
+  /** The reader may look but not change: no Put back. */
+  readOnly?: boolean;
 }
 
 /**
  * Level history — Paper step 13: when, who, "150 → 180 kg", the reason, and "Put back 150" on every row
  * that replaced an earlier level. A put back adds a new entry; the old one stays on record.
  */
-export function RestockHistoryDrawer({ request, onClose, onPutBack }: RestockHistoryDrawerProps) {
+export function RestockHistoryDrawer({ request, onClose, onPutBack, readOnly = false }: RestockHistoryDrawerProps) {
   // Keep the last request while the drawer slides out, so the title does not blank mid-animation.
   const lastRequest = React.useRef<HistoryRequest | null>(null);
   if (request) lastRequest.current = request;
@@ -140,6 +144,7 @@ export function RestockHistoryDrawer({ request, onClose, onPutBack }: RestockHis
                   key={entry.id}
                   entry={entry}
                   showItem={!perItem}
+                  readOnly={readOnly}
                   busy={puttingBackId === entry.id}
                   anyBusy={puttingBackId !== null}
                   onPutBack={() => void handlePutBack(entry.id)}

@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
 import { Topbar } from '@/components/app/shell/topbar';
-import { PermissionDeniedState } from '@/components/app/shell/shell-states';
-import { useAuthStore } from '@/store/authStore';
+import { LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
+import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { useCategoryOptions } from '../../../catalog/hooks/use-item-form';
 import { useSuppliersList } from '../../hooks/use-suppliers-list';
 import type { SupplierStatus, SupplierType } from '../../types/supplier';
@@ -20,7 +20,6 @@ import { FilterMenu, PageHeading } from '../supplier-ui';
 import { SuppliersTable } from '../suppliers-table';
 
 const SEARCH_DEBOUNCE_MS = 250;
-const ROLES_THAT_READ = new Set(['STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR']);
 
 /** A value that follows `value` after it has been still for `delay` ms. */
 function useDebounced<T>(value: T, delay: number): T {
@@ -48,9 +47,9 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
  */
 export function SuppliersListScreen() {
   const router = useRouter();
-  const role = useAuthStore((s) => s.role);
-  const canRead = role !== null && ROLES_THAT_READ.has(role);
-  const canWrite = role === 'STORE_MANAGER';
+  const { can, ready: permissionsReady } = usePermissions();
+  const canRead = can('suppliers.read');
+  const canWrite = can('suppliers.write');
 
   const [searchInput, setSearchInput] = React.useState('');
   const search = useDebounced(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -96,12 +95,23 @@ export function SuppliersListScreen() {
     setPage(1);
   };
 
+  if (!permissionsReady) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Topbar breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }} hideSearch className="shrink-0" />
+        <div className="flex flex-1 items-center justify-center">
+          <LoadingState />
+        </div>
+      </div>
+    );
+  }
+
   if (!canRead) {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={{ section: 'Central Store', screen: 'Suppliers' }} hideSearch className="shrink-0" />
         <div className="flex flex-1 items-center justify-center">
-          <PermissionDeniedState description="Suppliers are visible to the Store Manager, the Accountant and Directors only." />
+          <PermissionDeniedState description="Suppliers are not available for your role." />
         </div>
       </div>
     );

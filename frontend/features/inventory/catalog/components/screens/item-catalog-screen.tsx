@@ -11,6 +11,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { PermissionDeniedState, LoadingState } from '@/components/app/shell/shell-states';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthStore } from '@/store/authStore';
+import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { useMobileNavDrawer } from '../../../_shared/hooks/use-mobile-nav-drawer';
 import { useItemCatalog, type ItemCatalogFilters } from '../../hooks/use-item-catalog';
 import type { DepartmentTag, InventoryItemListRow, InventoryItemType } from '../../../types';
@@ -74,10 +75,14 @@ function MobileItemRow({ row, onClick }: { row: InventoryItemListRow; onClick?: 
  */
 export function ItemCatalogScreen() {
   const { matches: isDesktop, hydrated } = useMediaQuery('(min-width: 1024px)');
-  const role = useAuthStore((s) => s.role);
   const userName = useAuthStore((s) => s.user?.name);
-  const isManager = role === 'STORE_MANAGER';
-  const canRead = isManager || role === 'STORE_ATTENDANT';
+  // What this person may do comes from the Central Store permissions table (server), not from their role name.
+  const { can, ready } = usePermissions();
+  const canRead = can('catalog.read');
+  /** Opens the item panel: the roles that may see costs (read-only unless they can also write). */
+  const canOpenItem = can('catalog.see_costs');
+  const canWrite = can('catalog.write');
+  const seesRestock = can('restock.read');
 
   const [searchInput, setSearchInput] = React.useState('');
   const search = useDebounced(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -113,10 +118,10 @@ export function ItemCatalogScreen() {
 
   // A link from a supplier's Catalog tab ("History") lands here with ?item=<id>: open that item's page once.
   React.useEffect(() => {
-    if (!isManager) return;
+    if (!canOpenItem) return;
     const itemId = new URLSearchParams(window.location.search).get('item');
     if (itemId) openDrawer({ kind: 'item', itemId });
-  }, [isManager, openDrawer]);
+  }, [canOpenItem, openDrawer]);
 
   const [added, setAdded] = React.useState<CreatedItem | null>(null);
   const { open: openMobileNav } = useMobileNavDrawer();
@@ -162,7 +167,7 @@ export function ItemCatalogScreen() {
     setSort(undefined);
   };
 
-  if (!hydrated) {
+  if (!hydrated || !ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-wds-canvas">
         <LoadingState />
@@ -171,7 +176,7 @@ export function ItemCatalogScreen() {
   }
 
   if (!canRead) {
-    const denied = <PermissionDeniedState description="Item catalog is visible to Store Managers and Store Attendants only." />;
+    const denied = <PermissionDeniedState description="The item catalog is not available for your role." />;
     return isDesktop ? (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={{ section: 'Central Store', screen: 'Catalog' }} className="shrink-0" />
@@ -221,7 +226,7 @@ export function ItemCatalogScreen() {
     });
   }
 
-  const openItem = isManager ? (row: InventoryItemListRow) => openDrawer({ kind: 'item', itemId: row.id }) : undefined;
+  const openItem = canOpenItem ? (row: InventoryItemListRow) => openDrawer({ kind: 'item', itemId: row.id }) : undefined;
   const total = meta?.itemsTracked ?? null;
 
   const loadingBody = (
@@ -248,8 +253,8 @@ export function ItemCatalogScreen() {
     <StockEmptyCard
       title="No items yet"
       description="Add the first item the store counts. You can add who sells it afterwards."
-      actionLabel={isManager ? 'Add an item' : undefined}
-      onAction={isManager ? () => openDrawer({ kind: 'add' }) : undefined}
+      actionLabel={canWrite ? 'Add an item' : undefined}
+      onAction={canWrite ? () => openDrawer({ kind: 'add' }) : undefined}
     />
   );
   const emptyCard = <div className="flex justify-center px-4 py-8">{emptyBody}</div>;
@@ -260,7 +265,7 @@ export function ItemCatalogScreen() {
       return <StockErrorCard title="Couldn’t load the item catalog" description={error ?? 'Check your connection and try again.'} onRetry={() => void reload()} />;
     }
     if (items.length === 0) return emptyCard;
-    return <CatalogTable rows={items} showRestockLevel={isManager} onRowClick={openItem} highlightId={added && added.itemType !== 'PREPPED' ? added.itemId : null} />;
+    return <CatalogTable rows={items} showRestockLevel={seesRestock} onRowClick={openItem} highlightId={added && added.itemType !== 'PREPPED' ? added.itemId : null} />;
   })();
 
   const footerNote = (() => {
@@ -272,12 +277,13 @@ export function ItemCatalogScreen() {
     if (search) {
       return `${count} for “${search}”. Search also matches the name or code a supplier uses for an item. Our name stays the same.`;
     }
-    return isManager ? `${count}. Restock level is for the Central Store. Departments set their own on their phones.` : `${count}.`;
+    return seesRestock ? `${count}. Restock level is for the Central Store. Departments set their own on their phones.` : `${count}.`;
   })();
 
-  const drawers = isManager ? (
+  const drawers = canOpenItem ? (
     <>
       <ItemDrawers
+        readOnly={!canWrite}
         request={request}
         onClose={closeDrawer}
         onItemCreated={(created) => {
@@ -358,7 +364,7 @@ export function ItemCatalogScreen() {
             </>
           )}
         </main>
-        {isManager ? (
+        {canWrite ? (
           <div className="flex shrink-0 gap-2 border-t border-wds-border bg-wds-surface p-4">
             <Button variant="secondary" className="flex-1" onClick={() => openDrawer({ kind: 'categories' })}>
               Categories
@@ -378,7 +384,7 @@ export function ItemCatalogScreen() {
       <Topbar
         breadcrumb={{ section: 'Central Store', screen: 'Catalog' }}
         searchProps={{ placeholder: 'Search items', value: searchInput, onChange: (e) => changeSearch(e.target.value), className: 'w-[380px]', 'aria-label': 'Search items' }}
-        actions={isManager ? <Button onClick={() => openDrawer({ kind: 'add' })}>New item</Button> : null}
+        actions={canWrite ? <Button onClick={() => openDrawer({ kind: 'add' })}>New item</Button> : null}
         className="shrink-0"
       />
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
@@ -408,7 +414,7 @@ export function ItemCatalogScreen() {
           onDepartmentChange={(tag) => changeDepartment(tag as DepartmentTag | null)}
           showRetired={showRetired}
           onShowRetiredChange={changeShowRetired}
-          onManageCategories={isManager ? () => openDrawer({ kind: 'categories' }) : undefined}
+          onManageCategories={canWrite ? () => openDrawer({ kind: 'categories' }) : undefined}
         />
         <div className="shrink-0 overflow-x-auto">{dataBody}</div>
         {footerNote || (pagination && pagination.totalPages > 1) ? (

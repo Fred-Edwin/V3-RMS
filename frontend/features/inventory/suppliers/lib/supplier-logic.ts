@@ -80,7 +80,7 @@ const filled = (v: string | null | undefined): boolean => !!v && v.trim().length
  * address, contact person, payment details, KRA PIN): Paper joins name and type in one row and adds "How we pay them", which a
  * supplier always has, so the two sets move together.
  */
-export function profileChecklist(s: Pick<SupplierDetail, 'name' | 'address' | 'kraPin' | 'contacts' | 'paymentMethods'>): { rows: ProfileRow[]; done: number } {
+export function profileChecklist(s: Pick<SupplierDetail, 'name' | 'address' | 'kraPin' | 'contacts' | 'paymentMethodCount'>): { rows: ProfileRow[]; done: number } {
   const hasPhone = s.contacts.some((c) => filled(c.phone));
   const hasPerson = s.contacts.some((c) => filled(c.name) && c.name.trim().toLowerCase() !== s.name.trim().toLowerCase());
   const rows: ProfileRow[] = [
@@ -89,7 +89,7 @@ export function profileChecklist(s: Pick<SupplierDetail, 'name' | 'address' | 'k
     { key: 'address', label: 'Address', done: filled(s.address) && s.address.trim() !== '—' },
     { key: 'terms', label: 'How we pay them', done: true },
     { key: 'contact', label: 'Contact person', done: hasPerson },
-    { key: 'payment', label: 'Bank or M-Pesa details', done: s.paymentMethods.length > 0 },
+    { key: 'payment', label: 'Bank or M-Pesa details', done: s.paymentMethodCount > 0 },
     { key: 'kra', label: 'KRA PIN', done: filled(s.kraPin) },
   ];
   return { rows, done: rows.filter((r) => r.done).length };

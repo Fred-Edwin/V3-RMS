@@ -164,24 +164,31 @@ const isAllowedPath = (pathname: string, role: AppRole, isDepartmentHead: boolea
   }
 
   if (pathname.startsWith('/app/inventory')) {
-    // Milestone One redo (2026-09-15), per 05-plan.md §5.2's role table:
-    // restock levels are Store Manager or a department head; suppliers also
-    // reach the Accountant/Director (read-only, enforced in the UI/API —
-    // this gate only needs to admit the route); everything else (catalog)
-    // is Store Manager/Attendant.
+    // Central Store access (decisions.md, "Access"). The desktop roles reach every Central Store screen that has been rebuilt to
+    // the approved designs; what each of them may DO there comes from the permissions table on the server
+    // (`GET /inventory/permissions/me`), which the API enforces and the screens obey. This gate only decides who may open the
+    // page at all. Screens still on the old flow keep the Store Manager and the Store Attendant.
+    const isDesktopCentralStoreRole =
+      role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR' || role === 'MANAGER' || role === 'SYSTEM_ADMIN';
     if (pathname.startsWith('/app/inventory/restock-levels')) {
-      return role === 'STORE_MANAGER' || isDepartmentHead;
+      // The department head's own phone screen, and the desktop roles.
+      return isDesktopCentralStoreRole || isDepartmentHead;
     }
-    // Pre-Demo Fixes: Settings (Team + My PIN) is the Store Manager's alone —
-    // the attendant is bounced to their home (the API routes it calls are
-    // role-gated too).
+    // Pre-Demo Fixes: Settings (Team + My PIN) is the Store Manager's alone — the attendant is bounced to their home (the API
+    // routes it calls are role-gated too).
     if (pathname.startsWith('/app/inventory/settings')) {
       return role === 'STORE_MANAGER';
     }
-    if (pathname.startsWith('/app/inventory/suppliers')) {
-      // Session 6: the Suppliers pages carry prices, payment details and what we owe, so the Store Attendant is bounced
-      // to their home like any other role without access (the API refuses them too).
-      return role === 'STORE_MANAGER' || role === 'ACCOUNTANT' || role === 'DIRECTOR';
+    if (
+      pathname.startsWith('/app/inventory/suppliers') ||
+      pathname.startsWith('/app/inventory/audit-log') ||
+      pathname.startsWith('/app/inventory/stock/restock-levels')
+    ) {
+      // The Store Attendant sees no suppliers, no audit log and no restock levels: they carry prices and who changed what.
+      return isDesktopCentralStoreRole;
+    }
+    if (pathname.startsWith('/app/inventory/catalog')) {
+      return isDesktopCentralStoreRole || role === 'STORE_ATTENDANT';
     }
     return role === 'STORE_MANAGER' || role === 'STORE_ATTENDANT';
   }

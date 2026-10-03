@@ -76,6 +76,13 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
 11. The owner runs Omarchy Linux; agents here also run Linux. Give the owner
     and run your own tooling with the same POSIX shell commands — no
     PowerShell, no WSL distinction needed anymore.
+12. Edit files with the Edit and Write tools only — never with Python, sed,
+    awk, or heredoc scripts in Bash. Edit fails loudly when the target text
+    is missing; a script's `replace` fails silently, and Bash edits bypass
+    `/rewind` and the owner's review view.
+13. End every task with a short plain-English recap (about 5 lines): what
+    changed, which files, and how the owner can verify it. The owner does not
+    read full diffs.
 
 ## Task Tracking
 

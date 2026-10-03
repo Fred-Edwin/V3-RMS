@@ -7,7 +7,7 @@ import { Topbar } from '@/components/app/shell/topbar';
 import { PermissionDeniedState } from '@/components/app/shell/shell-states';
 import { Skeleton } from '@/components/ui2/skeleton';
 import { formatApiErrorMessage } from '@/types/api';
-import { useAuthStore } from '@/store/authStore';
+import { usePermissions } from '../../../_shared/hooks/use-permissions';
 import { useCategoryOptions } from '../../../catalog/hooks/use-item-form';
 import { useSupplierPage } from '../../hooks/use-supplier-page';
 import { confirmSupplierPreferred, updateSupplierContact } from '../../../services';
@@ -33,7 +33,6 @@ import { UploadView } from '../upload-view';
 import { RecordSupplierInvoiceDrawer } from '../../../purchasing/components/screens/record-supplier-invoice-drawer';
 import { RecordSupplierPaymentDrawer } from '../../../purchasing/components/screens/record-supplier-payment-drawer';
 
-const ROLES_THAT_READ = new Set(['STORE_MANAGER', 'ACCOUNTANT', 'DIRECTOR']);
 
 type DrawerView =
   | { kind: 'edit' }
@@ -75,10 +74,16 @@ function PageSkeleton() {
  * Directors read. Put on hold, Archive and Make active open the chapter 8 dialogs.
  */
 export function SupplierPageScreen({ id }: { id: string }) {
-  const role = useAuthStore((s) => s.role);
-  const canRead = role !== null && ROLES_THAT_READ.has(role);
-  const isManager = role === 'STORE_MANAGER';
-  const canEditPayments = role === 'STORE_MANAGER' || role === 'ACCOUNTANT';
+  // What this person may do comes from the Central Store permissions table (server), not from their role name.
+  const { can, ready: permissionsReady } = usePermissions();
+  const canRead = can('suppliers.read');
+  const canWrite = can('suppliers.write');
+  const seesPaymentDetails = can('suppliers.read_payment_details');
+  const canWritePayMethods = can('suppliers.write_payment_methods');
+  const canUpload = can('suppliers.upload_documents');
+  const seesOwed = can('payables.read');
+  const canRecordInvoice = can('payables.record_invoice');
+  const canRecordPayment = can('payables.record_payment');
 
   const [tab, setTab] = React.useState<SupplierTab>('overview');
   const [drawer, setDrawer] = React.useState<DrawerView | null>(null);
@@ -90,7 +95,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
   const [makingPrimaryId, setMakingPrimaryId] = React.useState<string | null>(null);
   const [savingPreferredId, setSavingPreferredId] = React.useState<string | null>(null);
 
-  const page = useSupplierPage(canRead ? id : null);
+  const page = useSupplierPage(canRead ? id : null, { paymentDetails: seesPaymentDetails, payables: seesOwed });
   const { categories } = useCategoryOptions(drawer?.kind === 'edit');
   const supplier = page.detail.data;
   const { reload: reloadDetail } = page.detail;
@@ -112,12 +117,23 @@ export function SupplierPageScreen({ id }: { id: string }) {
 
   const soldItemIds = React.useMemo(() => new Set((page.catalog.data ?? []).map((l) => l.inventoryItemId)), [page.catalog.data]);
 
+  if (!permissionsReady) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Topbar breadcrumb={{ section: 'Central Store', screen: 'Suppliers', sectionHref: '/app/inventory/suppliers' }} hideSearch className="shrink-0" />
+        <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-8 py-[26px]">
+          <PageSkeleton />
+        </div>
+      </div>
+    );
+  }
+
   if (!canRead) {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Topbar breadcrumb={{ section: 'Central Store', screen: 'Suppliers', sectionHref: '/app/inventory/suppliers' }} hideSearch className="shrink-0" />
         <div className="flex flex-1 items-center justify-center">
-          <PermissionDeniedState description="Suppliers are visible to the Store Manager, the Accountant and Directors only." />
+          <PermissionDeniedState description="Suppliers are not available for your role." />
         </div>
       </div>
     );
@@ -280,7 +296,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
         }
         hideSearch
         actions={
-          isManager && supplier ? (
+          canWrite && supplier ? (
             <div className="flex items-center gap-2">
               {movesFor(supplier.status).map((move) => (
                 <Button key={move} variant="secondary" className="px-3.5" onClick={() => setStatusMove(move)}>
@@ -303,27 +319,27 @@ export function SupplierPageScreen({ id }: { id: string }) {
         ) : (
           <>
             <SupplierTitle supplier={supplier} />
-            <SupplierTabs active={tab} counts={counts} onChange={setTab} />
+            <SupplierTabs active={tab} counts={counts} onChange={setTab} hidden={seesPaymentDetails ? [] : ['payment']} />
             {flash ? <InlineNotice tone="info">{flash}</InlineNotice> : null}
             {problem ? <InlineNotice>{problem}</InlineNotice> : null}
             <div role="tabpanel" id={`supplier-panel-${tab}`} aria-labelledby={`supplier-tab-${tab}`} className="flex flex-col gap-[18px]">
               {tab === 'overview' ? (
                 <>
-                  {profile.done < PROFILE_TOTAL ? <ProfileCard supplier={supplier} canEdit={isManager} onAdd={addFromChecklist} /> : null}
+                  {profile.done < PROFILE_TOTAL ? <ProfileCard supplier={supplier} canAdd={(key) => (key === 'payment' ? canWritePayMethods : canWrite)} onAdd={addFromChecklist} /> : null}
                   {neverBought ? (
-                    <NothingBoughtCard supplierName={supplier.name} canEdit={isManager} onAdd={() => setDrawer({ kind: 'addSeveral' })} />
+                    <NothingBoughtCard supplierName={supplier.name} canEdit={canWrite} onAdd={() => setDrawer({ kind: 'addSeveral' })} />
                   ) : (
                     <>
                       <OverviewStrip summary={page.summary.data} spend90Days={page.catalogSummary.data?.spend90Days ?? null} />
                       <DetailsCards supplier={supplier} />
                     </>
                   )}
-                  {!neverBought || Number.parseFloat(owed ?? '0') > 0 ? (
+                  {seesOwed && (!neverBought || Number.parseFloat(owed ?? '0') > 0) ? (
                     <OwedCard
                       owed={owed}
                       ap={page.owing.data}
-                      canRecordInvoice={isManager}
-                      canRecordPayment={canEditPayments}
+                      canRecordInvoice={canRecordInvoice}
+                      canRecordPayment={canRecordPayment}
                       onRecordInvoice={() => setInvoiceOpen(true)}
                       onRecordPayment={() => setPaymentOpen(true)}
                     />
@@ -334,21 +350,21 @@ export function SupplierPageScreen({ id }: { id: string }) {
                 <ContactsTab
                   supplierName={supplier.name}
                   contacts={supplier.contacts}
-                  canEdit={isManager}
+                  canEdit={canWrite}
                   makingPrimaryId={makingPrimaryId}
                   onAdd={() => setDrawer({ kind: 'addContact' })}
                   onEdit={(contact) => setDrawer({ kind: 'editContact', contact })}
                   onMakePrimary={(contact) => void makePrimary(contact)}
                 />
               ) : null}
-              {tab === 'payment' ? (
+              {tab === 'payment' && seesPaymentDetails ? (
                 <PaymentTab
                   supplierId={id}
                   methods={supplier.paymentMethods}
                   history={page.history.data}
                   historyError={page.history.status === 'error' ? page.history.error : null}
                   onRetryHistory={() => void page.history.reload()}
-                  canEdit={canEditPayments}
+                  canEdit={canWritePayMethods}
                   onAdd={() => setDrawer({ kind: 'addMethod' })}
                   onChange={(method) => setDrawer({ kind: 'changeMethod', method })}
                   onRemoved={() => {
@@ -366,7 +382,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
                     lines={page.catalog.data ?? []}
                     summary={page.catalogSummary.data}
                     mismatches={page.mismatches.data ?? []}
-                    canEdit={isManager}
+                    canEdit={canWrite}
                     savingPreferredId={savingPreferredId}
                     onAddOne={(itemId) => setDrawer({ kind: 'addOne', presetItemId: itemId })}
                     onAddSeveral={() => setDrawer({ kind: 'addSeveral' })}
@@ -378,7 +394,7 @@ export function SupplierPageScreen({ id }: { id: string }) {
                 page.documents.status === 'error' ? (
                   <StockErrorCard title="Couldn’t load the documents" description={page.documents.error ?? 'Try again.'} onRetry={() => void page.documents.reload()} />
                 ) : (
-                  <DocumentsTab supplierId={id} entries={page.documents.data ?? []} canUpload={canEditPayments} onUpload={() => setDrawer({ kind: 'upload' })} />
+                  <DocumentsTab supplierId={id} entries={page.documents.data ?? []} canUpload={canUpload} onUpload={() => setDrawer({ kind: 'upload' })} />
                 )
               ) : null}
             </div>

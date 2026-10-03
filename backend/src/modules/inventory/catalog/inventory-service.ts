@@ -54,6 +54,8 @@ import type {
   UpdateItemInput,
 } from './inventory.types';
 
+import { actorCan, requireHubActor, requireHubReader } from '../_shared/central-store-access';
+
 type Actor = NonNullable<Request['user']>;
 
 /**
@@ -71,14 +73,6 @@ const requireHubOrganization = async (): Promise<string> => {
   return hub.id;
 };
 
-const requireHubActor = async (actor: Actor): Promise<string> => {
-  const hubOrgId = await requireHubOrganization();
-  if (actor.organizationId !== hubOrgId) {
-    throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
-  }
-  return hubOrgId;
-};
-
 /**
  * Read-only carve-out for `listItems` only (added Milestone Four Session A,
  * 2026-09-21): a branch-org Department Head needs to browse the hub's item
@@ -90,7 +84,7 @@ const requireHubActor = async (actor: Actor): Promise<string> => {
  */
 const requireHubOrgForCatalogRead = async (actor: Actor): Promise<string> => {
   const hubOrgId = await requireHubOrganization();
-  if (actor.organizationId === hubOrgId || actor.isDepartmentHead) {
+  if (actor.organizationId === hubOrgId || actor.isDepartmentHead || actorCan(actor, 'central_store.read_any_org')) {
     return hubOrgId;
   }
   throw new ForbiddenError('Only the hub organization may access Central Store inventory data');
@@ -184,6 +178,9 @@ const toItemFields = (item: InventoryItemWithRelations): ItemFields => ({
 
 /** A Store Attendant (not a department head) is blind to money: prices, levels, preferred supplier (§29.4). */
 const isAttendant = (actor: Actor): boolean => actor.role === 'STORE_ATTENDANT' && !actor.isDepartmentHead;
+
+/** Whoever cannot see costs gets the price-free item: the attendant, and a department head browsing the catalog (§29.4). */
+const isBlindToMoney = (actor: Actor): boolean => !actorCan(actor, 'catalog.see_costs');
 
 const serializeAttendantItem = (item: InventoryItemWithRelations) => ({
   id: item.id,
@@ -317,7 +314,7 @@ export const inventoryService = {
    * Minimal and read-only; does not touch the restock-levels contract itself.
    */
   getCentralStoreLocation: async (actor: Actor): Promise<CentralStoreLocation> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requireHubReader(actor);
     const centralStore = await locationRepository.findCentralStore();
     if (!centralStore || centralStore.organizationId !== organizationId) {
       throw new NotFoundError('No Central Store is configured for this organization');
@@ -331,14 +328,14 @@ export const inventoryService = {
    * so this is a narrow read: active branches, hub excluded, id and name only.
    */
   listRestockBranches: async (actor: Actor): Promise<RestockBranchOption[]> => {
-    await requireHubActor(actor);
+    await requireHubReader(actor);
     return branchRepository.findActiveBranchOptions();
   },
 
   // ── Categories ───────────────────────────────────────────────────────────
 
   listCategories: async (actor: Actor, includeRetired: boolean) => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requireHubReader(actor);
     const categories = await categoryRepository.findAllByOrganization(organizationId, includeRetired);
     return categories.map(serializeCategory);
   },
@@ -389,12 +386,12 @@ export const inventoryService = {
 
   listItems: async (actor: Actor, query: ListItemsQuery): Promise<ItemCatalogListResponse> => {
     const organizationId = await requireHubOrgForCatalogRead(actor);
-    const attendant = isAttendant(actor);
+    const attendant = isBlindToMoney(actor);
     // "Needs setup" is a column-to-column comparison, so the ids come from one raw query (§29.3).
     const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(organizationId);
-    const isManager = actor.role === 'STORE_MANAGER' && !actor.isDepartmentHead;
-    // Restock levels are the Store Manager's: nobody else may filter by them (§30.1).
-    if (query.lowOrOut && !isManager) throw new ForbiddenError('Only the Store Manager can filter by restock level');
+    const isManager = actorCan(actor, 'restock.read');
+    // Restock levels are for the roles that may read them: nobody else may filter by them (§30.1).
+    if (query.lowOrOut && !isManager) throw new ForbiddenError('You cannot filter by restock level');
     const lowOrOutIds = isManager ? await findCentralStoreLowOrOutIds(organizationId) : [];
     // needsSetup and lowOrOut together mean items in both.
     let onlyIds: string[] | undefined;
@@ -463,11 +460,11 @@ export const inventoryService = {
   },
 
   getItemById: async (actor: Actor, id: string) => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requireHubReader(actor);
     const item = await inventoryItemRepository.findById(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
     const suppliers = (await supplierItemRepository.listForItem(item.id, organizationId)).map(serializeItemSupplierLine);
-    if (isAttendant(actor)) {
+    if (isBlindToMoney(actor)) {
       // No prices and no preferred flags: who sells it and under what name, nothing about money.
       return {
         ...serializeAttendantItem(item),
@@ -490,7 +487,7 @@ export const inventoryService = {
 
   /** What happened to the item, newest first (§30.4). Store Manager only. */
   getItemHistory: async (actor: Actor, id: string, limit: number): Promise<ItemHistoryEntry[]> => {
-    const organizationId = await requireHubActor(actor);
+    const organizationId = await requireHubReader(actor);
     const item = await inventoryItemRepository.findById(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
     const rows = await itemChangeRepository.list(id, organizationId, limit);
@@ -531,7 +528,7 @@ export const inventoryService = {
 
   createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse | AttendantItemMutationResponse> => {
     const organizationId = await requireHubActor(actor);
-    const attendant = isAttendant(actor);
+    const attendant = !actorCan(actor, 'catalog.write');
     if (attendant) assertAttendantMayCreate(input);
     assertRawIngredientHasNoDepartments(input.type, input.departmentTags);
 
@@ -754,7 +751,7 @@ export const inventoryService = {
   },
 
   saveRestockLevels: async (actor: Actor, input: SaveRestockLevelsInput): Promise<RestockLevelRow[]> => {
-    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, input);
+    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, input, 'write');
 
     const itemIds = input.levels.map((l) => l.inventoryItemId);
     const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, catalogOrganizationId);
@@ -792,7 +789,7 @@ export const inventoryService = {
    * Same "whose levels" rules as the list; a Department Head sees only their own department.
    */
   listRestockHistory: async (actor: Actor, query: RestockHistoryQuery): Promise<RestockHistoryEntry[]> => {
-    const { organizationId, locationId } = await resolveRestockScope(actor, query);
+    const { organizationId, locationId } = await resolveRestockScope(actor, query, 'read');
     const rows = await restockChangeRepository.list(organizationId, locationId, {
       inventoryItemId: query.inventoryItemId,
       limit: query.limit,
@@ -807,14 +804,14 @@ export const inventoryService = {
   putBackRestockLevel: async (actor: Actor, changeId: string, input: PutBackRestockLevelInput): Promise<RestockHistoryEntry> => {
     // The route already limits this to a Store Manager or a department head; a put back names only a change id,
     // so the service does not lean on the route alone.
-    if (!actor.isDepartmentHead && actor.role !== 'STORE_MANAGER') {
-      throw new ForbiddenError('Only the Store Manager or a department head can put a level back');
+    if (!actor.isDepartmentHead && !actorCan(actor, 'restock.write')) {
+      throw new ForbiddenError('Only someone who can change restock levels, or a department head, can put a level back');
     }
     const change = await restockChangeRepository.findById(changeId);
     if (!change) throw new NotFoundError('Restock level change not found');
 
     if (actor.isDepartmentHead) {
-      const own = await resolveRestockScope(actor, {});
+      const own = await resolveRestockScope(actor, {}, 'write');
       if (own.locationId !== change.locationId) {
         throw new ForbiddenError("You can only put back changes to your own department's levels");
       }
@@ -867,7 +864,7 @@ const loadRestockRows = async (
   actor: Actor,
   query: RestockScopeQuery & { search?: string },
 ): Promise<{ rows: RestockLevelRow[]; differs: number }> => {
-  const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query);
+  const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query, 'read');
 
   // Items are catalog rows on the hub (D-15); levels + on-hand live on the
   // location's own org (a branch department's, or the hub's Central Store).
@@ -949,6 +946,7 @@ const findCentralStoreLowOrOutIds = async (hubOrgId: string): Promise<string[]> 
 const resolveRestockScope = async (
   actor: Actor,
   query: RestockScopeQuery,
+  mode: 'read' | 'write',
 ): Promise<{ organizationId: string; catalogOrganizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
   if (actor.isDepartmentHead) {
     if (query.locationId || query.scope || query.branchId) {
@@ -972,8 +970,11 @@ const resolveRestockScope = async (
     return { organizationId: actor.organizationId, catalogOrganizationId, locationId: location.id, departmentTag: actor.departmentTag };
   }
 
-  // STORE_MANAGER
-  const organizationId = await requireHubActor(actor);
+  // A desktop role naming whose levels. Reading may come from outside the hub; writing needs the right to write.
+  if (mode === 'write' && !actorCan(actor, 'restock.write')) {
+    throw new ForbiddenError('You cannot change restock levels');
+  }
+  const organizationId = mode === 'write' ? await requireHubActor(actor) : await requireHubReader(actor);
   if (!query.locationId && !query.scope) {
     throw new ValidationError('locationId or scope is required');
   }

@@ -21,7 +21,7 @@ import {
 } from './supplier-logic';
 
 const contact = (over: Record<string, unknown> = {}) => ({ id: 'c', name: 'Rajesh Samrat', role: 'SALES_REP', phone: '+254722118340', whatsapp: null, email: null, isPrimary: true, createdAt: '', updatedAt: '', ...over });
-const base = { name: 'Kagumo Poultry Farm', address: 'Kagumo, Nyeri', kraPin: null, contacts: [], paymentMethods: [] };
+const base = { name: 'Kagumo Poultry Farm', address: 'Kagumo, Nyeri', kraPin: null, contacts: [], paymentMethodCount: 0 };
 
 describe('profileChecklist', () => {
   it('a new supplier with a phone only on the business contact is 4 of 7 with three left to add', () => {
@@ -32,8 +32,13 @@ describe('profileChecklist', () => {
 
   it('a placeholder address does not count, and a person, a payment method and a PIN make 7', () => {
     expect(profileChecklist({ ...base, address: '—' }).done).toBe(2); // name and "how we pay them" only
-    const full = profileChecklist({ ...base, kraPin: 'P051234567X', contacts: [contact() as never], paymentMethods: [{} as never] });
+    const full = profileChecklist({ ...base, kraPin: 'P051234567X', contacts: [contact() as never], paymentMethodCount: 1 });
     expect(full.done).toBe(7);
+  });
+
+  it('counts a payment method on file even when this reader may not see the methods', () => {
+    expect(profileChecklist({ ...base, paymentMethodCount: 2 }).rows.find((r) => r.key === 'payment')?.done).toBe(true);
+    expect(profileChecklist({ ...base, paymentMethodCount: 0 }).rows.find((r) => r.key === 'payment')?.done).toBe(false);
   });
 
   it('phone is found on any contact, not only the primary', () => {

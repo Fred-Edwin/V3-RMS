@@ -154,6 +154,7 @@ export const SupplierDetailSchema = SupplierSchema.extend({
   creditLimit: z.string().nullable(),
   contacts: z.array(SupplierContactSchema),
   paymentMethods: z.array(SupplierPayMethodSchema),
+  paymentMethodCount: z.number().int(),
   createdBy: actorRefSchema.nullable(),
   updatedBy: actorRefSchema.nullable(),
 });

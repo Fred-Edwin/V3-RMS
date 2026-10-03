@@ -21,7 +21,7 @@ function Field({ label, children, mono = false }: { label: string; children: Rea
 const dash = <span className="text-wds-text-muted">—</span>;
 
 /** The checklist card: "Profile · 4 of 7", the bar, and the seven points with "Add" on the ones still open. */
-export function ProfileCard({ supplier, canEdit, onAdd }: { supplier: SupplierDetail; canEdit: boolean; onAdd: (key: ProfileKey) => void }) {
+export function ProfileCard({ supplier, canAdd, onAdd }: { supplier: SupplierDetail; canAdd: (key: ProfileKey) => boolean; onAdd: (key: ProfileKey) => void }) {
   const { rows, done } = profileChecklist(supplier);
   const first = supplier.name.split(/\s+/)[0] ?? supplier.name;
   const left = rows.slice(0, 4);
@@ -38,7 +38,7 @@ export function ProfileCard({ supplier, canEdit, onAdd }: { supplier: SupplierDe
             {row.label}
             <span className="sr-only">{row.done ? ', done' : ', still to add'}</span>
           </span>
-          {!row.done && canEdit ? (
+          {!row.done && canAdd(row.key) ? (
             <button
               type="button"
               onClick={() => onAdd(row.key)}
@@ -183,7 +183,7 @@ export function OwedCard({
     <section aria-label="What we owe" className="flex items-center justify-between gap-6 border border-wds-border bg-white px-5 py-4">
       <div className="flex min-w-0 items-center gap-6">
         <div className="flex shrink-0 flex-col gap-1">
-          <span className={monoLabel}>WHAT WE OWE · MANAGER, ACCOUNTANT, DIRECTORS</span>
+          <span className={monoLabel}>WHAT WE OWE</span>
           <span className="font-wds-sans text-[20px] font-medium leading-6 text-wds-text-ink">{owed !== null ? `KES ${formatAmount(owed)}` : <span className="text-wds-text-faint">—</span>}</span>
         </div>
         <p className="max-w-[400px] font-wds-sans text-[13px] leading-[18px] text-wds-text-secondary">{ap ? lateSentence(ap.row.buckets) : ''}</p>

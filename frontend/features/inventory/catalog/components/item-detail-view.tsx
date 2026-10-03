@@ -88,17 +88,19 @@ export interface ItemDetailViewProps {
   restoreBusy: boolean;
   actionError: string | null;
   onOpenRestockLevels: () => void;
+  /** The reader may look but not change: no Edit, Retire, Restore or Add who sells it. */
+  readOnly?: boolean;
 }
 
 /**
  * The item page (Paper steps 05 and 07): pack and units, restock level, who sells
  * it with their name and code under each supplier, and a history of every change.
  */
-export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, onRestore, restoreBusy, actionError, onOpenRestockLevels }: ItemDetailViewProps) {
+export function ItemDetailView({ readOnly = false, item, history, onEdit, onAddSeller, onRetire, onRestore, restoreBusy, actionError, onOpenRestockLevels }: ItemDetailViewProps) {
   const retired = item.retiredAt !== null;
   const bought = item.type !== 'PREPPED';
   const todo: string[] = [];
-  if (!retired) {
+  if (!retired && !readOnly) {
     if (bought && itemNeedsSetup(item)) todo.push('Set the pack and units, so receiving counts it right.');
     if (bought && item.suppliers.length === 0) todo.push(`Add who sells it, so ${item.name} can go on an order.`);
     if (!item.category) todo.push('Choose a category.');
@@ -128,6 +130,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
         </span>
       }
       footer={
+        readOnly ? undefined : (
         <>
           {retired ? (
             <Button className="ml-auto h-9 px-[22px] text-[14px]" onClick={onRestore} disabled={restoreBusy}>
@@ -142,6 +145,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
             </>
           )}
         </>
+        )
       }
     >
       {actionError ? <DrawerError>{actionError}</DrawerError> : null}
@@ -202,7 +206,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between">
             <SectionLabel>Who sells it</SectionLabel>
-            {item.suppliers.length > 0 && !retired ? (
+            {item.suppliers.length > 0 && !retired && !readOnly ? (
               <button
                 type="button"
                 onClick={onAddSeller}
@@ -215,7 +219,7 @@ export function ItemDetailView({ item, history, onEdit, onAddSeller, onRetire, o
           {item.suppliers.length === 0 ? (
             <div className="flex flex-col items-center gap-2.5 border border-dashed border-wds-border-strong p-5">
               <span className="font-wds-sans text-[13px] leading-4 text-wds-text-secondary">Nobody yet</span>
-              {!retired ? (
+              {!retired && !readOnly ? (
                 <Button className="h-[34px] !px-4 text-[13px]" onClick={onAddSeller}>
                   Add who sells it
                 </Button>
