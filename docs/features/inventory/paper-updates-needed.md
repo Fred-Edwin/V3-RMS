@@ -20,15 +20,15 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 
 ## Stale status stamps
 - [x] The cover artboards of **Prep** and **Stock, waste and counting** said "Draft · awaiting owner approval". Both now say "Approved by the owner" (green stamp). The "version 0.1" line beside the stamp was left alone.
-- [ ] **Open question for the owner:** the cover of **Catalog, suppliers and restock levels** carries the same "Draft · awaiting owner approval" stamp. It was not on the original list, so it was not changed. Same fix if the owner confirms it is approved.
+- [x] The cover of **Catalog, suppliers and restock levels** carried the same "Draft · awaiting owner approval" stamp. The owner confirmed on 4 Oct 2026 that it is approved; it now reads "Approved by the owner".
 
 ## Built differently from Paper in Session 7 (update Paper, or tell the owner to choose)
-**Not changed in Paper: these are the owner's call.** Recommendation for each, in order: (1) audit log filters: update Paper to match the code (more flexible, same meaning); (2) archive blocked: update Paper (Supplier AP no longer exists, so the old button cannot stay); (3) retire dialog: update Paper to the shorter lines now, and restore the richer ones when the data exists; (4) department head phone: update Paper (back arrow; no personal name); (5) hold / archive / make-active dialogs: draw them, in the style of step 31; (6) read-only variants: draw them once the client has approved the role names.
-- [ ] **Audit log filters** (step 35): built as one dark chip for all three areas plus a chip per area, and "Who" / "When" menus (Today, Last 7 days, Last 30 days, Any time). Paper draws "All areas", a dark "Catalog, Suppliers, Restock levels" chip, "Who ▾", "Today ▾".
-- [ ] **Archive blocked** (step 34): the button "Open Supplier AP" is now "See what we owe" (Supplier AP no longer exists); "Put on hold instead" only shows while the supplier is Active.
-- [ ] **Retire item dialog** (step 31): lines say "One open order has a line for it" (no order number) and mention only the Central Store restock level (no per-department list); the data for those two is not available.
-- [ ] **Department head phone** (steps 27–29): back arrow instead of the menu icon; the review sheet says "The Store Manager can see every change" (no personal name).
-- [ ] **Supplier hold / archive / make-active dialogs** are not drawn; they are built in the style of step 31 and need artboards.
+**Done on 4 Oct 2026, following the recommendations the owner accepted:** Paper was updated to match the code for items 1–4, the three missing dialogs were drawn (item 5, steps 34b, 34c, 34d under step 34), and the screens index lists them. Read-only variants (item 6) wait until the client has approved the role names. Where a Paper screen still shows the old sidebar or the words "Supplier AP" in its background (for example the stat caption "open Supplier AP for the detail" on the Suppliers list), it is left as is: such screens are redrawn when they are next worked on.
+- [x] **Audit log filters** (step 35): built as one dark chip for all three areas plus a chip per area, and "Who" / "When" menus (Today, Last 7 days, Last 30 days, Any time). Paper draws "All areas", a dark "Catalog, Suppliers, Restock levels" chip, "Who ▾", "Today ▾".
+- [x] **Archive blocked** (step 34): the button "Open Supplier AP" is now "See what we owe" (Supplier AP no longer exists); "Put on hold instead" only shows while the supplier is Active.
+- [x] **Retire item dialog** (step 31): lines say "One open order has a line for it" (no order number) and mention only the Central Store restock level (no per-department list); the data for those two is not available.
+- [x] **Department head phone** (steps 27–29): back arrow instead of the menu icon; the review sheet says "The Store Manager can see every change" (no personal name).
+- [x] **Supplier hold / archive / make-active dialogs** are now drawn as steps 34b (hold), 34c (archive) and 34d (make active), in the style of step 31.
 - [ ] **Read-only variants** are not drawn: the item panel, restock levels table and supplier page for roles that can read but not write (no Edit, Retire, Add, Record buttons; no Payment tab for the Branch Manager).
 
 ## Also open for design

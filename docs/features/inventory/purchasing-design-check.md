@@ -14,7 +14,14 @@ Does the approved Purchasing design (Paper page "Inventory · Purchasing", 40 sc
 - **Orders to pay exists.** Step 19 "Orders to pay" (Accountant, desktop) is the screen that replaces Supplier AP, as planned.
 - **Sidebar links.** The design's Receiving and Purchasing links match the new sidebar; Orders to pay lives inside Purchasing (the "To pay" tab), not as its own sidebar link.
 
-## Mismatches that need the owner's choice
+## Owner's decisions (4 Oct 2026)
+1. **Audit log: who sees what** — the Accountant sees the whole log. Done: the Purchasing chapter 10 note now says so. The table is unchanged.
+2. **Branch Manager and payment details** — no change. The recommendation stands as the default: hide only the supplier's account details (the Payment tab); the Branch Manager still sees paid amounts, dates and methods.
+3. **System Admin signing with their own PIN** — agreed. Done as a reference table, "Wording · When a System Admin approves or signs", on the Purchasing page. No new screens.
+4. **Read-only variants** — agreed, and they wait until the client has approved the role names.
+5. **Order permissions** — the table's missing order capabilities are a to-do for the Purchasing rebuild (see the Purchasing README).
+
+## Mismatches that needed the owner's choice (answered above)
 1. **Audit log: who sees what.** Chapter 10 says "Accountants see payment and invoice actions only", and step 23 gives the audit log to "Store Manager or Director". The table gives the Accountant, Branch Manager and System Admin the full audit log (`audit.read` is in "read everything"). **Recommendation:** keep the table (read for every desktop role, as agreed on 3 Oct) and change the design note to say the Accountant sees the whole log. Alternative: add an Accountant-only filter to the table.
 2. **Branch Manager and payment details.** The table lets the Branch Manager read amounts owed (`payables.read`) but not "supplier payment details" (bank and cheque details). The design's record-payment screens, the payment advice and the supplier statement show the payment method and reference (for example a cheque number). Is a payment's method and reference "payment details" the Branch Manager must not see? **Recommendation:** no. Hide only the supplier's account details (the Payment tab), and let the Branch Manager see paid amounts, dates and methods. Draw a read-only supplier statement and purchase file without the Payment tab.
 3. **System Admin signing with their own PIN.** The table gives the System Admin every capability, including approving orders and signing deliveries with their own PIN. The design only shows the Store Manager signing, in text written for that role (for example "You are the Store Manager, so you approve with your PIN"). A System Admin approving would see wrong copy, and the audit trail would name them. **Recommendation:** add a copy variant of the approve drawer (step 05) and the PIN dialogs: "You are signed in as System Admin. Approve with your own PIN." No new screen.
