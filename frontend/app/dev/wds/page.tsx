@@ -44,26 +44,26 @@ import { SearchInput } from '@/components/ui2/search-input';
 import { SidebarNav, SidebarRail, type SidebarNavGroup } from '@/components/app/shell/sidebar-nav';
 import { Topbar } from '@/components/app/shell/topbar';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
-import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
-import { DrawerShell } from '@/features/inventory/components/drawer-shell';
+import { KpiStrip, KpiRow } from '@/features/inventory/_shared/components/kpi-strip';
+import { DrawerShell } from '@/features/inventory/_shared/components/drawer-shell';
 
-import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
+import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/suppliers/components/supplier-form';
 import {
   RestockLevelGrid,
   RestockLevelHelperNote,
   type RestockLevelRow,
-} from '@/features/inventory/components/restock-level-grid';
-import { SignSheetDialog, SignedBySignature } from '@/features/inventory/components/sign-sheet';
-import { ReceiptLineGrid, type ReceiptLineRow } from '@/features/inventory/components/receipt-line-grid';
+} from '@/features/inventory/restock/components/restock-level-grid';
+import { SignSheetDialog, SignedBySignature } from '@/features/inventory/_shared/components/sign-sheet';
+import { ReceiptLineGrid, type ReceiptLineRow } from '@/features/inventory/purchasing/components/receipt-line-grid';
 import {
   BundleCheckboxList,
   BundleRunningTotal,
   type BundleRow,
-} from '@/features/inventory/components/bundle-checkbox-list';
-import { DisputeCallout } from '@/features/inventory/components/dispute-callout';
-import { AgingBucketTable, type AgingBucketTableRow } from '@/features/inventory/components/aging-bucket-table';
-import { AgingBucketPanel } from '@/features/inventory/components/aging-bucket-panel';
-import { PurchasingHistoryRowView, type PurchasingHistoryRow } from '@/features/inventory/components/purchasing-history-row';
+} from '@/features/inventory/purchasing/components/bundle-checkbox-list';
+import { DisputeCallout } from '@/features/inventory/purchasing/components/dispute-callout';
+import { AgingBucketTable, type AgingBucketTableRow } from '@/features/inventory/purchasing/components/aging-bucket-table';
+import { AgingBucketPanel } from '@/features/inventory/purchasing/components/aging-bucket-panel';
+import { PurchasingHistoryRowView, type PurchasingHistoryRow } from '@/features/inventory/purchasing/components/purchasing-history-row';
 import {
   MobileEmptyState,
   MobileLoadingState,

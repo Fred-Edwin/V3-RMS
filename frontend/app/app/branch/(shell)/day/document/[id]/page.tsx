@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 
-import { DayDocumentScreen } from '@/features/branch-day';
+import { DayDocumentScreen } from '@/features/inventory/branch-day';
 
 export default function BranchDayDocumentPage() {
   const params = useParams();

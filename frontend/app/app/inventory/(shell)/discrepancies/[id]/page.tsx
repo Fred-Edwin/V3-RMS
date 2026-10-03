@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 
-import { DiscrepancyResolutionScreen } from '@/features/dispatch';
+import { DiscrepancyResolutionScreen } from '@/features/inventory/dispatch';
 
 export default function InventoryDiscrepancyDetailPage() {
   const params = useParams();

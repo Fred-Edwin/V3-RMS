@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { PrintablePurchaseList, type PrintablePurchaseListProps } from '@/features/inventory/components/printable-purchase-list';
+import { PrintablePurchaseList, type PrintablePurchaseListProps } from '@/features/inventory/purchasing/components/printable-purchase-list';
 
 const PRINT_HANDOFF_KEY = 'inventory:new-purchase:print-draft';
 

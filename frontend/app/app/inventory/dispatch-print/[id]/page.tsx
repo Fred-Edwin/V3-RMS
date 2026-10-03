@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { useParams } from 'next/navigation';
 
-import { PrintableDeliveryNote } from '@/features/dispatch/components/printable-delivery-note';
-import { useDeliveryNote } from '@/features/dispatch/hooks/use-delivery-note';
+import { PrintableDeliveryNote } from '@/features/inventory/dispatch/components/printable-delivery-note';
+import { useDeliveryNote } from '@/features/inventory/dispatch/hooks/use-delivery-note';
 
 /**
  * Standalone print route for the Delivery Note (`15QW-0`/`15SU-0`) —

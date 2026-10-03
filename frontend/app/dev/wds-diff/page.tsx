@@ -13,15 +13,15 @@ import * as React from 'react';
 import { Input } from '@/components/ui2/input';
 import { MobileHubHeader, MobileTaskHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { KpiStrip, KpiRow } from '@/features/inventory/components/kpi-strip';
-import { DrawerShell } from '@/features/inventory/components/drawer-shell';
+import { KpiStrip, KpiRow } from '@/features/inventory/_shared/components/kpi-strip';
+import { DrawerShell } from '@/features/inventory/_shared/components/drawer-shell';
 
-import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/components/supplier-form';
+import { SupplierFormFields, type SupplierFormValues } from '@/features/inventory/suppliers/components/supplier-form';
 import {
   RestockLevelGrid,
   RestockLevelHelperNote,
   type RestockLevelRow,
-} from '@/features/inventory/components/restock-level-grid';
+} from '@/features/inventory/restock/components/restock-level-grid';
 
 export default function WdsDiffPage() {
   const [target, setTarget] = React.useState<string | null>(null);

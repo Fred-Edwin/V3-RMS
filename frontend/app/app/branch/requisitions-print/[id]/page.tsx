@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 
-import { PrintableRequisition } from '@/features/requisitions/components/printable-requisition';
-import { PRINT_HANDOFF_KEY, type PrintableRequisitionProps } from '@/features/requisitions/components/printable-requisition-handoff';
+import { PrintableRequisition } from '@/features/inventory/requisitions/components/printable-requisition';
+import { PRINT_HANDOFF_KEY, type PrintableRequisitionProps } from '@/features/inventory/requisitions/components/printable-requisition-handoff';
 
 /**
  * Standalone print route for the approval detail — outside `(shell)`, no

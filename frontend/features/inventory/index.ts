@@ -27,52 +27,52 @@ export type {
 } from '@/components/app/shell/sign-sheet';
 
 // Milestone One screens.
-export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
-export { StoreRestockLevelsScreen } from './components/screens/store-restock-levels-screen';
-export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';
+export { ItemCatalogScreen } from './catalog/components/screens/item-catalog-screen';
+export { StoreRestockLevelsScreen } from './restock/components/screens/store-restock-levels-screen';
+export { DepartmentRestockLevelsScreen } from './restock/components/screens/department-restock-levels-screen';
 
 // Milestone Two (Receiving & Supplier AP) — S5/S6 screens.
-export { PurchasingHubScreen } from './components/screens/purchasing-hub-screen';
-export { ReceivingWorklistScreen } from './components/screens/receiving-worklist-screen';
-export { ReceivingHistoryScreen } from './components/screens/receiving-history-screen';
-export { InboundListScreen } from './components/screens/inbound-list-screen';
-export { HistoryListScreen } from './components/screens/history-list-screen';
-export { NewPurchaseScreen } from './components/screens/new-purchase-screen';
-export { NewGoodsReceiptScreen } from './components/screens/new-goods-receipt-screen';
-export { GoodsReceiptDetailScreen } from './components/screens/goods-receipt-detail-screen';
+export { PurchasingHubScreen } from './purchasing/components/screens/purchasing-hub-screen';
+export { ReceivingWorklistScreen } from './purchasing/components/screens/receiving-worklist-screen';
+export { ReceivingHistoryScreen } from './purchasing/components/screens/receiving-history-screen';
+export { InboundListScreen } from './purchasing/components/screens/inbound-list-screen';
+export { HistoryListScreen } from './purchasing/components/screens/history-list-screen';
+export { NewPurchaseScreen } from './purchasing/components/screens/new-purchase-screen';
+export { NewGoodsReceiptScreen } from './purchasing/components/screens/new-goods-receipt-screen';
+export { GoodsReceiptDetailScreen } from './purchasing/components/screens/goods-receipt-detail-screen';
 
 // Suppliers (Part C, Session 6): the list and the supplier page replace Milestone Two's Supplier AP screens.
-export { SuppliersListScreen } from './components/screens/suppliers-list-screen';
-export { SupplierPageScreen } from './components/screens/supplier-page-screen';
+export { SuppliersListScreen } from './suppliers/components/screens/suppliers-list-screen';
+export { SupplierPageScreen } from './suppliers/components/screens/supplier-page-screen';
 
 // Milestone Three — Prep.
-export { PrepRunsListScreen } from './components/screens/prep-runs-list-screen';
-export { PrepHistoryScreen } from './components/screens/prep-history-screen';
+export { PrepRunsListScreen } from './prep/components/screens/prep-runs-list-screen';
+export { PrepHistoryScreen } from './prep/components/screens/prep-history-screen';
 
 // Milestone Six, Session 1 — Stock position & waste.
-export { StockHubScreen } from './components/screens/stock-hub-screen';
-export { StockItemsScreen } from './components/screens/stock-items-screen';
-export { StockLedgerScreen, StockLedgerPickerScreen } from './components/screens/stock-ledger-screen';
-export { DepartmentLogWasteScreen } from './components/screens/department-log-waste-screen';
-export { DailyCountScreen } from './components/screens/daily-count-screen';
-export { StockCountsScreen } from './components/screens/stock-counts-screen';
-export { SpotCountScreen } from './components/screens/spot-count-screen';
+export { StockHubScreen } from './stock/components/screens/stock-hub-screen';
+export { StockItemsScreen } from './stock/components/screens/stock-items-screen';
+export { StockLedgerScreen, StockLedgerPickerScreen } from './stock/components/screens/stock-ledger-screen';
+export { DepartmentLogWasteScreen } from './waste/components/screens/department-log-waste-screen';
+export { DailyCountScreen } from './counting/components/screens/daily-count-screen';
+export { StockCountsScreen } from './counting/components/screens/stock-counts-screen';
+export { SpotCountScreen } from './counting/components/screens/spot-count-screen';
 
 // Pre-Demo Fixes — Store Manager Settings (Team + My PIN).
-export { SettingsScreen } from './components/screens/settings-screen';
+export { SettingsScreen } from './settings/components/screens/settings-screen';
 
 // Milestone Six, Session 3 — pieces the branch day close (features/branch-day)
 // shares with the Central Store's counting screens, so it reuses rather than
 // forks them: PIN sheet, the one reason control, states kit, mobile header,
 // drawer motion, number/date formatting, the loader hook.
-export { PinSheet } from './components/stock/pin-sheet';
-export type { PinSheetProps } from './components/stock/pin-sheet';
-export { CountReasonControl } from './components/stock/count-reason';
-export type { CountReasonControlProps, ReasonOption } from './components/stock/count-reason';
-export { Reveal, StatCell, StatusDot } from './components/stock/count-verify-parts';
-export { HighlightOnChange } from './components/stock/highlight-on-change';
-export { StockMobileHeader } from './components/stock/stock-mobile-header';
-export { STOCK_DRAWER_MOTION, useReturnFocus } from './components/stock/log-waste-drawer';
+export { PinSheet } from './counting/components/pin-sheet';
+export type { PinSheetProps } from './counting/components/pin-sheet';
+export { CountReasonControl } from './counting/components/count-reason';
+export type { CountReasonControlProps, ReasonOption } from './counting/components/count-reason';
+export { Reveal, StatCell, StatusDot } from './counting/components/count-verify-parts';
+export { HighlightOnChange } from './stock/components/highlight-on-change';
+export { StockMobileHeader } from './stock/components/stock-mobile-header';
+export { STOCK_DRAWER_MOTION, useReturnFocus } from './waste/components/log-waste-drawer';
 export {
   FormErrorBanner,
   KpiValueSkeleton,
@@ -82,7 +82,7 @@ export {
   StockEmptyCard,
   StockErrorCard,
   TableRowSkeleton,
-} from './components/stock/stock-states';
+} from './_shared/components/stock-states';
 export {
   DEPARTMENT_LABEL,
   formatClock,
@@ -97,5 +97,5 @@ export {
   formatSignedKes,
   formatVariance,
   shortName,
-} from './components/stock/stock-format';
-export { useResource } from './hooks/use-stock';
+} from './_shared/components/stock-format';
+export { useResource } from './stock/hooks/use-stock';

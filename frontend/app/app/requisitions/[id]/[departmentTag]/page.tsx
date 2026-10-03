@@ -2,8 +2,8 @@
 
 import { useParams } from 'next/navigation';
 
-import { RequisitionSectionFillScreen } from '@/features/requisitions';
-import type { DepartmentTag } from '@/features/requisitions';
+import { RequisitionSectionFillScreen } from '@/features/inventory/requisitions';
+import type { DepartmentTag } from '@/features/inventory/requisitions';
 
 export default function RequisitionSectionFillPage() {
   const params = useParams();

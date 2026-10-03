@@ -3,8 +3,8 @@
 import { useSearchParams } from 'next/navigation';
 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { RequisitionApprovalScreen } from '@/features/requisitions/components/screens/requisition-approval-screen';
-import { RequisitionsForApprovalMobileScreen } from '@/features/requisitions/components/screens/requisitions-for-approval-mobile-screen';
+import { RequisitionApprovalScreen } from '@/features/inventory/requisitions/components/screens/requisition-approval-screen';
+import { RequisitionsForApprovalMobileScreen } from '@/features/inventory/requisitions/components/screens/requisitions-for-approval-mobile-screen';
 
 export default function BranchRequisitionsPage() {
   const searchParams = useSearchParams();
