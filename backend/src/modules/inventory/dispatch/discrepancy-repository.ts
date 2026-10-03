@@ -1,5 +1,5 @@
 import { Prisma, type Discrepancy, type DiscrepancyOutcome } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { prisma } from '../../../config/database';
 
 type TxClient = Prisma.TransactionClient;
 

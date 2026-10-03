@@ -3,12 +3,12 @@ import { Prisma } from '@prisma/client';
 import { dispatchService } from './dispatch-service';
 import { dispatchRepository } from './dispatch-repository';
 import { discrepancyRepository } from './discrepancy-repository';
-import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
-import { locationRepository } from '../../repositories/location-repository';
-import { authRepository } from '../../repositories/auth-repository';
-import { fcmService } from '../../services/fcm-service';
-import { comparePin } from '../../utils/password';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
+import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { locationRepository } from '../../../repositories/location-repository';
+import { authRepository } from '../../../repositories/auth-repository';
+import { fcmService } from '../../../services/fcm-service';
+import { comparePin } from '../../../utils/password';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
 
 vi.mock('./dispatch-repository', () => ({
   dispatchRepository: {
@@ -23,23 +23,23 @@ vi.mock('./discrepancy-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/purchasing/receiving-repository', () => ({
+vi.mock('../purchasing/receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('DSC-0001') },
 }));
 
-vi.mock('../../repositories/location-repository', () => ({
+vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
 }));
 
-vi.mock('../../repositories/auth-repository', () => ({
+vi.mock('../../../repositories/auth-repository', () => ({
   authRepository: { findUserByIdWithPassword: vi.fn() },
 }));
 
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: { sendReceiptVariancePush: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('../../utils/password', () => ({
+vi.mock('../../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
@@ -49,7 +49,7 @@ const { txDispatchLineUpdate, txDispatchUpdate, txInventoryTransactionCreate } =
   txInventoryTransactionCreate: vi.fn(),
 }));
 
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
       fn({

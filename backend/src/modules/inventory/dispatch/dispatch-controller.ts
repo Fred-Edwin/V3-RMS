@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { UnauthorizedError } from '../../utils/errors';
+import { UnauthorizedError } from '../../../utils/errors';
 import { dispatchService } from './dispatch-service';
 import { discrepancyService } from './discrepancy-service';
 import {

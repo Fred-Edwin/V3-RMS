@@ -9,12 +9,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { branchDayService } from './branch-day-service';
 import { branchDayRepository } from './branch-day-repository';
-import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
-import { thresholdsRepository } from '../inventory/counting/thresholds-repository';
-import { authRepository } from '../../repositories/auth-repository';
-import { branchRepository } from '../../repositories/branch-repository';
-import { fcmService } from '../../services/fcm-service';
-import { comparePin } from '../../utils/password';
+import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { thresholdsRepository } from '../counting/thresholds-repository';
+import { authRepository } from '../../../repositories/auth-repository';
+import { branchRepository } from '../../../repositories/branch-repository';
+import { fcmService } from '../../../services/fcm-service';
+import { comparePin } from '../../../utils/password';
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 
@@ -46,15 +46,15 @@ vi.mock('./branch-day-repository', () => ({
     activeOpeningAdjustments: vi.fn(),
   },
 }));
-vi.mock('../inventory/purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
-vi.mock('../inventory/counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
-vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
-vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
-vi.mock('../../utils/password', () => ({ comparePin: vi.fn() }));
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findByOrganization: vi.fn() } }));
+vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
+vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));
+vi.mock('../../../utils/password', () => ({ comparePin: vi.fn() }));
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: { sendBranchDayDirectorAlertPush: vi.fn(), sendOvernightVarianceAlertPush: vi.fn() },
 }));
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn(async (fn: (t: unknown) => unknown) => {
       order.push('tx:start');

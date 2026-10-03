@@ -1,6 +1,6 @@
 import { Prisma, type Dispatch, type DispatchLine, type DispatchStatus, type DepartmentTag } from '@prisma/client';
-import { prisma } from '../../config/database';
-import { getTodayNairobiRangeUtc } from '../../utils/date-only';
+import { prisma } from '../../../config/database';
+import { getTodayNairobiRangeUtc } from '../../../utils/date-only';
 
 type TxClient = Prisma.TransactionClient;
 type Client = typeof prisma | TxClient;

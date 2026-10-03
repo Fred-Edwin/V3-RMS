@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/authenticate';
-import { requireDepartmentHead, requireRole } from '../../middleware/rbac';
+import { authenticate } from '../../../middleware/authenticate';
+import { requireDepartmentHead, requireRole } from '../../../middleware/rbac';
 import { requisitionsController } from './requisitions-controller';
 
 const router = Router();

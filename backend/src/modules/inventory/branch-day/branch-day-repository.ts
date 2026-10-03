@@ -1,5 +1,5 @@
 import { Prisma, type BranchDayDepartmentStatus, type DepartmentTag, type GapReason } from '@prisma/client';
-import { prisma } from '../../config/database';
+import { prisma } from '../../../config/database';
 
 type Tx = Prisma.TransactionClient;
 

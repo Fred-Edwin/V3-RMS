@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { dispatchService } from './dispatch-service';
 import { dispatchRepository } from './dispatch-repository';
-import { branchRepository } from '../../repositories/branch-repository';
-import { locationRepository } from '../../repositories/location-repository';
-import { restockLevelRepository } from '../inventory/catalog/inventory-repository';
-import { authRepository } from '../../repositories/auth-repository';
-import { fcmService } from '../../services/fcm-service';
-import { comparePin } from '../../utils/password';
-import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
+import { branchRepository } from '../../../repositories/branch-repository';
+import { locationRepository } from '../../../repositories/location-repository';
+import { restockLevelRepository } from '../catalog/inventory-repository';
+import { authRepository } from '../../../repositories/auth-repository';
+import { fcmService } from '../../../services/fcm-service';
+import { comparePin } from '../../../utils/password';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
 
 vi.mock('./dispatch-repository', () => ({
   dispatchRepository: {
@@ -23,27 +23,27 @@ vi.mock('./dispatch-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/catalog/inventory-repository', () => ({
+vi.mock('../catalog/inventory-repository', () => ({
   restockLevelRepository: { sumOnHandByItemForLocation: vi.fn() },
 }));
 
-vi.mock('../../repositories/location-repository', () => ({
+vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn() },
 }));
 
-vi.mock('../../repositories/branch-repository', () => ({
+vi.mock('../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn(), findActiveBranchIds: vi.fn() },
 }));
 
-vi.mock('../../repositories/auth-repository', () => ({
+vi.mock('../../../repositories/auth-repository', () => ({
   authRepository: { findUserByIdWithPassword: vi.fn() },
 }));
 
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: { sendDispatchInTransitPush: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('../../utils/password', () => ({
+vi.mock('../../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
@@ -53,7 +53,7 @@ const { txDispatchFindUniqueOrThrow, txInventoryTransactionCreate, txInventoryIt
   txInventoryItemFindMany: vi.fn(),
 }));
 
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
       fn({

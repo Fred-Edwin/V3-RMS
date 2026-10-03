@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { UnauthorizedError } from '../../utils/errors';
+import { UnauthorizedError } from '../../../utils/errors';
 import { branchDayService } from './branch-day-service';
 import { AcceptOpeningSchema, BranchDayParamsSchema, HistoryQuerySchema, CloseDaySchema, DepartmentParamsSchema, ReopenDaySchema, SaveDepartmentLinesSchema } from './branch-day-validators';
 

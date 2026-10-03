@@ -9,10 +9,10 @@ import { dispatchService } from './dispatch-service';
 import { discrepancyService } from './discrepancy-service';
 import { dispatchRepository } from './dispatch-repository';
 import { discrepancyRepository } from './discrepancy-repository';
-import { branchRepository } from '../../repositories/branch-repository';
-import { locationRepository } from '../../repositories/location-repository';
-import { authRepository } from '../../repositories/auth-repository';
-import { comparePin } from '../../utils/password';
+import { branchRepository } from '../../../repositories/branch-repository';
+import { locationRepository } from '../../../repositories/location-repository';
+import { authRepository } from '../../../repositories/auth-repository';
+import { comparePin } from '../../../utils/password';
 import {
   ConfirmDeliverySchema,
   DeliveryNoteSchema,
@@ -43,27 +43,27 @@ vi.mock('./discrepancy-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/purchasing/receiving-repository', () => ({
+vi.mock('../purchasing/receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('DSC-0001') },
 }));
 
-vi.mock('../../repositories/location-repository', () => ({
+vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
 }));
 
-vi.mock('../../repositories/branch-repository', () => ({
+vi.mock('../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn(), findActiveBranchIds: vi.fn() },
 }));
 
-vi.mock('../../repositories/auth-repository', () => ({
+vi.mock('../../../repositories/auth-repository', () => ({
   authRepository: { findUserByIdWithPassword: vi.fn() },
 }));
 
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: { sendReceiptVariancePush: vi.fn().mockResolvedValue(undefined), sendDiscrepancyResolvedPush: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('../../utils/password', () => ({
+vi.mock('../../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
@@ -81,7 +81,7 @@ const {
   txLocationFindFirst: vi.fn(),
 }));
 
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
       fn({

@@ -35,9 +35,9 @@ import prepRoutes from '../modules/inventory/prep/prep-routes';
 import stockRoutes from '../modules/inventory/stock/stock-routes';
 import wasteRoutes from '../modules/inventory/waste/waste-routes';
 import countRoutes from '../modules/inventory/counting/count-routes';
-import branchDayRoutes from '../modules/branch-day/branch-day-routes';
-import requisitionsRoutes from '../modules/requisitions/requisitions-routes';
-import dispatchRoutes from '../modules/dispatch/dispatch-routes';
+import branchDayRoutes from '../modules/inventory/branch-day/branch-day-routes';
+import requisitionsRoutes from '../modules/inventory/requisitions/requisitions-routes';
+import dispatchRoutes from '../modules/inventory/dispatch/dispatch-routes';
 
 const apiRouter = Router();
 

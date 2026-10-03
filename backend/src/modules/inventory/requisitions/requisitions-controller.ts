@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { UnauthorizedError } from '../../utils/errors';
+import { UnauthorizedError } from '../../../utils/errors';
 import { requisitionService } from './requisitions-service';
 import {
   ApproveRequisitionSchema,

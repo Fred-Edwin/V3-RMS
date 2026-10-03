@@ -1,6 +1,6 @@
 import { Prisma, type DepartmentTag, type Requisition, type RequisitionSection, type RequisitionLine } from '@prisma/client';
-import { prisma } from '../../config/database';
-import { getTodayNairobiRangeUtc } from '../../utils/date-only';
+import { prisma } from '../../../config/database';
+import { getTodayNairobiRangeUtc } from '../../../utils/date-only';
 import type { RequisitionDisplayStatus } from './requisitions.types';
 
 type TxClient = Prisma.TransactionClient;

@@ -3,13 +3,13 @@ import { Prisma } from '@prisma/client';
 import { discrepancyService } from './discrepancy-service';
 import { discrepancyRepository } from './discrepancy-repository';
 import { dispatchRepository } from './dispatch-repository';
-import { referenceCounterRepository } from '../inventory/purchasing/receiving-repository';
-import { branchRepository } from '../../repositories/branch-repository';
-import { locationRepository } from '../../repositories/location-repository';
-import { authRepository } from '../../repositories/auth-repository';
-import { fcmService } from '../../services/fcm-service';
-import { comparePin } from '../../utils/password';
-import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../utils/errors';
+import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { branchRepository } from '../../../repositories/branch-repository';
+import { locationRepository } from '../../../repositories/location-repository';
+import { authRepository } from '../../../repositories/auth-repository';
+import { fcmService } from '../../../services/fcm-service';
+import { comparePin } from '../../../utils/password';
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../../../utils/errors';
 
 vi.mock('./discrepancy-repository', () => ({
   discrepancyRepository: {
@@ -22,7 +22,7 @@ vi.mock('./discrepancy-repository', () => ({
   },
 }));
 
-vi.mock('../inventory/purchasing/receiving-repository', () => ({
+vi.mock('../purchasing/receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('ADJ-0001') },
 }));
 
@@ -34,23 +34,23 @@ vi.mock('./dispatch-repository', () => ({
   },
 }));
 
-vi.mock('../../repositories/branch-repository', () => ({
+vi.mock('../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn(), findActiveBranchIds: vi.fn() },
 }));
 
-vi.mock('../../repositories/location-repository', () => ({
+vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findCentralStore: vi.fn(), findByOrganizationTypeDepartment: vi.fn() },
 }));
 
-vi.mock('../../repositories/auth-repository', () => ({
+vi.mock('../../../repositories/auth-repository', () => ({
   authRepository: { findUserByIdWithPassword: vi.fn() },
 }));
 
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: { sendDiscrepancyResolvedPush: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('../../utils/password', () => ({
+vi.mock('../../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
@@ -64,7 +64,7 @@ const {
   txLocationFindFirst: vi.fn(),
 }));
 
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
       fn({

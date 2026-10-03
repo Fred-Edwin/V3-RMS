@@ -47,11 +47,11 @@ vi.mock('./requisitions-repository', () => ({
   },
 }));
 
-vi.mock('../../repositories/auth-repository', () => ({
+vi.mock('../../../repositories/auth-repository', () => ({
   authRepository: { findUserByIdWithPassword: vi.fn() },
 }));
 
-vi.mock('../../sockets/socket-service', () => ({
+vi.mock('../../../sockets/socket-service', () => ({
   socketService: {
     emitRequisitionSubmitted: vi.fn(),
     emitRequisitionDecision: vi.fn(),
@@ -60,7 +60,7 @@ vi.mock('../../sockets/socket-service', () => ({
   },
 }));
 
-vi.mock('../../services/fcm-service', () => ({
+vi.mock('../../../services/fcm-service', () => ({
   fcmService: {
     sendRequisitionSubmittedPush: vi.fn().mockResolvedValue(undefined),
     sendRequisitionDecisionPush: vi.fn().mockResolvedValue(undefined),
@@ -69,24 +69,24 @@ vi.mock('../../services/fcm-service', () => ({
   },
 }));
 
-vi.mock('../../utils/password', () => ({
+vi.mock('../../../utils/password', () => ({
   comparePin: vi.fn(),
 }));
 
-vi.mock('../inventory/catalog/inventory-repository', () => ({
+vi.mock('../catalog/inventory-repository', () => ({
   inventoryItemRepository: { findLiveByIds: vi.fn() },
   restockLevelRepository: { findByItemIdsForLocation: vi.fn() },
 }));
 
-vi.mock('../../repositories/location-repository', () => ({
+vi.mock('../../../repositories/location-repository', () => ({
   locationRepository: { findByOrganizationTypeDepartment: vi.fn() },
 }));
 
-vi.mock('../../repositories/branch-repository', () => ({
+vi.mock('../../../repositories/branch-repository', () => ({
   branchRepository: { findHub: vi.fn() },
 }));
 
-vi.mock('../../config/database', () => ({
+vi.mock('../../../config/database', () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
     category: { findMany: vi.fn().mockResolvedValue([]) },
