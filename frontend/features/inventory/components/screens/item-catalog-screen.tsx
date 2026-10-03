@@ -18,6 +18,7 @@ import { DEPARTMENT_ORDER, ITEM_TYPE_DOT_CLASS, ITEM_TYPE_LABEL_SHORT } from '..
 import { formatHowWeBuy, formatUsedBy } from '../../lib/item-format';
 import { CatalogFilters, type FilterOption } from '../catalog/catalog-filters';
 import { CatalogKpiStrip, type CatalogKpiCell } from '../catalog/catalog-kpi-strip';
+import { CategoryPills } from '../catalog/category-pills';
 import { CatalogTable } from '../catalog/catalog-table';
 import { ItemAddedBar } from '../catalog/catalog-toast';
 import { ItemDrawers, type DrawerRequest } from '../catalog/item-drawers';
@@ -110,7 +111,13 @@ export function ItemCatalogScreen() {
     }),
     [search, type, departmentTag, categoryId, showRetired, needsSetup]
   );
-  const { items, meta, pagination, categories, status, error, setPage, reload } = useItemCatalog(filters);
+  const { items, meta, pagination, categories, status, error, page, setPage, reload } = useItemCatalog(filters);
+
+  // On a phone the list scrolls inside <main>: a new filter or page starts from its top.
+  const listRef = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [search, type, departmentTag, categoryId, showRetired, needsSetup, page]);
 
   // The "Item added" bar goes by itself; the row's tag stays until the list is reloaded for another reason.
   React.useEffect(() => {
@@ -270,19 +277,25 @@ export function ItemCatalogScreen() {
   ) : null;
 
   if (!isDesktop) {
+    const pills = categories.filter((c) => !c.retiredAt).map((c) => ({ id: c.id, name: c.name, count: c.itemCount }));
     return (
-      <div className="flex min-h-screen flex-col bg-wds-canvas">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-wds-canvas">
         <MobileStatusBar />
         <MobileHubHeader title="Item catalog" subtitle={`${meta?.itemsTracked ?? 0} items across the Central Store`} userInitials="JM" onMenuClick={openMobileNav} />
-        <div className="flex flex-1 flex-col gap-4 p-4">
+        {/* Search and category pills stay put; only the list below scrolls. */}
+        <div className="flex shrink-0 flex-col gap-3 border-b border-wds-border bg-wds-surface px-4 py-3">
           <input
             type="search"
+            name="search"
             aria-label="Search items"
             placeholder="Search items"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="h-11 w-full rounded-wds-md border border-wds-border-strong bg-wds-surface px-3 font-wds-sans text-wds-body text-wds-text-ink placeholder:text-wds-text-muted focus-visible:outline-none focus-visible:border-wds-primary focus-visible:shadow-wds-ring"
           />
+          {pills.length > 0 ? <CategoryPills categories={pills} selectedId={categoryId} onSelect={setCategoryId} /> : null}
+        </div>
+        <main ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4 [&>*]:shrink-0">
           {status === 'error' ? (
             <StockErrorCard title="Couldn’t load the item catalog" description={error ?? 'Check your connection and try again.'} onRetry={() => void reload()} />
           ) : status === 'idle' || (status === 'loading' && items.length === 0) ? (
@@ -292,15 +305,30 @@ export function ItemCatalogScreen() {
           ) : items.length === 0 ? (
             emptyBody
           ) : (
-            <div className="flex flex-col rounded-wds-md border border-wds-border bg-wds-surface">
-              {items.map((row) => (
-                <MobileItemRow key={row.id} row={row} onClick={openItem ? () => openItem(row) : undefined} />
-              ))}
-            </div>
+            <>
+              <div className="flex flex-col rounded-wds-md border border-wds-border bg-wds-surface">
+                {items.map((row) => (
+                  <MobileItemRow key={row.id} row={row} onClick={openItem ? () => openItem(row) : undefined} />
+                ))}
+              </div>
+              {pagination && pagination.totalPages > 1 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <Button variant="secondary" disabled={pagination.page <= 1} onClick={() => setPage(pagination.page - 1)}>
+                    Previous
+                  </Button>
+                  <span className="font-wds-sans text-wds-caption text-wds-text-copy-muted">
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <Button variant="secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(pagination.page + 1)}>
+                    Next
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
-        </div>
+        </main>
         {isManager ? (
-          <div className="sticky bottom-0 flex gap-2 border-t border-wds-border bg-wds-surface p-4">
+          <div className="flex shrink-0 gap-2 border-t border-wds-border bg-wds-surface p-4">
             <Button variant="secondary" className="flex-1" onClick={() => openDrawer({ kind: 'categories' })}>
               Categories
             </Button>

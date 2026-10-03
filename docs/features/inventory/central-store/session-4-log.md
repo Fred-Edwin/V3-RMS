@@ -46,6 +46,11 @@ Chapters built: 0 (type labels), 1 (catalog, Add item, similar-name warning, Ite
 ## Retired in this session
 `item-catalog-table.tsx`, `item-form.tsx`, `item-form-validation.ts` (+ its test), `category-manager-list.tsx`, `item-type-icon.tsx`, `screens/item-form-screen.tsx`, `screens/category-manager-screen.tsx`, the catalog skeletons in `skeletons.tsx`, and the unused `inventory-mock-service.ts` and `mock-data.ts` (nothing imported them). The three dev-gallery specimens of the deleted components were removed from `app/dev/wds` and `app/dev/wds-diff`. Not touched (Session 7): deprecated supplier keys and aliases, supplier screens, `types/index.ts` supplier types.
 
+## Follow-up after owner feedback (3 Oct 2026)
+- **The phone catalog did not scroll.** The inventory shell wraps pages in `h-screen overflow-hidden`; the phone branch had no scroll container of its own. It now follows the pattern of the other phone screens: fixed header, a search box and category pills pinned above a list that scrolls inside `<main>`, and the Categories / New item buttons pinned at the bottom. The list also had no way past the first 20 items on a phone, so Previous / Next sit under the list; the list returns to the top on any filter or page change.
+- **Category pills (phone):** `All` plus one pill per live category with its item count, scrolling sideways; tapping a pill filters the list, tapping it again clears it. Squared (2px) like the other chips, as the owner asked. This is an addition to the drawn phone layout (not in Paper); the phone redesign in Session 7 should keep or redraw it.
+- Verified at 390px emulated: the list scrolls, pills filter (Beverages → 21 items, first "Coffee beans"), paging works (Page 2 of 11), no page-level horizontal scroll.
+
 ## Parity notes (by eye plus measured computed styles)
 | Screen | Tier | Anchors measured | Result |
 |---|---|---|---|
