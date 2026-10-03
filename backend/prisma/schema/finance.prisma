@@ -1,0 +1,224 @@
+enum HouseAccountAuthStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  TIMED_OUT
+}
+
+// ─── Credit Account Models ────────────────────────────────────────────────────
+
+model HouseAccount {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+  creditLimit    Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  grantedById    String   @map("granted_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user         User                      @relation("HouseAccountHolder", fields: [userId], references: [id])
+  grantedBy    User                      @relation("HouseAccountGrantedBy", fields: [grantedById], references: [id])
+  settlements  HouseAccountSettlement[]
+  orders       Order[]
+  authRequests HouseAccountAuthRequest[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("house_accounts")
+}
+
+model HouseAccountSettlement {
+  id             String   @id @default(uuid())
+  houseAccountId String   @map("house_account_id")
+  amount         Decimal  @db.Decimal(10, 2)
+  note           String?
+  settledById    String   @map("settled_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  houseAccount HouseAccount @relation(fields: [houseAccountId], references: [id])
+  settledBy    User         @relation("HouseAccountSettledBy", fields: [settledById], references: [id])
+
+  @@index([houseAccountId])
+  @@map("house_account_settlements")
+}
+
+model HouseAccountAuthRequest {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  orderId        String                 @map("order_id")
+  houseAccountId String                 @map("house_account_id")
+  requestedById  String                 @map("requested_by_id")
+  amount         Decimal                @db.Decimal(10, 2)
+  status         HouseAccountAuthStatus @default(PENDING)
+  bullmqJobId    String?                @map("bullmq_job_id")
+  expiresAt      DateTime               @map("expires_at")
+  resolvedById   String?                @map("resolved_by_id")
+  resolvedAt     DateTime?              @map("resolved_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  houseAccount HouseAccount @relation(fields: [houseAccountId], references: [id])
+  requestedBy  User         @relation("HouseAuthRequestedBy", fields: [requestedById], references: [id])
+  resolvedBy   User?        @relation("HouseAuthResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([orderId])
+  @@index([houseAccountId])
+  @@index([status])
+  @@map("house_account_auth_requests")
+}
+
+model CorporateAccount {
+  id              String   @id @default(uuid())
+  companyName     String   @map("company_name")
+  contactName     String   @map("contact_name")
+  contactPhone    String   @map("contact_phone")
+  contactEmail    String?  @map("contact_email")
+  creditLimit     Decimal? @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance  Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  billingCycleDay Int      @default(1) @map("billing_cycle_day")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  createdBy   User                         @relation("CorporateAccountCreatedBy", fields: [createdById], references: [id])
+  settlements CorporateAccountSettlement[]
+  orders      Order[]
+
+  @@index([isActive])
+  @@index([companyName])
+  @@map("corporate_accounts")
+}
+
+model CorporateAccountSettlement {
+  id                 String        @id @default(uuid())
+  corporateAccountId String        @map("corporate_account_id")
+  amount             Decimal       @db.Decimal(10, 2)
+  paymentMethod      PaymentMethod @map("payment_method")
+  note               String?
+  settledById        String        @map("settled_by_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  corporateAccount CorporateAccount @relation(fields: [corporateAccountId], references: [id])
+  settledBy        User             @relation("CorporateAccountSettledBy", fields: [settledById], references: [id])
+  printJobs        PrintJob[]
+
+  @@index([corporateAccountId])
+  @@map("corporate_account_settlements")
+}
+
+model CustomerCreditAccount {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  customerName   String   @map("customer_name")
+  customerPhone  String   @map("customer_phone")
+  creditLimit    Decimal  @map("credit_limit") @db.Decimal(10, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  notes          String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization               @relation(fields: [organizationId], references: [id])
+  createdBy    User                       @relation("CustomerCreditAccountCreatedBy", fields: [createdById], references: [id])
+  settlements  CustomerCreditSettlement[]
+  orders       Order[]
+
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([customerPhone])
+  @@map("customer_credit_accounts")
+}
+
+model CustomerCreditSettlement {
+  id                      String   @id @default(uuid())
+  customerCreditAccountId String   @map("customer_credit_account_id")
+  amount                  Decimal  @db.Decimal(10, 2)
+  note                    String?
+  settledById             String   @map("settled_by_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  customerCreditAccount CustomerCreditAccount @relation(fields: [customerCreditAccountId], references: [id])
+  settledBy             User                  @relation("CustomerCreditSettledBy", fields: [settledById], references: [id])
+
+  @@index([customerCreditAccountId])
+  @@map("customer_credit_settlements")
+}
+
+// ─── Other Income ─────────────────────────────────────────────────────────────
+
+enum OtherIncomePaymentMethod {
+  CASH
+  MPESA
+  CARD
+  SPLIT
+}
+
+model OtherIncomeCategory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  branchId       String?  @map("branch_id") // null = available to all branches in the org
+  name           String
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  branch       Organization?      @relation("OtherIncomeCategoryBranch", fields: [branchId], references: [id])
+  entries      OtherIncomeEntry[]
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@map("other_income_categories")
+}
+
+model OtherIncomeEntry {
+  id             String                   @id @default(uuid())
+  organizationId String                   @map("organization_id")
+  branchId       String                   @map("branch_id")
+  categoryId     String                   @map("category_id")
+  amount         Decimal                  @db.Decimal(10, 2)
+  paymentMethod  OtherIncomePaymentMethod @map("payment_method")
+  mpesaCode      String?                  @map("mpesa_code")
+  mpesaAmount    Decimal?                 @map("mpesa_amount") @db.Decimal(10, 2)
+  cashAmount     Decimal?                 @map("cash_amount") @db.Decimal(10, 2)
+  cardAmount     Decimal?                 @map("card_amount") @db.Decimal(10, 2)
+  splitType      String?                  @map("split_type")
+  description    String?
+  entryDate      DateTime                 @map("entry_date") @db.Date
+  recordedById   String                   @map("recorded_by_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  organization Organization           @relation(fields: [organizationId], references: [id])
+  branch       Organization           @relation("OtherIncomeEntryBranch", fields: [branchId], references: [id])
+  category     OtherIncomeCategory    @relation(fields: [categoryId], references: [id])
+  recordedBy   User                   @relation("OtherIncomeRecordedBy", fields: [recordedById], references: [id])
+  edits        OtherIncomeEntryEdit[]
+
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([organizationId, entryDate])
+  @@index([categoryId])
+  @@map("other_income_entries")
+}
+
+/// Audit trail for corrections made to an OtherIncomeEntry after it was recorded.
+/// One row per edit action; `changes` holds an array of { field, from, to } objects.
+model OtherIncomeEntryEdit {
+  id         String   @id @default(uuid())
+  entryId    String   @map("entry_id")
+  editedById String   @map("edited_by_id")
+  changes    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  entry    OtherIncomeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  editedBy User             @relation("OtherIncomeEntryEditedBy", fields: [editedById], references: [id])
+
+  @@index([entryId])
+  @@map("other_income_entry_edits")
+}

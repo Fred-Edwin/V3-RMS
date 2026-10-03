@@ -1,0 +1,181 @@
+// ── Milestone Four — Requisition & Branch Approval ─────────────────────────
+// A requisition is one document per branch-day-slot with exactly five
+// sections, one per DepartmentTag. This milestone never writes to the
+// inventory ledger — see docs/features/inventory/milestone-4-plan.md §0.
+enum RequisitionType {
+  MORNING
+  AFTERNOON
+  EVENING
+  AD_HOC
+}
+
+enum RequisitionStatus {
+  OPEN // sections still being filled; nothing submitted yet is fine
+  PENDING_APPROVAL // at least one section submitted, not yet signed
+  APPROVED // signed; visible in Central Store dispatch queue
+}
+
+enum RequisitionSectionStatus {
+  NOT_STARTED
+  DRAFT // head has unsaved/in-progress edits
+  SUBMITTED
+  RETURNED // bounced back by branch manager with a note
+}
+
+model Requisition {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id") // branch org
+  type           RequisitionType
+  note           String? // optional free text, e.g. distinguishing two same-day AD_HOC requisitions
+  status         RequisitionStatus @default(OPEN)
+  openedById     String            @map("opened_by_id")
+  openedAt       DateTime          @default(now()) @map("opened_at")
+  approvedById   String?           @map("approved_by_id")
+  approvedAt     DateTime?         @map("approved_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id])
+  openedBy     User                 @relation("RequisitionOpenedBy", fields: [openedById], references: [id])
+  approvedBy   User?                @relation("RequisitionApprovedBy", fields: [approvedById], references: [id])
+  sections     RequisitionSection[]
+  dispatches   Dispatch[]
+
+  @@index([organizationId, status])
+  @@map("requisitions")
+}
+
+model RequisitionSection {
+  id            String                   @id @default(uuid())
+  requisitionId String                   @map("requisition_id")
+  departmentTag DepartmentTag            @map("department_tag")
+  status        RequisitionSectionStatus @default(NOT_STARTED)
+  submittedById String?                  @map("submitted_by_id")
+  submittedAt   DateTime?                @map("submitted_at")
+  returnedNote  String?                  @map("returned_note") // branch manager's reason, cleared on resubmit
+  managerNote   String?                  @map("manager_note") // dept head's free-text "note for the manager"
+
+  requisition Requisition       @relation(fields: [requisitionId], references: [id])
+  submittedBy User?             @relation("RequisitionSectionSubmittedBy", fields: [submittedById], references: [id])
+  lines       RequisitionLine[]
+
+  @@unique([requisitionId, departmentTag])
+  @@map("requisition_sections")
+}
+
+model RequisitionLine {
+  id                   String    @id @default(uuid())
+  requisitionSectionId String    @map("requisition_section_id")
+  inventoryItemId      String    @map("inventory_item_id")
+  parAtRequest         Decimal?  @map("par_at_request") @db.Decimal(12, 4) // reference only — null when no RestockLevel exists yet; see §0 deviation note
+  requestedQty         Decimal?  @map("requested_qty") @db.Decimal(12, 4) // null = manager-added, head never asked
+  approvedQty          Decimal?  @map("approved_qty") @db.Decimal(12, 4) // null until manager reviews
+  addedFromNote        Boolean   @default(false) @map("added_from_note") // manager converted a note line to a real line
+  editedById           String?   @map("edited_by_id") // who last changed approvedQty, if different from requestedQty
+  editReason           String?   @map("edit_reason") // required by Flow 8 whenever approvedQty != requestedQty
+  deletedAt            DateTime? @map("deleted_at") // manager delete — soft, keeps the audit trail
+
+  section  RequisitionSection @relation(fields: [requisitionSectionId], references: [id])
+  item     InventoryItem      @relation(fields: [inventoryItemId], references: [id])
+  editedBy User?              @relation("RequisitionLineEditedBy", fields: [editedById], references: [id])
+
+  @@index([requisitionSectionId])
+  @@map("requisition_lines")
+}
+
+// ── Milestone Five — Dispatch & Branch Receiving (Session A) ───────────────
+// One Dispatch per department per requisition (Flow 9 step 4), mirroring
+// StaffTransfer's two-org pattern: organizationId = hub (Central Store owns
+// the document), toOrganizationId = branch. sequenceLabel is a daily
+// per-branch display label computed at write time, not a persistent
+// ReferenceCounter id — see milestone-5-sessions/session-a-plan.md decision #1.
+enum DispatchStatus {
+  AWAITING // not yet signed by the store
+  IN_TRANSIT // signed, dispatch_out written, not yet confirmed
+  CONFIRMED // dispatch_in written, no discrepancy
+  DISCREPANCY_OPEN // dispatch_in written but a line mismatched — stays open per Flow 10a
+}
+
+model Dispatch {
+  id                String         @id @default(uuid())
+  organizationId    String         @map("organization_id") // hub org — Central Store owns this document
+  toOrganizationId  String         @map("to_organization_id") // branch org
+  requisitionId     String         @map("requisition_id")
+  departmentTag     DepartmentTag  @map("department_tag") // one Dispatch per department, per Flow 9 step 4
+  sequenceLabel     String         @map("sequence_label") // "Dispatch 4 · Nyeri Town · 17 Sep" — daily per-branch sequence, not a persistent ID
+  status            DispatchStatus @default(AWAITING)
+  dispatchedById    String?        @map("dispatched_by_id")
+  dispatchedAt      DateTime?      @map("dispatched_at")
+  confirmedById     String?        @map("confirmed_by_id") // may differ from the department head if confirmed-on-behalf (Flow 10b)
+  confirmedAt       DateTime?      @map("confirmed_at")
+  confirmedOnBehalf Boolean        @default(false) @map("confirmed_on_behalf")
+
+  organization             Organization   @relation("DispatchFrom", fields: [organizationId], references: [id])
+  toOrganization           Organization   @relation("DispatchTo", fields: [toOrganizationId], references: [id])
+  requisition              Requisition    @relation(fields: [requisitionId], references: [id])
+  dispatchedBy             User?          @relation("DispatchDispatchedBy", fields: [dispatchedById], references: [id])
+  confirmedBy              User?          @relation("DispatchConfirmedBy", fields: [confirmedById], references: [id])
+  lines                    DispatchLine[]
+  followUpForDiscrepancies Discrepancy[]  @relation("DiscrepancyFollowUpDispatch")
+
+  @@index([organizationId, status])
+  @@index([toOrganizationId, departmentTag, status])
+  @@index([requisitionId])
+  @@map("dispatches")
+}
+
+model DispatchLine {
+  id                String   @id @default(uuid())
+  dispatchId        String   @map("dispatch_id")
+  requisitionLineId String?  @map("requisition_line_id") // null for a substitute line (Flow 9b)
+  inventoryItemId   String   @map("inventory_item_id")
+  requestedQty      Decimal? @map("requested_qty") @db.Decimal(12, 4)
+  dispatchedQty     Decimal  @map("dispatched_qty") @db.Decimal(12, 4)
+  confirmedQty      Decimal? @map("confirmed_qty") @db.Decimal(12, 4)
+  costAtDispatch    Decimal  @map("cost_at_dispatch") @db.Decimal(12, 4) // frozen per line, per Flow 9 step 6
+  isSubstitute      Boolean  @default(false) @map("is_substitute")
+  substituteNote    String?  @map("substitute_note")
+
+  dispatch      Dispatch               @relation(fields: [dispatchId], references: [id])
+  item          InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+  discrepancies Discrepancy[]
+
+  @@index([dispatchId])
+  @@map("dispatch_lines")
+}
+
+// ── Milestone Five — Dispatch & Branch Receiving (Session B) ───────────────
+// Automatic on mismatched confirm (Flow 10a), never a separate user action.
+// Numbered via ReferenceCounter ('DSC', hub-scoped) — same mechanism as
+// GRN/ADJ, deliberately not Dispatch.sequenceLabel's daily-label scheme.
+enum DiscrepancyStatus {
+  OPEN
+  RESOLVED
+}
+
+enum DiscrepancyOutcome {
+  FOUND_REDELIVERED
+  TRANSIT_LOSS_WRITEOFF
+  MISCOUNT_CORRECTED
+}
+
+model Discrepancy {
+  id                 String              @id @default(uuid())
+  dispatchLineId     String              @map("dispatch_line_id")
+  referenceNumber    String              @map("reference_number") // DSC-#### via ReferenceCounter
+  gapQty             Decimal             @map("gap_qty") @db.Decimal(12, 4) // confirmed - dispatched, signed
+  status             DiscrepancyStatus   @default(OPEN)
+  outcome            DiscrepancyOutcome?
+  resolutionNote     String?             @map("resolution_note")
+  resolvedById       String?             @map("resolved_by_id")
+  resolvedAt         DateTime?           @map("resolved_at")
+  followUpDispatchId String?             @map("follow_up_dispatch_id")
+  createdAt          DateTime            @default(now()) @map("created_at")
+
+  dispatchLine     DispatchLine @relation(fields: [dispatchLineId], references: [id])
+  resolvedBy       User?        @relation("DiscrepancyResolvedBy", fields: [resolvedById], references: [id])
+  followUpDispatch Dispatch?    @relation("DiscrepancyFollowUpDispatch", fields: [followUpDispatchId], references: [id])
+
+  @@index([status])
+  @@index([dispatchLineId])
+  @@map("discrepancies")
+}

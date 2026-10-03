@@ -260,7 +260,7 @@ pnpm build
 
 **MIGRATION WORKFLOW — ALWAYS follow this order:**
 
-1. Edit `backend/prisma/schema.prisma` locally
+1. Edit the matching file in `backend/prisma/schema/` locally (one file per module; Inventory is `schema/inventory/*.prisma`)
 2. Generate the migration SQL file locally:
    ```bash
    cd ~/Projects/V3-RMS/backend

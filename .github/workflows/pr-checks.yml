@@ -1,0 +1,48 @@
+name: PR checks
+
+# Fast boundary checks on every pull request (deploy.yml only runs on pushes to main).
+# Import warnings (legacy code) never fail; errors (inside modules/ or features/) do.
+
+on:
+  pull_request:
+
+jobs:
+  boundaries:
+    name: Schema and import boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: |
+            backend/pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Prisma schema folder
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/ci
+        run: pnpm exec prisma validate
+
+      - name: Check module imports (backend)
+        working-directory: backend
+        run: pnpm check:imports
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Check feature imports (frontend)
+        working-directory: frontend
+        run: pnpm check:imports

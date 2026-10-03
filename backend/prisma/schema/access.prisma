@@ -1,0 +1,247 @@
+model Organization {
+  id                           String                        @id @default(uuid())
+  name                         String
+  address                      String
+  city                         String
+  latitude                     Decimal                       @db.Decimal(10, 7)
+  longitude                    Decimal                       @db.Decimal(10, 7)
+  phone                        String?                       @map("phone")
+  mpesaPaybill                 String?                       @map("mpesa_paybill")
+  accountNumber                String?                       @map("account_number")
+  googleReviewUrl              String?                       @map("google_review_url")
+  kraPIN                       String?                       @map("kra_pin")
+  isHub                        Boolean                       @default(false)
+  isActive                     Boolean                       @default(true)
+  createdAt                    DateTime                      @default(now()) @map("created_at")
+  updatedAt                    DateTime                      @updatedAt @map("updated_at")
+  users                        User[]
+  branchMenuItems              BranchMenuItem[]
+  deliveryZones                DeliveryZone[]
+  shifts                       Shift[]
+  shiftAssignments             ShiftAssignment[]
+  orders                       Order[]
+  orderCounters                OrderCounter[]
+  prepTickets                  PrepTicket[]
+  incidentLogs                 IncidentLog[]
+  printJobs                    PrintJob[]
+  printStations                PrintStation[]
+  customerCreditAccounts       CustomerCreditAccount[]
+  otherIncomeCategories        OtherIncomeCategory[]
+  otherIncomeCategoriesBranch  OtherIncomeCategory[]         @relation("OtherIncomeCategoryBranch")
+  otherIncomeEntries           OtherIncomeEntry[]
+  otherIncomeEntriesBranch     OtherIncomeEntry[]            @relation("OtherIncomeEntryBranch")
+  staffDiscountAuthRequests    StaffDiscountAuthRequest[]
+  orderCancellationRequests    OrderCancellationRequest[]
+  discounts                    Discount[]
+  customerDiscountAuthRequests CustomerDiscountAuthRequest[]
+  directConversations          DirectConversation[]
+  directMessages               DirectMessage[]
+  broadcasts                   Broadcast[]
+  broadcastRecipients          BroadcastRecipient[]
+  formalNotices                FormalNotice[]
+  formalNoticeRecipients       FormalNoticeRecipient[]
+  leaveRequests                LeaveRequest[]
+  disciplinaryRecords          DisciplinaryRecord[]
+  payslips                     Payslip[]
+  staffTransfersFrom           StaffTransfer[]               @relation("StaffTransferFrom")
+  staffTransfersTo             StaffTransfer[]               @relation("StaffTransferTo")
+  contractTypes                ContractType[]
+  locations                    Location[]
+  categories                   Category[]
+  inventoryItems               InventoryItem[]
+  suppliers                    Supplier[]
+  restockLevels                RestockLevel[]
+  restockLevelChanges          RestockLevelChange[]
+  inventoryTransactions        InventoryTransaction[]
+  referenceCounters            ReferenceCounter[]
+  expectedDeliveries           ExpectedDelivery[]
+  goodsReceipts                GoodsReceipt[]
+  supplierInvoices             SupplierInvoice[]
+  supplierPayments             SupplierPayment[]
+  prepRuns                     PrepRun[]
+  requisitions                 Requisition[]
+  dispatchesFrom               Dispatch[]                    @relation("DispatchFrom")
+  dispatchesTo                 Dispatch[]                    @relation("DispatchTo")
+  wasteLogs                    WasteLog[]
+  stockCounts                  StockCount[]
+  countingThresholds           CountingThresholds?
+  branchDays                   BranchDay[]
+
+  @@map("organizations")
+}
+
+model OrderCounter {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  orderDate      DateTime     @map("order_date") @db.Date
+  lastNumber     Int          @default(0) @map("last_number")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, orderDate])
+  @@index([organizationId])
+  @@map("order_counters")
+}
+
+model User {
+  id                                  String                        @id @default(uuid())
+  organizationId                      String?                       @map("organization_id")
+  name                                String
+  email                               String                        @unique
+  phone                               String?
+  passwordHash                        String                        @map("password_hash")
+  /**
+   * 4-digit numeric PIN, bcrypt-hashed like passwordHash. Null until the user sets one via POST /users/me/pin. Used for in-app re-authentication (e.g. signing a Goods Receipt) distinct from the login password.
+   */
+  pinHash                             String?                       @map("pin_hash")
+  fcmToken                            String?                       @map("fcm_token")
+  role                                UserRole
+  departmentTag                       DepartmentTag?                @map("department_tag")
+  isDepartmentHead                    Boolean                       @default(false) @map("is_department_head")
+  previousRole                        UserRole?                     @map("previous_role")
+  isActive                            Boolean                       @default(true) @map("is_active")
+  isTestUser                          Boolean                       @default(false) @map("is_test_user")
+  createdAt                           DateTime                      @default(now()) @map("created_at")
+  updatedAt                           DateTime                      @updatedAt @map("updated_at")
+  deletedAt                           DateTime?                     @map("deleted_at")
+  organization                        Organization?                 @relation(fields: [organizationId], references: [id])
+  ordersCreated                       Order[]                       @relation("OrderCreatedBy")
+  ordersCancelled                     Order[]                       @relation("OrderCancelledBy")
+  orderCancellationRequestsRequested  OrderCancellationRequest[]    @relation("OrderCancellationRequestedBy")
+  orderCancellationRequestsResolved   OrderCancellationRequest[]    @relation("OrderCancellationResolvedBy")
+  shiftAssignments                    ShiftAssignment[]
+  clockRecords                        ClockRecord[]
+  prepTicketsClaimed                  PrepTicket[]                  @relation("PrepTicketClaimedBy")
+  prepTicketsRejected                 PrepTicket[]                  @relation("PrepTicketRejectedBy")
+  refreshTokens                       RefreshToken[]
+  modRequestsCreated                  OrderModificationRequest[]    @relation("ModRequestedBy")
+  modRequestsReviewed                 OrderModificationRequest[]    @relation("ModReviewedBy")
+  incidentsActed                      IncidentLog[]                 @relation("IncidentActor")
+  printJobsRequested                  PrintJob[]                    @relation("PrintJobRequester")
+  houseAccount                        HouseAccount?                 @relation("HouseAccountHolder")
+  houseAccountsGranted                HouseAccount[]                @relation("HouseAccountGrantedBy")
+  houseAccountSettlements             HouseAccountSettlement[]      @relation("HouseAccountSettledBy")
+  houseAuthRequestsRequested          HouseAccountAuthRequest[]     @relation("HouseAuthRequestedBy")
+  houseAuthRequestsResolved           HouseAccountAuthRequest[]     @relation("HouseAuthResolvedBy")
+  corporateAccountsCreated            CorporateAccount[]            @relation("CorporateAccountCreatedBy")
+  corporateSettlements                CorporateAccountSettlement[]  @relation("CorporateAccountSettledBy")
+  customerCreditAccountsCreated       CustomerCreditAccount[]       @relation("CustomerCreditAccountCreatedBy")
+  customerCreditSettlements           CustomerCreditSettlement[]    @relation("CustomerCreditSettledBy")
+  otherIncomeEntries                  OtherIncomeEntry[]            @relation("OtherIncomeRecordedBy")
+  otherIncomeEntryEdits               OtherIncomeEntryEdit[]        @relation("OtherIncomeEntryEditedBy")
+  ordersDiscounted                    Order[]                       @relation("OrderDiscountedBy")
+  staffDiscountRequestsRequested      StaffDiscountAuthRequest[]    @relation("StaffDiscountRequestedBy")
+  staffDiscountRequestsResolved       StaffDiscountAuthRequest[]    @relation("StaffDiscountResolvedBy")
+  discountsCreated                    Discount[]                    @relation("DiscountCreatedBy")
+  customerDiscountRequestsRequested   CustomerDiscountAuthRequest[] @relation("CustomerDiscountRequestedBy")
+  customerDiscountRequestsResolved    CustomerDiscountAuthRequest[] @relation("CustomerDiscountResolvedBy")
+  directConversationsAsA              DirectConversation[]          @relation("ConvParticipantA")
+  directConversationsAsB              DirectConversation[]          @relation("ConvParticipantB")
+  directMessagesSent                  DirectMessage[]               @relation("DirectMessageSender")
+  broadcastsSent                      Broadcast[]                   @relation("BroadcastSender")
+  broadcastRecipients                 BroadcastRecipient[]          @relation("BroadcastRecipientUser")
+  formalNoticesIssued                 FormalNotice[]                @relation("FormalNoticeIssuer")
+  formalNoticeRecipients              FormalNoticeRecipient[]       @relation("FormalNoticeRecipientUser")
+  employeeProfile                     EmployeeProfile?              @relation("EmployeeProfileUser")
+  managedEmployeeProfiles             EmployeeProfile[]             @relation("EmployeeProfileManager")
+  leaveRequestsReviewed               LeaveRequest[]                @relation("LeaveReviewedBy")
+  leaveRequestsCancelled              LeaveRequest[]                @relation("LeaveCancelledBy")
+  leaveRequestAcknowledgements        LeaveRequestAcknowledgement[]
+  disciplinaryRecordsIssued           DisciplinaryRecord[]          @relation("DisciplinaryIssuedBy")
+  hrDocumentsUploaded                 HrDocument[]                  @relation("HrDocumentUploadedBy")
+  payslips                            Payslip[]                     @relation("StaffPayslips")
+  createdPayslips                     Payslip[]                     @relation("PayslipsCreated")
+  staffTransfers                      StaffTransfer[]               @relation("StaffTransferUser")
+  staffTransfersAuthorized            StaffTransfer[]               @relation("StaffTransferAuthorizedBy")
+  inventoryTransactions               InventoryTransaction[]        @relation("InventoryTransactionUser")
+  restockLevelsSet                    RestockLevel[]                @relation("RestockLevelSetBy")
+  restockLevelChanges                 RestockLevelChange[]          @relation("RestockLevelChangedBy")
+  wasteLogsLogged                     WasteLog[]                    @relation("WasteLogLoggedBy")
+  stockCountsCounted                  StockCount[]                  @relation("StockCountCounter")
+  stockCountsVerified                 StockCount[]                  @relation("StockCountVerifier")
+  stockCountsReturned                 StockCount[]                  @relation("StockCountReturnedBy")
+  countingThresholdsUpdated           CountingThresholds[]          @relation("CountingThresholdsUpdatedBy")
+  branchDaysClosed                    BranchDay[]                   @relation("BranchDayClosedBy")
+  branchDayDepartmentsCounted         BranchDayDepartment[]         @relation("BranchDayDepartmentCountedBy")
+  branchDayReopens                    BranchDayReopen[]             @relation("BranchDayReopenedBy")
+  departmentOpeningsAccepted          DepartmentOpening[]           @relation("DepartmentOpeningAcceptedBy")
+  countingThresholdsDirectorUpdated   CountingThresholds[]          @relation("CountingThresholdsDirectorUpdatedBy")
+  expectedDeliveriesCreated           ExpectedDelivery[]            @relation("ExpectedDeliveryCreatedBy")
+  goodsReceiptsSigned                 GoodsReceipt[]                @relation("GoodsReceiptSignedBy")
+  goodsReceiptsCreated                GoodsReceipt[]                @relation("GoodsReceiptCreatedBy")
+  goodsReceiptLinePriceAlertsAccepted GoodsReceiptLine[]            @relation("GoodsReceiptLinePriceAlertAcceptedBy")
+  supplierInvoicesRecorded            SupplierInvoice[]             @relation("SupplierInvoiceRecordedBy")
+  suppliersCreated                    Supplier[]                    @relation("SupplierCreatedBy")
+  suppliersUpdated                    Supplier[]                    @relation("SupplierUpdatedBy")
+  supplierPayMethodsCreated           SupplierPayMethod[]           @relation("SupplierPayMethodCreatedBy")
+  supplierDocumentsUploaded           SupplierDocument[]            @relation("SupplierDocumentUploadedBy")
+  supplierAuditEntries                SupplierAuditLog[]            @relation("SupplierAuditActor")
+  inventoryItemChanges                InventoryItemChange[]         @relation("InventoryItemChangedBy")
+  supplierItemPricesSet               SupplierItem[]                @relation("SupplierItemPriceSetBy")
+  supplierInvoiceAdjustmentsRecorded  SupplierInvoiceAdjustment[]   @relation("SupplierInvoiceAdjustmentRecordedBy")
+  supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  prepRunsCreated                     PrepRun[]                     @relation("PrepRunCreatedBy")
+  requisitionsOpened                  Requisition[]                 @relation("RequisitionOpenedBy")
+  requisitionsApproved                Requisition[]                 @relation("RequisitionApprovedBy")
+  dispatchesDispatched                Dispatch[]                    @relation("DispatchDispatchedBy")
+  dispatchesConfirmed                 Dispatch[]                    @relation("DispatchConfirmedBy")
+  discrepanciesResolved               Discrepancy[]                 @relation("DiscrepancyResolvedBy")
+  requisitionSectionsSubmitted        RequisitionSection[]          @relation("RequisitionSectionSubmittedBy")
+  requisitionLinesEdited              RequisitionLine[]             @relation("RequisitionLineEditedBy")
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model StaffTransfer {
+  id                 String   @id @default(uuid())
+  userId             String   @map("user_id")
+  fromOrganizationId String?  @map("from_organization_id")
+  toOrganizationId   String   @map("to_organization_id")
+  notes              String?
+  transferredAt      DateTime @default(now()) @map("transferred_at")
+  authorizedById     String   @map("authorized_by_id")
+
+  user             User          @relation("StaffTransferUser", fields: [userId], references: [id])
+  fromOrganization Organization? @relation("StaffTransferFrom", fields: [fromOrganizationId], references: [id])
+  toOrganization   Organization  @relation("StaffTransferTo", fields: [toOrganizationId], references: [id])
+  authorizedBy     User          @relation("StaffTransferAuthorizedBy", fields: [authorizedById], references: [id])
+
+  @@index([userId])
+  @@index([fromOrganizationId])
+  @@index([toOrganizationId])
+  @@map("staff_transfers")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  DIRECTOR
+  HR_MANAGER
+  MANAGER
+  ACCOUNTANT
+  WAITER
+  CHEF
+  BARISTA
+  KITCHEN_DISPLAY
+  BARISTA_DISPLAY
+  STEWARD
+  HOUSEKEEPING
+  STORE_MANAGER
+  STORE_ATTENDANT
+  DEPARTMENT_HEAD
+}

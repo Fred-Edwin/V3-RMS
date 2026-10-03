@@ -1,0 +1,143 @@
+// ── Milestone Six, Session 3 — Branch day close (plan §1.4–1.5) ─────────────
+// One BranchDay per (branch org, business date). The Branch Manager counts
+// each department's stock, gives a reason for any gap at/above the branch
+// threshold, and signs; the close posts one ADJUSTMENT per non-zero gap.
+// BLOCKED is never stored — it is derived at read time from IN_TRANSIT
+// dispatches to the department.
+enum BranchDayStatus {
+  OPEN
+  CLOSED
+}
+
+enum BranchDayDepartmentStatus {
+  NOT_STARTED
+  COUNTED
+}
+
+enum GapReason {
+  CONSUMPTION
+  UNLOGGED_WASTE
+  WALK_IN_COMP
+  SUSPECTED_LOSS
+  OTHER
+}
+
+model BranchDay {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id") // branch org
+  businessDate   DateTime        @map("business_date") @db.Date // Africa/Nairobi
+  status         BranchDayStatus @default(OPEN)
+  reference      String // DAY-#### (ReferenceCounter)
+  closedById     String?         @map("closed_by_id")
+  closedAt       DateTime?       @map("closed_at")
+  reopenCount    Int             @default(0) @map("reopen_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id])
+  closedBy     User?                 @relation("BranchDayClosedBy", fields: [closedById], references: [id])
+  departments  BranchDayDepartment[]
+  reopens      BranchDayReopen[]
+  openings     DepartmentOpening[]
+
+  @@unique([organizationId, businessDate])
+  @@index([organizationId, status])
+  @@map("branch_days")
+}
+
+model BranchDayDepartment {
+  id            String                    @id @default(uuid())
+  branchDayId   String                    @map("branch_day_id")
+  departmentTag DepartmentTag             @map("department_tag")
+  locationId    String                    @map("location_id")
+  status        BranchDayDepartmentStatus @default(NOT_STARTED)
+  countedById   String?                   @map("counted_by_id")
+  countedAt     DateTime?                 @map("counted_at")
+  createdAt     DateTime                  @default(now()) @map("created_at")
+  updatedAt     DateTime                  @updatedAt @map("updated_at")
+
+  branchDay BranchDay       @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  location  Location        @relation(fields: [locationId], references: [id])
+  countedBy User?           @relation("BranchDayDepartmentCountedBy", fields: [countedById], references: [id])
+  lines     BranchDayLine[]
+
+  @@unique([branchDayId, departmentTag])
+  @@map("branch_day_departments")
+}
+
+model BranchDayLine {
+  id                    String     @id @default(uuid())
+  branchDayDepartmentId String     @map("branch_day_department_id")
+  inventoryItemId       String     @map("inventory_item_id")
+  countedQty            Decimal?   @map("counted_qty") @db.Decimal(12, 4) // null = not counted; uncounted lines are never adjusted
+  expectedQty           Decimal    @map("expected_qty") @db.Decimal(12, 4) // department on-hand when this count was saved, excluding this day's own close adjustments
+  unitCost              Decimal    @map("unit_cost") @db.Decimal(12, 4) // cost carried into the department, frozen with the snapshot
+  reason                GapReason?
+  reasonNote            String?    @map("reason_note")
+  reasonRequired        Boolean    @default(false) @map("reason_required") // judged against the threshold in force when saved
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+
+  department    BranchDayDepartment    @relation(fields: [branchDayDepartmentId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@unique([branchDayDepartmentId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("branch_day_lines")
+}
+
+/// Immutable, append-only audit of every reopen (plan §1.5).
+model BranchDayReopen {
+  id           String   @id @default(uuid())
+  branchDayId  String   @map("branch_day_id")
+  reopenedById String   @map("reopened_by_id")
+  reopenedAt   DateTime @default(now()) @map("reopened_at")
+  reason       String
+
+  branchDay  BranchDay @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  reopenedBy User      @relation("BranchDayReopenedBy", fields: [reopenedById], references: [id])
+
+  @@index([branchDayId])
+  @@map("branch_day_reopens")
+}
+
+/// Next-morning opening (Flow 12c, plan §1.6): the department head accepts the
+/// morning figures. Created only on accept — "not accepted yet" is no row.
+model DepartmentOpening {
+  id            String        @id @default(uuid())
+  branchDayId   String        @map("branch_day_id") // the day being opened
+  departmentTag DepartmentTag @map("department_tag")
+  locationId    String        @map("location_id")
+  acceptedById  String        @map("accepted_by_id")
+  acceptedAt    DateTime      @map("accepted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  branchDay  BranchDay               @relation(fields: [branchDayId], references: [id], onDelete: Cascade)
+  location   Location                @relation(fields: [locationId], references: [id])
+  acceptedBy User                    @relation("DepartmentOpeningAcceptedBy", fields: [acceptedById], references: [id])
+  lines      DepartmentOpeningLine[]
+
+  @@unique([branchDayId, departmentTag])
+  @@map("department_openings")
+}
+
+model DepartmentOpeningLine {
+  id                String   @id @default(uuid())
+  openingId         String   @map("opening_id")
+  inventoryItemId   String   @map("inventory_item_id")
+  prefilledQty      Decimal  @map("prefilled_qty") @db.Decimal(12, 4) // department on-hand the ledger showed (last night's close)
+  acceptedQty       Decimal  @map("accepted_qty") @db.Decimal(12, 4) // what the department head counted; authoritative
+  overnightVariance Decimal  @map("overnight_variance") @db.Decimal(12, 4) // accepted − prefilled
+  unitCost          Decimal  @map("unit_cost") @db.Decimal(12, 4)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  opening       DepartmentOpening      @relation(fields: [openingId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@unique([openingId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("department_opening_lines")
+}

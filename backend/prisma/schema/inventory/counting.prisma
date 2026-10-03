@@ -1,0 +1,111 @@
+// ── Milestone Six — Session 2: Central Store counting + thresholds ───────────
+// One StockCount per (Central Store, business day) for DAILY — enforced by a
+// partial unique index in the migration SQL (not expressible in the Prisma
+// DSL); SPOT counts are unconstrained and are created VERIFIED in one step.
+// expectedQty / unitCost / reasonRequired are snapshotted server-side at the
+// attendant's sign (counterSignedAt) and never serialized to STORE_ATTENDANT.
+// milestone-6-plan.md §1.1, §1.2, §1.9.
+enum StockCountKind {
+  DAILY
+  SPOT
+}
+
+enum StockCountStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  VERIFIED
+}
+
+enum CountLineDecision {
+  PENDING
+  ACCEPTED
+  QUERIED
+}
+
+enum CountReason {
+  SUSPECTED_MISCOUNT
+  UNLOGGED_SPOILAGE
+  SUSPECTED_LOSS
+  WITHIN_NORMAL_RANGE
+  OTHER
+}
+
+model StockCount {
+  id               String           @id @default(uuid())
+  organizationId   String           @map("organization_id") // hub org (D-15)
+  locationId       String           @map("location_id") // Central Store
+  kind             StockCountKind
+  countDate        DateTime         @map("count_date") @db.Date // business date, Africa/Nairobi
+  status           StockCountStatus @default(DRAFT)
+  reference        String // CNT-YYYY-MMDD (daily) | SPT-#### (spot, ReferenceCounter)
+  counterId        String           @map("counter_id") // attendant (daily) / Store Manager (spot)
+  counterSignedAt  DateTime?        @map("counter_signed_at")
+  verifierId       String?          @map("verifier_id")
+  verifiedAt       DateTime?        @map("verified_at")
+  returnNote       String?          @map("return_note")
+  returnedAt       DateTime?        @map("returned_at")
+  returnedById     String?          @map("returned_by_id")
+  directorNotified Boolean          @default(false) @map("director_notified")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  location     Location         @relation(fields: [locationId], references: [id])
+  counter      User             @relation("StockCountCounter", fields: [counterId], references: [id])
+  verifier     User?            @relation("StockCountVerifier", fields: [verifierId], references: [id])
+  returnedBy   User?            @relation("StockCountReturnedBy", fields: [returnedById], references: [id])
+  lines        StockCountLine[]
+
+  @@index([organizationId, kind, status])
+  @@index([locationId, countDate])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id              String            @id @default(uuid())
+  stockCountId    String            @map("stock_count_id")
+  inventoryItemId String            @map("inventory_item_id")
+  countedQty      Decimal?          @map("counted_qty") @db.Decimal(12, 4) // null = not counted; uncounted lines are never adjusted
+  firstCountedQty Decimal?          @map("first_counted_qty") @db.Decimal(12, 4) // the figure before a send-back cleared it for a blind recount
+  expectedQty     Decimal?          @map("expected_qty") @db.Decimal(12, 4) // ledger on-hand at counterSignedAt; never sent to the attendant
+  unitCost        Decimal?          @map("unit_cost") @db.Decimal(12, 4) // frozen with the snapshot
+  decision        CountLineDecision @default(PENDING)
+  reason          CountReason?
+  reasonNote      String?           @map("reason_note")
+  reasonRequired  Boolean           @default(false) @map("reason_required") // judged against the threshold in force at submit
+  queryNote       String?           @map("query_note") // per-line note to the attendant; never states the expected figure
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  stockCount    StockCount             @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@unique([stockCountId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@map("stock_count_lines")
+}
+
+/// One row per organization, created lazily with defaults (plan §1.9). Values
+/// are whole KES of |variance| × unit cost. Hub row: reasonRequiredKes (Store
+/// Manager) + directorAlertKes (Director, company-wide). Branch rows (Session
+/// 3): reasonRequiredKes + overnightAlertKes.
+model CountingThresholds {
+  id                  String    @id @default(uuid())
+  organizationId      String    @unique @map("organization_id")
+  reasonRequiredKes   Int       @map("reason_required_kes")
+  overnightAlertKes   Int?      @map("overnight_alert_kes")
+  directorAlertKes    Int?      @map("director_alert_kes")
+  updatedById         String?   @map("updated_by_id")
+  directorUpdatedById String?   @map("director_updated_by_id")
+  directorUpdatedAt   DateTime? @map("director_updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  updatedBy         User?        @relation("CountingThresholdsUpdatedBy", fields: [updatedById], references: [id])
+  directorUpdatedBy User?        @relation("CountingThresholdsDirectorUpdatedBy", fields: [directorUpdatedById], references: [id])
+
+  @@map("counting_thresholds")
+}

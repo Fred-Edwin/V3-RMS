@@ -1,0 +1,338 @@
+model Shift {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  name           String
+  startTime      String            @map("start_time")
+  endTime        String            @map("end_time")
+  isActive       Boolean           @default(true) @map("is_active")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  assignments    ShiftAssignment[]
+
+  @@index([organizationId])
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  shiftId        String       @map("shift_id")
+  userId         String       @map("user_id")
+  date           DateTime     @db.Date
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  shift          Shift        @relation(fields: [shiftId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  clockRecord    ClockRecord?
+
+  @@unique([userId, date, shiftId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([date])
+  @@map("shift_assignments")
+}
+
+model ClockRecord {
+  id                String          @id @default(uuid())
+  organizationId    String          @map("organization_id")
+  shiftAssignmentId String          @unique @map("shift_assignment_id")
+  userId            String          @map("user_id")
+  clockInAt         DateTime?       @map("clock_in_at")
+  clockOutAt        DateTime?       @map("clock_out_at")
+  clockInMethod     ClockMethod     @map("clock_in_method")
+  clockOutMethod    ClockMethod?    @map("clock_out_method")
+  overrideById      String?         @map("override_by_id")
+  overrideNote      String?         @map("override_note")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  shiftAssignment   ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  user              User            @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([clockInAt])
+  @@map("clock_records")
+}
+
+enum ClockMethod {
+  GPS
+  OVERRIDE
+}
+
+// ─── HR Module ────────────────────────────────────────────────────────────────
+
+model EmployeeProfile {
+  id                 String          @id @default(uuid())
+  userId             String          @unique @map("user_id")
+  nationalId         String?         @map("national_id")
+  dateOfBirth        DateTime?       @map("date_of_birth")
+  personalPhone      String?         @map("personal_phone")
+  personalEmail      String?         @map("personal_email")
+  physicalAddress    String?         @map("physical_address")
+  emergencyName      String?         @map("emergency_name")
+  emergencyRelation  String?         @map("emergency_relation")
+  emergencyPhone     String?         @map("emergency_phone")
+  employmentType     EmploymentType? @map("employment_type")
+  contractTypeId     String?         @map("contract_type_id")
+  startDate          DateTime        @map("start_date")
+  endDate            DateTime?       @map("end_date")
+  probationEndDate   DateTime?       @map("probation_end_date")
+  jobTitle           String?         @map("job_title")
+  reportingManagerId String?         @map("reporting_manager_id")
+  notes              String?
+  kraPIN             String?         @map("kra_pin")
+  shifNhifNumber     String?         @map("shif_nhif_number")
+  nssfNumber         String?         @map("nssf_number")
+  bankName           String?         @map("bank_name")
+  accountNumber      String?         @map("account_number")
+  accountName        String?         @map("account_name")
+  bankBranch         String?         @map("bank_branch")
+  helbNumber         String?         @map("helb_number")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  user                User                 @relation("EmployeeProfileUser", fields: [userId], references: [id])
+  reportingManager    User?                @relation("EmployeeProfileManager", fields: [reportingManagerId], references: [id])
+  contractType        ContractType?        @relation(fields: [contractTypeId], references: [id])
+  leaveBalances       LeaveBalance[]
+  leaveRequests       LeaveRequest[]
+  documents           HrDocument[]
+  disciplinaryRecords DisciplinaryRecord[]
+
+  @@index([userId])
+  @@index([contractTypeId])
+  @@map("employee_profiles")
+}
+
+model ContractType {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")
+  name           String
+  durationMonths Int?     @map("duration_months")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  leavePolicies    LeavePolicy[]
+  employeeProfiles EmployeeProfile[]
+
+  @@index([organizationId])
+  @@map("contract_types")
+}
+
+model LeavePolicy {
+  id             String    @id @default(uuid())
+  contractTypeId String    @map("contract_type_id")
+  leaveType      LeaveType @map("leave_type")
+  totalDays      Int       @map("total_days")
+
+  contractType ContractType @relation(fields: [contractTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([contractTypeId, leaveType])
+  @@map("leave_policies")
+}
+
+model LeaveBalance {
+  id                String    @id @default(uuid())
+  employeeProfileId String    @map("employee_profile_id")
+  leaveType         LeaveType @map("leave_type")
+  totalDays         Int       @map("total_days")
+  usedDays          Decimal   @default(0) @map("used_days") @db.Decimal(5, 1)
+  pendingDays       Decimal   @default(0) @map("pending_days") @db.Decimal(5, 1)
+  leaveYear         Int       @map("leave_year")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  employeeProfile EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  leaveRequests   LeaveRequest[]
+
+  @@unique([employeeProfileId, leaveType, leaveYear])
+  @@index([employeeProfileId])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id                String      @id @default(uuid())
+  employeeProfileId String      @map("employee_profile_id")
+  leaveBalanceId    String      @map("leave_balance_id")
+  organizationId    String?     @map("organization_id")
+  leaveType         LeaveType   @map("leave_type")
+  startDate         DateTime    @map("start_date")
+  endDate           DateTime    @map("end_date")
+  totalDays         Decimal     @map("total_days") @db.Decimal(5, 1)
+  reason            String
+  status            LeaveStatus @default(PENDING)
+  reviewedById      String?     @map("reviewed_by_id")
+  reviewedAt        DateTime?   @map("reviewed_at")
+  reviewComment     String?     @map("review_comment")
+  cancelledAt       DateTime?   @map("cancelled_at")
+  cancelledById     String?     @map("cancelled_by_id")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  employeeProfile  EmployeeProfile               @relation(fields: [employeeProfileId], references: [id])
+  leaveBalance     LeaveBalance                  @relation(fields: [leaveBalanceId], references: [id])
+  organization     Organization?                 @relation(fields: [organizationId], references: [id])
+  reviewedBy       User?                         @relation("LeaveReviewedBy", fields: [reviewedById], references: [id])
+  cancelledBy      User?                         @relation("LeaveCancelledBy", fields: [cancelledById], references: [id])
+  documents        HrDocument[]
+  acknowledgements LeaveRequestAcknowledgement[]
+
+  @@index([organizationId, status])
+  @@index([employeeProfileId])
+  @@map("leave_requests")
+}
+
+model LeaveRequestAcknowledgement {
+  id             String   @id @default(uuid())
+  leaveRequestId String   @map("leave_request_id")
+  userId         String   @map("user_id")
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([leaveRequestId, userId])
+  @@index([userId])
+  @@map("leave_request_acknowledgements")
+}
+
+model DisciplinaryRecord {
+  id                String               @id @default(uuid())
+  employeeProfileId String               @map("employee_profile_id")
+  organizationId    String               @map("organization_id")
+  incidentDate      DateTime             @map("incident_date")
+  actionDate        DateTime             @map("action_date")
+  category          DisciplinaryCategory
+  description       String
+  actionTaken       DisciplinaryAction   @map("action_taken")
+  outcome           String
+  issuedById        String               @map("issued_by_id")
+  witnesses         String?
+  acknowledged      Boolean              @default(false)
+  acknowledgedAt    DateTime?            @map("acknowledged_at")
+  appealed          Boolean              @default(false)
+  appealOutcome     String?              @map("appeal_outcome")
+  expiresAt         DateTime?            @map("expires_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  employeeProfile EmployeeProfile @relation(fields: [employeeProfileId], references: [id])
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  issuedBy        User            @relation("DisciplinaryIssuedBy", fields: [issuedById], references: [id])
+  documents       HrDocument[]
+
+  @@index([organizationId])
+  @@index([employeeProfileId])
+  @@map("disciplinary_records")
+}
+
+model HrDocument {
+  id                   String         @id @default(uuid())
+  employeeProfileId    String         @map("employee_profile_id")
+  leaveRequestId       String?        @map("leave_request_id")
+  disciplinaryRecordId String?        @map("disciplinary_record_id")
+  documentType         HrDocumentType @map("document_type")
+  fileName             String         @map("file_name")
+  fileUrl              String         @map("file_url")
+  uploadedById         String         @map("uploaded_by_id")
+  createdAt            DateTime       @default(now()) @map("created_at")
+
+  employeeProfile    EmployeeProfile     @relation(fields: [employeeProfileId], references: [id])
+  leaveRequest       LeaveRequest?       @relation(fields: [leaveRequestId], references: [id])
+  disciplinaryRecord DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
+  uploadedBy         User                @relation("HrDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([employeeProfileId])
+  @@index([leaveRequestId])
+  @@index([disciplinaryRecordId])
+  @@map("hr_documents")
+}
+
+model Payslip {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  userId          String   @map("user_id")
+  payPeriod       String   @map("pay_period")
+  payDate         DateTime @map("pay_date")
+  grossPay        Decimal  @map("gross_pay") @db.Decimal(10, 2)
+  paye            Decimal  @db.Decimal(10, 2)
+  sha             Decimal  @db.Decimal(10, 2)
+  nssfTier1       Decimal  @map("nssf_tier1") @db.Decimal(10, 2)
+  nssfTier2       Decimal  @map("nssf_tier2") @db.Decimal(10, 2)
+  housingLevy     Decimal  @map("housing_levy") @db.Decimal(10, 2)
+  helb            Decimal? @db.Decimal(10, 2)
+  advance         Decimal? @db.Decimal(10, 2)
+  incentives      Decimal? @db.Decimal(10, 2)
+  overtime        Decimal? @db.Decimal(10, 2)
+  allowances      Decimal? @db.Decimal(10, 2)
+  otherDeductions Json?    @map("other_deductions")
+  totalDeductions Decimal  @map("total_deductions") @db.Decimal(10, 2)
+  netPay          Decimal  @map("net_pay") @db.Decimal(10, 2)
+  isLocked        Boolean  @default(false) @map("is_locked")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation("StaffPayslips", fields: [userId], references: [id])
+  createdBy    User         @relation("PayslipsCreated", fields: [createdById], references: [id])
+
+  @@unique([organizationId, userId, payPeriod])
+  @@index([organizationId, payPeriod])
+  @@index([userId])
+  @@map("payslips")
+}
+
+// ─── HR Enums ─────────────────────────────────────────────────────────────────
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CASUAL
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  EMERGENCY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DisciplinaryCategory {
+  INSUBORDINATION
+  ATTENDANCE
+  MISCONDUCT
+  PERFORMANCE
+  POLICY_VIOLATION
+  OTHER
+}
+
+enum DisciplinaryAction {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SUSPENSION
+  TERMINATION
+}
+
+enum HrDocumentType {
+  CONTRACT
+  ID_COPY
+  NATIONAL_ID_FRONT
+  NATIONAL_ID_BACK
+  CERTIFICATE
+  MEDICAL_CERTIFICATE
+  INCIDENT_REPORT
+  WARNING_LETTER
+  OTHER
+}

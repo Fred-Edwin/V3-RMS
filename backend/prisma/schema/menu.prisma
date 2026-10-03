@@ -1,0 +1,49 @@
+model MenuCategory {
+  id           String      @id @default(uuid())
+  name         String      @unique
+  prepStation  PrepStation
+  displayOrder Int         @default(0) @map("display_order")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  menuItems    MenuItem[]
+
+  @@index([prepStation])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id              String           @id @default(uuid())
+  categoryId      String           @map("category_id")
+  name            String
+  description     String?
+  imageUrl        String?          @map("image_url")
+  price           Decimal          @db.Decimal(10, 2)
+  isActive        Boolean          @default(true) @map("is_active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  deletedAt       DateTime?        @map("deleted_at")
+  category        MenuCategory     @relation(fields: [categoryId], references: [id])
+  branchOverrides BranchMenuItem[]
+  orderItems      OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("menu_items")
+}
+
+model BranchMenuItem {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  menuItemId     String       @map("menu_item_id")
+  isAvailable    Boolean      @default(true) @map("is_available")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  updatedBy      String       @map("updated_by")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  menuItem       MenuItem     @relation(fields: [menuItemId], references: [id])
+
+  @@unique([organizationId, menuItemId])
+  @@index([organizationId])
+  @@index([menuItemId])
+  @@map("branch_menu_items")
+}

@@ -42,5 +42,9 @@ local_before_seed_cleanup.sql
 # Claude Code session/worktree state — tooling internals, not project content
 .claude/worktrees/
 
+# Per-lane files written by scripts/lane.sh (browser/database config, lane record)
+/.mcp.json
+/.lane/
+
 # Owner-collected supplier document photos (large, not for the repo)
 docs/Item Catalog/
