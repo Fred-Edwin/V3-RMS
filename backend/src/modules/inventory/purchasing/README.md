@@ -1,6 +1,6 @@
 # purchasing
 
-**Design:** approved (Paper: *Purchasing*, 10 chapters from "We're running low" to "When things go wrong") · **Code:** rebuilt. Receiving, orders (LPO) and supplier invoices/payments are one flow and one sub-module.
+**Design:** approved (Paper: *Purchasing*, 10 chapters from "We're running low" to "When things go wrong") · **Code:** **partly on the old flow, pending redo** (verified in the running app 2026-10-03: *New purchase* is still a "shopping list, not a purchase order" with a PAR column; no LPO approval, advance payment or supplier statement as designed). Receiving, orders (LPO) and supplier invoices/payments are one flow and one sub-module.
 
 ## The flow
 Need → LPO → approval → send → delivery → invoice → payment → closed. One purchase = one **purchase file** holding every document.

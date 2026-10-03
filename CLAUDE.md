@@ -166,8 +166,9 @@ designs (file "Wendo RMS · Approved designs", `01M3TP8J54R83RHC9FJ7RAHGKG`).
 Restructured 2026-10-03 into 11 sub-modules under `backend/src/modules/inventory/`
 and `frontend/features/inventory/` (pure moves; no behaviour change).
 
-- **Rebuilt to approved design:** catalog, restock, suppliers, purchasing.
-- **Approved design, code still on the old flow (rebuild next):** stock, waste,
+- **Rebuilt to approved design:** catalog, restock, suppliers.
+- **Approved design, code still (partly) on the old flow (rebuild next):**
+  purchasing (New purchase is still a shopping list, no LPO), stock, waste,
   counting, prep.
 - **Design not yet approved, code on the old flow:** requisitions, dispatch, branch-day.
 - Two open owner decisions (miscount-correction ledger effect; attendant on-hand

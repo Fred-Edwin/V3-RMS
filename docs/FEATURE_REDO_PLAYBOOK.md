@@ -216,8 +216,8 @@ Rules:
 ## 10. Feature order
 
 1. **Inventory & Procurement** — in progress. Central Store sub-modules rebuilt
-   (catalog, restock, suppliers, purchasing); stock, waste, counting and prep have
-   approved designs awaiting rebuild; requisitions, dispatch and branch-day await
+   (catalog, restock, suppliers); purchasing, stock, waste, counting and prep have
+   approved designs awaiting (re)build; requisitions, dispatch and branch-day await
    approval. Status table: `docs/features/inventory/README.md`.
 2. Calmer features next (HR, staff, comms, discounts, reports).
 3. **Orders and KDS/BDS last** — live, complex, revenue-critical.

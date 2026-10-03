@@ -31,7 +31,7 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 | [catalog](../../../backend/src/modules/inventory/catalog/README.md) | Items, categories, item history | Catalog, suppliers and restock levels | approved | rebuilt |
 | [restock](../../../backend/src/modules/inventory/restock/README.md) | Restock levels, suggestions, change log | same | approved | rebuilt (logic shares catalog files) |
 | [suppliers](../../../backend/src/modules/inventory/suppliers/README.md) | Suppliers, contacts, payment methods, catalog lines, documents | same | approved | rebuilt |
-| [purchasing](../../../backend/src/modules/inventory/purchasing/README.md) | Need → order → approval → receive → invoice → pay; supplier statement | Purchasing | approved | rebuilt |
+| [purchasing](../../../backend/src/modules/inventory/purchasing/README.md) | Need → order → approval → receive → invoice → pay; supplier statement | Purchasing | approved | **partly old flow, pending redo** |
 | [prep](../../../backend/src/modules/inventory/prep/README.md) | Prep runs, yield, review | Prep | approved | **old flow, pending redo** |
 | [stock](../../../backend/src/modules/inventory/stock/README.md) | Stock position, ledger, stock card | Stock and Counting | approved | **old flow, pending redo** |
 | [waste](../../../backend/src/modules/inventory/waste/README.md) | Waste logging and reversal | Stock and Counting | approved | **old flow, pending redo** |
