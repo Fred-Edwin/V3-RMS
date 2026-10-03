@@ -90,7 +90,8 @@ Must not touch:  <other lanes' folders, plus the shared files below, except as t
 Docs to read:    <only the sections it needs>
 Gates:           backend pnpm build + pnpm test; frontend pnpm build; prisma validate;
                  pnpm check:imports (backend and frontend)
-Finish:          PR, not merged; ~5-line plain-English recap
+Merge rule:      wait for the owner's word "merge" (default), or "docs-only: merge when green"
+Finish:          the "Finish: merge and clean up" checklist below, then a ~5-line plain-English recap
 ```
 
 ## Shared files
@@ -125,3 +126,16 @@ One lane merges at a time:
 4. Merge (squash). The next lane rebases and repeats.
 
 If a rebase changes a migration order, regenerate that lane's migration on top of the newer one before re-running the gates.
+
+## Finish: merge and clean up
+
+Every push to `main` deploys to production, so **a merge is a deploy**. The agent runs this checklist itself, but only merges when it has permission: the owner's word "merge" in the session (the default), or a brief that says "docs-only: merge when green" and a PR that really changes only docs. When unsure, ask. Never merge with a red or pending required check.
+
+1. **Ready:** branch rebased on the latest `origin/main`; all gates green; the PR checks green (`gh pr checks <PR>`).
+2. **Merge, from your worktree, without `--delete-branch`** (that flag tries to switch your worktree to `main`, which is already checked out in the owner's folder and fails): `gh pr merge <PR> --squash`.
+3. **Stop your own servers** (only ones you started), then for a code lane run `scripts/lane.sh down <N>`. It removes the lane's worktree, database and Redis, and refuses if anything is uncommitted or still listening; fix that, do not force it. A design or docs session removes its worktree with `git worktree remove <path>`.
+4. **Delete the branch** from the owner's main folder: `git -C ~/Projects/V3-RMS branch -D <branch>` (a squash merge looks "unmerged" to git, so `-d` refuses) and `git push origin --delete <branch>`.
+5. **Update the owner's `main`:** only if `git -C ~/Projects/V3-RMS branch --show-current` is `main` and `git -C ~/Projects/V3-RMS status --porcelain --untracked-files=no` is empty, run `git -C ~/Projects/V3-RMS pull --ff-only`. Otherwise do not touch it: tell the owner what to run. Never stash, reset or force anything in the owner's folder. Leave the owner's untracked files alone.
+6. **Follow-ups from the merge:** if you merged a migration, run `scripts/lane.sh template refresh` (from a database at `main`'s migration level) and tell the other lanes to rebase. If `pnpm-lock.yaml` or the Prisma schema changed, tell the owner to run `pnpm install` / `pnpm exec prisma generate` in `backend/` and `frontend/`.
+7. **Check the deploy:** `gh run list --branch main --limit 1`, and wait for it. If it fails, report the failure and the log link and stop; do not push a fix without the owner.
+8. **Recap** (about 5 lines): what merged (PR number), what was cleaned up, whether `main` was updated, the deploy result, and anything the owner must do.
