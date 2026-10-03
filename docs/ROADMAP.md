@@ -58,7 +58,7 @@ Decided 3 Oct 2026. At most **three lanes** at once: **one design lane and two c
 - **The Company/Branch rename runs alone** (it touches about 197 files), in the window right after the Paper catch-up.
 - **Lanes merge one at a time**: rebase on `main`, re-run the gates, owner approves, merge.
 
-Pilot (now): two lanes at once, neither touching app code, so they cannot collide:
+Pilot: **done 4 Oct 2026** (PR #70 tooling, PR #69 Paper catch-up, both merged). Two lanes ran at once, neither touching app code. The lane mechanics now exist: `scripts/lane.sh`, `docs/PARALLEL_WORKFLOW.md`, per-module Prisma schema files in `backend/prisma/schema/`, and `pnpm check:imports`. Follow-ups they surfaced are listed under "Carried forward" below.
 
 | Lane | Session | Brief |
 |---|---|---|
@@ -69,13 +69,28 @@ After the pilot: Company/Branch rename (alone), then a short **stock ledger door
 
 | Lane | Work |
 |---|---|
-| **Design lane** (Paper, runs ahead) | **Workforce designs first** (client priority, 3 Oct 2026), approved in batches in the client's order: (1) Schedule & time (rota, clock in/out, timesheets), (2) Hours to pay (overtime and deductions from worked hours, payroll, payslips), (3) People (staff, HR profiles, contracts, leave). Brief: [sessions/design-lane-workforce.md](sessions/design-lane-workforce.md). Then Requisitions, Dispatch and Branch day; then Menu & Pricing, Finance and the other modules. |
+| **Design lane** (Paper, runs ahead) | **Workforce designs first** (client priority, 3 Oct 2026), in four phases with two owner stops: (1) audit the whole module as it is (docs, code, screens), (2) expert critique, (3) proposal for the module structure, flows and interaction (with one interactivity artboard for the module), (4) screens in Paper, workflow by workflow in the order the agent proposes. The client's ask (schedule, time tracking, hours driving overtime and deductions) is the priority input. Brief: [sessions/design-lane-workforce.md](sessions/design-lane-workforce.md). Then Requisitions, Dispatch and Branch day; then Menu & Pricing, Finance and the other modules. |
 | **Code lane A: Inventory** | Purchasing + Receiving, then Prep, then Stock & counts, then Waste, then Requisitions + Dispatch + Branch day once designed. One at a time inside the lane, because Purchasing, Suppliers, Counting and Stock import each other. |
 | **Code lane B: platform, then Workforce** | Access & Organisation + Notifications & Audit first (a move; no design needed, so it does not wait for Workforce designs). Switches to the Workforce build when its first designs are approved. |
 
 Why this shape: the client asked for Workforce to be prioritised, and no Workforce design exists yet, so the designs are the critical path; lane B uses the wait for the Access move, which Workforce builds on. Further lanes (Assistant layer 1 after Access, Menu & Pricing, Communications) start only when a lane frees up.
 
+### Carried forward from the pilot (4 Oct 2026)
+
+| Item | Owner of the fix |
+|---|---|
+| The one access table has no order capabilities (`orders.request`, `orders.approve`, `orders.cancel`, `orders.receive`); those purchase-order routes still use old role lists. Logged in the Purchasing README. | Inventory Purchasing rebuild |
+| The owner chose the "geometric" sidebar as the Paper master (square 5px nodes on the spine, square elbow into the last item, faint caramel tint plus a 2px bar on the active row, chevrons in fixed 16px slots). The code still has the rounded corner and no node squares; the note in `paper-updates-needed.md` says the code should follow the master. | A small frontend change to `sidebar-nav.tsx`; fold into the first lane that touches the sidebar |
+| "Other roles' view" of the sidebar is not drawn in Paper. Read-only variants wait until the client approves the role names. | Design lane |
+| Some old Paper screens still say "Supplier AP" or carry the old sidebar; they are redrawn only when next worked on (about 80 screens are deliberately not bulk-redrawn). | Whichever lane next touches each screen |
+| `backend/src/modules/inventory/` has no `index.ts`; the import check reports 17 backend warnings (and 34 frontend warnings, all in `app/`) as the backlog of public doors to build. | Stock ledger door session, then each rebuild |
+| `docs/DATA_MODEL.md` still mentions `schema.prisma` in two historical notes. | Anyone editing that file |
+| CI runs Node 20 while the owner's machine runs Node 26, which already hid one incompatible-dependency failure until CI caught it. | Decide whether to align local Node with CI (owner) |
+| The lane template database `wendo_rms_template` is kept on the shared Postgres and must be refreshed (`scripts/lane.sh template refresh`) from a database at `main`'s migration level whenever migrations change. | Every lane that adds a migration |
+
 ## Company and Branch foundation
+
+Brief for the session: [sessions/foundation-company-site-rename.md](sessions/foundation-company-site-rename.md). The recommended names are `Site` / `siteId` (the Central Store is never a branch), with API and frontend names unchanged until each module is rebuilt; the owner confirms the names at the start of that session.
 
 Today the database table `Organization` is really a branch (it holds a branch's address, coordinates and M-Pesa paybill, plus an `isHub` flag for the Central Store). Nothing represents Wendo Coffee Bistro as one company. `organizationId` appears about 3,050 times in 197 backend files and in 186 places in the schema.
 
