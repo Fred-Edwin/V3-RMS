@@ -106,6 +106,8 @@ export type CreateInventoryItemInput = {
   conversionFactor: Prisma.Decimal.Value | null;
   packSize: Prisma.Decimal.Value | null;
   departmentTags: DepartmentTag[];
+  /** Per usage unit. Omitted = the column default (0). Set only from a Store Manager's usual price (§30.2). */
+  currentCost?: Prisma.Decimal.Value;
 };
 
 export type UpdateInventoryItemInput = Partial<CreateInventoryItemInput>;
@@ -116,8 +118,10 @@ export type ListItemsFilters = {
   categoryId?: string;
   departmentTag?: DepartmentTag;
   includeRetired: boolean;
-  /** When set, only these ids, oldest first (the "Needs setup" list, §29.3). */
+  /** When set, only these ids, oldest first (the "Needs setup" list, §29.3) unless `sort` says otherwise. */
   onlyIds?: string[];
+  /** `name` (A→Z) or `newest` (newest first). Unset: name, or oldest first when `onlyIds` is set. */
+  sort?: 'name' | 'newest';
   page: number;
   perPage: number;
 };
@@ -178,7 +182,14 @@ export const inventoryItemRepository = {
       prisma.inventoryItem.findMany({
         where,
         include: itemInclude,
-        orderBy: filters.onlyIds ? [{ createdAt: 'asc' }, { id: 'asc' }] : { name: 'asc' },
+        orderBy:
+          filters.sort === 'newest'
+            ? [{ createdAt: 'desc' }, { id: 'desc' }]
+            : filters.sort === 'name'
+              ? [{ name: 'asc' }, { id: 'asc' }]
+              : filters.onlyIds
+                ? [{ createdAt: 'asc' }, { id: 'asc' }]
+                : { name: 'asc' },
         skip: (filters.page - 1) * filters.perPage,
         take: filters.perPage,
       }),
@@ -235,6 +246,7 @@ export const inventoryItemRepository = {
         conversionFactor: data.conversionFactor !== null ? new Prisma.Decimal(data.conversionFactor) : null,
         packSize: data.packSize !== null ? new Prisma.Decimal(data.packSize) : null,
         departmentTags: data.departmentTags,
+        ...(data.currentCost !== undefined ? { currentCost: new Prisma.Decimal(data.currentCost) } : {}),
       },
       include: itemInclude,
     });
@@ -270,22 +282,42 @@ export const inventoryItemRepository = {
   },
 
   /** Soft delete (retire) — never a hard delete; the ledger references items. */
-  retire: async (id: string, organizationId: string): Promise<InventoryItemWithRelations | null> => {
-    const updated = await prisma.inventoryItem.updateMany({
+  retire: async (id: string, organizationId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
+    const updated = await tx.inventoryItem.updateMany({
       where: { id, organizationId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
     if (updated.count === 0) return null;
-    return prisma.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
   },
 
-  restore: async (id: string, organizationId: string): Promise<InventoryItemWithRelations | null> => {
-    const updated = await prisma.inventoryItem.updateMany({
+  restore: async (id: string, organizationId: string, tx: TxClient = prisma): Promise<InventoryItemWithRelations | null> => {
+    const updated = await tx.inventoryItem.updateMany({
       where: { id, organizationId, deletedAt: { not: null } },
       data: { deletedAt: null },
     });
     if (updated.count === 0) return null;
-    return prisma.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+    return tx.inventoryItem.findFirst({ where: { id, organizationId }, include: itemInclude });
+  },
+
+  /** Distinct suppliers with at least one catalog line, per item — the list's Suppliers column (§30.1). */
+  countSuppliersByItem: async (organizationId: string, inventoryItemIds: string[]): Promise<Map<string, number>> => {
+    if (inventoryItemIds.length === 0) return new Map();
+    const pairs = await prisma.supplierItem.groupBy({
+      by: ['inventoryItemId', 'supplierId'],
+      where: { organizationId, inventoryItemId: { in: inventoryItemIds } },
+    });
+    const counts = new Map<string, number>();
+    for (const pair of pairs) counts.set(pair.inventoryItemId, (counts.get(pair.inventoryItemId) ?? 0) + 1);
+    return counts;
+  },
+
+  /** Live items per type — the counts on the catalog's type chips (§30.1). */
+  countLiveByType: async (organizationId: string): Promise<Record<InventoryItemType, number>> => {
+    const groups = await prisma.inventoryItem.groupBy({ by: ['type'], where: { organizationId, deletedAt: null }, _count: { _all: true } });
+    const counts: Record<InventoryItemType, number> = { STOCKED: 0, RAW_INGREDIENT: 0, PREPPED: 0 };
+    for (const group of groups) counts[group.type] = group._count._all;
+    return counts;
   },
 
   /**
@@ -500,14 +532,48 @@ export const restockLevelRepository = {
   sumOnHandByItemForLocation: async (
     organizationId: string,
     locationId: string,
+    inventoryItemIds?: string[],
   ): Promise<Map<string, Prisma.Decimal>> => {
     const rows = await prisma.inventoryTransaction.groupBy({
       by: ['inventoryItemId'],
-      where: { organizationId, locationId },
+      where: { organizationId, locationId, ...(inventoryItemIds ? { inventoryItemId: { in: inventoryItemIds } } : {}) },
       _sum: { quantity: true },
     });
     return new Map(rows.map((r) => [r.inventoryItemId, r._sum.quantity ?? new Prisma.Decimal(0)]));
   },
+};
+
+// ---------------------------------------------------------------------------
+// Restock level history (§30.5)
+// ---------------------------------------------------------------------------
+
+const restockChangeInclude = {
+  changedBy: { select: { id: true, name: true } },
+  inventoryItem: { select: { id: true, name: true, usageUnit: true, deletedAt: true } },
+  location: { select: { id: true, type: true, organizationId: true } },
+} satisfies Prisma.RestockLevelChangeInclude;
+export type RestockChangeRow = Prisma.RestockLevelChangeGetPayload<{ include: typeof restockChangeInclude }>;
+
+export const restockChangeRepository = {
+  /** Newest first. One item, or the location's recent changes across items. */
+  list: (organizationId: string, locationId: string, filters: { inventoryItemId?: string; limit: number }): Promise<RestockChangeRow[]> =>
+    prisma.restockLevelChange.findMany({
+      where: { organizationId, locationId, ...(filters.inventoryItemId ? { inventoryItemId: filters.inventoryItemId } : {}) },
+      include: restockChangeInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: filters.limit,
+    }),
+
+  findById: (id: string): Promise<RestockChangeRow | null> =>
+    prisma.restockLevelChange.findFirst({ where: { id }, include: restockChangeInclude }),
+
+  /** The newest entry for one (location, item) — read back after a put back writes its own. */
+  findLatest: (organizationId: string, locationId: string, inventoryItemId: string): Promise<RestockChangeRow | null> =>
+    prisma.restockLevelChange.findFirst({
+      where: { organizationId, locationId, inventoryItemId },
+      include: restockChangeInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    }),
 };
 
 // ---------------------------------------------------------------------------

@@ -173,6 +173,8 @@ export const SupplierItemSchema = z.object({
   packSize: z.string().nullable(),
   lastPrice: z.string().nullable(),
   lastPriceAt: z.string().datetime().nullable(),
+  /** Who set the price by hand; null when it came from a signed receipt or is unset (§30.3). */
+  lastPriceSetBy: z.object({ id: uuidSchema, name: z.string() }).nullable(),
   isPreferred: z.boolean(),
   /** Seeded as "Preferred · confirm"; cleared by setting or confirming it. */
   preferredNeedsConfirm: z.boolean(),
@@ -190,6 +192,7 @@ export const ItemSupplierLineSchema = z.object({
   packSize: z.string().nullable(),
   lastPrice: z.string().nullable(),
   lastPriceAt: z.string().datetime().nullable(),
+  lastPriceSetBy: z.object({ id: uuidSchema, name: z.string() }).nullable(),
   isPreferred: z.boolean(),
   preferredNeedsConfirm: z.boolean(),
 });
@@ -465,6 +468,8 @@ const supplierItemFields = {
   buyUnit: optionalText(50),
   packSize: positiveDecimalSchema.nullish(),
   isPreferred: z.boolean().optional(),
+  /** A price set by hand, per the line's buy unit (§30.3). Cannot be cleared. */
+  price: positiveDecimalSchema.optional(),
 };
 
 /** `lineId` edits one pack line; without it the line key (or, with no pack given, the oldest line) decides. */

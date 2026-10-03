@@ -36,6 +36,9 @@ import {
   supplierId,
 } from './supplier-test-fixtures';
 
+vi.mock('./item-history-repository', () => ({
+  itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
+}));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
@@ -129,7 +132,7 @@ describe('suppliers contract — response shapes', () => {
       {
         id: '99999999-9999-4999-8999-999999999991',
         inventoryItemId: itemId, supplierItemName: 'Fresh milk', supplierItemCode: 'M1', buyUnit: 'crate',
-        packSize: new Prisma.Decimal('12'), lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), isPreferred: true,
+        packSize: new Prisma.Decimal('12'), lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), lastPriceSetBy: null, isPreferred: true,
         preferredNeedsConfirm: true,
         inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
       },

@@ -10,6 +10,8 @@ import {
   supplierItemLookupRepository,
 } from './supplier-repository';
 import * as supplierRepositoryModule from './supplier-repository';
+import { itemChangeRepository } from './item-history-repository';
+import * as supplierValidators from './supplier-validators';
 import { goodsReceiptRepository, referenceCounterRepository } from './receiving-repository';
 import { branchRepository } from '../../repositories/branch-repository';
 import { authRepository } from '../../repositories/auth-repository';
@@ -39,6 +41,9 @@ import {
   waiter,
 } from './supplier-test-fixtures';
 
+vi.mock('./item-history-repository', () => ({
+  itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
+}));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
@@ -844,5 +849,83 @@ describe('supplierService — summary', () => {
     vi.mocked(supplierHistoryRepository.summaryInvoices).mockResolvedValue([]);
     const summary = await supplierService.getSummary(director, supplierId);
     expect(summary).toMatchObject({ totalSpend: '0', averageDaysToPay: null, receiptsCount: 0, lastPurchaseAt: null });
+  });
+});
+
+describe('supplierService — hand-set price and item history (§30.3, §30.4)', () => {
+  const line = (overrides: Record<string, unknown> = {}) => buildCatalogLine(overrides);
+
+  beforeEach(() => {
+    vi.mocked(supplierItemLookupRepository.findLiveItem).mockResolvedValue({ id: itemId, name: 'Sugar', buyUnit: 'bag', usageUnit: 'kg' } as never);
+    vi.mocked(supplierItemRepository.findByKey).mockResolvedValue(null);
+    vi.mocked(supplierItemRepository.findById).mockResolvedValue(line({ lastPrice: new Prisma.Decimal('2025') }) as never);
+    vi.mocked(supplierItemRepository.createLine).mockResolvedValue(line({ lastPrice: null, buyUnit: 'bag', packSize: new Prisma.Decimal('50') }) as never);
+    vi.mocked(supplierItemRepository.updateLine).mockResolvedValue(line() as never);
+    vi.mocked(supplierItemRepository.listBySupplierItems).mockResolvedValue([]);
+    vi.mocked(supplierItemRepository.applyPreferred).mockResolvedValue({ lineId, wasPreferred: false, wasNeedsConfirm: false });
+  });
+
+  const priceWrites = () =>
+    vi.mocked(supplierItemRepository.updateLine).mock.calls.filter(([, , data]) => (data as { lastPrice?: unknown }).lastPrice !== undefined);
+
+  it('add-one with a price sets it by hand: who and when, a supplier audit row, one SUPPLIER_ADDED history row', async () => {
+    await supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId, buyUnit: 'bag', packSize: '50', price: '8900', isPreferred: true });
+
+    expect(priceWrites()).toHaveLength(1);
+    expect(priceWrites()[0]![2]).toMatchObject({ lastPrice: '8900', lastPriceSetById: 'sm1' });
+    expect((priceWrites()[0]![2] as { lastPriceAt: Date }).lastPriceAt).toBeInstanceOf(Date);
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'LINE_PRICE_SET', lineId,
+      { inventoryItemId: itemId, lineId, price: null }, { inventoryItemId: itemId, lineId, price: '8900' }, tx,
+    );
+    expect(itemChangeRepository.record).toHaveBeenCalledTimes(1);
+    const record = vi.mocked(itemChangeRepository.record).mock.calls[0]![1];
+    expect(record).toMatchObject({ kind: 'SUPPLIER_ADDED', inventoryItemId: itemId, changedById: 'sm1', organizationId: hubOrgId });
+    expect(record.summary).toMatch(/^added .+ \(bag of 50 kg\) at KES 8,900 per bag, preferred$/);
+  });
+
+  it('add-one without a price writes no price and still records the supplier as added', async () => {
+    await supplierService.addItem(storeManager, supplierId, { inventoryItemId: itemId });
+    expect(priceWrites()).toHaveLength(0);
+    expect(supplierAuditRepository.create).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything(), 'LINE_PRICE_SET', expect.anything(), expect.anything(), expect.anything(), expect.anything());
+    expect(vi.mocked(itemChangeRepository.record).mock.calls[0]![1].summary).not.toContain('KES');
+  });
+
+  it('put on an existing line with a new price: LINE_PRICE_SET (old to new) and a SUPPLIER_PRICE_SET history row', async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { lineId, price: '2100' });
+
+    expect(priceWrites()[0]![2]).toMatchObject({ lastPrice: '2100', lastPriceSetById: 'sm1' });
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'LINE_PRICE_SET', lineId,
+      { inventoryItemId: itemId, lineId, price: '2025' }, { inventoryItemId: itemId, lineId, price: '2100' }, tx,
+    );
+    const record = vi.mocked(itemChangeRepository.record).mock.calls[0]![1];
+    expect(record).toMatchObject({ kind: 'SUPPLIER_PRICE_SET', before: { lineId, price: '2025' }, after: { lineId, price: '2100' } });
+    expect(record.summary).toMatch(/price to KES 2,100 per crate \(was KES 2,025\)$/);
+  });
+
+  it('put with the price the line already has writes nothing', async () => {
+    await supplierService.putItem(storeManager, supplierId, itemId, { lineId, price: '2025' });
+    expect(priceWrites()).toHaveLength(0);
+    expect(supplierAuditRepository.create).not.toHaveBeenCalled();
+    expect(itemChangeRepository.record).not.toHaveBeenCalled();
+  });
+
+  it('a put that creates the line records it as added, with the price in the sentence', async () => {
+    vi.mocked(supplierItemRepository.createLine).mockResolvedValue(line({ lastPrice: null, buyUnit: 'packet', packSize: new Prisma.Decimal('2') }) as never);
+    await supplierService.putItem(storeManager, supplierId, itemId, { buyUnit: 'packet', packSize: '2', price: '380' });
+
+    const record = vi.mocked(itemChangeRepository.record).mock.calls[0]![1];
+    expect(record.kind).toBe('SUPPLIER_ADDED');
+    expect(record.summary).toContain('(packet of 2 kg) at KES 380 per packet');
+    expect(priceWrites()[0]![2]).toMatchObject({ lastPrice: '380' });
+  });
+
+  it('rejects a price that is not a positive amount (the schema), and a price cannot be cleared with null', () => {
+    const { CreateSupplierItemSchema, PutSupplierItemSchema } = supplierValidators;
+    expect(CreateSupplierItemSchema.safeParse({ inventoryItemId: itemId, price: '0' }).success).toBe(false);
+    expect(CreateSupplierItemSchema.safeParse({ inventoryItemId: itemId, price: '-5' }).success).toBe(false);
+    expect(PutSupplierItemSchema.safeParse({ price: null }).success).toBe(false);
+    expect(PutSupplierItemSchema.safeParse({ price: '8900.5' }).success).toBe(true);
   });
 });

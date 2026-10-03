@@ -50,6 +50,7 @@ router.get(
 );
 // The attendant adds stocked / raw items from the phone; the service enforces which types and fields (§29.4).
 router.post('/inventory/items', requireRole('STORE_MANAGER', 'STORE_ATTENDANT'), inventoryController.createItem);
+router.get('/inventory/items/:id/history', requireRole('STORE_MANAGER'), inventoryController.getItemHistory);
 router.patch('/inventory/items/:id', requireRole('STORE_MANAGER'), inventoryController.updateItem);
 router.delete('/inventory/items/:id', requireRole('STORE_MANAGER'), inventoryController.retireItem);
 router.post('/inventory/items/:id/restore', requireRole('STORE_MANAGER'), inventoryController.restoreItem);
@@ -133,6 +134,17 @@ router.put(
   '/inventory/restock-levels',
   allowDepartmentHead(requireRole('STORE_MANAGER')),
   inventoryController.saveRestockLevels,
+);
+// Level history and put back (§30.5). `history` is registered with the other fixed paths, never read as an id.
+router.get(
+  '/inventory/restock-levels/history',
+  allowDepartmentHead(requireRole('STORE_MANAGER')),
+  inventoryController.listRestockHistory,
+);
+router.post(
+  '/inventory/restock-levels/changes/:id/put-back',
+  allowDepartmentHead(requireRole('STORE_MANAGER')),
+  inventoryController.putBackRestockLevel,
 );
 
 export default router;

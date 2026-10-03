@@ -4826,3 +4826,82 @@ receipts (distinct goods receipts that include the item), receiptLines, openOrde
 deliveries with the item), hasHistory}`.
 `hasHistory` is false exactly when `stockEntries`, `receiptLines` and `openOrders` are all 0 (the "no history" wording, 9b).
 `404` for an unknown item / other org; `403` for a non-hub actor.
+
+---
+
+## 30. Inventory — Central Store catalog, suppliers and restock levels (backend gaps, Session 4b)
+
+Plan: `docs/features/inventory/central-store/session-4-log.md` ("Deferred to the backend session") plus the restock history
+and put-back that Session 5 needs. Migration `item_history_price_source` (one: `inventory_item_changes`, `supplier_items.last_price_set_by_id`,
+audit action `LINE_PRICE_SET`). Everything else is additive. SM = Store Manager, SA = Store Attendant, DH = department head.
+Hub scoping (D-15) is unchanged: every call below needs a hub-org actor except a DH's own-department restock calls.
+
+### 30.1 Catalog list and detail additions
+
+`GET /inventory/items`
+- New query: `sort` = `name` (default) | `newest` (newest `createdAt` first, then `id`); `lowOrOut=true` = only Central Store items with a level
+  set and on-hand below it (`LOW` + `OUT`, §29.2) — **SM only**, `403` for anyone else. With `needsSetup=true` the two filters intersect;
+  `needsSetup` alone still lists oldest first unless `sort` is given.
+- Each row gains `supplierCount` (integer: suppliers with at least one catalog line for the item; all roles) and `matchedOn.supplierItemName`
+  (the matched line's name for the item, or `null`) — so a code match can show "Their name: …".
+- `meta` gains `typeCounts: {STOCKED, RAW_INGREDIENT, PREPPED}` (live items, regardless of the list's filters) and `addedByAttendant`
+  (live items created in the last 7 × 24 h whose creator was a Store Attendant; items made before item history existed count as 0).
+
+`GET /inventory/items/:id` (SM, SA)
+- SM only: `centralStoreOnHand` (string; on-hand at the Central Store only, from the ledger, may be negative; `"0"` when none).
+- `suppliers[].lastPriceSetBy: {id, name} | null` — who set the price by hand; `null` when it came from a signed receipt or is unset. Omitted for SA
+  (with the other price fields, §29.4).
+
+### 30.2 Usual price on item create
+
+`POST /inventory/items` body gains optional `usualPrice` (positive decimal, **per buy unit**). **SM only**: an SA sending it gets `403`
+(money field, §29.4). The service stores `currentCost = usualPrice ÷ (conversionFactor ?? 1)` (per usage unit, 4 dp). It does **not** create a
+supplier line. It is written in the item's history (`CREATED`, `after.usualPrice`).
+
+### 30.3 Hand-set supplier price
+
+`POST /inventory/suppliers/:id/items` and `PUT /inventory/suppliers/:id/items/:itemId` bodies gain optional `price` (positive decimal, **per the
+line's buy unit**; cannot be cleared). SM only (as today). Effects, in the same transaction as the line write:
+- `lastPrice = price`, `lastPriceAt = now`, `lastPriceSetById = actor`.
+- Supplier audit row `LINE_PRICE_SET`: `entityId` = line id, `before`/`after` = `{inventoryItemId, lineId, price}` (`before.price` null when none).
+- Item history row `SUPPLIER_PRICE_SET`.
+- A later signed receipt overwrites the price exactly as before **and clears `lastPriceSetById`** (the source is then the receipt).
+- Catalog rows (supplier Catalog tab) and `GET /items/:id` `suppliers[]` carry `lastPriceSetBy`.
+- `price` sent unchanged (equal to the current price) writes nothing.
+
+### 30.4 Item history and reasons
+
+Table `inventory_item_changes`: `{id, organizationId, inventoryItemId, kind, summary, before, after, reason, changedById, createdAt}`.
+Kinds: `CREATED`, `UPDATED`, `RETIRED`, `RESTORED`, `SUPPLIER_ADDED`, `SUPPLIER_PRICE_SET`. One row per action, written in the same transaction
+as the change. `summary` is a sentence **without the actor** ("added Samrat Supermarket Ltd at KES 8,900 per bag, preferred"); the screen
+shows `"{changedBy.name} {summary}"`, except `CREATED`, which it shows as "Created by {name}".
+
+| Action | kind | summary example |
+|---|---|---|
+| `POST /items` | `CREATED` | `created the item` |
+| `PATCH /items/:id` | `UPDATED` (only when something changed) | `changed the pack from 1 bag = 25 kg to 1 bag = 24 kg; renamed it from Wheat flour to Wheat flour 2` |
+| `DELETE /items/:id` | `RETIRED` | `retired the item` |
+| `POST /items/:id/restore` | `RESTORED` | `restored the item` |
+| supplier line added (`POST …/items`, or `PUT` that creates) | `SUPPLIER_ADDED` | `added Samrat Supermarket Ltd (bag of 50 kg) at KES 8,900 per bag, preferred` |
+| price set by hand | `SUPPLIER_PRICE_SET` | `set Samrat Supermarket Ltd's price to KES 9,100 per bag (was KES 8,900)` |
+
+`reason` (optional, ≤ 200 characters, never required): `PATCH /items/:id` body field; `DELETE /items/:id?reason=`; `POST /items/:id/restore` body
+`{reason?}`. It is stored on the history row. An update whose only field is `reason` is rejected (`At least one field must be provided`).
+
+`GET /inventory/items/:id/history?limit=` (SM; `limit` 1–200, default 50) → newest first:
+`[{id, kind, summary, reason, before, after, changedBy: {id, name}, createdAt}]`. `404` unknown item / other org; `403` non-hub.
+`before` / `after` hold only the fields that changed. No restock-level changes appear here (they have their own history, §30.5).
+
+### 30.5 Restock level history and put back
+
+`GET /inventory/restock-levels/history` (SM, DH). Same scope query as the list (`locationId`, or `scope` + `branchId`; a DH sends neither and gets their
+own department), plus `inventoryItemId` (one item) and `limit` (1–200, default 50). Newest first:
+`[{id, inventoryItemId, itemName, usageUnit, oldLevel | null, newLevel | null, reason | null, changedBy: {id, name}, createdAt}]`.
+Without `inventoryItemId` it is the location's recent changes across items (the department head's "Your recent changes").
+
+`POST /inventory/restock-levels/changes/:changeId/put-back` (SM, DH), optional body `{reason?}` (≤ 200, default `"Put back"`). Restores the level the
+change replaced (`oldLevel`) and writes a **new** history entry; the old entry stays. Returns the new entry (same shape as above).
+- `400` when the change had no earlier level (`oldLevel` null): nothing to put back.
+- `409` when the level is already at that value.
+- `404` unknown change / other org / retired item. A DH may only put back changes at their own department's location (`403` otherwise); an SM may
+  put back at any location in the hub scope (Central Store or a branch department they can see).
