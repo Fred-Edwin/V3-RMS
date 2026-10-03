@@ -29,6 +29,7 @@ import {
   supplierContactRepository,
   supplierDocumentRepository,
   supplierHistoryRepository,
+  supplierStripRepository,
   supplierItemLookupRepository,
   supplierItemRepository,
   supplierPayMethodRepository,
@@ -48,6 +49,7 @@ import {
   serializeSupplierItem,
 } from './supplier-serializers';
 import { getDocumentStorage } from './supplier-storage';
+import { PROFILE_CHECK_COUNT, invoiceOutstanding, profileDoneCount } from './supplier-summary';
 import {
   MAX_SUPPLIER_DOCUMENT_BYTES,
   SIGNED_URL_TTL_SECONDS,
@@ -1002,6 +1004,47 @@ export const supplierService = {
   },
 
   // ── Summary ──────────────────────────────────────────────────────────────
+
+  /** The strip above the suppliers list: active, on hold, profile not finished, owed (§29.3). */
+  getListSummary: async (actor: Actor) => {
+    requireReadAccess(actor);
+    const organizationId = await requireHubActor(actor);
+    const suppliers = await supplierStripRepository.listForStrip(organizationId);
+    let owed = new Prisma.Decimal(0);
+    let suppliersOwed = 0;
+    for (const supplier of suppliers) {
+      const balance = supplier.supplierInvoices
+        .map(invoiceOutstanding)
+        .filter((outstanding) => outstanding.greaterThan(0))
+        .reduce((sum, outstanding) => sum.plus(outstanding), new Prisma.Decimal(0));
+      if (balance.greaterThan(0)) suppliersOwed += 1;
+      owed = owed.plus(balance);
+    }
+    return {
+      active: suppliers.filter((s) => s.status === 'ACTIVE').length,
+      onHold: suppliers.filter((s) => s.status === 'ON_HOLD').length,
+      profileNotFinished: suppliers.filter(
+        (s) => profileDoneCount({ ...s, payMethodCount: s._count.payMethods }) < PROFILE_CHECK_COUNT,
+      ).length,
+      owedAmount: owed.toFixed(2),
+      suppliersOwed,
+    };
+  },
+
+  /** The strip on a supplier's Catalog tab: items they sell, price alerts, last receipt, spend over 90 days (§29.3). */
+  getCatalogSummary: async (actor: Actor, supplierId: string) => {
+    requireReadAccess(actor);
+    const organizationId = await requireHubActor(actor);
+    await requireSupplier(supplierId, organizationId);
+    const since = new Date(Date.now() - 90 * 86_400_000);
+    const strip = await supplierStripRepository.catalogStrip(supplierId, organizationId, since);
+    return {
+      itemsTheySell: strip.itemsTheySell,
+      priceAlerts: strip.recent.reduce((n, r) => n + r.lines.filter((l) => l.priceAlertPct !== null).length, 0),
+      lastReceiptAt: strip.lastReceiptAt ? strip.lastReceiptAt.toISOString() : null,
+      spend90Days: strip.recent.reduce((sum, r) => sum.plus(r.receiptTotal), new Prisma.Decimal(0)).toFixed(2),
+    };
+  },
 
   getSummary: async (actor: Actor, supplierId: string) => {
     requireReadAccess(actor);

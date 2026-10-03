@@ -12,6 +12,8 @@
 import type { z } from 'zod';
 
 import type {
+  AttendantInventoryItemSchema,
+  AttendantItemMutationResponseSchema,
   CategorySchema,
   CentralStoreLocationSchema,
   CreateCategorySchema,
@@ -19,11 +21,14 @@ import type {
   InventoryItemListRowSchema,
   InventoryItemSchema,
   ItemCatalogMetaSchema,
+  ItemChangeReviewSchema,
   ItemMutationResponseSchema,
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
   ListRestockLevelsQuerySchema,
   RestockLevelRowSchema,
+  RestockLevelsSummaryQuerySchema,
+  RestockLevelsSummarySchema,
   SaveRestockLevelsSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
@@ -58,12 +63,18 @@ export type ListItemsQuery = z.infer<typeof ListItemsQuerySchema>;
 export type CreateItemInput = z.infer<typeof CreateItemSchema>;
 export type UpdateItemInput = z.infer<typeof UpdateItemSchema>;
 export type ItemMutationResponse = z.infer<typeof ItemMutationResponseSchema>;
+export type AttendantInventoryItem = z.infer<typeof AttendantInventoryItemSchema>;
+export type AttendantItemListRow = AttendantInventoryItem & Pick<InventoryItemListRow, 'matchedOn'>;
+export type AttendantItemMutationResponse = z.infer<typeof AttendantItemMutationResponseSchema>;
+export type ItemChangeReview = z.infer<typeof ItemChangeReviewSchema>;
 
 // --- Restock levels --------------------------------------------------------
 
 export type RestockLevelRow = z.infer<typeof RestockLevelRowSchema>;
 export type ListRestockLevelsQuery = z.infer<typeof ListRestockLevelsQuerySchema>;
 export type SaveRestockLevelsInput = z.infer<typeof SaveRestockLevelsSchema>;
+export type RestockLevelsSummary = z.infer<typeof RestockLevelsSummarySchema>;
+export type RestockLevelsSummaryQuery = z.infer<typeof RestockLevelsSummaryQuerySchema>;
 
 // --- Response envelopes ----------------------------------------------------
 
@@ -79,6 +90,6 @@ export interface Paginated<T> {
 }
 
 /** The item catalog list additionally carries the KPI strip's counts. */
-export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow> {
+export interface ItemCatalogListResponse extends Paginated<InventoryItemListRow | AttendantItemListRow> {
   meta: ItemCatalogMeta;
 }

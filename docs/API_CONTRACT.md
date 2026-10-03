@@ -3515,7 +3515,7 @@ All routes carry `authenticate` + `requireRole`. All inputs are Zod-validated.
 | `POST` | `/inventory/categories/:id/restore` | SM |
 | `GET` | `/inventory/items` | SM, SA |
 | `GET` | `/inventory/items/:id` | SM, SA |
-| `POST` | `/inventory/items` | SM |
+| `POST` | `/inventory/items` | SM, SA *(SA: stocked / raw only — §29.4)* |
 | `PATCH` | `/inventory/items/:id` | SM |
 | `DELETE` | `/inventory/items/:id` | SM |
 | `POST` | `/inventory/items/:id/restore` | SM |
@@ -4710,3 +4710,119 @@ whatsapp: { to: phone|null, body }
 the supplier's. Body: one line per item `"1. <displayName> (<code>) — <qty> <unit>"` followed by
 `"   Our item: <ours>"`. No prices in the message. The phone "Check the goods" screen is unchanged
 (our name only). Internal endpoints return both names, ours primary.
+
+## 29. Inventory — Central Store catalog, suppliers and restock levels (Part B services, B9–B13)
+
+Plan: `docs/features/inventory/central-store/catalog-suppliers-restock-plan.md` §3 (B9–B13).
+Migration: `restock_level_changes` (Session 3, owner-approved: the History / Put-back screens need
+a real change log). Everything else is additive. SM = Store Manager, SA = Store Attendant,
+DH = department head (a marker on a base role, not a role), ACC = Accountant, DIR = Director.
+Hub scoping (D-15) is unchanged: every call below except a DH's own-department restock call needs a
+hub-org actor, and a non-hub actor gets `403`.
+
+### 29.1 Housekeeping (B9)
+
+No change to request or response shapes. `HOUSEKEEPING` is a `DepartmentTag` (and was already accepted
+by the item `departmentTags` / list `departmentTag` filters, restock levels, requisitions, dispatch,
+branch day and department-head assignment). A Housekeeping head is `isDepartmentHead = true` +
+`departmentTag = "HOUSEKEEPING"` on a base role (`HOUSEKEEPING` or any other); there is no new
+`UserRole` value. Restock-level scoping resolves their branch's Housekeeping location exactly as it
+does for Kitchen.
+
+### 29.2 Restock levels for any department (B10)
+
+`GET` and `PUT /inventory/restock-levels` (SM, DH) — the existing `locationId` form keeps working. The
+Store Manager may instead name **whose levels** with:
+
+| Field | Meaning |
+|---|---|
+| `scope` | `"CENTRAL_STORE"` or a `DepartmentTag` (`KITCHEN`, `PASTRY`, `BARISTA`, `SERVICE`, `HOUSEKEEPING`) |
+| `branchId` | The branch organization. **Required** when `scope` is a department (each branch has its own Kitchen, Pastry …); **rejected** (`400`) with `CENTRAL_STORE` |
+| `reason` | PUT only, optional, ≤ 200 chars. Stored on each change row |
+
+Rules: `locationId` and `scope` are mutually exclusive (`400`); a SM must send one of them. A department
+scope resolves the branch's `BRANCH_DEPARTMENT` location for that tag (`404` if the branch has none,
+`400` if `branchId` is the hub or unknown). Only items tagged for that department can be given a level
+(`403`, as for a DH). A DH may send neither field (`403` otherwise) and stays limited to their own department.
+Responses are the existing `RestockLevelRow[]`, with these **additive** fields on every row:
+
+`status: "OUT" | "LOW" | "OK" | "NO_LEVEL"` — `NO_LEVEL` when no level is set; `OUT` when a level is set and
+`onHandQty ≤ 0`; `LOW` when a level is set and `0 < onHandQty < level`; else `OK` (`isBelowLevel` = `OUT` or `LOW`).
+`suggestedLevel: string | null`, `suggestionNote: "NEEDS_HISTORY" | null` — see §29.5.
+
+**Change log.** Every save (SM or DH, and the inline level on item create/update) writes one
+`restock_level_changes` row per level that actually changed, in the same transaction as the upsert:
+`{id, organizationId (the location's org), locationId (for whom), inventoryItemId, oldLevel|null,
+newLevel|null (null = cleared), changedById (who), reason|null, createdAt}`. An unchanged level writes nothing.
+(No read endpoint this session; the History / Put-back screen is Part C.)
+
+### 29.3 Summary strips (B11)
+
+All counts are integers; money is a decimal string. Nothing here is cached.
+
+**Catalog** — `GET /inventory/items` `meta` gains `needsSetup`, `lowOrOut`, `addedThisWeek` (alongside the
+existing `itemsTracked` …). `lowOrOut` is `null` for anyone but SM (restock levels are not for the SA / DH).
+Counts cover **all live items**, regardless of the list's filters.
+
+- **Needs setup** = a live item with *placeholder units from seeding*: `lower(trim(usageUnit)) = lower(trim(buyUnit))`
+  **and** `packSize IS NULL` **and** `conversionFactor IS NULL`. Entering a conversion factor (even `1`) or a pack
+  size takes it out of the set. *Known limit: with no schema flag, a genuine "bought and used in the same unit
+  with no conversion" item also counts until a conversion factor is entered — flagged to the owner.*
+- **Low or out** = Central Store items with a level set and `onHand < level` (= `LOW` + `OUT` in §29.2).
+- **Added this week** = live items created in the last 7 × 24 h.
+- The list takes `needsSetup=true` (new query flag): only those items, **oldest `createdAt` first** (then `id`).
+
+**Restock levels** — `GET /inventory/restock-levels/summary` (SM, DH; same `locationId` / `scope` / `branchId`
+query as the list) → `{total, out, low, ok, noLevel, suggestionsDiffer}`; `total` = rows, the four statuses sum to it.
+`suggestionsDiffer` is defined in §29.5.
+
+**Suppliers** — `GET /inventory/suppliers/summary` (SM, ACC, DIR; registered before `/:id`) →
+`{active, onHold, profileNotFinished, owedAmount (string), suppliersOwed}`. `active` / `onHold` count by `status`
+(archived excluded from everything). `profileNotFinished` counts non-archived suppliers missing any of the **7** profile
+checks (matches the drawn "Profile 4 of 7" for a new supplier): name · type · phone (primary contact) · address (not
+blank / "—") · **contact person** (a contact whose name differs from the supplier's name) · **payment details**
+(≥ 1 pay method) · KRA PIN. `owedAmount` = Σ over all non-archived suppliers' invoices of
+`amountBilled + Σ adjustments − Σ allocations`, counting only invoices with a positive balance; `suppliersOwed` = how many
+suppliers have such an invoice.
+
+**Supplier Catalog tab** — `GET /inventory/suppliers/:id/catalog-summary` (SM, ACC, DIR) →
+`{itemsTheySell, priceAlerts, lastReceiptAt|null, spend90Days (string)}`. `itemsTheySell` = distinct items on their
+catalog lines; `priceAlerts` = lines with a price alert on signed receipts from the last 90 days; `lastReceiptAt` = latest
+`signedAt` of a signed receipt (any age); `spend90Days` = Σ `receiptTotal` of signed, non-cancelled receipts signed in the
+last 90 days. `404` for a supplier outside the hub org.
+
+### 29.4 Attendant item creation (B12) and attendant blindness
+
+`POST /inventory/items` is now **SM, SA**. For an SA the service enforces:
+
+- `type` must be `STOCKED` or `RAW_INGREDIENT`; `PREPPED` → **`403`** (a permission rule, not a field error).
+- Allowed body fields: `name, type, buyUnit, usageUnit, conversionFactor, packSize`. Sending
+  `categoryId`, `categoryName`, `preferredSupplierId`, `departmentTags` (non-empty) or `centralStoreRestockLevel`
+  → `403` (the SM finishes those; the item shows under *Needs setup*).
+- The response `data.item` omits `currentCost`, `centralStoreRestockLevel`, `preferredSupplier`, `preferredSupplierId`.
+  The SA read paths (`GET /inventory/items`, `GET /inventory/items/:id`) now omit the same four keys (and, on
+  `:id`, the supplier lines' prices) — **a behaviour change**: before this session they leaked them.
+
+### 29.5 Suggested restock level (provisional — formula needs the owner's sign-off)
+
+Used by §29.2 rows and the `suggestionsDiffer` count. Constants live in `restock-suggestion.ts`.
+
+- *Use* at a location = −(Σ ledger `quantity`) of types `PREP_CONSUME`, `DISPATCH_OUT`, `WASTE`, `SALE` (reversals net out).
+- *History* = days from the item's first use row at that location to now. Under **14 days** → `suggestedLevel = null`,
+  `suggestionNote = "NEEDS_HISTORY"` ("Needs 14 days of use first"). No use at all → `suggestedLevel = null`, note `null`.
+- Otherwise `avgDaily = use in the last min(30, history) days ÷ that many days`; `suggestedLevel = ceil(avgDaily × 15, 2dp)`
+  (15 days of cover for every item — per-item cover is an open owner question).
+- **Suggestions differ** = a level is set, a suggestion exists, and `|suggested − level| > 20 % of level`
+  (a level of 0 differs whenever a suggestion > 0).
+
+### 29.6 Review-a-change summary (B13)
+
+`GET /inventory/items/:id/change-review` (SM) — for the unit / pack / type / retire "Review change" step. The plan said to
+extend an existing summary; **none existed**, so this is a new endpoint. Always returns every count, zero when empty,
+never `null` or missing:
+
+`{inventoryItemId, itemName, onHandQty (string, all locations), locationsHoldingStock, stockEntries (ledger rows),
+receipts (distinct goods receipts that include the item), receiptLines, openOrders (distinct AWAITING expected
+deliveries with the item), hasHistory}`.
+`hasHistory` is false exactly when `stockEntries`, `receiptLines` and `openOrders` are all 0 (the "no history" wording, 9b).
+`404` for an unknown item / other org; `403` for a non-hub actor.

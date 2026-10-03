@@ -255,6 +255,23 @@ export const SupplierSummarySchema = z.object({
   shortDeliveries: z.number().int().min(0),
 });
 
+/** The strip above the suppliers list (§29.3). `owedAmount` is KES, a decimal string. */
+export const SupplierListSummarySchema = z.object({
+  active: z.number().int().min(0),
+  onHold: z.number().int().min(0),
+  profileNotFinished: z.number().int().min(0),
+  owedAmount: z.string(),
+  suppliersOwed: z.number().int().min(0),
+});
+
+/** The strip on a supplier's Catalog tab (§29.3). */
+export const SupplierCatalogSummarySchema = z.object({
+  itemsTheySell: z.number().int().min(0),
+  priceAlerts: z.number().int().min(0),
+  lastReceiptAt: z.string().datetime().nullable(),
+  spend90Days: z.string(),
+});
+
 // ---------------------------------------------------------------------------
 // Supplier — requests
 // ---------------------------------------------------------------------------

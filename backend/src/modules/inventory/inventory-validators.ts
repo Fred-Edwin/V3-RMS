@@ -185,6 +185,17 @@ export const InventoryItemSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
+/**
+ * What a Store Attendant sees of an item (§29.4): never a price, a restock level or a preferred
+ * supplier. Money and ordering decisions stay with the Store Manager.
+ */
+export const AttendantInventoryItemSchema = InventoryItemSchema.omit({
+  currentCost: true,
+  centralStoreRestockLevel: true,
+  preferredSupplier: true,
+  preferredSupplierId: true,
+});
+
 /** List rows add why a search matched when it was a supplier's code or name, not ours (§28.5). */
 export const InventoryItemListRowSchema = InventoryItemSchema.extend({
   matchedOn: z
@@ -204,6 +215,11 @@ export const ItemCatalogMetaSchema = z.object({
   retiredCategoryCount: z.number().int().min(0),
   departmentCount: z.number().int().min(0),
   supplierCount: z.number().int().min(0),
+  /** Placeholder units from seeding — definition in API_CONTRACT.md §29.3. */
+  needsSetup: z.number().int().min(0),
+  /** Central Store items with a level set and on-hand below it; null for anyone but the Store Manager. */
+  lowOrOut: z.number().int().min(0).nullable(),
+  addedThisWeek: z.number().int().min(0),
 });
 
 export const ListItemsQuerySchema = PaginationQuerySchema.extend({
@@ -212,6 +228,8 @@ export const ListItemsQuerySchema = PaginationQuerySchema.extend({
   categoryId: uuidSchema.optional(),
   departmentTag: departmentTagSchema.optional(),
   includeRetired: booleanQueryParamSchema.default(false),
+  /** Only items still on placeholder units, oldest first (§29.3). */
+  needsSetup: booleanQueryParamSchema.default(false),
 });
 
 /**
@@ -291,14 +309,37 @@ export const UpdateItemSchema = z
  * allowed only with a distinguishing qualifier"). The save succeeds and the
  * form renders the warning — so create/update responses carry this envelope.
  */
+const itemWarningsSchema = z.array(
+  z.object({
+    code: z.literal('DUPLICATE_ITEM_NAME'),
+    message: z.string(),
+  }),
+);
+
 export const ItemMutationResponseSchema = z.object({
   item: InventoryItemSchema,
-  warnings: z.array(
-    z.object({
-      code: z.literal('DUPLICATE_ITEM_NAME'),
-      message: z.string(),
-    }),
-  ),
+  warnings: itemWarningsSchema,
+});
+
+export const AttendantItemMutationResponseSchema = z.object({
+  item: AttendantInventoryItemSchema,
+  warnings: itemWarningsSchema,
+});
+
+/**
+ * The "Review change" step before a unit / pack / type / retire edit (§29.6, B13). Every count is
+ * always present — zero when there is no history, never null — so the no-history wording can render.
+ */
+export const ItemChangeReviewSchema = z.object({
+  inventoryItemId: uuidSchema,
+  itemName: z.string(),
+  onHandQty: z.string(),
+  locationsHoldingStock: z.number().int().min(0),
+  stockEntries: z.number().int().min(0),
+  receipts: z.number().int().min(0),
+  receiptLines: z.number().int().min(0),
+  openOrders: z.number().int().min(0),
+  hasHistory: z.boolean(),
 });
 
 // ---------------------------------------------------------------------------
@@ -316,6 +357,8 @@ export const ItemMutationResponseSchema = z.object({
  * never a stored counter"). It can be negative — negative stock is allowed and
  * flagged, never blocked.
  */
+export const restockStatusSchema = z.enum(['OUT', 'LOW', 'OK', 'NO_LEVEL']);
+
 export const RestockLevelRowSchema = z.object({
   inventoryItemId: uuidSchema,
   itemName: z.string(),
@@ -323,17 +366,56 @@ export const RestockLevelRowSchema = z.object({
   onHandQty: z.string(),
   level: nonNegativeDecimalSchema.nullable(),
   isBelowLevel: z.boolean(),
+  status: restockStatusSchema,
+  /** Provisional formula, §29.5. Null when there is no history yet or no use at all. */
+  suggestedLevel: z.string().nullable(),
+  suggestionNote: z.literal('NEEDS_HISTORY').nullable(),
 });
 
-export const ListRestockLevelsQuerySchema = z.object({
-  /**
-   * Store Manager passes the Central Store location explicitly. A Department
-   * Head omits it — the server resolves their own department and rejects any
-   * other location with 403.
-   */
-  locationId: uuidSchema.optional(),
-  search: z.string().trim().max(200).optional(),
+export const RestockLevelsSummarySchema = z.object({
+  total: z.number().int().min(0),
+  out: z.number().int().min(0),
+  low: z.number().int().min(0),
+  ok: z.number().int().min(0),
+  noLevel: z.number().int().min(0),
+  suggestionsDiffer: z.number().int().min(0),
 });
+
+/**
+ * "Whose levels" (§29.2). A Store Manager names the Central Store `locationId` (legacy) OR a
+ * `scope`; a department scope also needs the `branchId`, because every branch has its own
+ * Kitchen / Pastry / … location.
+ */
+export const restockScopeSchema = z.union([z.literal('CENTRAL_STORE'), departmentTagSchema]);
+
+const restockScopeFields = {
+  locationId: uuidSchema.optional(),
+  scope: restockScopeSchema.optional(),
+  branchId: uuidSchema.optional(),
+};
+
+const restockScopeIsConsistent = (data: { locationId?: string; scope?: string; branchId?: string }): boolean =>
+  !(data.locationId && data.scope) && !(data.scope === 'CENTRAL_STORE' && data.branchId) && !(data.branchId && !data.scope);
+
+const SCOPE_MESSAGE = 'Send locationId, or scope (with branchId for a department) — not both';
+
+const departmentScopeNeedsBranch = (data: { scope?: string; branchId?: string }): boolean =>
+  !data.scope || data.scope === 'CENTRAL_STORE' || !!data.branchId;
+
+export const ListRestockLevelsQuerySchema = z
+  .object({
+    /**
+     * Store Manager passes the Central Store location explicitly (or `scope`). A Department
+     * Head omits both — the server resolves their own department and rejects any other with 403.
+     */
+    ...restockScopeFields,
+    search: z.string().trim().max(200).optional(),
+  })
+  .refine(restockScopeIsConsistent, { message: SCOPE_MESSAGE, path: ['scope'] })
+  .refine(departmentScopeNeedsBranch, { message: 'branchId is required for a department scope', path: ['branchId'] });
+
+/** The summary strip takes the same "whose levels" query as the list. */
+export const RestockLevelsSummaryQuerySchema = ListRestockLevelsQuerySchema;
 
 /**
  * Bulk upsert — both `T52-0` and `TD1-0` are a single "Save restock levels"
@@ -341,15 +423,20 @@ export const ListRestockLevelsQuerySchema = z.object({
  * request per row. `level: null` clears that item's level (Flow 19: "par set to
  * zero / removed → allowed").
  */
-export const SaveRestockLevelsSchema = z.object({
-  locationId: uuidSchema.optional(),
-  levels: z
-    .array(
-      z.object({
-        inventoryItemId: uuidSchema,
-        level: nonNegativeDecimalSchema.nullable(),
-      }),
-    )
-    .min(1, 'At least one row is required')
-    .max(500),
-});
+export const SaveRestockLevelsSchema = z
+  .object({
+    ...restockScopeFields,
+    /** Stored on each change row (§29.2). */
+    reason: z.string().trim().min(1).max(200).optional(),
+    levels: z
+      .array(
+        z.object({
+          inventoryItemId: uuidSchema,
+          level: nonNegativeDecimalSchema.nullable(),
+        }),
+      )
+      .min(1, 'At least one row is required')
+      .max(500),
+  })
+  .refine(restockScopeIsConsistent, { message: SCOPE_MESSAGE, path: ['scope'] })
+  .refine(departmentScopeNeedsBranch, { message: 'branchId is required for a department scope', path: ['branchId'] });

@@ -3,6 +3,7 @@ import { Prisma, type DepartmentTag } from '@prisma/client';
 import {
   categoryRepository,
   inventoryItemRepository,
+  itemChangeReviewRepository,
   restockLevelRepository,
   type CategoryWithItemCount,
   type InventoryItemWithRelations,
@@ -13,21 +14,31 @@ import {
   supplierRepository,
 } from './supplier-repository';
 import { serializeItemSupplierLine } from './supplier-serializers';
+import {
+  SUGGESTION_WINDOW_DAYS,
+  computeSuggestion,
+  restockStatus,
+  suggestionDiffers,
+} from './restock-suggestion';
 import { branchRepository } from '../../repositories/branch-repository';
 import { locationRepository } from '../../repositories/location-repository';
 import { prisma } from '../../config/database';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../utils/errors';
 import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
+  AttendantItemMutationResponse,
   CentralStoreLocation,
   CreateCategoryInput,
   CreateItemInput,
   ItemCatalogListResponse,
+  ItemChangeReview,
   ItemMutationResponse,
   ListItemsQuery,
   ListRestockLevelsQuery,
   Paginated,
   RestockLevelRow,
+  RestockLevelsSummary,
+  RestockLevelsSummaryQuery,
   SaveRestockLevelsInput,
   UpdateCategoryInput,
   UpdateItemInput,
@@ -146,6 +157,42 @@ const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLeve
   createdAt: item.createdAt.toISOString(),
   updatedAt: item.updatedAt.toISOString(),
 });
+
+/** A Store Attendant (not a department head) is blind to money: prices, levels, preferred supplier (§29.4). */
+const isAttendant = (actor: Actor): boolean => actor.role === 'STORE_ATTENDANT' && !actor.isDepartmentHead;
+
+const serializeAttendantItem = (item: InventoryItemWithRelations) => ({
+  id: item.id,
+  name: item.name,
+  type: item.type,
+  categoryId: item.categoryId,
+  buyUnit: item.buyUnit,
+  usageUnit: item.usageUnit,
+  conversionFactor: toDecimalString(item.conversionFactor),
+  packSize: toDecimalString(item.packSize),
+  departmentTags: item.departmentTags,
+  category: item.category,
+  retiredAt: item.deletedAt?.toISOString() ?? null,
+  createdAt: item.createdAt.toISOString(),
+  updatedAt: item.updatedAt.toISOString(),
+});
+
+/** Item types a Store Attendant may create (§29.4); a prepped item needs a recipe and a manager. */
+const ATTENDANT_CREATABLE_TYPES: readonly string[] = ['STOCKED', 'RAW_INGREDIENT'];
+
+const assertAttendantMayCreate = (input: CreateItemInput): void => {
+  if (!ATTENDANT_CREATABLE_TYPES.includes(input.type)) {
+    throw new ForbiddenError('Store Attendants can add stocked and raw-ingredient items only');
+  }
+  const managerOnly: string[] = [];
+  if (input.categoryId || input.categoryName) managerOnly.push('category');
+  if (input.preferredSupplierId) managerOnly.push('preferred supplier');
+  if (input.departmentTags.length > 0) managerOnly.push('used-by departments');
+  if (input.centralStoreRestockLevel != null) managerOnly.push('restock level');
+  if (managerOnly.length > 0) {
+    throw new ForbiddenError(`The Store Manager sets ${managerOnly.join(', ')} — leave it blank and it shows under Needs setup`);
+  }
+};
 
 /**
  * Raw ingredients may never carry department tags — enforced here (service
@@ -306,20 +353,33 @@ export const inventoryService = {
 
   listItems: async (actor: Actor, query: ListItemsQuery): Promise<ItemCatalogListResponse> => {
     const organizationId = await requireHubOrgForCatalogRead(actor);
+    const attendant = isAttendant(actor);
+    // "Needs setup" is a column-to-column comparison, so the ids come from one raw query (§29.3).
+    const needsSetupIds = await inventoryItemRepository.findNeedsSetupIds(organizationId);
     const { items, total } = await inventoryItemRepository.findAllByOrganization(organizationId, {
       search: query.search,
       type: query.type,
       categoryId: query.categoryId,
       departmentTag: query.departmentTag,
       includeRetired: query.includeRetired,
+      onlyIds: query.needsSetup ? needsSetupIds : undefined,
       page: query.page,
       perPage: query.perPage,
     });
-    const meta = await inventoryItemRepository.getCatalogMeta(organizationId);
-    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(
+    const catalogMeta = await inventoryItemRepository.getCatalogMeta(organizationId);
+    const addedThisWeek = await inventoryItemRepository.countCreatedSince(
       organizationId,
-      items.map((item) => item.id),
+      new Date(Date.now() - 7 * 86_400_000),
     );
+    const lowOrOut = actor.role === 'STORE_MANAGER' && !actor.isDepartmentHead ? await countCentralStoreLowOrOut(organizationId) : null;
+    const meta = { ...catalogMeta, needsSetup: needsSetupIds.length, lowOrOut, addedThisWeek };
+
+    const restockLevelsByItemId = attendant
+      ? new Map<string, Prisma.Decimal>()
+      : await getCentralStoreRestockLevelsByItemId(
+          organizationId,
+          items.map((item) => item.id),
+        );
     const search = query.search?.trim();
     const matches =
       search && items.length > 0
@@ -327,12 +387,14 @@ export const inventoryService = {
         : [];
 
     return {
-      data: items.map((item) => ({
-        ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
-        matchedOn: search
+      data: items.map((item) => {
+        const matchedOn = search
           ? buildMatchedOn(item.name, search, matches.filter((m) => m.inventoryItemId === item.id))
-          : null,
-      })),
+          : null;
+        return attendant
+          ? { ...serializeAttendantItem(item), matchedOn }
+          : { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), matchedOn };
+      }),
       pagination: {
         total,
         page: query.page,
@@ -347,13 +409,45 @@ export const inventoryService = {
     const organizationId = await requireHubActor(actor);
     const item = await inventoryItemRepository.findById(id, organizationId);
     if (!item) throw new NotFoundError('Inventory item not found');
+    const suppliers = (await supplierItemRepository.listForItem(item.id, organizationId)).map(serializeItemSupplierLine);
+    if (isAttendant(actor)) {
+      // No prices and no preferred flags: who sells it and under what name, nothing about money.
+      return {
+        ...serializeAttendantItem(item),
+        suppliers: suppliers.map(({ lastPrice: _lastPrice, lastPriceAt: _lastPriceAt, isPreferred: _p, preferredNeedsConfirm: _c, ...rest }) => rest),
+      };
+    }
     const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
-    const suppliers = await supplierItemRepository.listForItem(item.id, organizationId);
-    return { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), suppliers: suppliers.map(serializeItemSupplierLine) };
+    return { ...serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), suppliers };
   },
 
-  createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse> => {
+  /**
+   * The "Review change" summary for a unit / pack / type / retire edit (B13, §29.6). Plain counts, so an
+   * item with no history yields zeros and `hasHistory: false` — never null — and the screen can say
+   * "No stock has been counted yet, so no figures change".
+   */
+  getItemChangeReview: async (actor: Actor, id: string): Promise<ItemChangeReview> => {
     const organizationId = await requireHubActor(actor);
+    const item = await inventoryItemRepository.findById(id, organizationId);
+    if (!item) throw new NotFoundError('Inventory item not found');
+    const counts = await itemChangeReviewRepository.counts(id, organizationId);
+    return {
+      inventoryItemId: item.id,
+      itemName: item.name,
+      onHandQty: counts.onHandQty.toString(),
+      locationsHoldingStock: counts.locationsHoldingStock,
+      stockEntries: counts.stockEntries,
+      receipts: counts.receipts,
+      receiptLines: counts.receiptLines,
+      openOrders: counts.openOrders,
+      hasHistory: counts.stockEntries > 0 || counts.receiptLines > 0 || counts.openOrders > 0,
+    };
+  },
+
+  createItem: async (actor: Actor, input: CreateItemInput): Promise<ItemMutationResponse | AttendantItemMutationResponse> => {
+    const organizationId = await requireHubActor(actor);
+    const attendant = isAttendant(actor);
+    if (attendant) assertAttendantMayCreate(input);
     assertRawIngredientHasNoDepartments(input.type, input.departmentTags);
 
     if (input.preferredSupplierId) {
@@ -399,14 +493,13 @@ export const inventoryService = {
       }
     }
 
-    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    const warnings = duplicate
+      ? [{ code: 'DUPLICATE_ITEM_NAME' as const, message: `Another item is already named "${input.name}".` }]
+      : [];
+    if (attendant) return { item: serializeAttendantItem(item), warnings };
 
-    return {
-      item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null),
-      warnings: duplicate
-        ? [{ code: 'DUPLICATE_ITEM_NAME' as const, message: `Another item is already named "${input.name}".` }]
-        : [],
-    };
+    const restockLevelsByItemId = await getCentralStoreRestockLevelsByItemId(organizationId, [item.id]);
+    return { item: serializeItem(item, restockLevelsByItemId.get(item.id) ?? null), warnings };
   },
 
   updateItem: async (actor: Actor, id: string, input: UpdateItemInput): Promise<ItemMutationResponse> => {
@@ -496,43 +589,30 @@ export const inventoryService = {
   // ── Restock levels ───────────────────────────────────────────────────────
 
   /**
-   * Store Manager passes `locationId` (must be the hub's Central Store);
-   * Department Head omits it — resolved to their own department location.
-   * D-15 + per-department scoping (plan §5.2, §5.4 rules 5-6).
+   * Store Manager names whose levels: the Central Store (`locationId`, or `scope: CENTRAL_STORE`) or a
+   * branch department (`scope` + `branchId`, B10). Department Head omits both — resolved to their own
+   * department. D-15 + per-department scoping (plan §5.2, §5.4 rules 5-6).
    */
   listRestockLevels: async (actor: Actor, query: ListRestockLevelsQuery): Promise<RestockLevelRow[]> => {
-    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query.locationId);
+    return (await loadRestockRows(actor, query)).rows;
+  },
 
-    // Items are catalog rows on the hub (D-15); levels + on-hand live on the
-    // actor's own org and location (a DH's branch department).
-    const items = await restockLevelRepository.findLiveItemsForRestock(catalogOrganizationId, {
-      departmentTag,
-      search: query.search,
-    });
-    if (items.length === 0) return [];
-
-    const [levels, onHandByItemId] = await Promise.all([
-      restockLevelRepository.findAllByLocation(organizationId, locationId),
-      restockLevelRepository.sumOnHandByItemForLocation(organizationId, locationId),
-    ]);
-    const levelByItemId = new Map(levels.map((l) => [l.inventoryItemId, l]));
-
-    return items.map((item) => {
-      const level = levelByItemId.get(item.id) ?? null;
-      const onHandQty = onHandByItemId.get(item.id) ?? new Prisma.Decimal(0);
-      return {
-        inventoryItemId: item.id,
-        itemName: item.name,
-        usageUnit: item.usageUnit,
-        onHandQty: onHandQty.toString(),
-        level: level ? level.level.toString() : null,
-        isBelowLevel: level ? onHandQty.lessThan(level.level) : false,
-      };
-    });
+  /** The strip above the restock page (§29.3): the same rows, counted. */
+  getRestockLevelsSummary: async (actor: Actor, query: RestockLevelsSummaryQuery): Promise<RestockLevelsSummary> => {
+    const { rows, differs } = await loadRestockRows(actor, query);
+    const count = (status: RestockLevelRow['status']): number => rows.filter((r) => r.status === status).length;
+    return {
+      total: rows.length,
+      out: count('OUT'),
+      low: count('LOW'),
+      ok: count('OK'),
+      noLevel: count('NO_LEVEL'),
+      suggestionsDiffer: differs,
+    };
   },
 
   saveRestockLevels: async (actor: Actor, input: SaveRestockLevelsInput): Promise<RestockLevelRow[]> => {
-    const { organizationId, catalogOrganizationId, locationId } = await resolveRestockScope(actor, input.locationId);
+    const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, input);
 
     const itemIds = input.levels.map((l) => l.inventoryItemId);
     const liveItems = await inventoryItemRepository.findLiveByIds(itemIds, catalogOrganizationId);
@@ -541,13 +621,16 @@ export const inventoryService = {
       throw new NotFoundError('One or more items were not found');
     }
 
-    // §5.4 rule 5/6: a Department Head may only set levels for items scoped
-    // to their own department; every item exists at the Central Store, so a
-    // Store Manager setting a level there is unreachable but asserted.
-    if (actor.isDepartmentHead) {
-      const outOfScope = liveItems.filter((item) => !item.departmentTags.includes(actor.departmentTag as DepartmentTag));
+    // §5.4 rule 5/6: a department's levels (a head's own, or the Store Manager's for a branch
+    // department) may only cover items scoped to that department; every item exists at the Central Store.
+    if (departmentTag) {
+      const outOfScope = liveItems.filter((item) => !item.departmentTags.includes(departmentTag));
       if (outOfScope.length > 0) {
-        throw new ForbiddenError('You may only set restock levels for items scoped to your own department');
+        throw new ForbiddenError(
+          actor.isDepartmentHead
+            ? 'You may only set restock levels for items scoped to your own department'
+            : `Some of these items are not scoped to ${departmentTag.toLowerCase()}`,
+        );
       }
     }
 
@@ -556,18 +639,88 @@ export const inventoryService = {
       locationId,
       actor.id,
       input.levels.map((l) => ({ inventoryItemId: l.inventoryItemId, level: l.level })),
+      input.reason,
     );
 
-    return inventoryService.listRestockLevels(actor, { locationId: input.locationId });
+    return (await loadRestockRows(actor, input)).rows;
   },
+};
+
+type RestockScopeQuery = { locationId?: string; scope?: 'CENTRAL_STORE' | DepartmentTag; branchId?: string };
+
+/** Rows for one location plus how many of their suggestions differ from the level set (§29.2, §29.5). */
+const loadRestockRows = async (
+  actor: Actor,
+  query: RestockScopeQuery & { search?: string },
+): Promise<{ rows: RestockLevelRow[]; differs: number }> => {
+  const { organizationId, catalogOrganizationId, locationId, departmentTag } = await resolveRestockScope(actor, query);
+
+  // Items are catalog rows on the hub (D-15); levels + on-hand live on the
+  // location's own org (a branch department's, or the hub's Central Store).
+  const items = await restockLevelRepository.findLiveItemsForRestock(catalogOrganizationId, {
+    departmentTag,
+    search: query.search,
+  });
+  if (items.length === 0) return { rows: [], differs: 0 };
+
+  const now = new Date();
+  const [levels, onHandByItemId, useByItemId] = await Promise.all([
+    restockLevelRepository.findAllByLocation(organizationId, locationId),
+    restockLevelRepository.sumOnHandByItemForLocation(organizationId, locationId),
+    restockLevelRepository.findUseByItemForLocation(
+      organizationId,
+      locationId,
+      new Date(now.getTime() - SUGGESTION_WINDOW_DAYS * 86_400_000),
+    ),
+  ]);
+  const levelByItemId = new Map(levels.map((l) => [l.inventoryItemId, l]));
+
+  let differs = 0;
+  const rows = items.map((item): RestockLevelRow => {
+    const level = levelByItemId.get(item.id)?.level ?? null;
+    const onHandQty = onHandByItemId.get(item.id) ?? new Prisma.Decimal(0);
+    const status = restockStatus(onHandQty, level);
+    const suggestion = computeSuggestion(useByItemId.get(item.id), now);
+    if (suggestionDiffers(level, suggestion.suggestedLevel)) differs += 1;
+    return {
+      inventoryItemId: item.id,
+      itemName: item.name,
+      usageUnit: item.usageUnit,
+      onHandQty: onHandQty.toString(),
+      level: level ? level.toString() : null,
+      isBelowLevel: status === 'OUT' || status === 'LOW',
+      status,
+      suggestedLevel: suggestion.suggestedLevel,
+      suggestionNote: suggestion.suggestionNote,
+    };
+  });
+  return { rows, differs };
+};
+
+/** Catalog strip: Central Store items with a level set and on-hand below it (§29.3). */
+const countCentralStoreLowOrOut = async (hubOrgId: string): Promise<number> => {
+  const centralStore = await locationRepository.findCentralStore();
+  if (!centralStore || centralStore.organizationId !== hubOrgId) return 0;
+  const [levels, onHand, live] = await Promise.all([
+    restockLevelRepository.findAllByLocation(hubOrgId, centralStore.id),
+    restockLevelRepository.sumOnHandByItemForLocation(hubOrgId, centralStore.id),
+    restockLevelRepository.findLiveItemIds(hubOrgId),
+  ]);
+  const liveIds = new Set(live);
+  return levels.filter((l) => {
+    if (!liveIds.has(l.inventoryItemId)) return false;
+    const status = restockStatus(onHand.get(l.inventoryItemId) ?? new Prisma.Decimal(0), l.level);
+    return status === 'OUT' || status === 'LOW';
+  }).length;
 };
 
 /**
  * Resolves the (organizationId, locationId, departmentTag) triple a restock
- * request runs against, per actor role. A Store Manager must name the
- * Central Store explicitly and be on the hub org (D-15); a Department Head
- * may not pass a locationId at all — their own department is implicit and
- * any other location is rejected.
+ * request runs against, per actor role. A Store Manager must be on the hub org
+ * (D-15) and name whose levels: the Central Store (`locationId` or `scope`), or
+ * a branch department (`scope` + `branchId`, B10). A Department Head may not
+ * pass any of these — their own department is implicit and anything else is
+ * rejected.
  *
  * `catalogOrganizationId` is where the items themselves live — always the
  * hub (D-15). Milestone Six S1 fix: the Department Head path used to look
@@ -576,10 +729,10 @@ export const inventoryService = {
  */
 const resolveRestockScope = async (
   actor: Actor,
-  requestedLocationId: string | undefined,
+  query: RestockScopeQuery,
 ): Promise<{ organizationId: string; catalogOrganizationId: string; locationId: string; departmentTag?: DepartmentTag }> => {
   if (actor.isDepartmentHead) {
-    if (requestedLocationId) {
+    if (query.locationId || query.scope || query.branchId) {
       throw new ForbiddenError('Department Heads set restock levels for their own department only');
     }
     if (!actor.organizationId) {
@@ -602,11 +755,28 @@ const resolveRestockScope = async (
 
   // STORE_MANAGER
   const organizationId = await requireHubActor(actor);
-  if (!requestedLocationId) {
-    throw new ValidationError('locationId is required');
+  if (!query.locationId && !query.scope) {
+    throw new ValidationError('locationId or scope is required');
   }
+
+  if (query.scope && query.scope !== 'CENTRAL_STORE') {
+    if (!query.branchId) throw new ValidationError('branchId is required for a department scope');
+    const branch = await branchRepository.findById(query.branchId);
+    if (!branch || branch.id === organizationId) {
+      throw new ValidationError('branchId must be a branch, not the hub');
+    }
+    const location = await locationRepository.findByOrganizationTypeDepartment(branch.id, 'BRANCH_DEPARTMENT', query.scope);
+    if (!location) {
+      throw new NotFoundError(`${branch.name} has no ${query.scope.toLowerCase()} department`);
+    }
+    return { organizationId: branch.id, catalogOrganizationId: organizationId, locationId: location.id, departmentTag: query.scope };
+  }
+
   const centralStore = await locationRepository.findCentralStore();
-  if (!centralStore || centralStore.id !== requestedLocationId || centralStore.organizationId !== organizationId) {
+  if (!centralStore || centralStore.organizationId !== organizationId) {
+    throw new ValidationError('No Central Store is configured for this organization');
+  }
+  if (query.locationId && centralStore.id !== query.locationId) {
     throw new ValidationError('locationId must be the Central Store');
   }
   return { organizationId, catalogOrganizationId: organizationId, locationId: centralStore.id };

@@ -33,6 +33,7 @@ vi.mock('./inventory-repository', () => ({
     findByItemIdsForLocation: vi.fn(),
     findAllByLocation: vi.fn(),
     sumOnHandByItemForLocation: vi.fn(),
+    findUseByItemForLocation: vi.fn(),
   },
 }));
 
@@ -152,6 +153,7 @@ describe('Inventory contract drift guard', () => {
     ] as never);
     vi.mocked(restockLevelRepository.findAllByLocation).mockResolvedValue([]);
     vi.mocked(restockLevelRepository.sumOnHandByItemForLocation).mockResolvedValue(new Map());
+    vi.mocked(restockLevelRepository.findUseByItemForLocation).mockResolvedValue(new Map());
 
     const rows = await inventoryService.listRestockLevels(storeManager, { locationId: centralStoreId });
     expect(() => RestockLevelRowSchema.parse(rows[0])).not.toThrow();

@@ -8,6 +8,7 @@ import {
   ListCategoriesQuerySchema,
   ListItemsQuerySchema,
   ListRestockLevelsQuerySchema,
+  RestockLevelsSummaryQuerySchema,
   SaveRestockLevelsSchema,
   UpdateCategorySchema,
   UpdateItemSchema,
@@ -79,6 +80,13 @@ export const inventoryController = {
     res.status(200).json({ success: true, data });
   },
 
+  getItemChangeReview: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const { id } = IdParamSchema.parse(req.params);
+    const data = await inventoryService.getItemChangeReview(actor, id);
+    res.status(200).json({ success: true, data });
+  },
+
   createItem: async (req: Request, res: Response): Promise<void> => {
     const actor = requireActor(req);
     const input = CreateItemSchema.parse(req.body);
@@ -114,6 +122,13 @@ export const inventoryController = {
     const actor = requireActor(req);
     const query = ListRestockLevelsQuerySchema.parse(req.query);
     const data = await inventoryService.listRestockLevels(actor, query);
+    res.status(200).json({ success: true, data });
+  },
+
+  getRestockLevelsSummary: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const query = RestockLevelsSummaryQuerySchema.parse(req.query);
+    const data = await inventoryService.getRestockLevelsSummary(actor, query);
     res.status(200).json({ success: true, data });
   },
 
