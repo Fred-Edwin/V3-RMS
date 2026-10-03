@@ -25,6 +25,7 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | Document                        | Read When                                      |
 | ------------------------------- | ---------------------------------------------- |
 | `docs/FEATURE_REDO_PLAYBOOK.md` | Any feature work — the governing process       |
+| `docs/ROADMAP.md`               | Deciding what to build next — the 10 modules, cross-module rules, order, Company/Branch plan, Assistant (AI) layers |
 | `docs/PRD.md`                   | Understanding what a feature is supposed to do |
 | `docs/DATA_MODEL.md`            | Writing any Prisma schema or database query    |
 | `docs/TDD.md`                   | Making any architectural decision              |
@@ -80,7 +81,12 @@ Do not revert `addToCart` to merge by `menuItemId` — this was the root cause o
     awk, or heredoc scripts in Bash. Edit fails loudly when the target text
     is missing; a script's `replace` fails silently, and Bash edits bypass
     `/rewind` and the owner's review view.
-13. End every task with a short plain-English recap (about 5 lines): what
+13. Before each Edit or Write, put one line in your message that starts with
+    `Why:` — what this change does and how it serves the current task, in plain
+    English (e.g. `Why: the sidebar needs the new Restock link before the tests can pass`).
+    The owner's dashboard shows that line next to the file name. For multi-step
+    work, also keep a task list (TaskCreate/TaskUpdate).
+14. End every task with a short plain-English recap (about 5 lines): what
     changed, which files, and how the owner can verify it. The owner does not
     read full diffs.
 

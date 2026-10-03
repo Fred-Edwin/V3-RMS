@@ -219,8 +219,12 @@ Rules:
    (catalog, restock, suppliers); purchasing, stock, waste, counting and prep have
    approved designs awaiting (re)build; requisitions, dispatch and branch-day await
    approval. Status table: `docs/features/inventory/README.md`.
-2. Calmer features next (HR, staff, comms, discounts, reports).
-3. **Orders and KDS/BDS last** — live, complex, revenue-critical.
+2. The remaining features are regrouped into 10 modules (Access & Organisation,
+   Notifications & Audit, Workforce, Menu & Pricing, Orders with approvals,
+   Fulfilment, Finance & Receivables, Communications, Reporting, Assistant) in the
+   order set in [`docs/ROADMAP.md`](ROADMAP.md). That file is the authority for
+   module boundaries, cross-module rules and sequence.
+3. **Orders and Fulfilment (KDS/BDS) last** — live, complex, revenue-critical.
 
 ## 11. Documentation strategy
 
