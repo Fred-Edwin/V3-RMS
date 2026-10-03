@@ -1,5 +1,26 @@
+/// The business that owns every site. One row today ("Wendo Coffee Bistro").
+model Company {
+  id            String         @id @default(uuid())
+  name          String
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  organizations Organization[]
+
+  @@map("companies")
+}
+
+/// What kind of place an Organization row is. The Central Store is never a branch.
+enum SiteType {
+  BRANCH
+  CENTRAL_STORE
+}
+
 model Organization {
   id                           String                        @id @default(uuid())
+  companyId                    String                        @map("company_id")
+  type                         SiteType                      @default(BRANCH)
+  company                      Company                       @relation(fields: [companyId], references: [id])
   name                         String
   address                      String
   city                         String
@@ -67,6 +88,7 @@ model Organization {
   countingThresholds           CountingThresholds?
   branchDays                   BranchDay[]
 
+  @@index([companyId])
   @@map("organizations")
 }
 
