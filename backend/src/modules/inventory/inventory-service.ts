@@ -19,6 +19,7 @@ import { serializeItemSupplierLine } from './supplier-serializers';
 import { describeItemUpdate, type ItemFields } from './item-history';
 import { itemChangeRepository } from './item-history-repository';
 import {
+  SUGGESTION_DAYS_OF_COVER,
   SUGGESTION_WINDOW_DAYS,
   computeSuggestion,
   restockStatus,
@@ -157,6 +158,7 @@ const serializeItem = (item: InventoryItemWithRelations, centralStoreRestockLeve
   usageUnit: item.usageUnit,
   conversionFactor: toDecimalString(item.conversionFactor),
   packSize: toDecimalString(item.packSize),
+  daysOfCover: toDecimalString(item.daysOfCover ?? null),
   departmentTags: item.departmentTags,
   category: item.category,
   preferredSupplier: item.preferredSupplier,
@@ -175,6 +177,7 @@ const toItemFields = (item: InventoryItemWithRelations): ItemFields => ({
   usageUnit: item.usageUnit,
   conversionFactor: toDecimalString(item.conversionFactor),
   packSize: toDecimalString(item.packSize),
+  daysOfCover: toDecimalString(item.daysOfCover ?? null),
   categoryName: item.category?.name ?? null,
   departmentTags: item.departmentTags,
 });
@@ -210,6 +213,7 @@ const assertAttendantMayCreate = (input: CreateItemInput): void => {
   if (input.preferredSupplierId) managerOnly.push('preferred supplier');
   if (input.departmentTags.length > 0) managerOnly.push('used-by departments');
   if (input.centralStoreRestockLevel != null) managerOnly.push('restock level');
+  if (input.daysOfCover != null) managerOnly.push('days of cover');
   if (input.usualPrice != null) managerOnly.push('price');
   if (managerOnly.length > 0) {
     throw new ForbiddenError(`The Store Manager sets ${managerOnly.join(', ')} — leave it blank and it shows under Needs setup`);
@@ -558,6 +562,7 @@ export const inventoryService = {
           usageUnit: input.usageUnit,
           conversionFactor: input.conversionFactor ?? null,
           packSize: input.packSize ?? null,
+          daysOfCover: input.daysOfCover ?? null,
           departmentTags: input.departmentTags,
           ...(currentCost !== undefined ? { currentCost } : {}),
         },
@@ -633,6 +638,7 @@ export const inventoryService = {
           ...(input.usageUnit !== undefined ? { usageUnit: input.usageUnit } : {}),
           ...(input.conversionFactor !== undefined ? { conversionFactor: input.conversionFactor } : {}),
           ...(input.packSize !== undefined ? { packSize: input.packSize } : {}),
+          ...(input.daysOfCover !== undefined ? { daysOfCover: input.daysOfCover } : {}),
           ...(input.departmentTags !== undefined ? { departmentTags: input.departmentTags } : {}),
         },
         tx,
@@ -888,18 +894,21 @@ const loadRestockRows = async (
     const level = levelByItemId.get(item.id)?.level ?? null;
     const onHandQty = onHandByItemId.get(item.id) ?? new Prisma.Decimal(0);
     const status = restockStatus(onHandQty, level);
-    const suggestion = computeSuggestion(useByItemId.get(item.id), now);
+    const daysOfCover = item.daysOfCover ?? new Prisma.Decimal(SUGGESTION_DAYS_OF_COVER);
+    const suggestion = computeSuggestion(useByItemId.get(item.id), now, daysOfCover);
     if (suggestionDiffers(level, suggestion.suggestedLevel)) differs += 1;
     return {
       inventoryItemId: item.id,
       itemName: item.name,
       usageUnit: item.usageUnit,
+      itemType: item.type,
       onHandQty: onHandQty.toString(),
       level: level ? level.toString() : null,
       isBelowLevel: status === 'OUT' || status === 'LOW',
       status,
       suggestedLevel: suggestion.suggestedLevel,
       suggestionNote: suggestion.suggestionNote,
+      daysOfCover: daysOfCover.toString(),
     };
   });
   return { rows, differs };

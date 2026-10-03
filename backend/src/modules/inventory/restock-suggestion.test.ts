@@ -23,6 +23,12 @@ describe('computeSuggestion', () => {
     expect(computeSuggestion({ useInWindow: d('360'), firstUseAt: daysAgo(90) }, now).suggestedLevel).toBe('180.00');
   });
 
+  it('uses the item own days of cover instead of 15', () => {
+    // 360 kg over 30 days = 12 / day; × 1.5 days = 18
+    expect(computeSuggestion({ useInWindow: d('360'), firstUseAt: daysAgo(90) }, now, d('1.5')).suggestedLevel).toBe('18.00');
+    expect(computeSuggestion({ useInWindow: d('360'), firstUseAt: daysAgo(90) }, now, 5).suggestedLevel).toBe('60.00');
+  });
+
   it('averages over the history when it is shorter than 30 days', () => {
     // 20 days of history, 100 used = 5 / day; × 15 = 75
     expect(computeSuggestion({ useInWindow: d('100'), firstUseAt: daysAgo(20) }, now).suggestedLevel).toBe('75.00');

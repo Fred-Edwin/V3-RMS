@@ -6,7 +6,7 @@ import type { RestockLevelRow, RestockStatus } from '../types';
  * the helpers here take numbers and only the edge functions parse.
  */
 
-/** The backend's fixed days of cover (§29.5). Per-item cover is not modelled yet. */
+/** The days of cover an item has when it sets none of its own (§29.5, §30.8). */
 export const SUGGESTION_COVER_DAYS = 15;
 
 /** A suggestion differs when it is more than this far from the level (§29.5). */
@@ -122,9 +122,9 @@ export function suggestionVerdict(saved: number | null, typed: number | null, su
   return typed > suggested ? 'HIGHER' : 'LOWER';
 }
 
-/** The "12 kg a day" part: the suggestion divided back by the fixed cover. Up to two decimals. */
-export function suggestedPerDay(suggested: number): number {
-  return Math.round((suggested / SUGGESTION_COVER_DAYS) * 100) / 100;
+/** The "12 kg a day" part: the suggestion divided back by the days of cover it was built on. Up to two decimals. */
+export function suggestedPerDay(suggested: number, daysOfCover: number = SUGGESTION_COVER_DAYS): number {
+  return Math.round((suggested / daysOfCover) * 100) / 100;
 }
 
 // ─── The list ───────────────────────────────────────────────────────────────

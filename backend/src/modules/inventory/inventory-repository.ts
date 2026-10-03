@@ -105,6 +105,8 @@ export type CreateInventoryItemInput = {
   usageUnit: string;
   conversionFactor: Prisma.Decimal.Value | null;
   packSize: Prisma.Decimal.Value | null;
+  /** Days of cover for the suggested level; null = the default (15). */
+  daysOfCover?: Prisma.Decimal.Value | null;
   departmentTags: DepartmentTag[];
   /** Per usage unit. Omitted = the column default (0). Set only from a Store Manager's usual price (§30.2). */
   currentCost?: Prisma.Decimal.Value;
@@ -245,6 +247,7 @@ export const inventoryItemRepository = {
         usageUnit: data.usageUnit,
         conversionFactor: data.conversionFactor !== null ? new Prisma.Decimal(data.conversionFactor) : null,
         packSize: data.packSize !== null ? new Prisma.Decimal(data.packSize) : null,
+        daysOfCover: data.daysOfCover != null ? new Prisma.Decimal(data.daysOfCover) : null,
         departmentTags: data.departmentTags,
         ...(data.currentCost !== undefined ? { currentCost: new Prisma.Decimal(data.currentCost) } : {}),
       },
@@ -272,6 +275,9 @@ export const inventoryItemRepository = {
           : {}),
         ...(data.packSize !== undefined
           ? { packSize: data.packSize !== null ? new Prisma.Decimal(data.packSize) : null }
+          : {}),
+        ...(data.daysOfCover !== undefined
+          ? { daysOfCover: data.daysOfCover !== null ? new Prisma.Decimal(data.daysOfCover) : null }
           : {}),
         ...(data.departmentTags !== undefined ? { departmentTags: data.departmentTags } : {}),
       },

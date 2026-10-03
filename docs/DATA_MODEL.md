@@ -1770,6 +1770,7 @@ model InventoryItem {
 
   departmentTags DepartmentTag[] @map("department_tags")      -- MUST be [] when type = RAW_INGREDIENT
   currentCost    Decimal         @default(0) @map("current_cost") @db.Decimal(12, 4)
+  daysOfCover    Decimal?        @map("days_of_cover") @db.Decimal(6, 2)   -- days the suggested restock level covers; null = the default of 15
 
   deletedAt DateTime? @map("deleted_at")   -- retire; history preserved
   createdAt DateTime  @default(now()) @map("created_at")

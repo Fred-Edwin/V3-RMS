@@ -28,6 +28,7 @@ export interface ItemFields {
   usageUnit: string;
   conversionFactor: string | null;
   packSize: string | null;
+  daysOfCover: string | null;
   categoryName: string | null;
   departmentTags: DepartmentTag[];
 }
@@ -57,6 +58,8 @@ export interface ItemUpdateDescription {
 }
 
 /** What an edit changed, or `null` when nothing the history tracks moved. */
+const sameNumber = (a: string | null, b: string | null): boolean => a !== null && b !== null && Number(a) === Number(b);
+
 export function describeItemUpdate(before: ItemFields, after: ItemFields): ItemUpdateDescription | null {
   const parts: string[] = [];
   const b: Record<string, unknown> = {};
@@ -81,6 +84,17 @@ export function describeItemUpdate(before: ItemFields, after: ItemFields): ItemU
     parts.push(`changed the pack from ${packText(before)} to ${packText(after)}`);
     Object.assign(b, { buyUnit: before.buyUnit, usageUnit: before.usageUnit, conversionFactor: before.conversionFactor, packSize: before.packSize });
     Object.assign(a, { buyUnit: after.buyUnit, usageUnit: after.usageUnit, conversionFactor: after.conversionFactor, packSize: after.packSize });
+  }
+  if ((before.daysOfCover ?? '') !== (after.daysOfCover ?? '') && !sameNumber(before.daysOfCover, after.daysOfCover)) {
+    parts.push(
+      after.daysOfCover === null
+        ? 'cleared the days of cover (back to 15)'
+        : before.daysOfCover === null
+          ? `set the days of cover to ${trimDecimal(after.daysOfCover)}`
+          : `changed the days of cover from ${trimDecimal(before.daysOfCover)} to ${trimDecimal(after.daysOfCover)}`,
+    );
+    b.daysOfCover = before.daysOfCover;
+    a.daysOfCover = after.daysOfCover;
   }
   if (before.categoryName !== after.categoryName) {
     parts.push(

@@ -146,3 +146,25 @@ describe('buildEditPlan', () => {
     expect(plan.input).toEqual({ centralStoreRestockLevel: null });
   });
 });
+
+describe('days of cover', () => {
+  const base = values({ name: 'Chapati dough', type: 'PREPPED', usageUnit: 'kg' });
+  it('is optional and, when given, 1 to 365 days with up to two decimals', () => {
+    expect(validateItemForm({ ...base, daysOfCover: '' }).daysOfCover).toBeUndefined();
+    expect(validateItemForm({ ...base, daysOfCover: '1.5' }).daysOfCover).toBeUndefined();
+    expect(validateItemForm({ ...base, daysOfCover: '365' }).daysOfCover).toBeUndefined();
+    for (const bad of ['0', '-1', '366', 'abc', '1.234']) expect(validateItemForm({ ...base, daysOfCover: bad }).daysOfCover).toBeDefined();
+  });
+  it('is sent on create only when typed', () => {
+    expect(toCreateInput({ ...base, daysOfCover: '' })).not.toHaveProperty('daysOfCover');
+    expect(toCreateInput({ ...base, daysOfCover: '1.5' }).daysOfCover).toBe('1.5');
+  });
+  it('is read back trimmed, and edits send a change or null to clear it', () => {
+    const item: ItemFormSource = { ...flour, daysOfCover: '5.00' };
+    const form = itemToFormValues(item);
+    expect(form.daysOfCover).toBe('5');
+    expect(buildEditPlan(item, { ...form, daysOfCover: '2' }).input.daysOfCover).toBe('2');
+    expect(buildEditPlan(item, { ...form, daysOfCover: '' }).input.daysOfCover).toBeNull();
+    expect(buildEditPlan(item, form).input).not.toHaveProperty('daysOfCover');
+  });
+});

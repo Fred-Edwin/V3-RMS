@@ -178,5 +178,6 @@ describe('Inventory contract drift guard', () => {
     const rows = await inventoryService.listRestockLevels(storeManager, { locationId: centralStoreId });
     expect(() => RestockLevelRowSchema.parse(rows[0])).not.toThrow();
     expect(rows[0]!.level).toBeNull();
+    expect(rows[0]!.itemType).toBe('RAW_INGREDIENT');
   });
 });

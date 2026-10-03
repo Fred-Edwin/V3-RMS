@@ -1,7 +1,7 @@
 /**
  * Suggested restock level (API_CONTRACT.md §29.5). PROVISIONAL: the formula is the one the walkthrough
- * sketched ("average use per day times days of cover") with one default of 15 days for every item;
- * per-item days of cover and the 14 / 30-day windows are open owner decisions. Pure — the repository
+ * sketched ("average use per day times days of cover") with a default of 15 days that an
+ * item can override with its own days of cover (§30.8); the 14 / 30-day windows are open owner decisions. Pure — the repository
  * supplies the ledger sums, this decides what they mean.
  */
 import { Prisma, type InventoryTransactionType } from '@prisma/client';
@@ -29,14 +29,18 @@ export type Suggestion = {
 
 const DAY_MS = 86_400_000;
 
-export const computeSuggestion = (use: ItemUse | undefined, now: Date): Suggestion => {
+export const computeSuggestion = (
+  use: ItemUse | undefined,
+  now: Date,
+  daysOfCover: Prisma.Decimal.Value = SUGGESTION_DAYS_OF_COVER,
+): Suggestion => {
   if (!use) return { suggestedLevel: null, suggestionNote: null };
   const historyDays = (now.getTime() - use.firstUseAt.getTime()) / DAY_MS;
   if (historyDays < SUGGESTION_MIN_HISTORY_DAYS) return { suggestedLevel: null, suggestionNote: 'NEEDS_HISTORY' };
   if (use.useInWindow.lessThanOrEqualTo(0)) return { suggestedLevel: null, suggestionNote: null };
 
   const windowDays = Math.min(SUGGESTION_WINDOW_DAYS, historyDays);
-  const raw = use.useInWindow.div(windowDays).mul(SUGGESTION_DAYS_OF_COVER);
+  const raw = use.useInWindow.div(windowDays).mul(daysOfCover);
   // Round UP to 2 dp — a suggestion that rounds down would under-stock.
   const rounded = raw.toDecimalPlaces(2, Prisma.Decimal.ROUND_UP);
   return { suggestedLevel: rounded.toFixed(2), suggestionNote: null };

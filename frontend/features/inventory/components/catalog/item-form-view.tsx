@@ -469,6 +469,30 @@ export function ItemFormView({
         </div>
         {errors.restockLevel ? <FieldError>{errors.restockLevel}</FieldError> : null}
       </div>
+
+      <div className="flex flex-col gap-2">
+        <FieldLabel htmlFor="item-days-of-cover" hint="optional">
+          Days of cover
+        </FieldLabel>
+        <div className="flex items-center gap-2.5">
+          <div className="relative w-[150px] shrink-0">
+            <input
+              id="item-days-of-cover"
+              name="daysOfCover"
+              inputMode="decimal"
+              autoComplete="off"
+              value={values.daysOfCover}
+              onChange={(e) => set('daysOfCover', e.target.value)}
+              aria-invalid={errors.daysOfCover ? true : undefined}
+              placeholder="15"
+              className={cn(fieldClass, 'pr-12 font-wds-mono')}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-wds-sans text-[12px] leading-4 text-wds-text-secondary">days</span>
+          </div>
+          <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">How long a restock should last. Blank means 15. Use fewer for fresh items.</span>
+        </div>
+        {errors.daysOfCover ? <FieldError>{errors.daysOfCover}</FieldError> : null}
+      </div>
     </DrawerFrame>
   );
 }
