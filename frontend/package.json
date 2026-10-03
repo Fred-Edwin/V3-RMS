@@ -48,7 +48,7 @@
         "@types/pngjs": "^6.0.5",
         "@types/react": "^18",
         "@types/react-dom": "^18",
-        "dependency-cruiser": "^18.5.0",
+        "dependency-cruiser": "^17.4.3",
         "eslint": "^8",
         "eslint-config-next": "14.2.24",
         "pixelmatch": "^7.2.0",
