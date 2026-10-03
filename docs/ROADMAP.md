@@ -37,7 +37,7 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 | Step | Work | Notes |
 |---|---|---|
 | 0 | **Inventory** (steps 1–9 in [features/inventory/roadmap.md](features/inventory/roadmap.md)) | In progress. Its Dashboard and Reports step moves to Reporting (step 7 below). |
-| 1 | **Company and Branch foundation** (see next section), recommended right after Inventory step 1, which is design-only, so it conflicts with no code | Owner to confirm the slot |
+| 1 | **Company and Branch foundation** (see next section), run right after Inventory step 1 (the Paper catch-up, design-only, so it conflicts with no code) and before the owner's pending local edits are merged, pushed or deployed | Slot confirmed by the owner, 3 Oct 2026 |
 | 2 | **Access & Organisation + Notifications & Audit**: move the auth core with no behaviour change; rebuild the branch, user and settings screens | Then Assistant layer 1 can start |
 | 3 | **Workforce** | Staff and HR first, then scheduling and attendance, then payroll |
 | 4 | **Menu & Pricing** | Small; Orders depends on it |
