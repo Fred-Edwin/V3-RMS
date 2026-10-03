@@ -12,6 +12,7 @@ import { Topbar, type TopbarBreadcrumb } from '@/components/app/shell/topbar';
 import type { SearchInputProps } from '@/components/ui2/search-input';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui2/sheet';
 import {
+  AuditLogIcon,
   CatalogIcon,
   DashboardIcon,
   DispatchIcon,
@@ -80,6 +81,8 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'suppliers', label: 'Suppliers', href: '/app/inventory/suppliers', icon: SuppliersIcon },
       { key: 'catalog', label: 'Catalog', href: '/app/inventory/catalog', icon: CatalogIcon },
       { key: 'reports', label: 'Reports', href: '#', icon: ReportsIcon },
+      // Store Manager, Accountant and Director read it; `navGroupsForRole` drops it for the Store Attendant.
+      { key: 'audit-log', label: 'Audit log', href: '/app/inventory/audit-log', icon: AuditLogIcon },
       // STORE_MANAGER only — `navGroupsForRole` drops it for every other role.
       { key: 'settings', label: 'Settings', href: '/app/inventory/settings', icon: SettingsIcon },
     ],
@@ -106,7 +109,7 @@ function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
     return {
       ...group,
       items: group.items
-        .filter((item) => item.key !== 'purchasing' && item.key !== 'suppliers' && item.key !== 'settings')
+        .filter((item) => item.key !== 'purchasing' && item.key !== 'suppliers' && item.key !== 'settings' && item.key !== 'audit-log')
         .map((item) =>
           item.subItems
             ? {
