@@ -44,14 +44,17 @@ Backend `backend/src/modules/inventory/<sub>/`, frontend `frontend/features/inve
 
 ## Roles
 
+Access is set by one table (see "Access" in [decisions.md](decisions.md)), not by the Paper chapter labels: **every desktop role reads every Central Store screen; write belongs to whoever does that job.** The table below says what each role does here today.
+
 | Role | Where | In this feature |
 |---|---|---|
-| Store Manager | Central Store (hub org) | Owns purchasing, catalog, suppliers; approves counts and orders; fulfils dispatches; resolves discrepancies |
-| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches. Never sees expected stock, stock figures, costs, or supplier money |
-| Department Head | One branch department | Requisitions for own department, confirms own deliveries, own waste, own restock levels |
-| Branch Manager | Branch | Approves requisitions, counts and closes the branch day |
-| Accountant | Company | Records supplier payments, reconciles statements, sees all costs. Cannot move stock or edit the catalog |
-| Director | Company | Visibility and exceptions; approves nothing routine; gets discrepancy alerts |
+| Store Manager | Central Store (hub org) | Owns purchasing, catalog, suppliers; approves counts and orders; fulfils dispatches; resolves discrepancies. Reads and writes everything rebuilt so far |
+| Store Attendant | Central Store (hub org) | Receives, preps, counts (blind), logs waste, picks dispatches, adds a missing item. Never sees expected stock, stock figures, costs, or supplier money |
+| Department Head | One branch department | Requisitions for own department, confirms own deliveries, own waste, own restock levels. The item list carries no costs |
+| Branch Manager | Branch | Approves requisitions, counts and closes the branch day. **Reads** the Central Store (catalog, restock levels, suppliers and what we owe, audit log) but not supplier payment details; writes nothing there |
+| Accountant | Company | Reads the Central Store; records supplier **invoices**, payments, payment methods and documents. Cannot move stock or edit the catalog |
+| Director | Company | Reads the Central Store, including payment details; writes nothing; gets discrepancy alerts |
+| System Admin | Company (no organization) | Reads and writes everything in the Central Store; signs with their own PIN |
 
 Delivery drivers are not users; they carry a printed delivery note.
 

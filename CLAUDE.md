@@ -191,6 +191,15 @@ flagged `isHub` — a company-level unit, never a branch/point of sale). Enforce
 service guards + a one-Central-Store partial unique index. The hub appears in people
 contexts, never sales contexts. Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
 
+Key rule — **Central Store access (3 Oct 2026):** who may do what is ONE table, role by
+capability, in `backend/src/modules/inventory/_shared/central-store-access.ts`. Every
+desktop role (Store Manager, Accountant, Director, Branch Manager, System Admin) reads every
+Central Store screen; write belongs to whoever does the job; the Branch Manager does not see
+supplier payment details. Use `requireCapability(...)` on routes and `requireHubReader` /
+`requireHubActor` in services; the front end reads the table from `GET /inventory/permissions/me`
+(`usePermissions()`). Never add a new `requireRole(...)` list to a rebuilt Central Store route.
+Details: `docs/features/inventory/decisions.md` ("Access").
+
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
 (the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`
