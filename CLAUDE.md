@@ -31,7 +31,8 @@ Before implementing anything, read the document(s) specific sections/lines relev
 | `docs/API_CONTRACT.md`          | Implementing any API endpoint                  |
 | `docs/DESIGN_SYSTEM.md`         | Building any UI component or page              |
 | `docs/CODING_STANDARDS.md`      | Writing any code — always                      |
-| `docs/features/<feature>/`      | Working on a feature being redone (per-feature docs) |
+| `docs/UI_BUILD_RULES.md`        | Building any screen (states, shells, tables, Paper fidelity checks) |
+| `docs/features/<feature>/README.md` + the sub-module `README.md` | Working on a redone feature — the living spec and status |
 | `docs/archive/INDEX.md`         | Historical phase context — NOT current guidance |
 
 ## Critical Domain Knowledge (Read Before Touching These Areas)
@@ -117,15 +118,17 @@ back to the slower manual path unless the MCP is unavailable.
 ## Project Structure
 
 **Both sides are mid-migration from group-by-layer to group-by-feature.** A
-redone feature is **one folder on each side of the wire**:
-`backend/src/modules/<feature>/` and `frontend/features/<feature>/`. Migrate a
-feature's files as part of its own redo, never as a separate refactor. Full
-target layout and rules: `docs/FEATURE_REDO_PLAYBOOK.md` §9 and
+redone feature is **one folder on each side of the wire**, split into
+sub-modules named for what the user does:
+`backend/src/modules/<feature>/<sub>/` and `frontend/features/<feature>/<sub>/`.
+Migrate a feature's files as part of its own redo, never as a separate
+refactor. Full target layout and rules: `docs/FEATURE_REDO_PLAYBOOK.md` §9 and
 `docs/CODING_STANDARDS.md` §4 (backend) / §9 (frontend).
 
 ```
 backend/src/
-  modules/<feature>/   NEW — co-located routes/controller/service/repository/validators/types/tests
+  modules/<feature>/<sub>/  NEW — README + routes/controller/service/repository/validators/types/tests
+  modules/<feature>/_shared/  helpers used by several sub-modules
   shared/              middleware, config (prisma/redis/queues), sockets, jobs, utils, types
   routes/index.ts      wires all module routes
   controllers/ services/ repositories/ validators/   LEGACY — not-yet-redone features
@@ -133,7 +136,8 @@ backend/src/
 frontend/
   app/                 Next.js App Router — ROUTING ONLY. Thin page shells that
                        render feature components; no data fetching or logic.
-  features/<feature>/  NEW — components/ hooks/ services/ store/ types/ + index.ts
+  features/<feature>/<sub>/  NEW — components/ hooks/ lib/ services/ store/ types/
+  features/<feature>/_shared/  + index.ts (the feature's public API)
   components/ui2/      NEW design-system primitives on the wds- tokens
   components/ui/       LEGACY design system — frozen, retired feature by feature
   components/app/shell/  cross-feature shell (sidebar, topbar, mobile headers)
@@ -141,67 +145,48 @@ frontend/
   lib/                 apiClient, socket, cn, tokens
 ```
 
-**Frontend feature-module rules (amended 2026-09-15):** pages in `app/` hold
-routing concerns only — Next.js derives URLs from that tree, which is the one
-reason they can't live in the feature folder. No cross-feature deep imports:
-`features/a/` imports `features/b`'s `index.ts`, never its internals.
+**Frontend feature-module rules:** pages in `app/` hold routing concerns only —
+Next.js derives URLs from that tree. No cross-feature deep imports: `features/a/`
+imports `features/b`'s `index.ts`, never its internals. Every sub-module has a
+`README.md` (spec, status, endpoints, coupling); update it in the same commit as
+any behaviour change.
 
 ## Current Work
 
 The feature-by-feature redo is defined in `docs/FEATURE_REDO_PLAYBOOK.md`.
 
-**Design System Foundation — COMPLETE (2026-09-09).**
-**Feature 1 — Inventory & Procurement** is underway, built as 6 workflow-based
-milestones (not phases — see `docs/features/inventory/MILESTONES.md` for the
-full breakdown, current status, and rationale). **Milestone One (Catalog,
-Suppliers & Restock Levels) shipped 2026-09-15. Milestone Two (Receiving &
-Supplier AP) shipped 2026-09-18** — full build (S0–S9) done, integration
-verified in a real browser, deployed to production 2026-09-19. **Milestone
-Three (Prep) shipped 2026-09-21** — S0 (backend+frontend build) and S1
-(integration) ran as one continuous session; 8 screens, 5 endpoints, the
-codebase's first negative-signed ledger writer (`PREP_CONSUME`). Verified
-in a real browser and checked screen-by-screen against the approved Paper
-designs; see `milestone-3-plan.md` §5 for the full outcome log including
-bugs found and fixed. **Milestones Four and Five shipped** (Requisition &
-Branch Approval; Dispatch & Branch Receiving). **Milestone Six (Counting,
-Closing & Discrepancies): Sessions 1–4 merged (S4 = PR #46, deployed 2026-09-30)**; cross-role integration pass run
-locally 2026-09-30 — remaining: two owner decisions (miscount-correction
-ledger effect, attendant on-hand in dispatch fulfil) and the production demo. See
-`docs/features/inventory/milestone-6-plan.md` §8 and
-`docs/features/inventory/MILESTONES.md`.
+**Design System Foundation — COMPLETE (2026-09-09)** — coffee-inspired tokens
+(espresso `#693C1B`, caramel, Geist / Geist Mono, 2px radii) in
+`frontend/app/tokens.wds.css` + `frontend/tailwind.wds.preset.ts`; `wds-` prefix
+drops when the legacy `components/ui/` is retired (`DESIGN_SYSTEM.md` §2).
 
-Done so far:
-- Documentation cleanup (2026-09-07) — phase history archived to `docs/archive/`,
-  active `docs/` set trimmed to the canonical files + `docs/inventory/`.
-- `docs/FEATURE_REDO_PLAYBOOK.md` written.
-- **Phase 0 (2026-09-09)** — coffee-inspired design system, owner-approved in
-  Paper (`01M1ZZJ6S3FZGF5C7PPBGTKY89`): espresso `#693C1B` primary + caramel
-  secondary, clean near-white surfaces, Geist / Geist Mono, 2px radii, six
-  gradient tokens, dot+label status. Codified in `frontend/app/tokens.wds.css`
-  + `frontend/tailwind.wds.preset.ts`; `docs/DESIGN_SYSTEM.md` rewritten;
-  `frontend/components/ui2/` seeded with 8 primitives; `backend/src/modules/` +
-  `backend/src/shared/` scaffolded. All new tokens carry a `wds-` prefix that
-  drops when the legacy `components/ui/` is retired — see `DESIGN_SYSTEM.md` §2.
+**Feature 1 — Inventory & Procurement.** Built through the old "Milestone Six"
+flows and now being **redone workflow by workflow** from owner-approved Paper
+designs (file "Wendo RMS · Approved designs", `01M3TP8J54R83RHC9FJ7RAHGKG`).
+Restructured 2026-10-03 into 11 sub-modules under `backend/src/modules/inventory/`
+and `frontend/features/inventory/` (pure moves; no behaviour change).
 
-### Inventory — current production state (until redone)
+- **Rebuilt to approved design:** catalog, restock, suppliers, purchasing.
+- **Approved design, code still on the old flow (rebuild next):** stock, waste,
+  counting, prep.
+- **Design not yet approved, code on the old flow:** requisitions, dispatch, branch-day.
+- Two open owner decisions (miscount-correction ledger effect; attendant on-hand
+  in dispatch fulfil) are in `docs/features/inventory/decisions.md`.
 
-Phase 1 (Central Store) is live in production (deployed 2026-07-31, PR #34):
-Catalog, Suppliers, Purchase Orders, Receiving, Prep, Stock Count, Waste,
-Supplier AP, plus RBAC + reports and the Attendant mobile / Manager desktop UIs.
+Start at `docs/features/inventory/README.md` (map, roles, standing rules, status
+table), then the README of the sub-module you are touching. Do not use
+"Phase 1/2/3" language for Inventory.
 
-Key rule still in force — **Central Store hub-org scoping (D-15):** all Central
-Store data and `STORE_MANAGER` / `STORE_ATTENDANT` users live on the hub
-Organization (the org flagged `isHub` — a company-level unit, never a
-branch/point of sale). Enforced by service guards + a one-Central-Store
-partial unique index. The hub appears in people contexts, never sales contexts.
-Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
+Key rule — **Central Store hub-org scoping (D-15):** all Central Store data and
+`STORE_MANAGER` / `STORE_ATTENDANT` users live on the hub Organization (the org
+flagged `isHub` — a company-level unit, never a branch/point of sale). Enforced by
+service guards + a one-Central-Store partial unique index. The hub appears in people
+contexts, never sales contexts. Full rule: `docs/inventory/CENTRAL_STORE_SCOPING_DESIGN.md`.
 
-Inventory reference material for the redo:
-- `docs/inventory/INVENTORY_FEATURE_PLAN.md` — the pre-redo living spec (§5 = Phase 2)
-- `docs/inventory/central_kitchen_inventory_model.md` — domain model research
-- `docs/inventory/reference-photos/` — the client's actual paper records
-- `docs/inventory/PHASE1_LOCAL_TEST_GUIDE.md`, `MANUAL_TESTING_GUIDE.md`,
-  `STORE_ROLES_STAFF_INTEGRATION.md` — how Phase 1 behaves today
+Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
+(domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
+(the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`
+(older, uses "Phase 1" wording).
 
 ### Historical context
 

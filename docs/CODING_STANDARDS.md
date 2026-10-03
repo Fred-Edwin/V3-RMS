@@ -1,6 +1,6 @@
 # Coding Standards
 ## Wendo RMS
-Version: 1.1 (condensed)
+Version: 1.2 (condensed; layout updated 2026-10-03)
 
 This file is intentionally brief. It defines enforceable rules only.
 
@@ -39,15 +39,37 @@ This file is intentionally brief. It defines enforceable rules only.
 
 ## 4) Backend Structure and Boundaries
 ### Canonical backend layout
-- `controllers/` thin: parse/validate/delegate/respond.
-- `services/` business rules and orchestration.
-- `repositories/` Prisma queries only.
-- `validators/` Zod schemas.
-- `routes/` middleware + route wiring only.
-- `middleware/` auth/rbac/error handling.
-- `sockets/` socket handlers + emit service.
-- `utils/` pure helpers.
-- `types/` shared TS types.
+
+New and redone features live in `backend/src/modules/<feature>/`, split into
+**sub-modules** by what the user does. Full target tree and rules:
+`docs/FEATURE_REDO_PLAYBOOK.md` §9.
+
+```
+modules/<feature>/
+  _shared/            helpers used by several sub-modules
+  <sub>/
+    README.md         spec + status + endpoints + coupling (kept current)
+    <sub>-routes.ts   router: authenticate + requireRole on every route
+    <sub>-controller.ts  thin: parse/validate/delegate/respond
+    <sub>-service.ts  business rules; a prisma.$transaction is allowed here
+    <sub>-repository.ts  Prisma only; every query scoped by organizationId
+    <sub>-validators.ts  Zod schemas
+    <sub>.types.ts
+    *.test.ts         beside the code
+shared/               middleware, config, sockets, jobs, utils, types
+routes/index.ts       wires every module's routes
+```
+
+The old layer-grouped folders (`controllers/ services/ repositories/ validators/`)
+hold **not-yet-redone** features only. A feature moves into `modules/` as part of
+its own redo, never as a separate refactor.
+
+- Files keep layer-suffixed names (greppable); the folder carries the area.
+- A sub-module imports another sub-module's internals only where its README's
+  *Coupling* section lists it. New cross-sub-module needs go through the owner's exports.
+- Every sub-module has a `README.md`; behaviour changes update it in the same commit.
+- Pure restructures (moving files) change no behaviour: backend build, tests and a
+  registered-route diff must be identical before and after.
 
 ### Controller rules
 - Must parse params/query/body with Zod.
@@ -118,40 +140,37 @@ This file is intentionally brief. It defines enforceable rules only.
 ## 9) Frontend Structure and Rules
 ### Canonical frontend layout — feature modules
 
-Redone features are **grouped by feature**, mirroring `backend/src/modules/`.
-Amended 2026-09-15; see `FEATURE_REDO_PLAYBOOK.md` §9 for the rationale.
+Redone features are **grouped by feature**, mirroring `backend/src/modules/`, and
+split into sub-modules the same way. See `FEATURE_REDO_PLAYBOOK.md` §9.
 
 ```
 frontend/
-  app/                  ROUTING ONLY — thin page shells (see rule below)
-  features/<feature>/   everything for one feature, co-located
-    components/         composites built on ui2/
-    hooks/
-    services/           API calls, typed to the frozen contract
-    store/              Zustand
-    types/              contract mirror
-    index.ts            public entry — other modules import from here
+  app/                      ROUTING ONLY — thin page shells
+  features/<feature>/
+    index.ts                public API — other features import only this
+    _shared/                components/hooks/lib shared across the feature's sub-modules
+    <sub>/
+      components/  hooks/  lib/  services/  store/  types/
   components/
-    ui/                 OLD design system — frozen, retired per feature
-    ui2/                NEW primitives on the design tokens
-    app/shell/          cross-feature shell (sidebar, topbar, mobile headers)
+    ui/                     OLD design system — frozen, retired per feature
+    ui2/                    NEW primitives on the design tokens
+    app/shell/              cross-feature shell and generic states
   hooks/ services/ store/ types/   LEGACY + genuinely cross-feature only
-  lib/                  apiClient, socket, cn, tokens
+  lib/                      apiClient, socket, cn, tokens
 ```
 
 ### Feature module rules
 - **`app/` pages hold routing concerns only** — params, metadata, layout choice,
-  and rendering a feature component. No data fetching, no business logic, no
-  feature state. Pages must live in `app/` because Next.js derives URLs from that
-  tree; everything else belongs in the feature module.
-- **No cross-feature deep imports.** `features/a/` imports `features/b`'s
-  `index.ts`, never `features/b/services/...`. Shared code goes in `lib/`,
-  `components/ui2/`, or `components/app/`.
-- **A feature module's `index.ts` is its public API.** Export what other modules
-  legitimately need; keep the rest internal.
-- **Migrate per feature, as part of its redo** — never as a separate refactor.
-  Not-yet-redone features keep using the legacy `hooks/ services/ store/ types/`
-  folders until their own redo moves them.
+  and rendering a feature component. No data fetching, business logic or feature state.
+- **No cross-feature deep imports.** `features/a/` imports `features/b`'s `index.ts`,
+  never `features/b/<sub>/...`. Shared code goes in `lib/`, `components/ui2/`,
+  `components/app/`. Within a feature, a sub-module uses `_shared/` freely and reaches
+  into another sub-module only where it is listed as coupling.
+- **A feature's `index.ts` is its public API.** (Inventory currently has deep imports
+  from `app/` pages that should move to the index; tracked as follow-up.)
+- **Migrate per feature, as part of its redo.** Not-yet-redone features keep using the
+  legacy `hooks/ services/ store/ types/` folders.
+- Screen-building rules (states, shells, tables, fidelity checks): `docs/UI_BUILD_RULES.md`.
 
 ### Component rules
 - Keep components focused and composable.
@@ -207,4 +226,5 @@ frontend/
 - No `any`, no unsafe null assertions.
 - Tests added/updated for changed behavior.
 - Frontend has loading/error/empty states and no unhandled API errors.
-- UI follows design system tokens/components.
+- UI follows design system tokens/components and `docs/UI_BUILD_RULES.md`.
+- Sub-module README updated if behaviour, endpoints or status changed.
