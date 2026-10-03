@@ -41,10 +41,9 @@ export { NewPurchaseScreen } from './components/screens/new-purchase-screen';
 export { NewGoodsReceiptScreen } from './components/screens/new-goods-receipt-screen';
 export { GoodsReceiptDetailScreen } from './components/screens/goods-receipt-detail-screen';
 
-// Milestone Two S8 — Suppliers ("what we owe"), Supplier detail, invoice/payment drawers.
-// Replaces Milestone One's profile-only SuppliersScreen stub (retired 2026-09-18).
-export { SuppliersApScreen } from './components/screens/suppliers-ap-screen';
-export { SupplierDetailScreen } from './components/screens/supplier-detail-screen';
+// Suppliers (Part C, Session 6): the list and the supplier page replace Milestone Two's Supplier AP screens.
+export { SuppliersListScreen } from './components/screens/suppliers-list-screen';
+export { SupplierPageScreen } from './components/screens/supplier-page-screen';
 
 // Milestone Three — Prep.
 export { PrepRunsListScreen } from './components/screens/prep-runs-list-screen';

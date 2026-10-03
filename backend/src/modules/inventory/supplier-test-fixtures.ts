@@ -78,7 +78,7 @@ export const buildCatalogLine = (overrides: Record<string, unknown> = {}) => ({
   preferredNeedsConfirm: false,
   createdAt: now,
   updatedAt: now,
-  inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
+  inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate', usageUnit: 'L', conversionFactor: null },
   ...overrides,
 });
 
@@ -145,8 +145,8 @@ export const supplierRepositoryMocks = () => ({
     unsetDefault: vi.fn(),
     findHubAccountants: vi.fn(),
   },
-  supplierAuditRepository: { create: vi.fn() },
-  supplierStripRepository: { listForStrip: vi.fn(), catalogStrip: vi.fn() },
+  supplierAuditRepository: { create: vi.fn(), listPayMethodChanges: vi.fn() },
+  supplierStripRepository: { listForStrip: vi.fn(), listForStripByIds: vi.fn(), catalogStrip: vi.fn() },
   supplierItemRepository: {
     list: vi.fn(),
     listForItem: vi.fn(),

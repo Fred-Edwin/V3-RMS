@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { supplierService } from './supplier-service';
 import {
   supplierAuditRepository,
+  supplierStripRepository,
   supplierContactRepository,
   supplierItemRepository,
   supplierPayMethodRepository,
@@ -47,11 +48,16 @@ vi.mock('./item-history-repository', () => ({
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+  goodsReceiptRepository: {
+    findPackNotOnFileLines: vi.fn(),
+    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
+    findPriceAlertLines: vi.fn().mockResolvedValue([]),
+    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
+  },
 }));
 vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
-vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
-vi.mock('../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn() } }));
+vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn(), emitPayMethodChanged: vi.fn() } }));
+vi.mock('../../services/fcm-service', () => ({ fcmService: { sendChequeMethodAddedPush: vi.fn(), sendPayMethodChangedPush: vi.fn() } }));
 vi.mock('../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));
 vi.mock('./supplier-storage', () => ({ getDocumentStorage: vi.fn() }));
 
@@ -69,6 +75,8 @@ beforeEach(() => {
   vi.mocked(supplierRepository.findDetailById).mockResolvedValue(buildSupplierRow() as never);
   vi.mocked(supplierRepository.findLiveWithPhones).mockResolvedValue([]);
   vi.mocked(supplierRepository.create).mockResolvedValue({ id: supplierId });
+  vi.mocked(supplierStripRepository.listForStripByIds).mockResolvedValue([]);
+  vi.mocked(supplierPayMethodRepository.findHubAccountants).mockResolvedValue([]);
 });
 
 const validCreate = { name: 'Kagumo Poultry', address: 'Kagumo', type: 'REGULAR' as const, vatRegistered: false, defaultPaymentTerms: 'INVOICE_TO_FOLLOW' as const };
@@ -421,9 +429,10 @@ describe('supplierService — cheque payment method (B1)', () => {
     expect(CreatePayMethodSchema.safeParse({ ...cheque, note: undefined }).success).toBe(true);
   });
 
-  it('other types do not need a reason, so the current screens keep working', async () => {
+  it('every kind of method needs a reason to be added', async () => {
     const { CreatePayMethodSchema } = await import('./supplier-validators');
-    expect(CreatePayMethodSchema.safeParse({ type: 'CASH' }).success).toBe(true);
+    expect(CreatePayMethodSchema.safeParse({ type: 'CASH' }).success).toBe(false);
+    expect(CreatePayMethodSchema.safeParse({ type: 'CASH', reason: 'Supplier set up' }).success).toBe(true);
   });
 
   it('notifies every Accountant of the hub (socket + push), never the person who added it', async () => {
@@ -444,10 +453,18 @@ describe('supplierService — cheque payment method (B1)', () => {
     await expect(supplierService.createPayMethod(storeManager, supplierId, cheque)).resolves.toMatchObject({ type: 'CHEQUE' });
   });
 
-  it('does not notify for other method types', async () => {
+  it('other kinds are announced with the generic notice, not the cheque one', async () => {
     vi.mocked(supplierPayMethodRepository.create).mockResolvedValue(buildPayMethod({ type: 'CASH' }) as never);
-    await supplierService.createPayMethod(storeManager, supplierId, { type: 'CASH' });
-    expect(supplierPayMethodRepository.findHubAccountants).not.toHaveBeenCalled();
+    await supplierService.createPayMethod(storeManager, supplierId, { type: 'CASH', reason: 'Supplier asked for it' });
+    await vi.waitFor(() => expect(fcmService.sendPayMethodChangedPush).toHaveBeenCalled());
+    expect(socketService.emitChequeMethodAdded).not.toHaveBeenCalled();
+    expect(socketService.emitPayMethodChanged).toHaveBeenCalledWith('acc1', {
+      supplierId, supplierName: 'Samrat Supermarket Ltd', changedByName: 'Joseph Mwangi', summary: 'Added cash', reason: 'Supplier asked for it',
+    });
+    expect(supplierAuditRepository.create).toHaveBeenCalledWith(
+      hubOrgId, supplierId, 'sm1', 'PAY_METHOD_CREATED', methodId, null,
+      expect.objectContaining({ type: 'CASH', reason: 'Supplier asked for it' }), tx,
+    );
   });
 
   it('a cheque method can be edited (payable to, bank, note) and is re-validated', async () => {
@@ -927,5 +944,154 @@ describe('supplierService — hand-set price and item history (§30.3, §30.4)',
     expect(CreateSupplierItemSchema.safeParse({ inventoryItemId: itemId, price: '-5' }).success).toBe(false);
     expect(PutSupplierItemSchema.safeParse({ price: null }).success).toBe(false);
     expect(PutSupplierItemSchema.safeParse({ price: '8900.5' }).success).toBe(true);
+  });
+});
+
+describe('supplierService.listSuppliers — profile and owed on each row', () => {
+  const stripFor = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    name: 'Samrat',
+    type: 'REGULAR',
+    status: 'ACTIVE',
+    address: 'Nyeri',
+    kraPin: null,
+    contacts: [{ name: 'Rajesh', phone: '0722', isPrimary: true }],
+    _count: { payMethods: 0 },
+    supplierInvoices: [
+      { amountBilled: new Prisma.Decimal('1000'), adjustments: [], allocations: [{ amount: new Prisma.Decimal('400') }] },
+      { amountBilled: new Prisma.Decimal('300'), adjustments: [], allocations: [{ amount: new Prisma.Decimal('300') }] },
+    ],
+    ...over,
+  });
+
+  it('adds profileDone and owedAmount, counting only invoices with a balance', async () => {
+    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    vi.mocked(supplierStripRepository.listForStripByIds).mockResolvedValue([stripFor(buildSupplierRow().id)] as never);
+    const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
+    // name, type, phone, address, contact person pass; no payment details, no KRA PIN.
+    expect(data[0]).toMatchObject({ profileDone: 5, owedAmount: '600.00' });
+    expect(supplierStripRepository.listForStripByIds).toHaveBeenCalledWith(hubOrgId, [buildSupplierRow().id]);
+  });
+
+  it('profileNotFinished limits the list to suppliers missing a check, before paging', async () => {
+    vi.mocked(supplierStripRepository.listForStrip).mockResolvedValue([
+      stripFor('unfinished'),
+      stripFor('finished', { kraPin: 'P1', _count: { payMethods: 1 } }),
+    ] as never);
+    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [], total: 0 } as never);
+    await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false, profileNotFinished: true });
+    expect(vi.mocked(supplierRepository.findAllByOrganization).mock.calls[0]![1].ids).toEqual(['unfinished']);
+  });
+
+  it('a supplier with no strip row reads 0 of 7 and nothing owed rather than failing the list', async () => {
+    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
+    expect(data[0]).toMatchObject({ profileDone: 0, owedAmount: '0.00' });
+  });
+
+  it('attendants get neither figure and never trigger the profile lookup', async () => {
+    vi.mocked(supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
+    const { data } = await supplierService.listSuppliers(attendant, { page: 1, perPage: 20, includeRetired: false, profileNotFinished: true });
+    expect(JSON.stringify(data)).not.toMatch(/profileDone|owedAmount/);
+    expect(supplierStripRepository.listForStrip).not.toHaveBeenCalled();
+    expect(supplierStripRepository.listForStripByIds).not.toHaveBeenCalled();
+    expect(vi.mocked(supplierRepository.findAllByOrganization).mock.calls[0]![1].ids).toBeUndefined();
+  });
+});
+
+describe('supplierService — changing payment details needs a reason and tells the Accountant (§30.10)', () => {
+  const bank = buildPayMethod({ type: 'BANK_TRANSFER', accountNumber: '0170291548212', accountName: 'Samrat Ltd', bankName: 'Equity', bankBranch: 'Nyeri' });
+  const bankAfter = { ...bank, accountNumber: '0170291577702' };
+
+  beforeEach(() => {
+    vi.mocked(supplierPayMethodRepository.findById).mockResolvedValueOnce(bank as never).mockResolvedValueOnce(bankAfter as never);
+    vi.mocked(supplierPayMethodRepository.findHubAccountants).mockResolvedValue([{ id: 'acc1' }]);
+    vi.mocked(authRepository.findUserById).mockResolvedValue({ id: 'sm1', name: 'Joseph Mwangi' } as never);
+  });
+
+  it('the schema asks for a reason unless only the default flag is toggled', async () => {
+    const { UpdatePayMethodSchema } = await import('./supplier-validators');
+    expect(UpdatePayMethodSchema.safeParse({ accountNumber: '1' }).success).toBe(false);
+    expect(UpdatePayMethodSchema.safeParse({ accountNumber: '1', reason: '  ' }).success).toBe(false);
+    expect(UpdatePayMethodSchema.safeParse({ accountNumber: '1', reason: 'Supplier changed bank' }).success).toBe(true);
+    expect(UpdatePayMethodSchema.safeParse({ isDefault: true }).success).toBe(true);
+    expect(UpdatePayMethodSchema.safeParse({ reason: 'only a reason' }).success).toBe(false);
+  });
+
+  it('keeps the reason in the audit row, never the number, and tells the Accountant in words', async () => {
+    await supplierService.updatePayMethod(storeManager, supplierId, methodId, { accountNumber: '0170291577702', reason: 'Supplier changed bank' });
+    const [, , , action, , before, after] = vi.mocked(supplierAuditRepository.create).mock.calls[0]!;
+    expect(action).toBe('PAY_METHOD_UPDATED');
+    expect(JSON.stringify([before, after])).not.toContain('0170291577702');
+    expect(after).toMatchObject({ reason: 'Supplier changed bank' });
+    await vi.waitFor(() => expect(socketService.emitPayMethodChanged).toHaveBeenCalled());
+    expect(socketService.emitPayMethodChanged).toHaveBeenCalledWith('acc1', {
+      supplierId, supplierName: 'Samrat Supermarket Ltd', changedByName: 'Joseph Mwangi',
+      summary: 'Changed the account number on the bank transfer', reason: 'Supplier changed bank',
+    });
+  });
+
+  it('making a method the default tells nobody', async () => {
+    await supplierService.updatePayMethod(storeManager, supplierId, methodId, { isDefault: true });
+    expect(socketService.emitPayMethodChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe('supplierService.listPayMethodHistory', () => {
+  const row = (over: Record<string, unknown>) => ({
+    id: 'a1', createdAt: new Date('2026-10-12T11:08:00Z'), action: 'PAY_METHOD_CREATED', before: null,
+    after: { type: 'CHEQUE', registeredName: 'Samrat Supermarket Ltd', reason: 'Supplier asked for it' },
+    actor: { id: 'sm1', name: 'Isabel Njoki' }, ...over,
+  });
+
+  it('turns audit rows into plain sentences with who, when and why', async () => {
+    vi.mocked(supplierAuditRepository.listPayMethodChanges).mockResolvedValue([
+      row({}),
+      row({ id: 'a2', action: 'PAY_METHOD_UPDATED', before: { type: 'BANK_TRANSFER', accountNumber: '••••4821' }, after: { type: 'BANK_TRANSFER', accountNumber: '••••7702' } }),
+    ] as never);
+    const history = await supplierService.listPayMethodHistory(accountant, supplierId);
+    expect(history).toEqual([
+      { id: 'a1', at: '2026-10-12T11:08:00.000Z', action: 'PAY_METHOD_CREATED', summary: 'Added cheque, payable to Samrat Supermarket Ltd', reason: 'Supplier asked for it', actor: { id: 'sm1', name: 'Isabel Njoki' } },
+      { id: 'a2', at: '2026-10-12T11:08:00.000Z', action: 'PAY_METHOD_UPDATED', summary: 'Changed the account number on the bank transfer', reason: null, actor: { id: 'sm1', name: 'Isabel Njoki' } },
+    ]);
+    expect(supplierAuditRepository.listPayMethodChanges).toHaveBeenCalledWith(supplierId, hubOrgId, 50);
+  });
+
+  it('is closed to the attendant and anyone outside the hub', async () => {
+    await expect(supplierService.listPayMethodHistory(attendant, supplierId)).rejects.toThrow(ForbiddenError);
+    expect(supplierAuditRepository.listPayMethodChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe('supplierService.listItems — the Catalog tab extras (§30.11)', () => {
+  it('adds the usage unit, the receipt behind the price and the price alert with the date it compares with', async () => {
+    const signedAt = new Date('2026-10-08T09:00:00Z');
+    vi.mocked(supplierItemRepository.list).mockResolvedValue([
+      buildCatalogLine({
+        buyUnit: 'bag', packSize: new Prisma.Decimal('50'), lastPriceAt: signedAt,
+        inventoryItem: { id: itemId, name: 'Sugar, white', buyUnit: 'bag', usageUnit: 'kg', conversionFactor: new Prisma.Decimal('50') },
+      }),
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([{ id: 'r1', reference: 'GRN-1042', signedAt, itemIds: [itemId] }] as never);
+    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([
+      { inventoryItemId: itemId, packBuyUnit: 'bag', packSize: new Prisma.Decimal('50'), priceAlertPct: new Prisma.Decimal('6'), priceAlertPrevPrice: new Prisma.Decimal('8630'), signedAt },
+    ] as never);
+    vi.mocked(goodsReceiptRepository.findPreviousSignedAt).mockResolvedValue(new Date('2026-09-28T09:00:00Z'));
+
+    const [row] = await supplierService.listItems(storeManager, supplierId);
+    expect(row).toMatchObject({
+      itemUsageUnit: 'kg', itemConversionFactor: '50',
+      lastReceipt: { id: 'r1', reference: 'GRN-1042' },
+      priceAlert: { pct: '6', previousPrice: '8630', previousAt: '2026-09-28T09:00:00.000Z' },
+    });
+    expect(goodsReceiptRepository.findPriceAlertLines).toHaveBeenCalledWith(supplierId, hubOrgId, expect.any(Date));
+  });
+
+  it('a line with no receipts and no alerts reads null for both', async () => {
+    vi.mocked(supplierItemRepository.list).mockResolvedValue([buildCatalogLine()] as never);
+    vi.mocked(goodsReceiptRepository.findReceiptsSignedAt).mockResolvedValue([]);
+    vi.mocked(goodsReceiptRepository.findPriceAlertLines).mockResolvedValue([]);
+    const [row] = await supplierService.listItems(storeManager, supplierId);
+    expect(row).toMatchObject({ lastReceipt: null, priceAlert: null });
   });
 });

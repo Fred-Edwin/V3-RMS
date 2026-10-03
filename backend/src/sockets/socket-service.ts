@@ -49,6 +49,15 @@ export interface ChequeMethodAddedPayload {
   reason: string;
 }
 
+export interface PayMethodChangedPayload {
+  supplierId: string;
+  supplierName: string;
+  changedByName: string;
+  /** "Added M-Pesa Paybill" · "Changed the account number on the bank transfer". */
+  summary: string;
+  reason: string;
+}
+
 export interface RequisitionSubmittedPayload {
   requisitionId: string;
   departmentTag: string;
@@ -123,6 +132,12 @@ export const socketService = {
   emitChequeMethodAdded: (userId: string, payload: ChequeMethodAddedPayload): void => {
     const io = getSocketServer();
     io.to(userRoomName(userId)).emit('supplier:cheque-method-added', payload);
+  },
+
+  /** A supplier's payment details were added or changed — notifies the hub's Accountant(s). */
+  emitPayMethodChanged: (userId: string, payload: PayMethodChangedPayload): void => {
+    const io = getSocketServer();
+    io.to(userRoomName(userId)).emit('supplier:pay-method-changed', payload);
   },
 
   /** A department head submits their section — notifies the branch's Manager(s). */

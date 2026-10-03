@@ -108,7 +108,7 @@ describe('Inventory supplier routes', () => {
     });
 
     it('payment methods: the Director may read but not write; the Accountant may write', async () => {
-      const body = { type: 'CASH' };
+      const body = { type: 'CASH', reason: 'Supplier asked for it' };
       const denied = await request(app)
         .post(`/api/v1/inventory/suppliers/${supplierId}/payment-methods`)
         .set('Authorization', `Bearer ${directorToken}`)

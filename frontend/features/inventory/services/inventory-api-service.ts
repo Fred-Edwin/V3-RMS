@@ -37,7 +37,6 @@ import type {
   Supplier,
   UpdateCategoryInput,
   UpdateItemInput,
-  UpdateSupplierInput,
 } from '../types';
 
 function token(): string | undefined {
@@ -139,24 +138,8 @@ export async function listSuppliers(query: ListSuppliersQuery = {}): Promise<Pag
   };
 }
 
-export async function getSupplier(id: string): Promise<Supplier> {
-  return apiClient.get<Supplier>(`/inventory/suppliers/${id}`, token());
-}
-
 export async function createSupplier(input: CreateSupplierInput): Promise<Supplier> {
   return apiClient.post<Supplier>('/inventory/suppliers', input, token());
-}
-
-export async function updateSupplier(id: string, input: UpdateSupplierInput): Promise<Supplier> {
-  return apiClient.patch<Supplier>(`/inventory/suppliers/${id}`, input, token());
-}
-
-export async function retireSupplier(id: string): Promise<void> {
-  await apiClient.delete<void>(`/inventory/suppliers/${id}`, token());
-}
-
-export async function restoreSupplier(id: string): Promise<Supplier> {
-  return apiClient.post<Supplier>(`/inventory/suppliers/${id}/restore`, {}, token());
 }
 
 /**

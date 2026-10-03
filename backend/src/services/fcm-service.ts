@@ -586,6 +586,36 @@ export const fcmService = {
     }
   },
 
+  /** A supplier's payment details were added or changed (any kind but a cheque add) — pushes to the hub's Accountant(s). */
+  sendPayMethodChangedPush: async (
+    recipientIds: string[],
+    payload: { supplierId: string; supplierName: string; changedByName: string; summary: string; reason: string },
+  ): Promise<void> => {
+    try {
+      if (!firebaseMessaging || !env.VAPID_KEY || recipientIds.length === 0) return;
+      const users = await Promise.all(recipientIds.map((id) => authRepository.findFcmToken(id)));
+      const tokens = users.filter((t): t is string => t !== null);
+      if (tokens.length === 0) return;
+      await firebaseMessaging.sendEachForMulticast({
+        tokens,
+        webpush: {
+          headers: { Urgency: 'normal' },
+          notification: {
+            title: `Payment details changed — ${payload.supplierName}`,
+            body: `${payload.changedByName}: ${payload.summary}. ${payload.reason}`,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: `supplier-pay-method-${payload.supplierId}`,
+          },
+          fcmOptions: { link: `/app/inventory/suppliers/${payload.supplierId}` },
+        },
+        data: { supplierId: payload.supplierId, type: 'supplier-pay-method-changed' },
+      });
+    } catch (error) {
+      logger.warn({ error, payload }, 'Failed to send pay-method-changed FCM push');
+    }
+  },
+
   /**
    * Sends a 24h reminder to a staff member who has not acknowledged a formal notice.
    * Fire-and-forget.

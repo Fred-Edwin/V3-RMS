@@ -13,6 +13,7 @@ import {
   SheetDescription,
 } from '@/components/ui2/sheet';
 import { formatApiErrorMessage } from '@/types/api';
+import { validateChequeNumber } from '../../lib/supplier-logic';
 import { BundleCheckboxList, BundleRunningTotal, type BundleRow } from '../bundle-checkbox-list';
 import { getSupplierApDetail, createSupplierPayment } from '../../services/receiving-api-service';
 import type { SupplierInvoice, SupplierPaymentMethod } from '../../types/receiving';
@@ -30,6 +31,7 @@ const METHODS: { value: SupplierPaymentMethod; label: string }[] = [
   { value: 'BANK', label: 'Bank' },
   { value: 'CASH', label: 'Cash' },
   { value: 'MPESA', label: 'M-Pesa' },
+  { value: 'CHEQUE', label: 'Cheque' },
 ];
 
 /**
@@ -64,6 +66,10 @@ export function RecordSupplierPaymentDrawer({
   const [reference, setReference] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [referenceError, setReferenceError] = React.useState<string | null>(null);
+  /** Set after a cheque was recorded under a number this supplier already used: the drawer stays to say so. */
+  const [duplicateRecorded, setDuplicateRecorded] = React.useState<string | null>(null);
+  const [paidCheques, setPaidCheques] = React.useState<Array<{ reference: string; paidAt: string }>>([]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -73,11 +79,18 @@ export function RecordSupplierPaymentDrawer({
     setMethod('BANK');
     setReference('');
     setError(null);
+    setReferenceError(null);
+    setDuplicateRecorded(null);
     setLoadingInvoices(true);
     getSupplierApDetail(supplierId)
       .then((detail) => {
         const outstanding = detail.invoices.filter((inv) => Number(inv.outstanding) > 0);
         setInvoices(outstanding);
+        setPaidCheques(
+          detail.payments
+            .filter((p) => p.method === 'CHEQUE' && p.reversalOfId === null && p.reference)
+            .map((p) => ({ reference: (p.reference as string).trim().toLowerCase(), paidAt: p.paidAt }))
+        );
       })
       .catch((err) => setError(formatApiErrorMessage(err, 'Could not load outstanding invoices.')))
       .finally(() => setLoadingInvoices(false));
@@ -118,8 +131,17 @@ export function RecordSupplierPaymentDrawer({
   const amountNumber = Number(amount);
   const canSubmit = selected.size > 0 && Number.isFinite(amountNumber) && amountNumber > 0 && paidAt && !submitting;
 
+  const isCheque = method === 'CHEQUE';
+  const typedReference = reference.trim().toLowerCase();
+  const earlierCheque = isCheque && typedReference !== '' ? paidCheques.find((c) => c.reference === typedReference) : undefined;
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    if (isCheque) {
+      const problem = validateChequeNumber(reference);
+      setReferenceError(problem);
+      if (problem) return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -141,7 +163,7 @@ export function RecordSupplierPaymentDrawer({
           return { supplierInvoiceId: inv.id, amount: String(allocate) };
         })
         .filter((a) => Number(a.amount) > 0);
-      await createSupplierPayment({
+      const recorded = await createSupplierPayment({
         supplierId,
         amount,
         paidAt: new Date(paidAt).toISOString(),
@@ -150,6 +172,10 @@ export function RecordSupplierPaymentDrawer({
         allocations,
       });
       onRecorded();
+      if (recorded.duplicateChequeNumber) {
+        setDuplicateRecorded(reference.trim());
+        return;
+      }
       onOpenChange(false);
     } catch (err) {
       setError(formatApiErrorMessage(err, 'Could not record this payment.'));
@@ -217,18 +243,33 @@ export function RecordSupplierPaymentDrawer({
           </div>
 
           <div className="flex flex-col gap-wds-1.5">
-            <label htmlFor="payment-reference" className="font-wds-mono text-wds-label text-wds-text-copy-muted">REFERENCE</label>
+            <label htmlFor="payment-reference" className="font-wds-mono text-wds-label text-wds-text-copy-muted">{isCheque ? 'CHEQUE NUMBER' : 'REFERENCE'}</label>
             <input
               id="payment-reference"
               type="text"
               value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="EFT-88213"
-              className="h-8 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 font-wds-mono text-wds-body-sm text-wds-text-ink placeholder:text-wds-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wds-primary"
+              onChange={(e) => {
+                setReference(e.target.value);
+                setReferenceError(null);
+              }}
+              placeholder={isCheque ? '000412' : 'EFT-88213'}
+              aria-invalid={referenceError ? true : undefined}
+              className="h-8 rounded-wds-sm border border-wds-border-strong bg-wds-surface px-wds-2.5 font-wds-mono text-wds-body-sm text-wds-text-ink placeholder:text-wds-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wds-primary aria-[invalid=true]:border-wds-error-fg"
             />
+            {referenceError ? <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">{referenceError}</p> : null}
+            {earlierCheque && !duplicateRecorded ? (
+              <p role="status" className="font-wds-sans text-wds-caption text-wds-warning-fg">
+                A cheque numbered {reference.trim()} was already paid to this supplier on {new Date(earlierCheque.paidAt).toLocaleDateString('en-KE', { day: '2-digit', month: 'short' })}. You can still record this one.
+              </p>
+            ) : null}
           </div>
 
-          {error ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+          {error ? <p role="alert" className="font-wds-sans text-wds-caption text-wds-error-fg">{error}</p> : null}
+          {duplicateRecorded ? (
+            <p role="status" className="border border-wds-warning-border bg-wds-warning-bg px-wds-3 py-wds-2.5 font-wds-sans text-wds-caption text-wds-warning-fg">
+              Payment recorded. Cheque number {duplicateRecorded} was already used for this supplier, so check you wrote the right number.
+            </p>
+          ) : null}
         </div>
         <SheetFooter className="flex-col items-stretch gap-wds-3">
           <div className="flex items-baseline justify-between">
@@ -238,12 +279,18 @@ export function RecordSupplierPaymentDrawer({
             </span>
           </div>
           <div className="flex items-center justify-end gap-wds-2">
-            <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit}>
-              {submitting ? 'Recording…' : 'Record payment'}
-            </Button>
+            {duplicateRecorded ? (
+              <Button onClick={() => onOpenChange(false)}>Done</Button>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmit} disabled={!canSubmit}>
+                  {submitting ? 'Recording…' : 'Record payment'}
+                </Button>
+              </>
+            )}
           </div>
         </SheetFooter>
       </SheetContent>

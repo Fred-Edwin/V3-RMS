@@ -89,6 +89,7 @@ router.patch('/inventory/suppliers/:id/contacts/:cid', requireRole(SM), supplier
 router.delete('/inventory/suppliers/:id/contacts/:cid', requireRole(SM), supplierController.deleteContact);
 
 router.get('/inventory/suppliers/:id/payment-methods', requireRole(...READ), supplierController.listPayMethods);
+router.get('/inventory/suppliers/:id/payment-methods/history', requireRole(...READ), supplierController.listPayMethodHistory);
 router.get('/inventory/suppliers/:id/payment-methods/:pid', requireRole(...READ), supplierController.getPayMethod);
 router.post('/inventory/suppliers/:id/payment-methods', requireRole(SM, 'ACCOUNTANT'), supplierController.createPayMethod);
 router.patch(

@@ -285,24 +285,6 @@ export interface CreateSupplierInput {
   paymentDays?: number;
 }
 
-/**
- * Every field genuinely optional — omitting `defaultPaymentTerms` from a
- * PATCH must never change it. Do not derive this from `CreateSupplierInput`
- * with every field made optional plus a default; the backend schema was
- * deliberately rewritten (2026-09-15) to avoid exactly that trap. Only send
- * `defaultPaymentTerms` when the user actually edits the payment-terms toggle.
- */
-export interface UpdateSupplierInput {
-  name?: string;
-  contactName?: string | null;
-  categoryId?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  location?: string | null;
-  defaultPaymentTerms?: SupplierPaymentTerms;
-  paymentDays?: number;
-}
-
 // ─── Restock levels ─────────────────────────────────────────────────────────
 
 export type RestockStatus = 'OUT' | 'LOW' | 'OK' | 'NO_LEVEL';

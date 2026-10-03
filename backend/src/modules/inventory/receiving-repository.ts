@@ -546,6 +546,53 @@ export const goodsReceiptRepository = {
       orderBy: { goodsReceipt: { signedAt: 'desc' } },
     }),
 
+  /** Signed (non-cancelled) receipts of one supplier signed at exactly these moments, with the items on each (the Catalog tab's "from receipt"). */
+  findReceiptsSignedAt: async (supplierId: string, organizationId: string, signedAt: Date[]) => {
+    if (signedAt.length === 0) return [];
+    const receipts = await prisma.goodsReceipt.findMany({
+      where: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { in: signedAt } },
+      select: { id: true, reference: true, signedAt: true, lines: { select: { inventoryItemId: true } } },
+    });
+    return receipts.map((r) => ({ id: r.id, reference: r.reference, signedAt: r.signedAt as Date, itemIds: r.lines.map((l) => l.inventoryItemId) }));
+  },
+
+  /** Signed receipt lines of one supplier that fired a price alert since `since`, newest receipt first. */
+  findPriceAlertLines: async (supplierId: string, organizationId: string, since: Date) => {
+    const lines = await prisma.goodsReceiptLine.findMany({
+      where: {
+        priceAlertPct: { not: null },
+        goodsReceipt: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { gte: since } },
+      },
+      select: {
+        inventoryItemId: true,
+        packBuyUnit: true,
+        packSize: true,
+        priceAlertPct: true,
+        priceAlertPrevPrice: true,
+        goodsReceipt: { select: { signedAt: true } },
+      },
+      orderBy: { goodsReceipt: { signedAt: 'desc' } },
+    });
+    return lines.map((l) => ({
+      inventoryItemId: l.inventoryItemId,
+      packBuyUnit: l.packBuyUnit,
+      packSize: l.packSize,
+      priceAlertPct: l.priceAlertPct as NonNullable<typeof l.priceAlertPct>,
+      priceAlertPrevPrice: l.priceAlertPrevPrice,
+      signedAt: l.goodsReceipt.signedAt as Date,
+    }));
+  },
+
+  /** When the supplier last sold this item before `before` (the date the alert compares against), if ever. */
+  findPreviousSignedAt: async (supplierId: string, organizationId: string, inventoryItemId: string, before: Date): Promise<Date | null> => {
+    const previous = await prisma.goodsReceipt.findFirst({
+      where: { supplierId, organizationId, status: { not: 'CANCELLED' }, signedAt: { lt: before }, lines: { some: { inventoryItemId } } },
+      orderBy: { signedAt: 'desc' },
+      select: { signedAt: true },
+    });
+    return previous?.signedAt ?? null;
+  },
+
   /** Stamps acceptance on the alerted lines, inside the same sign transaction. */
   markPriceAlertsAccepted: async (lineIds: string[], acceptedById: string, tx: TxClient): Promise<void> => {
     if (lineIds.length === 0) return;

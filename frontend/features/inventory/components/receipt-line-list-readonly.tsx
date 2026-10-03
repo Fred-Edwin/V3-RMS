@@ -53,6 +53,17 @@ export function ReceiptLineListReadonly({ lines, className }: ReceiptLineListRea
                   >
                     {line.itemName}
                   </span>
+                  {line.supplierItemName || line.supplierItemCode ? (
+                    <span className="flex items-baseline gap-2">
+                      {line.supplierItemName ? <span className="font-wds-sans text-wds-caption text-wds-text-faint">{line.supplierItemName}</span> : null}
+                      {line.supplierItemCode ? <span className="font-wds-mono text-wds-label text-wds-text-faint">{line.supplierItemCode}</span> : null}
+                    </span>
+                  ) : null}
+                  {line.packNotOnFile ? (
+                    <span className="mt-0.5 inline-block w-fit border border-wds-warning-border bg-wds-warning-bg px-1.5 py-px font-wds-sans text-wds-label text-wds-warning-fg">
+                      Pack not on file · price not updated
+                    </span>
+                  ) : null}
                 </div>
                 <span className="w-[110px] shrink-0 text-right font-wds-mono text-wds-body-sm text-wds-text-ink">
                   {line.quantityBuyUnit} {line.buyUnit}

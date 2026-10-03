@@ -20,6 +20,8 @@ export interface AddSellerViewProps {
   onRetrySuppliers: () => void;
   onCancel: () => void;
   onAdded: () => void;
+  /** Opened from a supplier's page: the supplier is already chosen, so the picker is left out. */
+  fixedSupplier?: { id: string; name: string };
 }
 
 const DECIMAL = /^\d{1,8}(\.\d{1,4})?$/;
@@ -33,9 +35,9 @@ const DECIMAL = /^\d{1,8}(\.\d{1,4})?$/;
  * every signed receipt updates it after that. Left empty, the first signed receipt
  * sets it. The preferred switch starts on only when no other supplier is preferred yet.
  */
-export function AddSellerView({ item, suppliers, suppliersLoading, suppliersError, onRetrySuppliers, onCancel, onAdded }: AddSellerViewProps) {
+export function AddSellerView({ item, suppliers, suppliersLoading, suppliersError, onRetrySuppliers, onCancel, onAdded, fixedSupplier }: AddSellerViewProps) {
   const { add, saving, error, clearError } = useAddSupplierLine();
-  const [supplierId, setSupplierId] = React.useState('');
+  const [supplierId, setSupplierId] = React.useState(fixedSupplier?.id ?? '');
   const [theirName, setTheirName] = React.useState('');
   const [theirCode, setTheirCode] = React.useState('');
   const [samePack, setSamePack] = React.useState(true);
@@ -45,7 +47,7 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
   const [preferred, setPreferred] = React.useState(!item.suppliers.some((s) => s.isPreferred));
   const [errors, setErrors] = React.useState<{ supplier?: string; buyUnit?: string; packSize?: string; price?: string }>({});
 
-  const supplier = suppliers.find((s) => s.id === supplierId);
+  const supplier = fixedSupplier ?? suppliers.find((s) => s.id === supplierId);
   const options: ComboboxOption[] = suppliers.map((s) => ({ value: s.id, label: s.name }));
   const itemPack = item.conversionFactor ?? item.packSize;
   const usualPack = itemPack ? `1 ${item.buyUnit} = ${trimDecimal(itemPack)} ${item.usageUnit}` : `1 ${item.buyUnit}`;
@@ -87,7 +89,7 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
     <DrawerFrame
       eyebrow={item.name}
       title="Add who sells it"
-      subtitle="Pick a supplier and the price they quote."
+      subtitle={fixedSupplier ? `What ${fixedSupplier.name} quotes for this item.` : 'Pick a supplier and the price they quote.'}
       footer={
         <div className="flex w-full justify-end gap-2.5">
           <SecondaryFooterButton onClick={onCancel}>Cancel</SecondaryFooterButton>
@@ -107,6 +109,8 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
         </DrawerError>
       ) : null}
 
+      {fixedSupplier ? null : (
+        <>
       <div className="flex flex-col gap-2">
         <FieldLabel>Supplier</FieldLabel>
         <Combobox
@@ -131,6 +135,9 @@ export function AddSellerView({ item, suppliers, suppliersLoading, suppliersErro
           <span className="font-wds-sans text-[12px] leading-4 text-wds-text-secondary">Not in the list? Add a new supplier from the Suppliers page.</span>
         )}
       </div>
+
+        </>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <div className="flex gap-2.5">

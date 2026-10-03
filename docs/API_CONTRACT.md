@@ -4493,7 +4493,7 @@ re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
 
 | Method | Path | Roles | Notes |
 |---|---|---|---|
-| `GET` | `/inventory/suppliers` | SM, ACC, DIR, SA | Query: `page`, `perPage`, `search` (name, trading name, code, contact phone), `status`, `type`, `categoryId`, legacy `includeRetired` (default false: hides ARCHIVED unless `status` is given). **SA gets the stripped row** `{id, code, name, type, primaryPhone}` and only ACTIVE suppliers, whatever the filters. |
+| `GET` | `/inventory/suppliers` | SM, ACC, DIR, SA | Query: `page`, `perPage`, `search` (name, trading name, code, contact phone), `status`, `type`, `categoryId`, `profileNotFinished=true` (only suppliers missing a profile check, §30.9), legacy `includeRetired` (default false: hides ARCHIVED unless `status` is given). **SA gets the stripped row** `{id, code, name, type, primaryPhone}` and only ACTIVE suppliers, whatever the filters. |
 | `GET` | `/inventory/suppliers/:id` | SM, ACC, DIR | Detail (§27.2). `paymentMethods` are masked. |
 | `POST` | `/inventory/suppliers` | SM | Extended body (§27.3). Code generated in the create transaction. |
 | `PATCH` | `/inventory/suppliers/:id` | SM | Partial; `code` and `status` are not editable here. |
@@ -4518,7 +4518,7 @@ re-checks the role (defence in depth). `SM` Store Manager · `ACC` Accountant ·
 
 ### 27.2 Read models
 
-**List row (`SupplierSchema`)** — `id, code, name, tradingName, status, type,
+**List row (`SupplierListRowSchema` = `SupplierSchema` + `profileDone`, `owedAmount`, §30.9)** — `id, code, name, tradingName, status, type,
 category{id,name}|null, address, mapUrl, primaryContact{id,name,role,phone,whatsapp,email}|null,
 defaultPaymentTerms, paymentDays, createdAt, updatedAt`, plus the **deprecated
 legacy keys** below.
@@ -4538,7 +4538,7 @@ Contact: `{id, name, role, phone, whatsapp, email, isPrimary, createdAt, updated
 Payment method: `{id, type, isDefault, bankName, bankBranch, accountName,
 accountNumberMasked, paybillNumber, accountReference, tillNumber, phone,
 registeredName, createdAt, updatedAt}`; the single-method GET adds `accountNumber`.
-Catalog row: `{id, inventoryItemId, itemName, itemBuyUnit, supplierItemName, supplierItemCode,
+Catalog row: `{id, inventoryItemId, itemName, itemBuyUnit, itemUsageUnit, itemConversionFactor|null, lastReceipt|null, priceAlert|null (§30.11), supplierItemName, supplierItemCode,
 buyUnit, packSize, lastPrice, lastPriceAt, isPreferred, preferredNeedsConfirm}` (`lastPrice` is per **buy** unit;
 `id` is the pack line's id — a supplier may have several lines for one item, §28.3).
 
@@ -4613,9 +4613,8 @@ Migration: `catalog_cheque_and_pack_lines` (Session 1) and `receipt_line_pack_an
 ### 28.1 Cheque payment method (B1)
 
 `POST /inventory/suppliers/:id/payment-methods` accepts `type: "CHEQUE"`:
-`registeredName` (**payable to**, required), `bankName` (required), `note?`, `reason` (**required for
-CHEQUE**, ≤ 300 chars; never stored on the method, written to the audit row and the notification),
-`isDefault?`. `reason` is ignored for other types (so the current UI keeps working).
+`registeredName` (**payable to**, required), `bankName` (required), `note?`, `reason` (**required**, ≤ 300 chars; never stored on the method, written to the audit row and the notification; required for every type since §30.10),
+`isDefault?`.
 `PATCH …/payment-methods/:pid` may change `registeredName`, `bankName`, `note` on a cheque method.
 
 Payment-method read shape gains `note: string | null`. Creating a cheque method writes the usual
@@ -4926,3 +4925,37 @@ Migration `add_item_days_of_cover`: nullable `inventory_items.days_of_cover` `De
 - **Restock row** (§29.2, §30.7): gains `daysOfCover: string`, the days the suggestion used (the item's, or `"15"`), so a screen can write "12 kg a day, 5 days of cover".
 - **Item history** (§30.4): a change is logged as "set the days of cover to 5", "changed the days of cover from 5 to 1.5" or "cleared the days of cover (back to 15)".
 - Not modelled: meal services ("at lunch"). The page says "{n} a day" only.
+
+### 30.9 Profile and owed on the suppliers list (Session 6, owner-approved 3 Oct 2026)
+
+`GET /inventory/suppliers` (SM, ACC, DIR; the attendant's stripped row is unchanged):
+- Each row gains `profileDone` (integer 0 to 7: how many of the seven profile checks of §29.3 pass) and `owedAmount` (KES, decimal string: the sum of the
+  supplier's invoices that still have a positive balance, the same rule as the strip). They are worked out for every status, archived included.
+- New query flag `profileNotFinished=true`: only non-archived suppliers missing at least one check. It is resolved over all live suppliers first, then
+  `status`, `type`, `categoryId`, `search` and paging apply on top, so `pagination.total` is the filtered count. Ignored for the attendant.
+
+### 30.10 Payment details: reason, Accountant notice and history (Session 6, owner-approved 3 Oct 2026)
+
+- `POST …/payment-methods` now requires `reason` (≤ 300 chars) for **every** type, not only `CHEQUE`; a missing or blank one is `400`. It goes to the
+  audit row's `after.reason`, never onto the method.
+- `PATCH …/payment-methods/:pid` accepts `reason` and **requires it whenever any detail field is sent**; a body that only toggles `isDefault` needs none.
+  A body that is only a `reason` is `400`.
+- The hub's Accountant(s) (never the actor) are told on every add (a cheque keeps `supplier:cheque-method-added`; any other type) and on every change of
+  details: socket event `supplier:pay-method-changed` `{supplierId, supplierName, changedByName, summary, reason}` plus an FCM push. Fire-and-forget; never
+  fails the request. Making a method the default, and removing one, tell nobody.
+- `GET /inventory/suppliers/:id/payment-methods/history` (SM, ACC, DIR; registered before `/:pid`) → the 50 most recent payment-method audit rows,
+  newest first: `[{id, at, action, summary, reason|null, actor{id,name}}]`. `summary` is built from the masked audit snapshots in plain words
+  ("Added cheque, payable to Samrat Supermarket Ltd", "Changed the account number on the bank transfer"); no account number or digit of one appears.
+  `reason` is null for rows written before this change. Attendant: `403`.
+
+### 30.11 Catalog tab extras (Session 6, owner-approved 3 Oct 2026)
+
+Every supplier catalog row (`GET/POST/PUT …/suppliers/:id/items`) gains:
+- `itemUsageUnit` (the item's usage unit, "kg") and `itemConversionFactor` (decimal string or null): so the pack reads "50 kg bag" and the price "per kg".
+- `lastReceipt: {id, reference} | null`: the signed receipt that set the current price (`lastPriceAt` equals its `signedAt`). Null when the price was set by hand or is unset.
+- `priceAlert: {pct, previousPrice|null, previousAt|null} | null`: the newest price alert fired on this pack by a signed receipt in the last 90 days (`pct` is the rise
+  as a percentage, `previousAt` the date of the supplier's earlier receipt for the item). A receipt line that names a pack belongs to the line with exactly that key;
+  one that names none belongs to the item's only line, never guessed between two.
+
+`lastReceipt` and `priceAlert` are filled in by the list (`GET …/items`) only; the add and edit responses return them as `null`.
+

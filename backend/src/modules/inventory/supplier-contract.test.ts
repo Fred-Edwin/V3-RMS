@@ -17,6 +17,7 @@ import {
   SupplierDocumentSchema,
   SupplierDownloadSchema,
   SupplierItemSchema,
+  SupplierListRowSchema,
   SupplierPayMethodDetailSchema,
   SupplierPayMethodSchema,
   SupplierSchema,
@@ -42,7 +43,12 @@ vi.mock('./item-history-repository', () => ({
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
 vi.mock('./receiving-repository', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
-  goodsReceiptRepository: { findPackNotOnFileLines: vi.fn() },
+  goodsReceiptRepository: {
+    findPackNotOnFileLines: vi.fn(),
+    findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
+    findPriceAlertLines: vi.fn().mockResolvedValue([]),
+    findPreviousSignedAt: vi.fn().mockResolvedValue(null),
+  },
 }));
 vi.mock('../../repositories/auth-repository', () => ({ authRepository: { findUserById: vi.fn() } }));
 vi.mock('../../sockets/socket-service', () => ({ socketService: { emitChequeMethodAdded: vi.fn() } }));
@@ -82,19 +88,22 @@ beforeEach(() => {
   vi.mocked(repos.supplierRepository.findById).mockResolvedValue(buildSupplierRow() as never);
   vi.mocked(repos.supplierRepository.findDetailById).mockResolvedValue(buildSupplierRow() as never);
   vi.mocked(repos.supplierRepository.findLiveWithPhones).mockResolvedValue([]);
+  vi.mocked(repos.supplierStripRepository.listForStripByIds).mockResolvedValue([]);
 });
 
 describe('suppliers contract — response shapes', () => {
-  it('list rows satisfy SupplierSchema and keep the deprecated legacy keys', async () => {
+  it('list rows satisfy SupplierListRowSchema (profileDone, owedAmount) and keep the deprecated legacy keys', async () => {
     vi.mocked(repos.supplierRepository.findAllByOrganization).mockResolvedValue({ suppliers: [buildSupplierRow()], total: 1 } as never);
     const { data } = await supplierService.listSuppliers(storeManager, { page: 1, perPage: 20, includeRetired: false });
-    const row = SupplierSchema.parse(data[0]);
+    const row = SupplierListRowSchema.parse(data[0]);
     expect(keys(row)).toEqual(
       [
         'address', 'category', 'code', 'contactName', 'createdAt', 'defaultPaymentTerms', 'email', 'id', 'location',
-        'mapUrl', 'name', 'paymentDays', 'phone', 'primaryContact', 'retiredAt', 'status', 'tradingName', 'type', 'updatedAt',
+        'mapUrl', 'name', 'owedAmount', 'paymentDays', 'phone', 'primaryContact', 'profileDone', 'retiredAt', 'status',
+        'tradingName', 'type', 'updatedAt',
       ].sort(),
     );
+    expect(SupplierSchema.safeParse(data[0]).success).toBe(true);
     // Legacy aliases derive from the primary contact / address.
     expect(row).toMatchObject({ contactName: 'Dattu', phone: '0722160400', email: 'dattu@example.com', location: 'Nyeri town', retiredAt: null });
   });
@@ -134,7 +143,7 @@ describe('suppliers contract — response shapes', () => {
         inventoryItemId: itemId, supplierItemName: 'Fresh milk', supplierItemCode: 'M1', buyUnit: 'crate',
         packSize: new Prisma.Decimal('12'), lastPrice: new Prisma.Decimal('2025'), lastPriceAt: new Date(), lastPriceSetBy: null, isPreferred: true,
         preferredNeedsConfirm: true,
-        inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate' },
+        inventoryItem: { id: itemId, name: 'Milk', buyUnit: 'crate', usageUnit: 'L', conversionFactor: null },
       },
     ] as never);
     const [item] = SupplierItemSchema.array().parse(await supplierService.listItems(storeManager, supplierId));
@@ -251,6 +260,7 @@ describe('suppliers contract — route role matrix (plan §4)', () => {
     ['patch', `${P}/:id/contacts/:cid`, SM],
     ['delete', `${P}/:id/contacts/:cid`, SM],
     ['get', `${P}/:id/payment-methods`, READ],
+    ['get', `${P}/:id/payment-methods/history`, READ],
     ['get', `${P}/:id/payment-methods/:pid`, READ],
     ['post', `${P}/:id/payment-methods`, SM_ACC],
     ['patch', `${P}/:id/payment-methods/:pid`, SM_ACC],
