@@ -12,8 +12,8 @@ import { createSupplierRecord, updateSupplierRecord } from '../../services';
 import { SUPPLIER_TYPE_LABEL, SUPPLIER_TYPE_ORDER } from '../lib/supplier-logic';
 import { DrawerError, DrawerFrame, FieldLabel, PrimaryFooterButton, SecondaryFooterButton, fieldClass } from '../../catalog/components/drawer-parts';
 import { ChoiceChip } from './supplier-ui';
+import { DuplicateSupplierDialog, type DuplicateMatch } from './duplicate-supplier-dialog';
 
-type DuplicateMatch = { id: string; code: string; name: string };
 
 export interface SupplierFormViewProps {
   /** Present = edit this supplier; absent = a new one (Paper step 15). */
@@ -47,6 +47,7 @@ export function SupplierFormView({ supplier, categories, onCancel, onSaved }: Su
   const [notes, setNotes] = React.useState(supplier?.notes ?? '');
   const [errors, setErrors] = React.useState<{ name?: string; address?: string; days?: string; creditLimit?: string }>({});
   const [duplicates, setDuplicates] = React.useState<DuplicateMatch[] | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = React.useState(false);
 
   const create = useAction(createSupplierRecord, 'Could not create the supplier.');
   const update = useAction(updateSupplierRecord, 'Could not save the supplier.');
@@ -112,6 +113,7 @@ export function SupplierFormView({ supplier, categories, onCancel, onSaved }: Su
     if (failure?.code === 'DUPLICATE_SUPPLIER') {
       const details = failure.details as { matches?: DuplicateMatch[] } | null;
       setDuplicates(details?.matches ?? []);
+      setDuplicateOpen(true);
     }
   }, [failure]);
 
@@ -153,9 +155,17 @@ export function SupplierFormView({ supplier, categories, onCancel, onSaved }: Su
       }
     >
       {failure && failure.code !== 'DUPLICATE_SUPPLIER' ? <DrawerError>{failure.message}</DrawerError> : null}
-      {failure && failure.code === 'DUPLICATE_SUPPLIER' ? (
-        <DrawerError>{failure.message} Press “Create anyway” if this really is a different supplier.</DrawerError>
-      ) : null}
+      <DuplicateSupplierDialog
+        open={duplicateOpen && duplicates !== null && duplicates.length > 0}
+        matches={duplicates ?? []}
+        busy={saving}
+        onClose={() => setDuplicateOpen(false)}
+        onOpened={onCancel}
+        onCreateAnyway={() => {
+          setDuplicateOpen(false);
+          void submit();
+        }}
+      />
 
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="supplier-name">Business name</FieldLabel>
