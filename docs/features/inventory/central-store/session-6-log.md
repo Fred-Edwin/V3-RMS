@@ -38,12 +38,12 @@ Date: 2026-10-03 · Branch: `feat/central-store-suppliers-ui` (from `main` @ `d8
 - **"Other" as a reason needs a note** (Paper has the note optional). An "Other" with no words in the audit log helps nobody.
 - **Change payment details** also lets the bank, branch and account name be edited under the new-number field (Paper draws the account number only); only fields that differ are sent.
 - **Accountant text:** the info box says "The Accountant is told…" (Paper names Margaret; we do not know the name).
-- **Add a payment method** offers the five kinds Paper draws; Cash is left out (no details; Record payment always offers it).
+- **Add a payment method** offers Paper's five kinds plus **Cash** (owner decision after the review: Cash needs only a reason).
 - **Documents:** payments and disputes count under "Other" (Paper has no chip for them). The "Added by" for automatic entries is "Automatic" (Paper adds "signed by Sarah Achieng"; the timeline does not carry who).
 - **Contacts tab count** includes the business-named contact that New supplier creates from its phone (Paper shows 0 for a new supplier). The profile still counts "Contact person" as missing.
 - **Not drawn, built in the same style:** Edit supplier extra fields, Add / Edit contact, Upload file, Remove payment method (a small confirm), the Pack-not-on-file notice, the Add one item picker.
 - **No phone layout** for the Store Manager (none drawn); the pages scroll sideways below 1020 px.
-- **"Make default"** for a payment method is not drawn and not built (a second method does not take over as default).
+- **"Make default"** for a payment method is not drawn and not built (a second method does not take over as default). Owner confirmed all other decisions as recommended.
 
 ## Parity (values from Paper's `get_jsx`; live values from `getComputedStyle`, Chrome DevTools MCP)
 | Screen | Tier | Checked | Result |

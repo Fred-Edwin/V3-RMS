@@ -17,8 +17,8 @@ export const PAY_METHOD_LABEL: Record<SupplierPayMethodType, string> = {
   CASH: 'Cash',
   CHEQUE: 'Cheque',
 };
-/** The kinds offered in Add a payment method, in Paper's order. Cash is not drawn there: it needs no details, and Record payment always offers it. */
-export const PAY_METHOD_ORDER: readonly SupplierPayMethodType[] = ['BANK_TRANSFER', 'MPESA_PAYBILL', 'MPESA_TILL', 'MPESA_SEND_MONEY', 'CHEQUE'];
+/** The kinds offered in Add a payment method: Paper's five, then Cash (owner decision, 3 Oct 2026: Cash needs no details, only a reason). */
+export const PAY_METHOD_ORDER: readonly SupplierPayMethodType[] = ['BANK_TRANSFER', 'MPESA_PAYBILL', 'MPESA_TILL', 'MPESA_SEND_MONEY', 'CHEQUE', 'CASH'];
 
 /** Banks offered when adding a bank transfer or cheque; a bank not listed can be typed. */
 export const COMMON_BANKS: readonly string[] = [
