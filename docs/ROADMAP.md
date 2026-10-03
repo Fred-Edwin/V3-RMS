@@ -40,7 +40,7 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 | 1 | **Company and Branch foundation** (see next section), run right after Inventory step 1 (the Paper catch-up, design-only, so it conflicts with no code) and before the owner's pending local edits are merged, pushed or deployed | Slot confirmed by the owner, 3 Oct 2026 |
 | 1b | **Stock ledger door** (Inventory): one posting function for stock movements, with tests; each Inventory rebuild then moves its own writes onto it | Needed before the Inventory lane starts; today 9 sub-modules write `inventoryTransaction` directly |
 | 2 | **Access & Organisation + Notifications & Audit**: move the auth core with no behaviour change; rebuild the branch, user and settings screens | Then Assistant layer 1 can start |
-| 3 | **Workforce** (**client priority**, 3 Oct 2026; designs first) | Staff and HR first, then scheduling and attendance, then payroll. Starts as soon as its first designs are approved |
+| 3 | **Workforce** (**client priority**, 3 Oct 2026; designs first) | Client ask: schedule staff, record clock-in and shift end, track hours per person, and have worked hours drive overtime pay and deductions. So: schedule and time first, then hours-to-pay, then the people screens. Starts as soon as its first designs are approved |
 | 4 | **Menu & Pricing** | Small; Orders depends on it |
 | 5 | **Communications** | Assistant layer 3 delivers through it |
 | 6 | **Finance & Receivables** | Accounts, Other income, Reconciliation |
@@ -69,7 +69,7 @@ After the pilot: Company/Branch rename (alone), then a short **stock ledger door
 
 | Lane | Work |
 |---|---|
-| **Design lane** (Paper, runs ahead) | **Workforce designs first** (client priority, 3 Oct 2026), approved in batches by sub-module: Staff & HR, then Attendance & Scheduling, then Payroll & Payslips. Then Requisitions, Dispatch and Branch day; then Menu & Pricing, Finance and the other modules. |
+| **Design lane** (Paper, runs ahead) | **Workforce designs first** (client priority, 3 Oct 2026), approved in batches in the client's order: (1) Schedule & time (rota, clock in/out, timesheets), (2) Hours to pay (overtime and deductions from worked hours, payroll, payslips), (3) People (staff, HR profiles, contracts, leave). Brief: [sessions/design-lane-workforce.md](sessions/design-lane-workforce.md). Then Requisitions, Dispatch and Branch day; then Menu & Pricing, Finance and the other modules. |
 | **Code lane A: Inventory** | Purchasing + Receiving, then Prep, then Stock & counts, then Waste, then Requisitions + Dispatch + Branch day once designed. One at a time inside the lane, because Purchasing, Suppliers, Counting and Stock import each other. |
 | **Code lane B: platform, then Workforce** | Access & Organisation + Notifications & Audit first (a move; no design needed, so it does not wait for Workforce designs). Switches to the Workforce build when its first designs are approved. |
 
