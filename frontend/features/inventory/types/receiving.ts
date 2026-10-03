@@ -40,7 +40,7 @@ export type SupplierInvoiceStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
 /** Deliberately independent of `SupplierInvoiceStatus` — a disputed invoice still ages and can still be paid. */
 export type DisputeStatus = 'OPEN' | 'RESOLVED';
 
-export type SupplierPaymentMethod = 'BANK' | 'CASH' | 'MPESA';
+export type SupplierPaymentMethod = 'BANK' | 'CASH' | 'MPESA' | 'CHEQUE';
 
 // ─── Expected deliveries (Stage 1 — estimates, never a PO) ─────────────────
 
@@ -48,6 +48,9 @@ export interface ExpectedDeliveryLine {
   id: string;
   inventoryItemId: string;
   itemName: string;
+  /** What the supplier calls it, from the matched pack line (§28.3). Internal screens show ours first. */
+  supplierItemName?: string | null;
+  supplierItemCode?: string | null;
   quantity: string;
   buyUnit: string;
   usageUnit: string;
@@ -132,6 +135,11 @@ export interface GoodsReceiptLine {
   id: string;
   inventoryItemId: string;
   itemName: string;
+  /** What the supplier calls it, from the matched pack line (§28.3). Internal screens show ours first. */
+  supplierItemName?: string | null;
+  supplierItemCode?: string | null;
+  /** The signed receipt's pack matched no catalog line, so no price was written (§28.4). */
+  packNotOnFile?: boolean;
   quantityBuyUnit: string;
   buyUnit: string;
   quantityUsageUnit: string;
@@ -278,6 +286,8 @@ export interface SupplierPayment {
   reversalOfId: string | null;
   recordedByName: string;
   createdAt: string;
+  /** On a create response: another cheque to the same supplier already carries this number (§28.2). A warning, the payment is recorded. */
+  duplicateChequeNumber?: boolean;
 }
 
 /** Overpayment (allocations < amount) is allowed, not an error — the excess becomes a derived supplier credit. */
@@ -320,14 +330,6 @@ export interface SupplierApRow {
   outstanding: string;
   buckets: AgingBuckets;
   disputedCount: number;
-}
-
-export interface ApSummary {
-  totalInvoiced: string;
-  totalPaid: string;
-  totalOutstanding: string;
-  supplierCount: number;
-  suppliersWithBalance: number;
 }
 
 /**
@@ -394,13 +396,3 @@ export type PurchasingHistoryRow =
       actions: [PurchasingRowAction, PurchasingRowAction];
     };
 
-export interface ListSupplierApQuery {
-  search?: string;
-  terms?: SupplierPaymentTerms;
-  hasBalance?: boolean;
-  agingBucket?: 'current' | 'days1To30' | 'days31To60' | 'days61To90' | 'days90Plus';
-  from?: string;
-  to?: string;
-  limit?: number;
-  cursor?: string;
-}

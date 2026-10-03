@@ -111,6 +111,13 @@ export function ItemCatalogScreen() {
   }, []);
   const closeDrawer = React.useCallback(() => setRequest(null), []);
 
+  // A link from a supplier's Catalog tab ("History") lands here with ?item=<id>: open that item's page once.
+  React.useEffect(() => {
+    if (!isManager) return;
+    const itemId = new URLSearchParams(window.location.search).get('item');
+    if (itemId) openDrawer({ kind: 'item', itemId });
+  }, [isManager, openDrawer]);
+
   const [added, setAdded] = React.useState<CreatedItem | null>(null);
   const { open: openMobileNav } = useMobileNavDrawer();
   const router = useRouter();

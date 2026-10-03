@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 
-import { SupplierDetailScreen } from '@/features/inventory';
+import { SupplierPageScreen } from '@/features/inventory/components/screens/supplier-page-screen';
 
 export default function SupplierDetailPage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
-  return <SupplierDetailScreen id={id} />;
+  return <SupplierPageScreen id={id} />;
 }

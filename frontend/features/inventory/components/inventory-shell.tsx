@@ -21,7 +21,6 @@ import {
   ReportsIcon,
   SettingsIcon,
   StockCountsIcon,
-  SupplierApIcon,
   SuppliersIcon,
 } from '@/components/app/shell/nav-icons';
 import { roleLabel } from '@/components/app/shell/role-label';
@@ -79,7 +78,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
     label: 'PROCUREMENT',
     items: [
       { key: 'suppliers', label: 'Suppliers', href: '/app/inventory/suppliers', icon: SuppliersIcon },
-      { key: 'supplier-ap', label: 'Supplier AP', href: '#', icon: SupplierApIcon },
       { key: 'catalog', label: 'Catalog', href: '/app/inventory/catalog', icon: CatalogIcon },
       { key: 'reports', label: 'Reports', href: '#', icon: ReportsIcon },
       // STORE_MANAGER only — `navGroupsForRole` drops it for every other role.
@@ -95,7 +93,7 @@ function withoutSettings(groups: SidebarNavGroup[]): SidebarNavGroup[] {
 
 /**
  * STORE_ATTENDANT is 403'd outright (not just filtered server-side) on
- * Purchasing, Suppliers, and Supplier AP — see `receiving-routes.ts` /
+ * Purchasing and Suppliers — see `receiving-routes.ts` /
  * `inventory-routes.ts` comments ("STORE_ATTENDANT has zero access — not
  * even read"). The sidebar must hide these links for that role so it never
  * offers a route that always fails.
@@ -108,7 +106,7 @@ function navGroupsForRole(role: string | undefined): SidebarNavGroup[] {
     return {
       ...group,
       items: group.items
-        .filter((item) => item.key !== 'purchasing' && item.key !== 'supplier-ap' && item.key !== 'suppliers' && item.key !== 'settings')
+        .filter((item) => item.key !== 'purchasing' && item.key !== 'suppliers' && item.key !== 'settings')
         .map((item) =>
           item.subItems
             ? {

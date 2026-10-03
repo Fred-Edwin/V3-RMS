@@ -1,5 +1,5 @@
-import { SuppliersApScreen } from '@/features/inventory';
+import { SuppliersListScreen } from '@/features/inventory/components/screens/suppliers-list-screen';
 
 export default function SuppliersPage() {
-  return <SuppliersApScreen />;
+  return <SuppliersListScreen />;
 }

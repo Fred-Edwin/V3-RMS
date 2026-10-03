@@ -11,7 +11,6 @@
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/store/authStore';
 import type {
-  ApSummary,
   CreateExpectedDeliveryInput,
   CreateGoodsReceiptInput,
   CreateSupplierInvoiceInput,
@@ -21,14 +20,12 @@ import type {
   GoodsReceiptDetail,
   ListExpectedDeliveriesQuery,
   ListGoodsReceiptsQuery,
-  ListSupplierApQuery,
   PurchasingHistoryRow,
   PurchasingSummary,
   RecentSupplierItem,
   ReverseSupplierPaymentInput,
   SignGoodsReceiptInput,
   SupplierApDetail,
-  SupplierApRow,
   SupplierInvoice,
   SupplierPayment,
   UpdateGoodsReceiptInput,
@@ -145,14 +142,6 @@ export async function getRecentSupplierItems(supplierId: string, limit = 8): Pro
 }
 
 // ─── What we owe (Supplier AP) — S7/S8 ──────────────────────────────────────
-
-export async function getApSummary(): Promise<ApSummary> {
-  return apiClient.get<ApSummary>('/inventory/ap/summary', token());
-}
-
-export async function listSupplierAp(query: ListSupplierApQuery = {}): Promise<SupplierApRow[]> {
-  return apiClient.get<SupplierApRow[]>(`/inventory/ap/suppliers${toQueryString(query)}`, token());
-}
 
 export async function getSupplierApDetail(supplierId: string): Promise<SupplierApDetail> {
   return apiClient.get<SupplierApDetail>(`/inventory/ap/suppliers/${supplierId}`, token());
