@@ -48,6 +48,24 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 | 9 | **Fulfilment** | Last, revenue-critical |
 | 10 | **Assistant**, delivered in layers (below) | Layers interleave with the steps above |
 
+## How the work runs: parallel lanes
+
+Decided 3 Oct 2026. Up to **three lanes** at once (what the owner can review). A lane is one agent session on its own branch in its own git worktree, with its own ports, database, Redis and browser, so lanes cannot overwrite or disturb each other. The mechanics (`scripts/lane.sh`, port scheme, merge queue, lane brief template) are written in `docs/PARALLEL_WORKFLOW.md` by the tooling session below.
+
+- **Light setup** because the owner's machine has about 15 GB of RAM (about 6 GB already in use): one shared Postgres server with one database per lane (cloned from a seeded template), one small Redis per lane, and the API, worker and frontend run directly with `pnpm` (no Docker image per lane).
+- **A design lane runs ahead** of the build lanes so builds never wait on Paper. Only one agent edits the Paper file at a time.
+- **The Company/Branch rename runs alone** (it touches about 197 files), in the window right after the Paper catch-up.
+- **Lanes merge one at a time**: rebase on `main`, re-run the gates, owner approves, merge.
+
+Pilot (now): two lanes at once, neither touching app code, so they cannot collide:
+
+| Lane | Session | Brief |
+|---|---|---|
+| Tooling | Lane tooling: scripts, per-lane environment, workflow doc, module-import CI check, per-module Prisma schema files | [sessions/pilot-lane-tooling.md](sessions/pilot-lane-tooling.md) |
+| Design | Paper catch-up and Purchasing design check | [sessions/pilot-paper-catchup.md](sessions/pilot-paper-catchup.md) |
+
+After the pilot: Company/Branch rename (alone), then fan out to three lanes (Inventory Purchasing build, Access move, and the design lane running ahead).
+
 ## Company and Branch foundation
 
 Today the database table `Organization` is really a branch (it holds a branch's address, coordinates and M-Pesa paybill, plus an `isHub` flag for the Central Store). Nothing represents Wendo Coffee Bistro as one company. `organizationId` appears about 3,050 times in 197 backend files and in 186 places in the schema.
