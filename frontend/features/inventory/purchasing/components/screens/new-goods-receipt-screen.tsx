@@ -165,7 +165,7 @@ export function NewGoodsReceiptScreen() {
     if (supplier) setPaymentTerms(supplier.defaultPaymentTerms);
   };
 
-  const handleAddItem = async (item: InventoryItem) => {
+  const handleAddItem = async (item: InventoryItem, quantity = '1') => {
     const last = await getLastPrice(item.id);
     // currentCost is per usage unit; the receipt price is per buy unit.
     const costPerBuyUnit = buyUnitPriceFromCost(item.currentCost, item.conversionFactor);
@@ -177,7 +177,7 @@ export function NewGoodsReceiptScreen() {
         itemName: item.name,
         buyUnit: item.buyUnit,
         unitConversionLabel: `buy: ${item.buyUnit} → usage: ${item.usageUnit}`,
-        qty: '1',
+        qty: quantity,
         unitPrice: last?.unitPrice ?? costPerBuyUnit,
         lastPrice: last?.unitPrice ?? costPerBuyUnit,
         expectedQty: null,
@@ -285,7 +285,7 @@ export function NewGoodsReceiptScreen() {
         onQtyChange={handleQtyChange}
         onUnitPriceChange={handleUnitPriceChange}
         items={items}
-        onAddItem={(item) => void handleAddItem(item)}
+        onAddItem={(item, quantity) => void handleAddItem(item, quantity)}
         alertedRows={alertedRows}
         acknowledgedAlertIds={acknowledgedAlertIds}
         onToggleAcknowledged={toggleAcknowledged}

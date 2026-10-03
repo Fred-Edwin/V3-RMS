@@ -3,14 +3,17 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { MobileTaskHeader } from '@/components/app/shell/mobile-headers';
-import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
-import { SearchInput } from '@/components/ui2/search-input';
-import { useAuthStore } from '@/store/authStore';
-import { RestockLevelGrid, RestockLevelHelperNote, type RestockLevelRow as GridRow } from '../restock-level-grid';
 import { EmptyState, ErrorState, LoadingState, PermissionDeniedState } from '@/components/app/shell/shell-states';
+import { useAuthStore } from '@/store/authStore';
+import { PhoneErrorNote, PhoneHeader, PhonePrimaryButton } from '../../../_shared/components/phone-parts';
+import { formatHistoryWhen } from '../../../catalog/lib/item-price';
+import { useRestockHistory } from '../../hooks/use-restock-history';
 import { useRestockLevels } from '../../hooks/use-restock-levels';
-import type { DepartmentTag, RestockLevelRow } from '../../../types';
+import { changeCountLabel, stepLevel } from '../../lib/department-levels';
+import { DepartmentLevelCard } from '../phone/department-level-card';
+import { DepartmentReviewSheet, type DepartmentChange } from '../phone/department-review-sheet';
+import { DepartmentSavedView } from '../phone/department-saved-view';
+import type { DepartmentTag } from '../../../types';
 
 const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
   KITCHEN: 'Kitchen',
@@ -20,120 +23,132 @@ const DEPARTMENT_LABEL: Record<DepartmentTag, string> = {
   HOUSEKEEPING: 'Housekeeping',
 };
 
-function toGridRow(row: RestockLevelRow): GridRow {
-  return {
-    id: row.inventoryItemId,
-    name: row.itemName,
-    unit: row.usageUnit,
-    onHand: Number.parseFloat(row.onHandQty),
-    restockLevel: row.level != null ? Number.parseFloat(row.level) : 0,
-  };
-}
+const ACTOR = { role: 'DEPARTMENT_HEAD' } as const;
 
 /**
- * Restock levels · department — screen 6, mobile-only full-screen route
- * (`TD1-0`). Not a drawer: the plan table lists no desktop counterpart, so
- * this is its own page a Department Head lands on directly, unlike screen 5
- * which is a drawer over the (out-of-scope) Central Store dashboard.
+ * Restock levels · Department Head phone — Paper chapter 7, steps 27–29 (Kitchen, and the Housekeeping head
+ * on the same screens). Big − / + steppers with the suggestion under each item, "Review changes" opens the
+ * check sheet, saving shows the saved state with "Your recent changes" and Put back.
  */
 export function DepartmentRestockLevelsScreen() {
   const router = useRouter();
-  const role = useAuthStore((s) => s.role);
   const isDepartmentHead = useAuthStore((s) => s.isDepartmentHead);
   const departmentTag = useAuthStore((s) => s.departmentTag);
-  const [search, setSearch] = React.useState('');
-
-  const { rows, isDirty, setLevel, save, saving, saveError, status, error, reload } = useRestockLevels(undefined, {
-    role: 'DEPARTMENT_HEAD',
-  });
-
   const departmentLabel = departmentTag ? DEPARTMENT_LABEL[departmentTag] : 'Your department';
+
+  const { rows, savedRows, changedIds, setLevel, revert, save, saving, saveError, status, error, reload } = useRestockLevels(undefined, ACTOR, isDepartmentHead);
+  const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [saved, setSaved] = React.useState<{ count: number; at: string } | null>(null);
+  const history = useRestockHistory(saved ? {} : null);
+  const { putBack, reload: reloadHistory } = history;
+
+  const savedById = React.useMemo(() => new Map(savedRows.map((r) => [r.inventoryItemId, r.level])), [savedRows]);
+  const changes: DepartmentChange[] = React.useMemo(
+    () =>
+      rows
+        .filter((r) => changedIds.includes(r.inventoryItemId))
+        .map((row) => ({ row, saved: savedById.get(row.inventoryItemId) ?? null, next: row.level })),
+    [rows, changedIds, savedById]
+  );
+
+  const handleStep = React.useCallback(
+    (itemId: string, direction: 1 | -1) => {
+      const row = rows.find((r) => r.inventoryItemId === itemId);
+      if (!row) return;
+      const next = stepLevel(row.level, direction, row.suggestedLevel);
+      // Stepping back to what is on file is not a change.
+      if (next === (savedById.get(itemId) ?? null)) revert(itemId);
+      else setLevel(itemId, next);
+    },
+    [rows, savedById, setLevel, revert]
+  );
+
+  const handleSave = React.useCallback(async () => {
+    const count = changedIds.length;
+    const ok = await save();
+    if (!ok) return;
+    setReviewOpen(false);
+    setSaved({ count, at: formatHistoryWhen(new Date().toISOString()) });
+  }, [changedIds.length, save]);
+
+  const handlePutBack = React.useCallback(
+    async (changeId: string) => {
+      const entry = await putBack(changeId);
+      if (entry) void reload();
+    },
+    [putBack, reload]
+  );
 
   if (!isDepartmentHead) {
     return (
-      <div className="flex min-h-screen flex-col bg-wds-canvas">
-        <MobileStatusBar />
-        <MobileTaskHeader
-          title="Restock levels"
-          subtitle="Department"
-          trailingAction="Done"
-          onBack={() => router.back()}
-          onTrailingAction={() => router.back()}
-        />
+      <div className="flex min-h-dvh flex-col bg-wds-canvas">
+        <PhoneHeader title="Restock levels" subtitle="Department" leading="back" onLeading={() => router.back()} />
         <div className="flex flex-1 items-center justify-center p-4">
-          <PermissionDeniedState description={`Restock levels here are set by each department's head, not by ${role ?? 'this role'}.`} />
+          <PermissionDeniedState description="Restock levels here are set by each department's head." />
         </div>
       </div>
     );
   }
 
-  const filteredRows = search
-    ? rows.filter((row) => row.itemName.toLowerCase().includes(search.trim().toLowerCase()))
-    : rows;
-  const gridRows = filteredRows.map(toGridRow);
-
-  const handleSave = async () => {
-    const ok = await save();
-    if (ok) router.back();
-  };
+  if (saved) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-wds-canvas">
+        <PhoneHeader title="Restock levels" subtitle={`${departmentLabel} · saved ${saved.at}`} leading="back" onLeading={() => router.back()} />
+        <DepartmentSavedView
+          savedCount={saved.count}
+          entries={history.entries}
+          historyStatus={history.status}
+          historyError={history.error}
+          onRetryHistory={reloadHistory}
+          puttingBackId={history.puttingBackId}
+          putBackError={history.putBackError}
+          onPutBack={handlePutBack}
+          onDone={() => router.back()}
+        />
+      </div>
+    );
+  }
 
   const body = (() => {
     if (status === 'loading' || status === 'idle') return <LoadingState className="mx-auto" />;
     if (status === 'error') {
-      return (
-        <ErrorState title="Couldn't load restock levels" description={error ?? 'Try again.'} onRetry={reload} className="mx-auto" />
-      );
+      return <ErrorState title="Couldn't load restock levels" description={error ?? 'Try again.'} onRetry={reload} className="mx-auto" />;
     }
-    if (gridRows.length === 0) {
-      return <EmptyState title="Nothing here yet" description="No items scoped to your department yet." className="mx-auto" />;
+    if (rows.length === 0) {
+      return <EmptyState title="Nothing here yet" description={`No items are tagged for ${departmentLabel} yet. The Store Manager adds them.`} className="mx-auto" />;
     }
     return (
-      <div className="flex flex-col gap-4">
-        <RestockLevelGrid
-          variant="mobile"
-          rows={gridRows}
-          onRestockLevelChange={(id, value) => setLevel(id, value === '' ? null : value)}
-        />
-        <RestockLevelHelperNote variant="mobile">
-          Setting your department's restock level flags an item low for your team. This does not change the Central
-          Store's own level.
-        </RestockLevelHelperNote>
-        {saveError ? <p className="font-wds-sans text-wds-caption text-wds-error-fg">{saveError}</p> : null}
-      </div>
+      <ul className="flex flex-col gap-2.5">
+        {rows.map((row) => (
+          <DepartmentLevelCard
+            key={row.inventoryItemId}
+            row={row}
+            saved={savedById.get(row.inventoryItemId) ?? null}
+            typed={row.level}
+            onStep={(direction) => handleStep(row.inventoryItemId, direction)}
+          />
+        ))}
+      </ul>
     );
   })();
 
   return (
-    <div className="flex min-h-screen flex-col bg-wds-canvas">
-      <MobileStatusBar />
-      <MobileTaskHeader
-        title="Restock levels"
-        subtitle={`${departmentLabel} items only — drives your low-stock signal`}
-        trailingAction="Done"
-        onBack={() => router.back()}
-        onTrailingAction={handleSave}
-      />
-      <div className="flex-1 overflow-y-auto p-4">
-        <SearchInput
-          className="mb-4"
-          placeholder="Search an item"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+    <div className="flex min-h-dvh flex-col bg-wds-canvas">
+      <PhoneHeader title="Restock levels" subtitle={`${departmentLabel} · how much to keep, set by you`} leading="back" onLeading={() => router.back()} />
+      <div className="flex grow flex-col gap-2.5 px-4 py-3.5">
+        {saveError && !reviewOpen ? <PhoneErrorNote>{saveError}</PhoneErrorNote> : null}
         {body}
+        <div className="grow" />
+        {changedIds.length > 0 ? (
+          <div className="sticky bottom-0 -mx-4 flex items-center justify-between gap-2.5 border-t border-wds-border bg-wds-canvas px-4 py-3">
+            <span className="shrink-0 whitespace-nowrap font-wds-sans text-[14px] font-medium leading-[18px] text-wds-text-ink">{changeCountLabel(changedIds.length)}</span>
+            <PhonePrimaryButton className="h-[50px] grow" onClick={() => setReviewOpen(true)}>
+              Review changes
+            </PhonePrimaryButton>
+          </div>
+        ) : null}
       </div>
-      {isDirty ? (
-        <div className="border-t border-wds-border p-4">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex h-11 w-full items-center justify-center rounded-wds-md bg-wds-gradient-primary font-wds-sans text-wds-body font-medium text-wds-primary-fg disabled:opacity-60"
-          >
-            Save restock levels
-          </button>
-        </div>
-      ) : null}
+      <DepartmentReviewSheet open={reviewOpen} onOpenChange={setReviewOpen} changes={changes} saving={saving} saveError={saveError} onSave={handleSave} />
     </div>
   );
 }
