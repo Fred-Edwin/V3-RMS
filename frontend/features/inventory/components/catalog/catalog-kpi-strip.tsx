@@ -15,6 +15,10 @@ export interface CatalogKpiCell {
   sub: string;
   /** Warning-toned top edge, value and arrow — a number that needs attention. */
   attention?: boolean;
+  /** Error-toned instead of warning (Restock levels' Out cell). Implies `attention`. */
+  error?: boolean;
+  /** Show the arrow on a cell that is not toned (Restock levels draws it on all four). */
+  arrow?: boolean;
   onSelect?: () => void;
   /** The list below is currently filtered to this cell. */
   active?: boolean;
@@ -25,7 +29,7 @@ function CellBody({ cell }: { cell: CatalogKpiCell }) {
     <>
       <span className="flex items-center justify-between">
         <span className="font-wds-mono text-[10px] leading-3 tracking-[0.06em] text-wds-text-secondary">{cell.label.toUpperCase()}</span>
-        {cell.attention ? (
+        {cell.attention || cell.error || cell.arrow ? (
           <span aria-hidden className="font-wds-sans text-[12px] leading-3 text-wds-text-muted">
             →
           </span>
@@ -34,7 +38,7 @@ function CellBody({ cell }: { cell: CatalogKpiCell }) {
       <span
         className={cn(
           'font-wds-sans text-[30px] font-semibold leading-[34px] tracking-[-0.025em]',
-          cell.attention ? 'text-wds-warning-fg' : 'text-wds-text-ink'
+          cell.error ? 'text-wds-error-fg' : cell.attention ? 'text-wds-warning-fg' : 'text-wds-text-ink'
         )}
       >
         {cell.value}
@@ -51,7 +55,7 @@ export function CatalogKpiStrip({ cells, className }: { cells: CatalogKpiCell[];
         const classes = cn(
           'flex grow basis-0 flex-col gap-1.5 border-t-2 px-5 py-4 text-left',
           i < cells.length - 1 && 'border-r border-r-wds-border',
-          cell.attention ? 'border-t-wds-warning-fg' : 'border-t-transparent'
+          cell.error ? 'border-t-wds-error-fg' : cell.attention ? 'border-t-wds-warning-fg' : 'border-t-transparent'
         );
         return cell.onSelect ? (
           <button

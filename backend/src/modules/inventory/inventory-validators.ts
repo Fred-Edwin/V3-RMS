@@ -115,6 +115,12 @@ export const CentralStoreLocationSchema = z.object({
   id: uuidSchema,
 });
 
+/** One branch in the "Whose levels" select (§30.6): id and name only. */
+export const RestockBranchOptionSchema = z.object({
+  id: uuidSchema,
+  name: z.string(),
+});
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------

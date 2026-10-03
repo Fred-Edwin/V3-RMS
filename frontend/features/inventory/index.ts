@@ -28,6 +28,7 @@ export type {
 
 // Milestone One screens.
 export { ItemCatalogScreen } from './components/screens/item-catalog-screen';
+export { StoreRestockLevelsScreen } from './components/screens/store-restock-levels-screen';
 export { DepartmentRestockLevelsScreen } from './components/screens/department-restock-levels-screen';
 
 // Milestone Two (Receiving & Supplier AP) — S5/S6 screens.

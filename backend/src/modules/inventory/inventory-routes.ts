@@ -15,6 +15,12 @@ router.get(
   inventoryController.getCentralStoreLocation,
 );
 
+router.get(
+  '/inventory/restock-levels/branches',
+  requireRole('STORE_MANAGER'),
+  inventoryController.listRestockBranches,
+);
+
 // ── Categories ─────────────────────────────────────────────────────────────
 
 router.get(

@@ -11,12 +11,10 @@ import { useAuthStore } from '@/store/authStore';
 import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useDebouncedValue, useStockList, useStockSummary } from '../../hooks/use-stock';
 import { listCategories } from '../../services';
 import type { Category } from '../../types';
 import type { InventoryItemTypeValue, ListStockQuery, StockSummary } from '../../types/stock';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 import { StockTopbar } from '../stock/stock-topbar';
 import { LogWasteDrawer } from '../stock/log-waste-drawer';
 import { DropdownFilter, FilterChip, MobileStockRow, StockTableHeader, StockTableRow, TypeFilter } from '../stock/stock-table';
@@ -240,9 +238,7 @@ export function StockItemsScreen() {
   const categories = useTopCategories();
   const { summary: rawSummary } = useStockSummary();
   const summary = rawSummary && 'onHandValue' in rawSummary ? (rawSummary as StockSummary) : null;
-  const { locationId: centralStoreId } = useCentralStoreLocation(true);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
 
   const query: ListStockQuery = {
     search: filters.search || undefined,
@@ -373,7 +369,7 @@ export function StockItemsScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Stock & counts" onRestockLevels={() => setRestockOpen(true)} onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Stock & counts" onLogWaste={() => setWasteOpen(true)} />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7 [&>*]:shrink-0">
         <div className="flex flex-col gap-1">
           <Link
@@ -434,13 +430,6 @@ export function StockItemsScreen() {
       </main>
 
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={() => void reload()} />
-      <RestockLevelsDrawer
-        open={restockOpen}
-        onOpenChange={setRestockOpen}
-        variant="desktop"
-        locationId={centralStoreId ?? undefined}
-        actor={{ role: 'STORE_MANAGER' }}
-      />
     </div>
   );
 }

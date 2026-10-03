@@ -11,13 +11,11 @@ import { MobileHubHeader } from '@/components/app/shell/mobile-headers';
 import { MobileStatusBar } from '@/components/app/shell/mobile-status-bar';
 import { HintTooltip } from '@/components/app/shell/hint-tooltip';
 import { useMobileNavDrawer } from '../../hooks/use-mobile-nav-drawer';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { useCountList } from '../../hooks/use-counts';
 import { useStockList, useStockSummary, useWasteList } from '../../hooks/use-stock';
 import type { CountListItem } from '../../types/count';
 import type { InventoryItemTypeValue, StockSummary, TodaysCount } from '../../types/stock';
 import type { WasteEntry } from '../../types/waste';
-import { RestockLevelsDrawer } from './restock-levels-screen';
 import { StockTopbar } from '../stock/stock-topbar';
 import { HubKpiStrip } from '../stock/hub-kpi-strip';
 import { ThresholdsDrawer } from '../stock/thresholds-drawer';
@@ -531,9 +529,7 @@ export function StockHubScreen() {
   const summary = isFullSummary(rawSummary) ? rawSummary : null;
   const todaysCount = rawSummary?.todaysCount;
   const { waste, status: wasteStatus, reload: reloadWaste } = useWasteList(7);
-  const { locationId: centralStoreId } = useCentralStoreLocation(!isAttendant);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
   const [thresholdsOpen, setThresholdsOpen] = React.useState(false);
   const refreshTableRef = React.useRef<(() => void) | null>(null);
   const [refreshSignal, setRefreshSignal] = React.useState(0);
@@ -585,7 +581,7 @@ export function StockHubScreen() {
                   Spot count
                 </MobileActionButton>
                 <MobileActionButton onClick={() => setWasteOpen(true)}>Log waste</MobileActionButton>
-                <MobileActionButton onClick={() => setRestockOpen(true)}>Restock levels</MobileActionButton>
+                <MobileActionButton href="/app/inventory/stock/restock-levels">Restock levels</MobileActionButton>
                 <MobileActionButton onClick={() => setThresholdsOpen(true)}>
                   Thresholds
                 </MobileActionButton>
@@ -639,15 +635,6 @@ export function StockHubScreen() {
         {wasteOpen ? (
           <LogWasteMobile locationLabel="the Central Store" onClose={() => setWasteOpen(false)} onLogged={refreshAfterWaste} />
         ) : null}
-        {!isAttendant ? (
-          <RestockLevelsDrawer
-            open={restockOpen}
-            onOpenChange={setRestockOpen}
-            variant="mobile"
-            locationId={centralStoreId ?? undefined}
-            actor={{ role: 'STORE_MANAGER' }}
-          />
-        ) : null}
         {!isAttendant ? <ThresholdsDrawer open={thresholdsOpen} onOpenChange={setThresholdsOpen} variant="mobile" /> : null}
       </div>
     );
@@ -683,7 +670,7 @@ export function StockHubScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Stock & counts" onRestockLevels={() => setRestockOpen(true)} onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Stock & counts" onLogWaste={() => setWasteOpen(true)} />
       <main className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-8 py-7">
         <div className="flex flex-col gap-1">
           <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Stock &amp; counts</h1>
@@ -725,13 +712,6 @@ export function StockHubScreen() {
       </main>
 
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={refreshAfterWaste} />
-      <RestockLevelsDrawer
-        open={restockOpen}
-        onOpenChange={setRestockOpen}
-        variant="desktop"
-        locationId={centralStoreId ?? undefined}
-        actor={{ role: 'STORE_MANAGER' }}
-      />
     </div>
   );
 }

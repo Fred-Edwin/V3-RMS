@@ -27,7 +27,12 @@ import type {
   ListRestockLevelsQuery,
   ListSuppliersQuery,
   Paginated,
+  RestockBranchOption,
+  RestockHistoryEntry,
+  RestockHistoryQuery,
   RestockLevelRow,
+  RestockLevelsSummary,
+  RestockScopeQuery,
   SaveRestockLevelsInput,
   Supplier,
   UpdateCategoryInput,
@@ -185,6 +190,29 @@ export async function saveRestockLevels(
   _actor?: { role: 'STORE_MANAGER' | 'DEPARTMENT_HEAD' }
 ): Promise<RestockLevelRow[]> {
   return apiClient.put<RestockLevelRow[]>('/inventory/restock-levels', input, token());
+}
+
+/** The branches a department's levels can be set for: active, hub excluded (§30.6). */
+export async function listRestockBranches(): Promise<RestockBranchOption[]> {
+  return apiClient.get<RestockBranchOption[]>('/inventory/restock-levels/branches', token());
+}
+
+/** The four-number strip over the same "whose levels" query as the list (§29.3). */
+export async function getRestockLevelsSummary(query: RestockScopeQuery): Promise<RestockLevelsSummary> {
+  return apiClient.get<RestockLevelsSummary>(`/inventory/restock-levels/summary${toQueryString(query)}`, token());
+}
+
+/** Changes to restock levels, newest first: one item's, or the location's recent ones (§30.5). */
+export async function listRestockHistory(query: RestockHistoryQuery): Promise<RestockHistoryEntry[]> {
+  return apiClient.get<RestockHistoryEntry[]>(`/inventory/restock-levels/history${toQueryString(query)}`, token());
+}
+
+/**
+ * Restores the level a change replaced and adds a new entry (the old one stays).
+ * 400 when there was no earlier level, 409 when the level is already that value.
+ */
+export async function putBackRestockLevel(changeId: string, reason?: string): Promise<RestockHistoryEntry> {
+  return apiClient.post<RestockHistoryEntry>(`/inventory/restock-levels/changes/${changeId}/put-back`, reason ? { reason } : {}, token());
 }
 
 /**

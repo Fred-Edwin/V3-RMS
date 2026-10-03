@@ -32,11 +32,13 @@ export interface TopbarProps {
   searchProps?: SearchInputProps;
   /** Ref to the search `<input>` — e.g. for a ⌘K focus shortcut. */
   searchRef?: React.Ref<HTMLInputElement>;
+  /** Screens whose design has no search in the bar (Restock levels). */
+  hideSearch?: boolean;
   actions?: React.ReactNode;
   className?: string;
 }
 
-export function Topbar({ breadcrumb, searchProps, searchRef, actions, className }: TopbarProps) {
+export function Topbar({ breadcrumb, searchProps, searchRef, hideSearch = false, actions, className }: TopbarProps) {
   return (
     <header
       className={cn(
@@ -65,11 +67,13 @@ export function Topbar({ breadcrumb, searchProps, searchRef, actions, className 
         <span className="font-wds-sans text-wds-caption font-medium text-wds-text-ink">{breadcrumb.screen}</span>
       </div>
 
-      <SearchInput
-        ref={searchRef}
-        {...searchProps}
-        className={cn('ml-wds-4 w-[300px] shrink-0', searchProps?.className)}
-      />
+      {hideSearch ? null : (
+        <SearchInput
+          ref={searchRef}
+          {...searchProps}
+          className={cn('ml-wds-4 w-[300px] shrink-0', searchProps?.className)}
+        />
+      )}
 
       {actions ? <div className="ml-auto flex items-center gap-wds-2">{actions}</div> : null}
     </header>

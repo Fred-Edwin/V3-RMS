@@ -4905,3 +4905,9 @@ change replaced (`oldLevel`) and writes a **new** history entry; the old entry s
 - `409` when the level is already at that value.
 - `404` unknown change / other org / retired item. A DH may only put back changes at their own department's location (`403` otherwise); an SM may
   put back at any location in the hub scope (Central Store or a branch department they can see).
+
+### 30.6 Branches for "Whose levels" (Session 5, owner-approved 3 Oct 2026)
+
+`GET /inventory/restock-levels/branches` (SM; hub-scoped, a non-hub actor gets `403`) → `[{id, name}]` — active branch organizations, hub excluded,
+oldest first. The Store Manager picks one next to a department chip on the Restock levels page; the chosen `id` is sent as `branchId` with `scope` (§29.2).
+`GET /branches` is not usable for this: it is for Director / Admin / Accountant / HR and returns profile fields (KRA PIN, M-Pesa) a Store Manager has no need for.

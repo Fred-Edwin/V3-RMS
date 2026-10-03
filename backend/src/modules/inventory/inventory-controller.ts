@@ -31,6 +31,12 @@ export const inventoryController = {
     res.status(200).json({ success: true, data });
   },
 
+  listRestockBranches: async (req: Request, res: Response): Promise<void> => {
+    const actor = requireActor(req);
+    const data = await inventoryService.listRestockBranches(actor);
+    res.status(200).json({ success: true, data });
+  },
+
   // ── Categories ───────────────────────────────────────────────────────────
 
   listCategories: async (req: Request, res: Response): Promise<void> => {

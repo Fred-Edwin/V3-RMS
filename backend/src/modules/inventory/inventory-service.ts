@@ -32,6 +32,7 @@ import { mapPrismaError } from '../../utils/prisma-errors';
 import type {
   AttendantItemMutationResponse,
   CentralStoreLocation,
+  RestockBranchOption,
   CreateCategoryInput,
   CreateItemInput,
   ItemCatalogListResponse,
@@ -318,6 +319,16 @@ export const inventoryService = {
       throw new NotFoundError('No Central Store is configured for this organization');
     }
     return { id: centralStore.id };
+  },
+
+  /**
+   * The branches a Store Manager can pick under "Whose levels" (§30.6). `GET /branches` is for
+   * Director / Admin / Accountant / HR and returns profile fields a Store Manager has no need for,
+   * so this is a narrow read: active branches, hub excluded, id and name only.
+   */
+  listRestockBranches: async (actor: Actor): Promise<RestockBranchOption[]> => {
+    await requireHubActor(actor);
+    return branchRepository.findActiveBranchOptions();
   },
 
   // ── Categories ───────────────────────────────────────────────────────────

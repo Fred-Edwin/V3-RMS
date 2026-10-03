@@ -21,8 +21,6 @@ import type { StockSummary } from '../../types/stock';
 import { PinSheet } from '../stock/pin-sheet';
 import { StockTopbar } from '../stock/stock-topbar';
 import { LogWasteDrawer } from '../stock/log-waste-drawer';
-import { RestockLevelsDrawer } from './restock-levels-screen';
-import { useCentralStoreLocation } from '../../hooks/use-central-store-location';
 import { StockMobileHeader } from '../stock/stock-mobile-header';
 import { HubKpiStrip } from '../stock/hub-kpi-strip';
 import {
@@ -693,9 +691,7 @@ export function StockCountsScreen() {
   const { list, status: listStatus, reload: reloadList } = useCountList(undefined, 30);
   const { waste } = useWasteList(7);
   const counts = list?.counts ?? [];
-  const { locationId: centralStoreId } = useCentralStoreLocation(true);
   const [wasteOpen, setWasteOpen] = React.useState(false);
-  const [restockOpen, setRestockOpen] = React.useState(false);
 
   const idParam = params.get('id');
   const firstPending = counts.find((c) => c.status === 'SUBMITTED') ?? counts[0];
@@ -819,7 +815,7 @@ export function StockCountsScreen() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <StockTopbar screen="Stock & counts" onRestockLevels={() => setRestockOpen(true)} onLogWaste={() => setWasteOpen(true)} />
+      <StockTopbar screen="Stock & counts" onLogWaste={() => setWasteOpen(true)} />
       <div className="flex shrink-0 flex-col gap-1 px-6 pb-5 pt-6">
         <h1 className="font-wds-sans text-wds-h1 text-wds-text-ink">Stock &amp; counts</h1>
         <p className="font-wds-sans text-wds-body-sm text-wds-text-copy-muted">
@@ -850,7 +846,6 @@ export function StockCountsScreen() {
         )}
       </div>
       <LogWasteDrawer open={wasteOpen} onOpenChange={setWasteOpen} locationLabel="the Central Store" onLogged={() => void reloadSummary()} />
-      <RestockLevelsDrawer open={restockOpen} onOpenChange={setRestockOpen} variant="desktop" locationId={centralStoreId ?? undefined} actor={{ role: 'STORE_MANAGER' }} />
     </div>
   );
 }

@@ -13,11 +13,9 @@ export interface StockTopbarProps {
   screen: string;
   /** Links "Stock & counts" back to the hub when on a sub-page. */
   showHubCrumb?: boolean;
-  onRestockLevels: () => void;
   onLogWaste: () => void;
   /** Refs so the drawers can hand focus back to their trigger on close (§4.2). */
   thresholdsTriggerRef?: React.Ref<HTMLButtonElement>;
-  restockTriggerRef?: React.Ref<HTMLButtonElement>;
   wasteTriggerRef?: React.Ref<HTMLButtonElement>;
 }
 
@@ -30,10 +28,8 @@ export interface StockTopbarProps {
 export function StockTopbar({
   screen,
   showHubCrumb = false,
-  onRestockLevels,
   onLogWaste,
   thresholdsTriggerRef,
-  restockTriggerRef,
   wasteTriggerRef,
 }: StockTopbarProps) {
   const router = useRouter();
@@ -78,8 +74,8 @@ export function StockTopbar({
           <Button ref={thresholdsTriggerRef} variant="secondary" onClick={() => setThresholdsOpen(true)}>
             Thresholds
           </Button>
-          <Button ref={restockTriggerRef} variant="secondary" onClick={onRestockLevels}>
-            Restock levels
+          <Button asChild variant="secondary">
+            <Link href="/app/inventory/stock/restock-levels">Restock levels</Link>
           </Button>
           <Button ref={wasteTriggerRef} variant="secondary" onClick={onLogWaste}>
             Log waste

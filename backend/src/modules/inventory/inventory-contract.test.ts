@@ -13,6 +13,7 @@ import { locationRepository } from '../../repositories/location-repository';
 import {
   CategorySchema,
   CentralStoreLocationSchema,
+  RestockBranchOptionSchema,
   InventoryItemSchema,
   ItemMutationResponseSchema,
   RestockLevelRowSchema,
@@ -45,7 +46,7 @@ vi.mock('./inventory-repository', () => ({
 }));
 
 vi.mock('../../repositories/branch-repository', () => ({
-  branchRepository: { findHub: vi.fn() },
+  branchRepository: { findHub: vi.fn(), findActiveBranchOptions: vi.fn() },
 }));
 
 vi.mock('../../repositories/location-repository', () => ({
@@ -79,6 +80,18 @@ describe('Inventory contract drift guard', () => {
   it('CentralStoreLocationSchema accepts getCentralStoreLocation output', async () => {
     const location = await inventoryService.getCentralStoreLocation(storeManager);
     expect(() => CentralStoreLocationSchema.parse(location)).not.toThrow();
+  });
+
+  it('RestockBranchOptionSchema accepts listRestockBranches output, which is the repository rows as they are', async () => {
+    const rows = [{ id: '3f1c0c9e-5b0a-4a53-9d0e-6a3d5f2f7a11', name: 'Nyeri Town' }];
+    vi.mocked(branchRepository.findActiveBranchOptions).mockResolvedValue(rows);
+    const branches = await inventoryService.listRestockBranches(storeManager);
+    expect(branches).toEqual(rows);
+    for (const branch of branches) expect(() => RestockBranchOptionSchema.parse(branch)).not.toThrow();
+  });
+
+  it('listRestockBranches refuses an actor outside the hub', async () => {
+    await expect(inventoryService.listRestockBranches({ ...storeManager, organizationId: 'other-org' })).rejects.toThrow();
   });
 
   it('CategorySchema accepts listCategories output', async () => {
