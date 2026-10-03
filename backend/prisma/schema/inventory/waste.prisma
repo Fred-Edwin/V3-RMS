@@ -1,0 +1,35 @@
+// ── Milestone Six — Counting, Closing & Discrepancies (Session 1: waste) ────
+// One row per logged waste entry (the design logs one item at a time). The
+// ledger's negative WASTE row points back here through
+// InventoryTransaction.wasteLogId. Not signed (Appendix B). Location is
+// resolved server-side from the actor — Central Store for the store roles,
+// the department's own location for a department head. milestone-6-plan.md §1.3.
+enum WasteReason {
+  SPOILAGE
+  EXPIRY
+  DAMAGE_IN_STORE
+  PREP_ERROR
+}
+
+model WasteLog {
+  id              String      @id @default(uuid())
+  organizationId  String      @map("organization_id") // the location's org — hub for the Central Store, branch org for a department
+  locationId      String      @map("location_id")
+  inventoryItemId String      @map("inventory_item_id")
+  quantity        Decimal     @db.Decimal(12, 4) // positive as entered; the ledger row carries the negative sign
+  reason          WasteReason
+  note            String?
+  unitCost        Decimal     @map("unit_cost") @db.Decimal(12, 4) // CS: item currentCost now; department: latest DISPATCH_IN cost, else currentCost
+  loggedById      String      @map("logged_by_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  location      Location               @relation(fields: [locationId], references: [id])
+  inventoryItem InventoryItem          @relation(fields: [inventoryItemId], references: [id])
+  loggedBy      User                   @relation("WasteLogLoggedBy", fields: [loggedById], references: [id])
+  transactions  InventoryTransaction[]
+
+  @@index([organizationId, createdAt])
+  @@index([locationId, createdAt])
+  @@map("waste_logs")
+}

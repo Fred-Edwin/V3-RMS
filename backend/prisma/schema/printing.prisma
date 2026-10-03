@@ -1,0 +1,69 @@
+model PrintJob {
+  id                           String         @id @default(uuid())
+  organizationId               String         @map("organization_id")
+  orderId                      String?        @map("order_id")
+  corporateAccountSettlementId String?        @map("corporate_account_settlement_id")
+  activeKey                    String?        @unique @map("active_key")
+  receiptType                  ReceiptType    @default(RECEIPT) @map("receipt_type")
+  copies                       Int            @default(1)
+  status                       PrintJobStatus @default(PENDING)
+  receiptData                  Json           @map("receipt_data")
+  requestedById                String         @map("requested_by_id")
+  targetStationId              String?        @map("target_station_id")
+  claimedByStationId           String?        @map("claimed_by_station_id")
+  claimedAt                    DateTime?      @map("claimed_at")
+  leaseExpiresAt               DateTime?      @map("lease_expires_at")
+  printAttemptCount            Int            @default(0) @map("print_attempt_count")
+  printedByStationId           String?        @map("printed_by_station_id")
+  printedAt                    DateTime?      @map("printed_at")
+  failureReason                String?        @map("failure_reason")
+  createdAt                    DateTime       @default(now()) @map("created_at")
+  updatedAt                    DateTime       @updatedAt @map("updated_at")
+
+  organization               Organization                @relation(fields: [organizationId], references: [id])
+  order                      Order?                      @relation(fields: [orderId], references: [id])
+  corporateAccountSettlement CorporateAccountSettlement? @relation(fields: [corporateAccountSettlementId], references: [id])
+  requestedBy                User                        @relation("PrintJobRequester", fields: [requestedById], references: [id])
+  targetStation              PrintStation?               @relation("PrintJobTargetStation", fields: [targetStationId], references: [id])
+  claimedByStation           PrintStation?               @relation("PrintJobClaimedBy", fields: [claimedByStationId], references: [id])
+  printedByStation           PrintStation?               @relation("PrintJobPrintedBy", fields: [printedByStationId], references: [id])
+
+  @@index([organizationId, status])
+  @@index([organizationId, status, targetStationId])
+  @@index([orderId])
+  @@index([corporateAccountSettlementId])
+  @@map("print_jobs")
+}
+
+model PrintStation {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  name           String    @default("Default Printer")
+  token          String    @unique
+  isActive       Boolean   @default(true) @map("is_active")
+  lastSeenAt     DateTime? @map("last_seen_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  targetedJobs PrintJob[]   @relation("PrintJobTargetStation")
+  claimedJobs  PrintJob[]   @relation("PrintJobClaimedBy")
+  printedJobs  PrintJob[]   @relation("PrintJobPrintedBy")
+
+  @@index([organizationId])
+  @@index([token])
+  @@map("print_stations")
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTING
+  COMPLETED
+  FAILED
+}
+
+enum ReceiptType {
+  BILL
+  RECEIPT
+  SETTLEMENT
+}
