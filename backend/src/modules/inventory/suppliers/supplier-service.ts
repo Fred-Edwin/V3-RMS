@@ -22,7 +22,8 @@ import {
 import { mapPrismaError } from '../../../utils/prisma-errors';
 import { socketService } from '../../../sockets/socket-service';
 import { fcmService } from '../../../services/fcm-service';
-import { goodsReceiptRepository, referenceCounterRepository } from '../purchasing/receiving-repository';
+import { goodsReceiptRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { describePriceSet, describeSupplierAdded } from '../catalog/item-history';
 import { itemChangeRepository } from '../catalog/item-history-repository';
 import { describePack, matchSupplierLine, sameLineKey } from './supplier-line-key';

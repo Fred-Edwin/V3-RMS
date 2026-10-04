@@ -53,6 +53,18 @@ The client has **not** approved the role names or the role-to-screen mapping dra
 - All of it lives in **one table**, `backend/src/modules/inventory/_shared/central-store-access.ts` (role by capability). Route guards, the page gate and the sidebar read it (the screens through `GET /inventory/permissions/me`). A client change to who can do what is an edit to that table. Screens still on the old flow keep their old role lists until their own rebuild moves them onto it.
 - Phone versions for the desktop roles wait until the rest of the inventory feature is built.
 
+## One screen set, mock first (owner decisions, 4 Oct 2026)
+
+Applies to every Central Store feature (Purchasing and Receiving, Prep, Stock, Dispatch and the rest). Decided once so no rebuild re-opens it.
+
+- **One screen set per feature.** Each screen is built once. Every desktop role gets the **Central Store** group in its sidebar (collapsible groups with the connector rail, as in the approved Workforce sidebar) and can open every screen. Write buttons appear only for the role that does the job; for everyone else the same screen shows with those buttons **hidden** (not greyed out). Read-only variants are **not** drawn in Paper. Phone-first roles (Store Attendant, department heads) keep their own phone screens as designed.
+- **Access is one table.** A rebuild adds its capability rows to `central-store-access.ts` and nothing else; a client change to who can do what is a row edit. Never a new `requireRole(...)` list.
+- **Mock first.** A flow the client has not approved gets a front-end built to the approved Paper design on **mock data** first. The owner demos it to the client and each role, feedback is applied to the screens, and only then are the back-end and migrations built and the mock removed. The mock lives at the real routes (nothing in Inventory is in production use yet) and shows a visible "Demo data" banner. Mock screens never call the real API and never write to the database. The mock follows the API shapes written down in `docs/API_CONTRACT.md` first, so wiring the real back-end swaps the data source and not the screens.
+- **Demo role switcher.** For the demo, the System Admin logs in once with their own account and a demo bar lets them view the Central Store as any role (and the phone view for the Attendant). It changes what the mock screens show; it does not log in as anyone, and no real account is reachable without its password. A reset button restores the mock data.
+- **Delete before rebuild.** Old code for a feature being rebuilt is deleted, not worked around, so agents build clean. Back-end code that other sub-modules still depend on is replaced in the back-end session.
+- **Purchasing and Receiving roles.** Store Manager and Store Attendant raise orders (the Attendant sends an order request; the Store Manager approves with a PIN). The **Accountant does not raise orders**; the Accountant writes deposits, invoices and payments. Branch Manager and Director are read-only. System Admin reads and writes everything, signing with their own PIN. The Attendant follows the approved phone design. The client has not approved these mappings, so the demo exists to test them.
+- Catalog, restock levels and suppliers were rebuilt before this rule and already follow it (they sit on the permissions table).
+
 ## Process and tenancy
 
 - Every signed document is printable; printing is never a required step. Signature = PIN re-authentication, name in the signature font.

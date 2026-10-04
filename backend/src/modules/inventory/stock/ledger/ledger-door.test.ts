@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma, type InventoryTransactionType } from '@prisma/client';
 import { postStockMovement, type PostStockMovementInput } from './ledger-door';
 import { ledgerRepository } from './ledger-repository';
-import { referenceCounterRepository } from '../../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { LEDGER_RULES, type LedgerLink } from './ledger-rules';
 import { ConflictError, ValidationError } from '../../../../utils/errors';
 
@@ -20,7 +20,7 @@ vi.mock('./ledger-repository', () => ({
   },
 }));
 
-vi.mock('../../purchasing/receiving-repository', () => ({
+vi.mock('../../_shared/reference-counter', () => ({
   referenceCounterRepository: { nextReference: vi.fn() },
 }));
 

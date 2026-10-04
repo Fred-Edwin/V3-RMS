@@ -13,7 +13,7 @@ import {
   SheetDescription,
 } from '@/components/ui2/sheet';
 import { formatApiErrorMessage } from '@/types/api';
-import { validateChequeNumber } from '../../../suppliers/lib/supplier-logic';
+import { validateChequeNumber } from '../../../lib/supplier-logic';
 import { BundleCheckboxList, BundleRunningTotal, type BundleRow } from '../bundle-checkbox-list';
 import { getSupplierApDetail, createSupplierPayment } from '../../services/receiving-api-service';
 import type { SupplierInvoice, SupplierPaymentMethod } from '../../types/receiving';

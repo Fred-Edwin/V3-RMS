@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { dispatchService } from './dispatch-service';
 import { dispatchRepository } from './dispatch-repository';
 import { discrepancyRepository } from './discrepancy-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { locationRepository } from '../../../repositories/location-repository';
 import { authRepository } from '../../../repositories/auth-repository';
 import { fcmService } from '../../../services/fcm-service';
@@ -23,7 +23,7 @@ vi.mock('./discrepancy-repository', () => ({
   },
 }));
 
-vi.mock('../purchasing/receiving-repository', () => ({
+vi.mock('../_shared/reference-counter', () => ({
   referenceCounterRepository: { nextReference: vi.fn().mockResolvedValue('DSC-0001') },
 }));
 

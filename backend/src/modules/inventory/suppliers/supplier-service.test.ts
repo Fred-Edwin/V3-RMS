@@ -13,7 +13,8 @@ import {
 import * as supplierRepositoryModule from './supplier-repository';
 import { itemChangeRepository } from '../catalog/item-history-repository';
 import * as supplierValidators from './supplier-validators';
-import { goodsReceiptRepository, referenceCounterRepository } from '../purchasing/receiving-repository';
+import { goodsReceiptRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { authRepository } from '../../../repositories/auth-repository';
 import { socketService } from '../../../sockets/socket-service';
@@ -46,8 +47,8 @@ vi.mock('../catalog/item-history-repository', () => ({
   itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
 }));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('../purchasing/receiving-repository', () => ({
-  referenceCounterRepository: { nextReference: vi.fn() },
   goodsReceiptRepository: {
     findPackNotOnFileLines: vi.fn(),
     findReceiptsSignedAt: vi.fn().mockResolvedValue([]),

@@ -1,6 +1,6 @@
 import { Prisma, type InventoryTransaction, type InventoryTransactionType } from '@prisma/client';
 import { ConflictError, ValidationError } from '../../../../utils/errors';
-import { referenceCounterRepository } from '../../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../../_shared/reference-counter';
 import { ledgerRepository } from './ledger-repository';
 import { LEDGER_LINKS, LEDGER_RULES, signedQuantity, type LedgerLink } from './ledger-rules';
 

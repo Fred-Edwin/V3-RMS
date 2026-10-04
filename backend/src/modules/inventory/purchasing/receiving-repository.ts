@@ -15,23 +15,9 @@ import { prisma } from '../../../config/database';
 type TxClient = Prisma.TransactionClient;
 type Client = typeof prisma | TxClient;
 
-// ---------------------------------------------------------------------------
-// Reference numbers — gap-free per (organization, prefix), incremented inside
-// the same transaction as the document it numbers (plan §1.7).
-// ---------------------------------------------------------------------------
-
-export const referenceCounterRepository = {
-  /** Must run inside the same `$transaction` as the create it numbers. */
-  nextReference: async (tx: TxClient, siteId: string, prefix: string, pad = 4): Promise<string> => {
-    const counter = await tx.referenceCounter.upsert({
-      where: { siteId_prefix: { siteId, prefix } },
-      update: { lastNumber: { increment: 1 } },
-      create: { siteId, prefix, lastNumber: 1 },
-      select: { lastNumber: true },
-    });
-    return `${prefix}-${String(counter.lastNumber).padStart(pad, '0')}`;
-  },
-};
+// Reference numbers moved to ../_shared/reference-counter.ts; re-exported so the old purchasing
+// code (replaced in the Purchasing rebuild) keeps working unchanged.
+export { referenceCounterRepository } from '../_shared/reference-counter';
 
 // ---------------------------------------------------------------------------
 // Expected deliveries (Stage 1 — estimates)

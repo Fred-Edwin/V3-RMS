@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui2/button';
-import type { SupplierApDetail } from '../../purchasing/types/receiving';
+import type { SupplierApDetail } from '../legacy-payables/types/receiving';
 import type { SupplierDetail, SupplierSummary } from '../types/supplier';
 import { PROFILE_TOTAL, formatAmount, formatDayMonth, lateSentence, profileChecklist, type ProfileKey } from '../lib/supplier-logic';
 import { SUPPLIER_CONTACT_ROLE_LABEL } from '../lib/supplier-labels';

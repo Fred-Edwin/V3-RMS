@@ -31,15 +31,7 @@ export { ItemCatalogScreen } from './catalog/components/screens/item-catalog-scr
 export { StoreRestockLevelsScreen } from './restock/components/screens/store-restock-levels-screen';
 export { DepartmentRestockLevelsScreen } from './restock/components/screens/department-restock-levels-screen';
 
-// Milestone Two (Receiving & Supplier AP) — S5/S6 screens.
-export { PurchasingHubScreen } from './purchasing/components/screens/purchasing-hub-screen';
-export { ReceivingWorklistScreen } from './purchasing/components/screens/receiving-worklist-screen';
-export { ReceivingHistoryScreen } from './purchasing/components/screens/receiving-history-screen';
-export { InboundListScreen } from './purchasing/components/screens/inbound-list-screen';
-export { HistoryListScreen } from './purchasing/components/screens/history-list-screen';
-export { NewPurchaseScreen } from './purchasing/components/screens/new-purchase-screen';
-export { NewGoodsReceiptScreen } from './purchasing/components/screens/new-goods-receipt-screen';
-export { GoodsReceiptDetailScreen } from './purchasing/components/screens/goods-receipt-detail-screen';
+// Purchasing and Receiving screens were removed (4 Oct 2026) ahead of their rebuild.
 
 // Suppliers (Part C, Session 6): the list and the supplier page replace Milestone Two's Supplier AP screens.
 export { SuppliersListScreen } from './suppliers/components/screens/suppliers-list-screen';

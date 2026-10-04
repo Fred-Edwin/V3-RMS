@@ -30,8 +30,8 @@ import { MOVE_LABEL, movesFor, type StatusMove } from '../../lib/supplier-status
 import { SupplierTabs, SupplierTitle, type SupplierTab } from '../supplier-page-header';
 import { InlineNotice } from '../supplier-ui';
 import { UploadView } from '../upload-view';
-import { RecordSupplierInvoiceDrawer } from '../../../purchasing/components/screens/record-supplier-invoice-drawer';
-import { RecordSupplierPaymentDrawer } from '../../../purchasing/components/screens/record-supplier-payment-drawer';
+import { RecordSupplierInvoiceDrawer } from '../../legacy-payables/components/screens/record-supplier-invoice-drawer';
+import { RecordSupplierPaymentDrawer } from '../../legacy-payables/components/screens/record-supplier-payment-drawer';
 
 
 type DrawerView =

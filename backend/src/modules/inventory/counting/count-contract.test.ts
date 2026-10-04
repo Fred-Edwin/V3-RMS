@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { countService } from './count-service';
 import { countRepository } from './count-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { thresholdsRepository } from './thresholds-repository';
 import { authRepository } from '../../../repositories/auth-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
@@ -45,7 +45,7 @@ vi.mock('./count-repository', () => ({
     todaysDaily: vi.fn(),
   },
 }));
-vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('./thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn(), findById: vi.fn() } }));

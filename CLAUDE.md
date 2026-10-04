@@ -219,6 +219,12 @@ shrinks as sub-modules are rebuilt. The database also refuses `UPDATE`/`DELETE` 
 SQL. Dev seed scripts that must delete ledger rows call `allowLedgerEditsInThisTransaction(tx)`
 (`src/scripts/ledger-dev-bypass.ts`). See `backend/src/modules/inventory/stock/README.md`.
 
+Key rule — **One screen set, mock first (4 Oct 2026):** every Central Store screen is built
+once and shown to every desktop role (read for all, write buttons only for the role whose job it
+is, hidden otherwise); access lives in the one table; a flow the client has not approved is
+built as a mock-data front-end first, back-end after approval. Full rule:
+`docs/features/inventory/decisions.md` ("One screen set, mock first").
+
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
 (the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`

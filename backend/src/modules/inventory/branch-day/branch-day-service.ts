@@ -10,7 +10,7 @@ import {
 } from './branch-day-repository';
 import { hasGap, isDirectorAlert, isReasonRequired, lineVariance, lineVarianceValue, reasonSatisfied } from './branch-day-calc';
 import { GAP_REASON_LABEL } from './branch-day-validators';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { getBranchThresholdsInForce, getHubThresholdsInForce } from '../counting/thresholds-service';
 import { requireHubOrgId } from '../_shared/stock-scope';
 import { departmentLabel as departmentLabelOf } from '../stock/stock-service';
