@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { wasteRepository, type WasteItemOptionRow, type WasteLogWithRelations } from './waste-repository';
 import { stockRepository } from '../stock/stock-repository';
+import { postStockMovement } from '../stock/ledger/ledger-door';
 import { resolveWasteScope, type StockScope } from '../_shared/stock-scope';
 import { inventoryItemRepository } from '../catalog/inventory-repository';
 import { prisma } from '../../../config/database';
@@ -91,19 +92,16 @@ export const wasteService = {
           tx,
         );
 
-        // Negative-signed, like PREP_CONSUME / DISPATCH_OUT — on-hand is a plain Σ quantity.
-        await tx.inventoryTransaction.create({
-          data: {
-            siteId: scope.locationOrgId,
-            locationId: scope.locationId,
-            inventoryItemId: item.id,
-            type: 'WASTE',
-            quantity: quantity.negated(),
-            unitCost,
-            reason: input.reason,
-            wasteLogId: created.id,
-            userId: actor.id,
-          },
+        // The door stores WASTE negative-signed — on-hand is a plain Σ quantity.
+        await postStockMovement(tx, {
+          type: 'WASTE',
+          locationId: scope.locationId,
+          inventoryItemId: item.id,
+          quantity,
+          unitCost,
+          reason: input.reason,
+          userId: actor.id,
+          links: { wasteLogId: created.id },
         });
 
         const after = await stockRepository.onHandForItem(scope.locationOrgId, scope.locationId, item.id, tx);

@@ -32,5 +32,51 @@ Built in Milestone Six (stock hub, all items, ledger, hub KPI strip) to the olde
 ## Code map
 `stock-controller.ts`, `stock-repository.ts`, `stock-routes.ts`, `stock-service.ts`, `stock-validators.ts`, `stock.types.ts`. 1 test files beside the code.
 
+## The stock ledger door (`ledger/`, added 4 Oct 2026)
+**Purpose:** the one way to post a stock movement. Every flow calls `postStockMovement(tx, input)` instead of writing `inventoryTransaction` itself. Other modules import it from `modules/inventory/index.ts`; sub-modules inside Inventory import `stock/ledger/ledger-door` directly.
+
+```ts
+postStockMovement(tx, {
+  type, locationId, inventoryItemId, quantity, unitCost,
+  reason?, userId, links: { <exactly one source link> }, reversesTransactionId?,
+}): Promise<InventoryTransaction>
+```
+
+**Rules** (`ledger-rules.ts` is the one table; `ledger-door.ts` enforces it):
+- **Same transaction as the caller.** `tx` is the caller's client; the door never opens one, so the row rolls back with the caller's work.
+- **Append-only.** The door only creates. A correction is a new `ADJUSTMENT` row with `reversesTransactionId`; it must negate the original exactly, match its site, location and item, and a row can be reversed once (checked, and backed by the unique index).
+- **Sign comes from the type.** The caller passes a positive quantity; `ADJUSTMENT` keeps the caller's sign.
+- **`siteId` is derived from the location**, not passed in. Central Store rows must be on the hub site, branch department rows on a non-hub site (D-15).
+- **Exactly one source link**, allowed for the type, pointing at a document of that site (a dispatch line may belong to the hub or the receiving branch).
+- **`ADJUSTMENT` gets `ADJ-####`** from the ReferenceCounter, in the same transaction.
+- Errors are `ValidationError` and `ConflictError` with messages a screen can show. `SALE` and `MARKET_RECEIVE` are refused: no flow posts them yet.
+
+| Type | Stored sign | Source link |
+|---|---|---|
+| `RECEIVE` | + | `goodsReceiptLineId` |
+| `PREP_PRODUCE` | + | `prepRecordId` |
+| `PREP_CONSUME` | − | `prepRecordId` |
+| `WASTE` | − | `wasteLogId` |
+| `DISPATCH_IN` | + | `dispatchLineId` |
+| `DISPATCH_OUT` | − | `dispatchLineId` |
+| `ADJUSTMENT` | as given | one of `stockCountLineId`, `branchDayLineId`, `openingLineId`, `dispatchLineId` |
+
+**Guard:** `ledger/ledger-guard.test.ts` fails on any direct ledger write (`create`, `createMany`, `update`, `updateMany`, `delete`, `deleteMany`, `upsert`, or raw SQL) outside the door. Seed scripts in `src/scripts/` are not checked. The allow-list below only shrinks; lower the count when a rebuild moves the writer (the test also fails on a stale entry).
+
+| File | Direct writes left | Moves with |
+|---|---|---|
+| `purchasing/receiving-service.ts` | 1 | Purchasing + Receiving rebuild |
+| `prep/prep-service.ts` | 2 | Prep rebuild |
+| `counting/count-service.ts` | 1 | Stock & counts rebuild |
+| `dispatch/dispatch-service.ts` | 2 | Dispatch rebuild |
+| `dispatch/discrepancy-service.ts` | 3 | Dispatch rebuild |
+| `branch-day/branch-day-repository.ts` | 1 | Branch day rebuild |
+
+Already on the door: **Waste** (`waste/waste-service.ts`).
+
+**Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane; it rolls back everything it writes).
+
+**Follow-up for the owner (not built):** a database trigger that blocks `UPDATE` and `DELETE` on `inventory_transactions`, so the append-only rule holds even against code that bypasses the door. It needs a migration, so it is its own session.
+
 ## Coupling
-Uses `_shared/stock-scope`, `catalog/inventory-repository`, `counting/count-service`, `counting/count-calc`.
+Uses `_shared/stock-scope`, `catalog/inventory-repository`, `counting/count-service`, `counting/count-calc`. The door uses `purchasing/receiving-repository` for the ADJ reference counter.

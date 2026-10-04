@@ -66,6 +66,7 @@ Delivery drivers are not users; they carry a printed delivery note.
 - **Nothing is deleted.** Retire/restore; cancel/void/reverse with a reason as a new linked entry.
 - **Stock or money moves only after a confirm summary.** PIN signing is used where a document is signed (receipt, order approval, count approval, dispatch, branch confirmation, day close) and where money moves; not for catalog, restock or payment-method changes.
 - **Stock on hand is derived from the append-only `InventoryTransaction` ledger**, never a stored counter. Corrections are new linked entries.
+- **Post every stock movement through the door**, `postStockMovement` (`backend/src/modules/inventory/stock/ledger/`). Never call `inventoryTransaction.create` yourself: a guard test fails on it. Rebuilding a sub-module that still writes the ledger directly means moving it onto the door and lowering its count in `ledger-guard.test.ts`.
 - Say **Prep** for the kitchen verb and **Restock level** (never "par level"). No "phase 1/2/3" language.
 - Item types are **Stocked**, **Raw ingredient** and **Prepped**. Raw ingredients exist only at the Central Store.
 - No offline mode. One reusable loading/empty/error kit, not per-screen state designs.

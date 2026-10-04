@@ -40,6 +40,8 @@ vi.mock('../stock/stock-repository', () => ({
   stockRepository: { onHandForItem: vi.fn(), totalsForLocation: vi.fn() },
 }));
 
+vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
+
 vi.mock('../catalog/inventory-repository', () => ({
   inventoryItemRepository: { findById: vi.fn() },
 }));
