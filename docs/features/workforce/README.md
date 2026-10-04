@@ -20,13 +20,15 @@ Chapters by job, each step tagged with who acts and on which device. One chapter
 | Group | Chapter | Paper page | Status |
 |---|---|---|---|
 | A. The people | 1 Role homes and navigation | Workforce · A. The people | **Approved by the owner, 4 Oct 2026**, with these changes made: timeline dots get a concentric ring; the Branch Manager Home is built for many staff (department filter, "Needs a look" first, healthy people collapsed by department); a department head sees their own pay data only |
-| | 2 Hire an employee | same | **Drawn, awaiting owner review** (9 steps: directory, five-step Add employee, the new file with its onboarding checklist, the employee's first sign-in on a phone, and the casual path) |
-| | 3 Departments and heads | same | not started |
+| | 2 Hire an employee | same | **Approved by the owner, 4 Oct 2026** (9 steps: directory, five-step Add employee, the new file with its onboarding checklist, the employee's first sign-in on a phone, and the casual path) |
+| | 3 Departments and heads | same | **Drafted, awaiting the owner's review** (6 steps: Organisation view with gaps first, one department page, assign a head with a "what changes" summary, a head on leave, add a department, positions) |
 | | 4 Employee file and HR workspace | same | not started |
 | B. Schedule and time | 5 Build the rota · 6 A day at work · 7 Today board and fixing time · 8 Timesheets and overtime · 9 My time and Report a problem | to come | not started |
 | C. Leave and conduct | 10 Leave · 11 Conduct | to come | not started |
 | D. Pay | 12 Payroll · 13 Rules | to come | not started |
 | E. Trust and shared parts | 14 Audit and security · 15 Waiting for you · 16 When things go wrong · Signed documents index | to come | not started |
+
+**KPI strips (owner, 4 Oct 2026):** every strip copies the approved Catalog strip: one bordered band with a soft white-to-grey fill; each cell has a 10px Geist Mono caption, a 30px semibold number and a 12px grey line; cells you can act on get a 2px warning top border, a warning-coloured number and a "→". Applied to the Employees directory, the HR Home, the Branch Manager Home and all of Chapter 3.
 
 Also to draw: one "Workforce · Interaction spec" artboard for the whole module, and the states kit and wording table.
 
