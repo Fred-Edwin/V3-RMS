@@ -8,7 +8,8 @@ Need → LPO → approval → send → delivery → invoice → payment → clos
 ## Who can do what
 - **Store Manager**: raises and approves orders (PIN); self-authorises; records invoices and payments; receives.
 - **Store Attendant**: raises order requests from Low/Out only (phone), receives deliveries. **No** access to money, AP or stock figures.
-- **Accountant**: raises orders, pays deposits and suppliers, owns the *To pay* queue and the supplier statement.
+- **Accountant**: does **not** raise orders (owner decision 4 Oct 2026). Records deposits, invoices and payments, owns the *To pay* queue and the supplier statement.
+- **Branch Manager, Director**: read-only. **System Admin**: everything, signing with their own PIN. See [decisions.md](../../../../docs/features/inventory/decisions.md) ("One screen set, mock first").
 
 ## To do in the redo: order permissions
 The one access table (`_shared/central-store-access.ts`) has no capability for purchase orders yet, so the endpoints below still use their old role lists. In the redo, add `orders.request` (attendant and Accountant send an order for approval), `orders.approve`, `orders.cancel` and `orders.receive`, and move these routes onto `requireCapability(...)`. The System Admin holds all of them and signs with their own PIN; the Branch Manager and Director write nothing. Source: `docs/features/inventory/purchasing-design-check.md`.
