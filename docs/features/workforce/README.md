@@ -21,14 +21,21 @@ Chapters by job, each step tagged with who acts and on which device. One chapter
 |---|---|---|---|
 | A. The people | 1 Role homes and navigation | Workforce · A. The people | **Approved by the owner, 4 Oct 2026**, with these changes made: timeline dots get a concentric ring; the Branch Manager Home is built for many staff (department filter, "Needs a look" first, healthy people collapsed by department); a department head sees their own pay data only |
 | | 2 Hire an employee | same | **Approved by the owner, 4 Oct 2026** (9 steps: directory, five-step Add employee, the new file with its onboarding checklist, the employee's first sign-in on a phone, and the casual path) |
-| | 3 Departments and heads | same | **Drafted, awaiting the owner's review** (6 steps: Organisation view with gaps first, one department page, assign a head with a "what changes" summary, a head on leave, add a department, positions) |
-| | 4 Employee file and HR workspace | same | **Drafted, awaiting the owner's review** (6 steps: file overview with next steps, Job and pay with dated signed changes, Documents with contract numbers and opening counts, Activity, Transfer or exit with a "what changes" summary, and the Branch Manager's view with pay and bank locked) |
+| | 3 Departments and heads | same | **Revised after the owner's feedback, awaiting review** (9 steps: Organisation as a two-column page with sites on the left and a Positions tab, one department page, assign a head with a "what changes" summary, a head on leave, add a department, the Positions page, and three position dialogs: add, change "clocks in" with who it affects, retire) |
+| | 4 Employee file and HR workspace | same | **Revised after the owner's feedback, awaiting review** (15 steps: file Overview with a completeness ring, probation card and life timeline; Job and pay; Documents; Activity; Transfer; the Branch Manager's view with pay and bank locked; probation decision; send to another site; exit; an exited file with undo and rehire; edit job; change pay; create the contract; upload a document; the employee's phone for the emergency contact) |
 | B. Schedule and time | 5 Build the rota · 6 A day at work · 7 Today board and fixing time · 8 Timesheets and overtime · 9 My time and Report a problem | to come | not started |
 | C. Leave and conduct | 10 Leave · 11 Conduct | to come | not started |
 | D. Pay | 12 Payroll · 13 Rules | to come | not started |
 | E. Trust and shared parts | 14 Audit and security · 15 Waiting for you · 16 When things go wrong · Signed documents index | to come | not started |
 
 **KPI strips (owner, 4 Oct 2026):** every strip copies the approved Catalog strip: one bordered band with a soft white-to-grey fill; each cell has a 10px Geist Mono caption, a 30px semibold number and a 12px grey line; cells you can act on get a 2px warning top border, a warning-coloured number and a "→". Applied to the Employees directory, the HR Home, the Branch Manager Home and all of Chapter 3.
+
+**Decisions from the owner's Chapter 3 and 4 feedback (4 Oct 2026):**
+- **Layout:** a list with a detail beside it (two columns, selected row marked in caramel) replaces expanding rows, as in the old Dispatch screens.
+- **Navigation:** every screen's step title says how you get there, for example "(Organisation, Positions tab)". Positions is a tab inside Organisation, not its own menu item.
+- **Probation:** 3 months by default, one extension of up to 3 months, set by the Director in Rules. HR decides: confirm, extend once, or end. Confirmation completes only once the contract is signed. The Rules screen for it is drawn in Chapter 13.
+- **Exit:** the file stays marked Exited. An exit can be undone for 7 days; after that, Rehire reopens the same file with a new start date, new probation and new contract, and the gap shows on the timeline. There is never a second file.
+- **Same-day site transfer:** HR can send someone to another site for a day or a few days ("Send to another site") with no approval. Their home department and approvals do not change, it ends by itself, and both Branch Managers are told.
 
 Also to draw: one "Workforce · Interaction spec" artboard for the whole module, and the states kit and wording table.
 
