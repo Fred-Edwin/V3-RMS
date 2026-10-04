@@ -20,7 +20,7 @@ Chapters by job, each step tagged with who acts and on which device. One chapter
 | Group | Chapter | Paper page | Status |
 |---|---|---|---|
 | A. The people | 1 Role homes and navigation | Workforce · A. The people | **Approved by the owner, 4 Oct 2026**, with these changes made: timeline dots get a concentric ring; the Branch Manager Home is built for many staff (department filter, "Needs a look" first, healthy people collapsed by department); a department head sees their own pay data only |
-| | 2 Hire an employee | same | not started |
+| | 2 Hire an employee | same | **Drawn, awaiting owner review** (9 steps: directory, five-step Add employee, the new file with its onboarding checklist, the employee's first sign-in on a phone, and the casual path) |
 | | 3 Departments and heads | same | not started |
 | | 4 Employee file and HR workspace | same | not started |
 | B. Schedule and time | 5 Build the rota · 6 A day at work · 7 Today board and fixing time · 8 Timesheets and overtime · 9 My time and Report a problem | to come | not started |
