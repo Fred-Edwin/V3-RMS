@@ -95,6 +95,10 @@ no overlap or clipping, wide content scrolls in its own container, sidebar
 collapses/drawer goes full-screen at a sensible point. Note the chosen breakpoint
 behaviour in the component comment.
 
+### 7a. No fake phone status bar (owner decision, 4 Oct 2026)
+
+The phone's own status bar (clock "9:41", signal, Wi-Fi, battery) belongs to the device, never to the app. **Do not build it, and do not copy it from a Paper phone frame.** Some phone screens in Paper show one as a device-frame decoration, and some front-end sessions built it into real screens with made-up values. A phone screen starts at the app's own header. Clean-up owed: find and remove any fake status bar in `frontend/` (search for hard-coded "9:41" and battery/signal icons in mobile shells and screens), and remove the decoration from the older Paper phone frames the next time each page is touched. New Paper phone frames carry no status bar.
+
 ## 8. Config gotcha
 
 A new top-level source folder must be added in the same commit to every config that
