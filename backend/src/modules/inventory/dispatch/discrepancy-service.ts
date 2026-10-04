@@ -2,7 +2,7 @@ import type { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { discrepancyRepository, type DiscrepancyWithDetail } from './discrepancy-repository';
 import { dispatchRepository } from './dispatch-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
 import { authRepository } from '../../../repositories/auth-repository';

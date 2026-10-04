@@ -43,8 +43,8 @@ vi.mock('../catalog/item-history-repository', () => ({
   itemChangeRepository: { record: vi.fn(), list: vi.fn(), countAttendantCreatedSince: vi.fn() },
 }));
 vi.mock('./supplier-repository', async () => (await import('./supplier-test-fixtures')).supplierRepositoryMocks());
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('../purchasing/receiving-repository', () => ({
-  referenceCounterRepository: { nextReference: vi.fn() },
   goodsReceiptRepository: {
     findPackNotOnFileLines: vi.fn(),
     findReceiptsSignedAt: vi.fn().mockResolvedValue([]),
@@ -203,7 +203,7 @@ describe('suppliers contract — attendant blindness', () => {
 
   it('the attendant quick-add response is the same stripped row', async () => {
     vi.mocked(repos.supplierRepository.create).mockResolvedValue({ id: supplierId });
-    const { referenceCounterRepository } = await import('../purchasing/receiving-repository');
+    const { referenceCounterRepository } = await import('../_shared/reference-counter');
     vi.mocked(referenceCounterRepository.nextReference).mockResolvedValue('SUPPLIER-0002');
     const created = await supplierService.quickAddSupplier(attendant, { name: 'New Vendor', phone: '0700000000' });
     expect(forbiddenKeys(created)).toEqual([]);

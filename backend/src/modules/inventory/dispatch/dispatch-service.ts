@@ -7,7 +7,7 @@ import {
   type RequisitionSectionForFulfil,
 } from './dispatch-repository';
 import { discrepancyRepository } from './discrepancy-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
 import { restockLevelRepository } from '../catalog/inventory-repository';

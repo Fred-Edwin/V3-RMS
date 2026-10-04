@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma } from '@prisma/client';
 import { branchDayService } from './branch-day-service';
 import { branchDayRepository } from './branch-day-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { thresholdsRepository } from '../counting/thresholds-repository';
 import { authRepository } from '../../../repositories/auth-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
@@ -44,7 +44,7 @@ vi.mock('./branch-day-repository', () => ({
     closeDay: vi.fn(),
   },
 }));
-vi.mock('../purchasing/receiving-repository', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
+vi.mock('../_shared/reference-counter', () => ({ referenceCounterRepository: { nextReference: vi.fn() } }));
 vi.mock('../counting/thresholds-repository', () => ({ thresholdsRepository: { findBySite: vi.fn() } }));
 vi.mock('../../../repositories/auth-repository', () => ({ authRepository: { findUserByIdWithPassword: vi.fn() } }));
 vi.mock('../../../repositories/branch-repository', () => ({ branchRepository: { findHub: vi.fn() } }));

@@ -1,3 +1,7 @@
+// LEGACY (kept 4 Oct 2026): the old Receiving & Supplier AP contract. The supplier page still
+// shows "what we owe" and the record-invoice/payment drawers from it. The Purchasing rebuild
+// (Accountant screens, Orders to pay) replaces this whole folder; delete it then.
+//
 // Inventory — Milestone Two (Receiving & Supplier AP)
 // Mirrors the FROZEN backend contract by hand (no pnpm workspace in this repo,
 // so there is no shared package to import from).
@@ -17,7 +21,7 @@
 // Type and field names below stay technical (matching the backend contract);
 // only display copy changes, at the component layer.
 
-import type { Supplier, SupplierPaymentTerms } from '../../types/index';
+import type { Supplier, SupplierPaymentTerms } from '../../../types/index';
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ import {
   type CountSummaryRow,
   type CountWithRelations,
 } from './count-repository';
-import { referenceCounterRepository } from '../purchasing/receiving-repository';
+import { referenceCounterRepository } from '../_shared/reference-counter';
 import { getHubThresholdsInForce } from './thresholds-service';
 import { resolveCentralStoreScope, type StockScope } from '../_shared/stock-scope';
 import { isDirectorAlert, isReasonRequired, lineVariance, lineVarianceValue, toMoney } from './count-calc';
