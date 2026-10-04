@@ -59,7 +59,7 @@ Today the rota, the clock and the payslip are three disconnected things and pay 
 | **Position** | The job title: Head Barista, Cook, Waiter… | Workforce (`org`) | Editable list HR manages. Shown on the rota, payslip and file. |
 | **Department** | Where you work in a branch: Kitchen, Pastry, Barista, Service, Housekeeping; Stores at the hub | Workforce (`org`) | A list of data. HR adds and edits departments as the company grows (a bakery, a delivery team). |
 
-**Department head** is a *responsibility* held by one active employee per department per branch, not a role. The Branch Manager or HR assigns it in two clicks from the department card. The confirm summary says what the head will be able to do ("build the Pastry rota, approve overtime inside the allowance, see no pay"). Replacing a head shows the pending approvals being re-routed. While a head is on leave, their approvals go to the Branch Manager automatically. The `isDepartmentHead` and department claims other modules read stay available through Access; Workforce is the source of truth and tells Access when they change (boundary, section 3.4).
+**Department head** is a *responsibility* held by one active employee per department per branch, not a role. The Branch Manager or HR assigns it in two clicks from the department card. The confirm summary says what the head will be able to do ("build the Pastry rota, approve overtime inside the allowance, see only their own pay"). Replacing a head shows the pending approvals being re-routed. While a head is on leave, their approvals go to the Branch Manager automatically. The `isDepartmentHead` and department claims other modules read stay available through Access; Workforce is the source of truth and tells Access when they change (boundary, section 3.4).
 
 ### 2.2 Who is tracked
 
@@ -314,7 +314,7 @@ One table in `backend/src/modules/workforce/_shared/workforce-access.ts`, read b
 | Leave: request / approve | request | request / acknowledge | request | request | approve (not own) | approve | approve fallback | all |
 | Employee file basic | – | dept | – | all | unit | all | all | all |
 | Employee file sensitive (IDs, bank, documents) | own | – | – | read | – | all | read | – |
-| Pay profile | own | – | – | read | – | write | read | – |
+| Pay profile | own | own (never the team's) | own | read | – | write | read | – |
 | Late-deduction and overtime policy | – | – | – | confirm overtime multipliers and statutory | edit own branch | read | edit all | all |
 | Pay run: prepare / approve / publish / reopen | – | – | – | approve | – | prepare, publish | publish, reopen (reason) | all |
 | Discipline | own read | – | own read | – | unit issue | all | read | – |

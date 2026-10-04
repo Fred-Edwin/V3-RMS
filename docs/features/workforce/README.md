@@ -19,7 +19,7 @@ Chapters by job, each step tagged with who acts and on which device. One chapter
 
 | Group | Chapter | Paper page | Status |
 |---|---|---|---|
-| A. The people | 1 Role homes and navigation | Workforce · A. The people | **Drawn, awaiting owner review** |
+| A. The people | 1 Role homes and navigation | Workforce · A. The people | **Approved by the owner, 4 Oct 2026**, with these changes made: timeline dots get a concentric ring; the Branch Manager Home is built for many staff (department filter, "Needs a look" first, healthy people collapsed by department); a department head sees their own pay data only |
 | | 2 Hire an employee | same | not started |
 | | 3 Departments and heads | same | not started |
 | | 4 Employee file and HR workspace | same | not started |
@@ -42,7 +42,7 @@ One Workforce menu in the approved geometric sidebar style. A link a role cannot
 | Accountant | Home, Waiting for you, Employees | none | Pay runs, Payslips | Rules (statutory), Audit log | My time, My leave, My payslips |
 | Director | Home, Overdue approvals, Schedule, Timesheets | Employees, Organisation, Leave, Conduct | Pay runs, Payslips | Rules, Audit log | My leave, My payslips |
 
-Staff and department heads use the phone: Home (the clock card), their app's own tabs, **My time**, and under More: Leave and Payslips. Home is the live board for managers (there is no separate "Today" link).
+On a phone there is **no bottom tab bar**. The menu is a drawer (the same menu, in the same style) opened from a slim top bar that shows the brand, the shift pill and the job's one primary action. Its groups are Home, Job, Team (heads only), Inbox and Me (My time with sub-links, My leave, My payslips, Profile and security). Home opens with a warm greeting and the person's photo, then a stack of cards: shift, waiting for you, job cards, team, this week. Rule recorded in `docs/ROADMAP.md` (rule 8). Home is the live board for managers (there is no separate "Today" link).
 
 ## Open points carried from the proposal
 
