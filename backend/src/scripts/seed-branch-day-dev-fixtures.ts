@@ -38,6 +38,7 @@ import { env } from '../config/env';
 import { branchDayService } from '../modules/inventory/branch-day/branch-day-service';
 import { hashPin } from '../utils/password';
 import { getTodayDateOnly } from '../utils/date-only';
+import { allowLedgerEditsInThisTransaction } from './ledger-dev-bypass';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-branch-day-dev-fixtures must not run in production. Exiting.');
@@ -83,6 +84,7 @@ async function main(): Promise<void> {
   const today = getTodayDateOnly();
   const yesterday = new Date(today.getTime() - DAY_MS);
   await prisma.$transaction(async (tx) => {
+    await allowLedgerEditsInThisTransaction(tx);
     const days = await tx.branchDay.findMany({ where: { siteId: org.id }, select: { id: true } });
     const lineIds = (
       await tx.branchDayLine.findMany({ where: { department: { branchDayId: { in: days.map((d) => d.id) } } }, select: { id: true } })

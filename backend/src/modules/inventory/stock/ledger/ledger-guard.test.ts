@@ -65,4 +65,16 @@ describe('stock ledger guard', () => {
   it('the moved writer (Waste) no longer writes the ledger directly', () => {
     expect(found.has('modules/inventory/waste/waste-service.ts')).toBe(false);
   });
+
+  it('the database append-only bypass (wendo.allow_ledger_edit) is used only by seed scripts', () => {
+    // sourceFiles() skips src/scripts, so anything it finds here is application code.
+    const leaks = sourceFiles(SRC).filter((file) => {
+      if (file === __filename) return false;
+      return readFileSync(file, 'utf8').includes('wendo.allow_ledger_edit');
+    });
+    expect(
+      leaks.map((file) => relative(SRC, file)),
+      'Application code must never lift the ledger lock; only dev seed scripts (src/scripts) may.',
+    ).toEqual([]);
+  });
 });
