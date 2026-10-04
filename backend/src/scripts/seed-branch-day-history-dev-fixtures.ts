@@ -28,6 +28,7 @@ import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { branchDayService } from '../modules/inventory/branch-day/branch-day-service';
 import { getTodayDateOnly } from '../utils/date-only';
+import { allowLedgerEditsInThisTransaction } from './ledger-dev-bypass';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-branch-day-history-dev-fixtures must not run in production. Exiting.');
@@ -128,9 +129,12 @@ async function main(): Promise<void> {
     const existing = await prisma.departmentOpening.findFirst({ where: { branchDayId: todayDay.id, departmentTag: 'KITCHEN' }, include: { lines: true } });
     if (existing) {
       const lineIds = existing.lines.map((l) => l.id);
-      await prisma.inventoryTransaction.updateMany({ where: { openingLineId: { in: lineIds } }, data: { reversesTransactionId: null } });
-      await prisma.inventoryTransaction.deleteMany({ where: { openingLineId: { in: lineIds } } });
-      await prisma.departmentOpening.delete({ where: { id: existing.id } });
+      await prisma.$transaction(async (tx) => {
+        await allowLedgerEditsInThisTransaction(tx);
+        await tx.inventoryTransaction.updateMany({ where: { openingLineId: { in: lineIds } }, data: { reversesTransactionId: null } });
+        await tx.inventoryTransaction.deleteMany({ where: { openingLineId: { in: lineIds } } });
+        await tx.departmentOpening.delete({ where: { id: existing.id } });
+      });
     }
   }
   if (openingState === 'accepted') {

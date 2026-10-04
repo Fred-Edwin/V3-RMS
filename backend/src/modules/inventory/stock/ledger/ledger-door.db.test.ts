@@ -13,6 +13,7 @@ import { prisma } from '../../../../config/database';
 import { ValidationError } from '../../../../utils/errors';
 import { stockRepository } from '../stock-repository';
 import { postStockMovement } from './ledger-door';
+import { allowLedgerEditsInThisTransaction } from '../../../../scripts/ledger-dev-bypass';
 
 const enabled = process.env['RUN_DB_TESTS'] === '1';
 
@@ -145,6 +146,69 @@ describe.skipIf(!enabled)('postStockMovement against the real database', () => {
           links: { wasteLogId: log.id },
         }),
       ).rejects.toThrow(/another site/);
+    });
+  });
+
+  // The database trigger from migration 20261004120000_ledger_append_only_trigger.
+  describe('append-only trigger', () => {
+    /** Posts one WASTE row inside `tx` and hands back what the forbidden operations need. */
+    const postOne = async (tx: Prisma.TransactionClient) => {
+      const f = await fixtures();
+      const log = await newWasteLog(tx, f);
+      const row = await postStockMovement(tx, {
+        type: 'WASTE',
+        locationId: f.location.id,
+        inventoryItemId: f.item.id,
+        quantity: new Prisma.Decimal(1),
+        unitCost: new Prisma.Decimal(90),
+        userId: f.user.id,
+        links: { wasteLogId: log.id },
+      });
+      return { row, log };
+    };
+
+    it('refuses to UPDATE a ledger row', async () => {
+      await expect(
+        prisma.$transaction(async (tx) => {
+          const { row } = await postOne(tx);
+          await tx.inventoryTransaction.update({ where: { id: row.id }, data: { quantity: new Prisma.Decimal(-999) } });
+        }),
+      ).rejects.toThrow(/append-only/);
+    });
+
+    it('refuses to DELETE a ledger row', async () => {
+      await expect(
+        prisma.$transaction(async (tx) => {
+          const { row } = await postOne(tx);
+          await tx.inventoryTransaction.delete({ where: { id: row.id } });
+        }),
+      ).rejects.toThrow(/append-only/);
+    });
+
+    it('refuses to delete a source document a ledger row points at (the FK would null the link)', async () => {
+      await expect(
+        prisma.$transaction(async (tx) => {
+          const { log } = await postOne(tx);
+          await tx.wasteLog.delete({ where: { id: log.id } });
+        }),
+      ).rejects.toThrow(/append-only/);
+    });
+
+    it('lets a seed script lift the lock for its own transaction only', async () => {
+      await inRolledBackTx(async (tx) => {
+        const { row } = await postOne(tx);
+        await allowLedgerEditsInThisTransaction(tx);
+        await tx.inventoryTransaction.update({ where: { id: row.id }, data: { reason: 'edited by a seed script' } });
+        await tx.inventoryTransaction.delete({ where: { id: row.id } });
+        expect(await tx.inventoryTransaction.count({ where: { id: row.id } })).toBe(0);
+      });
+      // The lock is back on the next transaction.
+      await expect(
+        prisma.$transaction(async (tx) => {
+          const { row } = await postOne(tx);
+          await tx.inventoryTransaction.delete({ where: { id: row.id } });
+        }),
+      ).rejects.toThrow(/append-only/);
     });
   });
 });

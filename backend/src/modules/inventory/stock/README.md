@@ -74,9 +74,14 @@ postStockMovement(tx, {
 
 Already on the door: **Waste** (`waste/waste-service.ts`).
 
-**Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane; it rolls back everything it writes).
+**Tests:** `ledger-door.test.ts` (mocked: sign, link, cost, reference, every rejection), `ledger-guard.test.ts`, and `ledger-door.db.test.ts` against a real database (opt-in, `RUN_DB_TESTS=1`, run inside a lane with the lane's `DATABASE_URL`; it rolls back everything it writes). It also tests the trigger: update, delete and source-document delete are refused, and the seed bypass lasts one transaction.
 
-**Follow-up for the owner (not built):** a database trigger that blocks `UPDATE` and `DELETE` on `inventory_transactions`, so the append-only rule holds even against code that bypasses the door. It needs a migration, so it is its own session.
+## The database lock (migration `20261004120000_ledger_append_only_trigger`)
+A trigger on `inventory_transactions` makes the database itself refuse `UPDATE` and `DELETE` (error `append-only`), so the rule holds even for code or a console session that bypasses the door. `INSERT` is untouched.
+- **Source documents are protected too.** The ledger's foreign keys are `ON DELETE SET NULL`, which would rewrite a ledger row if its receipt, waste entry, count line and so on were deleted. The trigger blocks that, so a posted document cannot be deleted from under its ledger rows.
+- **Dev-seed bypass.** Fixture scripts reset their data by deleting ledger rows. They call `allowLedgerEditsInThisTransaction(tx)` (`src/scripts/ledger-dev-bypass.ts`), which sets `wendo.allow_ledger_edit` for that one transaction. `ledger-guard.test.ts` fails if that setting appears anywhere outside `src/scripts`.
+- **Not blocked:** `TRUNCATE` (nothing uses it; dev resets drop the schema). A superuser can still drop the trigger deliberately.
+- **Correcting a mistake on production** is therefore always a new linked row through the door, never an SQL edit.
 
 ## Coupling
 Uses `_shared/stock-scope`, `catalog/inventory-repository`, `counting/count-service`, `counting/count-calc`. The door uses `purchasing/receiving-repository` for the ADJ reference counter.

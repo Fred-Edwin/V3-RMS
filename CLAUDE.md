@@ -214,7 +214,10 @@ Key rule — **Stock ledger door (4 Oct 2026):** post every stock movement throu
 `postStockMovement` (`backend/src/modules/inventory/stock/ledger/`), never with
 `inventoryTransaction.create`. The door applies the sign by type, derives `siteId` from the
 location, and numbers adjustments. `ledger-guard.test.ts` fails on direct writes; its allow-list
-shrinks as sub-modules are rebuilt. See `backend/src/modules/inventory/stock/README.md`.
+shrinks as sub-modules are rebuilt. The database also refuses `UPDATE`/`DELETE` on
+`inventory_transactions` (trigger, 4 Oct 2026): fix a wrong entry with a linked correction, never
+SQL. Dev seed scripts that must delete ledger rows call `allowLedgerEditsInThisTransaction(tx)`
+(`src/scripts/ledger-dev-bypass.ts`). See `backend/src/modules/inventory/stock/README.md`.
 
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`

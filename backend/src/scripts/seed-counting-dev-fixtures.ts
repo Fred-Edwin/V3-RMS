@@ -37,6 +37,7 @@ import { Prisma, type CountReason, type InventoryItem, type InventoryItemType } 
 import { prisma } from '../config/database';
 import { env } from '../config/env';
 import { formatDateOnly, getTodayDateOnly } from '../utils/date-only';
+import { allowLedgerEditsInThisTransaction } from './ledger-dev-bypass';
 
 if (env.NODE_ENV === 'production') {
   console.error('ERROR: seed-counting-dev-fixtures must not run in production. Exiting.');
@@ -135,6 +136,7 @@ const run = async (): Promise<void> => {
   // --- 0. Clear previous count data ---------------------------------------------------------
   const oldLines = await prisma.stockCountLine.findMany({ where: { stockCount: { siteId: hub.id } }, select: { id: true } });
   const removed = await prisma.$transaction(async (tx) => {
+    await allowLedgerEditsInThisTransaction(tx);
     const tr = await tx.inventoryTransaction.deleteMany({
       where: {
         siteId: hub.id,
