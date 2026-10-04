@@ -12,9 +12,13 @@ import { stockRepository } from '../stock/stock-repository';
 import { inventoryItemRepository } from '../catalog/inventory-repository';
 import { branchRepository } from '../../../repositories/branch-repository';
 import { locationRepository } from '../../../repositories/location-repository';
+import { postStockMovement } from '../stock/ledger/ledger-door';
 import { CreateWasteSchema } from './waste-validators';
 
-const txInventoryCreate = vi.fn();
+const txInventoryCreate = vi.mocked(postStockMovement);
+
+// The door's own rules (sign, site, links) are tested in stock/ledger/ledger-door.test.ts.
+vi.mock('../stock/ledger/ledger-door', () => ({ postStockMovement: vi.fn() }));
 
 vi.mock('./waste-repository', () => ({
   wasteRepository: {
@@ -43,7 +47,7 @@ vi.mock('../../../repositories/location-repository', () => ({
 
 vi.mock('../../../config/database', () => ({
   prisma: {
-    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({ inventoryTransaction: { create: txInventoryCreate } })),
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
   },
 }));
 
@@ -110,17 +114,18 @@ beforeEach(() => {
 });
 
 describe('wasteService.createWaste', () => {
-  it('writes one WasteLog and exactly one negative WASTE ledger row linked to it', async () => {
+  it('writes one WasteLog and posts exactly one WASTE movement linked to it (the door negates it)', async () => {
     await wasteService.createWaste(storeManager, { inventoryItemId: itemId, quantity: '3', reason: 'SPOILAGE' });
 
     expect(wasteRepository.create).toHaveBeenCalledTimes(1);
     expect(txInventoryCreate).toHaveBeenCalledTimes(1);
-    const { data } = txInventoryCreate.mock.calls[0]![0];
+    const data = txInventoryCreate.mock.calls[0]![1];
     expect(data.type).toBe('WASTE');
-    expect(data.quantity.toString()).toBe('-3');
-    expect(data.wasteLogId).toBe(wasteLogId);
+    expect(data.quantity.toString()).toBe('3');
+    expect(data.links).toEqual({ wasteLogId });
     expect(data.locationId).toBe(centralStoreId);
-    expect(data.siteId).toBe(hubOrgId);
+    expect(data.reason).toBe('SPOILAGE');
+    expect(data.userId).toBe(storeManager.id);
   });
 
   it('allows the entry to take stock negative and flags it', async () => {
@@ -165,7 +170,7 @@ describe('wasteService.createWaste', () => {
     await wasteService.createWaste(attendant, { inventoryItemId: itemId, quantity: '1', reason: 'EXPIRY' });
 
     expect(vi.mocked(wasteRepository.create).mock.calls[0]![0].locationId).toBe(centralStoreId);
-    expect(txInventoryCreate.mock.calls[0]![0].data.locationId).toBe(centralStoreId);
+    expect(txInventoryCreate.mock.calls[0]![1].locationId).toBe(centralStoreId);
   });
 
   it('rejects a client-supplied location at the schema (strict body)', () => {

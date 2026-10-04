@@ -30,4 +30,6 @@ Old design: single item, no undo, unit cost shown to attendants. Redo adds multi
 `waste-controller.ts`, `waste-repository.ts`, `waste-routes.ts`, `waste-service.ts`, `waste-validators.ts`, `waste.types.ts`. 2 test files beside the code.
 
 ## Coupling
-Uses `stock/stock-repository`, `_shared/stock-scope`, `catalog/inventory-repository`.
+Uses `stock/stock-repository`, `stock/ledger/ledger-door`, `_shared/stock-scope`, `catalog/inventory-repository`.
+
+The WASTE ledger row is posted through the stock ledger door (`postStockMovement`), the first writer moved onto it (4 Oct 2026). The service passes the entered quantity as a positive number; the door stores it negative. The row's fields are unchanged from the old direct write.

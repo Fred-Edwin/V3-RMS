@@ -210,6 +210,12 @@ supplier payment details. Use `requireCapability(...)` on routes and `requireHub
 (`usePermissions()`). Never add a new `requireRole(...)` list to a rebuilt Central Store route.
 Details: `docs/features/inventory/decisions.md` ("Access").
 
+Key rule — **Stock ledger door (4 Oct 2026):** post every stock movement through
+`postStockMovement` (`backend/src/modules/inventory/stock/ledger/`), never with
+`inventoryTransaction.create`. The door applies the sign by type, derives `siteId` from the
+location, and numbers adjustments. `ledger-guard.test.ts` fails on direct writes; its allow-list
+shrinks as sub-modules are rebuilt. See `backend/src/modules/inventory/stock/README.md`.
+
 Inventory reference material: `docs/inventory/central_kitchen_inventory_model.md`
 (domain research), `docs/inventory/reference-photos/` and `docs/Item Catalog/`
 (the client's paper records), `docs/inventory/STORE_ROLES_STAFF_INTEGRATION.md`
