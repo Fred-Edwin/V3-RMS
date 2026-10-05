@@ -27,6 +27,12 @@ If sources disagree: **Paper "Progress Hub · Design" page > PRD.md > code** for
 | 8b | Feature page, Overview tab | Summary, contents, all-slides grid |
 | 9 | Role page (Branch Manager) | The role's journeys and their status |
 | 10 | Journey viewer | Steps, real screen, notes |
+| 11 | Journey outline (Being designed) | The page a "Being designed" journey opens (RP-3). **Drawn 5 Oct 2026, awaiting owner approval.** |
+| 12 | Mobile, Hub home (390) | Stacked feature blocks, full-width Open button, compact Planned rows. **Awaiting approval.** |
+| 13 | Mobile, Role page (390) | Journeys as stacked rows, status under the title. **Awaiting approval.** |
+| 14 | Mobile, Journey viewer (390) | Steps collapsed into a toggle, screen fit to width with "Tap to enlarge", notes below, fixed previous/next bar. **Awaiting approval.** |
+
+Mobile feature page (artboards 8 and 8b) is not drawn; it follows the same rules as 12 and 13 (single column, 16px side margin, tabs stay on one row).
 
 ## Status
 
