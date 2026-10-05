@@ -145,7 +145,7 @@ export function SupplierOrdersTab({
             {showMoney ? <span className={cn(thClass, 'w-[96px] shrink-0 text-right')}>Ordered</span> : null}
             {showMoney ? <span className={cn(thClass, 'w-[96px] shrink-0 text-right')}>Invoiced</span> : null}
             {showMoney ? <span className={cn(thClass, 'w-[96px] shrink-0 text-right')}>Paid</span> : null}
-            <span className={cn(thClass, 'w-[190px] shrink-0')}>Where it stands</span>
+            <span className={cn(thClass, 'w-[250px] shrink-0')}>Where it stands</span>
           </div>
           {rows.map((o) => {
             const s = standing(o);
@@ -167,9 +167,9 @@ export function SupplierOrdersTab({
                 {showMoney ? <span className="w-[96px] shrink-0 text-right font-wds-mono text-[13px] text-wds-text-ink">{kes2(o.money?.ordered)}</span> : null}
                 {showMoney ? <span className="w-[96px] shrink-0 text-right font-wds-mono text-[13px] text-wds-text-ink">{o.money?.invoiced ? kes2(o.money.invoiced) : <span className="text-wds-text-faint">—</span>}</span> : null}
                 {showMoney ? <span className="w-[96px] shrink-0 text-right font-wds-mono text-[13px] text-wds-text-ink">{paid > 0 ? kes2(paid) : <span className="text-wds-text-faint">—</span>}</span> : null}
-                <div className="flex w-[190px] shrink-0 flex-col gap-1">
+                <div className="flex w-[250px] shrink-0 flex-col gap-1">
                   <StageDots status={o.status} />
-                  <span className={cn('font-wds-sans text-[12px] leading-4', TONE[s.tone])}>
+                  <span className={cn('whitespace-nowrap font-wds-sans text-[12px] leading-4', TONE[s.tone])}>
                     {s.text}
                     {s.when ? <span className="ml-1.5 font-wds-mono text-[11px] text-wds-text-secondary">{s.when}</span> : null}
                   </span>

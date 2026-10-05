@@ -13,6 +13,7 @@ import { DemoBanner } from '../demo-banner';
 import { NeedsRestockingTab } from '../needs-restocking-tab';
 import { OrdersTab } from '../orders-tab';
 import { AwaitingInvoiceTab, ToPayTab } from '../orders-money-tabs';
+import { AttendantPurchasingScreen } from './attendant-purchasing-screen';
 
 type TabKey = 'needs' | 'approval' | 'receive' | 'invoice' | 'pay' | 'closed';
 
@@ -47,6 +48,9 @@ export function PurchasingScreen() {
       live = false;
     };
   }, [service, data, ready]);
+
+  // The Store Attendant works on a phone: Restock, To receive and My orders (Paper chapter 9), not the desktop stage tabs.
+  if (ready && !can('orders.read') && can('orders.request')) return <AttendantPurchasingScreen />;
 
   return (
     <>
