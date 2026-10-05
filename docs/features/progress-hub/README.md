@@ -36,8 +36,10 @@ If sources disagree: **Paper "Progress Hub · Design" page > PRD.md > code** for
 | PRD | Draft v0.1, owner has seen the outline and approved the direction |
 | Plan | [plan.md](plan.md): 13 small tasks, one short session each. Task status is kept in that file. |
 | Build | Not started |
+| Branch | Hub work lives on `feat/progress-hub` (branched 5 Oct 2026 from `docs/workforce-design` so it carries the PRD and plan, which are not on `main` yet). Built in lane 3. Before any PR, rebase onto `main` or cherry-pick only the Hub commits so Workforce docs and Hub code merge separately. |
+| CI | Done (task 1). `deploy.yml` ignores pushes that only touch `progress-hub/` or `docs/features/progress-hub/`. `progress-hub-checks.yml` runs on PRs that touch `progress-hub/` (stub until task 5). Vercel must also skip builds for non-Hub changes when the project is created (task 13). |
 | Deploy | Not started. Nothing is deployed until the owner says so. |
 
 ## Next
 
-Task 1 in [plan.md](plan.md). To start any task, clear the conversation and say "task N".
+Task 2 in [plan.md](plan.md). To start any task, clear the conversation and say "task N".

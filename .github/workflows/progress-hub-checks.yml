@@ -1,0 +1,57 @@
+name: Progress Hub checks
+
+# Runs only when the Progress Hub changes. The Hub is a separate Vercel project and
+# never touches the API deploy (see deploy.yml paths-ignore).
+# Stub until task 5 of docs/features/progress-hub/plan.md creates progress-hub/package.json:
+# until then every step after "Detect scaffold" is skipped and the job passes.
+
+on:
+  pull_request:
+    paths:
+      - "progress-hub/**"
+      - ".github/workflows/progress-hub-checks.yml"
+
+jobs:
+  hub:
+    name: Content validation and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: progress-hub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect scaffold
+        id: scaffold
+        working-directory: .
+        run: |
+          if [ -f progress-hub/package.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "progress-hub/package.json not found yet (stub until task 5)."
+          fi
+
+      - uses: pnpm/action-setup@v3
+        if: steps.scaffold.outputs.ready == 'true'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        if: steps.scaffold.outputs.ready == 'true'
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: progress-hub/pnpm-lock.yaml
+
+      - name: Install dependencies
+        if: steps.scaffold.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate content
+        if: steps.scaffold.outputs.ready == 'true'
+        run: pnpm validate:content
+
+      - name: Build
+        if: steps.scaffold.outputs.ready == 'true'
+        run: pnpm build
