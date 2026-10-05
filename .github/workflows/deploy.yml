@@ -3,6 +3,11 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+    # The Progress Hub is a separate Vercel project; a push that only touches it must not redeploy the API.
+    # A push that touches Hub files AND anything else still deploys.
+    paths-ignore:
+      - "progress-hub/**"
+      - "docs/features/progress-hub/**"
 
 env:
   IMAGE_NAME: ghcr.io/fred-edwin/v3-rms-backend

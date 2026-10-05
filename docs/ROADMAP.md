@@ -31,6 +31,7 @@ Today there are 34 controllers and 33 route files, grouped by layer and, on the 
 5. Every module has an access table (role by capability), a README with status, endpoints and coupling, and a design pass approved by the owner in Paper before building.
 6. Frontend pages are grouped by feature. The role decides what a person sees inside a feature. Old URLs get redirects.
 7. Migrate in place behind the same endpoints. For Orders and Fulfilment, write tests that pin today's behaviour first (the ticket-splitting and duplicate-line rules in CLAUDE.md), then move code.
+8. **Phone navigation and Home belong to the shell, not to a module (owner decision, 4 Oct 2026).** On a phone the menu is the sidebar drawer (the same menu as desktop, in the approved geometric style, grouped Home, Job, Team, Inbox, Me, with sub-links), opened from a slim top bar that always shows the person's shift pill and a badge when something waits. There is no bottom tab bar. A module **contributes cards to Home and links to the menu; it never adds a tab.** Home is a stack of cards ordered by urgency: shift, waiting for you, the person's job cards, team, this week. Cards with nothing to show disappear. A person who is a department head keeps their job's cards and gains the team cards. The job module owns the one primary action in the top bar (for example "New order"). Designed in `docs/features/workforce/` Chapter 1.
 
 ## Order
 

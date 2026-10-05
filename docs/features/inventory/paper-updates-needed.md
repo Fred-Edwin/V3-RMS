@@ -32,6 +32,9 @@ The master follows the owner's chosen "geometric" draft (design-system page, "DR
 - [x] **Supplier hold / archive / make-active dialogs** are now drawn as steps 34b (hold), 34c (archive) and 34d (make active), in the style of step 31.
 - [ ] **Read-only variants** are not drawn: the item panel, restock levels table and supplier page for roles that can read but not write (no Edit, Retire, Add, Record buttons; no Payment tab for the Branch Manager).
 
+## Fake phone status bar (logged 4 Oct 2026)
+- [ ] Older Paper phone frames show a status bar (9:41, signal, Wi-Fi, battery). It must not be part of the screens; remove it from each frame, and remove any copy of it from the built front end. Rule: `docs/UI_BUILD_RULES.md` §7a.
+
 ## Also open for design
 - Dashboard and Reports for the Central Store (a reports spec exists in `reports-spec.md`).
 - Requisitions, Dispatch and Branch day (not approved).
