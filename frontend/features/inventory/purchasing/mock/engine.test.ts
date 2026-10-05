@@ -277,6 +277,13 @@ describe('receiving', () => {
     expect(d.deliveredTotal).toBe((82 * 170 + 2 * 2890).toFixed(2));
   });
 
+  it('lets the person who received the delivery still open the order afterwards', () => {
+    const s = emptyState();
+    const o = sent(s);
+    receiveOrder(s, att, o.id, { lines: [], deliveryNoteNo: 'DN-9', deliveryNotePhotoId: upload(s).id, pin: '1234' }, now);
+    expect(getOrder(s, att, o.id, now).status).toBe('DELIVERED');
+  });
+
   it('refuses a caller without orders.receive, and uploads that are too big or the wrong type', () => {
     const s = emptyState();
     const o = sent(s);

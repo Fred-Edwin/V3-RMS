@@ -92,7 +92,7 @@ export const SCENARIOS: Scenario[] = [
   {
     key: 'default',
     label: 'A normal day',
-    description: 'Two requests waiting for approval, one approved, and four orders on their way (one due today, one overdue, one with an advance).',
+    description: 'Two requests waiting for approval and four orders on their way (one due today, one overdue, one with an advance). Samrat still needs ordering.',
     build: (now) => {
       const s = emptyState('default');
       const chicken = attendantRequest(
@@ -110,8 +110,7 @@ export const SCENARIOS: Scenario[] = [
       );
       setPreviousPrice(s, chicken, 'it-chicken', 2356);
       attendantRequest(s, { supplierId: 'sup-kimathi', dueIn: 2, lines: [['it-beef', 20], ['it-goat', 10]] }, now);
-      const ready = place(s, SAMRAT, now);
-      approveOrder(s, sm, ready, '1234', at(now, -3));
+      // Samrat is left un-ordered on purpose, so Needs restocking shows a full supplier group to start the demo from.
       const summer = place(s, { supplierId: 'sup-summer', dueIn: 2, lines: [['it-flour', 2], ['it-water', 4]] }, now);
       approveAndSend(s, summer, now);
       const market = place(s, { supplierId: 'sup-market', by: att, dueIn: 3, lines: [['it-potatoes', 50], ['it-onions', 20], ['it-tomatoes', 20]] }, now);

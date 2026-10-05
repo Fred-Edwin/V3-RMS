@@ -113,6 +113,8 @@ const itemOf = (id: string): FixtureItem => {
 };
 const lineOf = (supplierId: string, itemId: string): FixtureLine | undefined => LINES.find((l) => l.supplierId === supplierId && l.itemId === itemId);
 
+const termsLabelOf = (s: FixtureSupplier): string => (s.termsDays ? `Regular · Invoice ${s.termsDays} days` : 'Regular · Cash on delivery');
+
 const forbidden = (): PurchasingError => new PurchasingError('FORBIDDEN', 'You do not have permission to perform this action');
 const needAny = (ctx: Ctx, ...caps: Capability[]): void => {
   if (!caps.some((c) => ctx.can(c))) throw forbidden();
@@ -274,7 +276,7 @@ const itemSummary = (o: StoredOrder): string => {
 function visible(o: StoredOrder, ctx: Ctx): boolean {
   if (ctx.can('orders.read')) return true;
   // Phone roles see what they raised and what is due to be received.
-  return o.raisedBy.id === ctx.actor.id || (ctx.can('orders.receive') && stageOf(o.status) === 'RECEIVE');
+  return o.raisedBy.id === ctx.actor.id || o.delivery?.receivedBy.id === ctx.actor.id || (ctx.can('orders.receive') && stageOf(o.status) === 'RECEIVE');
 }
 
 function find(s: State, id: string): StoredOrder {
@@ -361,13 +363,18 @@ export function needsRestocking(s: State, ctx: Ctx, q: NeedsQuery): NeedsRestock
       const sup = id ? supplierOf(id) : null;
       return {
         supplier: sup ? { id: sup.id, name: sup.name, code: sup.code } : null,
-        termsLabel: sup ? (sup.termsDays ? `Regular · Invoice ${sup.termsDays} days` : 'Regular · Cash on delivery') : null,
+        termsLabel: sup ? termsLabelOf(sup) : null,
         itemCount: ls.length,
         estimatedTotal: showMoney ? money(ls.reduce((t, l) => t + num(l.estimatedTotal ?? '0'), 0)) : '',
         lines: ls,
       };
     });
-  return { itemCount: sorted.length, supplierCount: groups.filter((g) => g.supplier).length, groups };
+  return {
+    itemCount: sorted.length,
+    supplierCount: groups.filter((g) => g.supplier).length,
+    groups,
+    suppliers: SUPPLIERS.filter((x) => !x.onHold).map((x) => ({ id: x.id, name: x.name, code: x.code, termsLabel: termsLabelOf(x) })),
+  };
 }
 
 export function listOrders(s: State, ctx: Ctx, q: OrdersQuery, now: Date): { orders: OrderRow[]; total: number; valueTotal: string } {
@@ -442,7 +449,7 @@ export function whatsappMessage(s: State, ctx: Ctx, id: string): WhatsappMessage
   return {
     to: `${sup.contactName ?? sup.name} · ${sup.name}${sup.whatsapp ? ` · ${sup.whatsapp}` : ''}`,
     phone: sup.whatsapp,
-    message: `Hello ${first}, please find attached our local purchase order ${o.reference}${o.expectedDate ? ` for delivery on ${o.expectedDate}` : ''}. Please confirm receipt and quote ${o.reference} on your delivery note. Thank you, Wendo Coffee Bistro.`,
+    message: `Hello ${first}, please find attached our local purchase order ${o.reference}${o.expectedDate ? ` for delivery on ${new Date(`${o.expectedDate}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}. Please confirm receipt and quote ${o.reference} on your delivery note. Thank you, Wendo Coffee Bistro.`,
     pdfFileName: `${o.reference}.pdf`,
     pdfSizeLabel: '96 KB · ready',
   };
@@ -473,7 +480,8 @@ function buildLines(s: State, supplierId: string, input: OrderInput): StoredLine
     const item = itemOf(l.inventoryItemId);
     if (!item.setupDone) throw new PurchasingError('ITEM_SETUP_INCOMPLETE', `${item.name} is not set up yet, so it cannot be ordered.`);
     const qty = num(l.qty);
-    const price = num(l.unitPrice);
+    // A caller who may not see money (the Attendant) sends no price; the supplier's usual price is used.
+    const price = l.unitPrice === '' ? (lineOf(supplierId, item.id)?.price ?? Number.NaN) : num(l.unitPrice);
     if (!(qty > 0) || !(price >= 0)) throw new PurchasingError('VALIDATION', 'Quantities must be more than zero.');
     const prior = [...s.orders]
       .filter((o) => o.supplierId === supplierId && o.status !== 'DRAFT' && o.status !== 'CANCELLED')

@@ -3,6 +3,8 @@
  * format them, the engine does the arithmetic. The mock returns exactly these, so wiring the real back-end swaps the data
  * source and not the screens.
  */
+import { ApiError } from '@/types/api';
+
 export type OrderStatus = 'DRAFT' | 'AWAITING_APPROVAL' | 'RETURNED' | 'APPROVED' | 'SENT' | 'DELIVERED' | 'INVOICED' | 'CLOSED' | 'CANCELLED';
 export type Stage = 'NEEDS' | 'APPROVAL' | 'RECEIVE' | 'INVOICE' | 'PAY' | 'CLOSED';
 export type PayMethod = 'BANK_TRANSFER' | 'MPESA_PAYBILL' | 'MPESA_TILL' | 'MPESA_SEND_MONEY' | 'CHEQUE' | 'CASH';
@@ -219,6 +221,8 @@ export interface NeedsRestocking {
   itemCount: number;
   supplierCount: number;
   groups: NeedsGroup[];
+  /** Every supplier that can be ordered from, for the "Choose supplier" menu on an item nobody has sold us yet. */
+  suppliers: Array<{ id: string; name: string; code: string; termsLabel: string }>;
 }
 
 export interface CatalogItem {
@@ -336,13 +340,22 @@ export type PurchasingErrorCode =
   | 'UPLOAD_FAILED'
   | 'FORBIDDEN';
 
-export class PurchasingError extends Error {
-  constructor(
-    readonly code: PurchasingErrorCode,
-    message: string,
-    readonly details: Record<string, unknown> = {}
-  ) {
-    super(message);
+const STATUS: Partial<Record<PurchasingErrorCode, number>> = {
+  INVALID_PIN: 401,
+  FORBIDDEN: 403,
+  ORDER_NOT_FOUND: 404,
+  UPLOAD_FAILED: 503,
+};
+
+/**
+ * What the mock throws. It is an `ApiError` (same status/code/details shape the real server sends), so the shared loaders,
+ * actions and error cards show its message exactly as they will show the real back-end's.
+ */
+export class PurchasingError extends ApiError {
+  declare readonly code: PurchasingErrorCode;
+  declare readonly details: Record<string, unknown>;
+  constructor(code: PurchasingErrorCode, message: string, details: Record<string, unknown> = {}) {
+    super(message, STATUS[code] ?? (code === 'VALIDATION' || code.endsWith('REQUIRED') || code.startsWith('UPLOAD') ? 422 : 409), code, details);
     this.name = 'PurchasingError';
   }
 }

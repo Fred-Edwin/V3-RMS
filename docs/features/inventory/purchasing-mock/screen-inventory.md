@@ -22,6 +22,38 @@ All under `/app/inventory/` (pages in `app/` are thin shells; code in `frontend/
 
 The sidebar keeps the two links Paper draws, **Receiving** (with the to-receive count) and **Purchasing**; "Orders to pay" is the **To pay** tab inside Purchasing, never its own link. Both are visible by capability, not by role.
 
+## Session 1 build log (5 Oct 2026): ticks live here
+
+`[x]` = built and walked in the lane's browser as the role(s) named, by eye against the Paper artboard (and values read with get_computed_styles for the key ones). `[~]` = built, **not yet walked** in the browser. The `[ ]` column in the tables below is the original plan; this log is the record. Nothing automated compares pixels.
+
+| Step | Route | Checked as | State |
+|---|---|---|---|
+| 01 Needs restocking, by supplier | `/purchasing?tab=needs` | Store Manager (via System Admin demo bar) | [x] |
+| 02 Needs restocking, by item | same, "List by item" | Store Manager | [x] |
+| 03 New order | `/purchasing/new` | Store Manager; wrong PIN then right PIN, retry makes no second draft | [x] |
+| 04 Orders awaiting approval | `/purchasing?tab=approval` | Store Manager | [x] |
+| 05 Approve order (drawer) | over the tab and the file | Store Manager | [x] |
+| 06 Approve order (phone sheet) | same at 390 px | Store Manager | [x] |
+| 07 Approved, ready to send | `/purchasing/[id]` | Store Manager, Accountant (no send buttons) | [x] |
+| 08 Send on WhatsApp | dialog on the file | Store Manager (dialog; the continue button was not pressed, it opens two new tabs) | [x] |
+| 09 Printed LPO | `/purchasing-print/[id]` | Store Manager | [x] |
+| 10 Record advance | drawer on the file | Accountant | [x] |
+| 11 Orders to receive | `/purchasing?tab=receive` | Store Manager | [x] |
+| 12 to 14 Check the goods, delivery note, sign | `/receiving/[id]` | Store Attendant at 390 px: price change confirmed, one box short, photo added, signed with PIN | [x] |
+| 15 Purchase file, awaiting invoice | `/purchasing/[id]` | Director (read only, figures match Paper: 27,486 / 17,486) | [x] |
+| N-01 Sidebar per role | | Store Manager, Accountant, System Admin | [x] (Director and Branch Manager sidebars not opened) |
+| N-02 System Admin way in | existing "Central Store" link in the old admin sidebar | System Admin | [x] no change needed |
+| N-03 Demo banner, N-04 demo bar | every mock screen | System Admin | [x] |
+| N-07 PIN dialog, wrong PIN | | System Admin as Store Manager | [x] |
+| N-15 Photo handling | receive step 2 | file picker (fake file) | [x] (camera not tried) |
+| N-05 Requester footer (Attendant on New order) | `/purchasing/new` | Store Attendant: no prices, "Send for approval", note for the Store Manager; the "another order is still open" dialog (step 40c) also seen | [x] |
+| N-06 Loading, empty, error states | built from the shared kit | error and loading seen; the empty states were not forced | [~] |
+| N-08 More menu (Copy link, Mark as sent, Cancel order) | file | Store Manager: menu lists all three; Cancel order with PIN walked to Cancelled; Copy link and Mark as sent not clicked | [x] cancel, [~] the other two |
+| N-09 Edit a returned order | `/purchasing/new?edit=` | Manager returns with a note; Attendant edits, removes a line and sends again | [x] |
+| N-10 Receive on desktop | `/receiving/[id]` | Store Manager at 1440 px, figures shown | [x] |
+| N-11 Create several orders at once | selection bar | Store Manager: two suppliers made two drafts under Awaiting approval | [x] |
+| Branch Manager | `/purchasing/[id]` | read only, no buttons, "Waiting for the Store Manager to approve" | [x] |
+
 ## Chapter 1 to 5: Session 1 (order to delivery)
 
 | Step | Screen (Paper artboard) | Who acts / who reads | Device · route | Data shown | Buttons and what they do | Paper | Tick |

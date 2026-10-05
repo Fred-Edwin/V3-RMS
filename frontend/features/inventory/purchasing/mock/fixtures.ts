@@ -180,7 +180,7 @@ export const LINES: FixtureLine[] = [
   { supplierId: 'sup-summer', itemId: 'it-water', supplierItemName: null, supplierItemCode: null, buyUnit: 'carton', pack: 12, price: 720, lastBoughtAt: '2026-09-02', preferred: true },
   { supplierId: 'sup-kagumo', itemId: 'it-chicken', supplierItemName: null, supplierItemCode: null, buyUnit: 'tray', pack: 5, price: 2450, lastBoughtAt: '2026-09-20', preferred: true },
   { supplierId: 'sup-kagumo', itemId: 'it-wings', supplierItemName: null, supplierItemCode: null, buyUnit: 'tray', pack: 5, price: 1900, lastBoughtAt: '2026-09-20', preferred: true },
-  { supplierId: 'sup-summer', itemId: 'it-cocoa', supplierItemName: null, supplierItemCode: null, buyUnit: 'carton', pack: 24, price: 3200, lastBoughtAt: null, preferred: false },
+  // it-cocoa has no supplier line on purpose: it is Paper's "No supplier yet / never bought before" case.
   { supplierId: 'sup-samrat', itemId: 'it-mayo', supplierItemName: 'ZESTA EGGLESS MAYO 340G', supplierItemCode: '205010', buyUnit: 'bottle', pack: 340, price: 385, lastBoughtAt: '2026-09-11', preferred: true },
   { supplierId: 'sup-samrat', itemId: 'it-brownsugar', supplierItemName: 'CLOVERS BROWN SUGAR 1KG', supplierItemCode: '190099', buyUnit: 'pkt', pack: 1, price: 190, lastBoughtAt: '2026-09-11', preferred: true },
   { supplierId: 'sup-samrat', itemId: 'it-tea', supplierItemName: 'GATHUTHI TEA 750ML HAZELNUT', supplierItemCode: '145016', buyUnit: 'pkt', pack: 1, price: 420, lastBoughtAt: '2026-09-11', preferred: true },

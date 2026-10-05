@@ -10,6 +10,8 @@ import { cn } from '@/lib/cn';
 import { usePurchasing } from '../../hooks/use-purchasing';
 import type { Summary } from '../../types';
 import { DemoBanner } from '../demo-banner';
+import { NeedsRestockingTab } from '../needs-restocking-tab';
+import { OrdersTab } from '../orders-tab';
 
 type TabKey = 'needs' | 'approval' | 'receive' | 'invoice' | 'pay' | 'closed';
 
@@ -30,10 +32,11 @@ export function PurchasingScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const tab = (TABS.find((t) => t.key === params.get('tab'))?.key ?? 'needs') as TabKey;
-  const { service, data, can } = usePurchasing();
+  const { service, data, can, ready } = usePurchasing();
   const [summary, setSummary] = React.useState<Summary | null>(null);
 
   React.useEffect(() => {
+    if (!ready) return;
     let live = true;
     service
       .getSummary()
@@ -42,7 +45,7 @@ export function PurchasingScreen() {
     return () => {
       live = false;
     };
-  }, [service, data]);
+  }, [service, data, ready]);
 
   return (
     <>
@@ -85,7 +88,7 @@ export function PurchasingScreen() {
             );
           })}
         </div>
-        <p className="font-wds-sans text-wds-body-sm text-wds-text-secondary">{TABS.find((t) => t.key === tab)?.label} is being built next.</p>
+        {tab === 'needs' ? <NeedsRestockingTab canOrder={can('orders.request')} /> : <OrdersTab key={tab} tab={tab} />}
       </div>
     </>
   );
