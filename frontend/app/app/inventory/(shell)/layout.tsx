@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { InventorySidebar } from '@/features/inventory/_shared/components/inventory-shell';
 import { InventoryMobileNavDrawer } from '@/features/inventory/_shared/components/inventory-shell';
+import { DemoBar } from '@/features/inventory/purchasing/components/demo-bar';
 import {
   MobileNavDrawerProvider,
   useMobileNavDrawer,
@@ -75,6 +76,8 @@ export default function InventoryShellLayout({ children }: { children: React.Rea
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>
       <InventoryShellDrawer activeKey={activeKey} activeSubKey={activeSubKey} />
+      {/* Demo only (System Admin): role switcher and scenarios for the mock Purchasing and Receiving screens. */}
+      {activeKey === 'purchasing' || activeKey === 'receiving' ? <DemoBar /> : null}
     </MobileNavDrawerProvider>
   );
 }

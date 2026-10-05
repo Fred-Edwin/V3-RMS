@@ -20,6 +20,12 @@ export const CAPABILITIES = [
   'payables.read',
   'payables.record_invoice',
   'payables.record_payment',
+  'payables.record_deposit',
+  'orders.read',
+  'orders.request',
+  'orders.approve',
+  'orders.cancel',
+  'orders.receive',
   'audit.read',
   'central_store.read_any_org',
 ] as const;

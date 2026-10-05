@@ -48,6 +48,8 @@ export interface NavGroupSpec {
 
 interface Rule {
   capability?: Capability;
+  /** Shows when the person holds at least one of these (Purchasing and Receiving open for readers and for the phone roles). */
+  anyCapability?: readonly Capability[];
   roles?: readonly string[];
 }
 type SubRule = NavSubItemSpec & Rule;
@@ -75,8 +77,10 @@ const NAV_RULES: Array<{ key: string; label: string; items: NavRule[] }> = [
     key: 'central-store',
     label: 'CENTRAL STORE',
     items: [
-      { key: 'receiving', label: 'Receiving', href: '/app/inventory/receiving', iconKey: 'receiving', roles: OLD_FLOW_ROLES },
-      { key: 'purchasing', label: 'Purchasing', href: '/app/inventory/purchasing', iconKey: 'purchasing', roles: STORE_MANAGER_ONLY },
+      // Purchasing and Receiving are one flow on the mock (the client has not approved it): every desktop role reads it,
+      // the phone roles reach it through the order capabilities. Writes are decided on the screens by the same table.
+      { key: 'receiving', label: 'Receiving', href: '/app/inventory/receiving', iconKey: 'receiving', anyCapability: ['orders.read', 'orders.receive'] },
+      { key: 'purchasing', label: 'Purchasing', href: '/app/inventory/purchasing', iconKey: 'purchasing', anyCapability: ['orders.read', 'orders.request'] },
       { key: 'prep', label: 'Prep', href: '/app/inventory/prep', iconKey: 'prep', roles: OLD_FLOW_ROLES },
       { key: 'dispatch', label: 'Dispatch', href: '/app/inventory/dispatch', iconKey: 'dispatch', roles: OLD_FLOW_ROLES },
       { key: 'stock-counts', label: 'Stock & counts', href: '/app/inventory/stock', iconKey: 'stock-counts', subItems: STOCK_SUB_ITEMS },
@@ -101,7 +105,10 @@ const NAV_RULES: Array<{ key: string; label: string; items: NavRule[] }> = [
  * screens still on the old flow. Roles that come from another part of the app get a way back to their own dashboard.
  */
 export function navGroupsFor(role: AppRole | string | undefined, can: (capability: Capability) => boolean): NavGroupSpec[] {
-  const passes = (rule: Rule): boolean => (!rule.roles || (role !== undefined && rule.roles.includes(role))) && (!rule.capability || can(rule.capability));
+  const passes = (rule: Rule): boolean =>
+    (!rule.roles || (role !== undefined && rule.roles.includes(role))) &&
+    (!rule.capability || can(rule.capability)) &&
+    (!rule.anyCapability || rule.anyCapability.some(can));
 
   const toItem = (rule: NavRule): NavItemSpec | null => {
     if (!rule.subItems) {

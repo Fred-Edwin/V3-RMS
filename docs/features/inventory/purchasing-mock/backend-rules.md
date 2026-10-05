@@ -107,7 +107,9 @@ SM and SA hold every capability by construction (`CAPABILITIES.filter(...)` and 
 
 ## Open questions
 
-Answer these and the mock follows. Each has a recommended default; none is built until answered.
+**Answered 4 Oct 2026: every recommended default below is accepted** (Q-01 to Q-13), and Q-11 is refined: **the demo never reads production or live data.** It runs entirely on the mock engine's own fixtures. The real catalog and supplier data are used once, as a source, to write realistic (and where useful improved) fixtures: real item names, units and pack sizes, real Kenyan suppliers with their terms, plausible prices and stock levels, no test suppliers. Q-12: the Record advance drawer (step 10) is in Session 1. The "Recommended default" column is therefore the rule the mock follows.
+
+Each row had a recommended default; the table is kept as the record of the decision.
 
 | # | Question | Where Paper and the decisions disagree | Recommended default |
 |---|---|---|---|
