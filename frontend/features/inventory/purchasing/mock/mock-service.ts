@@ -48,5 +48,16 @@ export function createMockPurchasingService(store: MockStore, ctx: Ctx, options:
     recordDeposit: (id, input) => write((s) => engine.recordDeposit(s, ctx, id, input, now())),
     upload: (file) => write((s) => engine.addUpload(s, { fileName: file.name, size: file.size, mime: file.type, thumbnail: null })),
     receiveOrder: (id, input) => write((s) => engine.receiveOrder(s, ctx, id, input, now())),
+
+    addInvoice: (orderId, input) => write((s) => engine.addInvoice(s, ctx, orderId, input, now())),
+    settleDispute: (invoiceId, input) => write((s) => engine.settleDispute(s, ctx, invoiceId, input, now())),
+    voidInvoice: (invoiceId, input) => write((s) => engine.voidInvoice(s, ctx, invoiceId, input, now())),
+    recordPayment: (invoiceId, input) => write((s) => engine.recordPayment(s, ctx, invoiceId, input, now())),
+    reversePayment: (paymentId, input) => write((s) => engine.reversePayment(s, ctx, paymentId, input, now())),
+    getPaymentAdvice: (paymentId) => read((s) => engine.paymentAdvice(s, ctx, paymentId, now())),
+
+    getSupplierPurchasing: (supplierId) => read((s) => engine.supplierPurchasing(s, ctx, supplierId, now())),
+    getSupplierStatement: (supplierId) => read((s) => engine.supplierStatement(s, ctx, supplierId, now())),
+    getAuditLog: () => read((s) => engine.auditLog(s, ctx)),
   };
 }

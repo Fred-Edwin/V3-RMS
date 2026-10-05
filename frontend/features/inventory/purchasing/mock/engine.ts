@@ -2,11 +2,14 @@ import type { Capability } from '../../_shared/lib/capabilities';
 import { amountInWords } from '../lib/amount-in-words';
 import {
   PurchasingError,
+  type AuditRow,
   type CancelReason,
   type CatalogResult,
   type DepositInput,
   type Delivery,
   type FileRef,
+  type Invoice,
+  type InvoiceInput,
   type LineResult,
   type LpoPrint,
   type NeedsGroup,
@@ -22,17 +25,26 @@ import {
   type OrdersQuery,
   type OrderStatus,
   type Payment,
+  type PaymentAdvice,
+  type PaymentInput,
+  type PaymentResult,
   type Person,
   type PurchaseFile,
   type ReceiveInput,
+  type ReverseReason,
   type SendVia,
   type Stage,
+  type StatementLine,
   type Summary,
   type SupplierCard,
+  type SupplierOwing,
+  type SupplierPurchasing,
+  type SupplierStatement,
   type TrackerItem,
+  type VoidReason,
   type WhatsappMessage,
 } from '../types';
-import { DEMO_PIN, ITEMS, LINES, SUPPLIERS, type FixtureItem, type FixtureLine, type FixtureSupplier } from './fixtures';
+import { DEMO_PIN, ITEMS, LINES, PEOPLE, SUPPLIERS, type FixtureItem, type FixtureLine, type FixtureSupplier } from './fixtures';
 
 /**
  * The mock engine: the business rules of `purchasing-mock/backend-rules.md` as pure functions over a plain state object.
@@ -75,6 +87,9 @@ interface StoredOrder {
   attendantNote: string | null;
   lines: StoredLine[];
   delivery: Delivery | null;
+  /** The one live invoice (a voided one moves to `voidedInvoices`). */
+  invoice: Invoice | null;
+  voidedInvoices: Invoice[];
   payments: Payment[];
   cancelled: Order['cancelled'];
   activity: PurchaseFile['activity'];
@@ -89,7 +104,7 @@ export interface State {
   files: Record<string, FileRef>;
 }
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 export const emptyState = (scenario = 'fresh'): State => ({ version: STATE_VERSION, scenario, seq: 0, counters: { LPO: 0, PAY: 0, GRN: 0 }, orders: [], files: {} });
 
 // ---------------------------------------------------------------- helpers
@@ -148,7 +163,29 @@ export const stageOf = (status: OrderStatus): Stage => {
 const orderedTotalOf = (o: StoredOrder): number => o.lines.reduce((t, l) => t + l.qty * l.unitPrice, 0);
 const deliveredTotalOf = (o: StoredOrder): number | null =>
   o.delivery ? o.lines.reduce((t, l) => t + (l.receivedQty ?? 0) * (l.confirmedPrice ?? l.unitPrice), 0) : null;
-const paidOf = (o: StoredOrder): number => o.payments.filter((p) => p.status === 'RECORDED').reduce((t, p) => t + num(p.amount), 0);
+/** Money actually out: recorded advances and invoice payments. A reversed payment and its REVERSAL line both drop out. */
+const paidOf = (o: StoredOrder): number => o.payments.filter((p) => p.status === 'RECORDED' && p.kind !== 'REVERSAL').reduce((t, p) => t + num(p.amount), 0);
+const advancesOf = (o: StoredOrder): number => o.payments.filter((p) => p.kind === 'ADVANCE' && p.status === 'RECORDED').reduce((t, p) => t + num(p.amount), 0);
+const invoicePaidOf = (o: StoredOrder): number => o.payments.filter((p) => p.kind === 'INVOICE' && p.status === 'RECORDED').reduce((t, p) => t + num(p.amount), 0);
+
+/**
+ * Recompute the live invoice from what has been paid, and move the order between To pay and Closed. Call after anything that
+ * changes an advance, a payment, a dispute or the invoice itself. An advance is applied up to the invoice amount; anything
+ * above stays as credit with the supplier.
+ */
+function refreshInvoice(o: StoredOrder): void {
+  const inv = o.invoice;
+  if (!inv) return;
+  const amount = num(inv.amount);
+  const applied = Math.min(advancesOf(o), amount);
+  const balance = Math.max(amount - applied - invoicePaidOf(o), 0);
+  inv.advanceApplied = money(applied);
+  inv.balance = money(balance);
+  inv.status = balance < 0.005 && !inv.disputed ? 'PAID' : 'OPEN';
+  o.status = inv.status === 'PAID' ? 'CLOSED' : 'INVOICED';
+}
+
+const addDaysIso = (iso: string, days: number): string => new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 
 const log = (o: StoredOrder, ctx: Ctx, what: string, now: Date): void => {
   o.activity.unshift({ at: now.toISOString(), actor: { id: ctx.actor.id, name: ctx.actor.name }, what });
@@ -167,8 +204,13 @@ const tracker = (o: StoredOrder): TrackerItem[] => {
       at: o.delivery?.receivedAt ?? null,
       note: o.delivery && o.lines.some((l) => l.result === 'SHORT' || l.result === 'NOT_SUPPLIED') ? 'short' : null,
     },
-    { step: 'INVOICED', done: false, at: null, note: null },
-    { step: 'PAID', done: o.status === 'CLOSED', at: null, note: null },
+    { step: 'INVOICED', done: !!o.invoice, at: o.invoice?.enteredAt ?? null, note: o.invoice ? (o.invoice.disputed ? 'disputed' : o.invoice.number) : null },
+    {
+      step: 'PAID',
+      done: o.status === 'CLOSED',
+      at: o.status === 'CLOSED' ? ([...o.payments].reverse().find((p) => p.kind === 'INVOICE' && p.status === 'RECORDED')?.recordedAt ?? o.invoice?.enteredAt ?? null) : null,
+      note: null,
+    },
   ];
   const firstTodo = steps.findIndex((s) => !s.done);
   return steps.map((s, i) => ({ step: s.step, state: s.done ? 'DONE' : i === firstTodo && o.status !== 'CANCELLED' ? 'CURRENT' : 'TODO', at: s.at, note: s.note }));
@@ -187,7 +229,11 @@ const canOf = (o: StoredOrder, ctx: Ctx): OrderCan => {
     receive: ctx.can('orders.receive') && (o.status === 'APPROVED' || o.status === 'SENT'),
     recordDeposit: ctx.can('payables.record_deposit') && ['APPROVED', 'SENT', 'DELIVERED', 'INVOICED'].includes(o.status),
     addInvoice: ctx.can('payables.record_invoice') && o.status === 'DELIVERED',
-    recordPayment: ctx.can('payables.record_payment') && o.status === 'INVOICED',
+    recordPayment: ctx.can('payables.record_payment') && o.status === 'INVOICED' && !!o.invoice && !o.invoice.disputed,
+    settleDispute: ctx.can('payables.record_invoice') && o.status === 'INVOICED' && !!o.invoice?.disputed,
+    // An invoice can be voided only while nothing is paid against it; otherwise the payment is reversed first.
+    voidInvoice: ctx.can('payables.record_invoice') && o.status === 'INVOICED' && !!o.invoice && invoicePaidOf(o) === 0,
+    reversePayment: ctx.can('payables.record_payment') && (o.status === 'INVOICED' || o.status === 'CLOSED') && invoicePaidOf(o) > 0,
   };
 };
 
@@ -232,8 +278,19 @@ export function viewOrder(o: StoredOrder, ctx: Ctx, now: Date): Order {
   const delivered = deliveredTotalOf(o);
   const paid = paidOf(o);
   const base = delivered ?? ordered;
-  const dueIn = o.expectedDate && (o.status === 'APPROVED' || o.status === 'SENT') ? dayDiff(o.expectedDate, now) : null;
-  const m: OrderMoney = { ordered: money(ordered), delivered: delivered === null ? null : money(delivered), invoiced: null, paid: money(paid), stillToPay: money(Math.max(base - paid, 0)) };
+  const dueIn =
+    o.expectedDate && (o.status === 'APPROVED' || o.status === 'SENT')
+      ? dayDiff(o.expectedDate, now)
+      : o.status === 'INVOICED' && o.invoice
+        ? dayDiff(o.invoice.dueDate, now)
+        : null;
+  const m: OrderMoney = {
+    ordered: money(ordered),
+    delivered: delivered === null ? null : money(delivered),
+    invoiced: o.invoice ? o.invoice.amount : null,
+    paid: money(paid),
+    stillToPay: o.invoice ? o.invoice.balance : money(Math.max(base - paid, 0)),
+  };
   return {
     id: o.id,
     reference: o.reference,
@@ -255,7 +312,7 @@ export function viewOrder(o: StoredOrder, ctx: Ctx, now: Date): Order {
     orderedTotal: showMoney ? money(ordered) : '',
     deliveredTotal: showMoney && delivered !== null ? money(delivered) : null,
     delivery: o.delivery && !showMoney ? { ...o.delivery, deliveredTotal: '', notSuppliedTotal: '' } : o.delivery,
-    invoice: null,
+    invoice: showMoney ? o.invoice : null,
     payments: showMoney ? o.payments : [],
     money: showMoney ? m : null,
     dueLabel: dueIn === null ? null : dueIn < 0 ? 'OVERDUE' : dueIn === 0 ? 'DUE_TODAY' : 'UPCOMING',
@@ -402,6 +459,10 @@ export function getOrder(s: State, ctx: Ctx, id: string, now: Date): PurchaseFil
   const documents: PurchaseFile['documents'] = [];
   if (o.approvedBy) documents.push({ kind: 'LPO', title: `${o.reference} (LPO)`, at: o.approvedBy.signedAt, fileRef: null });
   if (o.delivery) documents.push({ kind: 'DELIVERY_NOTE', title: `Delivery note ${o.delivery.deliveryNoteNo}`, at: o.delivery.receivedAt, fileRef: o.delivery.photo });
+  if (o.invoice && ctx.can('payables.read')) documents.push({ kind: 'INVOICE', title: `Invoice ${o.invoice.number}`, at: o.invoice.enteredAt, fileRef: o.invoice.photo });
+  if (ctx.can('payables.read')) {
+    for (const p of o.payments.filter((x) => x.kind === 'INVOICE')) documents.push({ kind: 'PAYMENT_ADVICE', title: `Payment advice ${p.reference}`, at: p.recordedAt, fileRef: p.proof });
+  }
   return { ...viewOrder(o, ctx, now), documents, activity: o.activity };
 }
 
@@ -514,6 +575,8 @@ export function createOrder(s: State, ctx: Ctx, input: OrderInput, now: Date): O
     attendantNote: input.attendantNote,
     lines: buildLines(s, sup.id, input),
     delivery: null,
+    invoice: null,
+    voidedInvoices: [],
     payments: [],
     cancelled: null,
     activity: [],
@@ -631,10 +694,15 @@ export function recordDeposit(s: State, ctx: Ctx, id: string, input: DepositInpu
     chequeNo: input.chequeNo,
     status: 'RECORDED',
     reversesId: null,
+    reason: null,
+    invoiceId: null,
+    proof: null,
+    approvedBy: null,
     recordedBy: ctx.actor,
     recordedAt: now.toISOString(),
   };
   o.payments.push(p);
+  refreshInvoice(o);
   log(o, ctx, `recorded an advance of KES ${money(amount)} (${p.reference})`, now);
   return p;
 }
@@ -643,6 +711,8 @@ const MAX_UPLOAD = 10 * 1024 * 1024;
 export function addUpload(s: State, file: { fileName: string; size: number; mime: string; thumbnail: string | null }): FileRef {
   if (file.size > MAX_UPLOAD) throw new PurchasingError('UPLOAD_TOO_LARGE', 'That file is too large. The limit is 10 MB.');
   if (!/^image\/|^application\/pdf$/.test(file.mime)) throw new PurchasingError('UPLOAD_BAD_TYPE', 'Add a photo or a PDF.');
+  // Demo hook for Paper step 35: a file with "fail" in its name behaves like a dropped connection, so the retry state can be shown.
+  if (/fail/i.test(file.fileName)) throw new PurchasingError('UPLOAD_FAILED', 'The upload did not go through. Check the connection and try again.');
   const ref: FileRef = { id: nextId(s, 'file'), fileName: file.fileName, size: file.size, thumbnail: file.thumbnail };
   s.files[ref.id] = ref;
   return ref;
@@ -698,4 +768,288 @@ export function setDeliveryPrice(s: State, orderId: string, itemId: string, pric
 export function setPreviousPrice(s: State, orderId: string, itemId: string, price: number): void {
   const l = find(s, orderId).lines.find((x) => x.itemId === itemId);
   if (l) l.previousPrice = price;
+}
+
+// ---------------------------------------------------------------- invoice, dispute, void
+
+const VOID_REASONS: VoidReason[] = ['WRONG_AMOUNT', 'WRONG_SUPPLIER_OR_ORDER', 'DUPLICATE', 'OTHER'];
+const REVERSE_REASONS: ReverseReason[] = ['WRONG_AMOUNT', 'WRONG_INVOICE', 'PAYMENT_BOUNCED', 'OTHER'];
+
+function findByInvoice(s: State, invoiceId: string): StoredOrder {
+  const o = s.orders.find((x) => x.invoice?.id === invoiceId);
+  if (!o) throw new PurchasingError('INVOICE_NOT_FOUND', 'That invoice does not exist, or it was voided.');
+  return o;
+}
+
+function findByPayment(s: State, paymentId: string): { order: StoredOrder; payment: Payment } {
+  for (const o of s.orders) {
+    const payment = o.payments.find((p) => p.id === paymentId);
+    if (payment) return { order: o, payment };
+  }
+  throw new PurchasingError('PAYMENT_NOT_FOUND', 'That payment does not exist.');
+}
+
+/** Add the supplier's invoice (one per order). An amount that differs from the delivered value needs a reason and is saved as disputed. */
+export function addInvoice(s: State, ctx: Ctx, orderId: string, input: InvoiceInput, now: Date): Invoice {
+  needAny(ctx, 'payables.record_invoice');
+  const o = find(s, orderId);
+  if (o.invoice) throw new PurchasingError('INVOICE_EXISTS', 'This order already has an invoice.');
+  if (o.status !== 'DELIVERED') throw wrongState(o);
+  const number = input.number.trim();
+  if (!number) throw new PurchasingError('VALIDATION', "Enter the supplier's invoice number.");
+  const amount = num(input.amount);
+  if (!(amount > 0)) throw new PurchasingError('VALIDATION', 'Enter the invoice amount.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new PurchasingError('VALIDATION', 'Enter the invoice date.');
+  const dup = s.orders.find((x) => x.id !== o.id && x.supplierId === o.supplierId && x.invoice && x.invoice.number.toLowerCase() === number.toLowerCase());
+  if (dup && !input.differentInvoice) {
+    throw new PurchasingError('DUPLICATE_INVOICE_NUMBER', `${supplierOf(o.supplierId).name} already has an invoice ${number} on ${dup.reference}.`, { existingOrderId: dup.id, existingReference: dup.reference });
+  }
+  const delivered = deliveredTotalOf(o) ?? 0;
+  const variance = Math.round((amount - delivered) * 100) / 100;
+  const differs = Math.abs(variance) >= 0.005;
+  if (differs && !input.varianceReason?.trim()) throw new PurchasingError('REASON_REQUIRED', 'Say why the invoice differs from what was delivered.');
+  const terms = supplierOf(o.supplierId).termsDays ?? 0;
+  const inv: Invoice = {
+    id: nextId(s, 'inv'),
+    number,
+    date: input.date,
+    dueDate: addDaysIso(input.date, terms),
+    amount: money(amount),
+    status: 'OPEN',
+    disputed: differs,
+    varianceAmount: differs ? money(variance) : null,
+    varianceReason: differs ? (input.varianceReason as string).trim() : null,
+    settled: null,
+    voided: null,
+    advanceApplied: '0.00',
+    balance: money(amount),
+    photo: input.photoId ? (s.files[input.photoId] ?? null) : null,
+    enteredBy: ctx.actor,
+    enteredAt: now.toISOString(),
+  };
+  o.invoice = inv;
+  refreshInvoice(o);
+  log(o, ctx, differs ? `added invoice ${number}, disputed for KES ${money(Math.abs(variance))}` : `added invoice ${number} for KES ${money(amount)}`, now);
+  return inv;
+}
+
+/** Q-06: agree the figure with the supplier, then record it. The invoice takes the agreed amount and the dispute clears. */
+export function settleDispute(s: State, ctx: Ctx, invoiceId: string, input: { agreedAmount: string; note: string }, now: Date): Invoice {
+  needAny(ctx, 'payables.record_invoice');
+  const o = findByInvoice(s, invoiceId);
+  const inv = o.invoice as Invoice;
+  if (!inv.disputed) throw new PurchasingError('INVOICE_NOT_DISPUTED', 'This invoice is not in dispute.');
+  const agreed = num(input.agreedAmount);
+  if (!(agreed > 0)) throw new PurchasingError('VALIDATION', 'Enter the amount you agreed with the supplier.');
+  if (!input.note.trim()) throw new PurchasingError('REASON_REQUIRED', 'Say what was agreed with the supplier.');
+  inv.settled = { agreedAmount: money(agreed), note: input.note.trim(), by: { id: ctx.actor.id, name: ctx.actor.name }, at: now.toISOString() };
+  inv.amount = money(agreed);
+  inv.disputed = false;
+  refreshInvoice(o);
+  log(o, ctx, `settled the dispute on invoice ${inv.number} at KES ${money(agreed)}: ${input.note.trim()}`, now);
+  return inv;
+}
+
+/** Void a wrong invoice (reason and PIN). Only while nothing is paid against it; the order goes back to Delivered, awaiting invoice. */
+export function voidInvoice(s: State, ctx: Ctx, invoiceId: string, input: { reason: VoidReason; pin: string }, now: Date): Order {
+  needAny(ctx, 'payables.record_invoice');
+  const o = findByInvoice(s, invoiceId);
+  const inv = o.invoice as Invoice;
+  if (invoicePaidOf(o) > 0) throw new PurchasingError('INVOICE_HAS_PAYMENTS', 'A payment has been recorded against this invoice. Reverse the payment first.');
+  if (!VOID_REASONS.includes(input.reason)) throw new PurchasingError('REASON_REQUIRED', 'Choose a reason.');
+  checkPin(input.pin);
+  inv.status = 'VOIDED';
+  inv.voided = { reason: input.reason, by: { id: ctx.actor.id, name: ctx.actor.name }, at: now.toISOString() };
+  o.voidedInvoices.push(inv);
+  o.invoice = null;
+  o.status = 'DELIVERED';
+  log(o, ctx, `voided invoice ${inv.number}`, now);
+  return viewOrder(o, ctx, now);
+}
+
+// ---------------------------------------------------------------- payment, reversal
+
+/** Record a payment against the live invoice. More than the balance needs `confirmOverpay`; the extra stays as credit with the supplier. */
+export function recordPayment(s: State, ctx: Ctx, invoiceId: string, input: PaymentInput, now: Date): PaymentResult {
+  needAny(ctx, 'payables.record_payment');
+  const o = findByInvoice(s, invoiceId);
+  const inv = o.invoice as Invoice;
+  if (o.status !== 'INVOICED') throw wrongState(o);
+  if (inv.disputed) throw new PurchasingError('INVOICE_DISPUTED', 'This invoice is in dispute. Settle it with the supplier before paying.');
+  const amount = num(input.amount);
+  if (!(amount > 0)) throw new PurchasingError('VALIDATION', 'Enter an amount more than zero.');
+  if (input.method === 'CHEQUE' && !input.chequeNo?.trim()) throw new PurchasingError('CHEQUE_NUMBER_REQUIRED', 'Enter the cheque number.');
+  const balance = num(inv.balance);
+  if (amount > balance + 0.005 && !input.confirmOverpay) {
+    throw new PurchasingError('PAYMENT_EXCEEDS_BALANCE', `That is more than the KES ${money(balance)} owed.`, { balance: money(balance) });
+  }
+  const p: Payment = {
+    id: nextId(s, 'pay'),
+    reference: nextRef(s, 'PAY'),
+    kind: 'INVOICE',
+    amount: money(amount),
+    paidOn: input.paidOn,
+    method: input.method,
+    methodRef: input.methodRef,
+    chequeNo: input.method === 'CHEQUE' ? (input.chequeNo?.trim() ?? null) : null,
+    status: 'RECORDED',
+    reversesId: null,
+    reason: null,
+    invoiceId: inv.id,
+    proof: input.proofPhotoId ? (s.files[input.proofPhotoId] ?? null) : null,
+    approvedBy: null,
+    recordedBy: ctx.actor,
+    recordedAt: now.toISOString(),
+  };
+  o.payments.push(p);
+  refreshInvoice(o);
+  log(o, ctx, `paid KES ${money(amount)} on invoice ${inv.number} (${p.reference})${inv.status === 'PAID' ? ', paid in full' : ''}`, now);
+  return { payment: p, order: viewOrder(o, ctx, now) };
+}
+
+/** The Accountant records the request and a Store Manager (or System Admin) approves it with their PIN, in the same drawer. */
+export function reversePayment(s: State, ctx: Ctx, paymentId: string, input: { reason: ReverseReason; note: string | null; approverPin: string }, now: Date): PaymentResult {
+  needAny(ctx, 'payables.record_payment');
+  const { order: o, payment: p } = findByPayment(s, paymentId);
+  if (p.kind !== 'INVOICE') throw new PurchasingError('VALIDATION', 'Only a payment against an invoice can be reversed.');
+  if (p.status === 'REVERSED') throw new PurchasingError('PAYMENT_ALREADY_REVERSED', 'That payment has already been reversed.');
+  if (!REVERSE_REASONS.includes(input.reason)) throw new PurchasingError('REASON_REQUIRED', 'Choose a reason.');
+  checkPin(input.approverPin);
+  const approver = ctx.can('orders.approve') ? ctx.actor : PEOPLE.STORE_MANAGER;
+  const reversal: Payment = {
+    id: nextId(s, 'pay'),
+    reference: `${p.reference}-R`,
+    kind: 'REVERSAL',
+    amount: money(-num(p.amount)),
+    paidOn: now.toISOString().slice(0, 10),
+    method: p.method,
+    methodRef: p.methodRef,
+    chequeNo: p.chequeNo,
+    status: 'RECORDED',
+    reversesId: p.id,
+    reason: input.note?.trim() ? `${input.reason}: ${input.note.trim()}` : input.reason,
+    invoiceId: p.invoiceId,
+    proof: null,
+    approvedBy: { id: approver.id, name: approver.name },
+    recordedBy: ctx.actor,
+    recordedAt: now.toISOString(),
+  };
+  p.status = 'REVERSED';
+  o.payments.push(reversal);
+  refreshInvoice(o);
+  log(o, ctx, `reversed payment ${p.reference} (KES ${money(num(p.amount))}), approved by ${approver.name}`, now);
+  return { payment: reversal, order: viewOrder(o, ctx, now) };
+}
+
+export function paymentAdvice(s: State, ctx: Ctx, paymentId: string, now: Date): PaymentAdvice {
+  needAny(ctx, 'payables.read');
+  const { order: o, payment: p } = findByPayment(s, paymentId);
+  const inv = o.invoice ?? o.voidedInvoices.find((i) => i.id === p.invoiceId);
+  if (p.kind !== 'INVOICE' || !inv) throw new PurchasingError('PAYMENT_NOT_FOUND', 'There is no payment advice for that payment.');
+  const sup = supplierOf(o.supplierId);
+  // Payments are kept in the order they were made, so "before" is whatever sits earlier in the list (timestamps can tie).
+  const before = o.payments
+    .slice(0, o.payments.indexOf(p))
+    .filter((x) => x.kind === 'INVOICE' && x.status === 'RECORDED')
+    .reduce((t, x) => t + num(x.amount), 0);
+  const balanceAfter = Math.max(num(inv.amount) - num(inv.advanceApplied) - before - num(p.amount), 0);
+  return {
+    reference: p.reference,
+    date: p.paidOn,
+    supplier: { name: sup.name, address: sup.address, contact: sup.contactName },
+    orderReference: o.reference ?? '',
+    invoiceNumber: inv.number,
+    invoiceDate: inv.date,
+    invoiceAmount: inv.amount,
+    advanceApplied: inv.advanceApplied,
+    paidBefore: money(before),
+    amountPaid: p.amount,
+    balanceAfter: money(balanceAfter),
+    method: p.method,
+    methodRef: p.methodRef,
+    chequeNo: p.chequeNo,
+    paidBy: { name: p.recordedBy.name, role: p.recordedBy.role },
+    generatedAt: now.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------- supplier page, statement, audit
+
+const creditOf = (o: StoredOrder): number => (o.invoice ? Math.max(paidOf(o) - num(o.invoice.amount), 0) : paidOf(o));
+
+function owingFor(s: State, supplierId: string, ctx: Ctx, now: Date): SupplierOwing {
+  const show = ctx.can('payables.read');
+  const mine = s.orders.filter((o) => o.supplierId === supplierId);
+  const open = mine.filter((o) => o.invoice && o.invoice.status === 'OPEN');
+  const owing = open.reduce((t, o) => t + num((o.invoice as Invoice).balance), 0);
+  const overdueOrders = open.filter((o) => dayDiff((o.invoice as Invoice).dueDate, now) < 0);
+  const dues = open.map((o) => (o.invoice as Invoice).dueDate).sort();
+  return {
+    owing: show ? money(owing) : '',
+    overdue: show ? money(overdueOrders.reduce((t, o) => t + num((o.invoice as Invoice).balance), 0)) : '',
+    overdueCount: overdueOrders.length,
+    openInvoices: open.length,
+    disputedAmount: show ? money(open.filter((o) => (o.invoice as Invoice).disputed).reduce((t, o) => t + Math.abs(num((o.invoice as Invoice).varianceAmount ?? '0')), 0)) : '',
+    creditHeld: show ? money(mine.reduce((t, o) => t + creditOf(o), 0)) : '',
+    nextDueDate: dues[0] ?? null,
+  };
+}
+
+function knownSupplier(supplierId: string): FixtureSupplier {
+  const sup = SUPPLIERS.find((x) => x.id === supplierId);
+  if (!sup) throw new PurchasingError('SUPPLIER_NOT_FOUND', 'That supplier does not exist.');
+  return sup;
+}
+
+export function supplierPurchasing(s: State, ctx: Ctx, supplierId: string, now: Date): SupplierPurchasing {
+  needAny(ctx, 'orders.read', 'payables.read');
+  knownSupplier(supplierId);
+  return { owing: owingFor(s, supplierId, ctx, now), orders: listOrders(s, ctx, { supplierId }, now).orders };
+}
+
+export function supplierStatement(s: State, ctx: Ctx, supplierId: string, now: Date): SupplierStatement {
+  needAny(ctx, 'payables.read');
+  const sup = knownSupplier(supplierId);
+  const raw: Array<Omit<StatementLine, 'balance'>> = [];
+  for (const o of s.orders.filter((x) => x.supplierId === supplierId)) {
+    const ref = o.reference ?? '';
+    for (const inv of [...o.voidedInvoices, ...(o.invoice ? [o.invoice] : [])]) {
+      const voided = inv.status === 'VOIDED';
+      raw.push({ at: inv.enteredAt, date: inv.date, kind: 'INVOICE', reference: inv.number, description: `Invoice for ${ref}${inv.disputed ? ' (disputed)' : ''}`, debit: inv.settled ? inv.settled.agreedAmount : inv.amount, credit: '', superseded: voided, orderId: o.id });
+      if (voided && inv.voided) raw.push({ at: inv.voided.at, date: inv.voided.at.slice(0, 10), kind: 'VOID', reference: inv.number, description: `Invoice ${inv.number} voided`, debit: '', credit: inv.settled ? inv.settled.agreedAmount : inv.amount, superseded: false, orderId: o.id });
+    }
+    for (const p of o.payments) {
+      if (p.kind === 'REVERSAL') raw.push({ at: p.recordedAt, date: p.paidOn, kind: 'REVERSAL', reference: p.reference, description: `Payment reversed${p.reason ? ` (${p.reason})` : ''}`, debit: money(-num(p.amount)), credit: '', superseded: false, orderId: o.id });
+      else raw.push({ at: p.recordedAt, date: p.paidOn, kind: p.kind === 'ADVANCE' ? 'ADVANCE' : 'PAYMENT', reference: p.reference, description: `${p.kind === 'ADVANCE' ? 'Advance' : 'Payment'} for ${ref}`, debit: '', credit: p.amount, superseded: p.status === 'REVERSED', orderId: o.id });
+    }
+  }
+  // A statement reads in document-date order; entry time breaks ties.
+  raw.sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at));
+  let balance = 0;
+  const lines: StatementLine[] = raw.map((l) => {
+    balance += num(l.debit || '0') - num(l.credit || '0');
+    return { ...l, balance: money(balance) };
+  });
+  const open = s.orders.filter((o) => o.supplierId === supplierId && o.invoice && o.invoice.status === 'OPEN');
+  const bucket = (test: (days: number) => boolean): string => money(open.filter((o) => test(dayDiff((o.invoice as Invoice).dueDate, now))).reduce((t, o) => t + num((o.invoice as Invoice).balance), 0));
+  const first = lines[0]?.date ?? now.toISOString().slice(0, 10);
+  return {
+    supplier: { id: sup.id, name: sup.name, code: sup.code, address: sup.address, contactName: sup.contactName, termsDays: sup.termsDays },
+    from: first,
+    to: isoDay(now),
+    lines,
+    closingBalance: money(balance),
+    totalInvoiced: money(raw.filter((l) => l.kind === 'INVOICE' && !l.superseded).reduce((t, l) => t + num(l.debit), 0)),
+    totalPaid: money(raw.filter((l) => (l.kind === 'PAYMENT' || l.kind === 'ADVANCE') && !l.superseded).reduce((t, l) => t + num(l.credit), 0)),
+    ageing: { current: bucket((d) => d >= 0), days1to30: bucket((d) => d < 0 && d >= -30), days31plus: bucket((d) => d < -30) },
+    generatedAt: now.toISOString(),
+  };
+}
+
+/** Every Purchasing action, newest first, for the company-wide audit log. */
+export function auditLog(s: State, ctx: Ctx): AuditRow[] {
+  needAny(ctx, 'audit.read');
+  return s.orders
+    .flatMap((o) => o.activity.map((a, i) => ({ id: `${o.id}-${i}`, at: a.at, actor: a.actor, what: a.what, orderId: o.id, orderReference: o.reference, supplierName: supplierOf(o.supplierId).name })))
+    .sort((a, b) => b.at.localeCompare(a.at));
 }
