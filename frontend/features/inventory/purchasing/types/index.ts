@@ -189,6 +189,8 @@ export interface Order {
 
 export interface OrderRow extends Omit<Order, 'lines'> {
   itemSummary: string;
+  /** "Kabras Sugar 1kg, Salt Cooking Oil 10ltr +2": the first two item names, as written in the catalog. */
+  itemNames: string;
   /** "4 items · 1 short · price change on oil" once delivered; null before. */
   deliverySummary: string | null;
 }
@@ -434,6 +436,10 @@ export interface SupplierOwing {
   /** Advances held that no invoice has used yet, plus any left over from a short delivery. */
   creditHeld: string;
   nextDueDate: string | null;
+  /** Open balances by how many days past due they are (for "KES 8,050 is 1 to 30 days late"). */
+  late: { days1To30: string; days31To60: string; days61To90: string; days90Plus: string };
+  /** The invoices with something left to pay, oldest due date first. */
+  invoices: Array<{ id: string; orderId: string; invoiceNumber: string; invoiceDate: string; dueDate: string; outstanding: string }>;
 }
 
 export interface SupplierPurchasing {

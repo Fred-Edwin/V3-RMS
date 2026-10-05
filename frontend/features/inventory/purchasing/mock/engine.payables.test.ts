@@ -374,6 +374,14 @@ describe('the supplier page and statement (Paper 25 to 27)', () => {
     expect(supplierPurchasing(s, acc, 'sup-samrat', later).orders).toHaveLength(1);
   });
 
+  it('splits what is late into buckets and lists the unpaid invoices, oldest due first (the archive guard reads this)', () => {
+    const { s, id } = invoiced();
+    const o = supplierPurchasing(s, acc, 'sup-samrat', new Date('2026-11-25T12:00:00Z')).owing;
+    expect(o.late).toEqual({ days1To30: '0.00', days31To60: '17486.00', days61To90: '0.00', days90Plus: '0.00' });
+    expect(o.invoices).toEqual([{ id: expect.any(String), orderId: id, invoiceNumber: 'INV-05188', invoiceDate: '2026-10-01', dueDate: '2026-10-15', outstanding: '17486.00' }]);
+    expect(supplierPurchasing(s, acc, 'sup-samrat', now).owing.late.days1To30).toBe('0.00');
+  });
+
   it('refuses a caller who may not read money or orders, and an unknown supplier', () => {
     const { s } = invoiced();
     expect(codeOf(() => supplierPurchasing(s, att, 'sup-samrat', now))).toBe('FORBIDDEN');

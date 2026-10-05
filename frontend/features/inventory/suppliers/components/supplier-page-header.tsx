@@ -5,16 +5,18 @@ import type { SupplierDetail } from '../types/supplier';
 import { formatFullDate, termsLongLabel } from '../lib/supplier-logic';
 import { StatusPill, TypeTag } from './supplier-ui';
 
-export type SupplierTab = 'overview' | 'contacts' | 'payment' | 'catalog' | 'documents';
+export type SupplierTab = 'overview' | 'orders' | 'contacts' | 'payment' | 'catalog' | 'documents' | 'statement';
 
 const TAB_LABEL: Record<SupplierTab, string> = {
   overview: 'Overview',
+  orders: 'Orders',
   contacts: 'Contacts',
   payment: 'Payment',
   catalog: 'Catalog',
   documents: 'Documents',
+  statement: 'Statement',
 };
-const TAB_ORDER: readonly SupplierTab[] = ['overview', 'contacts', 'payment', 'catalog', 'documents'];
+const TAB_ORDER: readonly SupplierTab[] = ['overview', 'orders', 'contacts', 'payment', 'catalog', 'documents', 'statement'];
 
 /** The supplier's name with its status and type, and the one line under it (Paper steps 16 and 17). */
 export function SupplierTitle({ supplier }: { supplier: SupplierDetail }) {

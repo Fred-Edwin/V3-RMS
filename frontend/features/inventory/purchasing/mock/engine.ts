@@ -489,7 +489,8 @@ export function listOrders(s: State, ctx: Ctx, q: OrdersQuery, now: Date): { ord
   const orders = rows.map((o): OrderRow => {
     const { lines: _lines, ...rest } = viewOrder(o, ctx, now);
     void _lines;
-    return { ...rest, itemSummary: itemSummary(o), deliverySummary: deliverySummary(o) };
+    const names = o.lines.map((l) => itemOf(l.itemId).name);
+    return { ...rest, itemSummary: itemSummary(o), itemNames: `${names.slice(0, 2).join(', ')}${names.length > 2 ? ` +${names.length - 2}` : ''}`, deliverySummary: deliverySummary(o) };
   });
   return { orders, total: orders.length, valueTotal: ctx.can('payables.read') ? money(rows.reduce((t, o) => t + orderedTotalOf(o), 0)) : '' };
 }
@@ -1137,6 +1138,8 @@ function owingFor(s: State, supplierId: string, ctx: Ctx, now: Date): SupplierOw
   const owing = open.reduce((t, o) => t + num((o.invoice as Invoice).balance), 0);
   const overdueOrders = open.filter((o) => dayDiff((o.invoice as Invoice).dueDate, now) < 0);
   const dues = open.map((o) => (o.invoice as Invoice).dueDate).sort();
+  const lateBucket = (from: number, to: number): string =>
+    show ? money(open.filter((o) => { const past = -dayDiff((o.invoice as Invoice).dueDate, now); return past >= from && past <= to; }).reduce((t, o) => t + num((o.invoice as Invoice).balance), 0)) : '';
   return {
     owing: show ? money(owing) : '',
     overdue: show ? money(overdueOrders.reduce((t, o) => t + num((o.invoice as Invoice).balance), 0)) : '',
@@ -1145,6 +1148,16 @@ function owingFor(s: State, supplierId: string, ctx: Ctx, now: Date): SupplierOw
     disputedAmount: show ? money(open.filter((o) => (o.invoice as Invoice).disputed).reduce((t, o) => t + Math.abs(num((o.invoice as Invoice).varianceAmount ?? '0')), 0)) : '',
     creditHeld: show ? money(mine.reduce((t, o) => t + creditOf(o), 0)) : '',
     nextDueDate: dues[0] ?? null,
+    late: {
+      days1To30: lateBucket(1, 30),
+      days31To60: lateBucket(31, 60),
+      days61To90: lateBucket(61, 90),
+      days90Plus: lateBucket(91, 100_000),
+    },
+    invoices: open
+      .map((o) => o.invoice as Invoice)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .map((i) => ({ id: i.id, orderId: (open.find((o) => o.invoice === i) as StoredOrder).id, invoiceNumber: i.number, invoiceDate: i.date, dueDate: i.dueDate, outstanding: i.balance })),
   };
 }
 

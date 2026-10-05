@@ -54,7 +54,7 @@ const DOT_ORDER: Array<(s: OrderStatus) => boolean> = [
 ];
 
 /** Mini stage tracker (Paper `YB-0`): six 8px dots joined by 2px lines; done = success green, the rest neutral. */
-export function StageDots({ status, label, tone = 'muted' }: { status: OrderStatus; label: string; tone?: 'muted' | 'error' }) {
+export function StageDots({ status, label, tone = 'muted' }: { status: OrderStatus; label?: string; tone?: 'muted' | 'error' }) {
   return (
     <div className="flex w-[112px] shrink-0 flex-col gap-[5px]">
       <div className="flex items-center" aria-hidden>
@@ -71,7 +71,7 @@ export function StageDots({ status, label, tone = 'muted' }: { status: OrderStat
           );
         })}
       </div>
-      <span className={cn('font-wds-sans text-[11px] leading-[14px]', tone === 'error' ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{label}</span>
+      {label ? <span className={cn('font-wds-sans text-[11px] leading-[14px]', tone === 'error' ? 'text-wds-error-fg' : 'text-wds-text-secondary')}>{label}</span> : null}
     </div>
   );
 }

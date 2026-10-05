@@ -1,6 +1,5 @@
 /** Inventory service modules: the real backend, one module per area. */
 export * from '../catalog/services/inventory-api-service';
-export * from '../suppliers/legacy-payables/services/receiving-api-service';
 export * from '../prep/services/prep-api-service';
 export * from '../stock/services/stock-api-service';
 export * from '../counting/services/count-api-service';
