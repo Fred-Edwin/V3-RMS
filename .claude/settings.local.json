@@ -56,5 +56,10 @@
     "additionalDirectories": [
       "d:\\AI applications\\web\\V3-RMS\\frontend\\app\\app\\director\\branches"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "chrome-devtools",
+    "playwright",
+    "postgres"
+  ]
 }
