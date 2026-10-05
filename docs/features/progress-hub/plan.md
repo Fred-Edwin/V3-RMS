@@ -20,7 +20,7 @@ The work is split into small tasks. **Each task is one short session**: the owne
 |---|---|---|---|
 | 1 | CI path filters and where the code lives | no | Done |
 | 2 | Extract the design spec | yes | Done |
-| 3 | Export screens, Workforce chapters 5 and 6 | yes | Not started |
+| 3 | Export screens, Workforce chapters 5 and 6 | yes | Done |
 | 4 | Export screens, chapters 7 to 9 and overview images | yes | Not started |
 | 5 | Scaffold, content schema and validation | no | Not started |
 | 6 | Hub home | no | Not started |
